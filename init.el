@@ -575,8 +575,8 @@ This functions should be added to the hooks of major modes for programming."
 (add-hook 'haskell-mode-hook 'turn-on-haskell-indentation)
 (eval-after-load "haskell-mode"
   '(progn
-     (define-key haskell-mode-map (kbd "M-left") 'haskell-move-nested-left)
-     (define-key haskell-mode-map (kbd "M-right") 'haskell-move-nested-right)))
+     (define-key haskell-mode-map (kbd "M-<left>") 'haskell-move-nested-left)
+     (define-key haskell-mode-map (kbd "M-<right>") 'haskell-move-nested-right)))
 (eval-after-load "haskell-mode"
   '(define-key haskell-mode-map (kbd "C-c C-c") 'haskell-compile))
 (eval-after-load "haskell-cabal"
