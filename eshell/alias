@@ -1,0 +1,4 @@
+alias gst git status --porcelain
+alias ff find-file $1
+alias d dired
+alias gcd cd "$(git rev-parse --show-toplevel)"

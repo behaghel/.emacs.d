@@ -1,0 +1,11 @@
+eshell/history
+eshell/lastdir
+*~
+tramp
+var/
+projectile-bookmarks.eld
+url/
+auto-save-list/
+.cask/
+.mc-lists.el
+bookmarks
