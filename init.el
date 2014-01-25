@@ -22,16 +22,52 @@
 (set-face-attribute 'default nil :font "Source Code Pro-12")
 
 ;; install
-;; (require 'package)
-;; (add-to-list 'package-archives 
-;; 	     '("marmalade" . "http://marmalade-repo.org/packages/"))
-;; (add-to-list 'package-archives
-;;              '("melpa" . "http://melpa.milkbox.net/packages/"))
-;; ; required to find melpa-installed package after restart at init time
-;; (package-initialize)
-(require 'cask "~/.cask/cask.el")
-(cask-initialize)
-(require 'pallet)                       ; emacs addons mgmt using cask
+(require 'package)
+(require 'cl)
+(add-to-list 'package-archives 
+	     '("marmalade" . "http://marmalade-repo.org/packages/"))
+(add-to-list 'package-archives
+             '("melpa" . "http://melpa.milkbox.net/packages/"))
+; required to find melpa-installed package after restart at init time
+(package-initialize)
+
+(setq url-http-attempt-keepalives nil)
+
+;; git-gutter-fringe+ pending 
+;; https://github.com/nonsequitur/git-gutter-fringe-plus/issues/2
+(defvar ensure-packages
+  '(cl-lib dash diminish epl evil evil-leader evil-nerd-commenter
+       exec-path-from-shell expand-region f flycheck flycheck-haskell
+       gh gist git git-commit-mode git-rebase-mode
+       goto-chg haskell-mode logito magit
+       multiple-cursors org ox-reveal pcache pkg-info popwin
+       projectile rainbow-delimiters s smartparens solarized-theme
+       surround undo-tree yagist yasnippet)
+  "A list of packages to ensure are installed at launch.")
+
+(defun ensure-packages-package-installed-p (p)
+  (cond ((package-installed-p p) t)
+        (t nil)))
+  
+(defun ensure-packages-installed-p ()
+  (mapcar 'ensure-packages-package-installed-p ensure-packages))
+  
+(defun ensure-packages-install-missing ()
+  (interactive)
+  (unless (every 'identity (ensure-packages-installed-p))
+  ;; check for new packages (package versions)
+  (message "%s" "Emacs is now refreshing its package database...")
+  (package-refresh-contents)
+  (message "%s" " done.")
+  ;; install the missing packages
+  (dolist (p ensure-packages)
+    (when (not (package-installed-p p))
+      (package-install p)))))
+
+(ensure-packages-install-missing)
+;; (require 'cask "~/.cask/cask.el")
+;; (cask-initialize)
+;; (require 'pallet)                       ; emacs addons mgmt using cask
 
 (load-theme 'solarized-light t)
 
@@ -355,7 +391,7 @@ PWD is not in a git repo (or the git command is not found)."
 ;;     (progn
 ;;       (require 'git-gutter-fringe+))
 ;;   (require-package 'git-gutter+))
-(global-git-gutter+-mode t)
+;; (global-git-gutter+-mode t)
 (global-set-key (kbd "C-c g f") 'git-gutter+-mode) ; turn on/off git-gutter+ in the current buffer
 (eval-after-load 'git-gutter+
   '(progn
