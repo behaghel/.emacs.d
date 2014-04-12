@@ -2,26 +2,27 @@
 ;; Copyright (C) 2013 Hubert Behaghel
 ;;  
 ;;; Commentary:
-;; *** TODO move it to .emacs.d and split it into modules
+;; *** TODO: move it to .emacs.d and split it into modules
+;; *** TODO: look into https://github.com/jwiegley/use-package
+;; *** TODO: clarify key-bindings (move all of them in their own .el)
+;;           - abandon any use of C-c
+;;           - have a clear strategy when to use evil keymaps
+;;             - , == <leader>
+;;             - ,v == anything versioning
+;;             - ,g == anything to find or go to
+;;             - ,e == anything to execute
 ;; 
 ;;; Code:
 
 (setq user-mail-address "behaghel@gmail.com")
 (setq user-full-name "Hubert Behaghel")
+(toggle-debug-on-error)
 
-(setq mac-command-key-is-meta t)
-(setq mac-command-modifier 'meta)
-(setq mac-option-key-is-meta nil)
-(setq mac-option-modifier nil)
-
-;; minimal GUI
-(if (fboundp 'scroll-bar-mode) (scroll-bar-mode -1))
-(if (fboundp 'tool-bar-mode) (tool-bar-mode -1))
-(if (fboundp 'menu-bar-mode) (menu-bar-mode -1))
 ;; (set-face-attribute 'default nil :font "Droid Sans Mono-12")
 (set-face-attribute 'default nil :font "Source Code Pro-12")
 
 ;; install
+(add-to-list 'load-path "~/.emacs.d/")  ; to include my .el
 (require 'package)
 (require 'cl)
 (add-to-list 'package-archives 
@@ -33,16 +34,15 @@
 
 (setq url-http-attempt-keepalives nil)
 
-;; git-gutter-fringe+ pending 
-;; https://github.com/nonsequitur/git-gutter-fringe-plus/issues/2
-(defvar ensure-packages
-  '(cl-lib dash diminish epl evil evil-leader evil-nerd-commenter
-       exec-path-from-shell expand-region f flycheck flycheck-haskell
-       gh gist git git-commit-mode git-rebase-mode
-       goto-chg haskell-mode logito magit
-       multiple-cursors org ox-reveal pcache pkg-info popwin
-       projectile rainbow-delimiters s smartparens solarized-theme
-       surround undo-tree yagist yasnippet)
+(defvar ensure-packages '(better-defaults cl-lib dash diminish
+  epl evil evil-leader evil-nerd-commenter exec-path-from-shell
+  expand-region f flx-ido flycheck flycheck-haskell gh gist git
+  git-commit-mode git-gutter-fringe+ git-rebase-mode goto-chg
+  haskell-mode ido-at-point ido-ubiquitous ido-vertical-mode
+  logito magit multiple-cursors org ox-reveal pcache pkg-info
+  popwin projectile rainbow-delimiters s sbt-mode smartparens
+  smex solarized-theme surround undo-tree yagist yasnippet
+  zencoding-mode)
   "A list of packages to ensure are installed at launch.")
 
 (defun ensure-packages-package-installed-p (p)
@@ -65,25 +65,37 @@
       (package-install p)))))
 
 (ensure-packages-install-missing)
-;; (require 'cask "~/.cask/cask.el")
-;; (cask-initialize)
-;; (require 'pallet)                       ; emacs addons mgmt using cask
+
+(require 'better-defaults)
 
 (load-theme 'solarized-light t)
 
-;; fix for Mac OS X PATH in Emacs GUI
-(when (memq window-system '(mac ns))
-  (exec-path-from-shell-initialize))
+; Mac
+
+;; Are we on a mac? Thanks @magnars
+(setq is-mac (equal system-type 'darwin))
 
 ;; fix for Mac OS X PATH in Emacs GUI
-(when (memq window-system '(mac ns))
+(when is-mac
   (exec-path-from-shell-initialize))
+
+(setq mac-command-key-is-meta t)
+(setq mac-command-modifier 'meta)
+(setq mac-option-key-is-meta nil)
+(setq mac-option-modifier nil)
+
+;;;;;;;;;;;;
+; General Behaviour
+;;;;;;;;;;;;
 
 ;; No annoying buffer for completion, compilation, help...
 (require 'popwin)
 (popwin-mode 1)
 
-;; General Behaviour
+;; does to M-x what ido does to C-x C-f
+(require 'smex)
+(smex-initialize)
+
 (setq tab-always-indent 'complete)      ; tab try to indent, if indented complete
 (setq mode-require-final-newline nil)   ; don't add new line at EOF on save
 ;; General Keybindings
@@ -93,12 +105,83 @@
 (autoload 'er/expand-region "expand-region" "expand-region.el" t)
 (global-set-key (kbd "M-r") 'er/expand-region)
 
+;; stolen from https://github.com/magnars/.emacs.d/blob/master/key-bindings.el
+;; Transpose stuff with M-t
+(global-unset-key (kbd "M-t")) ;; which used to be transpose-words
+(global-set-key (kbd "M-t l") 'transpose-lines)
+(global-set-key (kbd "M-t w") 'transpose-words)
+(global-set-key (kbd "M-t s") 'transpose-sexps)
+(global-set-key (kbd "M-t p") 'transpose-params)
+
+(require 'smartparens-config)
+(smartparens-global-mode t)
+
+;; Transpose
+;; stolen from @magnars
+(global-set-key (kbd "C-<right>") 'sp-forward-slurp-sexp)
+(global-set-key (kbd "C-<left>") 'sp-forward-barf-sexp)
+(global-set-key (kbd "C-S-<left>") 'sp-backward-slurp-sexp)
+(global-set-key (kbd "C-S-<right>") 'sp-backward-barf-sexp)
+
+(defun transpose-params ()
+  "Presumes that params are in the form (p, p, p) or {p, p, p} or [p, p, p]"
+  (interactive)
+  (let* ((end-of-first (cond
+                        ((looking-at ", ") (point))
+                        ((and (looking-back ",") (looking-at " ")) (- (point) 1))
+                        ((looking-back ", ") (- (point) 2))
+                        (t (error "Place point between params to transpose."))))
+         (start-of-first (save-excursion
+                           (goto-char end-of-first)
+                           (move-backward-out-of-param)
+                           (point)))
+         (start-of-last (+ end-of-first 2))
+         (end-of-last (save-excursion
+                        (goto-char start-of-last)
+                        (move-forward-out-of-param)
+                        (point))))
+    (transpose-regions start-of-first end-of-first start-of-last end-of-last)))
+
+(defun move-forward-out-of-param ()
+  (while (not (looking-at ")\\|, \\| ?}\\| ?\\]"))
+    (cond
+     ((point-is-in-string-p) (move-point-forward-out-of-string))
+     ((looking-at "(\\|{\\|\\[") (forward-list))
+     (t (forward-char)))))
+
+(defun move-backward-out-of-param ()
+  (while (not (looking-back "(\\|, \\|{ ?\\|\\[ ?"))
+    (cond
+     ((point-is-in-string-p) (move-point-backward-out-of-string))
+     ((looking-back ")\\|}\\|\\]") (backward-list))
+     (t (backward-char)))))
+
+(defun current-quotes-char ()
+  (nth 3 (syntax-ppss)))
+
+(defalias 'point-is-in-string-p 'current-quotes-char)
+
+(defun move-point-forward-out-of-string ()
+  (while (point-is-in-string-p) (forward-char)))
+
+(defun move-point-backward-out-of-string ()
+  (while (point-is-in-string-p) (backward-char)))
+
 ;;; ido
-(require 'ido)
-(setq ido-enable-flex-matching t)
-(setq ido-everywhere t)
-(ido-mode t)
 (setq ido-create-new-buffer 'always)
+(require 'flx-ido)
+(flx-ido-mode t)
+;; disable ido highlights to see ido-flx ones
+(setq ido-use-faces nil)
+(setq ido-everywhere t)
+(require 'ido-vertical-mode)
+(ido-vertical-mode t)
+(ido-everywhere t)
+;; I mean really everywhere, don't be shy
+(require 'ido-ubiquitous)
+(ido-ubiquitous-mode 1)
+(require 'ido-at-point)
+(ido-at-point-mode)
 
 ;;; Dired
 (require 'dired-x)
@@ -106,10 +189,15 @@
 ;;; Yasnippet
 ;(yas-global-mode 1)
 
+;; Ediff
+(setq ediff-diff-options "-w")
+(setq ediff-split-window-function 'split-window-horizontally)
+(setq ediff-window-setup-function 'ediff-setup-windows-plain)
+
 ;;; auto-insert-mode (template filling at file creation time)
 (add-hook 'find-file-hook 'auto-insert)
 (setq auto-insert-directory "~/.emacs.d/insert/")
-;; TODO create template for .org
+;; TODO: create template for .org
 ;; you can use yasnippet to expand it
 ;; see: http://www.emacswiki.org/emacs/AutoInsertMode
 ;; the standard emacs way use skeleton
@@ -126,7 +214,8 @@
 (setq org-hide-leading-stars t)
 (setq org-startup-indented t)
 (setq org-return-follows-link t)
-(setq org-reveal-root (getenv "REVEAL_JS_ROOT_URL"))
+(setq org-src-fontify-natively t)
+;; (setq org-reveal-root (getenv "REVEAL_JS_ROOT_URL"))
 ;; (require 'org-install)
 ;; (require 'org-habit)
 (autoload 'google-contacts "google-contacts" "Google Contacts." t)
@@ -143,7 +232,23 @@
 C-x b RET. The buffer selected is the one returned by (other-buffer)."
 	(interactive)
 	(switch-to-buffer (other-buffer)))
-
+(defun hub/switch-dwim ()
+  "Switch to the previously visited windows if multiple windows
+  are visible else switch to other buffer."
+  (interactive)
+  (if (one-window-p t 'visible) (evil-buffer)
+    (evil-window-mru)))
+(defun hub/copy-buffer-file-name ()
+  "Put the current file name on the clipboard"
+  (interactive)
+  (let ((filename (if (equal major-mode 'dired-mode)
+                      default-directory
+                    (buffer-file-name))))
+    (when filename
+      (with-temp-buffer
+        (insert filename)
+        (clipboard-kill-region (point-min) (point-max)))
+      (message filename))))
 ;;; EVIL
 (require 'evil)
 (evil-mode 1)
@@ -209,28 +314,47 @@ C-x b RET. The buffer selected is the one returned by (other-buffer)."
 (define-key evil-normal-state-map (kbd "H") 'evil-find-char-to-backward)
 (define-key evil-normal-state-map (kbd "k") 'evil-substitute)
 (define-key evil-normal-state-map (kbd "K") 'evil-change-whole-line)
+
 ;;;; Other mapping
 (define-key evil-normal-state-map (kbd "C-e") 'evil-end-of-line)
 (define-key evil-insert-state-map (kbd "C-e") 'end-of-line)
 (define-key evil-insert-state-map (kbd "C-y") 'yank)
 (define-key evil-insert-state-map (kbd "M-y") 'yank-pop)
-(define-key evil-normal-state-map (kbd ",,") 'hub/switch-to-other-buffer)
+(define-key evil-normal-state-map (kbd ",y") 'hub/copy-buffer-file-name)
+(define-key evil-normal-state-map (kbd ",x") 'smex)
+(define-key evil-normal-state-map (kbd ",,") 'hub/switch-dwim)
+(define-key evil-normal-state-map (kbd ",go") 'hub/switch-to-other-buffer)
 ;; Switch to another open buffer
-(define-key evil-normal-state-map (kbd ",b") 'switch-to-buffer)
+(define-key evil-normal-state-map (kbd ",gb") 'switch-to-buffer)
 ;; Open file
-(define-key evil-normal-state-map (kbd ",e") 'ido-find-file)
+(define-key evil-normal-state-map (kbd ",gf") 'ido-find-file)
 ;; Browse URL
-(define-key evil-normal-state-map (kbd ",u") 'browse-url)
+(define-key evil-normal-state-map (kbd ",gu") 'browse-url)
+; open init.el
+(define-key evil-normal-state-map (kbd ",ge") (lambda()(interactive)(find-file "~/.emacs.d/init.el")))
+; open hubert.org
+(define-key evil-normal-state-map (kbd ",go") (lambda()(interactive)(find-file "~/Documents/org/hubert.org")))
+;; open file in project
+(define-key evil-normal-state-map (kbd ",pf") 'projectile-find-file)
+
 ;; Git tools
 ;; REQUIRES Magit
-(define-key evil-normal-state-map (kbd ",gs") 'magit-status) ;; git control panel
-(define-key evil-normal-state-map (kbd ",gh") 'magit-file-log) ; Commit history for current file
-(define-key evil-normal-state-map (kbd ",gb") 'magit-blame-mode) ; Blame for current file
-(define-key evil-normal-state-map (kbd ",gg") 'vc-git-grep) ; Git grep
+(define-key evil-normal-state-map (kbd ",vs") 'magit-status) ;; git control panel
+(define-key evil-normal-state-map (kbd ",vh") 'magit-file-log) ; Commit history for current file
+(define-key evil-normal-state-map (kbd ",vb") 'magit-blame-mode) ; Blame for current file
+(define-key evil-normal-state-map (kbd ",vg") 'vc-git-grep) ; Git grep
+;; errors and compilation
+(define-key evil-normal-state-map (kbd "]c") 'next-error)
+(define-key evil-normal-state-map (kbd "[c") 'previous-error)
+(define-key evil-normal-state-map (kbd ",cc") 'compile)
+(define-key evil-normal-state-map (kbd ",cr") 'recompile)
+(define-key evil-normal-state-map (kbd ",ck") 'kill-compilation)
+;; evil is crazy
+(define-key evil-insert-state-map (kbd "C-d") nil)
 ;;;; Default state
 (evil-set-initial-state 'help-mode 'emacs)
 (evil-set-initial-state 'dired-mode 'emacs)
-(evil-set-initial-state 'info 'emacs)
+(evil-set-initial-state 'Info 'emacs)
 (evil-set-initial-state 'ensime-scalex-mode 'emacs)
 (evil-set-initial-state 'erc-mode 'emacs)
 
@@ -326,14 +450,15 @@ PWD is not in a git repo (or the git command is not found)."
                                           p-lst
                                           "/")))
                            (split-string
-                            (pwd-repl-home (eshell/pwd)) "/")) 'face '(:foreground "Red" :bold t))
+                            (pwd-repl-home (eshell/pwd)) "/")) 'face '(:foreground "Red"))
               (curr-dir-git-branch-string (eshell/pwd))
               (propertize " % " 'face 'default))))
      ;; don't enforce theme colors since it will make the prompt monochrome
      ;; there is only one face for the whole prompt.
      (setq eshell-highlight-prompt nil)
      ;; end of stealing
-     ))
+     
+     (require 'eshell-autojump)))
 
 ;;; TRAMP
 (setq tramp-default-method "ssh")
@@ -387,11 +512,11 @@ PWD is not in a git repo (or the git command is not found)."
 ;; (global-set-key (kbd "C-c g c") 'mo-git-blame-current)
 ;; (global-set-key (kbd "C-c g f") 'mo-git-blame-file)
 ;; git-gutter
-;; (if (display-graphic-p)
-;;     (progn
-;;       (require 'git-gutter-fringe+))
-;;   (require-package 'git-gutter+))
-;; (global-git-gutter+-mode t)
+(if (display-graphic-p)
+    (progn
+      (require 'git-gutter-fringe+))
+  (require-package 'git-gutter+))
+(global-git-gutter+-mode t)
 (global-set-key (kbd "C-c g f") 'git-gutter+-mode) ; turn on/off git-gutter+ in the current buffer
 (eval-after-load 'git-gutter+
   '(progn
@@ -409,11 +534,11 @@ PWD is not in a git repo (or the git command is not found)."
      (define-key git-gutter+-mode-map (kbd "C-c f C") 'git-gutter+-stage-and-commit)))
 
 ;; multiple-cursors (deactivated as it's incompatible with Evil)
-;; (require 'multiple-cursors)
-;; (global-set-key (kbd "<M-C-down>") 'mc/mark-next-like-this)
-;; (global-set-key (kbd "<M-C-up>") 'mc/mark-previous-like-this)
-;; (global-set-key (kbd "C-c m @") 'mc/edit-lines)
-;; (global-set-key (kbd "C-c m a") 'mc/mark-all-like-this-dwim)
+(require 'multiple-cursors)
+(global-set-key (kbd "<M-C-down>") 'mc/mark-next-like-this)
+(global-set-key (kbd "<M-C-up>") 'mc/mark-previous-like-this)
+(global-set-key (kbd "C-c m @") 'mc/edit-lines)
+(global-set-key (kbd "C-c m a") 'mc/mark-all-like-this-dwim)
 
 ;; Editing text
 (add-hook 'text-mode-hook 'turn-on-auto-fill) ; auto-wrap
@@ -464,6 +589,9 @@ when it inserts comment at the end of the line."
 (eval-after-load 'yasnippet '(diminish 'yas-minor-mode))
 (eval-after-load 'undo-tree '(diminish 'undo-tree-mode))
 (eval-after-load 'projectile '(diminish 'projectile-mode))
+(eval-after-load 'whitespace '(diminish 'whitespace-mode))
+(eval-after-load 'auto-fill-mode '(diminish 'auto-fill-function))
+(eval-after-load 'git-gutter+ '(diminish 'git-gutter+-mode))
 ;; Syntax
 ;;; stolen here: http://emacsredux.com/blog/2013/07/24/highlight-comment-annotations/
 (defun font-lock-comment-annotations ()
@@ -471,16 +599,18 @@ when it inserts comment at the end of the line."
 
 This functions should be added to the hooks of major modes for programming."
   (font-lock-add-keywords
-   nil '(("\\<\\(FIX\\(ME\\)?\\|TODO\\|OPTIMIZE\\|XXX\\|HACK\\|REFACTOR\\):"
-          1 font-lock-warning-face t))))
-
+   nil '(("\\<XXX\\>" 0 'font-lock-warning-face t)
+         ("\\<\\(FIX\\(ME\\)?\\|TODO\\|OPTIMIZE\\|HACK\\|REFACTOR\\):"
+          1 'font-lock-warning-face t))))
+;; XXX
 (add-hook 'prog-mode-hook 'font-lock-comment-annotations)
 
 ;; Modes
-(show-paren-mode 1)                     ; highlight matching brackets
+;; (show-paren-mode 1)                     ; highlight matching brackets
 (setq-default indent-tabs-mode nil)     ; no tabs, only spaces
 (setq comment-auto-fill-only-comments t) ; auto-fill comments and only them
 (column-number-mode 1)               ; show column number in mode line
+(projectile-global-mode)
 ;; (global-linum-mode t) ; always show line numbers
 (autoload 'projectile-on "projectile" "Project awareness in Emacs." t)
 (add-hook 'prog-mode-hook
@@ -488,7 +618,7 @@ This functions should be added to the hooks of major modes for programming."
                             (flycheck-mode)
                             (subword-mode) ; camelcase moves
                             ;; (load-theme-buffer-local 'solarized-dark (current-buffer) t)
-                            (projectile-on) ; project awareness
+                            ;; (projectile-on) ; project awareness
                             (turn-on-auto-fill)
                             )))
 (setq linum-format " %3d ")    ; remove graphical glitches with fringe
@@ -509,13 +639,29 @@ This functions should be added to the hooks of major modes for programming."
   (whitespace-mode)
 )
 
+;; sbt
+(add-hook 'sbt-mode-hook '(lambda ()
+                            ;; compilation-skip-threshold tells the compilation minor-mode
+                            ;; which type of compiler output can be skipped. 1 = skip info
+                            ;; 2 = skip info and warnings.
+                            (setq compilation-skip-threshold 1)
+
+                            ;; Bind C-a to 'comint-bol when in sbt-mode. This will move the
+                            ;; cursor to just after prompt.
+                            (local-set-key (kbd "C-a") 'comint-bol)
+
+                            ;; Bind M-RET to 'comint-accumulate. This will allow you to add
+                            ;; more than one line to scala console prompt before sending it
+                            ;; for interpretation. It will keep your command history cleaner.
+                            (local-set-key (kbd "S-RET") 'comint-accumulate) 
+                            ))
 ; scala
 (add-to-list 'load-path (getenv "SCALA_MODE2_ROOT"))
 (autoload 'scala-mode "scala-mode2")
 (add-to-list 'auto-mode-alist '("\\.scala$" . scala-mode))
-(add-to-list 'load-path (format "%s/%s" (getenv "ENSIME_ROOT") "elisp/"))
+(add-to-list 'load-path (getenv "ENSIME_ROOT"))
 
-;; TODO fixme. Goal when I call align-current in a scala file it
+;; TODO: fixme. Goal when I call align-current in a scala file it
 ;; magically align on => and <-
 (add-hook 'align-load-hook (lambda ()
                              (add-to-list 'align-rules-list
@@ -531,7 +677,7 @@ This functions should be added to the hooks of major modes for programming."
   (ensime-inf-switch))
 (defun hub/ensime-setup ()
   "ENSIME tweaking."
-  (local-set-key (kbd "C-c C-v Z") 'hub/ensime-inf-reload))
+  (local-set-key (kbd "C-c C-l") 'hub/ensime-inf-reload))
 (defun hub/scala-ret ()
   "dwim with RET even inside multiline comments."
   (interactive)
@@ -540,19 +686,57 @@ This functions should be added to the hooks of major modes for programming."
 (defun hub/scala-config ()
   "Config scala-mode to my liking and start ensime."
   (setq
-   scala-indent:use-javadoc-style t
+   scala-indent:use-javadoc-style nil
    scala-indent:align-forms t
    scala-indent:align-parameters t
    scala-indent:default-run-on-strategy 1)
   (hub/anti-useless-whitespace)
   ;; is buggy with scala-mode2
-  ;; FIXME, doesn't look like I'm useful...
+  ;; FIXME: doesn't look like I'm useful...
   ;; (make-local-variable 'comment-style)
   ;; (setq comment-style 'multi-line)
+  ;; scala-mode doesn't work well (yet) with auto-fill
+  ;; use M-q to wrap and indent long comments
+  (turn-off-auto-fill)
   (require 'ensime)
   (add-hook 'ensime-source-buffer-loaded-hook 'hub/ensime-setup)
   (ensime-scala-mode-hook)
   (local-set-key (kbd "RET") 'hub/scala-ret))
+(evil-define-key 'normal scala-mode-map ",s." 'sbt-find-definitions)
+(evil-define-key 'normal scala-mode-map ",sa" 'sbt-run-previous-command)
+(evil-define-key 'normal scala-mode-map ",sc" 'sbt-command)
+(evil-define-key 'normal scala-mode-map ",s/" 'sbt-grep)
+(evil-define-key 'normal scala-mode-map ",sr" 'sbt-find-usages)
+(evil-define-key 'visual scala-mode-map ",sl" 'sbt-send-region)
+(evil-define-key 'normal scala-mode-map (kbd "M-.") 'ensime-edit-definition)
+(evil-define-key 'normal scala-mode-map ",e." 'ensime-edit-definition)
+(evil-define-key 'normal scala-mode-map ",ei" 'ensime-inspect-type-at-point)
+(evil-define-key 'normal scala-mode-map ",ee" 'ensime-show-all-errors-and-warnings)
+(evil-define-key 'normal scala-mode-map ",ef" 'ensime-format-source)
+(evil-define-key 'normal scala-mode-map ",e/" 'ensime-search)
+(evil-define-key 'normal scala-mode-map ",ex" 'ensime-scalex)
+(evil-define-key 'normal scala-mode-map ",er" 'ensime-expand-selection)
+(evil-define-key 'normal scala-mode-map ",eh" 'ensime-show-doc-for-symbol-at-point)
+(evil-define-key 'normal scala-mode-map ",eb" 'ensime-builder-rebuild)
+(evil-define-key 'normal scala-mode-map ",eB" 'ensime-builder-build)
+;; { + Return => create a block and put the cursor on its own line 
+(sp-local-pair 'scala-mode "{" nil :post-handlers '(("||\n[i]" "RET")))
+
+;; TODO: make a smart "go to definition" where you can configure the
+;; list of functions to try in order.
+;;
+;; For Scala the logic would be:
+;; If connected to ensime, use ensime-search,
+;;
+;;if not or if
+;; unsuccessful, if a tag table is created use it, 
+;; (defun scala-smart-gd () (
+;;   (interactive)
+;;   (let ((smart-gd-try-functions-list '(ensime-search
+;; tag-find-symbol-at-point-if-tag-table sbt-grep evil-goto-definition))))
+;;     (smart-gd)
+;;   ))
+;; (evil-define-key 'normal scala-mode-map ",gd" 'scala-smart-gd)
 
 (add-hook 'scala-mode-hook 'hub/scala-config)
 
@@ -564,6 +748,7 @@ This functions should be added to the hooks of major modes for programming."
   (turn-on-eldoc-mode))
 (add-hook 'emacs-lisp-mode-hook 'hub/emacs-lisp-config)
 (require 'jka-compr) ; find-tag to be able to find .el.gz 
+(evil-define-key 'normal lisp-mode-shared-map ",." 'find-function)
 
 ;; Smalltalk
 (add-to-list 'auto-mode-alist '("\\.st$" . shampoo-code-mode))
@@ -571,7 +756,8 @@ This functions should be added to the hooks of major modes for programming."
 (autoload 'shampoo-code-mode "shampoo-modes")
 
 ;; Haskell
-(add-hook 'haskell-mode-hook 'turn-on-haskell-unicode-input-method)
+;; unicode input doesn't work with eg >= (Not in scope: ≥): disabled
+;; (add-hook 'haskell-mode-hook 'turn-on-haskell-unicode-input-method)
 (add-hook 'haskell-mode-hook 'turn-on-haskell-indentation)
 (eval-after-load "haskell-mode"
   '(progn
@@ -582,6 +768,12 @@ This functions should be added to the hooks of major modes for programming."
 (eval-after-load "haskell-cabal"
   '(define-key haskell-cabal-mode-map (kbd "C-c C-c") 'haskell-compile))
 
+;; Web: HTML/CSS/JS
+(add-hook 'sgml-mode-hook 'zencoding-mode) ;; Auto-start on any markup modes
+(add-hook 'sgml-mode-hook (lambda () (progn (linum-mode 1)))) 
+;; after deleting a tag, indent properly
+(defadvice sgml-delete-tag (after reindent activate)
+  (indent-region (point-min) (point-max)))
 
 ; tweaking to get my proper setup
 ; OSX

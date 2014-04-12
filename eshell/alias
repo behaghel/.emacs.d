@@ -1,4 +1,6 @@
-alias gst git status --porcelain
-alias ff find-file $1
-alias d dired
+alias ffo find-file-other-window $1
 alias gcd cd "$(git rev-parse --show-toplevel)"
+alias d dired
+alias ff find-file $1
+alias gst git status --porcelain
+alias j eshell/j $*
