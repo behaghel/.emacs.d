@@ -9,8 +9,10 @@
 ;;           - have a clear strategy when to use evil keymaps
 ;;             - , == <leader>
 ;;             - ,v == anything versioning
-;;             - ,g == anything to find or go to
-;;             - ,e == anything to execute
+;;             - ,o == open
+;;             - ,g == anything find or go to
+;;             - ,e == anything execute
+;;             - ,h == anything help
 ;; 
 ;;; Code:
 
@@ -22,7 +24,8 @@
 (set-face-attribute 'default nil :font "Source Code Pro-12")
 
 ;; install
-(add-to-list 'load-path "~/.emacs.d/")  ; to include my .el
+(setq hub-lisp-dir (expand-file-name "lisp" user-emacs-directory))
+(add-to-list 'load-path hub-lisp-dir)  ; to include my .el
 (require 'package)
 (require 'cl)
 (add-to-list 'package-archives 
@@ -34,15 +37,16 @@
 
 (setq url-http-attempt-keepalives nil)
 
-(defvar ensure-packages '(better-defaults cl-lib dash diminish
-  epl evil evil-leader evil-nerd-commenter exec-path-from-shell
-  expand-region f flx-ido flycheck flycheck-haskell gh gist git
-  git-commit-mode git-gutter-fringe+ git-rebase-mode goto-chg
-  haskell-mode ido-at-point ido-ubiquitous ido-vertical-mode
-  logito magit multiple-cursors org ox-reveal pcache pkg-info
-  popwin projectile rainbow-delimiters s sbt-mode smartparens
-  smex solarized-theme surround undo-tree yagist yasnippet
-  zencoding-mode)
+(defvar ensure-packages '(auto-complete better-defaults cl-lib
+  dash dash-at-point diminish epl evil evil-leader
+  evil-nerd-commenter exec-path-from-shell expand-region f
+  flx-ido flycheck flycheck-haskell gh gist git git-commit-mode
+  git-gutter-fringe+ git-rebase-mode goto-chg haskell-mode
+  ido-at-point ido-ubiquitous ido-vertical-mode inf-ruby logito
+  magit multiple-cursors org org-ac ox-reveal pcache pkg-info
+  popwin projectile rainbow-delimiters robe ruby-end s sbt-mode
+  smartparens smex solarized-theme surround undo-tree yagist
+  yasnippet zencoding-mode)
   "A list of packages to ensure are installed at launch.")
 
 (defun ensure-packages-package-installed-p (p)
@@ -215,9 +219,11 @@
 (setq org-startup-indented t)
 (setq org-return-follows-link t)
 (setq org-src-fontify-natively t)
-;; (setq org-reveal-root (getenv "REVEAL_JS_ROOT_URL"))
+(setq org-reveal-root (getenv "REVEAL_JS_ROOT_URL"))
 ;; (require 'org-install)
 ;; (require 'org-habit)
+(require 'org-ac)
+(org-ac/config-default)
 (autoload 'google-contacts "google-contacts" "Google Contacts." t)
 (add-hook 'org-mode 'auto-fill-mode)
 
@@ -322,18 +328,25 @@ C-x b RET. The buffer selected is the one returned by (other-buffer)."
 (define-key evil-insert-state-map (kbd "M-y") 'yank-pop)
 (define-key evil-normal-state-map (kbd ",y") 'hub/copy-buffer-file-name)
 (define-key evil-normal-state-map (kbd ",x") 'smex)
+(define-key evil-normal-state-map (kbd ",s") 'eshell)
 (define-key evil-normal-state-map (kbd ",,") 'hub/switch-dwim)
-(define-key evil-normal-state-map (kbd ",go") 'hub/switch-to-other-buffer)
-;; Switch to another open buffer
+(define-key key-translation-map (kbd "è") (kbd "C-x"))
+(define-key key-translation-map (kbd "È") (kbd "C-u"))
+
+;; you want to *g*o somewhere
+(define-key evil-normal-state-map (kbd ",gg") 'hub/switch-to-other-buffer)
+;;; Switch to another open buffer
 (define-key evil-normal-state-map (kbd ",gb") 'switch-to-buffer)
-;; Open file
-(define-key evil-normal-state-map (kbd ",gf") 'ido-find-file)
+;; you want to *o*pen something
+;;; Open file
+(define-key evil-normal-state-map (kbd ",of") 'ido-find-file)
 ;; Browse URL
-(define-key evil-normal-state-map (kbd ",gu") 'browse-url)
+(define-key evil-normal-state-map (kbd ",ou") 'browse-url)
 ; open init.el
-(define-key evil-normal-state-map (kbd ",ge") (lambda()(interactive)(find-file "~/.emacs.d/init.el")))
+(define-key evil-normal-state-map (kbd ",oe") (lambda()(interactive)(find-file "~/.emacs.d/init.el")))
 ; open hubert.org
-(define-key evil-normal-state-map (kbd ",go") (lambda()(interactive)(find-file "~/Documents/org/hubert.org")))
+(define-key evil-normal-state-map (kbd ",oh") (lambda()(interactive)(find-file "~/Documents/org/hubert.org")))
+(define-key evil-normal-state-map (kbd ",os") (lambda()(interactive)(find-file "~/Documents/org/sas.org")))
 ;; open file in project
 (define-key evil-normal-state-map (kbd ",pf") 'projectile-find-file)
 
@@ -343,7 +356,7 @@ C-x b RET. The buffer selected is the one returned by (other-buffer)."
 (define-key evil-normal-state-map (kbd ",vh") 'magit-file-log) ; Commit history for current file
 (define-key evil-normal-state-map (kbd ",vb") 'magit-blame-mode) ; Blame for current file
 (define-key evil-normal-state-map (kbd ",vg") 'vc-git-grep) ; Git grep
-;; errors and compilation
+;; errors and *c*ompilation
 (define-key evil-normal-state-map (kbd "]c") 'next-error)
 (define-key evil-normal-state-map (kbd "[c") 'previous-error)
 (define-key evil-normal-state-map (kbd ",cc") 'compile)
@@ -351,6 +364,7 @@ C-x b RET. The buffer selected is the one returned by (other-buffer)."
 (define-key evil-normal-state-map (kbd ",ck") 'kill-compilation)
 ;; evil is crazy
 (define-key evil-insert-state-map (kbd "C-d") nil)
+(define-key evil-normal-state-map (kbd "M-.") nil)
 ;;;; Default state
 (evil-set-initial-state 'help-mode 'emacs)
 (evil-set-initial-state 'dired-mode 'emacs)
@@ -612,6 +626,13 @@ This functions should be added to the hooks of major modes for programming."
 (column-number-mode 1)               ; show column number in mode line
 (projectile-global-mode)
 ;; (global-linum-mode t) ; always show line numbers
+
+;; auto-complete
+(autoload 'auto-complete-mode "auto-complete" nil t)
+;; (add-to-list 'ac-dictionary-directories "~/.emacs.d/dict")
+(require 'auto-complete-config)
+(ac-config-default)
+
 (autoload 'projectile-on "projectile" "Project awareness in Emacs." t)
 (add-hook 'prog-mode-hook
           (lambda () (progn (linum-mode 1) ; all code buffers with linum
@@ -622,6 +643,12 @@ This functions should be added to the hooks of major modes for programming."
                             (turn-on-auto-fill)
                             )))
 (setq linum-format " %3d ")    ; remove graphical glitches with fringe
+
+;; dash: API Documentation Browser for MacOSX
+(autoload 'dash-at-point "dash-at-point"
+  "Search the word at point with Dash." t nil)
+(define-key evil-normal-state-map (kbd ",hD") 'dash-at-point)
+(define-key evil-normal-state-map (kbd ",hd") 'dash-at-point-with-docset)
 
 ;; languages
 ; anti useless whitespace
@@ -655,8 +682,13 @@ This functions should be added to the hooks of major modes for programming."
                             ;; for interpretation. It will keep your command history cleaner.
                             (local-set-key (kbd "S-RET") 'comint-accumulate) 
                             ))
+(setq sbt:ansi-support t)
+;; default (sbt) is not enough to get ANSI colors as sbt infers that
+;; it's not supported. Forcing colors in sbt output.
+(setq sbt:program-name "sbt -Dspecs2.color=true -Dsbt.log.format=true")
+
 ; scala
-(add-to-list 'load-path (getenv "SCALA_MODE2_ROOT"))
+;; (add-to-list 'load-path (getenv "SCALA_MODE2_ROOT"))
 (autoload 'scala-mode "scala-mode2")
 (add-to-list 'auto-mode-alist '("\\.scala$" . scala-mode))
 (add-to-list 'load-path (getenv "ENSIME_ROOT"))
@@ -699,6 +731,7 @@ This functions should be added to the hooks of major modes for programming."
   ;; use M-q to wrap and indent long comments
   (turn-off-auto-fill)
   (require 'ensime)
+  (setq ensime-ac-enable-argument-placeholders nil)
   (add-hook 'ensime-source-buffer-loaded-hook 'hub/ensime-setup)
   (ensime-scala-mode-hook)
   (local-set-key (kbd "RET") 'hub/scala-ret))
@@ -711,12 +744,12 @@ This functions should be added to the hooks of major modes for programming."
 (evil-define-key 'normal scala-mode-map (kbd "M-.") 'ensime-edit-definition)
 (evil-define-key 'normal scala-mode-map ",e." 'ensime-edit-definition)
 (evil-define-key 'normal scala-mode-map ",ei" 'ensime-inspect-type-at-point)
-(evil-define-key 'normal scala-mode-map ",ee" 'ensime-show-all-errors-and-warnings)
+(evil-define-key 'normal scala-mode-map ",eq" 'ensime-show-all-errors-and-warnings) ; q -> quickfix
 (evil-define-key 'normal scala-mode-map ",ef" 'ensime-format-source)
 (evil-define-key 'normal scala-mode-map ",e/" 'ensime-search)
 (evil-define-key 'normal scala-mode-map ",ex" 'ensime-scalex)
 (evil-define-key 'normal scala-mode-map ",er" 'ensime-expand-selection)
-(evil-define-key 'normal scala-mode-map ",eh" 'ensime-show-doc-for-symbol-at-point)
+(evil-define-key 'normal scala-mode-map ",hh" 'ensime-show-doc-for-symbol-at-point)
 (evil-define-key 'normal scala-mode-map ",eb" 'ensime-builder-rebuild)
 (evil-define-key 'normal scala-mode-map ",eB" 'ensime-builder-build)
 ;; { + Return => create a block and put the cursor on its own line 
@@ -768,6 +801,41 @@ This functions should be added to the hooks of major modes for programming."
 (eval-after-load "haskell-cabal"
   '(define-key haskell-cabal-mode-map (kbd "C-c C-c") 'haskell-compile))
 
+;; Ruby
+(add-hook 'inf-ruby-mode-hook '(lambda ()
+                           ;; turn off the annoying input echo in irb
+                           (setq comint-process-echoes t)
+                           ))
+;; stolen from https://github.com/rejeep/ruby-tools.el/blob/master/ruby-tools.el
+(defun ruby-tools-looking-around (back at)
+  "Check if looking backwards at BACK and forward at AT."
+  (and (looking-at-p at) (looking-back back)))
+(defun ruby-tools-interpolate ()
+  "Interpolate with #{} in some places."
+  (interactive)
+  (if (and mark-active (equal (point) (region-end)))
+      (exchange-point-and-mark))
+  (insert "#")
+  (when (or
+         (ruby-tools-looking-around "\"[^\"\n]*" "[^\"\n]*\"")
+         (ruby-tools-looking-around "`[^`\n]*"   "[^`\n]*`")
+         (ruby-tools-looking-around "%([^(\n]*"  "[^)\n]*)"))
+    (cond (mark-active
+           (goto-char (region-beginning))
+           (insert "{")
+           (goto-char (region-end))
+           (insert "}"))
+          (t
+           (insert "{}")
+           (forward-char -1)))))
+(defun hub-ruby-config ()
+  "my Ruby config"
+  (local-set-key (kbd "#") 'ruby-tools-interpolate)
+  (hub/set-newline-and-indent-comment)
+  ;; fix indenting with Evil
+  (setq evil-shift-width ruby-indent-level))
+(add-hook 'ruby-mode-hook 'hub-ruby-config)
+(add-hook 'ruby-mode-hook 'robe-mode)
 ;; Web: HTML/CSS/JS
 (add-hook 'sgml-mode-hook 'zencoding-mode) ;; Auto-start on any markup modes
 (add-hook 'sgml-mode-hook (lambda () (progn (linum-mode 1)))) 

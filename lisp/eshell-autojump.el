@@ -72,13 +72,13 @@ after not being used in a hundred sessions."
 	  'eshell-autojump-record)
 
 (defun eshell-autojump-record ()
-  "Record the current directory.
-`curdir' is set by `eshell/cd'."
+  "Record the current directory."
   (unless eshell-autojump-map
     (eshell-autojump-load))
-  (if (gethash curdir eshell-autojump-map)
-      (puthash curdir (1+ (gethash curdir eshell-autojump-map)) eshell-autojump-map)
-    (puthash curdir 1 eshell-autojump-map)))
+  (let ((curdir (eshell/pwd)))
+    (if (gethash curdir eshell-autojump-map)
+        (puthash curdir (1+ (gethash curdir eshell-autojump-map)) eshell-autojump-map)
+      (puthash curdir 1 eshell-autojump-map))))
 
 (defun eshell-autojump-candidates ()
   "Return the most popular directories.

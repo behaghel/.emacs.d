@@ -12,3 +12,5 @@ auto-save-list/
 .cask/
 .mc-lists.el
 bookmarks
+/ac-comphist.dat
+/ido.last
