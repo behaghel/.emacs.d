@@ -1,0 +1,11 @@
+#+TITLE: $1
+#+AUTHOR: `(progn user-full-name)`
+#+EMAIL: `(progn user-mail-address)`
+#+LANGUAGE: en
+#+OPTIONS: H:4 toc:3 toc:nil reveal_mathjax:nil num:nil ^:{} 
+#+REVEAL_TRANS: default
+#+REVEAL_THEME: solarized
+#+REVEAL_HLEVEL: 1
+#+COLUMNS: %25ITEM %TAGS %PRIORITY %TODO
+
+* $0

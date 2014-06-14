@@ -1,4 +1,4 @@
-;;; emacs --- Hubert's .emacs file
+;;; emacs --- Hubert's .emacs file         -*- lexical-binding: t -*-
 ;; Copyright (C) 2013 Hubert Behaghel
 ;;  
 ;;; Commentary:
@@ -28,8 +28,8 @@
 (add-to-list 'load-path hub-lisp-dir)  ; to include my .el
 (require 'package)
 (require 'cl)
-(add-to-list 'package-archives 
-	     '("marmalade" . "http://marmalade-repo.org/packages/"))
+;; (add-to-list 'package-archives 
+;; 	     '("marmalade" . "http://marmalade-repo.org/packages/"))
 (add-to-list 'package-archives
              '("melpa" . "http://melpa.milkbox.net/packages/"))
 ; required to find melpa-installed package after restart at init time
@@ -46,7 +46,7 @@
   magit multiple-cursors org org-ac ox-reveal pcache pkg-info
   popwin projectile rainbow-delimiters robe ruby-end s sbt-mode
   smartparens smex solarized-theme surround undo-tree yagist
-  yasnippet zencoding-mode)
+  yasnippet zenburn-theme zencoding-mode)
   "A list of packages to ensure are installed at launch.")
 
 (defun ensure-packages-package-installed-p (p)
@@ -72,7 +72,7 @@
 
 (require 'better-defaults)
 
-(load-theme 'solarized-light t)
+(load-theme 'zenburn t)
 
 ; Mac
 
@@ -128,7 +128,7 @@
 (global-set-key (kbd "C-S-<right>") 'sp-backward-barf-sexp)
 
 (defun transpose-params ()
-  "Presumes that params are in the form (p, p, p) or {p, p, p} or [p, p, p]"
+  "Presumes that params are in the form (p, p, p) or {p, p, p} or [p, p, p]."
   (interactive)
   (let* ((end-of-first (cond
                         ((looking-at ", ") (point))
@@ -191,7 +191,7 @@
 (require 'dired-x)
 
 ;;; Yasnippet
-;(yas-global-mode 1)
+(yas-global-mode 1)
 
 ;; Ediff
 (setq ediff-diff-options "-w")
@@ -206,10 +206,15 @@
 ;; see: http://www.emacswiki.org/emacs/AutoInsertMode
 ;; the standard emacs way use skeleton
 ;; see: https://github.com/cinsk/emacs-scripts/blob/8212d714d5c6f6b95e873e8688b30ba130d07775/xskel.el
-
+(defun hub/autoinsert-yas-expand()
+    "Replace text in yasnippet template."
+    (yas/expand-snippet (buffer-string) (point-min) (point-max)))
+(define-auto-insert "\.org" ["template.org" hub/autoinsert-yas-expand])
+;; orj is an extension I invented: org-revealJS
+(define-auto-insert "\.orj" ["template.orj" hub/autoinsert-yas-expand])
 
 ;;; org-mode
-(add-to-list 'auto-mode-alist '("\\.\\(org|org_archive\\|txt\\)$" . org-mode))
+(add-to-list 'auto-mode-alist '("\\.\\(org\\|orj\\|org_archive\\|txt\\)$" . org-mode))
 (setq org-directory "~/Documents/org")
 (setq org-default-notes-file (concat org-directory "/notes.org")) 
 ;; org-agenda-files should be a list of files and not a dir
@@ -220,12 +225,49 @@
 (setq org-return-follows-link t)
 (setq org-src-fontify-natively t)
 (setq org-reveal-root (getenv "REVEAL_JS_ROOT_URL"))
+(setq org-plantuml-jar-path "~/install/plantuml.jar")
 ;; (require 'org-install)
 ;; (require 'org-habit)
+
 (require 'org-ac)
 (org-ac/config-default)
 (autoload 'google-contacts "google-contacts" "Google Contacts." t)
 (add-hook 'org-mode 'auto-fill-mode)
+;; stolen from http://www.emacswiki.org/emacs/ArtistMode
+;;; integrate ido with artist-mode
+(defun artist-ido-select-operation (type)
+  "Use ido to select a drawing operation in artist-mode"
+  (interactive (list (ido-completing-read "Drawing operation: " 
+                                          (list "Pen" "Pen Line" "line" "straight line" "rectangle" 
+                                                "square" "poly-line" "straight poly-line" "ellipse" 
+                                                "circle" "text see-thru" "text-overwrite" "spray-can" 
+                                                "erase char" "erase rectangle" "vaporize line" "vaporize lines" 
+                                                "cut rectangle" "cut square" "copy rectangle" "copy square" 
+                                                "paste" "flood-fill"))))
+  (artist-select-operation type))
+(defun artist-ido-select-settings (type)
+  "Use ido to select a setting to change in artist-mode"
+  (interactive (list (ido-completing-read "Setting: " 
+                                          (list "Set Fill" "Set Line" "Set Erase" "Spray-size" "Spray-chars" 
+                                                "Rubber-banding" "Trimming" "Borders"))))
+  (if (equal type "Spray-size") 
+      (artist-select-operation "spray set size")
+    (call-interactively (artist-fc-get-fn-from-symbol 
+                         (cdr (assoc type '(("Set Fill" . set-fill)
+                                            ("Set Line" . set-line)
+                                            ("Set Erase" . set-erase)
+                                            ("Rubber-banding" . rubber-band)
+                                            ("Trimming" . trimming)
+                                            ("Borders" . borders)
+                                            ("Spray-chars" . spray-chars))))))))
+(add-hook 'artist-mode-init-hook 
+          (lambda ()
+            (define-key artist-mode-map (kbd "C-c C-a C-o") 'artist-ido-select-operation)
+            (define-key artist-mode-map (kbd "C-c C-a C-c") 'artist-ido-select-settings)))
+;;; Babel
+(org-babel-do-load-languages
+ 'org-babel-load-languages
+ '((ditaa . t))) ; this line activates ditaa
 
 (global-set-key "\C-cl" 'org-store-link)
 (global-set-key "\C-cc" 'org-capture)
@@ -330,8 +372,24 @@ C-x b RET. The buffer selected is the one returned by (other-buffer)."
 (define-key evil-normal-state-map (kbd ",x") 'smex)
 (define-key evil-normal-state-map (kbd ",s") 'eshell)
 (define-key evil-normal-state-map (kbd ",,") 'hub/switch-dwim)
-(define-key key-translation-map (kbd "è") (kbd "C-x"))
-(define-key key-translation-map (kbd "È") (kbd "C-u"))
+;; stolen from http://www.emacswiki.org/emacs/Evil#toc12
+;; Note: lexical-binding must be t in order for this to work correctly.
+(defun make-conditional-key-translation (key-from key-to translate-keys-p)
+  "Make a Key Translation such that if the translate-keys-p function returns true,
+   key-from translates to key-to, else key-from translates to itself.  translate-keys-p
+   takes key-from as an argument. "
+  (define-key key-translation-map key-from
+    (lambda (prompt)
+      (if (funcall translate-keys-p key-from) key-to key-from))))
+(defun not-insert-state-p (key-from)
+  "Returns whether conditional key translations should be active.  See make-conditional-key-translation function. "
+  (and
+   ;; Only allow a non identity translation if we're beginning a Key Sequence.
+   (equal key-from (this-command-keys))
+   (or (evil-motion-state-p) (evil-normal-state-p) (evil-visual-state-p))))
+
+(make-conditional-key-translation (kbd "è") (kbd "C-x") 'not-insert-state-p)
+(make-conditional-key-translation (kbd "È") (kbd "C-u") 'not-insert-state-p)
 
 ;; you want to *g*o somewhere
 (define-key evil-normal-state-map (kbd ",gg") 'hub/switch-to-other-buffer)
@@ -345,10 +403,14 @@ C-x b RET. The buffer selected is the one returned by (other-buffer)."
 ; open init.el
 (define-key evil-normal-state-map (kbd ",oe") (lambda()(interactive)(find-file "~/.emacs.d/init.el")))
 ; open hubert.org
-(define-key evil-normal-state-map (kbd ",oh") (lambda()(interactive)(find-file "~/Documents/org/hubert.org")))
+(define-key evil-normal-state-map (kbd ",oh") (lambda()(interactive)(find-file "~/Dropbox/org/hubert.org")))
 (define-key evil-normal-state-map (kbd ",os") (lambda()(interactive)(find-file "~/Documents/org/sas.org")))
 ;; open file in project
 (define-key evil-normal-state-map (kbd ",pf") 'projectile-find-file)
+;; Evil and org-mode
+; Makes (setq org-return-follows-link t) work with Evil
+(evil-define-key 'motion org-mode-map (kbd "RET") 'org-return)
+(evil-define-key 'normal org-mode-map (kbd ",or") 'org-babel-open-src-block-result)
 
 ;; Git tools
 ;; REQUIRES Magit
@@ -367,10 +429,12 @@ C-x b RET. The buffer selected is the one returned by (other-buffer)."
 (define-key evil-normal-state-map (kbd "M-.") nil)
 ;;;; Default state
 (evil-set-initial-state 'help-mode 'emacs)
+;; TODO: evilify dired mode, I want hjkl to move in here
 (evil-set-initial-state 'dired-mode 'emacs)
 (evil-set-initial-state 'Info 'emacs)
 (evil-set-initial-state 'ensime-scalex-mode 'emacs)
 (evil-set-initial-state 'erc-mode 'emacs)
+(evil-set-initial-state 'image-mode 'emacs)
 
 
 ;;; Comint
@@ -850,4 +914,7 @@ This functions should be added to the hooks of major modes for programming."
 ; Preferences > Profile > Left Option: Meta + Esc
 ; * Numpad (for calc): remap keypad-dot to Option+Shift+Keypad-dot
 
-;;; emacs ends here
+(put 'narrow-to-region 'disabled nil)
+(put 'erase-buffer 'disabled nil)
+(provide 'init)
+;;; init.el ends here

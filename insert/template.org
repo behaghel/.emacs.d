@@ -1,0 +1,10 @@
+#+TITLE: $1
+#+AUTHOR: `(progn user-full-name)`
+#+EMAIL: `(progn user-mail-address)`
+#+LANGUAGE: en
+#+OPTIONS: H:4 toc:3 ^:{}
+#+COLUMNS: %25ITEM %TAGS %PRIORITY %TODO
+#+LATEX_HEADER: \usepackage[usenames,hyperref]{xcolor}
+#+LATEX_CLASS_OPTIONS: [colorlinks, linkcolor=red, urlcolor=blue]
+
+* $0
