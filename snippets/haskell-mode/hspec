@@ -1,0 +1,14 @@
+# -*- mode: snippet; require-final-newline: nil -*-
+# name: hspec
+# key: hspec
+# --
+module Main where
+
+${1:import }
+
+import Test.Hspec
+import Test.QuickCheck
+
+main :: IO ()
+main = hspec $ do
+  $0

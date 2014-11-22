@@ -2,10 +2,12 @@
 #+AUTHOR: `(progn user-full-name)`
 #+EMAIL: `(progn user-mail-address)`
 #+LANGUAGE: en
-#+OPTIONS: H:4 toc:3 toc:nil reveal_mathjax:nil num:nil ^:{} 
+#+OPTIONS: H:4 toc:nil reveal_mathjax:nil num:nil ^:{} 
+#+REVEAL_ROOT: http://cdn.jsdelivr.net/reveal.js/2.6.2/
 #+REVEAL_TRANS: default
 #+REVEAL_THEME: solarized
 #+REVEAL_HLEVEL: 1
+#+REVEAL_EXTRA_CSS: ../css/orj.css
 #+COLUMNS: %25ITEM %TAGS %PRIORITY %TODO
 
 * $0

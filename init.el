@@ -1,6 +1,6 @@
 ;;; emacs --- Hubert's .emacs file         -*- lexical-binding: t -*-
 ;; Copyright (C) 2013 Hubert Behaghel
-;;  
+;;
 ;;; Commentary:
 ;; *** TODO: move it to .emacs.d and split it into modules
 ;; *** TODO: look into https://github.com/jwiegley/use-package
@@ -10,26 +10,37 @@
 ;;             - , == <leader>
 ;;             - ,v == anything versioning
 ;;             - ,o == open
+;;             - ,c == compile/check
 ;;             - ,g == anything find or go to
 ;;             - ,e == anything execute
 ;;             - ,h == anything help
-;; 
+;;             - ,n == new / create
+;;             - coding:
+;;               - ,.  -> find definition for symbol at point
+;;               - ,hh -> go to help for symbol at point
+;;               - ,l  -> load buffer (or region or paragraph...) to
+;;                        inferior process
+;;               - ,b  -> build / compile
+;;               - ,i  -> inspect type at point
+;;               - ,gr -> go to REPL
+;;
 ;;; Code:
 
 (setq user-mail-address "behaghel@gmail.com")
 (setq user-full-name "Hubert Behaghel")
-(toggle-debug-on-error)
+;; (toggle-debug-on-error)
 
 ;; (set-face-attribute 'default nil :font "Droid Sans Mono-12")
-(set-face-attribute 'default nil :font "Source Code Pro-12")
+(when (member "Source Code Pro-12" (font-family-list))
+  (set-face-attribute 'default nil :font "Source Code Pro-12"))
 
 ;; install
 (setq hub-lisp-dir (expand-file-name "lisp" user-emacs-directory))
 (add-to-list 'load-path hub-lisp-dir)  ; to include my .el
 (require 'package)
 (require 'cl)
-;; (add-to-list 'package-archives 
-;; 	     '("marmalade" . "http://marmalade-repo.org/packages/"))
+;; (add-to-list 'package-archives
+;;           '("marmalade" . "http://marmalade-repo.org/packages/"))
 (add-to-list 'package-archives
              '("melpa" . "http://melpa.milkbox.net/packages/"))
 ; required to find melpa-installed package after restart at init time
@@ -37,25 +48,29 @@
 
 (setq url-http-attempt-keepalives nil)
 
-(defvar ensure-packages '(auto-complete better-defaults cl-lib
-  dash dash-at-point diminish epl evil evil-leader
-  evil-nerd-commenter exec-path-from-shell expand-region f
-  flx-ido flycheck flycheck-haskell gh gist git git-commit-mode
-  git-gutter-fringe+ git-rebase-mode goto-chg haskell-mode
-  ido-at-point ido-ubiquitous ido-vertical-mode inf-ruby logito
-  magit multiple-cursors org org-ac ox-reveal pcache pkg-info
-  popwin projectile rainbow-delimiters robe ruby-end s sbt-mode
-  smartparens smex solarized-theme surround undo-tree yagist
-  yasnippet zenburn-theme zencoding-mode)
+(defvar ensure-packages '(ac-js2 auto-complete better-defaults
+  cl-lib dash dash-at-point diminish epl ess evil evil-leader
+  evil-matchit evil-nerd-commenter exec-path-from-shell
+  expand-region f flx-ido flycheck flycheck-haskell ggtags gh
+  gist git git-commit-mode git-gutter-fringe+ git-rebase-mode
+  gnuplot goto-chg haskell-mode ido-at-point ido-ubiquitous
+  ido-vertical-mode inf-ruby js2-mode js2-refactor logito magit
+  markdown-mode multiple-cursors nlinum org org-ac pcache
+  persp-projectile pkg-info popwin rainbow-delimiters
+  rainbow-mode robe ruby-end s sbt-mode smartparens smex
+  solarized-theme sublime-themes surround tern tern-auto-complete
+  undo-tree yagist yasnippet zenburn-theme zencoding-mode)
   "A list of packages to ensure are installed at launch.")
+
+;; ox-reveal << put it back when no more "stable" branch non-sense
 
 (defun ensure-packages-package-installed-p (p)
   (cond ((package-installed-p p) t)
         (t nil)))
-  
+
 (defun ensure-packages-installed-p ()
   (mapcar 'ensure-packages-package-installed-p ensure-packages))
-  
+
 (defun ensure-packages-install-missing ()
   (interactive)
   (unless (every 'identity (ensure-packages-installed-p))
@@ -72,7 +87,15 @@
 
 (require 'better-defaults)
 
+; try to stabilize windows and buffers positions
+(setq switch-to-buffer-preserve-window-point 'already-displayed)
+; stop cluttering my fs with #file.ext#
+(setq auto-save-file-name-transforms
+      `((".*" ,(concat user-emacs-directory "backups") t)))
+
 (load-theme 'zenburn t)
+;; zenburn region face is invisible...
+(set-face-attribute 'region nil :background "#666")
 
 ; Mac
 
@@ -87,6 +110,8 @@
 (setq mac-command-modifier 'meta)
 (setq mac-option-key-is-meta nil)
 (setq mac-option-modifier nil)
+
+(setq ns-use-srgb-colorspace t)
 
 ;;;;;;;;;;;;
 ; General Behaviour
@@ -109,6 +134,41 @@
 (autoload 'er/expand-region "expand-region" "expand-region.el" t)
 (global-set-key (kbd "M-r") 'er/expand-region)
 
+;; (require 'key-chord)
+;; ;; space-chord: https://github.com/emacsmirror/space-chord/blob/master/space-chord.el
+;; (defvar space-chord-delay 0.08
+;;   "Max time delay between two key press to be considered a key chord.
+;; `key-chord-two-keys-delay' for space-chord.")
+
+;; (defun space-chord-define-global (key command)
+;;   "Define a key-chord of KEY with space starting a COMMAND.
+;; KEY is a character or a 1-length string.
+;; \nCOMMAND can be an interactive function, a string, or nil.
+;; If COMMAND is nil, the key-chord is removed."
+;;   (interactive "sSet space chord globally (1 key): \nCSet chord \"%s\" to command: ")
+;;   (space-chord-define (current-global-map) key command))
+
+;; (defun space-chord-define (keymap key command)
+;;   "Define in KEYMAP, a key-chord of KEY with space starting a COMMAND.
+;; \nCOMMAND can be an interactive function, a string, or nil.
+;; If COMMAND is nil, the key-chord is removed."
+;;   (define-key keymap (vector 'key-chord ? (if (stringp key) (aref key 0) key)) command))
+
+;; (defadvice key-chord-input-method (around space-chord activate)
+;;   "Set `key-chord-two-keys-delay' to `space-chord-delay' when starting a key-chord with Space."
+;;   (if (eq (ad-get-arg 0)  ? )
+;;       (let ((key-chord-two-keys-delay space-chord-delay))
+;;         ad-do-it)
+;;     ad-do-it))
+;; (space-chord-define-global ?c 'evil-window-left)
+;; (space-chord-define-global ?r 'evil-window-right)
+;; (space-chord-define-global ?t 'evil-window-down)
+;; (space-chord-define-global ?s 'evil-window-up)
+;; left cmd + right cmd + csrn in order to jump from window to window
+(global-set-key (kbd "M-©") 'evil-window-left)
+(global-set-key (kbd "M-®") 'evil-window-right)
+(global-set-key (kbd "M-þ") 'evil-window-down)
+(global-set-key (kbd "M-ß") 'evil-window-up)
 ;; stolen from https://github.com/magnars/.emacs.d/blob/master/key-bindings.el
 ;; Transpose stuff with M-t
 (global-unset-key (kbd "M-t")) ;; which used to be transpose-words
@@ -187,11 +247,36 @@
 (require 'ido-at-point)
 (ido-at-point-mode)
 
-;;; Dired
-(require 'dired-x)
-
 ;;; Yasnippet
 (yas-global-mode 1)
+(setq yas-prompt-functions '(yas/ido-prompt yas/completing-prompt))
+
+(column-number-mode 1)               ; show column number in mode line
+
+;; Everything I do is within the context of a specific project
+(persp-mode t)
+(projectile-global-mode)
+
+;; taken from Magnar Sveen
+;; Jump to last perspective
+(defun custom-persp-last ()
+  (interactive)
+  (persp-switch (persp-name persp-last)))
+;; Easily switch to your last perspective
+(defmacro custom-persp (name &rest body)
+  `(let ((initialize (not (gethash ,name perspectives-hash)))
+         (current-perspective persp-curr))
+     (persp-switch ,name)
+     (when initialize ,@body)
+     (setq persp-last current-perspective)))
+(defun custom-persp/emacs ()
+  (interactive)
+  (custom-persp ".emacs.d"
+                (find-file "~/.emacs.d/init.el")))
+(defun custom-persp/sas ()
+  (interactive)
+  (custom-persp "sas"
+                (find-file "~/Documents/org/sas.org")))
 
 ;; Ediff
 (setq ediff-diff-options "-w")
@@ -206,9 +291,9 @@
 ;; see: http://www.emacswiki.org/emacs/AutoInsertMode
 ;; the standard emacs way use skeleton
 ;; see: https://github.com/cinsk/emacs-scripts/blob/8212d714d5c6f6b95e873e8688b30ba130d07775/xskel.el
-(defun hub/autoinsert-yas-expand()
-    "Replace text in yasnippet template."
-    (yas/expand-snippet (buffer-string) (point-min) (point-max)))
+(defun hub/autoinsert-yas-expand (&optional expand-env)
+    "Replace text in yasnippet template optionally passing EXPAND-ENV (let-style)."
+    (yas-expand-snippet (buffer-string) (point-min) (point-max) expand-env))
 (define-auto-insert "\.org" ["template.org" hub/autoinsert-yas-expand])
 ;; orj is an extension I invented: org-revealJS
 (define-auto-insert "\.orj" ["template.orj" hub/autoinsert-yas-expand])
@@ -216,7 +301,7 @@
 ;;; org-mode
 (add-to-list 'auto-mode-alist '("\\.\\(org\\|orj\\|org_archive\\|txt\\)$" . org-mode))
 (setq org-directory "~/Documents/org")
-(setq org-default-notes-file (concat org-directory "/notes.org")) 
+(setq org-default-notes-file (concat org-directory "/notes.org"))
 ;; org-agenda-files should be a list of files and not a dir
 ;; prefer C-c [ to add and C-c ] to remove file from this list
 ;; (setq org-agenda-files org-directory)
@@ -225,9 +310,98 @@
 (setq org-return-follows-link t)
 (setq org-src-fontify-natively t)
 (setq org-reveal-root (getenv "REVEAL_JS_ROOT_URL"))
+(load-library "/Users/hbe07/tmp/org-reveal/ox-reveal.el")
 (setq org-plantuml-jar-path "~/install/plantuml.jar")
 ;; (require 'org-install)
 ;; (require 'org-habit)
+
+;; stolen from http://orgmode.org/worg/org-hacks.html
+(defun org-word-count (beg end
+                           &optional count-latex-macro-args?
+                           count-footnotes?)
+  "Report the number of words in the Org mode buffer or selected region.
+Ignores:
+- comments
+- tables
+- source code blocks (#+BEGIN_SRC ... #+END_SRC, and inline blocks)
+- hyperlinks (but does count words in hyperlink descriptions)
+- tags, priorities, and TODO keywords in headers
+- sections tagged as 'not for export'.
+
+The text of footnote definitions is ignored, unless the optional argument
+COUNT-FOOTNOTES? is non-nil.
+
+If the optional argument COUNT-LATEX-MACRO-ARGS? is non-nil, the word count
+includes LaTeX macro arguments (the material between {curly braces}).
+Otherwise, and by default, every LaTeX macro counts as 1 word regardless
+of its arguments."
+  (interactive "r")
+  (unless mark-active
+    (setf beg (point-min)
+          end (point-max)))
+  (let ((wc 0)
+        (latex-macro-regexp "\\\\[A-Za-z]+\\(\\[[^]]*\\]\\|\\){\\([^}]*\\)}"))
+    (save-excursion
+      (goto-char beg)
+      (while (< (point) end)
+        (cond
+         ;; Ignore comments.
+         ((or (org-in-commented-line) (org-at-table-p))
+          nil)
+         ;; Ignore hyperlinks. But if link has a description, count
+         ;; the words within the description.
+         ((looking-at org-bracket-link-analytic-regexp)
+          (when (match-string-no-properties 5)
+            (let ((desc (match-string-no-properties 5)))
+              (save-match-data
+                (incf wc (length (remove "" (org-split-string
+                                             desc "\\W")))))))
+          (goto-char (match-end 0)))
+         ((looking-at org-any-link-re)
+          (goto-char (match-end 0)))
+         ;; Ignore source code blocks.
+         ((org-between-regexps-p "^#\\+BEGIN_SRC\\W" "^#\\+END_SRC\\W")
+          nil)
+         ;; Ignore inline source blocks, counting them as 1 word.
+         ((save-excursion
+            (backward-char)
+            (looking-at org-babel-inline-src-block-regexp))
+          (goto-char (match-end 0))
+          (setf wc (+ 2 wc)))
+         ;; Count latex macros as 1 word, ignoring their arguments.
+         ((save-excursion
+            (backward-char)
+            (looking-at latex-macro-regexp))
+          (goto-char (if count-latex-macro-args?
+                         (match-beginning 2)
+                       (match-end 0)))
+          (setf wc (+ 2 wc)))
+         ;; Ignore footnotes.
+         ((and (not count-footnotes?)
+               (or (org-footnote-at-definition-p)
+                   (org-footnote-at-reference-p)))
+          nil)
+         (t
+          (let ((contexts (org-context)))
+            (cond
+             ;; Ignore tags and TODO keywords, etc.
+             ((or (assoc :todo-keyword contexts)
+                  (assoc :priority contexts)
+                  (assoc :keyword contexts)
+                  (assoc :checkbox contexts))
+              nil)
+             ;; Ignore sections marked with tags that are
+             ;; excluded from export.
+             ((assoc :tags contexts)
+              (if (intersection (org-get-tags-at) org-export-exclude-tags
+                                :test 'equal)
+                  (org-forward-same-level 1)
+                nil))
+             (t
+              (incf wc))))))
+        (re-search-forward "\\w+\\W*")))
+    (message (format "%d words in %s." wc
+                     (if mark-active "region" "buffer")))))
 
 (require 'org-ac)
 (org-ac/config-default)
@@ -237,22 +411,22 @@
 ;;; integrate ido with artist-mode
 (defun artist-ido-select-operation (type)
   "Use ido to select a drawing operation in artist-mode"
-  (interactive (list (ido-completing-read "Drawing operation: " 
-                                          (list "Pen" "Pen Line" "line" "straight line" "rectangle" 
-                                                "square" "poly-line" "straight poly-line" "ellipse" 
-                                                "circle" "text see-thru" "text-overwrite" "spray-can" 
-                                                "erase char" "erase rectangle" "vaporize line" "vaporize lines" 
-                                                "cut rectangle" "cut square" "copy rectangle" "copy square" 
+  (interactive (list (ido-completing-read "Drawing operation: "
+                                          (list "Pen" "Pen Line" "line" "straight line" "rectangle"
+                                                "square" "poly-line" "straight poly-line" "ellipse"
+                                                "circle" "text see-thru" "text-overwrite" "spray-can"
+                                                "erase char" "erase rectangle" "vaporize line" "vaporize lines"
+                                                "cut rectangle" "cut square" "copy rectangle" "copy square"
                                                 "paste" "flood-fill"))))
   (artist-select-operation type))
 (defun artist-ido-select-settings (type)
   "Use ido to select a setting to change in artist-mode"
-  (interactive (list (ido-completing-read "Setting: " 
-                                          (list "Set Fill" "Set Line" "Set Erase" "Spray-size" "Spray-chars" 
+  (interactive (list (ido-completing-read "Setting: "
+                                          (list "Set Fill" "Set Line" "Set Erase" "Spray-size" "Spray-chars"
                                                 "Rubber-banding" "Trimming" "Borders"))))
-  (if (equal type "Spray-size") 
+  (if (equal type "Spray-size")
       (artist-select-operation "spray set size")
-    (call-interactively (artist-fc-get-fn-from-symbol 
+    (call-interactively (artist-fc-get-fn-from-symbol
                          (cdr (assoc type '(("Set Fill" . set-fill)
                                             ("Set Line" . set-line)
                                             ("Set Erase" . set-erase)
@@ -260,26 +434,125 @@
                                             ("Trimming" . trimming)
                                             ("Borders" . borders)
                                             ("Spray-chars" . spray-chars))))))))
-(add-hook 'artist-mode-init-hook 
+(add-hook 'artist-mode-init-hook
           (lambda ()
             (define-key artist-mode-map (kbd "C-c C-a C-o") 'artist-ido-select-operation)
             (define-key artist-mode-map (kbd "C-c C-a C-c") 'artist-ido-select-settings)))
 ;;; Babel
 (org-babel-do-load-languages
  'org-babel-load-languages
- '((ditaa . t))) ; this line activates ditaa
+ '((ditaa . t)(plantuml . t)(ruby . t)(awk . t)(gnuplot . t)(R . t)))
+;; (add-to-list 'org-babel-default-header-args:gnuplot
+;;              '((:prologue . "reset")))
+(setq org-confirm-babel-evaluate nil)   ; stop asking. May be dangerous...
 
 (global-set-key "\C-cl" 'org-store-link)
-(global-set-key "\C-cc" 'org-capture)
+(global-set-key "\C-ci" 'org-capture)
 (global-set-key "\C-ca" 'org-agenda)
 (global-set-key "\C-cb" 'org-iswitchb)
 
+;; stolen: http://stackoverflow.com/a/6541072/249234
+(defun func-region (start end func)
+  "Run a function FUNC over the region between START and END in current buffer."
+  (save-excursion
+    (let ((text (delete-and-extract-region start end)))
+      (insert (funcall func text)))))
+
+(defun url-encode-region (start end)
+  "Urlencode the region between START and END in current buffer."
+  (interactive "r")
+  (func-region start end #'url-hexify-string))
+
+(defun url-decode-region (start end)
+  "De-urlencode the region between START and END in current buffer."
+  (interactive "r")
+  (func-region start end #'url-unhex-string))
+
+(defvar blog-posts-dir (expand-file-name (concat (getenv "BLOG_ROOT") "/posts")))
+(defun hub/create-post (title)
+  "Start editing a new file whose title is following this pattern
+%Y-%m-%d-[title].orp in the posts directory."
+  (interactive "sTitle: ")
+  (let ((slug (hub/sluggify title))
+        (today (format-time-string "%Y-%m-%d"))
+        (template (expand-file-name "template.post" auto-insert-directory)))
+    (remove-hook 'find-file-hooks 'auto-insert) ; to prevent normal .org insertion
+    (find-file (format "%s/%s-%s.org" blog-posts-dir today slug))
+    (insert-file-contents template)
+    (hub/autoinsert-yas-expand `((title ,title)))
+    (add-hook 'find-file-hooks 'auto-insert)))
+
+(defun hub/sluggify (title)
+  "Transform the TITLE of an article into a slug suitable for an URL."
+  (let* ((lc-title (downcase title))
+         (no-space (replace-regexp-in-string " +" "-" lc-title))
+         (striped (replace-regexp-in-string "[',!?.:/()_;\"<>«»@#]" "" no-space))
+         (asciified (xah-asciify-string striped)))
+    asciified))
+
+(defun xah-asciify-region (&optional φfrom φto)
+  "Change European language characters into equivalent ASCII ones, ⁖ “café” ⇒ “cafe”.
+
+This command does not transcode all Unicode chars such as Greek, math symbols. They remains.
+
+When called interactively, work on text selection or current line.
+URL `http://ergoemacs.org/emacs/emacs_zap_gremlins.html'
+Version 2014-10-20"
+  (interactive
+   (if (use-region-p)
+       (list (region-beginning) (region-end))
+     (list (line-beginning-position) (line-end-position))))
+  (let ((ξcharMap [
+                   ["á\\|à\\|â\\|ä\\|ã\\|å" "a"]
+                   ["é\\|è\\|ê\\|ë" "e"]
+                   ["í\\|ì\\|î\\|ï" "i"]
+                   ["ó\\|ò\\|ô\\|ö\\|õ\\|ø" "o"]
+                   ["ú\\|ù\\|û\\|ü"     "u"]
+                   ["Ý\\|ý\\|ÿ"     "y"]
+                   ["ñ" "n"]
+                   ["ç" "c"]
+                   ["ð" "d"]
+                   ["þ" "th"]
+                   ["ß" "ss"]
+                   ["æ" "ae"]
+                   ]))
+    (let ((case-fold-search t))
+      (save-restriction
+        (narrow-to-region φfrom φto)
+        (mapc
+         (lambda (ξpair)
+           (goto-char (point-min))
+           (while (search-forward-regexp (elt ξpair 0) (point-max) t)
+             (replace-match (elt ξpair 1))))
+         ξcharMap)))))
+
+(defun xah-asciify-string (φstring)
+  "Returns a new string. European language chars are changed ot ASCII ones ⁖ “café” ⇒ “cafe”.
+See `xah-asciify-region'
+Version 2014-10-20"
+  (with-temp-buffer
+    (insert φstring)
+    (xah-asciify-region (point-min) (point-max))
+    (buffer-string)))
+
+(defun hub/dwim-other-window (f)
+  "Run F in a new window if only one window is visible.
+Otherwise switch to other window before."
+  (if (one-window-p t 'visible)
+      (split-window-right))
+  (other-window 1)
+  (funcall f))
+
+(defun hub/eshell-other-window ()
+  "Open eshell in other window."
+  (interactive)
+  (hub/dwim-other-window 'eshell))
 
 (defun hub/switch-to-other-buffer ()
   "Switch to topmost non-visible buffer. On default bindings, same as
 C-x b RET. The buffer selected is the one returned by (other-buffer)."
-	(interactive)
-	(switch-to-buffer (other-buffer)))
+        (interactive)
+        (switch-to-buffer (other-buffer)))
 (defun hub/switch-dwim ()
   "Switch to the previously visited windows if multiple windows
   are visible else switch to other buffer."
@@ -297,6 +570,7 @@ C-x b RET. The buffer selected is the one returned by (other-buffer)."
         (insert filename)
         (clipboard-kill-region (point-min) (point-max)))
       (message filename))))
+
 ;;; EVIL
 (require 'evil)
 (evil-mode 1)
@@ -330,8 +604,8 @@ C-x b RET. The buffer selected is the one returned by (other-buffer)."
 (define-key evil-normal-state-map (kbd "W") 'evil-window-next)
 (define-key evil-window-map "h" 'evil-window-set-height)
 (define-key evil-window-map "H" 'evil-window-set-width)
-(define-key evil-window-map "_" 'split-window-horizontally)
-(define-key evil-window-map "|" 'split-window-vertically)
+(define-key evil-window-map "_" 'split-window-vertically)
+(define-key evil-window-map "|" 'split-window-horizontally)
 (define-key evil-window-map (kbd "c") 'evil-window-left)
 (define-key evil-window-map (kbd "C") 'evil-window-move-far-left)
 (define-key evil-window-map (kbd "t") 'evil-window-down)
@@ -351,10 +625,20 @@ C-x b RET. The buffer selected is the one returned by (other-buffer)."
 (define-key evil-normal-state-map (kbd "C") 'evil-window-top)
 (define-key evil-normal-state-map (kbd "R") 'evil-window-low)
 (define-key evil-normal-state-map (kbd "T") 'evil-join)
-(define-key evil-normal-state-map "z" nil) ; to make z a prefix key
 ;; following translation only occur when z is a prefix (not already bound)
 (define-key key-translation-map (kbd "zs") (kbd "zj"))
+(define-key key-translation-map (kbd "zc") (kbd "zh"))
+(define-key key-translation-map (kbd "zr") (kbd "zl"))
+(define-key key-translation-map (kbd "zC") (kbd "zH"))
+(define-key key-translation-map (kbd "zR") (kbd "zL"))
 (define-key key-translation-map (kbd "zt") (kbd "zk"))
+(define-key evil-normal-state-map (kbd "zS") 'evil-scroll-line-to-top)
+(define-key evil-normal-state-map (kbd "zT") 'evil-scroll-line-to-bottom)
+(define-key evil-normal-state-map (kbd "zf") 'evil-close-fold)
+(define-key evil-normal-state-map (kbd "zx") 'evil-close-fold)
+(define-key evil-normal-state-map (kbd "zX") 'evil-close-folds)
+(define-key evil-normal-state-map (kbd "zF") 'evil-close-folds)
+(define-key evil-normal-state-map (kbd "zO") 'evil-open-folds)
 (define-key evil-normal-state-map (kbd "j") 'evil-replace)
 (define-key evil-normal-state-map (kbd "l") 'evil-change)
 (define-key evil-normal-state-map (kbd "L") 'evil-change-line)
@@ -370,14 +654,17 @@ C-x b RET. The buffer selected is the one returned by (other-buffer)."
 (define-key evil-insert-state-map (kbd "M-y") 'yank-pop)
 (define-key evil-normal-state-map (kbd ",y") 'hub/copy-buffer-file-name)
 (define-key evil-normal-state-map (kbd ",x") 'smex)
-(define-key evil-normal-state-map (kbd ",s") 'eshell)
+(define-key evil-normal-state-map (kbd ",gs") 'eshell)
+(define-key evil-normal-state-map (kbd ",gS") 'hub/eshell-other-window)
+(define-key evil-normal-state-map (kbd ",g/") 'dired)
 (define-key evil-normal-state-map (kbd ",,") 'hub/switch-dwim)
+(define-key evil-normal-state-map (kbd ",|") 'shell-command-on-region)
 ;; stolen from http://www.emacswiki.org/emacs/Evil#toc12
 ;; Note: lexical-binding must be t in order for this to work correctly.
 (defun make-conditional-key-translation (key-from key-to translate-keys-p)
   "Make a Key Translation such that if the translate-keys-p function returns true,
    key-from translates to key-to, else key-from translates to itself.  translate-keys-p
-   takes key-from as an argument. "
+   takes key-from as an argument."
   (define-key key-translation-map key-from
     (lambda (prompt)
       (if (funcall translate-keys-p key-from) key-to key-from))))
@@ -401,41 +688,72 @@ C-x b RET. The buffer selected is the one returned by (other-buffer)."
 ;; Browse URL
 (define-key evil-normal-state-map (kbd ",ou") 'browse-url)
 ; open init.el
-(define-key evil-normal-state-map (kbd ",oe") (lambda()(interactive)(find-file "~/.emacs.d/init.el")))
+(define-key evil-normal-state-map (kbd ",oe") 'custom-persp/emacs)
 ; open hubert.org
 (define-key evil-normal-state-map (kbd ",oh") (lambda()(interactive)(find-file "~/Dropbox/org/hubert.org")))
-(define-key evil-normal-state-map (kbd ",os") (lambda()(interactive)(find-file "~/Documents/org/sas.org")))
+(define-key evil-normal-state-map (kbd ",os") 'custom-persp/sas)
 ;; open file in project
 (define-key evil-normal-state-map (kbd ",pf") 'projectile-find-file)
+(define-key evil-normal-state-map (kbd ",pF") 'projectile-find-file-other-window)
+(define-key evil-normal-state-map (kbd ",pT") 'projectile-regenerate-tags)
+(define-key evil-normal-state-map (kbd ",p.") 'projectile-find-tag)
+;; switch from code file to test file and vice-versa
+(define-key evil-normal-state-map (kbd  ",gt") 'projectile-toggle-between-implementation-and-test)
+;; FIXME: when active, break projectile-find-file
+(require 'persp-projectile)
+(define-key evil-normal-state-map (kbd ",ps") 'projectile-persp-switch-project)
+(define-key evil-normal-state-map (kbd ",op") 'projectile-persp-switch-project)
+(define-key evil-normal-state-map (kbd ",pp") 'custom-persp-last)
+(define-key evil-normal-state-map (kbd ",gp") 'persp-switch)
+(define-key evil-normal-state-map (kbd ",pk") 'persp-remove-buffer) ; disassociate buffer from persp
+(define-key evil-normal-state-map (kbd ",pr") 'persp-rename)
+(define-key evil-normal-state-map (kbd ",px") 'persp-kill) ; terminate perspective
+(define-key evil-normal-state-map (kbd ",pa") 'persp-add-buffer) ; associate buffer to current persp
+(define-key evil-normal-state-map (kbd ",pA") 'persp-set-buffer) ; like add but remove from all other
 ;; Evil and org-mode
 ; Makes (setq org-return-follows-link t) work with Evil
 (evil-define-key 'motion org-mode-map (kbd "RET") 'org-return)
 (evil-define-key 'normal org-mode-map (kbd ",or") 'org-babel-open-src-block-result)
+(define-key evil-normal-state-map (kbd ",nb") 'hub/create-post)
+(require 'evil-matchit)
+(global-evil-matchit-mode 1)
 
-;; Git tools
-;; REQUIRES Magit
-(define-key evil-normal-state-map (kbd ",vs") 'magit-status) ;; git control panel
-(define-key evil-normal-state-map (kbd ",vh") 'magit-file-log) ; Commit history for current file
-(define-key evil-normal-state-map (kbd ",vb") 'magit-blame-mode) ; Blame for current file
-(define-key evil-normal-state-map (kbd ",vg") 'vc-git-grep) ; Git grep
+;;; Dired
+(require 'dired-x)
+(evil-define-key 'normal dired-mode-map "t" 'dired-next-line)
+(evil-define-key 'normal dired-mode-map ",t" 'dired-next-dirline)
+(evil-define-key 'normal dired-mode-map "s" 'dired-previous-line)
+(evil-define-key 'normal dired-mode-map ",s" 'dired-previous-dirline)
+(evil-define-key 'normal dired-mode-map ",S" 'dired-sort-toggle)
+(evil-define-key 'normal dired-mode-map ",m" 'dired-toggle-marks)
+;; (evil-define-key 'normal dired-mode-map ",c" 'dired-copy-file)
+;; (evil-define-key 'normal dired-mode-map ",r" 'dired-rename-file)
+
+
+
 ;; errors and *c*ompilation
-(define-key evil-normal-state-map (kbd "]c") 'next-error)
-(define-key evil-normal-state-map (kbd "[c") 'previous-error)
+(define-key evil-normal-state-map (kbd "]e") 'next-error)
+(define-key evil-normal-state-map (kbd "[e") 'previous-error)
 (define-key evil-normal-state-map (kbd ",cc") 'compile)
 (define-key evil-normal-state-map (kbd ",cr") 'recompile)
 (define-key evil-normal-state-map (kbd ",ck") 'kill-compilation)
+(define-key evil-normal-state-map (kbd ",cw") 'artbollocks-count-words)
+(define-key evil-normal-state-map (kbd ",cg") 'langtool-check)
 ;; evil is crazy
 (define-key evil-insert-state-map (kbd "C-d") nil)
 (define-key evil-normal-state-map (kbd "M-.") nil)
 ;;;; Default state
 (evil-set-initial-state 'help-mode 'emacs)
-;; TODO: evilify dired mode, I want hjkl to move in here
-(evil-set-initial-state 'dired-mode 'emacs)
+;; (evil-set-initial-state 'dired-mode 'emacs)
 (evil-set-initial-state 'Info 'emacs)
+;; (evil-set-initial-state 'fundamental-mode 'emacs)
+(evil-set-initial-state 'ess-help-mode 'emacs)
 (evil-set-initial-state 'ensime-scalex-mode 'emacs)
 (evil-set-initial-state 'erc-mode 'emacs)
 (evil-set-initial-state 'image-mode 'emacs)
 
+;; (require 'powerline-evil)
+;; (powerline-evil-center-color-theme)
 
 ;;; Comint
 (setq
@@ -466,7 +784,7 @@ C-x b RET. The buffer selected is the one returned by (other-buffer)."
      (add-to-list 'eshell-command-completions-alist
                   '("tar" "\\(\\.tar|\\.tgz\\|\\.tar\\.gz\\)\\'"))
      ;; cycling completion doesn't work for me
-     ;; it complete with one and you 
+     ;; it complete with one and you
      (setq eshell-cmpl-cycle-completions t)
      ;; (require 'em-smart)
      ;; (setq eshell-where-to-jump 'begin)
@@ -499,7 +817,7 @@ PWD is not in a git repo (or the git command is not found)."
                                (if (> (length git-output) 0)
                                    (substring git-output 0 -1)
                                  "(no branch)")
-                               "]") 'face `(:foreground "blue"))
+                               "]") 'face `(:foreground "tomato1"))
            )))
 
      (require 'em-hist)           ; So the history vars are defined
@@ -528,14 +846,14 @@ PWD is not in a git repo (or the git command is not found)."
                                           p-lst
                                           "/")))
                            (split-string
-                            (pwd-repl-home (eshell/pwd)) "/")) 'face '(:foreground "Red"))
+                            (pwd-repl-home (eshell/pwd)) "/")) 'face '(:foreground "DarkOrange1"))
               (curr-dir-git-branch-string (eshell/pwd))
               (propertize " % " 'face 'default))))
      ;; don't enforce theme colors since it will make the prompt monochrome
      ;; there is only one face for the whole prompt.
      (setq eshell-highlight-prompt nil)
      ;; end of stealing
-     
+
      (require 'eshell-autojump)))
 
 ;;; TRAMP
@@ -546,26 +864,35 @@ PWD is not in a git repo (or the git command is not found)."
 ;;; switch channel by switching emacs buffer
 ;;; switch to last active channel C-c C-SPC
 (autoload 'erc-select "erc" "IRC client." t)
+(load "~/.emacs.d/.ercpass")
 (setq erc-echo-notices-in-minibuffer-flag t)
 (eval-after-load 'erc
   '(progn
+    (require 'tls)
     (setq erc-modules '(autojoin button completion fill
-                                 irccontrols list match
-                                 menu move-to-prompt netsplit
-                                 networks noncommands readonly ring
-                                 scrolltobottom services stamp track))
-    (setq erc-prompt-for-password nil)  ; use authinfo instead
+                                 irccontrols list match menu
+                                 move-to-prompt netsplit networks
+                                 noncommands
+                                 readonly ring scrolltobottom
+                                 services stamp track))
+    (setq erc-prompt-for-password 1)  ; use authinfo instead
+    (setq erc-prompt-for-nickserv-password nil)
     (setq erc-fill-function 'erc-fill-static)
     (setq erc-fill-static-center 18)    ; margin for ts + nicks
     (setq erc-timestamp-format "[%H:%M] "
           erc-insert-timestamp-function 'erc-insert-timestamp-left)
-    (setq erc-input-line-position -2)
+    (erc-scroll-to-bottom)
+    (setq erc-input-line-position -1)
+    (setq erc-nickserv-passwords
+          `((freenode (("behaghel" . ,freenode-passwd-behaghel)
+                       ("larch" . ,freenode-passwd-behaghel)))
+            (skyglobal (("hubert" . ,slack-global-passwd-hubert)))))
     (require 'erc-match)
-    (setq erc-keywords '("hub" "behaghel" "hubert" "hubertb"))
+    (setq erc-keywords '("\\bhub\\b" "behaghel" "hubert" "hubertb"))
     (setq erc-pals '("aloiscochard"))
     (setq erc-autojoin-mode t)
     (setq erc-autojoin-channels-alist
-          '((".*\\.freenode.net" "#emacs" "#scala")
+          '((".*\\.freenode.net" "#scala" "#scalaz" "#shapeless")
             ("irc.amazon.com" "#ingestion" "#reconciliation")))
     (setq erc-auto-query 'bury)
     (setq erc-track-exclude-types '("JOIN" "NICK" "PART" "QUIT" "MODE"
@@ -593,7 +920,7 @@ PWD is not in a git repo (or the git command is not found)."
 (if (display-graphic-p)
     (progn
       (require 'git-gutter-fringe+))
-  (require-package 'git-gutter+))
+  (require 'git-gutter+))
 (global-git-gutter+-mode t)
 (global-set-key (kbd "C-c g f") 'git-gutter+-mode) ; turn on/off git-gutter+ in the current buffer
 (eval-after-load 'git-gutter+
@@ -610,17 +937,84 @@ PWD is not in a git repo (or the git command is not found)."
      (define-key git-gutter+-mode-map (kbd "C-c f s") 'git-gutter+-stage-hunks)
      (define-key git-gutter+-mode-map (kbd "C-c f c") 'git-gutter+-commit)
      (define-key git-gutter+-mode-map (kbd "C-c f C") 'git-gutter+-stage-and-commit)))
+;; Git tools
+;; REQUIRES Magit
+(define-key evil-normal-state-map (kbd ",vs") 'magit-status) ;; git control panel
+(define-key evil-normal-state-map (kbd ",vh") 'magit-file-log) ; Commit history for current file
+(define-key evil-normal-state-map (kbd ",vb") 'magit-blame-mode) ; Blame for current file
+(define-key evil-normal-state-map (kbd ",vg") 'vc-git-grep) ; Git grep
+(define-key evil-normal-state-map (kbd ",v/") 'vc-git-grep) ; Git grep
+(define-key evil-normal-state-map (kbd ",vr") 'git-gutter+-revert-hunk)
+(define-key evil-normal-state-map (kbd ",v+") 'git-gutter+-stage-hunks)
+(define-key evil-normal-state-map (kbd ",vn") 'git-gutter+-next-hunk)
+(define-key evil-normal-state-map (kbd ",vp") 'git-gutter+-previous-hunk)
+(define-key evil-normal-state-map (kbd ",vd") 'git-gutter+-show-hunk)
+(define-key evil-normal-state-map (kbd ",v+") 'git-gutter+-stage-hunks)
 
-;; multiple-cursors (deactivated as it's incompatible with Evil)
+;; multiple-cursors
 (require 'multiple-cursors)
 (global-set-key (kbd "<M-C-down>") 'mc/mark-next-like-this)
 (global-set-key (kbd "<M-C-up>") 'mc/mark-previous-like-this)
 (global-set-key (kbd "C-c m @") 'mc/edit-lines)
 (global-set-key (kbd "C-c m a") 'mc/mark-all-like-this-dwim)
+;; compat with evil. Stolen https://github.com/jcpetkovich/.emacs.d/blob/master/global-key-bindings.el#L257
+;; alternative: https://github.com/magnars/multiple-cursors.el/issues/19
+;; waiting for resolution of:
+;; https://github.com/magnars/multiple-cursors.el/issues/17
+(defvar mc-evil-compat/evil-prev-state nil)
+(defvar mc-evil-compat/mark-was-active nil)
+(defun mc-evil-compat/switch-to-emacs-state ()
+  (when (and (bound-and-true-p evil-mode)
+              (not (memq evil-state '(insert emacs))))
+    (setq mc-evil-compat/evil-prev-state evil-state)
+    (when (region-active-p)
+      (setq mc-evil-compat/mark-was-active t))
+    (let ((mark-before (mark))
+          (point-before (point)))
+      (evil-emacs-state 1)
+      (when (or mc-evil-compat/mark-was-active (region-active-p))
+        (goto-char point-before)
+        (set-mark mark-before)))))
+(defun mc-evil-compat/back-to-previous-state ()
+  (when mc-evil-compat/evil-prev-state
+    (unwind-protect
+        (case mc-evil-compat/evil-prev-state
+          ((normal visual) (evil-force-normal-state))
+          (t (message "Don't know how to handle previous state: %S"
+                      mc-evil-compat/evil-prev-state)))
+      (setq mc-evil-compat/evil-prev-state nil)
+      (setq mc-evil-compat/mark-was-active nil))))
+(add-hook 'multiple-cursors-mode-enabled-hook
+          'mc-evil-compat/switch-to-emacs-state)
+(add-hook 'multiple-cursors-mode-disabled-hook
+          'mc-evil-compat/back-to-previous-state)
+(defun mc-evil-compat/rectangular-switch-state ()
+  (if rectangular-region-mode
+      (mc-evil-compat/switch-to-emacs-state)
+    (setq mc-evil-compat/evil-prev-state nil)))
+;; When running edit-lines, point will return (position + 1) as a
+;; result of how evil deals with regions
+(defadvice mc/edit-lines (before change-point-by-1 activate)
+  (when (and (bound-and-true-p evil-mode)
+              (not (memq evil-state '(insert emacs))))
+    (if (> (point) (mark))
+        (goto-char (1- (point)))
+      (push-mark (1- (mark))))))
+(add-hook 'rectangular-region-mode-hook 'mc-evil-compat/rectangular-switch-state)
+(defvar mc--default-cmds-to-run-once nil)
 
 ;; Editing text
 (add-hook 'text-mode-hook 'turn-on-auto-fill) ; auto-wrap
 (setq sentence-end-double-space nil)    ; one space is enough after a period to end a sentence
+
+;; Writing with style
+;; http://rs.io/software-writers-tools-improve-writing/
+;; chase weasel words, count words and more
+;; https://github.com/sachac/artbollocks-mode
+;; http://sachachua.com/blog/2011/12/emacs-artbollocks-mode-el-and-writing-more-clearly/
+(autoload 'artbollocks-mode "artbollocks-mode")
+(setq langtool-language-tool-jar "/usr/local/Cellar/languagetool/2.6/libexec/languagetool.jar")
+
 
 ;; Markdown
 (autoload 'markdown-mode "markdown-mode"
@@ -687,26 +1081,35 @@ This functions should be added to the hooks of major modes for programming."
 ;; (show-paren-mode 1)                     ; highlight matching brackets
 (setq-default indent-tabs-mode nil)     ; no tabs, only spaces
 (setq comment-auto-fill-only-comments t) ; auto-fill comments and only them
-(column-number-mode 1)               ; show column number in mode line
-(projectile-global-mode)
-;; (global-linum-mode t) ; always show line numbers
 
 ;; auto-complete
 (autoload 'auto-complete-mode "auto-complete" nil t)
 ;; (add-to-list 'ac-dictionary-directories "~/.emacs.d/dict")
 (require 'auto-complete-config)
 (ac-config-default)
+(defun set-auto-complete-as-completion-at-point-function ()
+  (setq completion-at-point-functions '(auto-complete)))
+(add-hook 'auto-complete-mode-hook 'set-auto-complete-as-completion-at-point-function)
+(defun hub/config-ac-prog ()
+  (add-to-list 'ac-sources 'ac-source-yasnippet)
+  )
 
 (autoload 'projectile-on "projectile" "Project awareness in Emacs." t)
 (add-hook 'prog-mode-hook
-          (lambda () (progn (linum-mode 1) ; all code buffers with linum
-                            (flycheck-mode)
-                            (subword-mode) ; camelcase moves
-                            ;; (load-theme-buffer-local 'solarized-dark (current-buffer) t)
-                            ;; (projectile-on) ; project awareness
-                            (turn-on-auto-fill)
-                            )))
-(setq linum-format " %3d ")    ; remove graphical glitches with fringe
+          (lambda () (progn
+                       ; all code buffers with nlinum
+                       ; (so much faster than linum!)
+                       (nlinum-mode 1)
+                       (ggtags-mode 1) ; trial
+                       (flycheck-mode)
+                       (subword-mode) ; camelcase moves
+                       ;; (load-theme-buffer-local 'solarized-dark (current-buffer) t)
+                       ;; (projectile-on) ; project awareness
+                       (turn-on-auto-fill)
+                       (hub/config-ac-prog)
+                       (hub/anti-useless-whitespace)
+                       )))
+;; (setq linum-format " %3d ")    ; remove graphical glitches with fringe
 
 ;; dash: API Documentation Browser for MacOSX
 (autoload 'dash-at-point "dash-at-point"
@@ -744,7 +1147,7 @@ This functions should be added to the hooks of major modes for programming."
                             ;; Bind M-RET to 'comint-accumulate. This will allow you to add
                             ;; more than one line to scala console prompt before sending it
                             ;; for interpretation. It will keep your command history cleaner.
-                            (local-set-key (kbd "S-RET") 'comint-accumulate) 
+                            (local-set-key (kbd "S-RET") 'comint-accumulate)
                             ))
 (setq sbt:ansi-support t)
 ;; default (sbt) is not enough to get ANSI colors as sbt infers that
@@ -755,17 +1158,12 @@ This functions should be added to the hooks of major modes for programming."
 ;; (add-to-list 'load-path (getenv "SCALA_MODE2_ROOT"))
 (autoload 'scala-mode "scala-mode2")
 (add-to-list 'auto-mode-alist '("\\.scala$" . scala-mode))
-(add-to-list 'load-path (getenv "ENSIME_ROOT"))
+;; (add-to-list 'load-path (getenv "ENSIME_ROOT"))
 
-;; TODO: fixme. Goal when I call align-current in a scala file it
-;; magically align on => and <-
-(add-hook 'align-load-hook (lambda ()
-                             (add-to-list 'align-rules-list
-                                          '(scala-align
-                                            (regexp  . "\\(\\s-+\\)\\(<-\\|=>\\)")
-                                            (group   . 1)
-                                            (modes   . '(scala-mode))
-                                            (repeat  . nil)))))
+(defun hub/sbt-start ()
+  "Go to (or start) sbt buffer without affecting the current buffer."
+  (interactive)
+  (hub/dwim-other-window 'sbt-start))
 (defun hub/ensime-inf-reload ()
   "Restart the REPL with the last definition."
   (interactive)
@@ -779,14 +1177,20 @@ This functions should be added to the hooks of major modes for programming."
   (interactive)
   (newline-and-indent)
   (scala-indent:insert-asterisk-on-multiline-comment))
+(defun hub/projectile-test-suffix (project-type)
+  "Include sbt suffixes."
+  (or (projectile-test-suffix project-type)
+      (if (eq project-type 'sbt) "Spec" ())))
+(setq projectile-test-suffix-function 'hub/projectile-test-suffix)
 (defun hub/scala-config ()
   "Config scala-mode to my liking and start ensime."
   (setq
    scala-indent:use-javadoc-style nil
    scala-indent:align-forms t
    scala-indent:align-parameters t
-   scala-indent:default-run-on-strategy 1)
-  (hub/anti-useless-whitespace)
+   scala-indent:default-run-on-strategy 1
+   ; otherwise flycheck hides sbt errors with M-n/p
+   flycheck-standard-error-navigation nil)
   ;; is buggy with scala-mode2
   ;; FIXME: doesn't look like I'm useful...
   ;; (make-local-variable 'comment-style)
@@ -799,24 +1203,27 @@ This functions should be added to the hooks of major modes for programming."
   (add-hook 'ensime-source-buffer-loaded-hook 'hub/ensime-setup)
   (ensime-scala-mode-hook)
   (local-set-key (kbd "RET") 'hub/scala-ret))
+
 (evil-define-key 'normal scala-mode-map ",s." 'sbt-find-definitions)
 (evil-define-key 'normal scala-mode-map ",sa" 'sbt-run-previous-command)
 (evil-define-key 'normal scala-mode-map ",sc" 'sbt-command)
 (evil-define-key 'normal scala-mode-map ",s/" 'sbt-grep)
 (evil-define-key 'normal scala-mode-map ",sr" 'sbt-find-usages)
-(evil-define-key 'visual scala-mode-map ",sl" 'sbt-send-region)
+(evil-define-key 'normal scala-mode-map ",ss" 'hub/sbt-start)
+(evil-define-key 'visual scala-mode-map ",l" 'sbt-send-region)
 (evil-define-key 'normal scala-mode-map (kbd "M-.") 'ensime-edit-definition)
-(evil-define-key 'normal scala-mode-map ",e." 'ensime-edit-definition)
-(evil-define-key 'normal scala-mode-map ",ei" 'ensime-inspect-type-at-point)
+(evil-define-key 'normal scala-mode-map ",." 'ensime-edit-definition)
+(evil-define-key 'normal scala-mode-map ",i" 'ensime-inspect-type-at-point)
 (evil-define-key 'normal scala-mode-map ",eq" 'ensime-show-all-errors-and-warnings) ; q -> quickfix
 (evil-define-key 'normal scala-mode-map ",ef" 'ensime-format-source)
 (evil-define-key 'normal scala-mode-map ",e/" 'ensime-search)
-(evil-define-key 'normal scala-mode-map ",ex" 'ensime-scalex)
+(evil-define-key 'normal scala-mode-map ",eq" 'ensime-scalex)
 (evil-define-key 'normal scala-mode-map ",er" 'ensime-expand-selection)
 (evil-define-key 'normal scala-mode-map ",hh" 'ensime-show-doc-for-symbol-at-point)
-(evil-define-key 'normal scala-mode-map ",eb" 'ensime-builder-rebuild)
+(evil-define-key 'normal scala-mode-map ",b" 'ensime-builder-rebuild)
 (evil-define-key 'normal scala-mode-map ",eB" 'ensime-builder-build)
-;; { + Return => create a block and put the cursor on its own line 
+(evil-define-key 'normal scala-mode-map ",gr" 'ensime-inf-switch)
+;; { + Return => create a block and put the cursor on its own line
 (sp-local-pair 'scala-mode "{" nil :post-handlers '(("||\n[i]" "RET")))
 
 ;; TODO: make a smart "go to definition" where you can configure the
@@ -826,7 +1233,7 @@ This functions should be added to the hooks of major modes for programming."
 ;; If connected to ensime, use ensime-search,
 ;;
 ;;if not or if
-;; unsuccessful, if a tag table is created use it, 
+;; unsuccessful, if a tag table is created use it,
 ;; (defun scala-smart-gd () (
 ;;   (interactive)
 ;;   (let ((smart-gd-try-functions-list '(ensime-search
@@ -842,9 +1249,11 @@ This functions should be added to the hooks of major modes for programming."
   "Set up my emacs-lisp hacking environment."
   (hub/set-newline-and-indent-comment)
   (rainbow-delimiters-mode t)
-  (turn-on-eldoc-mode))
+  (eldoc-mode)
+  (electric-indent-local-mode)
+)
 (add-hook 'emacs-lisp-mode-hook 'hub/emacs-lisp-config)
-(require 'jka-compr) ; find-tag to be able to find .el.gz 
+(require 'jka-compr) ; find-tag to be able to find .el.gz
 (evil-define-key 'normal lisp-mode-shared-map ",." 'find-function)
 
 ;; Smalltalk
@@ -856,14 +1265,70 @@ This functions should be added to the hooks of major modes for programming."
 ;; unicode input doesn't work with eg >= (Not in scope: ≥): disabled
 ;; (add-hook 'haskell-mode-hook 'turn-on-haskell-unicode-input-method)
 (add-hook 'haskell-mode-hook 'turn-on-haskell-indentation)
+(add-hook 'haskell-mode-hook 'interactive-haskell-mode)
+(add-hook 'haskell-mode-hook 'haskell-indent-mode)
+(add-hook 'haskell-mode-hook 'haskell-doc-mode)
+(defun hub/haskell-config ()
+  "Set up my emacs-lisp hacking environment."
+  (hub/set-newline-and-indent-comment)
+  (rainbow-delimiters-mode t)
+  (electric-indent-local-mode))          ; deactivate: weird indent toggle
+(add-hook 'haskell-mode-hook 'hub/haskell-config)
+(custom-set-variables
+ ;; custom-set-variables was added by Custom.
+ ;; If you edit it by hand, you could mess it up, so be careful.
+ ;; Your init file should contain only one such instance.
+ ;; If there is more than one, they won't work right.
+ '(custom-safe-themes
+   (quote
+    ("e26780280b5248eb9b2d02a237d9941956fc94972443b0f7aeec12b5c15db9f3" "d677ef584c6dfc0697901a44b885cc18e206f05114c8a3b7fde674fce6180879" "8aebf25556399b58091e533e455dd50a6a9cba958cc4ebb0aab175863c25b9a4" "25f330cb050c7e7ec402af1b60243e8185a7837b455af0fa026593d4f48a78b2" default)))
+ '(haskell-process-auto-import-loaded-modules t)
+ '(haskell-process-log t)
+ '(haskell-process-suggest-remove-import-lines t))
 (eval-after-load "haskell-mode"
   '(progn
      (define-key haskell-mode-map (kbd "M-<left>") 'haskell-move-nested-left)
      (define-key haskell-mode-map (kbd "M-<right>") 'haskell-move-nested-right)))
 (eval-after-load "haskell-mode"
-  '(define-key haskell-mode-map (kbd "C-c C-c") 'haskell-compile))
+  '(progn (define-key haskell-mode-map (kbd "C-c C-c") 'haskell-compile)
+          (define-key haskell-mode-map (kbd  "C-c |") 'haskell-indent-insert-guard))
+)
 (eval-after-load "haskell-cabal"
   '(define-key haskell-cabal-mode-map (kbd "C-c C-c") 'haskell-compile))
+(evil-define-key 'normal haskell-cabal-mode-map ",b" 'haskell-compile)
+(evil-define-key 'normal haskell-mode-map ",b" 'haskell-compile)
+(evil-define-key 'normal haskell-mode-map ",." 'find-tag)
+(evil-define-key 'normal haskell-mode-map ",l" 'inferior-haskell-load-file)
+(evil-define-key 'normal haskell-mode-map ",gr" 'switch-to-haskell)
+(evil-define-key 'normal haskell-mode-map ",i" 'haskell-process-do-info)
+(evil-define-key 'normal haskell-mode-map ",et" 'haskell-process-do-type)
+(evil-define-key 'normal haskell-mode-map ",hh" 'inferior-haskell-find-haddock)
+;; align
+;; TODO: fixme. Goal when I call align-current in a scala file it
+;; magically align on => and <-
+(add-hook 'align-load-hook (lambda ()
+                             (add-to-list 'align-rules-list
+                                          '(scala-align
+                                            (regexp  . "\\(\\s-+\\)\\(<-\\|=>\\)")
+                                            (group   . 1)
+                                            (modes   . '(scala-mode))
+                                            (repeat  . nil)))
+                             (add-to-list 'align-rules-list
+                                          '(haskell-types
+                                            (regexp . "\\(\\s-+\\)\\(::\\|∷\\)\\s-+")
+                                            (modes quote (haskell-mode literate-haskell-mode))))
+                             (add-to-list 'align-rules-list
+                                          '(haskell-assignment
+                                            (regexp . "\\(\\s-+\\)=\\s-+")
+                                            (modes quote (haskell-mode literate-haskell-mode))))
+                             (add-to-list 'align-rules-list
+                                          '(haskell-arrows
+                                            (regexp . "\\(\\s-+\\)\\(->\\|→\\)\\s-+")
+                                            (modes quote (haskell-mode literate-haskell-mode))))
+                             (add-to-list 'align-rules-list
+                                          '(haskell-left-arrows
+                                            (regexp . "\\(\\s-+\\)\\(<-\\|←\\)\\s-+")
+                                            (modes quote (haskell-mode literate-haskell-mode))))))
 
 ;; Ruby
 (add-hook 'inf-ruby-mode-hook '(lambda ()
@@ -900,12 +1365,110 @@ This functions should be added to the hooks of major modes for programming."
   (setq evil-shift-width ruby-indent-level))
 (add-hook 'ruby-mode-hook 'hub-ruby-config)
 (add-hook 'ruby-mode-hook 'robe-mode)
-;; Web: HTML/CSS/JS
+(evil-define-key 'visual ruby-mode-map ",l" 'ruby-send-region)
+(evil-define-key 'normal ruby-mode-map ",gr" 'ruby-switch-to-inf)
+
+;; Web: HTML/CSS
 (add-hook 'sgml-mode-hook 'zencoding-mode) ;; Auto-start on any markup modes
-(add-hook 'sgml-mode-hook (lambda () (progn (linum-mode 1)))) 
+(add-hook 'sgml-mode-hook (lambda () (progn (nlinum-mode 1))))
 ;; after deleting a tag, indent properly
 (defadvice sgml-delete-tag (after reindent activate)
   (indent-region (point-min) (point-max)))
+(sp-local-pair 'css-mode "{" nil :post-handlers '(("||\n[i]" "RET")))
+(add-to-list 'auto-mode-alist '("\\.scss\\'" . css-mode))
+
+;; JS
+(add-to-list 'auto-mode-alist '("\\.json$" . js-mode))
+(add-hook 'js-mode-hook 'js2-minor-mode)
+(add-hook 'js2-mode-hook 'ac-js2-mode)
+;; somehow I have to explicitly require js2-refactor
+(eval-after-load 'js2-mode '(require 'js2-refactor))
+(eval-after-load 'js2-mode '(hub/js-keymap))
+(eval-after-load 'js2-mode
+  '(sp-local-pair 'js2-mode "<" ">"))
+(sp-local-pair 'js-mode "{" nil :post-handlers '(("||\n[i]" "RET")))
+(sp-local-pair 'js-mode "(" nil :post-handlers '(("||\n[i]" "RET")))
+(setq js2-basic-offset 2
+      js2-bounce-indent-p t
+      js2-highlight-level 2)
+;; I don't like web-mode. jsx-mode should be a minor mode letting me
+;; use all the goodness of my js2 config... No JSX support for now,
+;; bare js2.
+;; (add-to-list 'auto-mode-alist '("\\.jsx$" . web-mode))
+;; (defadvice web-mode-highlight-part (around tweak-jsx activate)
+;;   (if (equal web-mode-content-type "jsx")
+;;       (let ((web-mode-enable-part-face nil))
+;;         ad-do-it)
+;;     ad-do-it))
+
+(defun hub/js-keymap()
+  (evil-define-key 'normal js-mode-map ",=" 'web-beautify-js)
+  (evil-define-key 'normal js-mode-map ",." 'tern-find-definition)
+  (evil-define-key 'normal js-mode-map (kbd "M-.") 'tern-find-definition)
+  (evil-define-key 'normal js-mode-map ",:" 'tern-find-definition-by-name)
+  (evil-define-key 'normal js-mode-map ",i" 'tern-get-type)
+  (evil-define-key 'normal js-mode-map ",hh" 'tern-get-docs)
+  ;; (evil-define-key 'visual js2-mode-map ",l" ')
+  ;; (evil-define-key 'normal js2-mode-map ",ei" 'inspect)
+  ;; (evil-define-key 'normal js2-mode-map ",eq" 'show-all-errors-and-warnings) ; q -> quickfix
+  ;; (evil-define-key 'normal js2-mode-map ",ef" 'format-source)
+  ;; (evil-define-key 'normal js2-mode-map ",/" 'search)
+  ;; (evil-define-key 'normal js2-mode-map ",er" 'expand-selection)
+  ;; (evil-define-key 'normal js2-mode-map ",hh" ')
+  ;; (evil-define-key 'normal js2-mode-map ",b" 'build)
+  ;; (evil-define-key 'normal js2-mode-map ",gr" 'repl)
+  (evil-define-key 'normal js-mode-map ",reo" 'js2r-expand-object)
+  (evil-define-key 'normal js-mode-map ",rco" 'js2r-contract-object)
+  (evil-define-key 'normal js-mode-map ",reu" 'js2r-expand-function)
+  (evil-define-key 'normal js-mode-map ",rcu" 'js2r-contract-function)
+  (evil-define-key 'normal js-mode-map ",rea" 'js2r-expand-array)
+  (evil-define-key 'normal js-mode-map ",rca" 'js2r-contract-array)
+  (evil-define-key 'normal js-mode-map ",rwi" 'js2r-wrap-buffer-in-iife)
+  (evil-define-key 'normal js-mode-map ",rig" 'js2r-inject-global-in-iife)
+  (evil-define-key 'normal js-mode-map ",rev" 'js2r-extract-var)
+  (evil-define-key 'normal js-mode-map ",riv" 'js2r-inline-var)
+  (evil-define-key 'normal js-mode-map ",rrv" 'js2r-rename-var)
+  (evil-define-key 'normal js-mode-map ",rvt" 'js2r-var-to-this)
+  (evil-define-key 'normal js-mode-map ",rag" 'js2r-add-to-globals-annotation)
+  (evil-define-key 'normal js-mode-map ",rsv" 'js2r-split-var-declaration)
+  (evil-define-key 'normal js-mode-map ",rss" 'js2r-split-string)
+  (evil-define-key 'normal js-mode-map ",ref" 'js2r-extract-function)
+  (evil-define-key 'normal js-mode-map ",rem" 'js2r-extract-method)
+  (evil-define-key 'normal js-mode-map ",rip" 'js2r-introduce-parameter)
+  (evil-define-key 'normal js-mode-map ",rlp" 'js2r-localize-parameter)
+  (evil-define-key 'normal js-mode-map ",rtf" 'js2r-toggle-function-expression-and-declaration)
+  (evil-define-key 'normal js-mode-map ",rao" 'js2r-arguments-to-object)
+  (evil-define-key 'normal js-mode-map ",ruw" 'js2r-unwrap)
+  (evil-define-key 'normal js-mode-map ",rwl" 'js2r-wrap-in-for-loop)
+  (evil-define-key 'normal js-mode-map ",r3i" 'js2r-ternary-to-if)
+  (evil-define-key 'normal js-mode-map ",rlt" 'js2r-log-this)
+  (evil-define-key 'normal js-mode-map ",)" 'js2r-forward-slurp)
+  (evil-define-key 'normal js-mode-map ",(" 'js2r-forward-barf)
+  )
+(defun hub/js-config()
+  "How I like my JS XP."
+  (hub/set-newline-and-indent-comment)  ; FIXME: something wrong with auto-wrapping
+  (tern-mode t)
+  (hub/white))
+(add-hook 'js-mode-hook 'hub/js-config)
+(eval-after-load 'tern
+  '(progn
+     (require 'tern-auto-complete)
+     (tern-ac-setup)))
+
+;; R
+(require 'ess-site)
+(evil-define-key 'normal ess-mode ",ho" 'ess-display-help-on-object)
+
+;; Clojure
+(add-hook 'cider-mode-hook 'cider-turn-on-eldoc-mode)
+(require 'ac-cider)
+(add-hook 'cider-mode-hook 'ac-flyspell-workaround)
+(add-hook 'cider-mode-hook 'ac-cider-setup)
+(add-hook 'cider-repl-mode-hook 'ac-cider-setup)
+(eval-after-load "auto-complete"
+  '(add-to-list 'ac-modes 'cider-mode))
+(add-hook 'cider-mode-hook 'set-auto-complete-as-completion-at-point-function)
 
 ; tweaking to get my proper setup
 ; OSX

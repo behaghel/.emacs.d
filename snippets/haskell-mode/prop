@@ -1,0 +1,6 @@
+# -*- mode: snippet; require-final-newline: nil -*-
+# name: prop
+# key: prop
+# --
+describe "$1" $ do
+    it "$2" $ property $ $0

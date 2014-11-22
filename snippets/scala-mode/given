@@ -1,0 +1,10 @@
+# -*- mode: snippet; require-final-newline: nil -*-
+# name: given
+# key: given
+# --
+Given("$1")
+$2
+When("$3")
+$4
+Then("$5")
+$6

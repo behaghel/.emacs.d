@@ -1,0 +1,15 @@
+---
+title: `(progn title)`
+---
+#+TITLE: `(progn title)`
+#+AUTHOR: `(progn user-full-name)`
+#+EMAIL: hubert.behaghel@bskyb.com
+#+DESCRIPTION: Blog post for Le Carnet
+#+KEYWORDS: engineering web programming technology software design
+#+LANGUAGE: en
+#+OPTIONS: H:4 num:nil toc:nil ^:{} skip:nil
+#+COLUMNS: %25ITEM %TAGS %PRIORITY %TODO
+#+LATEX_HEADER: \usepackage[usenames,hyperref]{xcolor}
+#+LATEX_CLASS_OPTIONS: [colorlinks, linkcolor=red, urlcolor=blue]
+
+$0

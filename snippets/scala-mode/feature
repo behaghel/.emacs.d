@@ -1,0 +1,12 @@
+# -*- mode: snippet; require-final-newline: nil -*-
+# name: feature
+# key: feature
+# --
+info("As a $1")
+info("I want to $2")
+info("So I can $3")
+${4:info("And $5")}
+
+feature("$6") {
+  scenario$0
+}

@@ -1,0 +1,7 @@
+# -*- mode: snippet; require-final-newline: nil -*-
+# name: test
+# key: test
+# --
+describe "$1" $ do
+  it "$2" $ do
+    $0

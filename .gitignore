@@ -14,3 +14,7 @@ auto-save-list/
 bookmarks
 /ac-comphist.dat
 /ido.last
+/.org-id-locations
+/projectile.cache
+.ercpass
+\#*#

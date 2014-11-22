@@ -1,0 +1,16 @@
+# -*- mode: snippet; require-final-newline: nil -*-
+# name: orj
+# key: orj
+# binding: direct-keybinding
+# --
+
+#+BEGIN_HTML
+<iframe src="/doc/$2.html?embedded=true" 
+        class="orj"
+        style="border:none; width:90%; height:400px; margin-left: 1rem"/>
+<!--[if lt IE 9]>
+<a href="/doc/$1.html">$2</a>
+<![endif]-->
+#+END_HTML
+
+$0
