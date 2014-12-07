@@ -26,6 +26,16 @@
 ;;
 ;;; Code:
 
+(toggle-debug-on-error)
+(custom-set-variables
+ ;; custom-set-variables was added by Custom.
+ ;; If you edit it by hand, you could mess it up, so be careful.
+ ;; Your init file should contain only one such instance.
+ ;; If there is more than one, they won't work right.
+ '(custom-safe-themes
+   (quote
+    ("3a727bdc09a7a141e58925258b6e873c65ccf393b2240c51553098ca93957723" "756597b162f1be60a12dbd52bab71d40d6a2845a3e3c2584c6573ee9c332a66e" "6a37be365d1d95fad2f4d185e51928c789ef7a4ccf17e7ca13ad63a8bf5b922f" "e26780280b5248eb9b2d02a237d9941956fc94972443b0f7aeec12b5c15db9f3" "d677ef584c6dfc0697901a44b885cc18e206f05114c8a3b7fde674fce6180879" "8aebf25556399b58091e533e455dd50a6a9cba958cc4ebb0aab175863c25b9a4" "25f330cb050c7e7ec402af1b60243e8185a7837b455af0fa026593d4f48a78b2" default))))
+
 (setq user-mail-address "behaghel@gmail.com")
 (setq user-full-name "Hubert Behaghel")
 ;; (toggle-debug-on-error)
@@ -96,6 +106,9 @@
 (load-theme 'zenburn t)
 ;; zenburn region face is invisible...
 (set-face-attribute 'region nil :background "#666")
+;;; Smart Mode Line
+(setq sml/theme 'respectful)
+(sml/setup)
 
 ; Mac
 
@@ -134,36 +147,6 @@
 (autoload 'er/expand-region "expand-region" "expand-region.el" t)
 (global-set-key (kbd "M-r") 'er/expand-region)
 
-;; (require 'key-chord)
-;; ;; space-chord: https://github.com/emacsmirror/space-chord/blob/master/space-chord.el
-;; (defvar space-chord-delay 0.08
-;;   "Max time delay between two key press to be considered a key chord.
-;; `key-chord-two-keys-delay' for space-chord.")
-
-;; (defun space-chord-define-global (key command)
-;;   "Define a key-chord of KEY with space starting a COMMAND.
-;; KEY is a character or a 1-length string.
-;; \nCOMMAND can be an interactive function, a string, or nil.
-;; If COMMAND is nil, the key-chord is removed."
-;;   (interactive "sSet space chord globally (1 key): \nCSet chord \"%s\" to command: ")
-;;   (space-chord-define (current-global-map) key command))
-
-;; (defun space-chord-define (keymap key command)
-;;   "Define in KEYMAP, a key-chord of KEY with space starting a COMMAND.
-;; \nCOMMAND can be an interactive function, a string, or nil.
-;; If COMMAND is nil, the key-chord is removed."
-;;   (define-key keymap (vector 'key-chord ? (if (stringp key) (aref key 0) key)) command))
-
-;; (defadvice key-chord-input-method (around space-chord activate)
-;;   "Set `key-chord-two-keys-delay' to `space-chord-delay' when starting a key-chord with Space."
-;;   (if (eq (ad-get-arg 0)  ? )
-;;       (let ((key-chord-two-keys-delay space-chord-delay))
-;;         ad-do-it)
-;;     ad-do-it))
-;; (space-chord-define-global ?c 'evil-window-left)
-;; (space-chord-define-global ?r 'evil-window-right)
-;; (space-chord-define-global ?t 'evil-window-down)
-;; (space-chord-define-global ?s 'evil-window-up)
 ;; left cmd + right cmd + csrn in order to jump from window to window
 (global-set-key (kbd "M-©") 'evil-window-left)
 (global-set-key (kbd "M-®") 'evil-window-right)
@@ -316,6 +299,7 @@
 ;; (require 'org-habit)
 
 ;; stolen from http://orgmode.org/worg/org-hacks.html
+;; TODO: compare with elpa package org-wc
 (defun org-word-count (beg end
                            &optional count-latex-macro-args?
                            count-footnotes?)
@@ -469,6 +453,9 @@ of its arguments."
   (func-region start end #'url-unhex-string))
 
 (defvar blog-posts-dir (expand-file-name (concat (getenv "BLOG_ROOT") "/posts")))
+
+(autoload 'artbollocks-mode "artbollocks-mode" "improve your english style" t)
+
 (defun hub/create-post (title)
   "Start editing a new file whose title is following this pattern
 %Y-%m-%d-[title].orp in the posts directory."
@@ -480,7 +467,10 @@ of its arguments."
     (find-file (format "%s/%s-%s.org" blog-posts-dir today slug))
     (insert-file-contents template)
     (hub/autoinsert-yas-expand `((title ,title)))
-    (add-hook 'find-file-hooks 'auto-insert)))
+    (add-hook 'find-file-hooks 'auto-insert)
+    (ispell-change-dictionary "uk")
+    (setq-local ispell-check-comments nil)
+    (artbollocks-mode)))
 
 (defun hub/sluggify (title)
   "Transform the TITLE of an article into a slug suitable for an URL."
@@ -738,6 +728,7 @@ C-x b RET. The buffer selected is the one returned by (other-buffer)."
 (define-key evil-normal-state-map (kbd ",cr") 'recompile)
 (define-key evil-normal-state-map (kbd ",ck") 'kill-compilation)
 (define-key evil-normal-state-map (kbd ",cw") 'artbollocks-count-words)
+(define-key evil-normal-state-map (kbd ",cw") 'ispell-buffer)
 (define-key evil-normal-state-map (kbd ",cg") 'langtool-check)
 ;; evil is crazy
 (define-key evil-insert-state-map (kbd "C-d") nil)
@@ -745,12 +736,14 @@ C-x b RET. The buffer selected is the one returned by (other-buffer)."
 ;;;; Default state
 (evil-set-initial-state 'help-mode 'emacs)
 ;; (evil-set-initial-state 'dired-mode 'emacs)
-(evil-set-initial-state 'Info 'emacs)
 ;; (evil-set-initial-state 'fundamental-mode 'emacs)
 (evil-set-initial-state 'ess-help-mode 'emacs)
 (evil-set-initial-state 'ensime-scalex-mode 'emacs)
 (evil-set-initial-state 'erc-mode 'emacs)
 (evil-set-initial-state 'image-mode 'emacs)
+;;; Info & Evil
+(evil-set-initial-state 'Info 'emacs)
+(evil-define-key 'motion Info-mode-map "l" nil) ; use l to say last
 
 ;; (require 'powerline-evil)
 ;; (powerline-evil-center-color-theme)
@@ -897,7 +890,7 @@ PWD is not in a git repo (or the git command is not found)."
     (setq erc-auto-query 'bury)
     (setq erc-track-exclude-types '("JOIN" "NICK" "PART" "QUIT" "MODE"
                                     "324" "329" "332" "333" "353" "477"))
-    (setq erc-lurker-hide-list '("JOIN" "NICK" "PART" "QUIT"))
+    (setq erc-lurker-hide-list '("JOIN" "NICK" "PART" "QUIT" "MODE"))
     ;; (setq erc-echo-notices-in-minibuffer-flag t)
     ;; (erc-minibuffer-notice t)
     (setq erc-lurker-threshold-time 3600)
@@ -1019,9 +1012,8 @@ PWD is not in a git repo (or the git command is not found)."
 ;; Markdown
 (autoload 'markdown-mode "markdown-mode"
    "Major mode for editing Markdown files" t)
-(add-to-list 'auto-mode-alist '("\\.text\\'" . markdown-mode))
-(add-to-list 'auto-mode-alist '("\\.markdown\\'" . markdown-mode))
-(add-to-list 'auto-mode-alist '("\\.md\\'" . markdown-mode))
+(add-to-list 'auto-mode-alist '("\\.markdown$" . markdown-mode))
+(add-to-list 'auto-mode-alist '("\\.md$" . markdown-mode))
 
 ; coding
 ;; keys
@@ -1042,6 +1034,7 @@ when it inserts comment at the end of the line."
 (global-set-key "\M-;" 'comment-dwim-line)
 
 ;; RET insert newline and indent + comment if required
+;; Not suitable for multi-line comments à la javadoc
 (defun hub/set-newline-and-indent-comment ()
   "Bind RET locally to 'comment-indent-new-line'."
   (local-set-key (kbd "RET") 'comment-indent-new-line))
@@ -1062,8 +1055,18 @@ when it inserts comment at the end of the line."
 (eval-after-load 'undo-tree '(diminish 'undo-tree-mode))
 (eval-after-load 'projectile '(diminish 'projectile-mode))
 (eval-after-load 'whitespace '(diminish 'whitespace-mode))
+;; this one seems hard to diminish: insisting
 (eval-after-load 'auto-fill-mode '(diminish 'auto-fill-function))
+(eval-after-load 'auto-fill '(diminish 'auto-fill-function))
+(diminish 'auto-fill-function)
+
+(eval-after-load 'ggtags '(diminish 'ggtags-mode))
+(eval-after-load 'eldoc '(diminish 'eldoc-mode))
 (eval-after-load 'git-gutter+ '(diminish 'git-gutter+-mode))
+(eval-after-load 'magit '(diminish 'magit-auto-revert-mode))
+(eval-after-load 'js-mode '(diminish 'js-mode "js"))
+(eval-after-load 'auto-complete '(diminish 'auto-complete-mode))
+
 ;; Syntax
 ;;; stolen here: http://emacsredux.com/blog/2013/07/24/highlight-comment-annotations/
 (defun font-lock-comment-annotations ()
@@ -1099,8 +1102,8 @@ This functions should be added to the hooks of major modes for programming."
           (lambda () (progn
                        ; all code buffers with nlinum
                        ; (so much faster than linum!)
-                       (nlinum-mode 1)
-                       (ggtags-mode 1) ; trial
+                       ;; (nlinum-mode 1) ; line # are overrated
+                       ;; (ggtags-mode 1) ; trial
                        (flycheck-mode)
                        (subword-mode) ; camelcase moves
                        ;; (load-theme-buffer-local 'solarized-dark (current-buffer) t)
@@ -1274,17 +1277,9 @@ This functions should be added to the hooks of major modes for programming."
   (rainbow-delimiters-mode t)
   (electric-indent-local-mode))          ; deactivate: weird indent toggle
 (add-hook 'haskell-mode-hook 'hub/haskell-config)
-(custom-set-variables
- ;; custom-set-variables was added by Custom.
- ;; If you edit it by hand, you could mess it up, so be careful.
- ;; Your init file should contain only one such instance.
- ;; If there is more than one, they won't work right.
- '(custom-safe-themes
-   (quote
-    ("e26780280b5248eb9b2d02a237d9941956fc94972443b0f7aeec12b5c15db9f3" "d677ef584c6dfc0697901a44b885cc18e206f05114c8a3b7fde674fce6180879" "8aebf25556399b58091e533e455dd50a6a9cba958cc4ebb0aab175863c25b9a4" "25f330cb050c7e7ec402af1b60243e8185a7837b455af0fa026593d4f48a78b2" default)))
- '(haskell-process-auto-import-loaded-modules t)
- '(haskell-process-log t)
- '(haskell-process-suggest-remove-import-lines t))
+(setq haskell-process-auto-import-loaded-modules t
+      haskell-process-log t
+      haskell-process-suggest-remove-import-lines t)
 (eval-after-load "haskell-mode"
   '(progn
      (define-key haskell-mode-map (kbd "M-<left>") 'haskell-move-nested-left)
@@ -1370,12 +1365,12 @@ This functions should be added to the hooks of major modes for programming."
 
 ;; Web: HTML/CSS
 (add-hook 'sgml-mode-hook 'zencoding-mode) ;; Auto-start on any markup modes
-(add-hook 'sgml-mode-hook (lambda () (progn (nlinum-mode 1))))
+;; (add-hook 'sgml-mode-hook (lambda () (progn (nlinum-mode 1))))
 ;; after deleting a tag, indent properly
 (defadvice sgml-delete-tag (after reindent activate)
   (indent-region (point-min) (point-max)))
 (sp-local-pair 'css-mode "{" nil :post-handlers '(("||\n[i]" "RET")))
-(add-to-list 'auto-mode-alist '("\\.scss\\'" . css-mode))
+(add-to-list 'auto-mode-alist '("\\.scss$" . css-mode))
 
 ;; JS
 (add-to-list 'auto-mode-alist '("\\.json$" . js-mode))
@@ -1383,7 +1378,6 @@ This functions should be added to the hooks of major modes for programming."
 (add-hook 'js2-mode-hook 'ac-js2-mode)
 ;; somehow I have to explicitly require js2-refactor
 (eval-after-load 'js2-mode '(require 'js2-refactor))
-(eval-after-load 'js2-mode '(hub/js-keymap))
 (eval-after-load 'js2-mode
   '(sp-local-pair 'js2-mode "<" ">"))
 (sp-local-pair 'js-mode "{" nil :post-handlers '(("||\n[i]" "RET")))
@@ -1404,6 +1398,7 @@ This functions should be added to the hooks of major modes for programming."
 (defun hub/js-keymap()
   (evil-define-key 'normal js-mode-map ",=" 'web-beautify-js)
   (evil-define-key 'normal js-mode-map ",." 'tern-find-definition)
+  (evil-define-key 'normal js-mode-map ",t" 'tern-pop-find-definition)
   (evil-define-key 'normal js-mode-map (kbd "M-.") 'tern-find-definition)
   (evil-define-key 'normal js-mode-map ",:" 'tern-find-definition-by-name)
   (evil-define-key 'normal js-mode-map ",i" 'tern-get-type)
@@ -1447,9 +1442,11 @@ This functions should be added to the hooks of major modes for programming."
   )
 (defun hub/js-config()
   "How I like my JS XP."
-  (hub/set-newline-and-indent-comment)  ; FIXME: something wrong with auto-wrapping
+  (local-set-key (kbd "RET") 'newline-and-indent)
   (tern-mode t)
-  (hub/white))
+  (hub/js-keymap)
+  ;; (ggtags-mode nil)
+  (hub/anti-useless-whitespace))
 (add-hook 'js-mode-hook 'hub/js-config)
 (eval-after-load 'tern
   '(progn
@@ -1469,6 +1466,10 @@ This functions should be added to the hooks of major modes for programming."
 (eval-after-load "auto-complete"
   '(add-to-list 'ac-modes 'cider-mode))
 (add-hook 'cider-mode-hook 'set-auto-complete-as-completion-at-point-function)
+
+;; Shell scripting
+(add-to-list 'auto-mode-alist '("\\.zsh$" . shell-script-mode))
+
 
 ; tweaking to get my proper setup
 ; OSX
