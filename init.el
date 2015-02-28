@@ -13,6 +13,7 @@
 ;;             - ,c == compile/check
 ;;             - ,g == anything find or go to
 ;;             - ,e == anything execute
+;;             - ,t == anything test (few exceptions)
 ;;             - ,h == anything help
 ;;             - ,n == new / create
 ;;             - coding:
@@ -34,7 +35,11 @@
  ;; If there is more than one, they won't work right.
  '(custom-safe-themes
    (quote
-    ("3a727bdc09a7a141e58925258b6e873c65ccf393b2240c51553098ca93957723" "756597b162f1be60a12dbd52bab71d40d6a2845a3e3c2584c6573ee9c332a66e" "6a37be365d1d95fad2f4d185e51928c789ef7a4ccf17e7ca13ad63a8bf5b922f" "e26780280b5248eb9b2d02a237d9941956fc94972443b0f7aeec12b5c15db9f3" "d677ef584c6dfc0697901a44b885cc18e206f05114c8a3b7fde674fce6180879" "8aebf25556399b58091e533e455dd50a6a9cba958cc4ebb0aab175863c25b9a4" "25f330cb050c7e7ec402af1b60243e8185a7837b455af0fa026593d4f48a78b2" default))))
+    ("c5a044ba03d43a725bd79700087dea813abcb6beb6be08c7eb3303ed90782482" "3a727bdc09a7a141e58925258b6e873c65ccf393b2240c51553098ca93957723" "756597b162f1be60a12dbd52bab71d40d6a2845a3e3c2584c6573ee9c332a66e" "6a37be365d1d95fad2f4d185e51928c789ef7a4ccf17e7ca13ad63a8bf5b922f" "e26780280b5248eb9b2d02a237d9941956fc94972443b0f7aeec12b5c15db9f3" "d677ef584c6dfc0697901a44b885cc18e206f05114c8a3b7fde674fce6180879" "8aebf25556399b58091e533e455dd50a6a9cba958cc4ebb0aab175863c25b9a4" "25f330cb050c7e7ec402af1b60243e8185a7837b455af0fa026593d4f48a78b2" default))))
+
+;; putting it earlier in attempt to make it work.
+(setq org-return-follows-link t)
+(setq org-footnote-auto-adjust t)
 
 (setq user-mail-address "behaghel@gmail.com")
 (setq user-full-name "Hubert Behaghel")
@@ -58,19 +63,20 @@
 
 (setq url-http-attempt-keepalives nil)
 
-(defvar ensure-packages '(ac-js2 auto-complete better-defaults
-  cl-lib dash dash-at-point diminish epl ess evil evil-leader
-  evil-matchit evil-nerd-commenter exec-path-from-shell
-  expand-region f flx-ido flycheck flycheck-haskell ggtags gh
-  gist git git-commit-mode git-gutter-fringe+ git-rebase-mode
-  gnuplot goto-chg haskell-mode ido-at-point ido-ubiquitous
-  ido-vertical-mode inf-ruby js2-mode js2-refactor logito magit
-  markdown-mode multiple-cursors nlinum org org-ac pcache
-  persp-projectile pkg-info popwin rainbow-delimiters
-  rainbow-mode robe ruby-end s sbt-mode smartparens smex
-  solarized-theme sublime-themes surround tern tern-auto-complete
-  undo-tree yagist yasnippet zenburn-theme zencoding-mode)
-  "A list of packages to ensure are installed at launch.")
+(defvar ensure-packages '(ac-cider ac-js2 auto-complete
+  better-defaults cider cl-lib dash dash-at-point diminish epl
+  ess evil evil-leader evil-matchit evil-nerd-commenter
+  exec-path-from-shell expand-region f flx-ido flycheck
+  flycheck-haskell ggtags gh gist git git-commit-mode
+  git-gutter-fringe+ git-rebase-mode gnuplot goto-chg
+  haskell-mode ido-at-point ido-ubiquitous ido-vertical-mode
+  inf-ruby js2-mode js2-refactor logito magit markdown-mode
+  multiple-cursors nlinum org org-ac pcache persp-projectile
+  pkg-info popwin rainbow-delimiters rainbow-mode restclient robe
+  s sbt-mode smartparens smex solarized-theme sublime-themes
+  surround tern tern-auto-complete undo-tree yagist yasnippet
+  zenburn-theme zencoding-mode)
+  "A list of packages to check/install at launch.")
 
 ;; ox-reveal << put it back when no more "stable" branch non-sense
 
@@ -116,7 +122,7 @@
 (setq is-mac (equal system-type 'darwin))
 
 ;; fix for Mac OS X PATH in Emacs GUI
-(when is-mac
+(when window-system
   (exec-path-from-shell-initialize))
 
 (setq mac-command-key-is-meta t)
@@ -163,8 +169,6 @@
 (require 'smartparens-config)
 (smartparens-global-mode t)
 
-;; Transpose
-;; stolen from @magnars
 (global-set-key (kbd "C-<right>") 'sp-forward-slurp-sexp)
 (global-set-key (kbd "C-<left>") 'sp-forward-barf-sexp)
 (global-set-key (kbd "C-S-<left>") 'sp-backward-slurp-sexp)
@@ -290,8 +294,8 @@
 ;; (setq org-agenda-files org-directory)
 (setq org-hide-leading-stars t)
 (setq org-startup-indented t)
-(setq org-return-follows-link t)
 (setq org-src-fontify-natively t)
+;; (setq org-latex-listings nil)
 (setq org-reveal-root (getenv "REVEAL_JS_ROOT_URL"))
 (load-library "/Users/hbe07/tmp/org-reveal/ox-reveal.el")
 (setq org-plantuml-jar-path "~/install/plantuml.jar")
@@ -387,8 +391,8 @@ of its arguments."
     (message (format "%d words in %s." wc
                      (if mark-active "region" "buffer")))))
 
-(require 'org-ac)
-(org-ac/config-default)
+;; (require 'org-ac)
+;; (org-ac/config-default)
 (autoload 'google-contacts "google-contacts" "Google Contacts." t)
 (add-hook 'org-mode 'auto-fill-mode)
 ;; stolen from http://www.emacswiki.org/emacs/ArtistMode
@@ -425,7 +429,7 @@ of its arguments."
 ;;; Babel
 (org-babel-do-load-languages
  'org-babel-load-languages
- '((ditaa . t)(plantuml . t)(ruby . t)(awk . t)(gnuplot . t)(R . t)))
+ '((ditaa . t)(plantuml . t)(ruby . t)(awk . t)(gnuplot . t)(R . t)(latex . t)))
 ;; (add-to-list 'org-babel-default-header-args:gnuplot
 ;;              '((:prologue . "reset")))
 (setq org-confirm-babel-evaluate nil)   ; stop asking. May be dangerous...
@@ -636,6 +640,8 @@ C-x b RET. The buffer selected is the one returned by (other-buffer)."
 (define-key evil-normal-state-map (kbd "H") 'evil-find-char-to-backward)
 (define-key evil-normal-state-map (kbd "k") 'evil-substitute)
 (define-key evil-normal-state-map (kbd "K") 'evil-change-whole-line)
+(define-key evil-normal-state-map (kbd "©") 'backward-sexp)
+(define-key evil-normal-state-map (kbd "®") 'forward-sexp)
 
 ;;;; Other mapping
 (define-key evil-normal-state-map (kbd "C-e") 'evil-end-of-line)
@@ -672,6 +678,7 @@ C-x b RET. The buffer selected is the one returned by (other-buffer)."
 (define-key evil-normal-state-map (kbd ",gg") 'hub/switch-to-other-buffer)
 ;;; Switch to another open buffer
 (define-key evil-normal-state-map (kbd ",gb") 'switch-to-buffer)
+(define-key evil-normal-state-map (kbd ",gB") 'switch-to-buffer-other-window)
 ;; you want to *o*pen something
 ;;; Open file
 (define-key evil-normal-state-map (kbd ",of") 'ido-find-file)
@@ -680,7 +687,7 @@ C-x b RET. The buffer selected is the one returned by (other-buffer)."
 ; open init.el
 (define-key evil-normal-state-map (kbd ",oe") 'custom-persp/emacs)
 ; open hubert.org
-(define-key evil-normal-state-map (kbd ",oh") (lambda()(interactive)(find-file "~/Dropbox/org/hubert.org")))
+(define-key evil-normal-state-map (kbd ",oh") (lambda()(interactive)(find-file "~/Dropbox/Documents/org/hubert.org")))
 (define-key evil-normal-state-map (kbd ",os") 'custom-persp/sas)
 ;; open file in project
 (define-key evil-normal-state-map (kbd ",pf") 'projectile-find-file)
@@ -704,6 +711,9 @@ C-x b RET. The buffer selected is the one returned by (other-buffer)."
 ; Makes (setq org-return-follows-link t) work with Evil
 (evil-define-key 'motion org-mode-map (kbd "RET") 'org-return)
 (evil-define-key 'normal org-mode-map (kbd ",or") 'org-babel-open-src-block-result)
+(evil-define-key 'normal org-mode-map (kbd ",s") 'outline-backward-same-level)
+(evil-define-key 'normal org-mode-map (kbd ",t") 'outline-forward-same-level)
+(evil-define-key 'normal org-mode-map (kbd ",T") 'outline-up-heading)
 (define-key evil-normal-state-map (kbd ",nb") 'hub/create-post)
 (require 'evil-matchit)
 (global-evil-matchit-mode 1)
@@ -741,6 +751,7 @@ C-x b RET. The buffer selected is the one returned by (other-buffer)."
 (evil-set-initial-state 'ensime-scalex-mode 'emacs)
 (evil-set-initial-state 'erc-mode 'emacs)
 (evil-set-initial-state 'image-mode 'emacs)
+(evil-set-initial-state 'cider-stacktrace-mode 'emacs)
 ;;; Info & Evil
 (evil-set-initial-state 'Info 'emacs)
 (evil-define-key 'motion Info-mode-map "l" nil) ; use l to say last
@@ -934,7 +945,9 @@ PWD is not in a git repo (or the git command is not found)."
 ;; REQUIRES Magit
 (define-key evil-normal-state-map (kbd ",vs") 'magit-status) ;; git control panel
 (define-key evil-normal-state-map (kbd ",vh") 'magit-file-log) ; Commit history for current file
+(define-key evil-normal-state-map (kbd ",vf") 'magit-file-log) ; Commit history for current file
 (define-key evil-normal-state-map (kbd ",vb") 'magit-blame-mode) ; Blame for current file
+(define-key evil-normal-state-map (kbd ",vB") 'vc-annotate) ; Git blame with vc
 (define-key evil-normal-state-map (kbd ",vg") 'vc-git-grep) ; Git grep
 (define-key evil-normal-state-map (kbd ",v/") 'vc-git-grep) ; Git grep
 (define-key evil-normal-state-map (kbd ",vr") 'git-gutter+-revert-hunk)
@@ -1008,6 +1021,10 @@ PWD is not in a git repo (or the git command is not found)."
 (autoload 'artbollocks-mode "artbollocks-mode")
 (setq langtool-language-tool-jar "/usr/local/Cellar/languagetool/2.6/libexec/languagetool.jar")
 
+
+;; asciidoc
+(add-hook 'adoc-mode-hook (lambda() (buffer-face-mode t)))
+(add-to-list 'auto-mode-alist (cons "\\.asciidoc\\'" 'adoc-mode))
 
 ;; Markdown
 (autoload 'markdown-mode "markdown-mode"
@@ -1271,15 +1288,31 @@ This functions should be added to the hooks of major modes for programming."
 (add-hook 'haskell-mode-hook 'interactive-haskell-mode)
 (add-hook 'haskell-mode-hook 'haskell-indent-mode)
 (add-hook 'haskell-mode-hook 'haskell-doc-mode)
+(add-hook 'flycheck-mode-hook 'flycheck-haskell-setup)
+(autoload 'ghc-init "ghc" nil t)
 (defun hub/haskell-config ()
   "Set up my emacs-lisp hacking environment."
   (hub/set-newline-and-indent-comment)
   (rainbow-delimiters-mode t)
+  (ghc-init)
   (electric-indent-local-mode))          ; deactivate: weird indent toggle
 (add-hook 'haskell-mode-hook 'hub/haskell-config)
+(setq haskell-process-type 'cabal-repl
+      haskell-process-args-cabal-repl '("--ghc-option=-ferror-spans"))
 (setq haskell-process-auto-import-loaded-modules t
       haskell-process-log t
       haskell-process-suggest-remove-import-lines t)
+;;; auto-complete
+(ac-define-source haskell
+  '((candidates
+     . (lambda ()
+         (let ((resp (haskell-process-get-repl-completions (haskell-process) ac-prefix)))
+           (if (string= (car resp) "")
+               (cdr resp)
+             (mapcar (lambda (s) (car resp)) (cdr resp))))))))
+(add-hook 'haskell-mode-hook '(lambda ()
+                                (add-to-list 'ac-sources 'ac-source-haskell)))
+;;; key bindings
 (eval-after-load "haskell-mode"
   '(progn
      (define-key haskell-mode-map (kbd "M-<left>") 'haskell-move-nested-left)
@@ -1360,8 +1393,15 @@ This functions should be added to the hooks of major modes for programming."
   (setq evil-shift-width ruby-indent-level))
 (add-hook 'ruby-mode-hook 'hub-ruby-config)
 (add-hook 'ruby-mode-hook 'robe-mode)
+;; (add-hook 'ruby-mode-hook 'minitest-mode)
+(eval-after-load 'minitest
+  '(minitest-install-snippets))
 (evil-define-key 'visual ruby-mode-map ",l" 'ruby-send-region)
 (evil-define-key 'normal ruby-mode-map ",gr" 'ruby-switch-to-inf)
+(evil-define-key 'normal ruby-mode-map ",tt" 'minitest-verify)
+(evil-define-key 'normal ruby-mode-map ",ta" 'minitest-verify-all)
+(evil-define-key 'normal ruby-mode-map ",tc" 'minitest-verify-single)
+(evil-define-key 'normal ruby-mode-map ",tr" 'minitest-rerun)
 
 ;; Web: HTML/CSS
 (add-hook 'sgml-mode-hook 'zencoding-mode) ;; Auto-start on any markup modes
@@ -1466,6 +1506,80 @@ This functions should be added to the hooks of major modes for programming."
 (eval-after-load "auto-complete"
   '(add-to-list 'ac-modes 'cider-mode))
 (add-hook 'cider-mode-hook 'set-auto-complete-as-completion-at-point-function)
+(evil-define-key 'normal cider-mode-map ",l" 'cider-load-buffer)
+(evil-define-key 'visual cider-mode-map ",l" 'cider-eval-region)
+(evil-define-key 'normal cider-mode-map ",." 'cider-jump-to-var)
+(evil-define-key 'normal cider-mode-map ",;" 'cider-jump-back)
+(evil-define-key 'normal cider-mode-map ",i" 'cider-inspect)
+(evil-define-key 'normal cider-mode-map ",gr" 'cider-switch-to-repl-buffer)
+(evil-define-key 'normal cider-mode-map ",hh" 'cider-doc)
+(evil-define-key 'normal cider-mode-map ",hg" 'cider-docview-grimoire)
+(evil-define-key 'normal cider-mode-map ",hG" 'cider-docview-grimoire-web)
+
+;;; 4clojure
+(defadvice 4clojure-open-question (around 4clojure-open-question-around)
+  "Start a cider/nREPL connection if one hasn't already been started when
+opening 4clojure questions"
+  ad-do-it
+  (unless cider-current-clojure-buffer
+    (cider-jack-in)))
+(defun endless/4clojure-check-and-proceed ()
+  "Check the answer and show the next question if it worked."
+  (interactive)
+  (unless
+      (save-excursion
+        ;; Find last sexp (the answer).
+        (goto-char (point-max))
+        (forward-sexp -1)
+        ;; go to the beginning of the line for answer like :a :b :c
+        (beginning-of-line)
+        ;; Check the answer.
+        (cl-letf ((answer
+                   (buffer-substring (point) (point-max)))
+                  ;; Preserve buffer contents, in case you failed.
+                  ((buffer-string)))
+          (goto-char (point-min))
+          (while (search-forward "__" nil t)
+            (replace-match answer))
+          (string-match "failed." (4clojure-check-answers))))
+    (4clojure-next-question)))
+(defadvice 4clojure/start-new-problem
+    (after endless/4clojure/start-new-problem-advice () activate)
+  ;; Prettify the 4clojure buffer.
+  (goto-char (point-min))
+  (forward-line 2)
+  (forward-char 3)
+  (fill-paragraph)
+  ;; Position point for the answer
+  (goto-char (point-max))
+  (insert "\n\n\n")
+  (forward-char -1)
+  (whitespace-mode -1)                  ; deactivate, it's annoying
+  ;; Define our key.
+  (local-set-key (kbd "M-j") #'endless/4clojure-check-and-proceed))
+(defun 4clojure-login (user pwd)
+  "Login to 4clojure"
+  (interactive "sWhat's your name? \nsAnd your password ")
+  (request
+   "http://www.4clojure.com/login"
+   :type "POST"
+   :sync t
+   :headers '(
+              ("User-Agent" . "Mozilla/5.0 (X11; Linux x86_64; rv:28.0) Gecko/20100101  Firefox/28.0")
+              ("Referer" . "http://www.4clojure.com/login")
+              )
+                                        ;   :parser 'buffer-string
+   :data `(("user" . ,user) ("pwd" . ,pwd))
+   :success (function*
+             (lambda (&key data &allow-other-keys)
+               data
+               )
+             )
+                                        ; when server send 302 header, `request` redirect request with original method POST,
+                                        ; So 4clojure will not handle this redirect and given 404
+   :status-code '((404 . (lambda (&rest _) (message "login successful!"))))
+   )
+  )
 
 ;; Shell scripting
 (add-to-list 'auto-mode-alist '("\\.zsh$" . shell-script-mode))
