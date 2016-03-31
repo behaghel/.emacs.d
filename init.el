@@ -10,7 +10,7 @@
 ;;             - , == <leader>
 ;;             - ,v == anything versioning
 ;;             - ,o == open
-;;             - ,c == compile/check
+;;             - ,c == compile/check or build task
 ;;             - ,g == anything find or go to
 ;;             - ,e == anything execute
 ;;             - ,t == anything test (few exceptions)
@@ -21,8 +21,8 @@
 ;;               - ,hh -> go to help for symbol at point
 ;;               - ,l  -> load buffer (or region or paragraph...) to
 ;;                        inferior process
-;;               - ,b  -> build / compile
-;;               - ,i  -> inspect type at point
+;;               - ,b  -> build / compile task
+;;               - ,ii  -> inspect type at point
 ;;               - ,gr -> go to REPL
 ;;
 ;;; Code:
@@ -109,9 +109,23 @@
 (setq auto-save-file-name-transforms
       `((".*" ,(concat user-emacs-directory "backups") t)))
 
-(load-theme 'zenburn t)
-;; zenburn region face is invisible...
-(set-face-attribute 'region nil :background "#666")
+;; Look / Theme
+;; http://pawelbx.github.io/emacs-theme-gallery/
+;;
+;; (load-theme 'zenburn t)
+(require 'moe-theme)
+(moe-dark)
+;; http://chriskempson.github.io/base16/#eighties
+;; (load-theme 'base16-eighties-dark t)
+
+;; ;; zenburn region face is invisible...
+;; (set-face-attribute 'region nil :background "#666")
+
+;; (require 'rainbow-delimiters)
+;; (set-face-attribute 'rainbow-delimiters-unmatched-face nil
+;;                     :foreground 'unspecified
+;;                     :inherit 'error)
+
 ;;; Smart Mode Line
 (setq sml/theme 'respectful)
 (sml/setup)
@@ -140,6 +154,12 @@
 (require 'popwin)
 (popwin-mode 1)
 
+(column-number-mode 1)               ; show column number in mode line
+
+;; particularly useful in git repositories to avoid the hassle of
+;; manually reloading each buffer when you change branch.
+(global-auto-revert-mode t)
+
 ;; does to M-x what ido does to C-x C-f
 (require 'smex)
 (smex-initialize)
@@ -152,6 +172,15 @@
 (global-set-key (kbd "C-é") 'undo)
 (autoload 'er/expand-region "expand-region" "expand-region.el" t)
 (global-set-key (kbd "M-r") 'er/expand-region)
+
+(defun save-all ()
+  "To be used to automatically save when I leave Emacs."
+  (interactive)
+  (save-some-buffers t))
+(add-hook 'focus-out-hook 'save-all)
+
+(define-key key-translation-map (kbd "<f8> <right>") (kbd "→"))
+(define-key key-translation-map (kbd "<f8> i") (kbd "∞"))
 
 ;; left cmd + right cmd + csrn in order to jump from window to window
 (global-set-key (kbd "M-©") 'evil-window-left)
@@ -169,10 +198,20 @@
 (require 'smartparens-config)
 (smartparens-global-mode t)
 
-(global-set-key (kbd "C-<right>") 'sp-forward-slurp-sexp)
+;; this works great for lisp languages
+;; (global-set-key (kbd "C-<right>") 'sp-forward-slurp-sexp)
+;; this works better for other languages
+(global-set-key (kbd "C-<right>") 'sp-slurp-hybrid-sexp)
 (global-set-key (kbd "C-<left>") 'sp-forward-barf-sexp)
 (global-set-key (kbd "C-S-<left>") 'sp-backward-slurp-sexp)
 (global-set-key (kbd "C-S-<right>") 'sp-backward-barf-sexp)
+(global-set-key (kbd "C-<down>") 'sp-down-sexp)
+(global-set-key (kbd "C-<up>") 'sp-up-sexp)
+(global-set-key (kbd "M-<down>") 'sp-backward-down-sexp)
+(global-set-key (kbd "M-<up>") 'sp-backward-up-sexp)
+(global-set-key (kbd "M-S-f") 'sp-forward-sexp)
+(global-set-key (kbd "M-S-b") 'sp-backward-sexp)
+
 
 (defun transpose-params ()
   "Presumes that params are in the form (p, p, p) or {p, p, p} or [p, p, p]."
@@ -234,12 +273,6 @@
 (require 'ido-at-point)
 (ido-at-point-mode)
 
-;;; Yasnippet
-(yas-global-mode 1)
-(setq yas-prompt-functions '(yas/ido-prompt yas/completing-prompt))
-
-(column-number-mode 1)               ; show column number in mode line
-
 ;; Everything I do is within the context of a specific project
 (persp-mode t)
 (projectile-global-mode)
@@ -297,10 +330,11 @@
 (setq org-src-fontify-natively t)
 ;; (setq org-latex-listings nil)
 (setq org-reveal-root (getenv "REVEAL_JS_ROOT_URL"))
-(load-library "/Users/hbe07/tmp/org-reveal/ox-reveal.el")
+;; (load-library "/Users/hbe07/tmp/org-reveal/ox-reveal.el")
 (setq org-plantuml-jar-path "~/install/plantuml.jar")
 ;; (require 'org-install)
 ;; (require 'org-habit)
+
 
 ;; stolen from http://orgmode.org/worg/org-hacks.html
 ;; TODO: compare with elpa package org-wc
@@ -734,6 +768,8 @@ C-x b RET. The buffer selected is the one returned by (other-buffer)."
 ;; errors and *c*ompilation
 (define-key evil-normal-state-map (kbd "]e") 'next-error)
 (define-key evil-normal-state-map (kbd "[e") 'previous-error)
+(define-key evil-normal-state-map (kbd ",)") 'flycheck-next-error)
+(define-key evil-normal-state-map (kbd ",(") 'flycheck-previous-error)
 (define-key evil-normal-state-map (kbd ",cc") 'compile)
 (define-key evil-normal-state-map (kbd ",cr") 'recompile)
 (define-key evil-normal-state-map (kbd ",ck") 'kill-compilation)
@@ -770,10 +806,31 @@ C-x b RET. The buffer selected is the one returned by (other-buffer)."
  )
 ;; truncate buffers continuously
 (add-hook 'comint-output-filter-functions 'comint-truncate-buffer)
+(evil-define-key 'normal comint-mode-map ",ee" 'comint-clear-buffer)
+(evil-define-key 'insert comint-mode-map (kbd "C-c C-e") 'comint-clear-buffer)
+;; ESS config
+(eval-after-load "comint"
+  '(progn
+     (define-key comint-mode-map [up]
+       'comint-previous-matching-input-from-input)
+     (define-key comint-mode-map [down]
+       'comint-next-matching-input-from-input)
+
+     ;; also recommended for ESS use --
+     (setq comint-scroll-to-bottom-on-output 'others)
+     (setq comint-scroll-show-maximum-output t)
+     ;; somewhat extreme, almost disabling writing in *R*, *shell* buffers above prompt:
+     (setq comint-scroll-to-bottom-on-input 'this)
+     ))
 
 (defun hub/load-term-theme-locally ()
   "Load the color theme I want to use for term into the current buffer."
   (load-theme-buffer-local 'tango-dark (current-buffer)))
+
+;; Emacs and the shell
+;; currently my zsh setup fails when used from Emacs with
+;; complete:13: command not found: compdef
+(setq shell-file-name "bash")
 
 ;; eshell
 ;; (add-hook 'eshell-mode-hook 'hub/load-term-theme-locally)
@@ -859,6 +916,14 @@ PWD is not in a git repo (or the git command is not found)."
      ;; end of stealing
 
      (require 'eshell-autojump)))
+
+(defun eshell-run-last ()
+  "Relaunch without moving point 'cause this will work now."
+  (interactive)
+  (with-current-buffer (get-buffer "*eshell*")
+    (hub/eshell-other-window)
+    (insert-and-inherit (eshell-get-history 0))
+    (eshell-send-input)))
 
 ;;; TRAMP
 (setq tramp-default-method "ssh")
@@ -1054,6 +1119,7 @@ when it inserts comment at the end of the line."
 ;; Not suitable for multi-line comments à la javadoc
 (defun hub/set-newline-and-indent-comment ()
   "Bind RET locally to 'comment-indent-new-line'."
+  (interactive)
   (local-set-key (kbd "RET") 'comment-indent-new-line))
 
 
@@ -1080,9 +1146,9 @@ when it inserts comment at the end of the line."
 (eval-after-load 'ggtags '(diminish 'ggtags-mode))
 (eval-after-load 'eldoc '(diminish 'eldoc-mode))
 (eval-after-load 'git-gutter+ '(diminish 'git-gutter+-mode))
-(eval-after-load 'magit '(diminish 'magit-auto-revert-mode))
 (eval-after-load 'js-mode '(diminish 'js-mode "js"))
 (eval-after-load 'auto-complete '(diminish 'auto-complete-mode))
+;; (eval-after-load 'dtrt-indent '(diminish 'dtrt-indent-mode))
 
 ;; Syntax
 ;;; stolen here: http://emacsredux.com/blog/2013/07/24/highlight-comment-annotations/
@@ -1098,21 +1164,26 @@ This functions should be added to the hooks of major modes for programming."
 (add-hook 'prog-mode-hook 'font-lock-comment-annotations)
 
 ;; Modes
+(which-function-mode 1)                 ; which function the point is in
 ;; (show-paren-mode 1)                     ; highlight matching brackets
 (setq-default indent-tabs-mode nil)     ; no tabs, only spaces
 (setq comment-auto-fill-only-comments t) ; auto-fill comments and only them
 
-;; auto-complete
-(autoload 'auto-complete-mode "auto-complete" nil t)
-;; (add-to-list 'ac-dictionary-directories "~/.emacs.d/dict")
-(require 'auto-complete-config)
-(ac-config-default)
-(defun set-auto-complete-as-completion-at-point-function ()
-  (setq completion-at-point-functions '(auto-complete)))
-(add-hook 'auto-complete-mode-hook 'set-auto-complete-as-completion-at-point-function)
-(defun hub/config-ac-prog ()
-  (add-to-list 'ac-sources 'ac-source-yasnippet)
-  )
+;;; Yasnippet
+(yas-global-mode 1)
+(setq yas-prompt-functions '(yas/ido-prompt yas/completing-prompt))
+;; expand with company
+(define-key yas-minor-mode-map (kbd "<tab>") nil)
+(define-key yas-minor-mode-map (kbd "TAB") nil)
+;; (define-key yas-minor-mode-map (kbd "<the new key>") 'yas-expand)
+
+;; company-mode
+(add-hook 'after-init-hook 'global-company-mode)
+(global-set-key (kbd "<C-tab>") 'company-yasnippet)
+;; give way in minibuffer to company keymap
+(define-key minibuffer-local-map "\M-n" nil)
+;; company dabbrev backend downcase everything by default
+(setq company-dabbrev-downcase nil)
 
 (autoload 'projectile-on "projectile" "Project awareness in Emacs." t)
 (add-hook 'prog-mode-hook
