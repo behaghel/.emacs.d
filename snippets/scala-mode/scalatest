@@ -1,13 +1,14 @@
 # -*- mode: snippet; require-final-newline: nil -*-
 # name: scalatest
 # key: scalatest
+# expand-env: ((yas-indent-line 'no))
 # --
 
 package $1
 
 import org.scalatest._
 
-class $2Spec extends ${3:$$(yas-choose-value '("FlatSpec" "PropSpec" "FeatureSpec"))} with Matchers ${4: with GivenWhenThen} {
+class $2Spec extends ${3:$$(yas-choose-value '("FlatSpec" "PropSpec" "FeatureSpec"))} with Matchers ${4:with GivenWhenThen }${5:with prop.GeneratorDrivenPropertyChecks }{
 
   $0
 
