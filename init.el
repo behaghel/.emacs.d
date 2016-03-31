@@ -1482,17 +1482,64 @@ This functions should be added to the hooks of major modes for programming."
   (indent-region (point-min) (point-max)))
 (sp-local-pair 'css-mode "{" nil :post-handlers '(("||\n[i]" "RET")))
 (add-to-list 'auto-mode-alist '("\\.scss$" . css-mode))
+(add-hook 'sgml-mode-hook
+          (lambda ()
+            ;; Default indentation to 2, but let SGML mode guess, too.
+            (set (make-local-variable 'sgml-basic-offset) 4)
+            (sgml-guess-indent)))
 
 ;; JS
 (add-to-list 'auto-mode-alist '("\\.json$" . js-mode))
-(add-hook 'js-mode-hook 'js2-minor-mode)
-(add-hook 'js2-mode-hook 'ac-js2-mode)
+(add-to-list 'auto-mode-alist '("\\.js\\'" . js2-mode))
+;; when you only want linting from js2
+;; (add-hook 'js-mode-hook 'js2-minor-mode)
+;; flycheck
+;; ideally I'd want to check for the presence of a eslint config file
+;; in the parent directories. That would start like this but instead I
+;; would prefer to:
+;; - reduce over the hierarchy starting from the current most bottom path
+;; - eslint supports *many* config file so regexp rather than file-exists-p
+;; (defun parent-directory (dir)
+;;   "Parent directory of DIR or nil if root."
+;;   (unless (equal "/" dir)
+;;     (file-name-directory (directory-file-name dir))))
+
+;; (defun find-file-in-hierarchy (current-dir fname)
+;;   "Search from CURRENT-DIR for a file FNAME upwards."
+;;   (let ((file (concat current-dir fname))
+;;         (parent (parent-directory (expand-file-name current-dir))))
+;;     (if (file-exists-p file)
+;;         file
+;;       (when parent
+;;         (find-file-in-hierarchy parent fname)))))
+;; in the meantime that should do...
+;; (add-hook 'js2-mode-hook
+;;           (defun my-js2-mode-setup ()
+;;             (when (executable-find "eslint")
+;;               (flycheck-select-checker 'javascript-eslint))))
+
 ;; somehow I have to explicitly require js2-refactor
 (eval-after-load 'js2-mode '(require 'js2-refactor))
 (eval-after-load 'js2-mode
   '(sp-local-pair 'js2-mode "<" ">"))
-(sp-local-pair 'js-mode "{" nil :post-handlers '(("||\n[i]" "RET")))
-(sp-local-pair 'js-mode "(" nil :post-handlers '(("||\n[i]" "RET")))
+(sp-local-pair 'js2-mode "{" nil :post-handlers '(("||\n[i]" "RET")))
+(sp-local-pair 'js2-mode "(" nil :post-handlers '(:add sp-js2-electric-semicolon))
+;; adapted to smartparens from:
+;; https://gist.github.com/lewang/908bc9cb7677d5936936
+(defun sp-js2-electric-semicolon (id action context)
+  (message "node before is %s" (js2-node-type (js2-node-at-point (- (point) 1))))
+  (message "action is %s" action)
+  (message "pair is %s %s %d" id (plist-get (sp-get-pair id) :close) (length id))
+  (when (and (eq action 'insert)
+             (save-excursion
+               (goto-char (- (point) (length id)))
+               (skip-chars-backward " \t")
+               (memq (js2-node-type (js2-node-at-point (point)))
+                     (list js2-NAME js2-LP js2-SCRIPT js2-CALL js2-BLOCK))))
+    (save-excursion
+      (goto-char (+ (point) (length (plist-get (sp-get-pair id) :close))))
+      (insert ";"))))
+
 (setq js2-basic-offset 2
       js2-bounce-indent-p t
       js2-highlight-level 2)
@@ -1507,85 +1554,105 @@ This functions should be added to the hooks of major modes for programming."
 ;;     ad-do-it))
 
 (defun hub/js-keymap()
-  (evil-define-key 'normal js-mode-map ",=" 'web-beautify-js)
-  (evil-define-key 'normal js-mode-map ",." 'tern-find-definition)
-  (evil-define-key 'normal js-mode-map ",t" 'tern-pop-find-definition)
-  (evil-define-key 'normal js-mode-map (kbd "M-.") 'tern-find-definition)
-  (evil-define-key 'normal js-mode-map ",:" 'tern-find-definition-by-name)
-  (evil-define-key 'normal js-mode-map ",i" 'tern-get-type)
-  (evil-define-key 'normal js-mode-map ",hh" 'tern-get-docs)
-  ;; (evil-define-key 'visual js2-mode-map ",l" ')
-  ;; (evil-define-key 'normal js2-mode-map ",ei" 'inspect)
-  ;; (evil-define-key 'normal js2-mode-map ",eq" 'show-all-errors-and-warnings) ; q -> quickfix
-  ;; (evil-define-key 'normal js2-mode-map ",ef" 'format-source)
-  ;; (evil-define-key 'normal js2-mode-map ",/" 'search)
-  ;; (evil-define-key 'normal js2-mode-map ",er" 'expand-selection)
-  ;; (evil-define-key 'normal js2-mode-map ",hh" ')
-  ;; (evil-define-key 'normal js2-mode-map ",b" 'build)
-  ;; (evil-define-key 'normal js2-mode-map ",gr" 'repl)
-  (evil-define-key 'normal js-mode-map ",reo" 'js2r-expand-object)
-  (evil-define-key 'normal js-mode-map ",rco" 'js2r-contract-object)
-  (evil-define-key 'normal js-mode-map ",reu" 'js2r-expand-function)
-  (evil-define-key 'normal js-mode-map ",rcu" 'js2r-contract-function)
-  (evil-define-key 'normal js-mode-map ",rea" 'js2r-expand-array)
-  (evil-define-key 'normal js-mode-map ",rca" 'js2r-contract-array)
-  (evil-define-key 'normal js-mode-map ",rwi" 'js2r-wrap-buffer-in-iife)
-  (evil-define-key 'normal js-mode-map ",rig" 'js2r-inject-global-in-iife)
-  (evil-define-key 'normal js-mode-map ",rev" 'js2r-extract-var)
-  (evil-define-key 'normal js-mode-map ",riv" 'js2r-inline-var)
-  (evil-define-key 'normal js-mode-map ",rrv" 'js2r-rename-var)
-  (evil-define-key 'normal js-mode-map ",rvt" 'js2r-var-to-this)
-  (evil-define-key 'normal js-mode-map ",rag" 'js2r-add-to-globals-annotation)
-  (evil-define-key 'normal js-mode-map ",rsv" 'js2r-split-var-declaration)
-  (evil-define-key 'normal js-mode-map ",rss" 'js2r-split-string)
-  (evil-define-key 'normal js-mode-map ",ref" 'js2r-extract-function)
-  (evil-define-key 'normal js-mode-map ",rem" 'js2r-extract-method)
-  (evil-define-key 'normal js-mode-map ",rip" 'js2r-introduce-parameter)
-  (evil-define-key 'normal js-mode-map ",rlp" 'js2r-localize-parameter)
-  (evil-define-key 'normal js-mode-map ",rtf" 'js2r-toggle-function-expression-and-declaration)
-  (evil-define-key 'normal js-mode-map ",rao" 'js2r-arguments-to-object)
-  (evil-define-key 'normal js-mode-map ",ruw" 'js2r-unwrap)
-  (evil-define-key 'normal js-mode-map ",rwl" 'js2r-wrap-in-for-loop)
-  (evil-define-key 'normal js-mode-map ",r3i" 'js2r-ternary-to-if)
-  (evil-define-key 'normal js-mode-map ",rlt" 'js2r-log-this)
-  (evil-define-key 'normal js-mode-map ",)" 'js2r-forward-slurp)
-  (evil-define-key 'normal js-mode-map ",(" 'js2r-forward-barf)
+  (evil-define-key 'insert js2-mode-map (kbd "RET") 'js2-line-break)
+  (evil-define-key 'normal js2-mode-map "zc" 'js2-mode-hide-element)
+  (evil-define-key 'normal js2-mode-map "zo" 'js2-mode-show-element)
+  (evil-define-key 'normal js2-mode-map "za" 'js2-mode-toggle-element)
+  (evil-define-key 'normal js2-mode-map "zC" 'js2-mode-hide-functions)
+  (evil-define-key 'normal js2-mode-map "zM" 'js2-mode-hide-functions)
+  (evil-define-key 'normal js2-mode-map "zO" 'js2-mode-show-functions)
+  (evil-define-key 'normal js2-mode-map "zR" 'js2-mode-show-functions)
+  (evil-define-key 'normal js2-mode-map "zA" 'js2-mode-toggle-hide-functions)
+  (evil-define-key 'normal js2-mode-map "zj" 'js2-mode-toggle-hide-comments)
+  (evil-define-key 'normal js2-mode-map ",hi" 'js-doc-insert-function-doc)
+  (evil-define-key 'normal js2-mode-map ",@" 'js-doc-insert-tag)
+  (evil-define-key 'normal js2-mode-map ",hI" 'js-doc-insert-file-doc)
+  (evil-define-key 'normal js2-mode-map ",=" 'web-beautify-js)
+  (evil-define-key 'visual js2-mode-map ",=" 'web-beautify-js)
+  (evil-define-key 'normal js2-mode-map ",." 'tern-find-definition)
+  (evil-define-key 'normal js2-mode-map ",t" 'tern-pop-find-definition)
+  (evil-define-key 'normal js2-mode-map (kbd "M-.") 'tern-find-definition)
+  (evil-define-key 'normal js2-mode-map ",:" 'tern-find-definition-by-name)
+  (evil-define-key 'normal js2-mode-map ",ii" 'tern-get-type)
+  (evil-define-key 'normal js2-mode-map ",hh" 'tern-get-docs)
+  (evil-define-key 'normal js2-mode-map (kbd  "M-n") 'flycheck-next-error)
+  (evil-define-key 'insert js2-mode-map (kbd  "M-n") 'flycheck-next-error)
+  (evil-define-key 'normal js2-mode-map ",reo" 'js2r-expand-object)
+  (evil-define-key 'normal js2-mode-map ",rco" 'js2r-contract-object)
+  (evil-define-key 'normal js2-mode-map ",reu" 'js2r-expand-function)
+  (evil-define-key 'normal js2-mode-map ",rcu" 'js2r-contract-function)
+  (evil-define-key 'normal js2-mode-map ",rea" 'js2r-expand-array)
+  (evil-define-key 'normal js2-mode-map ",rca" 'js2r-contract-array)
+  (evil-define-key 'normal js2-mode-map ",rwi" 'js2r-wrap-buffer-in-iife)
+  (evil-define-key 'normal js2-mode-map ",rig" 'js2r-inject-global-in-iife)
+  (evil-define-key 'normal js2-mode-map ",riv" 'js2r-inline-var)
+  (evil-define-key 'normal js2-mode-map ",rrv" 'js2r-rename-var)
+  (evil-define-key 'normal js2-mode-map ",rvt" 'js2r-var-to-this)
+  (evil-define-key 'normal js2-mode-map ",rag" 'js2r-add-to-globals-annotation)
+  (evil-define-key 'normal js2-mode-map ",rsv" 'js2r-split-var-declaration)
+  (evil-define-key 'normal js2-mode-map ",rss" 'js2r-split-string)
+  (evil-define-key 'normal js2-mode-map ",rip" 'js2r-introduce-parameter)
+  (evil-define-key 'normal js2-mode-map ",rlp" 'js2r-localize-parameter)
+  (evil-define-key 'normal js2-mode-map ",rtf" 'js2r-toggle-function-expression-and-declaration)
+  (evil-define-key 'normal js2-mode-map ",rao" 'js2r-arguments-to-object)
+  (evil-define-key 'normal js2-mode-map ",ruw" 'js2r-unwrap)
+  (evil-define-key 'normal js2-mode-map ",rwl" 'js2r-wrap-in-for-loop)
+  (evil-define-key 'normal js2-mode-map ",r3i" 'js2r-ternary-to-if)
+  (evil-define-key 'normal js2-mode-map ",rlt" 'js2r-log-this)
+  ;; (evil-define-key 'normal js2-mode-map ",)" 'js2r-forward-slurp)
+  ;; (evil-define-key 'normal js2-mode-map ",(" 'js2r-forward-barf)
+  (local-set-key (kbd "C-<right>") 'js2r-forward-slurp)
+  (local-set-key (kbd "C-<left>") 'js2r-forward-barf)
+  (evil-define-key 'visual js2-mode-map ",rev" 'js2r-extract-var)
+  (evil-define-key 'visual js2-mode-map ",ref" 'js2r-extract-function)
+  (evil-define-key 'visual js2-mode-map ",rem" 'js2r-extract-method)
   )
 (defun hub/js-config()
   "How I like my JS XP."
-  (local-set-key (kbd "RET") 'newline-and-indent)
   (tern-mode t)
   (hub/js-keymap)
   ;; (ggtags-mode nil)
   (hub/anti-useless-whitespace))
-(add-hook 'js-mode-hook 'hub/js-config)
-(eval-after-load 'tern
-  '(progn
-     (require 'tern-auto-complete)
-     (tern-ac-setup)))
+(add-hook 'js2-mode-hook 'hub/js-config)
 
 ;; R
 (require 'ess-site)
-(evil-define-key 'normal ess-mode ",ho" 'ess-display-help-on-object)
+(evil-define-key 'normal ess-mode-map ",ho" 'ess-display-help-on-object)
+(evil-define-key 'visual ess-mode-map ",l" 'ess-eval-region)
+(evil-define-key 'visual ess-mode-map ",L" 'ess-eval-region-and-go)
+
+;; also see comint section
 
 ;; Clojure
-(add-hook 'cider-mode-hook 'cider-turn-on-eldoc-mode)
-(require 'ac-cider)
-(add-hook 'cider-mode-hook 'ac-flyspell-workaround)
-(add-hook 'cider-mode-hook 'ac-cider-setup)
-(add-hook 'cider-repl-mode-hook 'ac-cider-setup)
-(eval-after-load "auto-complete"
-  '(add-to-list 'ac-modes 'cider-mode))
 (add-hook 'cider-mode-hook 'set-auto-complete-as-completion-at-point-function)
+(defun hub/clojure-config ()
+  "Clojure the way I like it."
+  (clj-refactor-mode 1)
+  (yas-minor-mode 1) ; for adding require/use/import
+  ;; (eldoc-mode)
+  (cljr-add-keybindings-with-prefix "C-c C-r"))
 (evil-define-key 'normal cider-mode-map ",l" 'cider-load-buffer)
 (evil-define-key 'visual cider-mode-map ",l" 'cider-eval-region)
 (evil-define-key 'normal cider-mode-map ",." 'cider-jump-to-var)
 (evil-define-key 'normal cider-mode-map ",;" 'cider-jump-back)
-(evil-define-key 'normal cider-mode-map ",i" 'cider-inspect)
+(evil-define-key 'normal cider-mode-map ",ii" 'cider-inspect)
 (evil-define-key 'normal cider-mode-map ",gr" 'cider-switch-to-repl-buffer)
 (evil-define-key 'normal cider-mode-map ",hh" 'cider-doc)
 (evil-define-key 'normal cider-mode-map ",hg" 'cider-docview-grimoire)
 (evil-define-key 'normal cider-mode-map ",hG" 'cider-docview-grimoire-web)
+;; stolen from http://jakemccrary.com/blog/2015/06/30/my-favorite-clj-refactor-features/
+(require 'clj-refactor)
+;; Add custom magic requires.
+(dolist (mapping '(("maps" . "outpace.util.maps")
+                   ("seqs" . "outpace.util.seqs")
+                   ("times" . "outpace.util.times")
+                   ("repl" . "outpace.util.repl")
+                   ("time" . "clj-time.core")
+                   ("string" . "clojure.string")))
+  (add-to-list 'cljr-magic-require-namespaces mapping t))
+
+(setq cljr-favor-prefix-notation nil)
+
 
 ;;; 4clojure
 (defadvice 4clojure-open-question (around 4clojure-open-question-around)
