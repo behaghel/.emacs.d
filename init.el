@@ -1655,6 +1655,21 @@ opening 4clojure questions"
 ;; Shell scripting
 (add-to-list 'auto-mode-alist '("\\.zsh$" . shell-script-mode))
 
+;; Elixir
+(sp-with-modes '(elixir-mode)
+  (sp-local-pair "fn" "end"
+                 :when '(("SPC" "RET"))
+                 :actions '(insert navigate))
+  (sp-local-pair "do" "end"
+                 :when '(("SPC" "RET"))
+                 :post-handlers '(sp-ruby-def-post-handler)
+                 :actions '(insert navigate)))
+(setq alchemist-hooks-test-on-save t)
+
+;; OSX launchd plist
+(define-auto-insert "\.plist" ["template.plist" hub/autoinsert-yas-expand])
+(add-to-list 'auto-mode-alist '("\\.plist$" . xml-mode))
+
 
 ; tweaking to get my proper setup
 ; OSX
