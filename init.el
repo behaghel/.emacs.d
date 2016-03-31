@@ -37,13 +37,24 @@
  '(company-selection-wrap-around t)
  '(custom-safe-themes
    (quote
-    ("c5a044ba03d43a725bd79700087dea813abcb6beb6be08c7eb3303ed90782482" "3a727bdc09a7a141e58925258b6e873c65ccf393b2240c51553098ca93957723" "756597b162f1be60a12dbd52bab71d40d6a2845a3e3c2584c6573ee9c332a66e" "6a37be365d1d95fad2f4d185e51928c789ef7a4ccf17e7ca13ad63a8bf5b922f" "e26780280b5248eb9b2d02a237d9941956fc94972443b0f7aeec12b5c15db9f3" "d677ef584c6dfc0697901a44b885cc18e206f05114c8a3b7fde674fce6180879" "8aebf25556399b58091e533e455dd50a6a9cba958cc4ebb0aab175863c25b9a4" "25f330cb050c7e7ec402af1b60243e8185a7837b455af0fa026593d4f48a78b2" default))))
+    ("613a7c50dbea57860eae686d580f83867582ffdadd63f0f3ebe6a85455ab7706" "c74e83f8aa4c78a121b52146eadb792c9facc5b1f02c917e3dbb454fca931223" "c5a044ba03d43a725bd79700087dea813abcb6beb6be08c7eb3303ed90782482" "3a727bdc09a7a141e58925258b6e873c65ccf393b2240c51553098ca93957723" "756597b162f1be60a12dbd52bab71d40d6a2845a3e3c2584c6573ee9c332a66e" "6a37be365d1d95fad2f4d185e51928c789ef7a4ccf17e7ca13ad63a8bf5b922f" "e26780280b5248eb9b2d02a237d9941956fc94972443b0f7aeec12b5c15db9f3" "d677ef584c6dfc0697901a44b885cc18e206f05114c8a3b7fde674fce6180879" "8aebf25556399b58091e533e455dd50a6a9cba958cc4ebb0aab175863c25b9a4" "25f330cb050c7e7ec402af1b60243e8185a7837b455af0fa026593d4f48a78b2" default)))
  '(haskell-process-args-cabal-repl (quote ("--ghc-option=-ferror-spans")))
  '(haskell-process-auto-import-loaded-modules t)
  '(haskell-process-log t)
  '(haskell-process-suggest-remove-import-lines t)
  '(haskell-process-type (quote cabal-repl))
  '(haskell-tags-on-save t)
+ '(package-selected-packages
+   (quote
+    (rubocop company-tern js-doc ob-elixir elixir-mode alchemist base16-theme monokai-theme moe-theme rvm ox-ioslide speed-type writeroom-mode editorconfig feature-mode twittering-mode dtrt-indent evil-surround clj-refactor diff-hl magit company-ghc ox-reveal ag zencoding-mode zenburn-theme web-beautify sublime-themes solarized-theme smex smartparens smart-mode-line scss-mode robe restclient react-snippets rainbow-mode rainbow-delimiters popwin persp-projectile org-ac org nlinum molokai-theme minitest markdown-mode langtool key-chord json-mode js2-refactor ido-vertical-mode ido-ubiquitous ido-at-point htmlize gnuplot git gist ghc ggtags flycheck-haskell flx-ido expand-region exec-path-from-shell evil-nerd-commenter evil-matchit evil-leader ess ensime dockerfile-mode diminish dash-at-point better-defaults artbollocks-mode anti-zenburn-theme adoc-mode ac-js2 ac-inf-ruby ac-cider 4clojure)))
+ '(rainbow-delimiters-max-face-count 1)
+ '(safe-local-variable-values
+   (quote
+    ((js2-concat-multiline-strings . eol)
+     (eval flycheck-add-next-checker
+           (quote javascript-jshint)
+           (quote
+            (warning . javascript-eslint)))))))
 
 ;; putting it earlier in attempt to make it work.
 (setq org-return-follows-link t)
@@ -71,22 +82,19 @@
 
 (setq url-http-attempt-keepalives nil)
 
-(defvar ensure-packages '(ac-cider ac-js2 auto-complete
-  better-defaults cider cl-lib dash dash-at-point diminish epl
-  ess evil evil-leader evil-matchit evil-nerd-commenter
-  exec-path-from-shell expand-region f flx-ido flycheck
-  flycheck-haskell ggtags gh gist git git-commit-mode
-  git-gutter-fringe+ git-rebase-mode gnuplot goto-chg
-  haskell-mode ido-at-point ido-ubiquitous ido-vertical-mode
-  inf-ruby js2-mode js2-refactor logito magit markdown-mode
-  multiple-cursors nlinum org org-ac pcache persp-projectile
-  pkg-info popwin rainbow-delimiters rainbow-mode restclient robe
-  s sbt-mode smartparens smex solarized-theme sublime-themes
-  surround tern tern-auto-complete undo-tree yagist yasnippet
-  zenburn-theme zencoding-mode)
+(defvar ensure-packages '(auto-complete better-defaults cider
+  cl-lib dash dash-at-point diminish epl ess evil evil-leader
+  evil-matchit evil-nerd-commenter exec-path-from-shell
+  expand-region f flx-ido flycheck flycheck-haskell ggtags gh
+  gist git gnuplot goto-chg haskell-mode ido-at-point
+  ido-ubiquitous ido-vertical-mode inf-ruby js2-mode js2-refactor
+  logito markdown-mode multiple-cursors nlinum org org-ac
+  ox-reveal pcache persp-projectile pkg-info popwin
+  rainbow-delimiters rainbow-mode restclient robe s sbt-mode
+  smartparens smex solarized-theme sublime-themes tern
+  tern-auto-complete undo-tree yasnippet zenburn-theme
+  zencoding-mode)
   "A list of packages to check/install at launch.")
-
-;; ox-reveal << put it back when no more "stable" branch non-sense
 
 (defun ensure-packages-package-installed-p (p)
   (cond ((package-installed-p p) t)
@@ -982,24 +990,30 @@ PWD is not in a git repo (or the git command is not found)."
 
 ;;; Git
 ;; magit
-(autoload 'magit-status "magit" nil t)
-(global-set-key (kbd "C-c g s") 'magit-status)
-(global-set-key (kbd "C-c g ?") 'magit-blame-mode)
-(global-set-key (kbd "C-c g /") 'vc-git-grep)
-;; require yagist.el
-(global-set-key (kbd "C-c g p") 'yagist-region-or-buffer)
-;; mo-git-blame
-;; (autoload 'mo-git-blame-file "mo-git-blame" nil t)
-;; (autoload 'mo-git-blame-current "mo-git-blame" nil t)
-;; (global-set-key (kbd "C-c g c") 'mo-git-blame-current)
-;; (global-set-key (kbd "C-c g f") 'mo-git-blame-file)
+;; (autoload 'magit-status "magit" nil t)
+;; (global-set-key (kbd "C-c g s") 'magit-status)
+;; (global-set-key (kbd "C-c g ?") 'magit-blame-mode)
+;; (global-set-key (kbd "C-c g /") 'vc-git-grep)
+(defadvice Info-follow-nearest-node (around gitman activate)
+  "When encountering a cross reference to the `gitman' info
+manual, then instead of following that cross reference show
+the actual manpage using the function `man'."
+  (let ((node (Info-get-token
+               (point) "\\*note[ \n\t]+"
+               "\\*note[ \n\t]+\\([^:]*\\):\\(:\\|[ \n\t]*(\\)?")))
+    (if (and node (string-match "^(gitman)\\(.+\\)" node))
+        (progn (require 'man)
+               (man (match-string 1 node)))
+      ad-do-it)))
 ;; git-gutter
-(if (display-graphic-p)
-    (progn
-      (require 'git-gutter-fringe+))
-  (require 'git-gutter+))
-(global-git-gutter+-mode t)
-(global-set-key (kbd "C-c g f") 'git-gutter+-mode) ; turn on/off git-gutter+ in the current buffer
+;; (if (display-graphic-p)
+;;     (progn
+;;       (require 'git-gutter-fringe+))
+;;   (require 'git-gutter+))
+;; (global-git-gutter+-mode t)
+;; (global-set-key (kbd "C-c g f") 'git-gutter+-mode) ; turn on/off git-gutter+ in the current buffer
+;; diff-hl
+(global-diff-hl-mode)
 (eval-after-load 'git-gutter+
   '(progn
      ;;; Jump between hunks
@@ -1017,18 +1031,22 @@ PWD is not in a git repo (or the git command is not found)."
 ;; Git tools
 ;; REQUIRES Magit
 (define-key evil-normal-state-map (kbd ",vs") 'magit-status) ;; git control panel
-(define-key evil-normal-state-map (kbd ",vh") 'magit-file-log) ; Commit history for current file
-(define-key evil-normal-state-map (kbd ",vf") 'magit-file-log) ; Commit history for current file
-(define-key evil-normal-state-map (kbd ",vb") 'magit-blame-mode) ; Blame for current file
+(define-key evil-normal-state-map (kbd ",vh") 'magit-file-popup) ; Commit history for current file
+(define-key evil-normal-state-map (kbd ",vf") 'magit-file-popup) ; Commit history for current file
+(define-key evil-normal-state-map (kbd ",vb") 'magit-blame-popup) ; Blame for current file
 (define-key evil-normal-state-map (kbd ",vB") 'vc-annotate) ; Git blame with vc
 (define-key evil-normal-state-map (kbd ",vg") 'vc-git-grep) ; Git grep
 (define-key evil-normal-state-map (kbd ",v/") 'vc-git-grep) ; Git grep
-(define-key evil-normal-state-map (kbd ",vr") 'git-gutter+-revert-hunk)
-(define-key evil-normal-state-map (kbd ",v+") 'git-gutter+-stage-hunks)
-(define-key evil-normal-state-map (kbd ",vn") 'git-gutter+-next-hunk)
-(define-key evil-normal-state-map (kbd ",vp") 'git-gutter+-previous-hunk)
-(define-key evil-normal-state-map (kbd ",vd") 'git-gutter+-show-hunk)
-(define-key evil-normal-state-map (kbd ",v+") 'git-gutter+-stage-hunks)
+(define-key evil-normal-state-map (kbd ",vD") 'ediff-revision) ; Git diff file on 2 branches
+;; (define-key evil-normal-state-map (kbd ",vr") 'git-gutter+-revert-hunk)
+;; (define-key evil-normal-state-map (kbd ",v+") 'git-gutter+-stage-hunks)
+;; (define-key evil-normal-state-map (kbd ",vn") 'git-gutter+-next-hunk)
+;; (define-key evil-normal-state-map (kbd ",vp") 'git-gutter+-previous-hunk)
+;; (define-key evil-normal-state-map (kbd ",vd") 'git-gutter+-show-hunk)
+(define-key evil-normal-state-map (kbd ",vr") 'diff-hl-revert-hunk)
+(define-key evil-normal-state-map (kbd ",vn") 'diff-hl-next-hunk)
+(define-key evil-normal-state-map (kbd ",vp") 'diff-hl-previous-hunk)
+(define-key evil-normal-state-map (kbd ",vd") 'diff-hl-goto-hunk)
 
 ;; multiple-cursors
 (require 'multiple-cursors)
@@ -1205,16 +1223,24 @@ This functions should be added to the hooks of major modes for programming."
                        ;; (load-theme-buffer-local 'solarized-dark (current-buffer) t)
                        ;; (projectile-on) ; project awareness
                        (turn-on-auto-fill)
-                       (hub/config-ac-prog)
+                       ;; really cool dtrt-indent but haven't seen a
+                       ;; need for it recently
+                       ;; (dtrt-indent-mode) ; auto-adjust tab-width
                        (hub/anti-useless-whitespace)
+                       (hub/set-newline-and-indent-comment)
+                       (rainbow-delimiters-mode t)
+                       (eldoc-mode)
+                       (electric-indent-local-mode)
                        )))
 ;; (setq linum-format " %3d ")    ; remove graphical glitches with fringe
 
+;; Help
+(define-key evil-normal-state-map (kbd ",hi") 'info)
 ;; dash: API Documentation Browser for MacOSX
 (autoload 'dash-at-point "dash-at-point"
   "Search the word at point with Dash." t nil)
-(define-key evil-normal-state-map (kbd ",hD") 'dash-at-point)
-(define-key evil-normal-state-map (kbd ",hd") 'dash-at-point-with-docset)
+(define-key evil-normal-state-map (kbd ",hd") 'dash-at-point)
+(define-key evil-normal-state-map (kbd ",hD") 'dash-at-point-with-docset)
 
 ;; languages
 ; anti useless whitespace
