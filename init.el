@@ -1381,14 +1381,16 @@ class %TESTCLASS% extends FlatSpec with Matchers
 ; Emacs Lisp
 (defun hub/emacs-lisp-config ()
   "Set up my emacs-lisp hacking environment."
-  (hub/set-newline-and-indent-comment)
-  (rainbow-delimiters-mode t)
-  (eldoc-mode)
-  (electric-indent-local-mode)
+  ;; (hub/set-newline-and-indent-comment)
+  ;; (rainbow-delimiters-mode t)
+  ;; (eldoc-mode)
+  ;; (electric-indent-local-mode)
 )
 (add-hook 'emacs-lisp-mode-hook 'hub/emacs-lisp-config)
 (require 'jka-compr) ; find-tag to be able to find .el.gz
 (evil-define-key 'normal lisp-mode-shared-map ",." 'find-function)
+(evil-define-key 'normal lisp-mode-shared-map ",hf" 'describe-function)
+(evil-define-key 'normal lisp-mode-shared-map ",hv" 'describe-variable)
 
 ;; Smalltalk
 (add-to-list 'auto-mode-alist '("\\.st$" . shampoo-code-mode))
