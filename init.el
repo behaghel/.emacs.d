@@ -1457,17 +1457,28 @@ This functions should be added to the hooks of major modes for programming."
            (insert "{}")
            (forward-char -1)))))
 (defun hub-ruby-config ()
-  "my Ruby config"
+  "My Ruby config."
   (local-set-key (kbd "#") 'ruby-tools-interpolate)
-  (hub/set-newline-and-indent-comment)
+  ;; (hub/set-newline-and-indent-comment)
   ;; fix indenting with Evil
-  (setq evil-shift-width ruby-indent-level))
+  (setq evil-shift-width ruby-indent-level)
+  ;; stop adding coding: utf8 comment in every header
+  (setq ruby-insert-encoding-magic-comment nil))
 (add-hook 'ruby-mode-hook 'hub-ruby-config)
+(eval-after-load 'company
+  '(push 'company-robe company-backends))
+(defadvice inf-ruby-console-auto (before activate-rvm-for-robe activate)
+  (rvm-activate-corresponding-ruby))
 (add-hook 'ruby-mode-hook 'robe-mode)
+(add-hook 'minitest-compilation-mode-hook 'inf-ruby-mode) ;or you can't debug
+;; so that I can debug things with `binding.pry'
+(add-hook 'compilation-filter-hook 'inf-ruby-auto-enter)
+(add-hook 'after-init-hook 'inf-ruby-switch-setup)
 ;; (add-hook 'ruby-mode-hook 'minitest-mode)
 (eval-after-load 'minitest
   '(minitest-install-snippets))
 (evil-define-key 'visual ruby-mode-map ",l" 'ruby-send-region)
+(evil-define-key 'normal ruby-mode-map ",." 'robe-jump)
 (evil-define-key 'normal ruby-mode-map ",gr" 'ruby-switch-to-inf)
 (evil-define-key 'normal ruby-mode-map ",tt" 'minitest-verify)
 (evil-define-key 'normal ruby-mode-map ",ta" 'minitest-verify-all)
