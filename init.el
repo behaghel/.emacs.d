@@ -33,9 +33,17 @@
  ;; If you edit it by hand, you could mess it up, so be careful.
  ;; Your init file should contain only one such instance.
  ;; If there is more than one, they won't work right.
+ '(company-ghc-show-info t)
+ '(company-selection-wrap-around t)
  '(custom-safe-themes
    (quote
     ("c5a044ba03d43a725bd79700087dea813abcb6beb6be08c7eb3303ed90782482" "3a727bdc09a7a141e58925258b6e873c65ccf393b2240c51553098ca93957723" "756597b162f1be60a12dbd52bab71d40d6a2845a3e3c2584c6573ee9c332a66e" "6a37be365d1d95fad2f4d185e51928c789ef7a4ccf17e7ca13ad63a8bf5b922f" "e26780280b5248eb9b2d02a237d9941956fc94972443b0f7aeec12b5c15db9f3" "d677ef584c6dfc0697901a44b885cc18e206f05114c8a3b7fde674fce6180879" "8aebf25556399b58091e533e455dd50a6a9cba958cc4ebb0aab175863c25b9a4" "25f330cb050c7e7ec402af1b60243e8185a7837b455af0fa026593d4f48a78b2" default))))
+ '(haskell-process-args-cabal-repl (quote ("--ghc-option=-ferror-spans")))
+ '(haskell-process-auto-import-loaded-modules t)
+ '(haskell-process-log t)
+ '(haskell-process-suggest-remove-import-lines t)
+ '(haskell-process-type (quote cabal-repl))
+ '(haskell-tags-on-save t)
 
 ;; putting it earlier in attempt to make it work.
 (setq org-return-follows-link t)
@@ -1400,34 +1408,27 @@ class %TESTCLASS% extends FlatSpec with Matchers
 ;; Haskell
 ;; unicode input doesn't work with eg >= (Not in scope: ≥): disabled
 ;; (add-hook 'haskell-mode-hook 'turn-on-haskell-unicode-input-method)
+(let ((my-cabal-path (expand-file-name "~/.cabal/bin")))
+  (setenv "PATH" (concat my-cabal-path path-separator (getenv "PATH")))
+  (add-to-list 'exec-path my-cabal-path))
 (add-hook 'haskell-mode-hook 'turn-on-haskell-indentation)
 (add-hook 'haskell-mode-hook 'interactive-haskell-mode)
 (add-hook 'haskell-mode-hook 'haskell-indent-mode)
 (add-hook 'haskell-mode-hook 'haskell-doc-mode)
 (add-hook 'flycheck-mode-hook 'flycheck-haskell-setup)
 (autoload 'ghc-init "ghc" nil t)
+(autoload 'ghc-debug "ghc" nil t)
+(add-hook 'haskell-mode-hook (lambda () (ghc-init)))
 (defun hub/haskell-config ()
   "Set up my emacs-lisp hacking environment."
-  (hub/set-newline-and-indent-comment)
-  (rainbow-delimiters-mode t)
-  (ghc-init)
-  (electric-indent-local-mode))          ; deactivate: weird indent toggle
+  ;; (hub/set-newline-and-indent-comment)
+  ;; (rainbow-delimiters-mode t)
+  ;; (electric-indent-local-mode)          ; deactivate: weird indent toggle
+  (ghc-init))
 (add-hook 'haskell-mode-hook 'hub/haskell-config)
-(setq haskell-process-type 'cabal-repl
-      haskell-process-args-cabal-repl '("--ghc-option=-ferror-spans"))
-(setq haskell-process-auto-import-loaded-modules t
-      haskell-process-log t
-      haskell-process-suggest-remove-import-lines t)
-;;; auto-complete
-(ac-define-source haskell
-  '((candidates
-     . (lambda ()
-         (let ((resp (haskell-process-get-repl-completions (haskell-process) ac-prefix)))
-           (if (string= (car resp) "")
-               (cdr resp)
-             (mapcar (lambda (s) (car resp)) (cdr resp))))))))
-(add-hook 'haskell-mode-hook '(lambda ()
-                                (add-to-list 'ac-sources 'ac-source-haskell)))
+
+(with-eval-after-load 'company
+  '(add-to-list 'company-backends 'company-ghc))
 ;;; key bindings
 (eval-after-load "haskell-mode"
   '(progn
@@ -1444,7 +1445,7 @@ class %TESTCLASS% extends FlatSpec with Matchers
 (evil-define-key 'normal haskell-mode-map ",." 'find-tag)
 (evil-define-key 'normal haskell-mode-map ",l" 'inferior-haskell-load-file)
 (evil-define-key 'normal haskell-mode-map ",gr" 'switch-to-haskell)
-(evil-define-key 'normal haskell-mode-map ",i" 'haskell-process-do-info)
+(evil-define-key 'normal haskell-mode-map ",ii" 'haskell-process-do-info)
 (evil-define-key 'normal haskell-mode-map ",et" 'haskell-process-do-type)
 (evil-define-key 'normal haskell-mode-map ",hh" 'inferior-haskell-find-haddock)
 ;; align
