@@ -3,7 +3,7 @@
 #+EMAIL: `(progn user-mail-address)`
 #+LANGUAGE: en
 #+OPTIONS: H:4 toc:nil reveal_mathjax:nil num:nil ^:{} 
-#+REVEAL_ROOT: http://cdn.jsdelivr.net/reveal.js/2.6.2/
+#+REVEAL_ROOT: https://cdnjs.cloudflare.com/ajax/libs/reveal.js/3.2.0/
 #+REVEAL_TRANS: default
 #+REVEAL_THEME: solarized
 #+REVEAL_HLEVEL: 1

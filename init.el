@@ -444,7 +444,7 @@ of its arguments."
 ;; (require 'org-ac)
 ;; (org-ac/config-default)
 (autoload 'google-contacts "google-contacts" "Google Contacts." t)
-(add-hook 'org-mode 'auto-fill-mode)
+(add-hook 'org-mode-hook 'auto-fill-mode)
 ;; stolen from http://www.emacswiki.org/emacs/ArtistMode
 ;;; integrate ido with artist-mode
 (defun artist-ido-select-operation (type)
@@ -479,7 +479,7 @@ of its arguments."
 ;;; Babel
 (org-babel-do-load-languages
  'org-babel-load-languages
- '((ditaa . t)(plantuml . t)(ruby . t)(awk . t)(gnuplot . t)(R . t)(latex . t)))
+ '((ditaa . t)(plantuml . t)(ruby . t)(awk . t)(gnuplot . t)(R . t)(latex . t)(java . t)))
 ;; (add-to-list 'org-babel-default-header-args:gnuplot
 ;;              '((:prologue . "reset")))
 (setq org-confirm-babel-evaluate nil)   ; stop asking. May be dangerous...
@@ -506,7 +506,10 @@ of its arguments."
   (interactive "r")
   (func-region start end #'url-unhex-string))
 
-(defvar blog-posts-dir (expand-file-name (concat (getenv "BLOG_ROOT") "/posts")))
+;; Blogging
+;;
+(setq blog-root "~/Documents/org/le-carnet")
+(setq blog-posts-dir (expand-file-name "posts" blog-root))
 
 (autoload 'artbollocks-mode "artbollocks-mode" "improve your english style" t)
 
@@ -521,10 +524,16 @@ of its arguments."
     (find-file (format "%s/%s-%s.org" blog-posts-dir today slug))
     (insert-file-contents template)
     (hub/autoinsert-yas-expand `((title ,title)))
-    (add-hook 'find-file-hooks 'auto-insert)
+    (add-hook 'find-file-hooks 'auto-insert)))
+
+(defun blog-post-hook ()
+  (cond ((string-match blog-posts-dir buffer-file-name)
     (ispell-change-dictionary "uk")
     (setq-local ispell-check-comments nil)
-    (artbollocks-mode)))
+    (writeroom-mode)
+    (artbollocks-mode))))
+
+(add-hook 'org-mode-hook 'blog-post-hook)
 
 (defun hub/sluggify (title)
   "Transform the TITLE of an article into a slug suitable for an URL."
