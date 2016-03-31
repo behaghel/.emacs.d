@@ -1260,11 +1260,32 @@ This functions should be added to the hooks of major modes for programming."
   (interactive)
   (if (ensime-inf-running-p-1) (ensime-inf-quit-interpreter))
   (ensime-inf-switch))
+(defun hub/ensime-goto-test--my-template ()
+  "My default test template in Scala."
+  "package %TESTPACKAGE%
+
+import org.scalatest._
+
+class %TESTCLASS% extends FlatSpec with Matchers
+  // with prop.GeneratorDrivenPropertyChecks
+  {
+  \"%IMPLPACKAGE%.%IMPLCLASS%\" should \"\" in {
+      assert(1 === 0)
+  }
+}
+")
 (defun hub/ensime-setup ()
   "ENSIME tweaking."
-  (local-set-key (kbd "C-c C-l") 'hub/ensime-inf-reload))
+  (local-set-key (kbd "C-c C-l") 'hub/ensime-inf-reload)
+  (setq ensime-goto-test-config-defaults
+        '(:test-class-names-fn ensime-goto-test--test-class-names
+         :test-class-suffixes ("Spec" "Test" "Specification" "Check")
+         :impl-class-name-fn ensime-goto-test--impl-class-name
+         :impl-to-test-dir-fn ensime-goto-test--impl-to-test-dir
+         :is-test-dir-fn ensime-goto-test--is-test-dir
+         :test-template-fn hub/ensime-goto-test--my-template)))
 (defun hub/scala-ret ()
-  "dwim with RET even inside multiline comments."
+  "Dwim with RET even inside multiline comments."
   (interactive)
   (newline-and-indent)
   (scala-indent:insert-asterisk-on-multiline-comment))
@@ -1290,30 +1311,51 @@ This functions should be added to the hooks of major modes for programming."
   ;; use M-q to wrap and indent long comments
   (turn-off-auto-fill)
   (require 'ensime)
-  (setq ensime-ac-enable-argument-placeholders nil)
-  (add-hook 'ensime-source-buffer-loaded-hook 'hub/ensime-setup)
   (ensime-scala-mode-hook)
   (local-set-key (kbd "RET") 'hub/scala-ret))
 
 (evil-define-key 'normal scala-mode-map ",s." 'sbt-find-definitions)
-(evil-define-key 'normal scala-mode-map ",sa" 'sbt-run-previous-command)
-(evil-define-key 'normal scala-mode-map ",sc" 'sbt-command)
+(evil-define-key 'normal scala-mode-map ",cT" 'sbt-run-previous-command)
+(evil-define-key 'normal scala-mode-map ",ct" 'sbt-command)
 (evil-define-key 'normal scala-mode-map ",s/" 'sbt-grep)
 (evil-define-key 'normal scala-mode-map ",sr" 'sbt-find-usages)
 (evil-define-key 'normal scala-mode-map ",ss" 'hub/sbt-start)
 (evil-define-key 'visual scala-mode-map ",l" 'sbt-send-region)
+
+(evil-define-key 'normal scala-mode-map ",b" 'ensime-sbt-do-compile)
+(evil-define-key 'normal scala-mode-map ",cn" 'ensime-sbt-do-clean)
+(evil-define-key 'normal scala-mode-map ",E" 'ensime-sbt-do-run)
 (evil-define-key 'normal scala-mode-map (kbd "M-.") 'ensime-edit-definition)
 (evil-define-key 'normal scala-mode-map ",." 'ensime-edit-definition)
-(evil-define-key 'normal scala-mode-map ",i" 'ensime-inspect-type-at-point)
+(evil-define-key 'normal scala-mode-map ",et" 'ensime-goto-test)
+(evil-define-key 'normal scala-mode-map ",eT" 'ensime-goto-impl)
+(evil-define-key 'normal scala-mode-map ",tt" 'ensime-sbt-do-test-only)
+(evil-define-key 'normal scala-mode-map ",tT" 'ensime-sbt-do-test)
+(evil-define-key 'normal scala-mode-map ",ii" 'ensime-inspect-type-at-point)
+(evil-define-key 'normal scala-mode-map ",it" 'ensime-print-type-at-point)
+(evil-define-key 'normal scala-mode-map ",ie" 'ensime-print-error-at-point)
+(evil-define-key 'normal scala-mode-map ",im" 'ensime-import-type-at-point)
 (evil-define-key 'normal scala-mode-map ",eq" 'ensime-show-all-errors-and-warnings) ; q -> quickfix
 (evil-define-key 'normal scala-mode-map ",ef" 'ensime-format-source)
 (evil-define-key 'normal scala-mode-map ",e/" 'ensime-search)
 (evil-define-key 'normal scala-mode-map ",eq" 'ensime-scalex)
 (evil-define-key 'normal scala-mode-map ",er" 'ensime-expand-selection)
 (evil-define-key 'normal scala-mode-map ",hh" 'ensime-show-doc-for-symbol-at-point)
-(evil-define-key 'normal scala-mode-map ",b" 'ensime-builder-rebuild)
-(evil-define-key 'normal scala-mode-map ",eB" 'ensime-builder-build)
+(evil-define-key 'normal scala-mode-map ",rr" 'ensime-refactor-rename)
+(evil-define-key 'visual scala-mode-map ",rev" 'ensime-refactor-extract-local)
+(evil-define-key 'visual scala-mode-map ",rem" 'ensime-refactor-extract-method)
+(evil-define-key 'normal scala-mode-map ",roi" 'ensime-refactor-organize-imports)
 (evil-define-key 'normal scala-mode-map ",gr" 'ensime-inf-switch)
+(evil-define-key 'normal scala-mode-map ",es" 'ensime-sbt-switch)
+(evil-define-key 'normal scala-mode-map ",eS" 'hub/ensime-sbt-dwim)
+(evil-define-key 'insert scala-mode-map (kbd "C-S-<right>") 'sp-slurp-hybrid-sexp)
+(evil-define-key 'insert scala-mode-map (kbd "C-S-<left>") 'sp-barf-hybrid-sexp)
+(evil-define-key 'insert scala-mode-map (kbd "C-d") 'sp-kill-hybrid-sexp)
+
+(defun hub/ensime-sbt-dwim ()
+  "switch to SBT"
+  (interactive)
+  (hub/dwim-other-window 'ensime-sbt-switch))
 ;; { + Return => create a block and put the cursor on its own line
 (sp-local-pair 'scala-mode "{" nil :post-handlers '(("||\n[i]" "RET")))
 
@@ -1334,6 +1376,7 @@ This functions should be added to the hooks of major modes for programming."
 ;; (evil-define-key 'normal scala-mode-map ",gd" 'scala-smart-gd)
 
 (add-hook 'scala-mode-hook 'hub/scala-config)
+(add-hook 'ensime-source-buffer-loaded-hook 'hub/ensime-setup)
 
 ; Emacs Lisp
 (defun hub/emacs-lisp-config ()
@@ -1407,8 +1450,14 @@ This functions should be added to the hooks of major modes for programming."
 ;; magically align on => and <-
 (add-hook 'align-load-hook (lambda ()
                              (add-to-list 'align-rules-list
+                                          '(scala-cases
+                                            (regexp  . "\\(\\s-+\\)\\(=>\\)")
+                                            (group   . 1)
+                                            (modes   . '(scala-mode))
+                                            (repeat  . nil)))
+                             (add-to-list 'align-rules-list
                                           '(scala-align
-                                            (regexp  . "\\(\\s-+\\)\\(<-\\|=>\\)")
+                                            (regexp  . "\\(\\s-+\\)\\(<-\\)")
                                             (group   . 1)
                                             (modes   . '(scala-mode))
                                             (repeat  . nil)))
