@@ -621,11 +621,10 @@ C-x b RET. The buffer selected is the one returned by (other-buffer)."
 ;; surround
 ;; before my config for my config to win
 ;; otherwise in visual s call surround where I want to go on previous line
-(require 'surround)
-(global-surround-mode 1)
-(evil-define-key 'visual surround-mode-map "s" nil)
-(evil-define-key 'visual surround-mode-map "S" 'surround-region)
-(evil-define-key 'visual surround-mode-map (kbd "C-S") 'surround-region)
+(global-evil-surround-mode 1)
+;; (evil-define-key 'visual evil-surround-mode-map "s" nil)
+;; (evil-define-key 'visual evil-surround-mode-map "S" 'surround-region)
+;; (evil-define-key 'visual evil-surround-mode-map (kbd "C-S") 'surround-region)
 ;;;; Bépo rebinding
 (define-key evil-motion-state-map (kbd "é") 'evil-forward-word-begin)
 (define-key evil-motion-state-map (kbd "É") 'evil-forward-WORD-begin)
@@ -701,6 +700,7 @@ C-x b RET. The buffer selected is the one returned by (other-buffer)."
 (define-key evil-normal-state-map (kbd ",y") 'hub/copy-buffer-file-name)
 (define-key evil-normal-state-map (kbd ",x") 'smex)
 (define-key evil-normal-state-map (kbd ",gs") 'eshell)
+(define-key evil-normal-state-map (kbd ",el") 'eshell-run-last)
 (define-key evil-normal-state-map (kbd ",gS") 'hub/eshell-other-window)
 (define-key evil-normal-state-map (kbd ",g/") 'dired)
 (define-key evil-normal-state-map (kbd ",,") 'hub/switch-dwim)
@@ -737,13 +737,16 @@ C-x b RET. The buffer selected is the one returned by (other-buffer)."
 ; open init.el
 (define-key evil-normal-state-map (kbd ",oe") 'custom-persp/emacs)
 ; open hubert.org
-(define-key evil-normal-state-map (kbd ",oh") (lambda()(interactive)(find-file "~/Dropbox/Documents/org/hubert.org")))
+(define-key evil-normal-state-map (kbd ",oh") 'custom-persp/hubert)
 (define-key evil-normal-state-map (kbd ",os") 'custom-persp/sas)
 ;; open file in project
 (define-key evil-normal-state-map (kbd ",pf") 'projectile-find-file)
 (define-key evil-normal-state-map (kbd ",pF") 'projectile-find-file-other-window)
 (define-key evil-normal-state-map (kbd ",pT") 'projectile-regenerate-tags)
 (define-key evil-normal-state-map (kbd ",p.") 'projectile-find-tag)
+(define-key evil-normal-state-map (kbd ",p!") 'projectile-run-shell-command-in-root)
+(define-key evil-normal-state-map (kbd ",pd") 'projectile-dired)
+(define-key evil-normal-state-map (kbd ",pE") 'projectile-edit-dir-locals)
 ;; switch from code file to test file and vice-versa
 (define-key evil-normal-state-map (kbd  ",gt") 'projectile-toggle-between-implementation-and-test)
 ;; FIXME: when active, break projectile-find-file
@@ -763,6 +766,14 @@ C-x b RET. The buffer selected is the one returned by (other-buffer)."
 (evil-define-key 'normal org-mode-map (kbd ",or") 'org-babel-open-src-block-result)
 (evil-define-key 'normal org-mode-map (kbd ",s") 'outline-backward-same-level)
 (evil-define-key 'normal org-mode-map (kbd ",t") 'outline-forward-same-level)
+(evil-define-key 'normal org-mode-map (kbd ",f") 'outline-next-heading)
+(defun hub/outline-focus-next-section ()
+  (interactive)
+  (progn
+    (outline-next-heading)
+    (outline-show-entry)
+    (outline-hide-other)))
+(evil-define-key 'normal org-mode-map (kbd ", SPC") 'hub/outline-focus-next-section)
 (evil-define-key 'normal org-mode-map (kbd ",T") 'outline-up-heading)
 (define-key evil-normal-state-map (kbd ",nb") 'hub/create-post)
 (require 'evil-matchit)
@@ -795,15 +806,24 @@ C-x b RET. The buffer selected is the one returned by (other-buffer)."
 ;; evil is crazy
 (define-key evil-insert-state-map (kbd "C-d") nil)
 (define-key evil-normal-state-map (kbd "M-.") nil)
+;; Evil has those but I don't need evil to handle completion
+;; (define-key evil-insert-state-map "\C-n" 'evil-complete-next)
+;; (define-key evil-insert-state-map "\C-p" 'evil-complete-previous)
+(define-key evil-insert-state-map "\C-n" nil)
+(define-key evil-insert-state-map "\C-p" nil)
 ;;;; Default state
 (evil-set-initial-state 'help-mode 'emacs)
 ;; (evil-set-initial-state 'dired-mode 'emacs)
 ;; (evil-set-initial-state 'fundamental-mode 'emacs)
 (evil-set-initial-state 'ess-help-mode 'emacs)
 (evil-set-initial-state 'ensime-scalex-mode 'emacs)
+(evil-set-initial-state 'ensime-inspector-mode 'emacs)
+(evil-set-initial-state 'ensime-search-mode 'emacs)
 (evil-set-initial-state 'erc-mode 'emacs)
 (evil-set-initial-state 'image-mode 'emacs)
 (evil-set-initial-state 'cider-stacktrace-mode 'emacs)
+(evil-set-initial-state 'magit-popup-mode 'emacs)
+(evil-set-initial-state 'twittering-mode 'normal)
 ;;; Info & Evil
 (evil-set-initial-state 'Info 'emacs)
 (evil-define-key 'motion Info-mode-map "l" nil) ; use l to say last
