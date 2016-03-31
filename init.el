@@ -1122,6 +1122,13 @@ the actual manpage using the function `man'."
    "Major mode for editing Markdown files" t)
 (add-to-list 'auto-mode-alist '("\\.markdown$" . markdown-mode))
 (add-to-list 'auto-mode-alist '("\\.md$" . markdown-mode))
+(evil-define-key 'normal markdown-mode-map (kbd ",il") 'markdown-insert-link)
+(evil-define-key 'normal markdown-mode-map (kbd ",iH") 'markdown-insert-header-dwim)
+(evil-define-key 'normal markdown-mode-map (kbd ",ih") 'markdown-insert-header-setext-dwim)
+(evil-define-key 'normal markdown-mode-map (kbd ",i2") 'markdown-insert-header-setext-2)
+(evil-define-key 'normal markdown-mode-map (kbd ",i1") 'markdown-insert-header-setext-1)
+(evil-define-key 'normal markdown-mode-map (kbd ",ev") 'markdown-preview)
+(evil-define-key 'normal markdown-mode-map (kbd ",eV") 'markdown-export-and-preview)
 
 ; coding
 ;; keys
