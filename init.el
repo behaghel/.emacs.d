@@ -300,10 +300,9 @@
   (persp-switch (persp-name persp-last)))
 ;; Easily switch to your last perspective
 (defmacro custom-persp (name &rest body)
-  `(let ((initialize (not (gethash ,name perspectives-hash)))
-         (current-perspective persp-curr))
+  `(let ((current-perspective persp-curr))
      (persp-switch ,name)
-     (when initialize ,@body)
+     ,@body
      (setq persp-last current-perspective)))
 (defun custom-persp/emacs ()
   (interactive)
@@ -311,8 +310,12 @@
                 (find-file "~/.emacs.d/init.el")))
 (defun custom-persp/sas ()
   (interactive)
-  (custom-persp "sas"
+  (custom-persp "org"
                 (find-file "~/Documents/org/sas.org")))
+(defun custom-persp/hubert ()
+  (interactive)
+  (custom-persp "org"
+                (find-file "~/Dropbox/Documents/org/hubert.org")))
 
 ;; Ediff
 (setq ediff-diff-options "-w")
