@@ -65,8 +65,9 @@
 ;; (toggle-debug-on-error)
 
 ;; (set-face-attribute 'default nil :font "Droid Sans Mono-12")
-(when (member "Source Code Pro-12" (font-family-list))
-  (set-face-attribute 'default nil :font "Source Code Pro-12"))
+;; (when (member "Source Code Pro-12" (font-family-list))
+(when (member "mononoki-12" (font-family-list))
+  (set-face-attribute 'default nil :font "mononoki-12"))
 
 ;; install
 (setq hub-lisp-dir (expand-file-name "lisp" user-emacs-directory))
