@@ -71,6 +71,8 @@
 
 (unless (package-installed-p 'use-package)
   (package-install 'use-package))
+(unless (package-installed-p 'diminish)
+  (package-install 'diminish))
 
 (eval-when-compile
   (require 'use-package))
@@ -102,7 +104,7 @@
 
 ;; fix for Mac OS X PATH in Emacs GUI
 (use-package exec-path-from-shell
-  :if window-system
+  :if (and window-system is-mac)
   :config
   (exec-path-from-shell-initialize))
 
@@ -289,6 +291,7 @@
 
 ;; Dired
 (use-package dired-details
+  :disabled t
   :config
   (setq-default dired-details-hidden-string "--- ")
   (dired-details-install))
