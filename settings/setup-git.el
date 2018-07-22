@@ -5,6 +5,7 @@
 (define-key evil-normal-state-map (kbd ",vs") 'magit-status) ;; git control panel
 (use-package magit
   :commands (magit-status projectile-vc)
+  :pin melpa
   :config
   (setq magit-popup-use-prefix-argument 'default
         ;; magit-completing-read-function 'magit-ido-completing-read
@@ -53,21 +54,23 @@ the actual manpage using the function `man'."
   ;;   ;; (define-key evil-normal-state-map (kbd ",vp") 'git-gutter+-previous-hunk)
   ;;   ;; (define-key evil-normal-state-map (kbd ",vd") 'git-gutter+-show-hunk)
   ;;   )
+  )
 
-  (use-package magithub)
-
-  (use-package magit-gh-pulls
-    :config
-    (add-hook 'magit-mode-hook 'turn-on-magit-gh-pulls)))
+;; (use-package magithub
+;;   :disabled
+;;   :after magit
+;;   :ensure t
+;;   :config
+;;   (magithub-feature-autoinject t))
 
 (use-package diff-hl
-  :defer t
+  :demand
   :config
   (global-diff-hl-mode)
   (define-key evil-normal-state-map (kbd ",vr") 'diff-hl-revert-hunk)
   (define-key evil-normal-state-map (kbd ",vn") 'diff-hl-next-hunk)
   (define-key evil-normal-state-map (kbd ",vp") 'diff-hl-previous-hunk)
-  (define-key evil-normal-state-map (kbd ",vd") 'diff-hl-goto-hunk)
+  (define-key evil-normal-state-map (kbd ",vd") 'diff-hl-diff-goto-hunk)
   (add-hook 'magit-post-refresh-hook 'diff-hl-magit-post-refresh))
 
 (provide 'setup-git)

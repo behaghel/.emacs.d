@@ -16,11 +16,12 @@
     (add-hook 'find-file-hooks 'auto-insert)))
 
 (defun blog-post-hook ()
-  (cond ((string-match blog-posts-dir buffer-file-name)
-         (ispell-change-dictionary "uk")
-         (setq-local ispell-check-comments nil)
-         (writeroom-mode)
-         (artbollocks-mode))))
+  (let ((current-path (or (buffer-file-name) "don't know")))
+    (cond ((string-match blog-posts-dir current-path)
+           (ispell-change-dictionary "uk")
+           (setq-local ispell-check-comments nil)
+           (writeroom-mode)
+           (artbollocks-mode)))))
 
 (add-hook 'org-mode-hook 'blog-post-hook)
 

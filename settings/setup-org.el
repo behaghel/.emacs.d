@@ -1,13 +1,16 @@
 (use-package org
+  :ensure org-plus-contrib
+  :defer t
   :mode ("\\.\\(org\\|orj\\|org_archive\\|txt\\)$" . org-mode)
   :config
   ;; Evil and org-mode
-                                        ; Makes (setq org-return-follows-link t) work with Evil
+  ; Makes (setq org-return-follows-link t) work with Evil
   (evil-define-key 'motion org-mode-map (kbd "RET") 'org-return)
   (evil-define-key 'normal org-mode-map (kbd ",or") 'org-babel-open-src-block-result)
-  (evil-define-key 'normal org-mode-map (kbd ",s") 'outline-backward-same-level)
-  (evil-define-key 'normal org-mode-map (kbd ",t") 'outline-forward-same-level)
-  (evil-define-key 'normal org-mode-map (kbd ",f") 'outline-next-heading)
+  (evil-define-key 'normal org-mode-map (kbd "gp") 'outline-backward-same-level)
+  (evil-define-key 'normal org-mode-map (kbd "gn") 'outline-forward-same-level)
+  (evil-define-key 'normal org-mode-map (kbd ",r") 'outline-next-heading)
+  (evil-define-key 'normal org-mode-map (kbd ",a") 'org-archive-subtree-default)
   (defun hub/outline-focus-next-section ()
     (interactive)
     (progn
@@ -15,9 +18,20 @@
       (outline-show-entry)
       (outline-hide-other)))
   (evil-define-key 'normal org-mode-map (kbd ", SPC") 'hub/outline-focus-next-section)
-  (evil-define-key 'normal org-mode-map (kbd ",T") 'outline-up-heading)
-  (setq org-directory "~/Documents/org")
-  (setq org-default-notes-file (concat org-directory "/notes.org"))
+  (evil-define-key 'normal org-mode-map (kbd ",s") 'outline-up-heading)
+  (setq org-directory "~/Dropbox/Documents/org")
+  (setq org-default-notes-file (concat org-directory "/sas.org"))
+  (setq org-capture-templates
+        '(("t" "Todo" entry (file+headline (concat org-directory "/sas.org") "Tasks")
+           "* TODO %?\n  %i\n  %a")
+          ("j" "Journal" entry (file+datetree "~/org/journal.org")
+           "* %?\nEntered on %U\n  %i\n  %a")))
+ (setq org-modules
+   (quote
+    (org-bbdb org-bibtex org-docview org-gnus org-info org-irc org-mhe org-rmail org-w3m mac-link)))
+ ;; (require 'org-mac-link)
+ (add-hook 'org-mode-hook (lambda ()
+                            (define-key org-mode-map (kbd "C-c m") 'org-mac-grab-link)))
   ;; org-agenda-files should be a list of files and not a dir
   ;; prefer C-c [ to add and C-c ] to remove file from this list
   ;; (setq org-agenda-files org-directory)
@@ -123,22 +137,37 @@ of its arguments."
   ;; (require 'org-ac)
   ;; (org-ac/config-default)
   (autoload 'google-contacts "google-contacts" "Google Contacts." t)
-  (add-hook 'org-mode-hook 'auto-fill-mode)
+  ;; having (setq comment-auto-fill-only-comments t) means org-mode
+  ;; doesn't get word-wrapping. Deactivating just for org-mode.
+  (add-hook 'org-mode-hook (lambda () (setq-local comment-auto-fill-only-comments nil)))
 
   (use-package ox-reveal)
   ;; (use-package ox-ioslide)
+  (use-package sublime-themes
+    :defer t)
+  (use-package htmlize
+    :defer t)
+
+  ;;
+  (add-hook 'org-mode-hook
+            '(lambda ()
+               (setq org-file-apps
+                     (append '(
+                               ("\\.pptx\\'" . default)
+                               ) org-file-apps ))))
 
   ;;; Babel
   (use-package ob-elixir)
   (org-babel-do-load-languages
    'org-babel-load-languages
    '((ditaa . t)(plantuml . t)(ruby . t)(awk . t)(gnuplot . t)(R . t)(latex . t)(java . t)))
+  (use-package gnuplot-mode)
   ;; (add-to-list 'org-babel-default-header-args:gnuplot
   ;;              '((:prologue . "reset")))
   (setq org-confirm-babel-evaluate nil)   ; stop asking. May be dangerous...
 
   (global-set-key "\C-cl" 'org-store-link)
-  (global-set-key "\C-ci" 'org-capture)
+  (global-set-key "\C-cc" 'org-capture)
   (global-set-key "\C-ca" 'org-agenda)
   (global-set-key "\C-cb" 'org-iswitchb))
 

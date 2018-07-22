@@ -1,11 +1,7 @@
 ;; multiple-cursors
 (use-package multiple-cursors
-  :commands (mc/mark-next-like-this mc/mark-previous-like-this mc/edit-lines mc/mark-all-like-this-dwim)
+  :commands (mc/mark-next-like-this mc/mark-previous-like-this mc/edit-lines mc/mark-all-like-this-dwim mc/mark-all-dwim)
   :config
-  (global-set-key (kbd "<M-C-down>") 'mc/mark-next-like-this)
-  (global-set-key (kbd "<M-C-up>") 'mc/mark-previous-like-this)
-  (global-set-key (kbd "C-c m @") 'mc/edit-lines)
-  (global-set-key (kbd "C-c m a") 'mc/mark-all-like-this-dwim)
   ;; compat with evil. Stolen https://github.com/jcpetkovich/.emacs.d/blob/master/global-key-bindings.el#L257
   ;; alternative: https://github.com/magnars/multiple-cursors.el/issues/19
   ;; waiting for resolution of:
@@ -37,6 +33,7 @@
             'mc-evil-compat/switch-to-emacs-state)
   (add-hook 'multiple-cursors-mode-disabled-hook
             'mc-evil-compat/back-to-previous-state)
+
   (defun mc-evil-compat/rectangular-switch-state ()
     (if rectangular-region-mode
         (mc-evil-compat/switch-to-emacs-state)
@@ -51,5 +48,10 @@
         (push-mark (1- (mark))))))
   (add-hook 'rectangular-region-mode-hook 'mc-evil-compat/rectangular-switch-state)
   (defvar mc--default-cmds-to-run-once nil))
+
+(global-set-key (kbd "<M-C-down>") 'mc/mark-next-like-this)
+(global-set-key (kbd "<M-C-up>") 'mc/mark-previous-like-this)
+(global-set-key (kbd "C-c m @") 'mc/edit-lines)
+(global-set-key (kbd "C-c m a") 'mc/mark-all-like-this-dwim)
 
 (provide 'setup-multiple-cursors)

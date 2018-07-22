@@ -58,8 +58,8 @@
   (define-key evil-normal-state-map (kbd "r") 'evil-forward-char)
   (define-key evil-normal-state-map (kbd "t") 'evil-next-line)
   (define-key evil-normal-state-map (kbd "s") 'evil-previous-line)
-  (define-key evil-normal-state-map (kbd "C") 'evil-window-top)
-  (define-key evil-normal-state-map (kbd "R") 'evil-window-low)
+  ;; (define-key evil-normal-state-map (kbd "C") 'evil-window-top)
+  ;; (define-key evil-normal-state-map (kbd "R") 'evil-window-low)
   (define-key evil-normal-state-map (kbd "T") 'evil-join)
   ;; following translation only occur when z is a prefix (not already bound)
   (define-key key-translation-map (kbd "zs") (kbd "zj"))
@@ -93,7 +93,8 @@
   (define-key evil-normal-state-map (kbd ",y") 'hub/copy-buffer-file-name)
   (define-key evil-normal-state-map (kbd ",g/") 'dired)
   (define-key evil-normal-state-map (kbd ",,") 'hub/switch-dwim)
-  (define-key evil-normal-state-map (kbd ",|") 'shell-command-on-region))
+  (define-key evil-normal-state-map (kbd ",|") 'shell-command-on-region)
+  (define-key evil-normal-state-map (kbd ",=") 'align-current))
 ;; stolen from http://www.emacswiki.org/emacs/Evil#toc12
 ;; Note: lexical-binding must be t in order for this to work correctly.
 (defun make-conditional-key-translation (key-from key-to translate-keys-p)
@@ -113,18 +114,18 @@
 (make-conditional-key-translation (kbd "è") (kbd "C-x") 'not-insert-state-p)
 (make-conditional-key-translation (kbd "È") (kbd "C-u") 'not-insert-state-p)
 
-(define-key evil-normal-state-map (kbd ",x") 'smex)
+;; (define-key evil-normal-state-map (kbd ",x") 'smex)
 (define-key evil-normal-state-map (kbd ",gs") 'eshell)
 (define-key evil-normal-state-map (kbd ",el") 'eshell-run-last)
 (define-key evil-normal-state-map (kbd ",gS") 'hub/eshell-other-window)
 ;; you want to *g*o somewhere
 (define-key evil-normal-state-map (kbd ",gg") 'hub/switch-to-other-buffer)
 ;;; Switch to another open buffer
-(define-key evil-normal-state-map (kbd ",gb") 'switch-to-buffer)
-(define-key evil-normal-state-map (kbd ",gB") 'switch-to-buffer-other-window)
+;; (define-key evil-normal-state-map (kbd ",gb") 'switch-to-buffer)
+;; (define-key evil-normal-state-map (kbd ",gB") 'switch-to-buffer-other-window)
 ;; you want to *o*pen something
 ;;; Open file
-(define-key evil-normal-state-map (kbd ",of") 'ido-find-file)
+;; (define-key evil-normal-state-map (kbd ",of") 'ido-find-file)
 ;; Browse URL
 (define-key evil-normal-state-map (kbd ",ou") 'browse-url)
 (define-key evil-normal-state-map (kbd ",oc") '(lambda () (interactive)(find-file "~/Dropbox/Projects/scala/exercises/cs-fundamental/CLRS.org")))
@@ -160,6 +161,13 @@
 ;; evil is crazy
 (define-key evil-insert-state-map (kbd "C-d") nil)
 (define-key evil-normal-state-map (kbd "M-.") nil)
+;; until this is merged: https://github.com/emacs-evil/evil/pull/873
+;; otherwise, gd always asks for a TAGS file :facepalm:
+(define-key evil-normal-state-map (kbd "gd") '(lambda () (interactive)  (let* ((string (evil-find-symbol t))
+                                                                          (search (format "\\_<%s\\_>" (regexp-quote string))))
+                                                                     (evil-search search t t (point-min)))))
+
+
 ;; Evil has those but I don't need evil to handle completion
 ;; (define-key evil-insert-state-map "\C-n" 'evil-complete-next)
 ;; (define-key evil-insert-state-map "\C-p" 'evil-complete-previous)
@@ -173,9 +181,13 @@
 (evil-set-initial-state 'erc-mode 'emacs)
 (evil-set-initial-state 'image-mode 'emacs)
 (evil-set-initial-state 'cider-stacktrace-mode 'emacs)
+(evil-set-initial-state 'epa-key-list-mode 'emacs)
 (evil-set-initial-state 'magit-popup-mode 'emacs)
 (evil-set-initial-state 'twittering-mode 'normal)
 (evil-set-initial-state 'ensime-inspector-mode 'emacs)
+(evil-set-initial-state 'haskell-error-mode 'emacs)
+(evil-set-initial-state 'haskell-interactive-mode 'insert)
+(evil-set-initial-state 'intero-repl-mode 'insert)
 ;;; Info & Evil
 (evil-set-initial-state 'Info 'emacs)
 (evil-define-key 'motion Info-mode-map "l" nil) ; use l to say last

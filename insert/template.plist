@@ -1,0 +1,160 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+  <!-- To install this scheduled job, copy it to one of this location:
+     ~/Library/LaunchAgents         Per-user agents provided by the user.
+     /Library/LaunchAgents          Per-user agents provided by the administrator.
+     /Library/LaunchDaemons         System-wide daemons provided by the administrator.
+
+     For the last 2, it has to be non-writable and owned by root:
+     $ sudo chown root ${2:`(file-name-nondirectory (buffer-file-name))`}
+     $ sudo chmod 644 $2
+
+     And then run (with sudo if in /Library):
+     $ launchctl load -w $2
+
+     see man launchd.plist and launchctl for more info along with
+     those web resources:
+     - http://alvinalexander.com/mac-os-x/mac-osx-startup-crontab-launchd-jobs
+     - https://developer.apple.com/library/mac/documentation/MacOSX/Conceptual/BPSystemStartup/Chapters/ScheduledJobs.html
+    -->
+
+<dict>
+  <!-- default status for this job, not the actual status -->
+  <!-- when true, job needs to be loaded with -w
+       $ launchctl load -w job -->
+  <key>Disabled</key>
+  <true/>
+
+  <key>Label</key>
+  <string>${1:`(file-name-nondirectory (file-name-sans-extension (buffer-file-name)))`}</string>
+
+  <!-- You'd wish you could use environment variables, wouln't you? -->
+  <!-- <key>EnvironmentVariables</key> -->
+  <!-- <dict> -->
+  <!--    <key>VAR1</key> -->
+  <!--    <string>value</string> -->
+  <!--    <key>VAR2</key> -->
+  <!--    <string>value</string> -->
+  <!-- </dict> -->
+
+  <!-- <key>WorkingDirectory</key> -->
+  <!-- <string>/</string> -->
+
+  <!-- <key>UserName</key> -->
+  <!-- <string></string> -->
+
+  <!-- <key>EnableGlobbing</key> -->
+  <!-- <true/> -->
+
+  <!-- <key>Program</key> -->
+  <!-- <string>bin/runner.sh</string> -->
+
+  <key>ProgramArguments</key>
+  <array>
+    <string>$0</string>
+    <string></string>
+  </array>
+
+
+  <!-- Useful for daemon: launchd will restart/maintain job
+       automatically, can be conditional. See man launchd.plist -->
+  <key>KeepAlive</key>
+  <false/>
+
+  <!-- <key>Nice</key> -->
+  <!-- <integer>1</integer> -->
+
+  <!-- run it every X seconds
+       this is not "resilient to sleep mode"
+       any run that should have happened while asleep are simply skipped.
+    -->
+  <!-- <key>StartInterval</key> -->
+  <!-- <integer>10</integer> -->
+
+  <!-- OR -->
+
+  <!-- run it at specified schedule
+       when getting out of sleep mode, launchd will launch the task
+       if it should have run during sleep time.
+    -->
+  <!-- <key>StartCalendarInterval</key> -->
+  <!-- <array> -->
+    <!-- Apple reinvented cron, only worse -->
+    <!-- Schedule at 9am on every working day... -->
+  <!--   <dict> -->
+  <!--       <key>Hour</key> -->
+  <!--       <integer>09</integer> -->
+  <!--       <key>Minute</key> -->
+  <!--       <integer>00</integer> -->
+  <!--       <key>Weekday</key> -->
+  <!--       <integer>1</integer> -->
+  <!--   </dict> -->
+  <!--   <dict> -->
+  <!--       <key>Hour</key> -->
+  <!--       <integer>09</integer> -->
+  <!--       <key>Minute</key> -->
+  <!--       <integer>00</integer> -->
+  <!--       <key>Weekday</key> -->
+  <!--       <integer>2</integer> -->
+  <!--   </dict> -->
+  <!--   <dict> -->
+  <!--       <key>Hour</key> -->
+  <!--       <integer>09</integer> -->
+  <!--       <key>Minute</key> -->
+  <!--       <integer>00</integer> -->
+  <!--       <key>Weekday</key> -->
+  <!--       <integer>3</integer> -->
+  <!--   </dict> -->
+  <!--   <dict> -->
+  <!--       <key>Hour</key> -->
+  <!--       <integer>09</integer> -->
+  <!--       <key>Minute</key> -->
+  <!--       <integer>00</integer> -->
+  <!--       <key>Weekday</key> -->
+  <!--       <integer>4</integer> -->
+  <!--   </dict> -->
+  <!--   <dict> -->
+  <!--       <key>Hour</key> -->
+  <!--       <integer>09</integer> -->
+  <!--       <key>Minute</key> -->
+  <!--       <integer>00</integer> -->
+  <!--       <key>Weekday</key> -->
+  <!--       <integer>5</integer> -->
+  <!--   </dict> -->
+  <!-- </array> -->
+
+  <!-- <key>RunAtLoad</key> -->
+  <!-- <true/> -->
+
+  <!-- <key>WatchPaths</key> -->
+  <!-- <array> -->
+  <!--   <string>/etc/environment.rc</string> -->
+  <!-- </array> -->
+
+  <!-- capture output. Don't forget to clean it at times. No one will
+       do it but you -->
+  <key>StandardErrorPath</key>
+  <string>/tmp/$1.err</string>
+
+  <key>StandardOutPath</key>
+  <string>/tmp/$1.out</string>
+
+  <!-- <key>Sockets</key> -->
+  <!--   <dict> -->
+  <!--   <key>Listeners</key> -->
+  <!--   <dict> -->
+  <!--     <key>SockServiceName</key> -->
+  <!--     <string>18083</string> -->
+  <!--     <key>SockType</key> -->
+  <!--     <string>stream</string> -->
+  <!--     <key>SockFamily</key> -->
+  <!--     <string>IPv4</string> -->
+  <!--   </dict> -->
+  <!-- </dict> -->
+
+  <!-- <key>Debug</key> -->
+  <!-- <true/> -->
+
+</dict>
+</plist>

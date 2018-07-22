@@ -1,7 +1,13 @@
 ;; sbt
 (use-package sbt-mode
-  :commands (sbt-start sbt-command)
+  :commands sbt-start sbt-command
   :config
+  ;; WORKAROUND: https://github.com/ensime/emacs-sbt-mode/issues/31
+  ;; allows using SPACE when in the minibuffer
+  (substitute-key-definition
+   'minibuffer-complete-word
+   'self-insert-command
+   minibuffer-local-completion-map)
   ;; compilation-skip-threshold tells the compilation minor-mode
   ;; which type of compiler output can be skipped. 1 = skip info
   ;; 2 = skip info and warnings.
@@ -16,6 +22,12 @@
   ;; for interpretation. It will keep your command history cleaner.
   (local-set-key (kbd "S-RET") 'comint-accumulate)
   (setq sbt:ansi-support t)
+  (add-hook 'sbt-mode-hook
+            (lambda ()
+              (setq prettify-symbols-alist
+                    `((,(expand-file-name (directory-file-name (sbt:find-root))) . ?⌂)
+                      (,(expand-file-name "~") . ?~)))
+              (prettify-symbols-mode t)))
   ;; default (sbt) is not enough to get ANSI colors as sbt infers that
   ;; it's not supported. Forcing colors in sbt output.
   ;;(setq sbt:program-name "sbt -Dspecs2.color=true -Dsbt.log.format=true")
@@ -23,13 +35,14 @@
     "Go to (or start) sbt buffer without affecting the current buffer."
     (interactive)
     (hub/dwim-other-window 'sbt-start))
-  (evil-define-key 'normal scala-mode-map ",s." 'sbt-find-definitions)
+  (evil-define-key 'normal scala-mode-map ",g." 'sbt-find-definitions)
   (evil-define-key 'normal scala-mode-map ",bB" 'sbt-run-previous-command)
   (evil-define-key 'normal scala-mode-map ",bb" 'sbt-command)
-  (evil-define-key 'normal scala-mode-map ",s/" 'sbt-grep)
-  (evil-define-key 'normal scala-mode-map ",sr" 'sbt-find-usages)
-  (evil-define-key 'normal scala-mode-map ",ss" 'hub/sbt-start)
-  (evil-define-key 'visual scala-mode-map ",l" 'sbt-send-region))
+  (evil-define-key 'normal scala-mode-map ",bh" 'sbt-hydra)
+  (evil-define-key 'normal scala-mode-map ",e/" 'sbt-grep)
+  (evil-define-key 'normal scala-mode-map ",gu" 'sbt-find-usages)
+  (evil-define-key 'normal scala-mode-map ",es" 'hub/sbt-start)
+  (evil-define-key 'visual scala-mode-map ",el" 'sbt-send-region))
 
 (use-package scala-mode
   :interpreter
@@ -85,8 +98,7 @@
 
 (use-package ensime
              :commands (ensime ensime-mode)
-             :pin melpa-stable
-             :ensure t
+             :pin melpa
              :config
              (local-set-key (kbd "C-c C-l") 'hub/ensime-inf-reload)
              (defun hub/ensime-inf-reload ()
@@ -128,7 +140,7 @@ class %TESTCLASS% extends FlatSpec with Matchers
              ;; (setq projectile-create-missing-test-files t)
              ;; expand-region backend provided by ensime
              ;; (require 'ensime-expand-region)
-             (evil-define-key 'normal scala-mode-map ",b" 'ensime-sbt-do-compile)
+             (evil-define-key 'normal scala-mode-map ",bb" 'ensime-sbt-do-compile)
              (evil-define-key 'normal scala-mode-map ",bc" 'ensime-sbt-do-compile)
              (evil-define-key 'normal scala-mode-map ",bn" 'ensime-sbt-do-clean)
              (evil-define-key 'normal scala-mode-map ",E" 'ensime-sbt-do-run)
@@ -137,8 +149,8 @@ class %TESTCLASS% extends FlatSpec with Matchers
              (evil-define-key 'normal scala-mode-map ",eT" 'ensime-goto-impl)
              (evil-define-key 'normal scala-mode-map ",tt" 'ensime-sbt-do-test-only-dwim)
              (evil-define-key 'normal scala-mode-map ",tT" 'ensime-sbt-do-test-dwim)
-             (evil-define-key 'normal scala-mode-map ",ii" 'ensime-inspect-type-at-point)
-             (evil-define-key 'normal scala-mode-map ",it" 'ensime-print-type-at-point)
+             (evil-define-key 'normal scala-mode-map ",hi" 'ensime-inspect-type-at-point)
+             (evil-define-key 'normal scala-mode-map ",ht" 'ensime-print-type-at-point)
              (evil-define-key 'normal scala-mode-map ",ie" 'ensime-print-errors-at-point)
              (evil-define-key 'normal scala-mode-map ",im" 'ensime-import-type-at-point)
              (evil-define-key 'normal scala-mode-map ",eq" 'ensime-show-all-errors-and-warnings) ; q -> quickfix

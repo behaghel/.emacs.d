@@ -4,7 +4,7 @@
   :init
   (add-hook 'cider-mode-hook 'set-auto-complete-as-completion-at-point-function)
   :config
-  (evil-define-key 'normal cider-mode-map ",l" 'cider-load-buffer)
+  (evil-define-key 'normal cider-mode-map ",el" 'cider-load-buffer)
   (evil-define-key 'visual cider-mode-map ",l" 'cider-eval-region)
   (evil-define-key 'normal cider-mode-map ",." 'cider-jump-to-var)
   (evil-define-key 'normal cider-mode-map ",;" 'cider-jump-back)

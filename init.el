@@ -10,71 +10,34 @@
 ;;             - ,v == anything versioning
 ;;             - ,o == open
 ;;             - ,g == anything find or go to
+;;               > ,ge -> go to next error
+;;               > ,gE -> go to previous error
 ;;             - ,e == anything execute
+;;               > ,el -> execute file or region by loading it in REPL
 ;;             - ,t == anything test (few exceptions)
 ;;             - ,h == anything help
 ;;             - ,n == new / create
 ;;             - coding:
 ;;               - ,.  -> find definition for symbol at point
 ;;               - ,hh -> go to help for symbol at point
-;;               - ,l  -> load buffer (or region or paragraph...) to
-;;                        inferior process
 ;;               - ,b  -> build / compile task
-;;               - ,ii  -> inspect type at point
+;;               - ,ii -> inspect type at point
+;;                 ,il -> inspect last expression
 ;;               - ,gr -> go to REPL
+;;               - ,f  -> anything formatting / refactoring
+;;               - ,= -> align nicely using M-x align
 ;;
 ;;; Code:
 
-(toggle-debug-on-error)
-(custom-set-variables
- ;; custom-set-variables was added by Custom.
- ;; If you edit it by hand, you could mess it up, so be careful.
- ;; Your init file should contain only one such instance.
- ;; If there is more than one, they won't work right.
- '(custom-safe-themes
-   (quote
-    ("613a7c50dbea57860eae686d580f83867582ffdadd63f0f3ebe6a85455ab7706" "c74e83f8aa4c78a121b52146eadb792c9facc5b1f02c917e3dbb454fca931223" "c5a044ba03d43a725bd79700087dea813abcb6beb6be08c7eb3303ed90782482" "3a727bdc09a7a141e58925258b6e873c65ccf393b2240c51553098ca93957723" "756597b162f1be60a12dbd52bab71d40d6a2845a3e3c2584c6573ee9c332a66e" "6a37be365d1d95fad2f4d185e51928c789ef7a4ccf17e7ca13ad63a8bf5b922f" "e26780280b5248eb9b2d02a237d9941956fc94972443b0f7aeec12b5c15db9f3" "d677ef584c6dfc0697901a44b885cc18e206f05114c8a3b7fde674fce6180879" "8aebf25556399b58091e533e455dd50a6a9cba958cc4ebb0aab175863c25b9a4" "25f330cb050c7e7ec402af1b60243e8185a7837b455af0fa026593d4f48a78b2" default)))
- '(package-selected-packages
-   (quote
-    (counsel swiper nvm edit-server clipmon magithub mocha realgud realgud-byebug realgud-pry zoom-frm tern-auto-complete intero magit-gh-pulls rspec-mode rubocop company-tern js-doc ob-elixir elixir-mode alchemist base16-theme monokai-theme moe-theme rvm ox-ioslide speed-type writeroom-mode editorconfig feature-mode twittering-mode dtrt-indent evil-surround clj-refactor diff-hl magit company-ghc ox-reveal ag zencoding-mode zenburn-theme web-beautify sublime-themes solarized-theme smex smartparens smart-mode-line scss-mode robe restclient react-snippets rainbow-mode rainbow-delimiters popwin persp-projectile org-ac org nlinum molokai-theme minitest markdown-mode langtool key-chord json-mode js2-refactor ido-vertical-mode ido-ubiquitous ido-at-point htmlize gnuplot git gist ghc ggtags flycheck-haskell flx-ido expand-region exec-path-from-shell evil-nerd-commenter evil-matchit evil-leader ess ensime dockerfile-mode diminish dash-at-point better-defaults artbollocks-mode anti-zenburn-theme adoc-mode ac-js2 ac-inf-ruby ac-cider 4clojure)))
- '(safe-local-variable-values
-   (quote
-    ((eval progn
-           (add-to-list
-            (quote exec-path)
-            (concat
-             (locate-dominating-file default-directory ".dir-locals.el")
-             "node_modules/.bin/")))
-     (eval let
-           ((project-root
-             (locate-dominating-file default-directory ".dir-locals.el"))
-            (rel-path
-             (mapconcat
-              (quote file-name-as-directory)
-              (quote
-               ("node_modules" ".bin"))
-              "")))
-           (setq flycheck-javascript-eslint-executable
-                 (expand-file-name "eslint"
-                                   (concat project-root rel-path)))
-           (setq flycheck-disabled-checkers
-                 (quote
-                  (javascript-jshint))))
-     (eval let
-           ((project-root
-             (locate-dominating-file default-directory ".dir-locals.el"))
-            (rel-path
-             (mapconcat
-              (quote file-name-as-directory)
-              (quote
-               ("node-modules" ".bin"))
-              "")))
-           (setq flycheck-javascript-eslint-executable
-                 (expand-file-name "eslint"
-                                   (concat project-root rel-path)))
-           (setq flycheck-disabled-checkers
-                 (quote
-                  (javascript-jshint))))))))
+;; to stop M-x customize to pollute my init.el: http://emacsblog.org/2008/12/06/quick-tip-detaching-the-custom-file/
+(setq custom-file "~/.emacs.d/custom.el")
+(load custom-file 'noerror)
+(setq hub-lisp-dir (expand-file-name "lisp" user-emacs-directory))
+(add-to-list 'load-path hub-lisp-dir)  ; to include my .el
+(setq settings-dir
+      (expand-file-name "settings" user-emacs-directory))
+;; Set up load path
+(add-to-list 'load-path settings-dir)
 
 ;; putting it earlier in attempt to make it work.
 (setq org-return-follows-link t)
@@ -84,24 +47,30 @@
 (setq user-full-name "Hubert Behaghel")
 ;; (toggle-debug-on-error)
 
-;; (set-face-attribute 'default nil :font "Droid Sans Mono-12")
-;; (when (member "Source Code Pro-12" (font-family-list))
-(when (member "mononoki-12" (font-family-list))
-  (set-face-attribute 'default nil :font "mononoki-12"))
-
 ;; install
-(setq hub-lisp-dir (expand-file-name "lisp" user-emacs-directory))
-(add-to-list 'load-path hub-lisp-dir)  ; to include my .el
 (require 'package)
 (require 'cl)
 ;; (add-to-list 'package-archives
 ;;           '("marmalade" . "http://marmalade-repo.org/packages/"))
-(add-to-list 'package-archives
-             '("melpa" . "http://melpa.milkbox.net/packages/"))
-(add-to-list 'package-archives
-             '("melpa-stable" . "http://stable.melpa.org/packages/"))
+;; (add-to-list 'package-archives
+;;              '("melpa" . "http://melpa.milkbox.net/packages/"))
+;; (add-to-list 'package-archives
+;;              '("melpa-stable" . "http://stable.melpa.org/packages/"))
+(setq
+ package-archives '(("gnu" . "http://elpa.gnu.org/packages/")
+                    ("org" . "http://orgmode.org/elpa/")
+                    ("melpa" . "http://melpa.org/packages/")
+                    ("melpa-stable" . "http://stable.melpa.org/packages/"))
+ package-archive-priorities '(("melpa-stable" . 1)))
+
 ; required to find melpa-installed package after restart at init time
 (package-initialize)
+
+(unless package-archive-contents
+  (package-refresh-contents))
+
+(unless (package-installed-p 'use-package)
+  (package-install 'use-package))
 
 (eval-when-compile
   (require 'use-package))
@@ -109,52 +78,23 @@
 (setq use-package-verbose t
       use-package-always-ensure t)
 
-
-(setq settings-dir
-      (expand-file-name "settings" user-emacs-directory))
-;; Set up load path
-(add-to-list 'load-path settings-dir)
+(require 'auth-source-pass)
+(auth-source-pass-enable)
+(use-package pinentry)
+(setq epa-pinentry-mode 'loopback)
 
 (use-package better-defaults)
 
+(use-package hydra)
+
 (require 'setup-evil)
 
-; try to stabilize windows and buffers positions
-(setq switch-to-buffer-preserve-window-point 'already-displayed)
 ; stop cluttering my fs with #file.ext#
 (setq auto-save-file-name-transforms
       `((".*" ,(concat user-emacs-directory "backups") t)))
 
-;; Look / Theme
-;; http://pawelbx.github.io/emacs-theme-gallery/
-;;
-;; (load-theme 'zenburn t)
-(require 'moe-theme)
-(moe-dark)
-;; http://chriskempson.github.io/base16/#eighties
-;; (load-theme 'base16-eighties-dark t)
+(require 'setup-ui)
 
-;; ;; zenburn region face is invisible...
-;; (set-face-attribute 'region nil :background "#666")
-
-(use-package rainbow-delimiters
-  :commands (rainbow-delimiters-mode)
-  :config
-  (setq rainbow-delimiters-max-face-count 1)
-  (set-face-attribute 'rainbow-delimiters-unmatched-face nil
-                      :foreground 'unspecified
-                      :inherit 'error))
-
-;;; Smart Mode Line
-(setq sml/theme 'respectful)
-(sml/setup)
-
-;; more useful frame title, that show either a file or a
-;; buffer name (if the buffer isn't visiting a file)
-(setq frame-title-format
-      '((:eval (if (buffer-file-name)
-                   (abbreviate-file-name (buffer-file-name))
-                 "%b"))))
 ; Mac
 
 ;; Are we on a mac? Thanks @magnars
@@ -162,7 +102,6 @@
 
 ;; fix for Mac OS X PATH in Emacs GUI
 (use-package exec-path-from-shell
-  :defer t
   :if window-system
   :config
   (exec-path-from-shell-initialize))
@@ -178,39 +117,41 @@
 ; General Behaviour
 ;;;;;;;;;;;;
 
-;; No annoying buffer for completion, compilation, help...
-(use-package popwin
-  :config
-  (popwin-mode 1))
+(defun save-all ()
+  "To be used to automatically save when I leave Emacs."
+  (interactive)
+  (save-some-buffers t))
+(add-hook 'focus-out-hook 'save-all)
 
-(save-place-mode 1)
-
-(column-number-mode 1)               ; show column number in mode line
+;; synchronise emacs clipboard with system clipboard
+(use-package clipmon
+  :defer t
+  :ensure t)
 
 ;; particularly useful in git repositories to avoid the hassle of
 ;; manually reloading each buffer when you change branch.
 (global-auto-revert-mode t)
 
-(global-set-key (kbd "C-é") 'undo)
 (use-package undo-tree
   :diminish undo-tree-mode
+  :bind ("C-é" . undo)
   :config
   (global-undo-tree-mode))
 
 ;; does to M-x what ido does to C-x C-f
-(use-package smex
-  :commands smex
-  :config
-  (smex-initialize))
+;; (use-package smex
+;;   :commands smex
+;;   :config
+;;   (smex-initialize))
 
 (use-package unfill
   :commands (unfill-region unfill-paragraph toggle-fill-unfill))
 
 (setq comment-auto-fill-only-comments t) ; auto-fill comments and only them
 ;; this one seems hard to diminish: insisting
-(eval-after-load 'auto-fill-mode '(diminish 'auto-fill-function))
-(eval-after-load 'auto-fill '(diminish 'auto-fill-function))
-(diminish 'auto-fill-function)
+;; (eval-after-load 'auto-fill-mode '(diminish 'auto-fill-function))
+;; (eval-after-load 'auto-fill '(diminish 'auto-fill-function))
+;; (diminish 'auto-fill-function)
 ;; don't wrap for space before French punctuation
 (add-to-list 'fill-nobreak-predicate 'fill-french-nobreak-p)
 
@@ -221,21 +162,10 @@
 ;;; We don't want shift selection
 (setq shift-select-mode nil)
 (global-set-key (kbd "C-=") 'align-current)
-; let's make something useful with those french keys
-
-(use-package clipmon
-  :defer t
-  :ensure t)
 
 (use-package expand-region
+  :bind ("M-r" . er/expand-region)
   :commands (er/expand-region))
-(global-set-key (kbd "M-r") 'er/expand-region)
-
-(defun save-all ()
-  "To be used to automatically save when I leave Emacs."
-  (interactive)
-  (save-some-buffers t))
-(add-hook 'focus-out-hook 'save-all)
 
 (define-key key-translation-map (kbd "<f8> <right>") (kbd "→"))
 (define-key key-translation-map (kbd "<f8> i") (kbd "∞"))
@@ -300,6 +230,19 @@
 (use-package smartparens
   :diminish smartparens-mode
   :defer 2
+  ;; this works great for lisp languages
+  ;; ("C-<right>" . sp-forward-slurp-sexp)
+  ;; this works better for other languages
+  :bind (("C-<right>" . sp-slurp-hybrid-sexp)
+         ("M-<left>" . sp-backward-slurp-sexp)
+         ("C-<left>" . sp-forward-barf-sexp)
+         ("M-<right>" . sp-backward-barf-sexp)
+         ("C-<down>" . sp-down-sexp)
+         ("C-<up>" . sp-backward-up-sexp)
+         ("M-<down>" . sp-backward-down-sexp)
+         ("M-<up>" . sp-up-sexp)
+         ("S-M-f" . sp-forward-sexp)
+         ("S-M-b" . sp-backward-sexp))
   :init
   (use-package evil-smartparens
     :diminish evil-smartparens-mode
@@ -307,22 +250,26 @@
     (defadvice evil-sp--add-bindings
         (after evil-sp--add-bindings-after activate)
       (evil-define-key 'normal evil-smartparens-mode-map
-        (kbd "l") #'evil-sp-change
-        (kbd "L") #'evil-sp-change-whole-line
+        (kbd ",l") #'evil-sp-change
+        (kbd ",L") #'evil-sp-change-line
+        (kbd ",K") #'evil-sp-change-whole-line
+        (kbd ",D") #'evil-sp-delete-line
+        (kbd "D") nil
+        (kbd "c") nil
         (kbd "s") nil
         (kbd "S") nil
-        (kbd "k") #'evil-sp-substitute
-        (kbd "K") #'sp-kill-sexp
+        (kbd ",k") #'evil-sp-substitute
+        (kbd ",K") #'sp-kill-sexp
         ;; Finds opening '(' of the current list.
-        (kbd "(") #'sp-backward-up-sexp
+        (kbd ",(") #'sp-backward-up-sexp
         ;; Finds closing ')' of the current list.
-        (kbd ")") #'sp-up-sexp
+        (kbd ",)") #'sp-up-sexp
         ;; Go to the start of current/previous sexp
         (kbd "[[") #'sp-backward-sexp
         ;; Go to the start of next sexp.
         (kbd "]]") #'sp-forward-sexp
-        (kbd "{") #'sp-backward-barf-sexp
-        (kbd "}") #'sp-forward-barf-sexp
+        (kbd ",{") #'sp-backward-barf-sexp
+        (kbd ",}") #'sp-forward-barf-sexp
         (kbd "gn") #'sp-next-sexp
         (kbd "gp") #'sp-previous-sexp
         ;; (define-key evil-motion-state-map "S" 'evil-window-top)
@@ -331,46 +278,51 @@
     (add-hook 'smartparens-enabled-hook #'evil-smartparens-mode))
   :config
   (require 'smartparens-config)
+  (add-to-list 'sp-ignore-modes-list 'org-mode)
   (smartparens-global-mode t)
   (show-smartparens-global-mode)
   (smartparens-global-strict-mode)
-
-  ;; this works great for lisp languages
-  ;; (global-set-key (kbd "C-<right>") 'sp-forward-slurp-sexp)
-  ;; this works better for other languages
-  (global-set-key (kbd "C-<right>") 'sp-slurp-hybrid-sexp)
-  (global-set-key (kbd "C-<left>") 'sp-forward-barf-sexp)
-  (global-set-key (kbd "C-S-<left>") 'sp-backward-slurp-sexp)
-  (global-set-key (kbd "C-S-<right>") 'sp-backward-barf-sexp)
-  (global-set-key (kbd "C-<down>") 'sp-down-sexp)
-  (global-set-key (kbd "C-<up>") 'sp-up-sexp)
-  (global-set-key (kbd "M-<down>") 'sp-backward-down-sexp)
-  (global-set-key (kbd "M-<up>") 'sp-backward-up-sexp)
-  (global-set-key (kbd "S-M-f") 'sp-forward-sexp)
-  (global-set-key (kbd "S-M-b") 'sp-backward-sexp)
-
   (evil-define-key 'normal smartparens-mode-map (kbd ",c") #'sp-backward-sexp)
   (evil-define-key 'normal smartparens-mode-map (kbd ",r") #'sp-forward-sexp)
   (evil-define-key 'normal smartparens-mode-map (kbd ",s") #'sp-up-sexp)
   (evil-define-key 'normal smartparens-mode-map (kbd ",t") #'sp-down-sexp))
 
+;; Dired
+(use-package dired-details
+  :config
+  (setq-default dired-details-hidden-string "--- ")
+  (dired-details-install))
+(setq dired-dwim-target t)
+
 ;; ivy
 (use-package swiper
-  :ensure t
   :diminish ivy-mode
-  :defer t
-  :config
-  (ivy-mode 1)
-  (use-package counsel)
-  (setq ivy-use-virtual-buffers t)
-  (define-key evil-normal-state-map (kbd ",ga") 'counsel-ag)
+  :commands (ivy-switch-buffer ivy-switch-buffer-other-window swiper ivy-resume)
   :bind
   (("C-s" . swiper)
    ("C-r" . swiper)
    ("C-c C-r" . ivy-resume)
-   ("C-c a" . counsel-ag)
-   ("M-x" . counsel-M-x)
-   ("C-x C-f" . counsel-find-file)))
+   :map evil-normal-state-map
+   (",gb" . ivy-switch-buffer)
+   (",gB" . ivy-switch-buffer-other-window)
+   )
+  :config
+  (ivy-mode 1)
+  (setq ivy-use-virtual-buffers t)
+
+  ;; (require 'setup-ivy)
+  )
+
+(use-package counsel
+  :bind
+  (("M-x" . counsel-M-x)
+   ("C-x C-f" . counsel-find-file)
+   :map evil-normal-state-map
+   (",of" . counsel-find-file)
+   (",ga" . counsel-ag)
+   (",x" . counsel-M-x)))
+
+(use-package ivy-rich)
 
 ;;; ido
 ;; (use-package ido
@@ -432,40 +384,46 @@
 (require 'setup-perspective)
 
 ;; Everything I do is within the context of a specific project
+;; to be remove when this is closed https://github.com/nex3/perspective-el/issues/64
+(when (not (fboundp 'make-variable-frame-local))
+  (defun make-variable-frame-local (variable) variable))
 (use-package projectile
   :diminish projectile-mode
   :defer 2
+  :bind (:map evil-normal-state-map
+              (",pf" . projectile-find-file)
+              (",pF" . projectile-find-file-other-window)
+              (",pT" . projectile-regenerate-tags)
+              (",p." . projectile-find-tag)
+              (",p/" . projectile-ag)
+              (",p!" . projectile-run-shell-command-in-root)
+              (",pd" . projectile-dired)
+              (",pE" . projectile-edit-dir-locals)
+              ;; switch from code file to test file and vice-versa
+              ( ",gt" . projectile-toggle-between-implementation-and-test))
   :config
-  (setq projectile-completion-system 'ivy)
+  ;; (setq projectile-completion-system 'ivy)
   ;; (setq projectile-require-project-root nil)
-  (projectile-global-mode)
-  ;; open file in project
-  (define-key evil-normal-state-map (kbd ",pf") 'projectile-find-file)
-  (define-key evil-normal-state-map (kbd ",pF") 'projectile-find-file-other-window)
-  (define-key evil-normal-state-map (kbd ",pT") 'projectile-regenerate-tags)
-  (define-key evil-normal-state-map (kbd ",p.") 'projectile-find-tag)
-  (define-key evil-normal-state-map (kbd ",p!") 'projectile-run-shell-command-in-root)
-  (define-key evil-normal-state-map (kbd ",pd") 'projectile-dired)
-  (define-key evil-normal-state-map (kbd ",pE") 'projectile-edit-dir-locals)
-  ;; switch from code file to test file and vice-versa
-  (define-key evil-normal-state-map (kbd  ",gt") 'projectile-toggle-between-implementation-and-test)
-  ;; FIXME: when active, break projectile-find-file
-  (use-package persp-projectile
+  ;; (projectile-global-mode)
+  (use-package counsel-projectile
+    :after counsel
+    :bind (:map evil-normal-state-map
+                (",ps" . counsel-projectile)
+                (",pf" . counsel-projectile-find-file)
+                (",pF" . counsel-projectile-find-file-other-window)
+                (",pT" . projectile-regenerate-tags)
+                (",p." . projectile-find-tag)
+                (",p/" . counsel-projectile-ag)
+                (",p|" . counsel-projectile-grep)
+                (",p\\" . counsel-projectile-rg)
+                (",p!" . projectile-run-shell-command-in-root)
+                (",pd" . projectile-dired)
+                (",pE" . projectile-edit-dir-locals)
+                ;; switch from code file to test file and vice-versa
+                ( ",gt" . projectile-toggle-between-implementation-and-test))
     :config
-    (define-key evil-normal-state-map (kbd ",ps") 'projectile-persp-switch-project)
-    (define-key evil-normal-state-map (kbd ",op") 'projectile-persp-switch-project)
-    (define-key evil-normal-state-map (kbd ",pp") 'custom-persp-last)
-    (define-key evil-normal-state-map (kbd ",gp") 'persp-switch)
-    (define-key evil-normal-state-map (kbd ",pk") 'persp-remove-buffer) ; disassociate buffer from persp
-    (define-key evil-normal-state-map (kbd ",pr") 'persp-rename)
-    (define-key evil-normal-state-map (kbd ",px") 'persp-kill) ; terminate perspective
-    (define-key evil-normal-state-map (kbd ",pa") 'persp-add-buffer) ; associate buffer to current persp
-    (define-key evil-normal-state-map (kbd ",pA") 'persp-set-buffer) ; like add but remove from all other
-                                        ; open init.el
-    (define-key evil-normal-state-map (kbd ",oe") 'custom-persp/emacs)
-                                        ; open hubert.org
-    (define-key evil-normal-state-map (kbd ",oh") 'custom-persp/hubert)
-    (define-key evil-normal-state-map (kbd ",os") 'custom-persp/sas)))
+    (counsel-projectile-mode))
+  )
 
 ;; Ediff
 (setq ediff-diff-options "-w")
@@ -475,15 +433,14 @@
 ;;; Yasnippet
 (use-package yasnippet
   :diminish yas-minor-mode
-  :defer t
+  :bind (("<C-tab>" . company-yasnippet)
+         :map yas-minor-mode-map
+         ;; expand with company
+         ("<tab>" . nil)
+         ("TAB" . nil))
   :config
   (yas-global-mode 1)
   (setq yas-prompt-functions '(yas/ido-prompt yas/completing-prompt))
-  ;; expand with company
-  (define-key yas-minor-mode-map (kbd "<tab>") nil)
-  (define-key yas-minor-mode-map (kbd "TAB") nil)
-  ;; (define-key yas-minor-mode-map (kbd "<the new key>") 'yas-expand)
-  (global-set-key (kbd "<C-tab>") 'company-yasnippet)
 )
 
 ;;; auto-insert-mode (template filling at file creation time)
@@ -650,6 +607,8 @@ C-x b RET. The buffer selected is the one returned by (other-buffer)."
   :defer t
   :mode ("\\.feature$" . feature-mode)
   :config
+  (setq feature-step-search-path "features/**/*steps.rb")
+  ;; (setq feature-step-search-gems-path "gems/ruby/*/gems/*/**/*steps.rb")
   (add-hook 'feature-mode-hook
             (lambda ()
               (electric-indent-mode -1))))
@@ -661,6 +620,7 @@ C-x b RET. The buffer selected is the one returned by (other-buffer)."
 
 ;; Debugging
 (use-package realgud
+  :disabled t                           ; install error: can't install org-mac-link??
   :commands (realgud:gdb realgud:byebug realgud:pry))
 
 ;; Navigating
@@ -709,9 +669,10 @@ when it inserts comment at the end of the line."
   :init
   (add-hook 'after-init-hook 'global-company-mode)
   :commands (company-complete company-mode)
+  :bind (:map minibuffer-local-map
+              ;; give way in minibuffer to company keymap
+              ("\M-n" . nil))
   :config
-  ;; give way in minibuffer to company keymap
-  (define-key minibuffer-local-map "\M-n" nil)
   ;; company dabbrev backend downcase everything by default
   (setq company-dabbrev-downcase nil)
   (setq company-selection-wrap-around t))
@@ -745,16 +706,50 @@ This functions should be added to the hooks of major modes for programming."
 (use-package editorconfig
   :defer t)
 (use-package dtrt-indent
-  :defer t
+  :defer 3
   :config
   (dtrt-indent-mode)
   (setq dtrt-indent-min-quality 60
         dtrt-indent-verbosity 3))
 
+(use-package origami
+  :commands origami-mode
+  :after hydra
+  :init
+  (defhydra hydra-folding (:color red :hint nil)
+    "
+_o_pen node    _n_ext fold       toggle forw_a_rd    _u_ndo            _F_ill column: %`fill-column
+_c_lose node   _p_revious fold   toggle _A_ll        _r_edo            e_x_it
+_z_oom on node
+"
+    ("o" origami-open-node)
+    ("c" origami-close-node)
+    ("z" origami-show-only-node)
+    ("u" origami-undo)
+    ("r" origami-redo)
+    ("n" origami-next-fold)
+    ("p" origami-previous-fold)
+    ("a" origami-forward-toggle-node)
+    ("A" origami-toggle-all-nodes)
+    ("F" fill-column)
+    ("x" nil :color blue))
+  :bind (:map evil-normal-state-map
+              (",z" . hydra-folding/body)))
+
 (use-package flycheck
   :commands flycheck-mode
   :init (global-flycheck-mode)
-  :defer t)
+  :defer t
+  :bind (:map evil-normal-state-map
+              (",ge" . flycheck-next-error)
+              (",gE" . flycheck-previous-error))
+)
+
+(use-package dumb-jump
+  :bind (:map evil-normal-state-map
+              (",gd" . dumb-jump-go)
+              (",gD" . dumb-jump-go-other-window))
+  :config (dumb-jump-mode))
 
 (setq compilation-scroll-output t)      ; auto scroll in compilation buffer
 (add-hook 'prog-mode-hook
@@ -768,6 +763,7 @@ This functions should be added to the hooks of major modes for programming."
                        ;; (load-theme-buffer-local 'solarized-dark (current-buffer) t)
                        ;; (projectile-on) ; project awareness
                        (turn-on-auto-fill)
+                       ;; (setq-local comment-auto-fill-only-comments t) ; auto-fill comments and only them
                        ;; really cool dtrt-indent but haven't seen a
                        ;; need for it recently
                        ;; (dtrt-indent-mode) ; auto-adjust tab-width
@@ -781,13 +777,10 @@ This functions should be added to the hooks of major modes for programming."
 ;; (setq linum-format " %3d ")    ; remove graphical glitches with fringe
 
 ;; Help
-(use-package dash
+(use-package dash-at-point
   :commands (dash-at-point dash-at-point-docset)
-  :config
-  (use-package dash-at-point)
-  (define-key evil-normal-state-map (kbd ",hd") 'dash-at-point)
-  (define-key evil-normal-state-map (kbd ",hD") 'dash-at-point-docset))
-(define-key evil-normal-state-map (kbd ",hi") 'info)
+  :bind (:map evil-normal-state-map (",hd" . dash-at-point)))
+(define-key evil-normal-state-map (kbd ",hI") 'info)
 
 (use-package whitespace
   :commands (whitespace-mode)
@@ -842,6 +835,10 @@ This functions should be added to the hooks of major modes for programming."
 (require 'setup-ruby)
 
 ;; Web: HTML/CSS
+(add-to-list 'auto-mode-alist '("\\.html$" . html-mode))
+
+;; (use-package zencoding-mode
+;;   :mode "\\.html\\'")
 (add-hook 'sgml-mode-hook 'zencoding-mode) ;; Auto-start on any markup modes
 ;; (add-hook 'sgml-mode-hook (lambda () (progn (nlinum-mode 1))))
 ;; after deleting a tag, indent properly
@@ -870,6 +867,7 @@ This functions should be added to the hooks of major modes for programming."
   :mode "\\.json$"
   :defer t
   :config
+  (setq js-indent-level 2)
   (add-to-list 'auto-mode-alist '("\\.eslintrc\\'" . json-mode)))
 
 ;; gnuplot
@@ -943,3 +941,9 @@ This functions should be added to the hooks of major modes for programming."
 (put 'erase-buffer 'disabled nil)
 (provide 'init)
 ;;; init.el ends here
+(custom-set-faces
+ ;; custom-set-faces was added by Custom.
+ ;; If you edit it by hand, you could mess it up, so be careful.
+ ;; Your init file should contain only one such instance.
+ ;; If there is more than one, they won't work right.
+ )

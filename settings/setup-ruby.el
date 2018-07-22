@@ -91,6 +91,6 @@
   (evil-define-key 'visual ruby-mode-map ",l" 'ruby-send-region)
   (evil-define-key 'normal ruby-mode-map ",rb" 'ruby-toggle-block) ; do..end to {}
   (evil-define-key 'normal ruby-mode-map ",gr" 'ruby-switch-to-inf)
-  )
+  (require 'smartparens-ruby))
 
 (provide 'setup-ruby)
