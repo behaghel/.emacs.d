@@ -141,7 +141,8 @@ of its arguments."
   ;; doesn't get word-wrapping. Deactivating just for org-mode.
   (add-hook 'org-mode-hook (lambda () (setq-local comment-auto-fill-only-comments nil)))
 
-  (use-package ox-reveal)
+  (use-package org-re-reveal
+    :defer t)
   ;; (use-package ox-ioslide)
   (use-package sublime-themes
     :defer t)
@@ -169,6 +170,8 @@ of its arguments."
   (global-set-key "\C-cl" 'org-store-link)
   (global-set-key "\C-cc" 'org-capture)
   (global-set-key "\C-ca" 'org-agenda)
-  (global-set-key "\C-cb" 'org-iswitchb))
+  (global-set-key "\C-cb" 'org-iswitchb)
+  ;; for easy templates to work (e.g. <s[Tab] to create src block)
+  (require 'org-tempo))
 
 (provide 'setup-org)
