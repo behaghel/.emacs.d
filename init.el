@@ -741,6 +741,13 @@ _z_oom on node
               (",gE" . flycheck-previous-error))
 )
 
+(use-package lsp-mode
+  :defer t
+  :init (setq lsp-prefer-flymake nil))
+
+(use-package lsp-ui
+  :defer t)
+
 ;; company-mode
 (use-package company
   :diminish company-mode
