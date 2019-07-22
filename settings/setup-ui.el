@@ -24,12 +24,6 @@
 
 ;;; Code:
 
-;; (set-face-attribute 'default nil :font "Droid Sans Mono-12")
-;; (when (member "Source Code Pro-12" (font-family-list))
-;; (when (member "mononoki-12" (font-family-list))
-;;   (set-face-attribute 'default nil :font "mononoki-12"))
-;; https://github.com/be5invis/Iosevka
-(set-face-attribute 'default nil :font "Iosevka-14")
 ;; stolen from: https://gist.github.com/mrkgnao/49c7480e1df42405a36b7ab09fe87f3d
 (setq prettify-symbols-unprettify-at-point 'right-edge)
 
@@ -272,10 +266,11 @@
   (prettify-symbols-mode +1))
 
 ;; Hooks for modes in which to install the Iosevka ligatures
-(mapc (lambda (hook)
-        (add-hook hook (lambda () (setup-iosevka-ligatures) (refresh-pretty))))
-      '(text-mode-hook
-        prog-mode-hook))
+;; (deactivated: slows massively on Windows)
+;; (mapc (lambda (hook)
+;;         (add-hook hook (lambda () (setup-iosevka-ligatures) (refresh-pretty))))
+;;       '(text-mode-hook
+;;         prog-mode-hook))
 (global-prettify-symbols-mode +1)
 
 ; try to stabilize windows and buffers positions
@@ -329,6 +324,13 @@
       '((:eval (if (buffer-file-name)
                    (abbreviate-file-name (buffer-file-name))
                  "%b"))))
+
+;; (set-face-attribute 'default nil :font "Droid Sans Mono-12")
+;; (when (member "Source Code Pro-12" (font-family-list))
+;; (when (member "mononoki-12" (font-family-list))
+;;   (set-face-attribute 'default nil :font "mononoki-12"))
+;; https://github.com/be5invis/Iosevka
+(set-face-attribute 'default nil :font "Iosevka-11")
 
 (provide 'setup-ui)
 ;;; setup-ui.el ends here

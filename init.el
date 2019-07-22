@@ -29,6 +29,8 @@
 ;;
 ;;; Code:
 
+;; On Windows: set HOME environment variable and put .emacs.d in there!
+
 ;; to stop M-x customize to pollute my init.el: http://emacsblog.org/2008/12/06/quick-tip-detaching-the-custom-file/
 (setq custom-file "~/.emacs.d/custom.el")
 (load custom-file 'noerror)
@@ -78,6 +80,7 @@
   (require 'use-package))
 (require 'diminish)
 (setq use-package-verbose t
+      use-package-always-defer nil
       use-package-always-ensure t)
 
 (require 'auth-source-pass)
@@ -94,8 +97,6 @@
 ; stop cluttering my fs with #file.ext#
 (setq auto-save-file-name-transforms
       `((".*" ,(concat user-emacs-directory "backups") t)))
-
-(require 'setup-ui)
 
 ; Mac
 
@@ -164,6 +165,10 @@
 ;;; We don't want shift selection
 (setq shift-select-mode nil)
 (global-set-key (kbd "C-=") 'align-current)
+;; fix windows inability to pick up font change at load time...
+(global-set-key (kbd "<f10>")
+                (lambda () (interactive)
+                  (set-face-attribute 'default nil :font "Iosevka-11")))
 
 (use-package expand-region
   :bind ("M-r" . er/expand-region)
@@ -408,6 +413,8 @@
   ;; (setq projectile-completion-system 'ivy)
   ;; (setq projectile-require-project-root nil)
   ;; (projectile-global-mode)
+  (define-key projectile-mode-map (kbd "C-c p") 'projectile-command-map)
+  (setq projectile-project-search-path '("~/Exercism" "~/ws/"))
   (use-package counsel-projectile
     :after counsel
     :bind (:map evil-normal-state-map
@@ -666,20 +673,6 @@ when it inserts comment at the end of the line."
                 (let ((mark-even-if-inactive transient-mark-mode))
                   (indent-region (region-beginning) (region-end) nil))))))
 
-;; company-mode
-(use-package company
-  :diminish company-mode
-  :init
-  (add-hook 'after-init-hook 'global-company-mode)
-  :commands (company-complete company-mode)
-  :bind (:map minibuffer-local-map
-              ;; give way in minibuffer to company keymap
-              ("\M-n" . nil))
-  :config
-  ;; company dabbrev backend downcase everything by default
-  (setq company-dabbrev-downcase nil)
-  (setq company-selection-wrap-around t))
-
 ;; Visual
 ; stop cluttering my modeline with so many minor modes
 
@@ -748,6 +741,23 @@ _z_oom on node
               (",gE" . flycheck-previous-error))
 )
 
+;; company-mode
+(use-package company
+  :diminish company-mode
+  :init
+  (add-hook 'after-init-hook 'global-company-mode)
+  :commands (company-complete company-mode)
+  :bind (:map minibuffer-local-map
+              ;; give way in minibuffer to company keymap
+              ("\M-n" . nil))
+  :config
+  ;; company dabbrev backend downcase everything by default
+  (setq company-dabbrev-downcase nil)
+  (setq company-selection-wrap-around t))
+
+(use-package company-lsp
+  :defer t)
+
 (use-package dumb-jump
   :bind (:map evil-normal-state-map
               (",gd" . dumb-jump-go)
@@ -781,9 +791,14 @@ _z_oom on node
 
 ;; Help
 (use-package dash-at-point
+  :if (memq window-system '(mac))
   :commands (dash-at-point dash-at-point-docset)
   :bind (:map evil-normal-state-map (",hd" . dash-at-point)))
 (define-key evil-normal-state-map (kbd ",hI") 'info)
+
+(use-package helm-dash
+  :commands (helm-dash-at-point helm-dash)
+  :bind (:map evil-normal-state-map (",hd" . helm-dash-at-point)))
 
 (use-package whitespace
   :commands (whitespace-mode)
@@ -842,7 +857,7 @@ _z_oom on node
 
 ;; (use-package zencoding-mode
 ;;   :mode "\\.html\\'")
-(add-hook 'sgml-mode-hook 'zencoding-mode) ;; Auto-start on any markup modes
+;; (add-hook 'sgml-mode-hook 'zencoding-mode) ;; Auto-start on any markup modes
 ;; (add-hook 'sgml-mode-hook (lambda () (progn (nlinum-mode 1))))
 ;; after deleting a tag, indent properly
 (defadvice sgml-delete-tag (after reindent activate)
@@ -872,6 +887,11 @@ _z_oom on node
   :config
   (setq js-indent-level 2)
   (add-to-list 'auto-mode-alist '("\\.eslintrc\\'" . json-mode)))
+
+(use-package yaml-mode
+  :mode (("\\.yml$" . yaml-mode)
+         ("\\.yaml$" . yaml-mode))
+  :defer t)
 
 ;; gnuplot
 (use-package gnuplot
@@ -942,11 +962,9 @@ _z_oom on node
 
 (put 'narrow-to-region 'disabled nil)
 (put 'erase-buffer 'disabled nil)
+
+;; at the end, for windows to pick up the font change
+(require 'setup-ui)
+
 (provide 'init)
 ;;; init.el ends here
-(custom-set-faces
- ;; custom-set-faces was added by Custom.
- ;; If you edit it by hand, you could mess it up, so be careful.
- ;; Your init file should contain only one such instance.
- ;; If there is more than one, they won't work right.
- )

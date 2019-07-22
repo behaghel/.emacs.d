@@ -1,6 +1,6 @@
 ;; Blogging
 
-(setq blog-root "~/Documents/org/le-carnet")
+(setq blog-root "~/ws/le-carnet")
 (setq blog-posts-dir (expand-file-name "posts" blog-root))
 
 (defun hub/create-post (title)

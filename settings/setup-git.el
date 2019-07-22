@@ -56,6 +56,10 @@ the actual manpage using the function `man'."
   ;;   )
   )
 
+(use-package ssh-agency
+  :if window-system
+  :config
+  (setenv "SSH_ASKPASS" "git-gui--askpass"))
 ;; (use-package magithub
 ;;   :disabled
 ;;   :after magit
