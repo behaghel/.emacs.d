@@ -130,7 +130,6 @@
 (define-key evil-normal-state-map (kbd ",ou") 'browse-url)
 (define-key evil-normal-state-map (kbd ",oc") '(lambda () (interactive)(find-file "~/Dropbox/Projects/scala/exercises/cs-fundamental/CLRS.org")))
 
-(define-key evil-normal-state-map (kbd ",nb") 'hub/create-post)
 (require 'evil-matchit)
 (global-evil-matchit-mode 1)
 
