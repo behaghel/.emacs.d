@@ -23,3 +23,7 @@ bookmarks
 /recentf
 /.tern-port
 /magithub/cache
+*.asc
+/transient/history.el
+/server/server
+/custom.el

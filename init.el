@@ -301,6 +301,25 @@
   (setq-default dired-details-hidden-string "--- ")
   (dired-details-install))
 (setq dired-dwim-target t)
+(use-package dired-subtree
+  :config
+  (bind-keys :map dired-mode-map
+             ("(" . dired-subtree-insert)
+             (")" . dired-subtree-remove)))
+;;narrow dired to match filter
+(use-package dired-narrow
+  :ensure t
+  :bind (:map dired-mode-map
+              ("/" . dired-narrow)))
+;; clipboard-type feature for copying/moving files.
+;; Mark files then Y to copy them, add more with C-u Y
+;; then go to destination and use X (move) or V (paste)
+(use-package dired-ranger
+  :ensure t
+  :bind (:map dired-mode-map
+              ("Y" . dired-ranger-copy)
+              ("X" . dired-ranger-move)
+              ("V" . dired-ranger-paste)))
 
 ;; ivy
 (use-package swiper
