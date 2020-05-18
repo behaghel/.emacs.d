@@ -1,48 +1,73 @@
+;;; setup-perspective.el --- setup perspectives -*- lexical-binding: t -*-
+;;; Commentary:
+
+;;; Code:
 (use-package perspective
   :defer 1
+  :pin melpa
+  :bind (("C-x b" . persp-switch-to-buffer*)
+         ("C-x k" . persp-kill-buffer*)
+         :map evil-normal-state-map
+         (",gb"   . persp-ivy-switch-buffer)
+         ;; also for free from projectile integration
+         ;; (",pb"   . persp-counsel-switch-buffer)
+         ;; the counsel version preview buffers as they get selected,
+         ;; useful when unsure what buffer we are looking for
+         )
   :config
-  ;; taken from Magnar Sveen
-  ;; Jump to last perspective
-  ;; (defun custom-persp-last ()
-  ;;   (interactive)
-  ;;   (persp-switch (persp-name persp-last)))
-  ;; ;; Easily switch to your last perspective
-  ;; (defmacro custom-persp (name &rest body)
-  ;;   `(let ((current-perspective (persp-curr)))
-  ;;      (persp-switch ,name)
-  ;;      ,@body
-  ;;      (setq persp-last current-perspective)))
 
   (persp-mode t)
-  ;; open file in project
-  (use-package persp-projectile
-    :pin melpa
-    :bind (:map evil-normal-state-map
-                (",op" . projectile-persp-switch-project)
-                (",pp" . persp-switch-last)
-                (",gp" . persp-switch)
-                (",pk" . persp-remove-buffer) ; disassociate buffer from persp
-                (",pr" . persp-rename)
-                (",px" . persp-kill) ; terminate perspective
-                (",pa" . persp-add-buffer) ; associate buffer to current persp
-                (",pA" . persp-set-buffer) ; like add but remove from all other
-                                        ; open init.el
-                (",oe" . custom-persp/emacs)
-                                        ; open hubert.org
-                (",oh" . custom-persp/hubert)
-                (",os" . custom-persp/sas)))
+  (add-hook 'kill-emacs-hook #'persp-state-save)
+  (setq persp-sort 'access
+        persp-state-default-file "~/.emacs.d/.persp")
+  )
 
-  (defun custom-persp/emacs ()
-    (interactive)
-    (persp-switch ".emacs.d")
-    (find-file "~/.emacs.d/init.el"))
-  (defun custom-persp/sas ()
-    (interactive)
-    (persp-switch "org")
-    (find-file "~/Dropbox/Documents/org/sas.org"))
-  (defun custom-persp/hubert ()
-    (interactive)
-    (persp-switch "org")
-    (find-file "~/Dropbox/Documents/org/hubert.org")))
+(use-package persp-projectile
+  :after projectile
+  :defer nil
+  :pin melpa
+  :bind (:map evil-normal-state-map
+              (",op" . projectile-persp-switch-project)
+              (",gp" . persp-switch)
+              )
+  :config
+  (defun hub/speed-dial (key persp &optional fpath command)
+    (let ((f `(lambda ()
+                (interactive)
+                (persp-switch ,persp)
+                ,@(when fpath `((find-file ,fpath)))
+                ,@(when command `((,command)))
+                )
+             ))
+      (define-key evil-normal-state-map (kbd (concat ",o" key)) (eval f)))
+    )
+  (setq hub/speed-dial-items
+    `(
+      ("E" perspective ".emacs.d")
+      ("e" file "~/.emacs.d/init.el" ".emacs.d")
+      ("O" perspective "org")
+      ;; ("s" file ,(concat org-directory "sas.org") "org")
+      ("i" file ,(concat org-directory "inbox.org") "org")
+      ("h" file ,(concat org-directory "hubert.org") "org")
+      ("m" command mu4e "emails")
+      ))
+  (defun hub/setup-speed-dial ()
+    "Install global keybindings on normal mode with prefix ',o'
+    for every item in var hub/speed-dial-items."
+    (dolist (binding hub/speed-dial-items)
+      (pcase binding
+        (`(,key perspective ,persp) (hub/speed-dial key persp))
+        (`(,key file ,path ,persp) (hub/speed-dial key persp path))
+        (`(,key command ,cmd ,persp) (hub/speed-dial key persp nil cmd))
+        )
+      )
+    )
+  (hub/setup-speed-dial)
+  )
+
+(winner-mode 1)
+(define-key evil-window-map (kbd "C-<left>") 'winner-undo)
+(define-key evil-window-map (kbd "C-<right>") 'winner-redo)
 
 (provide 'setup-perspective)
+;;; setup-perspective.el ends here
