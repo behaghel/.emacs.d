@@ -483,8 +483,6 @@
 ;; orj is an extension I invented: org-revealJS
 (define-auto-insert "\.orj" ["template.orj" hub/autoinsert-yas-expand])
 
-;;; org-mode
-;; (add-to-list 'auto-mode-alist '("\\.\\(org\\|orj\\|org_archive\\|txt\\)$" . org-mode))
 (require 'setup-org)
 
 ;; Use emacs to edit textarea in Chrome

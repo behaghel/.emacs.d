@@ -1,3 +1,145 @@
 
-* My Emacs config.
-Immodestly.
+* Project Backlog
+
+** TODO [#B] Setup Emails in Emacs
+:LOGBOOK:
+CLOCK: [2020-04-28 Tue 00:35]--[2020-04-28 Tue 00:35] =>  0:00
+:END:
+
+*** DONE Fetching
+**** [2020-04-23 Thu 09:28] isync - ArchWiki :grasp:email:emacs:productivity:
+https://wiki.archlinux.org/index.php/Isync
+Comment:
+configure mbsync
+**** [2020-04-23 Thu 09:30] isync: free IMAP and MailDir mailbox synchronizer :grasp:emacs:email:productivity:
+http://isync.sourceforge.net/
+Comment:
+isync (which includes mbsync tool to retrieve emails through IMAP) very popular with mu4e & co
+**** DONE setup davmail for office365 / Sky emails
+Sky's URL is: https://mail2.bskyb.com/Ews/Exchange.asmx
+- http://davmail.sourceforge.net/serversetup.html
+- https://tknv.github.io/2016/12/03/mutt-mbsync/
+*** Managing
+**** [2020-04-23 Thu 09:30] Drowning in Email; mu4e to the Rescue. :grasp:productivity:emacs:email:
+http://www.macs.hw.ac.uk/~rs46/posts/2014-01-13-mu4e-email-client.html
+Comment:
+feedback on mu4e + detailed setup from 2014
+**** [2020-04-23 Thu 10:14] Handling Email with Emacs – malb::blog :grasp:emacs:email:productivity:
+https://martinralbrecht.wordpress.com/2016/05/30/handling-email-with-emacs/
+Comment:
+Thorough mu4e setup
+**** [2020-04-23 Thu 10:16] mu4e tutorials | Pragmatic Emacs :grasp:emacs:email:productivity:
+http://pragmaticemacs.com/mu4e-tutorials/
+Comment:
+list of tutorials by pragmaticemacs on mu4e
+**** [2020-04-26 Sun 09:27] mkcms/mu4e-overview: Show overview of maildir :grasp:emacs:email:productivity:
+https://github.com/mkcms/mu4e-overview
+Comment:
+a bit like what you'd expect treemacs to be for emails
+*** Editing
+**** [2020-04-23 Thu 09:28] jeremy-compostella/org-msg: OrgMsg is a GNU/Emacs global minor mode mixing up Org mode and Message mode to compose and reply to emails in a Outlook HTML friendly style. :grasp:productivity:emacs:email:org:
+https://github.com/jeremy-compostella/org-msg
+Comment:
+reply to emails that requires HTML using org-mode
+*** [2020-04-28 Tue 23:07] Exim4Gmail - Debian Wiki :grasp:emacs:email:sydadmin:
+https://wiki.debian.org/Exim4Gmail
+Comment:
+what helped me configure SMTP for mu4e
+*** [2020-05-02 Sat 22:48] Fastmail setup with Emacs, mu4e and mbsync on macOS - Rakhim.org :grasp:emacs:email:productivity:
+
+https://rakhim.org/2020/01/fastmail-setup-with-emacs-mu4e-and-mbsync-on-macos/
+Selection:
+mu4e-attachments-dir "~/Downloads"
+Comment:
+has been really useful in setting up emails in my Emacs
+*** [2020-05-03 Sun 19:34] Ambrevar / mu4e-conversation · GitLab :grasp:emacs:email:productivity:someday:
+
+https://gitlab.com/ambrevar/mu4e-conversation
+Comment:
+Something to try one day
+** TODO Smooth windowing flow
+*** [2020-04-23 Thu 10:07] nex3/perspective-el: Perspectives for Emacs. :grasp:emacs:wm:productivity:
+https://github.com/nex3/perspective-el
+Comment:
+perspective-el seems to be the tool I need to do window layout management in Emacs the right way
+*** [2020-04-23 Thu 10:08] ESS – Emacs Speaks Statistics :grasp:emacs:wm:productivity:
+https://ess.r-project.org/Manual/ess.html#Controlling-buffer-display
+Comment:
+ESS doc has some good insights on display-buffer that is window management in Emacs
+*** [2020-04-23 Thu 10:09] Dedicated Windows - GNU Emacs Lisp Reference Manual :grasp:emacs:wm:productivity:
+https://www.gnu.org/software/emacs/manual/html_node/elisp/Dedicated-Windows.html#Dedicated-Windows
+Comment:
+bookmark on where I am in Emacs doc about window management. I should probably read that in the info straight from within Emacs :)
+*** [2020-04-23 Thu 10:11] Displaying Buffers - GNU Emacs Lisp Reference Manual :grasp:emacs:wm:productivity:
+https://www.gnu.org/software/emacs/manual/html_node/elisp/Displaying-Buffers.html#Displaying-Buffers
+Comment:
+actually that's probably a better bookmark on where I am in reading Emacs display-buffer framework for window management
+** set up org-agenda
+*** TODO [#B] build *my* agenda view
+Take inspiration from jethro and super-agenda
+**** [2020-04-25 Sat 21:52] kidd/org-gcal.el: Org sync with Google Calendar. (active maintained project as of 2019-11-06) :grasp:emacs:productivity:calendar:
+https://github.com/kidd/org-gcal.el
+Comment:
+for when my emails will be in Emacs and my org-agenda workflow is in my fingers
+**** [2020-04-26 Sun 22:04] org mode - Defining different fonts (color) per file in org-agenda - Emacs Stack Exchange :grasp:emacs:productivity:
+https://emacs.stackexchange.com/questions/23824/defining-different-fonts-color-per-file-in-org-agenda
+Comment:
+org-agenda views are colorless, needs fixing
+
+**** [2020-04-26 Sun 23:40] alphapapa/org-super-agenda: Supercharge your Org daily/weekly agenda by grouping items :grasp:emacs:org-mode:productivity:
+https://github.com/alphapapa/org-super-agenda
+
+*** [2020-04-26 Sun 23:42] Improving the Agenda  :grasp:emacs:productivity:
+https://llazarek.com/2018/07/improving-the-agenda.html
+Comment:
+various ideas that seem useful. In particular, colorful agenda view
+*** [2020-04-26 Sun 23:56] Getting Boxes Done, the Code :grasp:emacs:productivity:
+http://www.howardism.org/Technical/Emacs/getting-more-boxes-done.html
+Comment:
+another org-mode workflow, looks interesting
+*** [2020-04-27 Mon 00:00] Org-Agenda as a Calendar :grasp:emacs:productivity:
+https://errickson.net/org_agenda_calendar.html
+Comment:
+Another example of applying color to org-agenda
+** TODO Setup finances in an Emacs Ledger
+*** [2020-04-26 Sun 23:47] Plain Text Accounting, a guide to Ledger and friends - plaintextaccounting.org :grasp:finance:emacs:
+https://plaintextaccounting.org/
+
+*** [2020-04-26 Sun 23:48] atheriel/evil-ledger: More Evil in ledger-mode. :grasp:emacs:finance:
+https://github.com/atheriel/evil-ledger
+
+*** [2020-04-26 Sun 23:56] Plain Text Accounting with ledger and ledger-likes :grasp:finance:emacs:
+https://www.reddit.com/r/plaintextaccounting/
+
+** TODO commit emacs config
+** TODO version dotfiles for email in emacs
+:LOGBOOK:
+CLOCK: [2020-05-18 Mon 22:09]
+CLOCK: [2020-05-18 Mon 19:48]--[2020-05-18 Mon 21:26] =>  1:38
+CLOCK: [2020-05-18 Mon 17:45]--[2020-05-18 Mon 19:00] =>  1:15
+CLOCK: [2020-05-18 Mon 16:52]--[2020-05-18 Mon 17:19] =>  0:27
+:END:
+- [ ] mbsync
+- [ ] imapnotify
+- [ ] dropbox.service
+- [ ] imapnotify.service
+- [ ] mu: ./configure --datadir=/home/behaghel/install/emacs/20200404/share
+** [2020-04-28 Tue 14:59] bnbeckwith/wc-mode: Wordcount minor mode for Emacs :grasp:emacs:blog:
+
+https://github.com/bnbeckwith/wc-mode
+Comment:
+could be a useful addition to my setup for blogging and writing in Emacs
+* Insipring Emacs Configs
+** [2020-04-24 Fri 23:36] .emacs.d/init.el at master · jethrokuan/.emacs.d :grasp:emacs:config:example:
+https://github.com/jethrokuan/.emacs.d/blob/master/init.el
+Comment:
+Jethro is a master of org workflow
+
+** [2020-04-26 Sun 23:32] .emacs.d/init.el at master · jethrokuan/.emacs.d :grasp:emacs:productivity:
+https://github.com/jethrokuan/.emacs.d/blob/218ea42779db9d8db5dfdd6c6524abac3f10855c/init.el#L1356
+Selection:
+:init
+  (with-eval-after-load 'flycheck
+    (flycheck-add-mode 'proselint 'org-mode))
+Comment:
+inspiration for my agenda view

@@ -34,8 +34,8 @@ See `org-capture-templates' for more information."
                  "\n")))
 
   (add-to-list 'org-capture-templates
-               '("h"                ;`org-capture' binding + h
-                 "Hugo post"
+               '("b"                ;`org-capture' binding + h
+                 "Blog post"
                  entry
                  ;; It is assumed that below file is present in `org-directory'
                  ;; and that it has a "Blog Ideas" heading. It can even be a
