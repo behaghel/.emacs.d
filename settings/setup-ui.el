@@ -24,258 +24,6 @@
 
 ;;; Code:
 
-;; stolen from: https://gist.github.com/mrkgnao/49c7480e1df42405a36b7ab09fe87f3d
-(setq prettify-symbols-unprettify-at-point 'right-edge)
-
-(defun setup-iosevka-ligatures ()
-  (setq prettify-symbols-alist
-        (append prettify-symbols-alist '(
-
-                                         ;; Double-ended hyphen arrows ----------------
-                                         ("<->" . #Xe100)
-                                         ("<-->" . #Xe101)
-                                         ("<--->" . #Xe102)
-                                         ("<---->" . #Xe103)
-                                         ("<----->" . #Xe104)
-
-                                         ;; Double-ended equals arrows ----------------
-                                         ("<=>" . #Xe105)
-                                         ("<==>" . #Xe106)
-                                         ("<===>" . #Xe107)
-                                         ("<====>" . #Xe108)
-                                         ("<=====>" . #Xe109)
-
-                                         ;; Double-ended asterisk operators ----------------
-                                         ("<**>" . #Xe10a)
-                                         ("<***>" . #Xe10b)
-                                         ("<****>" . #Xe10c)
-                                         ("<*****>" . #Xe10d)
-
-                                         ;; HTML comments ----------------
-                                         ("<!--" . #Xe10e)
-                                         ("<!---" . #Xe10f)
-
-                                         ;; Three-char ops with discards ----------------
-                                         ("<$" . #Xe110)
-                                         ("<$>" . #Xe111)
-                                         ("$>" . #Xe112)
-                                         ("<." . #Xe113)
-                                         ("<.>" . #Xe114)
-                                         (".>" . #Xe115)
-                                         ("<*" . #Xe116)
-                                         ("<*>" . #Xe117)
-                                         ("*>" . #Xe118)
-                                         ("<\\" . #Xe119)
-                                         ("<\\>" . #Xe11a)
-                                         ("\\>" . #Xe11b)
-                                         ("</" . #Xe11c)
-                                         ("</>" . #Xe11d)
-                                         ;; ("/>" . #Xe11e) ruins XML doc
-                                         ("<\"" . #Xe11f)
-                                         ("<\">" . #Xe120)
-                                         ("\">" . #Xe121)
-                                         ("<'" . #Xe122)
-                                         ("<'>" . #Xe123)
-                                         ("'>" . #Xe124)
-                                         ("<^" . #Xe125)
-                                         ("<^>" . #Xe126)
-                                         ("^>" . #Xe127)
-                                         ("<&" . #Xe128)
-                                         ("<&>" . #Xe129)
-                                         ("&>" . #Xe12a)
-                                         ("<%" . #Xe12b)
-                                         ("<%>" . #Xe12c)
-                                         ("%>" . #Xe12d)
-                                         ("<@" . #Xe12e)
-                                         ("<@>" . #Xe12f)
-                                         ("@>" . #Xe130)
-                                         ("<#" . #Xe131)
-                                         ("<#>" . #Xe132)
-                                         ("#>" . #Xe133)
-                                         ("<+" . #Xe134)
-                                         ("<+>" . #Xe135)
-                                         ("+>" . #Xe136)
-                                         ("<-" . #Xe137)
-                                         ("<->" . #Xe138)
-                                         ("->" . #Xe139)
-                                         ("<!" . #Xe13a)
-                                         ("<!>" . #Xe13b)
-                                         ("!>" . #Xe13c)
-                                         ("<?" . #Xe13d)
-                                         ("<?>" . #Xe13e)
-                                         ("?>" . #Xe13f)
-                                         ("<|" . #Xe140)
-                                         ("<|>" . #Xe141)
-                                         ("|>" . #Xe142)
-                                         ("<:" . #Xe143)
-                                         ("<:>" . #Xe144)
-                                         (":>" . #Xe145)
-
-                                         ;; Colons ----------------
-                                         ("::" . #Xe146)
-                                         (":::" . #Xe147)
-                                         ("::::" . #Xe148)
-
-                                         ;; Arrow-like operators ----------------
-                                         ("->" . #Xe149)
-                                         ("->-" . #Xe14a)
-                                         ("->--" . #Xe14b)
-                                         ("->>" . #Xe14c)
-                                         ("->>-" . #Xe14d)
-                                         ("->>--" . #Xe14e)
-                                         ("->>>" . #Xe14f)
-                                         ("->>>-" . #Xe150)
-                                         ("->>>--" . #Xe151)
-                                         ("-->" . #Xe152)
-                                         ("-->-" . #Xe153)
-                                         ("-->--" . #Xe154)
-                                         ("-->>" . #Xe155)
-                                         ("-->>-" . #Xe156)
-                                         ("-->>--" . #Xe157)
-                                         ("-->>>" . #Xe158)
-                                         ("-->>>-" . #Xe159)
-                                         ("-->>>--" . #Xe15a)
-                                         (">-" . #Xe15b)
-                                         (">--" . #Xe15c)
-                                         (">>-" . #Xe15d)
-                                         (">>--" . #Xe15e)
-                                         (">>>-" . #Xe15f)
-                                         (">>>--" . #Xe160)
-                                         ("=>" . #Xe161)
-                                         ("=>=" . #Xe162)
-                                         ("=>==" . #Xe163)
-                                         ("=>>" . #Xe164)
-                                         ("=>>=" . #Xe165)
-                                         ("=>>==" . #Xe166)
-                                         ("=>>>" . #Xe167)
-                                         ("=>>>=" . #Xe168)
-                                         ("=>>>==" . #Xe169)
-                                         ("==>" . #Xe16a)
-                                         ("==>=" . #Xe16b)
-                                         ("==>==" . #Xe16c)
-                                         ("==>>" . #Xe16d)
-                                         ("==>>=" . #Xe16e)
-                                         ("==>>==" . #Xe16f)
-                                         ("==>>>" . #Xe170)
-                                         ("==>>>=" . #Xe171)
-                                         ("==>>>==" . #Xe172)
-                                         (">=" . #Xe173)
-                                         (">==" . #Xe174)
-                                         (">>=" . #Xe175)
-                                         (">>==" . #Xe176)
-                                         (">>>=" . #Xe177)
-                                         (">>>==" . #Xe178)
-                                         ("<-" . #Xe179)
-                                         ("-<-" . #Xe17a)
-                                         ("--<-" . #Xe17b)
-                                         ("<<-" . #Xe17c)
-                                         ("-<<-" . #Xe17d)
-                                         ("--<<-" . #Xe17e)
-                                         ("<<<-" . #Xe17f)
-                                         ("-<<<-" . #Xe180)
-                                         ("--<<<-" . #Xe181)
-                                         ("<--" . #Xe182)
-                                         ("-<--" . #Xe183)
-                                         ("--<--" . #Xe184)
-                                         ("<<--" . #Xe185)
-                                         ("-<<--" . #Xe186)
-                                         ("--<<--" . #Xe187)
-                                         ("<<<--" . #Xe188)
-                                         ("-<<<--" . #Xe189)
-                                         ("--<<<--" . #Xe18a)
-                                         ("-<" . #Xe18b)
-                                         ("--<" . #Xe18c)
-                                         ("-<<" . #Xe18d)
-                                         ("--<<" . #Xe18e)
-                                         ("-<<<" . #Xe18f)
-                                         ("--<<<" . #Xe190)
-                                         ("<=" . #Xe191)
-                                         ("=<=" . #Xe192)
-                                         ("==<=" . #Xe193)
-                                         ("<<=" . #Xe194)
-                                         ("=<<=" . #Xe195)
-                                         ("==<<=" . #Xe196)
-                                         ("<<<=" . #Xe197)
-                                         ("=<<<=" . #Xe198)
-                                         ("==<<<=" . #Xe199)
-                                         ("<==" . #Xe19a)
-                                         ("=<==" . #Xe19b)
-                                         ("==<==" . #Xe19c)
-                                         ("<<==" . #Xe19d)
-                                         ("=<<==" . #Xe19e)
-                                         ("==<<==" . #Xe19f)
-                                         ("<<<==" . #Xe1a0)
-                                         ("=<<<==" . #Xe1a1)
-                                         ("==<<<==" . #Xe1a2)
-                                         ("=<" . #Xe1a3)
-                                         ("==<" . #Xe1a4)
-                                         ("=<<" . #Xe1a5)
-                                         ("==<<" . #Xe1a6)
-                                         ("=<<<" . #Xe1a7)
-                                         ("==<<<" . #Xe1a8)
-
-                                         ;; Monadic operators ----------------
-                                         (">=>" . #Xe1a9)
-                                         (">->" . #Xe1aa)
-                                         (">-->" . #Xe1ab)
-                                         (">==>" . #Xe1ac)
-                                         ("<=<" . #Xe1ad)
-                                         ("<-<" . #Xe1ae)
-                                         ("<--<" . #Xe1af)
-                                         ("<==<" . #Xe1b0)
-
-                                         ;; Composition operators ----------------
-                                         (">>" . #Xe1b1)
-                                         (">>>" . #Xe1b2)
-                                         ("<<" . #Xe1b3)
-                                         ("<<<" . #Xe1b4)
-
-                                         ;; Lens operators ----------------
-                                         (":+" . #Xe1b5)
-                                         (":-" . #Xe1b6)
-                                         (":=" . #Xe1b7)
-                                         ("+:" . #Xe1b8)
-                                         ("-:" . #Xe1b9)
-                                         ("=:" . #Xe1ba)
-                                         ("=^" . #Xe1bb)
-                                         ("=+" . #Xe1bc)
-                                         ("=-" . #Xe1bd)
-                                         ("=*" . #Xe1be)
-                                         ("=/" . #Xe1bf)
-                                         ("=%" . #Xe1c0)
-                                         ("^=" . #Xe1c1)
-                                         ("+=" . #Xe1c2)
-                                         ("-=" . #Xe1c3)
-                                         ("*=" . #Xe1c4)
-                                         ("/=" . #Xe1c5)
-                                         ("%=" . #Xe1c6)
-
-                                         ;; Logical ----------------
-                                         ("/\\" . #Xe1c7)
-                                         ("\\/" . #Xe1c8)
-
-                                         ;; Semigroup/monoid operators ----------------
-                                         ("<>" . #Xe1c9)
-                                         ("<+" . #Xe1ca)
-                                         ("<+>" . #Xe1cb)
-                                         ("+>" . #Xe1cc)
-                                         ))))
-
-(defun refresh-pretty ()
-  (prettify-symbols-mode -1)
-  (prettify-symbols-mode +1))
-
-;; Hooks for modes in which to install the Iosevka ligatures
-;; (deactivated: slows massively on Windows)
-;; (mapc (lambda (hook)
-;;         (add-hook hook (lambda () (setup-iosevka-ligatures) (refresh-pretty))))
-;;       '(text-mode-hook
-;;         prog-mode-hook))
-(global-prettify-symbols-mode +1)
-
-; try to stabilize windows and buffers positions
-(setq switch-to-buffer-preserve-window-point 'already-displayed)
-
 ;; Keybindings: https://github.com/Alexander-Miller/treemacs#keymap
 (use-package treemacs
   :pin melpa
@@ -362,12 +110,86 @@
   :after treemacs persp-projectile
   :ensure t
   :config (treemacs-set-scope-type 'Perspectives))
+
+;; Ligatures
+(global-auto-composition-mode)
+(let ((alist
+       '((33 . ".\\(?:\\(==\\|[!=]\\)[!=]?\\)")
+         (35 . ".\\(?:\\(###?\\|_(\\|[(:=?[_{]\\)[#(:=?[_{]?\\)")
+         (36 . ".\\(?:\\(>\\)>?\\)")
+         (37 . ".\\(?:\\(%\\)%?\\)")
+         (38 . ".\\(?:\\(&\\)&?\\)")
+         (42 . ".\\(?:\\(\\*\\*\\|[*>]\\)[*>]?\\)")
+         ;; (42 . ".\\(?:\\(\\*\\*\\|[*/>]\\).?\\)")
+         (43 . ".\\(?:\\([>]\\)>?\\)")
+         ;; (43 . ".\\(?:\\(\\+\\+\\|[+>]\\).?\\)")
+         (45 . ".\\(?:\\(-[->]\\|<<\\|>>\\|[-<>|~]\\)[-<>|~]?\\)")
+         ;; (46 . ".\\(?:\\(\\.[.<]\\|[-.=]\\)[-.<=]?\\)")
+         (46 . ".\\(?:\\(\\.<\\|[-=]\\)[-<=]?\\)")
+         (47 . ".\\(?:\\(//\\|==\\|[=>]\\)[/=>]?\\)")
+         ;; (47 . ".\\(?:\\(//\\|==\\|[*/=>]\\).?\\)")
+         (48 . ".\\(?:\\(x[a-fA-F0-9]\\).?\\)")
+         (58 . ".\\(?:\\(::\\|[:<=>]\\)[:<=>]?\\)")
+         (59 . ".\\(?:\\(;\\);?\\)")
+         (60 . ".\\(?:\\(!--\\|\\$>\\|\\*>\\|\\+>\\|-[-<>|]\\|/>\\|<[-<=]\\|=[<>|]\\|==>?\\||>\\||||?\\|~[>~]\\|[$*+/:<=>|~-]\\)[$*+/:<=>|~-]?\\)")
+         (61 . ".\\(?:\\(!=\\|/=\\|:=\\|<<\\|=[=>]\\|>>\\|[=>]\\)[=<>]?\\)")
+         (62 . ".\\(?:\\(->\\|=>\\|>[-=>]\\|[-:=>]\\)[-:=>]?\\)")
+         (63 . ".\\(?:\\([.:=?]\\)[.:=?]?\\)")
+         (91 . ".\\(?:\\(|\\)[]|]?\\)")
+         ;; (92 . ".\\(?:\\([\\n]\\)[\\]?\\)")
+         (94 . ".\\(?:\\(=\\)=?\\)")
+         (95 . ".\\(?:\\(|_\\|[_]\\)_?\\)")
+         (119 . ".\\(?:\\(ww\\)w?\\)")
+         (123 . ".\\(?:\\(|\\)[|}]?\\)")
+         (124 . ".\\(?:\\(->\\|=>\\||[-=>]\\||||*>\\|[]=>|}-]\\).?\\)")
+         (126 . ".\\(?:\\(~>\\|[-=>@~]\\)[-=>@~]?\\)"))))
+  (dolist (char-regexp alist)
+    (set-char-table-range composition-function-table (car char-regexp)
+                          `([,(cdr char-regexp) 0 font-shape-gstring])))
+  )
 ;; No annoying buffer for completion, compilation, help...
 (use-package popwin
   :config
   (popwin-mode 1))
 
+;; remember last position last time file was edited
 (save-place-mode 1)
+; try to stabilize windows and buffers positions
+(setq switch-to-buffer-preserve-window-point 'already-displayed
+      switch-to-visible-buffer nil)
+;; stolen from https://github.com/nex3/perspective-el#some-musings-on-emacs-window-layouts
+(setq display-buffer-alist
+      '(("\\*.*\\*" (display-buffer-reuse-window))
+        (".*" (display-buffer-reuse-window display-buffer-same-window))))
+
+(setq display-buffer-reuse-frames t)         ; reuse windows in other frames
+(setq even-window-sizes nil)                 ; display-buffer: avoid resizing
+
+
+(use-package rainbow-delimiters
+  :commands (rainbow-delimiters-mode)
+  :config
+  (setq rainbow-delimiters-max-face-count 1)
+  (set-face-attribute 'rainbow-delimiters-unmatched-face nil
+                      :foreground 'unspecified
+                      :inherit 'error))
+
+(use-package htmlize
+  :defer t)
+
+
+;;; Smart Mode Line
+(use-package smart-mode-line
+  :disabled t
+  :config
+  (setq sml/theme 'respectful)
+  (sml/setup))
+
+(use-package doom-modeline
+  :pin melpa
+  :init (doom-modeline-mode 1))
+
+(column-number-mode 1)               ; show column number in mode line
 
 ;; Look / Theme
 ;; http://pawelbx.github.io/emacs-theme-gallery/
@@ -384,25 +206,39 @@
 ;; http://chriskempson.github.io/base16/#eighties
 ;; (load-theme 'base16-eighties-dark t)
 (use-package sublime-themes
+  :disabled t
   :config
   (load-theme 'odersky t))
 
-
-(use-package rainbow-delimiters
-  :commands (rainbow-delimiters-mode)
+(use-package doom-themes
+  :pin melpa
   :config
-  (setq rainbow-delimiters-max-face-count 1)
-  (set-face-attribute 'rainbow-delimiters-unmatched-face nil
-                      :foreground 'unspecified
-                      :inherit 'error))
+  ;; Global settings (defaults)
+  (setq doom-themes-enable-bold t    ; if nil, bold is universally disabled
+        doom-themes-enable-italic t) ; if nil, italics is universally disabled
+  ;; (load-theme 'doom-one t)
+  (load-theme 'doom-material t)
 
-;;; Smart Mode Line
-(use-package smart-mode-line
+  ;; Enable flashing mode-line on errors
+  (doom-themes-visual-bell-config)
+
+  ;; or for treemacs users
+  (require 'doom-themes-ext-treemacs)
+  (setq doom-themes-treemacs-theme "doom-colors") ; use the colorful treemacs theme
+  (doom-themes-treemacs-config)
+  ;; Corrects (and improves) org-mode's native fontification.
+  (require 'doom-themes-ext-org)
+  (doom-themes-org-config)
+  )
+
+;; introduce contrast between popup buffers and working buffers
+(use-package solaire-mode
+  :hook
+  ((change-major-mode after-revert ediff-prepare-buffer) . turn-on-solaire-mode)
+  (minibuffer-setup . solaire-mode-in-minibuffer)
   :config
-  (setq sml/theme 'respectful)
-  (sml/setup))
-
-(column-number-mode 1)               ; show column number in mode line
+  (solaire-global-mode +1)
+  (solaire-mode-swap-bg))
 
 ;; more useful frame title, that show either a file or a
 ;; buffer name (if the buffer isn't visiting a file)
@@ -416,7 +252,7 @@
 ;; (when (member "mononoki-12" (font-family-list))
 ;;   (set-face-attribute 'default nil :font "mononoki-12"))
 ;; https://github.com/be5invis/Iosevka
-(set-face-attribute 'default nil :font "Iosevka-11")
+(set-face-attribute 'default nil :font "Iosevka-12")
 
 (provide 'setup-ui)
 ;;; setup-ui.el ends here

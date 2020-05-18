@@ -166,7 +166,7 @@
 ;; fix windows inability to pick up font change at load time...
 (global-set-key (kbd "<f10>")
                 (lambda () (interactive)
-                  (set-face-attribute 'default nil :font "Iosevka-11")))
+                  (set-face-attribute 'default nil :font "Iosevka-12")))
 
 (use-package expand-region
   :bind ("M-r" . er/expand-region)
