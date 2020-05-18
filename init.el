@@ -167,6 +167,9 @@
 ;;; We don't want shift selection
 (setq shift-select-mode nil)
 (global-set-key (kbd "C-=") 'align-current)
+;; you code you type Enter, you realise you shouldn't have, don't type
+;; backspace furiously to repair, just M-Del
+(global-set-key (kbd "M-<DEL>") 'delete-indentation)
 ;; fix windows inability to pick up font change at load time...
 (global-set-key (kbd "<f10>")
                 (lambda () (interactive)
@@ -664,10 +667,13 @@ This functions should be added to the hooks of major modes for programming."
 (which-function-mode 1)                 ; which function the point is in
 ;; (show-paren-mode 1)                     ; highlight matching brackets
 (setq-default indent-tabs-mode nil)     ; no tabs, only spaces
+;; don't delete tabs one space at a time
+(setq backward-delete-char-untabify-method 'hungry)
 
 (use-package editorconfig
   :defer t)
 (use-package dtrt-indent
+  :disabled t
   :defer 3
   :config
   (dtrt-indent-mode)
@@ -985,9 +991,10 @@ _z_oom on node
   :bind (:map evil-normal-state-map (",hd" . helm-dash-at-point)))
 
 (use-package whitespace
-  :commands (whitespace-mode)
   :config
-  (setq whitespace-style '(face tabs lines-tail empty trailing)))
+  (setq whitespace-style '(face tabs lines-tail empty trailing))
+  (setq whitespace-global-modes '(not org-mode))
+  (global-whitespace-mode))
 (use-package whitespace-cleanup-mode
   :diminish whitespace-cleanup-mode
   :defer t
