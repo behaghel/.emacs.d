@@ -90,6 +90,9 @@
 (setq epa-pinentry-mode 'loopback)
 
 (use-package better-defaults)
+;; https://github.com/emacs-lsp/lsp-mode#performance
+(setq gc-cons-threshold 100000000)
+(setq read-process-output-max (* 1024 1024)) ;; 1mb
 
 (use-package hydra)
 
@@ -753,29 +756,230 @@ _z_oom on node
               (",gE" . flycheck-previous-error))
 )
 
+;; set prefix for lsp-command-keymap
+;; all lsp commands: https://github.com/emacs-lsp/lsp-mode#commands
+(setq lsp-keymap-prefix "C-l")
 (use-package lsp-mode
   :defer t
-  :init (setq lsp-prefer-flymake nil))
+  :init
+  (setq lsp-prefer-flymake nil
+        ;; doesn't work with pyls :(
+        lsp-enable-snippet nil)
+  :hook (
+         ;; python needs first to be in the right virtualenv
+         (python-mode . lsp)
+         (scala-mode . lsp)
+         (lsp-mode . lsp-lens-mode)
+         )
+  :commands lsp
+  )
 
 (use-package lsp-ui
-  :defer t)
+  :defer t
+  :commands lsp-ui-mode
+  :bind (:map evil-normal-state-map
+              (",B?" . netrom/lsp-hydra/body))
+  :config
+  ;; https://www.mortens.dev/blog/emacs-and-the-language-server-protocol/
+  (setq netrom--general-lsp-hydra-heads
+        '(;; Xref
+          ("d" xref-find-definitions "Definitions" :column "Xref")
+          ("D" xref-find-definitions-other-window "-> other win")
+          ("r" xref-find-references "References")
+          ("s" counsel-ag "Search")
+
+          ;; Peek
+          ("C-d" lsp-ui-peek-find-definitions "Definitions" :column "Peek")
+          ("C-r" lsp-ui-peek-find-references "References")
+          ("C-i" lsp-ui-peek-find-implementation "Implementation")
+
+          ;; LSP
+          ("p" lsp-describe-thing-at-point "Describe at point" :column "LSP")
+          ("C-a" lsp-execute-code-action "Execute code action")
+          ("R" lsp-rename "Rename")
+          ("t" lsp-goto-type-definition "Type definition")
+          ("i" lsp-goto-implementation "Implementation")
+          ("f" lsp-ui-imenu "Filter funcs/classes (Helm)")
+          ("C-c" lsp-describe-session "Describe session")
+
+          ;; Flycheck
+          ("l" lsp-ui-flycheck-list "List errs/warns/notes" :column "Flycheck"))
+
+        netrom--misc-lsp-hydra-heads
+        '(;; Misc
+          ("q" nil "Cancel" :column "Misc")
+          ("b" pop-tag-mark "Back")))
+
+  ;; Create general hydra.
+  (eval `(defhydra netrom/lsp-hydra (:color blue :hint nil)
+           ,@(append
+              netrom--general-lsp-hydra-heads
+              netrom--misc-lsp-hydra-heads)))
+
+  )
+
+(use-package lsp-ivy :commands lsp-ivy-workspace-symbol)
 
 ;; company-mode
 (use-package company
   :diminish company-mode
   :init
   (add-hook 'after-init-hook 'global-company-mode)
-  :commands (company-complete company-mode)
-  :bind (:map minibuffer-local-map
-              ;; give way in minibuffer to company keymap
-              ("\M-n" . nil))
+  :bind (("C-," . company-complete)
+         :map minibuffer-local-map
+         ;; give way in minibuffer to company keymap
+         ("\M-n" . nil))
   :config
   ;; company dabbrev backend downcase everything by default
   (setq company-dabbrev-downcase nil)
-  (setq company-selection-wrap-around t))
+  (setq company-selection-wrap-around t)
+  ;; (push 'company-elisp company-backends)
+  ;; (push 'company-yasnippet company-backends)
+  )
+
+(use-package company-quickhelp
+  :defer 4
+  :config
+  (company-quickhelp-mode))
 
 (use-package company-lsp
-  :defer t)
+  :defer t
+  :pin melpa
+  :config
+  (setq company-lsp-cache-candidates 'auto)
+  (setq company-minimum-prefix-length 1
+        company-idle-delay 0.0)         ;default is 0.2
+  ;; https://www.mortens.dev/blog/emacs-and-the-language-server-protocol/
+  ;; Disable client-side cache because the LSP server does a better job.
+  ;; (setq company-transformers nil
+  ;;       company-lsp-async t
+  ;;       company-lsp-cache-candidates nil)
+)
+
+;; Use the Debug Adapter Protocol for running tests and debugging
+(use-package posframe
+  ;; Posframe is a pop-up tool that must be manually installed for dap-mode
+  )
+(use-package dap-mode
+  :pin melpa
+  :defer t
+  :commands (dap-ui-mode dap-mode dap-hydra)
+  :hook (
+         (lsp-mode . dap-mode)
+         (lsp-mode . dap-ui-mode)
+         ;; enables mouse hover support
+         (lsp-mode . dap-tooltip-mode)
+         ;; use tooltips for mouse hover
+         ;; if it is not enabled `dap-mode' will use the minibuffer.
+         ;; (lsp-mode . tooltip-mode)
+         ;; displays floating panel with debug buttons
+         ;; requies emacs 26+
+         ;; (lsp-mode . dap-ui-controls-mode)
+         (dap-stopped . (lambda (arg) (call-interactively #'dap-hydra)))
+         (python-mode . (lambda ()(require 'dap-python)))
+         ;; (dap-server-log-mode . XXX repaint last entry with
+         ;; ansi-colorizing, see function colorize-compilation-buffer)
+         )
+
+  :bind (:map evil-normal-state-map
+              (",dd" . dap-debug)
+              (",dl" . dap-debug-last)
+              (",de" . dap-eval-thing-at-point)
+              (",dD" . dap-debug-recent)
+              ("<f5>" . dap-continue)
+              ("<f9>" . dap-breakpoint-toggle)
+              ("<f10>" . dap-next)
+              ("<f11>" . dap-step-in)
+              ("S-<f11>" . dap-step-out)
+              :map evil-visual-state-map
+              (",d:" . dap-eval-region )
+              :map dap-server-log-mode-map
+              ( "n" . dap-next )
+              ( "i" . dap-step-in )
+              ( "o" . dap-step-out )
+              ( "c" . dap-continue )
+              ( "L" . dap-ui-locals )
+              ( "S" . dap-ui-sessions )
+              ( "E" . dap-ui-expressions )
+              ( "B" . dap-ui-breakpoints )
+              ( "R" . dap-ui-repl )
+              ( "l" . dap-go-to-output-buffer )
+              ( "q" . dap-disconnect )
+              ;; H : Continue until Point
+              ( ":" . dap-eval )
+              ( "b" . dap-breakpoint-add )
+              ( "u" . dap-breakpoint-delete )
+              ( ">" . dap-switch-stack-frame )
+              ( "<" . dap-switch-stack-frame )
+              ;; g? : Help
+              ;; J : Jump to debugger location
+              ( "R" . dap-restart-frame )
+              :map +dap-running-session-mode-map
+              ( ",dn" . dap-next )
+              ( ",di" . dap-step-in )
+              ( ",do" . dap-step-out )
+              ( ",dc" . dap-continue )
+              ( ",dL" . dap-ui-locals )
+              ( ",dS" . dap-ui-sessions )
+              ( ",dE" . dap-ui-expressions )
+              ( ",dB" . dap-ui-breakpoints )
+              ( ",dR" . dap-ui-repl )
+              ( ",dt" . dap-go-to-output-buffer )
+              ( ",dq" . dap-disconnect )
+              ;; H : Continue until Point
+              ( ",d:" . dap-eval )
+              ( ",dba" . dap-breakpoint-add )
+              ( ",dbu" . dap-breakpoint-delete )
+              ( ",dbb" . dap-breakpoint-toggle )
+              ( ",dbc" . dap-breakpoint-condition )
+              ( ",dbC" . dap-breakpoint-hit-condition )
+              ( ",dbl" . dap-breakpoint-log-message )
+              ( ",d>" . dap-switch-stack-frame )
+              ( ",d<" . dap-switch-stack-frame )
+              ;; g? : Help
+              ;; J : Jump to debugger location
+              ( ",dR" . dap-restart-frame )
+              )
+  :config
+  ;; https://github.com/emacs-lsp/dap-mode/wiki/How-to-activate-minor-modes-when-stepping-through-code
+  (define-minor-mode +dap-running-session-mode
+    "A mode for adding keybindings to running sessions"
+    nil
+    nil
+    (make-sparse-keymap)
+    (evil-normalize-keymaps) ;; if you use evil, this is necessary to update the keymaps
+    ;; The following code adds to the dap-terminated-hook
+    ;; so that this minor mode will be deactivated when the debugger finishes
+    (when +dap-running-session-mode
+      (let ((session-at-creation (dap--cur-active-session-or-die)))
+        (add-hook 'dap-terminated-hook
+                  (lambda (session)
+                    (when (eq session session-at-creation)
+                      (+dap-running-session-mode -1)))))))
+
+  ;; Activate this minor mode when dap is initialized
+  (add-hook 'dap-session-created-hook '+dap-running-session-mode)
+
+  ;; Activate this minor mode when hitting a breakpoint in another file
+  (add-hook 'dap-stopped-hook '+dap-running-session-mode)
+
+  ;; Activate this minor mode when stepping into code in another file
+  (add-hook 'dap-stack-frame-changed-hook (lambda (session)
+                                            (when (dap--session-running session)
+                                              (+dap-running-session-mode 1))))
+)
+
+;; Use the Tree View Protocol for viewing the project structure and triggering compilation
+(use-package lsp-treemacs
+  :disabled t
+  :after treemacs
+  :defer t
+  :pin melpa
+  :config
+  (lsp-metals-treeview-enable t)
+  (setq lsp-metals-treeview-show-when-views-received t)
+  (lsp-treemacs-sync-mode 1)
+  )
 
 (use-package dumb-jump
   :bind (:map evil-normal-state-map
@@ -783,30 +987,40 @@ _z_oom on node
               (",gD" . dumb-jump-go-other-window))
   :config (dumb-jump-mode))
 
-(setq compilation-scroll-output t)      ; auto scroll in compilation buffer
+;;; Compilation
+(require 'ansi-color)
+(defun colorize-compilation-buffer ()
+  "Accept coloured output from testing."
+  (ansi-color-apply-on-region compilation-filter-start (point)))
+(add-hook 'compilation-filter-hook 'colorize-compilation-buffer)
+(setq compilation-scroll-output 'first-error
+      compilation-always-kill t
+      compilation-auto-jump-to-first-error t
+      compilation-context-lines 5)      ; auto scroll in compilation buffer
+
 (add-hook 'prog-mode-hook
           (lambda () (progn
                        ; all code buffers with nlinum
                        ; (so much faster than linum!)
                        ;; (nlinum-mode 1) ; line # are overrated
                        ;; (ggtags-mode 1) ; trial
-                       ;; (flycheck-mode)
                        (subword-mode) ; camelcase moves
-                       ;; (load-theme-buffer-local 'solarized-dark (current-buffer) t)
-                       ;; (projectile-on) ; project awareness
                        (turn-on-auto-fill)
-                       ;; (setq-local comment-auto-fill-only-comments t) ; auto-fill comments and only them
-                       ;; really cool dtrt-indent but haven't seen a
-                       ;; need for it recently
-                       ;; (dtrt-indent-mode) ; auto-adjust tab-width
-                       ;; (hub/anti-useless-whitespace)
-                       (hub/set-newline-and-indent-comment)
+                       ;; auto-fill comments and only them
+                       ;; (setq-local comment-auto-fill-only-comments t)
                        (rainbow-delimiters-mode t)
                        (eldoc-mode)
+                       (origami-mode)
                        (editorconfig-mode 1)
                        (electric-indent-local-mode)
                        )))
 ;; (setq linum-format " %3d ")    ; remove graphical glitches with fringe
+
+;; https://github.com/wbolster/emacs-direnv
+(use-package direnv
+  :after exec-path-from-shell
+  :config
+  (direnv-mode))
 
 ;; Help
 (use-package dash-at-point
@@ -971,6 +1185,48 @@ _z_oom on node
 (define-auto-insert "\.plist" ["template.plist" hub/autoinsert-yas-expand])
 (add-to-list 'auto-mode-alist '("\\.plist$" . xml-mode))
 
+;; Python
+(defun disable-flycheck ()
+  "Flycheck doesn't understand virtualenv. And lsp provides the equivalent."
+  (flycheck-mode -1))
+
+;; switch to the right
+(defvar *python-current-env* nil)
+(defun hub/workon ()
+  "To load the virtual env with the same name as the root dir."
+  (interactive)
+  ;; (message "running hub/workon before: %s"
+  ;;          *python-current-env*)
+  (let* ((rootdir (directory-file-name (projectile-project-root)))
+         (env (file-name-nondirectory rootdir)))
+    (when (and env
+               (not (equal env *python-current-env*)))
+      (progn
+        (setf *python-current-env* env)
+        (pyvenv-workon env)
+        (message "Current python env: %s"
+                 *python-current-env*))))
+  (save-some-buffers t))
+
+(use-package pyvenv
+  :ensure nil
+  :commands (pyvenv-activate pyvenv-workon)
+  :init
+  (add-to-list 'exec-path "~/.pyenv/shims")
+  (setenv "WORKON_HOME" "~/.virtualenvs")
+  (add-hook 'pyvenv-post-activate-hooks 'lsp)
+  (add-hook 'pyvenv-post-activate-hooks 'pyvenv-restart-python)
+  :hook (
+         (python-mode . disable-flycheck)
+         (python-mode . pyvenv-mode)
+         (python-mode . hub/workon)
+         )
+  :config
+  (evil-define-key 'normal python-mode-map ",gr" 'run-python)
+  )
+
+(use-package pydoc
+  :commands (pydoc pydoc-at-point pydoc-browse))
 
 ; tweaking to get my proper setup
 ; OSX
