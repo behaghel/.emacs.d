@@ -116,6 +116,7 @@ mjs/project-node-module-special-cases."
 
 (use-package color-identifiers-mode
   :commands (js2-mode js2-jsx-mode)
+  :disabled t
   :defer 3
   :config
   (add-hook 'js2-mode-hook 'color-identifiers-mode))

@@ -3,6 +3,7 @@
   :commands (gist-buffer gist-buffer-private gist-region gist-region-private gist-list))
 
 (define-key evil-normal-state-map (kbd ",vs") 'magit-status) ;; git control panel
+(setq vc-follow-symlinks t)
 (use-package magit
   :commands (magit-status projectile-vc)
   :pin melpa

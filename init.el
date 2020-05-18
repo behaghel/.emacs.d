@@ -107,10 +107,14 @@
 ;; Are we on a mac? Thanks @magnars
 (setq is-mac (equal system-type 'darwin))
 
-;; fix for Mac OS X PATH in Emacs GUI
+;; fix for Mac OS X PATH in Emacs GUI (not just macOS...)
 (use-package exec-path-from-shell
-  :if (and window-system is-mac)
+  ;; :if (and window-system is-mac)
   :config
+  ;; remove -1 from default value
+  ;; this implies PATH and key environment variables are set through
+  ;; .profile and not through .zshrc or other interactive-only config files
+  (setq exec-path-from-shell-arguments '("-l"))
   (exec-path-from-shell-initialize))
 
 (setq mac-command-key-is-meta t)
@@ -427,7 +431,7 @@
 (use-package edit-server
   :if window-system
   :ensure t
-  :defer t
+  :defer 5
   :init
   (add-hook 'after-init-hook 'server-start t)
   (add-hook 'after-init-hook 'edit-server-start t)
@@ -452,6 +456,16 @@
   (func-region start end #'url-unhex-string))
 
 (require 'setup-blog)
+
+(defun teleprompter ()
+  "Scroll the display at a given interval"
+  (interactive)
+  (while 1
+    (let ((sleep-time 4))
+      (scroll-up-line)
+      (sit-for sleep-time))))
+(global-set-key (kbd "’") 'teleprompter)
+
 
 (defun hub/dwim-other-window (f)
   "Run F in a new window if only one window is visible.
@@ -545,6 +559,7 @@ C-x b RET. The buffer selected is the one returned by (other-buffer)."
 
 ;; Markdown
 (use-package markdown-mode
+  :defer t
   :mode (("\\.md\\'" . markdown-mode)
          ("\\.markdown\\'" . markdown-mode)
          ("README\\.md\\'" . gfm-mode))
@@ -1008,9 +1023,24 @@ _z_oom on node
 )
 (add-hook 'emacs-lisp-mode-hook 'hub/emacs-lisp-config)
 (require 'jka-compr) ; find-tag to be able to find .el.gz
-(evil-define-key 'normal lisp-mode-shared-map ",." 'find-function)
-(evil-define-key 'normal lisp-mode-shared-map ",hf" 'describe-function)
-(evil-define-key 'normal lisp-mode-shared-map ",hv" 'describe-variable)
+(evil-define-key 'normal lisp-mode-shared-map
+  ",." 'find-function
+  ",hf" 'describe-function
+  ",hv" 'describe-variable
+  ",el" 'eval-last-sexp
+  ",il" 'eval-print-last-sexp)
+
+;; Scheme
+(use-package geiser
+  :defer t
+  :commands geiser-connect
+  :config
+  (evil-define-key 'normal geiser-mode-map ",gr" 'switch-to-geiser)
+  (evil-define-key 'normal geiser-mode-map ",gR" 'geiser-mode-switch-to-repl-and-enter)
+  (evil-define-key 'normal geiser-mode-map ",el" 'geiser-load-current-buffer)
+  (evil-define-key 'normal geiser-mode-map ",ii" 'geiser-doc-symbol-at-point)
+  (evil-define-key 'normal geiser-mode-map ",." 'geiser-edit-symbol-at-point)
+  )
 
 ;; Smalltalk
 (add-to-list 'auto-mode-alist '("\\.st$" . shampoo-code-mode))
