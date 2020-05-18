@@ -318,137 +318,69 @@
               ("V" . dired-ranger-paste)))
 
 ;; ivy
-(use-package swiper
-  :diminish ivy-mode
-  :commands (ivy-switch-buffer ivy-switch-buffer-other-window swiper ivy-resume)
-  :bind
-  (("C-s" . swiper)
-   ("C-r" . swiper)
-   ("C-c C-r" . ivy-resume)
-   :map evil-normal-state-map
-   (",gb" . ivy-switch-buffer)
-   (",gB" . ivy-switch-buffer-other-window)
-   )
+(use-package ivy
+  :defer nil
+  :diminish
+  :bind (("M-D"   . send-m-del)
+         ("M-c"   . ivy-copy-selection)
+         ("C-c o" . ivy-tv-filtered-candidates)
+         ("C-s"   . swiper)
+         ("C-r"   . swiper)
+         :map evil-normal-state-map
+         (",of"   . counsel-find-file)
+         (",ga"   . counsel-ag)
+         (",x"    . counsel-M-x)
+         (",gB"   . ivy-switch-buffer-other-window)
+         )
+  :custom
+  (ivy-count-format "(%d/%d) ")
+  (ivy-display-style 'fancy)
+  ;; I suspect with ivy virtual buffers
+  ;; there is a bug where
+  ;; bookmark module is required at
+  ;; each ivy-switch-buffer,
+  ;; bookmark post load hooks are
+  ;; run each time as well and somehow
+  ;; this makes my system slower each time
+  (ivy-use-virtual-buffers nil)
   :config
-  (ivy-mode 1)
-  (setq ivy-use-virtual-buffers t)
+  (ivy-mode)
+  (counsel-mode))
 
-  ;; (require 'setup-ivy)
-  )
+;; (use-package ivy-rich)
 
-(use-package counsel
-  :bind
-  (("M-x" . counsel-M-x)
-   ("C-x C-f" . counsel-find-file)
-   :map evil-normal-state-map
-   (",of" . counsel-find-file)
-   (",ga" . counsel-ag)
-   (",x" . counsel-M-x)))
-
-(use-package ivy-rich)
-
-;;; ido
-;; (use-package ido
-;;   :config
-;;   (setq ido-create-new-buffer 'always)
-;;   (use-package flx-ido
-;;     :config
-;;     (flx-ido-mode t)
-;;     ;; disable ido highlights to see ido-flx ones
-;;     (setq ido-use-faces nil)
-;;     (setq ido-everywhere t))
-;;   (use-package ido-vertical-mode
-;;     :config
-;;     (ido-vertical-mode t)
-;;     )
-;;   (ido-everywhere t)
-;;   ;; I mean really everywhere, don't be shy
-;;   (use-package ido-ubiquitous
-;;     :config
-;;     (ido-ubiquitous-mode 1)
-;;     )
-;;   (use-package ido-at-point
-;;     :config
-;;     (ido-at-point-mode)
-;;     )
-;;   ;; stolen from http://www.emacswiki.org/emacs/ArtistMode
-;;   ;;; integrate ido with artist-mode
-;;   (defun artist-ido-select-operation (type)
-;;     "Use ido to select a drawing operation in artist-mode"
-;;     (interactive (list (ido-completing-read "Drawing operation: "
-;;                                             (list "Pen" "Pen Line" "line" "straight line" "rectangle"
-;;                                                   "square" "poly-line" "straight poly-line" "ellipse"
-;;                                                   "circle" "text see-thru" "text-overwrite" "spray-can"
-;;                                                   "erase char" "erase rectangle" "vaporize line" "vaporize lines"
-;;                                                   "cut rectangle" "cut square" "copy rectangle" "copy square"
-;;                                                   "paste" "flood-fill"))))
-;;     (artist-select-operation type))
-;;   (defun artist-ido-select-settings (type)
-;;     "Use ido to select a setting to change in artist-mode"
-;;     (interactive (list (ido-completing-read "Setting: "
-;;                                             (list "Set Fill" "Set Line" "Set Erase" "Spray-size" "Spray-chars"
-;;                                                   "Rubber-banding" "Trimming" "Borders"))))
-;;     (if (equal type "Spray-size")
-;;         (artist-select-operation "spray set size")
-;;       (call-interactively (artist-fc-get-fn-from-symbol
-;;                            (cdr (assoc type '(("Set Fill" . set-fill)
-;;                                               ("Set Line" . set-line)
-;;                                               ("Set Erase" . set-erase)
-;;                                               ("Rubber-banding" . rubber-band)
-;;                                               ("Trimming" . trimming)
-;;                                               ("Borders" . borders)
-;;                                               ("Spray-chars" . spray-chars))))))))
-;;   (add-hook 'artist-mode-init-hook
-;;             (lambda ()
-;;               (define-key artist-mode-map (kbd "C-c C-a C-o") 'artist-ido-select-operation)
-;;               (define-key artist-mode-map (kbd "C-c C-a C-c") 'artist-ido-select-settings))))
-
-
-(require 'setup-perspective)
-
-;; Everything I do is within the context of a specific project
-;; to be remove when this is closed https://github.com/nex3/perspective-el/issues/64
-(when (not (fboundp 'make-variable-frame-local))
-  (defun make-variable-frame-local (variable) variable))
+;; keybindings for projectile (replace s-p with ,p)
+;; https://docs.projectile.mx/en/latest/usage/#interactive-commands
 (use-package projectile
   :diminish projectile-mode
-  :defer 2
-  :bind (:map evil-normal-state-map
-              (",pf" . projectile-find-file)
-              (",pF" . projectile-find-file-other-window)
-              (",pT" . projectile-regenerate-tags)
-              (",p." . projectile-find-tag)
-              (",p/" . projectile-ag)
-              (",p!" . projectile-run-shell-command-in-root)
-              (",pd" . projectile-dired)
-              (",pE" . projectile-edit-dir-locals)
-              ;; switch from code file to test file and vice-versa
-              ( ",gt" . projectile-toggle-between-implementation-and-test))
+  :defer 1
+  :bind (:map projectile-command-map    ; under ,p
+              ("P" . projectile-switch-project)
+              ("p" . persp-switch-last)
+              ("-" . persp-remove-buffer) ; disassociate buffer from persp
+              ("R" . persp-rename)
+              ("X" . persp-kill) ; terminate perspective
+              ("+" . persp-add-buffer) ; associate buffer to current persp
+              ("M" . persp-set-buffer) ; like add but remove from all other
+              ("b" . persp-counsel-switch-buffer) ; persp-aware
+              ("T" . projectile-find-implementation-or-test-other-window)
+              ("C-s" . persp-state-save) ; save perspective layout to file
+              ("C-l" . persp-state-load) ; load perspective layout from file
+)
   :config
-  ;; (setq projectile-completion-system 'ivy)
-  ;; (setq projectile-require-project-root nil)
-  ;; (projectile-global-mode)
+  (projectile-mode +1)
   (define-key projectile-mode-map (kbd "C-c p") 'projectile-command-map)
-  (setq projectile-project-search-path '("~/Exercism" "~/ws/"))
+  (define-key projectile-mode-map (kbd "s-p") 'projectile-command-map)
+  (evil-define-key 'normal 'projectile-mode-map ",p" 'projectile-command-map)
+  (setq projectile-completion-system 'ivy)
+  (setq projectile-project-search-path '("~/ws/"))
   (use-package counsel-projectile
     :after counsel
-    :bind (:map evil-normal-state-map
-                (",ps" . counsel-projectile)
-                (",pf" . counsel-projectile-find-file)
-                (",pF" . counsel-projectile-find-file-other-window)
-                (",pT" . projectile-regenerate-tags)
-                (",p." . projectile-find-tag)
-                (",p/" . counsel-projectile-ag)
-                (",p|" . counsel-projectile-grep)
-                (",p\\" . counsel-projectile-rg)
-                (",p!" . projectile-run-shell-command-in-root)
-                (",pd" . projectile-dired)
-                (",pE" . projectile-edit-dir-locals)
-                ;; switch from code file to test file and vice-versa
-                ( ",gt" . projectile-toggle-between-implementation-and-test))
     :config
     (counsel-projectile-mode))
   )
+
+(require 'setup-perspective)
 
 ;; Ediff
 (setq ediff-diff-options "-w")
@@ -457,6 +389,9 @@
 
 ;;; Yasnippet
 (use-package yasnippet
+  :defer t
+  ;; :disabled t
+  :ensure t
   :diminish yas-minor-mode
   :bind (("<C-tab>" . company-yasnippet)
          :map yas-minor-mode-map
@@ -465,17 +400,20 @@
          ("TAB" . nil))
   :config
   (yas-global-mode 1)
-  (setq yas-prompt-functions '(yas/ido-prompt yas/completing-prompt))
+  (setq yas-prompt-functions '(yas/completing-prompt))
 )
 
+(use-package yasnippet-snippets)
+
 ;;; auto-insert-mode (template filling at file creation time)
-(add-hook 'find-file-hook 'auto-insert)
+(auto-insert-mode 1)
+;; (add-hook 'find-file-hook 'auto-insert)
 (setq auto-insert-directory "~/.emacs.d/insert/")
-;; TODO: create template for .org
 ;; you can use yasnippet to expand it
 ;; see: http://www.emacswiki.org/emacs/AutoInsertMode
 ;; the standard emacs way use skeleton
 ;; see: https://github.com/cinsk/emacs-scripts/blob/8212d714d5c6f6b95e873e8688b30ba130d07775/xskel.el
+;; also: http://www.howardism.org/Technical/Emacs/templates-tutorial.html
 (defun hub/autoinsert-yas-expand (&optional expand-env)
     "Replace text in yasnippet template optionally passing EXPAND-ENV (let-style)."
     (yas-expand-snippet (buffer-string) (point-min) (point-max) expand-env))
@@ -652,7 +590,7 @@ C-x b RET. The buffer selected is the one returned by (other-buffer)."
   :diminish ggtags-mode)
 
 (use-package ag
-  :commands (ag ag-files ag-regexp ag-project ag-dired helm-ag)
+  :commands (ag ag-files ag-regexp ag-project ag-dired)
   :config (setq ag-highlight-search t
                 ag-reuse-buffers t))
 
