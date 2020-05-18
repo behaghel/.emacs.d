@@ -201,7 +201,7 @@ one of the installed versions (arbitrarily: the last)."
   (add-hook 'js2-mode-hook 'tern-mode)
 
   (evil-define-key 'normal js2-mode-map ",." 'tern-find-definition)
-  (evil-define-key 'normal js2-mode-map ",t" 'tern-pop-find-definition)
+  (evil-define-key 'normal js2-mode-map ",;" 'tern-pop-find-definition)
   ;; (evil-define-key 'normal js2-mode-map (kbd "M-.") 'tern-find-definition)
   (evil-define-key 'normal js2-mode-map ",:" 'tern-find-definition-by-name)
   (evil-define-key 'normal js2-mode-map ",ii" 'tern-get-type)

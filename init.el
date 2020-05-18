@@ -6,24 +6,25 @@
 ;; *** TODO: clarify key-bindings (move all of them in their own .el)
 ;;           - abandon any use of C-c
 ;;           - have a clear strategy when to use evil keymaps
+;;             - z == toggle
+;;             - g == goto + use [] () {} for prior/next
+;;             - ,g == go to special
+;;               - ,gr -> go to REPL TODO: should be gz
+;;               - ,gs -> go to EShell
 ;;             - , == <leader>
 ;;             - ,v == anything versioning
 ;;             - ,o == open
-;;             - ,g == anything find or go to
-;;               > ,ge -> go to next error
-;;               > ,gE -> go to previous error
 ;;             - ,e == anything execute
 ;;               > ,el -> execute file or region by loading it in REPL
-;;             - ,t == anything test (few exceptions)
 ;;             - ,h == anything help
 ;;             - ,n == new / create
 ;;             - coding:
 ;;               - ,.  -> find definition for symbol at point
 ;;               - ,hh -> go to help for symbol at point
 ;;               - ,b  -> build / compile task
+;;               - ,d  -> debug
 ;;               - ,ii -> inspect type at point
 ;;                 ,il -> inspect last expression
-;;               - ,gr -> go to REPL
 ;;               - ,f  -> anything formatting / refactoring
 ;;               - ,= -> align nicely using M-x align
 ;;
@@ -140,12 +141,6 @@
   :bind ("C-é" . undo)
   :config
   (global-undo-tree-mode))
-
-;; does to M-x what ido does to C-x C-f
-;; (use-package smex
-;;   :commands smex
-;;   :config
-;;   (smex-initialize))
 
 (use-package unfill
   :commands (unfill-region unfill-paragraph toggle-fill-unfill))
@@ -271,6 +266,7 @@
         (kbd ",(") #'sp-backward-up-sexp
         ;; Finds closing ')' of the current list.
         (kbd ",)") #'sp-up-sexp
+        (kbd ",k") #'sp-down-sexp
         ;; Go to the start of current/previous sexp
         (kbd "[[") #'sp-backward-sexp
         ;; Go to the start of next sexp.
@@ -289,10 +285,7 @@
   (smartparens-global-mode t)
   (show-smartparens-global-mode)
   (smartparens-global-strict-mode)
-  (evil-define-key 'normal smartparens-mode-map (kbd ",c") #'sp-backward-sexp)
-  (evil-define-key 'normal smartparens-mode-map (kbd ",r") #'sp-forward-sexp)
-  (evil-define-key 'normal smartparens-mode-map (kbd ",s") #'sp-up-sexp)
-  (evil-define-key 'normal smartparens-mode-map (kbd ",t") #'sp-down-sexp))
+  )
 
 ;; Dired
 (use-package dired-details
