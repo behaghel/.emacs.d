@@ -205,21 +205,21 @@ most org export / preview in the browser."
                     (mu4e-compose-signature  . "Hubert\nhttps://blog.behaghel.org")
                     ))
           ,(make-mu4e-context
-            :name "sky"
-            :enter-func (lambda () (mu4e-message ">> Sky context"))
+            :name "M&S"
+            :enter-func (lambda () (mu4e-message ">> M&S context"))
             ;; no leave-func
             ;; we match based on the maildir of the message
             ;; this matches maildir /Arkham and its sub-directories
             :match-func
             (lambda (msg)
               (when msg
-                (string-match-p "^/sky" (mu4e-message-field msg :maildir))))
-            :vars '((user-mail-address	   . "hubert.behaghel@sky.uk")
+                (string-match-p "^/mns" (mu4e-message-field msg :maildir))))
+            :vars '((user-mail-address	   . "hubert.behaghel@marks-and-spencer.com")
                     (smtpmail-smtp-service  . 1025) ; davmail SMTP
                     (mu4e-compose-signature .
                                             (concat
                                              "Hubert Behaghel\n"
-                                             "Head of Technology, Global OTT Data and Content Discovery\n"))))
+                                             "Head of Software Engineering\n"))))
 
           ,(make-mu4e-context
             :name "fbehaghel.fr"
@@ -278,7 +278,7 @@ most org export / preview in the browser."
           '((:maildir "/gmail/archive" :key ?a)
             (:maildir "/gmail/sent"    :key ?s)
             (:maildir "/gmail/INBOX"   :key ?g)
-            (:maildir "/sky/INBOX"     :key ?S)
+            (:maildir "/mns/INBOX"     :key ?m)
             ))
 
 
@@ -300,51 +300,12 @@ most org export / preview in the browser."
       ;; then starts the subject with "Cancelled"
       ( :name "Calendar Notifications"
               :query "mime:text/calendar")
-      ;; Sky
+      ;; M&S
       ;;; Notifications (it's ok if not read)
       ( :name "MS Teams"
               :query "from:noreply@email.teams.microsoft.com")
       ( :name "Yammer"
               :query "from:Yammer")
-      ( :name "OTT Monitoring Alerts"
-              :query "from:monitoringsolutions@sky.uk")
-      ( :name "Spark Europe"
-              :query "from:sparkeurope@sky.eu")
-      ( :name "Spark Europe servicemgt@sky.uk"
-              :query "from:servicemgt@sky.uk")
-      ( :name "Change Management"
-              :query "from:Change.Management@sky.uk")
-      ( :name "NBCU Incidents"
-              :query "from:nbcupeacockincidentmanagement@sky.eu")
-      ( :name "Finance Approval"
-              :query "from:no_reply_vim_approval@sky.uk")
-      ( :name "Ariba"
-              :query "from:\"Ariba Administrator\"")
-      ( :name "Account Payable"
-              :query "from:NoReplyAccountsPayable@sky.eu OR from:APHelpdesk@sky.uk")
-      ( :name "Customer Management Outage"
-              :query "subject:\"Customer Management Outage\"")
-      ( :name "People+"
-              :query "from:peopleplus@sky.uk")
-      ;;; Lists / News (to read when time permits) / Reports
-      ( :name "ProductPlan Weekly Update"
-              :query "from:noreply@productplan.com")
-      ( :name "Fitspiration: Health & Fitness Newsletter"
-              :query "from:healthandfitness@sky.uk")
-      ( :name "O'Reilly Newsletter"
-              :query "from:reply@oreilly.com OR list:7200351.xt.local") ;AND from:newsletter
-      ( :name "COVID-19 Event Centre Update"
-              :query "subject:\"19 Event Centre Update\"")
-      ( :name "Platform Control Daily Report"
-              :query "from:Robin.Marriott@sky.uk AND subject:\"Platform Control Daily Report\"")
-      ( :name "Daily Conviva Analysis"
-              :query "subject:\"Daily Conviva Analysis\"")
-      ( :name "SDP Peacock July Launch - Test Execution Status"
-              :query "subject:\"SDP Peacock July Launch Test Execution Status\"")
-      ( :name "Weekly Peacock High Profile Change Management Summary"
-              :query "subject:\"Weekly Peacock High Profile Change Management Summary\"")
-      ( :name "Data Ingest NBCU Status"
-              :query "subject:\"Data Ingest NBCU Status\"")
       ;; GMail
       ;;; Notifications (it's ok if not read)
       ( :name "Strava Notifications"
