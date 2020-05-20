@@ -123,6 +123,7 @@ most org export / preview in the browser."
   (evil-collection-define-key 'normal 'mu4e-headers-mode-map
     ",C" 'message-mail                  ; to compose with org-msg
                                         ; (sent as HTML)
+    "F" 'mu4e-compose-forward
     "O" 'mu4e-org-store-and-capture
     "ê" 'mu4e-headers-search
     "Ê" 'mu4e-headers-search-edit
@@ -150,6 +151,7 @@ most org export / preview in the browser."
     )
   (evil-collection-define-key 'normal 'mu4e-view-mode-map
     "O" 'mu4e-org-store-and-capture
+    "F" 'mu4e-compose-forward
     "ê" 'mu4e-headers-search
     ",hh" 'mu4e-display-manual
     "à" 'mu4e-view-mark-for-refile
@@ -205,10 +207,10 @@ most org export / preview in the browser."
             ;;   (mu4e-message-contact-field-matches msg
             ;;     :to "behaghel@gmail.com")))
             :vars '((user-mail-address	    . "behaghel@gmail.com")
-                    (mu4e-compose-signature  . "Hubert\nhttps://blog.behaghel.org")
+                    (mu4e-compose-signature . "Hubert\nhttps://blog.behaghel.org")
                     ))
           ,(make-mu4e-context
-            :name "M&S"
+            :name "mns"
             :enter-func (lambda () (mu4e-message ">> M&S context"))
             ;; no leave-func
             ;; we match based on the maildir of the message
@@ -217,7 +219,7 @@ most org export / preview in the browser."
             (lambda (msg)
               (when msg
                 (string-match-p "^/mns" (mu4e-message-field msg :maildir))))
-            :vars '((user-mail-address	   . "hubert.behaghel@marks-and-spencer.com")
+            :vars '((user-mail-address      . "hubert.behaghel@marks-and-spencer.com")
                     (smtpmail-smtp-service  . 1025) ; davmail SMTP
                     (mu4e-compose-signature .
                                             (concat
@@ -367,6 +369,8 @@ most org export / preview in the browser."
       ( :name "Theodom"
               :query
               "list:dominicains.communaute.theodom.org.j8ko-ik9.mj" )
+      ( :name "Retraite dans la Ville"
+              :query "list:dominicains.retraitedanslaville.org.i5tg-l4g.mj")
       ( :name "Franciscan at Home"
               :query "list:a1ee93991069fffd045e3a111.56591.list-id.mcsv.net")
       ( :name "Jean-Baptiste Maillard - Light in the Dark"
@@ -376,7 +380,11 @@ most org export / preview in the browser."
               :query "from:info@afc-france.org")
       ( :name "Aid to Church in Need"
               :query "from:enews@acnuk.org")
+      ( :name "Consecration Notre Dame de France"
+              :query "list:MjEzNTMtNTEwNjE3OC0xOQ==.list-id.mailin.fr")
       ;; General Info
+      ( :name "Le PCD"
+              :query "from:contact@lepcd.fr")
       ( :name "La Selection Du Jour"
               :query "from:lsdjabos@laselectiondujour.com")
       ( :name "Westminster COVID Update"
@@ -384,8 +392,6 @@ most org export / preview in the browser."
               "list:a50c8b0dd980669ef713b4cca.55853.list-id.mcsv.net" )
       ( :name "TfL"
               :query "from:Transport_for_London@email.tfl.gov.uk")
-      ( :name "Babylon Health"
-              :query "from:no-reply@news.babylonhealth.com")
       ( :name "Dr Willem - Lettre Santé Naturelle"
               :query "list:100017990.xt.local")
       ( :name "Avaaz"
@@ -405,11 +411,19 @@ most org export / preview in the browser."
               :query "list:mu-discuss.googlegroups.com")
       ( :name "Hillel Wayne's Newsletter"
               :query "list:hillelwayne.buttondown.email")
+      ( :name "Thoughtworks Radar"
+              :query "from:techradar@thoughtworks.com")
       ;; Finance
+      ( :name "Money Saving Expert - Cheap Energy Club"
+              :query "list:1081285.xt.local")
+      ( :name "Bulb"
+              :query "from:hello@bulb.co.uk")
+      ( :name "HSBC"
+              :query "from:statements@email1.hsbc.co.uk")
       ( :name "Hargreaves Lansdown"
               :query "from:hl@email.hl.co.uk")
       ( :name "Boursorama"
-              :query "from:noreply@boursorama.fr")
+              :query "from:noreply@boursorama.fr OR from:noreply@client.boursorama.fr")
       ( :name "L&C Mortgage"
               :query "List: 500008880.xt.local")
       ( :name "Rightmove"
