@@ -216,6 +216,7 @@ unreachable."
   )
 
 (use-package company-tern
+  :disabled t                           ; defunkt?
   :commands (js2-mode js2-jsx-mode)
   :after tern
   :config

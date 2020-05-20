@@ -34,6 +34,9 @@ most org export / preview in the browser."
   (interactive)
   (setq-local temporary-file-directory "~/tmp"))
 
+;; where brew install mu puts it
+(add-to-list 'load-path "/usr/local/share/emacs/site-lisp/mu/mu4e")
+
 ;; https://www.djcbsoftware.nl/code/mu/mu4e/Installation.html#Installation
 ;; mu4e is part of the mu project, a UNIX CLI therefore not on MELPA
 ;; I built it from git repo
