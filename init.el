@@ -84,6 +84,9 @@
       use-package-always-defer nil
       use-package-always-ensure t)
 
+(use-package emacs
+  :delight (auto-fill-function))
+
 (require 'auth-source-pass)
 (auth-source-pass-enable)
 (use-package pinentry)
@@ -328,6 +331,7 @@
 (use-package ivy
   :defer nil
   :diminish
+  :delight counsel-mode
   :bind (("M-D"   . send-m-del)
          ("M-c"   . ivy-copy-selection)
          ("C-c o" . ivy-tv-filtered-candidates)
@@ -397,7 +401,6 @@
 ;;; Yasnippet
 (use-package yasnippet
   :defer t
-  ;; :disabled t
   :ensure t
   :diminish yas-minor-mode
   :bind (("<C-tab>" . company-yasnippet)
@@ -467,7 +470,7 @@
     (let ((sleep-time 4))
       (scroll-up-line)
       (sit-for sleep-time))))
-(global-set-key (kbd "’") 'teleprompter)
+;; (global-set-key (kbd "’") 'teleprompter)
 
 
 (defun hub/dwim-other-window (f)
@@ -537,7 +540,7 @@ C-x b RET. The buffer selected is the one returned by (other-buffer)."
 
 (require 'setup-git)
 
-(require 'setup-multiple-cursors)
+;(require 'setup-multiple-cursors)
 
 ;; Editing text
 (add-hook 'text-mode-hook 'turn-on-auto-fill) ; auto-wrap
@@ -644,9 +647,6 @@ when it inserts comment at the end of the line."
 
 ;; Visual
 ; stop cluttering my modeline with so many minor modes
-
-(eval-after-load 'whitespace '(diminish 'whitespace-mode))
-
 (eval-after-load 'eldoc '(diminish 'eldoc-mode))
 ;; (eval-after-load 'auto-complete '(diminish 'auto-complete-mode))
 ;; (eval-after-load 'dtrt-indent '(diminish 'dtrt-indent-mode))
@@ -671,7 +671,9 @@ This functions should be added to the hooks of major modes for programming."
 (setq backward-delete-char-untabify-method 'hungry)
 
 (use-package editorconfig
-  :defer t)
+  :defer t
+  :diminish editorconfig-mode
+  )
 (use-package dtrt-indent
   :disabled t
   :defer 3
@@ -991,6 +993,7 @@ _z_oom on node
   :bind (:map evil-normal-state-map (",hd" . helm-dash-at-point)))
 
 (use-package whitespace
+  :diminish global-whitespace-mode
   :config
   (setq whitespace-style '(face tabs lines-tail empty trailing))
   (setq whitespace-global-modes '(not org-mode))

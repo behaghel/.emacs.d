@@ -8,7 +8,8 @@
   :init
   ;; otherwise evil gives it mappings... not sure what is loading it
   ;; in the first place
-  (unload-feature 'tab-bar)
+  (when (featurep 'tab-bar) 
+    (unload-feature 'tab-bar))
   (setq evil-want-integration t) ;; This is optional since it's already set to t by default.
   (setq evil-want-keybinding nil)
   (defun hub/setup-elisp-debugging-keybindings ()
