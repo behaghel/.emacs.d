@@ -190,6 +190,11 @@
 (global-set-key (kbd "M-®") 'evil-window-right)
 (global-set-key (kbd "M-þ") 'evil-window-down)
 (global-set-key (kbd "M-ß") 'evil-window-up)
+;; on macOS bepo differs
+(global-set-key (kbd "M-¸") 'evil-window-left)
+(global-set-key (kbd "M-ᵉ") 'evil-window-down)
+(global-set-key (kbd "M-˘") 'evil-window-right)
+
 ;; stolen from https://github.com/magnars/.emacs.d/blob/master/key-bindings.el
 ;; Transpose stuff with M-t
 (global-unset-key (kbd "M-t")) ;; which used to be transpose-words
