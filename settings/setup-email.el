@@ -125,6 +125,7 @@ most org export / preview in the browser."
                                         ; (sent as HTML)
     "F" 'mu4e-compose-forward
     "O" 'mu4e-org-store-and-capture
+    ",à" 'mu4e-org-store-and-capture
     "ê" 'mu4e-headers-search
     "Ê" 'mu4e-headers-search-edit
     "à" 'mu4e-headers-mark-for-refile
@@ -151,6 +152,7 @@ most org export / preview in the browser."
     )
   (evil-collection-define-key 'normal 'mu4e-view-mode-map
     "O" 'mu4e-org-store-and-capture
+    ",à" 'mu4e-org-store-and-capture
     "F" 'mu4e-compose-forward
     "ê" 'mu4e-headers-search
     ",hh" 'mu4e-display-manual
@@ -310,6 +312,9 @@ most org export / preview in the browser."
               :query "from:noreply@email.teams.microsoft.com")
       ( :name "Yammer"
               :query "from:Yammer")
+      ;; Updates
+      ( :name "Colleague Comms and Engagement"
+              :query "from:Colleague.Comms@marks-and-spencer.com")
       ;; GMail
       ;;; Notifications (it's ok if not read)
       ( :name "Strava Notifications"
@@ -348,8 +353,13 @@ most org export / preview in the browser."
               :query "list:1060191.xt.local")
       ( :name "Detox Kitchen"
               :query "from:postman@candymail.co OR list:f07ee3b7aa6b3f3cba844a5f8.228557.list-id.mcsv.net")
+)
+      ( :name "Enterprise Rent-a-car"
+              :query "list:10780075.xt.local")
       ( :name "Libertie Shopping"
               :query "list:contact.boutiquelibertie.com.ipo3-0v378.mj")
+      ( :name "Levi's"
+              :query "from:levis@e.levi.com")
       ( :name "InCorio"
               :query "from:bonjour@incorio.com")
       ( :name "GoHugo Forum"
@@ -400,6 +410,8 @@ most org export / preview in the browser."
       ( :name "Avaaz"
               :query "from:avaaz@avaaz.org")
       ;; Technology
+      ( :name "Medium Weekly Newsletter"
+              :query "from:noreply@medium.com")
       ( :name "SWLW"
               :query "from:oren@softwareleadweekly.com")
       ( :name "Patrick Kua — Level Up"
