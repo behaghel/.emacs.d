@@ -99,7 +99,6 @@
         "s m" nil
         "s r" nil
         "s b" nil
-        (kbd "s SPC") nil
         (kbd "z s") 'doc-view-set-slice
         (kbd "z m") 'doc-view-set-slice-using-mouse
         (kbd "z b") 'doc-view-set-slice-from-bounding-box

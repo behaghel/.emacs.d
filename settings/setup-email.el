@@ -233,14 +233,12 @@ most org export / preview in the browser."
             ;; we match based on the contact-fields of the message
             :match-func
             (lambda (msg)
-              ;; (when msg
-              ;;   (string-match-p "^/behaghel.fr" (mu4e-message-field msg :maildir))))
               (when msg
                 (mu4e-message-contact-field-matches msg
                                                     '(:cc :from :to)
                                                     "hubert@behaghel.fr")
                 ))
-            :vars '((user-mail-address	   . "hubert@behaghel.fr")
+            :vars '((user-mail-address      . "hubert@behaghel.fr")
                     (mu4e-compose-signature . "Hubert\nhttps://blog.behaghel.org")
                     ))
           ,(make-mu4e-context
@@ -250,14 +248,12 @@ most org export / preview in the browser."
             ;; we match based on the contact-fields of the message
             :match-func
             (lambda (msg)
-              ;; (when msg
-              ;;   (string-match-p "^/behaghel.org" (mu4e-message-field msg :maildir))))
               (when msg
                 (mu4e-message-contact-field-matches msg
                                                     '(:cc :from :to)
                                                     "hubert@behaghel.org")
                 ))
-            :vars '((user-mail-address	   . "hubert@behaghel.org")
+            :vars '((user-mail-address      . "hubert@behaghel.org")
                     (mu4e-compose-signature . "Hubert\nhttps://blog.behaghel.org")
                     ))
           ))
@@ -272,7 +268,10 @@ most org export / preview in the browser."
   ;; their docstring or the chapter 'Dynamic folders'
   (defun contextual-default-folder (suffix)
     (lambda (msg)
-      (concat "/" (mu4e-context-name (mu4e-context-determine msg)) suffix)))
+      (let* ((msg-context (mu4e-context-determine msg))
+             (context (if msg-context msg-context mu4e~context-current))
+             (ctx-name (mu4e-context-name context)))
+        (concat "/" ctx-name suffix))))
   (setq mu4e-sent-folder   (contextual-default-folder "/sent")
         mu4e-drafts-folder (contextual-default-folder "/drafts")
         mu4e-refile-folder (contextual-default-folder "/archive")
@@ -333,6 +332,8 @@ most org export / preview in the browser."
               :query "from:order-update@amazon.co.uk")
       ( :name "Amazon Alexa Newsletter"
               :query "from:amazon-offers@amazon.co.uk")
+      ( :name "Enterprise Rent-a-car"
+              :query "list:10780075.xt.local")
       ( :name "Charles Stanley Direct Contract Notes"
               :query "from:info@charles-stanley-direct.co.uk AND subject:\"Contract Note\"")
       ( :name "Charles Stanley Direct Newsletter"
@@ -346,7 +347,7 @@ most org export / preview in the browser."
       ( :name "Marks & Spencer Marketing"
               :query "list:1060191.xt.local")
       ( :name "Detox Kitchen"
-              :query "from:postman@candymail.co")
+              :query "from:postman@candymail.co OR list:f07ee3b7aa6b3f3cba844a5f8.228557.list-id.mcsv.net")
       ( :name "Libertie Shopping"
               :query "list:contact.boutiquelibertie.com.ipo3-0v378.mj")
       ( :name "InCorio"
@@ -379,7 +380,7 @@ most org export / preview in the browser."
       ( :name "AFC France"
               :query "from:info@afc-france.org")
       ( :name "Aid to Church in Need"
-              :query "from:enews@acnuk.org")
+              :query "from:enews@acnuk.org OR list:25a175338ce0562b9d08ed926.308377.list-id.mcsv.net")
       ( :name "Consecration Notre Dame de France"
               :query "list:MjEzNTMtNTEwNjE3OC0xOQ==.list-id.mailin.fr")
       ;; General Info
@@ -394,6 +395,8 @@ most org export / preview in the browser."
               :query "from:Transport_for_London@email.tfl.gov.uk")
       ( :name "Dr Willem - Lettre Santé Naturelle"
               :query "list:100017990.xt.local")
+      ( :name "Lettre Nutri-Santé"
+              :query "list:100008586.xt.local")
       ( :name "Avaaz"
               :query "from:avaaz@avaaz.org")
       ;; Technology
@@ -411,6 +414,8 @@ most org export / preview in the browser."
               :query "list:mu-discuss.googlegroups.com")
       ( :name "Hillel Wayne's Newsletter"
               :query "list:hillelwayne.buttondown.email")
+      ( :name "Bartosz Milewski's Programming Cafe"
+              :query "from:\"Bartosz Milewski\"")
       ( :name "Thoughtworks Radar"
               :query "from:techradar@thoughtworks.com")
       ;; Finance
