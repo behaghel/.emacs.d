@@ -30,6 +30,7 @@
     (kbd "<prior>") 'org-move-subtree-up
     )
   (evil-define-key 'motion org-mode-map (kbd "RET") 'org-return)
+  (evil-define-key 'motion calendar-mode-map (kbd "RET") 'org-calendar-select)
   ;; TODO: delete teh below if above replacement is proven to work well
   ;; (evil-define-key 'normal org-mode-map (kbd ",or") 'org-babel-open-src-block-result)
   ;; (evil-define-key 'normal org-mode-map (kbd ",ea") 'org-archive-subtree-default)
@@ -114,6 +115,8 @@
   (setq org-reveal-root (getenv "REVEAL_JS_ROOT_URL"))
   ;; (load-library "/Users/hbe07/tmp/org-reveal/ox-reveal.el")
   (setq org-plantuml-jar-path "~/install/plantuml.jar")
+  (add-to-list 'org-src-lang-modes '("plantuml" . plantuml))
+;; (org-babel-do-load-languages 'org-babel-load-languages '((plantuml . t)))
 
   (defun hub/outline-focus-next-section ()
     (interactive)

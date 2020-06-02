@@ -151,6 +151,7 @@ most org export / preview in the browser."
            (mu4e-headers-mark-thread nil '(refile)))
     )
   (evil-collection-define-key 'normal 'mu4e-view-mode-map
+    (kbd "<tab>") 'widget-forward
     "O" 'mu4e-org-store-and-capture
     ",à" 'mu4e-org-store-and-capture
     "F" 'mu4e-compose-forward
@@ -205,18 +206,11 @@ most org export / preview in the browser."
             (lambda (msg)
               (when msg
                 (string-match-p "^/gmail" (mu4e-message-field msg :maildir))))
-            ;; (when msg
-            ;;   (mu4e-message-contact-field-matches msg
-            ;;     :to "behaghel@gmail.com")))
             :vars '((user-mail-address	    . "behaghel@gmail.com")
-                    (mu4e-compose-signature . "Hubert\nhttps://blog.behaghel.org")
                     ))
           ,(make-mu4e-context
             :name "mns"
             :enter-func (lambda () (mu4e-message ">> M&S context"))
-            ;; no leave-func
-            ;; we match based on the maildir of the message
-            ;; this matches maildir /Arkham and its sub-directories
             :match-func
             (lambda (msg)
               (when msg
@@ -225,14 +219,11 @@ most org export / preview in the browser."
                     (smtpmail-smtp-service  . 1025) ; davmail SMTP
                     (mu4e-compose-signature .
                                             (concat
-                                             "Hubert Behaghel\n"
-                                             "Head of Software Engineering\n"))))
+                                             "Hubert Behaghel\n"))))
 
           ,(make-mu4e-context
             :name "fbehaghel.fr"
             :enter-func (lambda () (mu4e-message ">> behaghel.fr context"))
-            ;; :leave-func (lambda () (mu4e-message "<< behaghel.fr context"))
-            ;; we match based on the contact-fields of the message
             :match-func
             (lambda (msg)
               (when msg
@@ -241,13 +232,10 @@ most org export / preview in the browser."
                                                     "hubert@behaghel.fr")
                 ))
             :vars '((user-mail-address      . "hubert@behaghel.fr")
-                    (mu4e-compose-signature . "Hubert\nhttps://blog.behaghel.org")
                     ))
           ,(make-mu4e-context
             :name "obehaghel.org"
             :enter-func (lambda () (mu4e-message ">> behaghel.org context"))
-            ;; :leave-func (lambda () (mu4e-message "<< behaghel.org context"))
-            ;; we match based on the contact-fields of the message
             :match-func
             (lambda (msg)
               (when msg
@@ -256,7 +244,6 @@ most org export / preview in the browser."
                                                     "hubert@behaghel.org")
                 ))
             :vars '((user-mail-address      . "hubert@behaghel.org")
-                    (mu4e-compose-signature . "Hubert\nhttps://blog.behaghel.org")
                     ))
           ))
 
@@ -312,6 +299,8 @@ most org export / preview in the browser."
               :query "from:noreply@email.teams.microsoft.com")
       ( :name "Yammer"
               :query "from:Yammer")
+      ( :name "Sharepoint"
+              :query "from:no-reply@sharepointonline.com")
       ;; Updates
       ( :name "Colleague Comms and Engagement"
               :query "from:Colleague.Comms@marks-and-spencer.com")
@@ -323,10 +312,14 @@ most org export / preview in the browser."
               :query "list:spc.244190.0.sparkpostmail.com")
       ( :name "Garmin Newsletter"
               :query "from:garmin@mails.garmin.com")
+      ( :name "Cycle Plan"
+              :query "from:admin@emails.cycleplan.co.uk")
       ( :name "VONCRANK"
               :query "from:info@voncrank.com")
       ( :name "Ebay Confirmations"
               :query "from:ebay@ebay.co.uk")
+      ( :name "Ebay"
+              :query "from:ebay@ebay.com")
       ( :name "Amazon Confirmations"
               :query "from:auto-confirm@amazon.co.uk")
       ( :name "Amazon Updates"
@@ -347,23 +340,24 @@ most org export / preview in the browser."
               :query "from:noreply@proactiveinvestors.com")
       ( :name "HP Instant Ink"
               :query "from:HP@email.hpconnected.com")
+      ( :name "GoHugo Forum"
+              :query "from:gohugo@discoursemail.com")
       ( :name "ParuVendu"
               :query "from:info@paruvendu.fr")
       ( :name "Marks & Spencer Marketing"
               :query "list:1060191.xt.local")
+      ( :name "Dropbox"
+              :query "from:no-reply@dropbox.com")
       ( :name "Detox Kitchen"
               :query "from:postman@candymail.co OR list:f07ee3b7aa6b3f3cba844a5f8.228557.list-id.mcsv.net")
-)
-      ( :name "Enterprise Rent-a-car"
-              :query "list:10780075.xt.local")
       ( :name "Libertie Shopping"
               :query "list:contact.boutiquelibertie.com.ipo3-0v378.mj")
       ( :name "Levi's"
               :query "from:levis@e.levi.com")
+      ( :name "Executive Shaving"
+              :query "list:a951262677dc714c2205250f2.228673.list-id.mcsv.net")
       ( :name "InCorio"
               :query "from:bonjour@incorio.com")
-      ( :name "GoHugo Forum"
-              :query "from:gohugo@discoursemail.com")
       ( :name "Hozana"
               :query "from:contact@hozana.org OR list:ac6ab4ad6642b7f06d375784a.63591.list-id.mcsv.net")
       ;;; Lists / News (to read when time permits) / Reports
@@ -393,6 +387,8 @@ most org export / preview in the browser."
               :query "from:enews@acnuk.org OR list:25a175338ce0562b9d08ed926.308377.list-id.mcsv.net")
       ( :name "Consecration Notre Dame de France"
               :query "list:MjEzNTMtNTEwNjE3OC0xOQ==.list-id.mailin.fr")
+      ( :name "Revue Codex"
+              :query "from:codex@editionscld.fr")
       ;; General Info
       ( :name "Le PCD"
               :query "from:contact@lepcd.fr")
@@ -403,6 +399,8 @@ most org export / preview in the browser."
               "list:a50c8b0dd980669ef713b4cca.55853.list-id.mcsv.net" )
       ( :name "TfL"
               :query "from:Transport_for_London@email.tfl.gov.uk")
+      ( :name "Talk London"
+              :query "from:updates@email.talklondon.london.gov.uk")
       ( :name "Dr Willem - Lettre Santé Naturelle"
               :query "list:100017990.xt.local")
       ( :name "Lettre Nutri-Santé"
@@ -424,6 +422,8 @@ most org export / preview in the browser."
               :query "from:info@realpython.com")
       ( :name "Mu"
               :query "list:mu-discuss.googlegroups.com")
+      ( :name "Gandi"
+              :query "list:MjY0NzEzOS0xMTk0NDcwLTUz.list-id.market.gandi.net")
       ( :name "Hillel Wayne's Newsletter"
               :query "list:hillelwayne.buttondown.email")
       ( :name "Bartosz Milewski's Programming Cafe"
@@ -442,7 +442,7 @@ most org export / preview in the browser."
       ( :name "Boursorama"
               :query "from:noreply@boursorama.fr OR from:noreply@client.boursorama.fr")
       ( :name "L&C Mortgage"
-              :query "List: 500008880.xt.local")
+              :query "list:500008880.xt.local")
       ( :name "Rightmove"
               :query "from:autoresponder@rightmove.com")
       ))
@@ -616,15 +616,17 @@ most org export / preview in the browser."
         message-citation-line-function 'message-insert-formatted-citation-line
         ;; https://www.djcbsoftware.nl/code/mu/mu4e/Writing-messages.html#How-can-I-apply-format_003dflowed-to-my-outgoing-messages_003f
         mu4e-compose-format-flowed t
+        mu4e-compose-signature "Hubert" ;\nhttps://blog.behaghel.org"
         )
+  (setq ispell-program-name "aspell")
   (add-hook 'message-mode-hook #'flyspell-mode)
   (add-hook 'message-mode-hook #'footnote-mode)
 
-  ;; TODO https://github.com/jorgenschaefer/typoel
+  ;; TODO: https://github.com/jorgenschaefer/typoel
   ;; (add-hook 'message-mode-hook #'typo-mode)
 
   ;; to select the right language in spell check
-  ;; TODO https://github.com/nschum/auto-dictionary-mode
+  ;; TODO: https://github.com/nschum/auto-dictionary-mode
   ;; (add-hook 'message-mode-hook #'adict-guess-dictionary)
 
   ;; Also see use-package org-msg
@@ -659,7 +661,7 @@ most org export / preview in the browser."
 Regards,
 
 #+begin_signature
---
+--\n
 Hubert
 #+end_signature")
   (add-hook 'org-msg-mode-hook 'make-tmp-file-browsable)

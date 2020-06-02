@@ -95,10 +95,6 @@
     ;; with bépo layout
     (defun hub/setup-docview-keybindings ()
       (evil-collection-define-key 'normal 'doc-view-mode-map
-        "s s" nil
-        "s m" nil
-        "s r" nil
-        "s b" nil
         (kbd "z s") 'doc-view-set-slice
         (kbd "z m") 'doc-view-set-slice-using-mouse
         (kbd "z b") 'doc-view-set-slice-from-bounding-box
