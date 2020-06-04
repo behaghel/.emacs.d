@@ -125,6 +125,7 @@ most org export / preview in the browser."
                                         ; (sent as HTML)
     "F" 'mu4e-compose-forward
     "O" 'mu4e-org-store-and-capture
+    "zO" 'org-msg-mode
     ",à" 'mu4e-org-store-and-capture
     "ê" 'mu4e-headers-search
     "Ê" 'mu4e-headers-search-edit
@@ -152,6 +153,7 @@ most org export / preview in the browser."
     )
   (evil-collection-define-key 'normal 'mu4e-view-mode-map
     (kbd "<tab>") 'widget-forward
+    "zO" 'org-msg-mode
     "O" 'mu4e-org-store-and-capture
     ",à" 'mu4e-org-store-and-capture
     "F" 'mu4e-compose-forward
@@ -190,7 +192,15 @@ most org export / preview in the browser."
   (evil-collection-define-key 'normal 'org-msg-edit-mode-map
     ",hh" 'mu4e-display-manual
     "gs" 'message-goto-subject
-    "gb" 'message-goto-body
+    "gb" 'org-msg-goto-body
+    )
+  (evil-collection-define-key 'insert 'mu4e-compose-mode-map
+    (kbd "M-.") 'message-goto-body
+    (kbd "M-,") 'message-goto-subject
+    )
+  (evil-collection-define-key 'insert 'org-msg-edit-mode-map
+    (kbd "M-.") 'org-msg-goto-body
+    (kbd "M-,") 'message-goto-subject
     )
 
   ;;; Setup
@@ -206,7 +216,8 @@ most org export / preview in the browser."
             (lambda (msg)
               (when msg
                 (string-match-p "^/gmail" (mu4e-message-field msg :maildir))))
-            :vars '((user-mail-address	    . "behaghel@gmail.com")
+            :vars '((user-mail-address         . "behaghel@gmail.com")
+                    (smtpmail-smtp-service     . 25)
                     ))
           ,(make-mu4e-context
             :name "mns"
@@ -215,12 +226,15 @@ most org export / preview in the browser."
             (lambda (msg)
               (when msg
                 (string-match-p "^/mns" (mu4e-message-field msg :maildir))))
-            :vars '((user-mail-address      . "hubert.behaghel@marks-and-spencer.com")
-                    (smtpmail-smtp-service  . 1025) ; davmail SMTP
-                    (mu4e-compose-signature .
-                                            (concat
-                                             "Hubert Behaghel\n"))))
-
+            :vars '(
+                    (user-mail-address         . "hubert.behaghel@marks-and-spencer.com")
+                    (smtpmail-auth-credentials .
+                                                   '(("localhost" 1025 "hubert.behaghel@mnscorp.net" nil)))
+                    (smtpmail-smtp-server      . "localhost")
+                    (smtpmail-smtp-service     . 1025)
+                    (mu4e-compose-signature    . nil)
+                    )
+            )
           ,(make-mu4e-context
             :name "fbehaghel.fr"
             :enter-func (lambda () (mu4e-message ">> behaghel.fr context"))
@@ -231,7 +245,8 @@ most org export / preview in the browser."
                                                     '(:cc :from :to)
                                                     "hubert@behaghel.fr")
                 ))
-            :vars '((user-mail-address      . "hubert@behaghel.fr")
+            :vars '((user-mail-address         . "hubert@behaghel.fr")
+                    (smtpmail-smtp-service     . 25)
                     ))
           ,(make-mu4e-context
             :name "obehaghel.org"
@@ -243,7 +258,8 @@ most org export / preview in the browser."
                                                     '(:cc :from :to)
                                                     "hubert@behaghel.org")
                 ))
-            :vars '((user-mail-address      . "hubert@behaghel.org")
+            :vars '((user-mail-address         . "hubert@behaghel.org")
+                    (smtpmail-smtp-service     . 25)
                     ))
           ))
 
@@ -360,6 +376,8 @@ most org export / preview in the browser."
               :query "from:bonjour@incorio.com")
       ( :name "Hozana"
               :query "from:contact@hozana.org OR list:ac6ab4ad6642b7f06d375784a.63591.list-id.mcsv.net")
+      ( :name "Union des Français à l'Étranger"
+              :query "list:MTEwMjc5LTU0NzI5MS00Mg==.list-id.communication.excusemyweb.com")
       ;;; Lists / News (to read when time permits) / Reports
       ;; Hobby
       ( :name "Wet Shaving by Mantic59"
@@ -632,8 +650,10 @@ most org export / preview in the browser."
   ;; Also see use-package org-msg
 
   ;; Sending
-  (setq send-mail-function 'sendmail-send-it)
-  (setq message-send-mail-function 'message-send-mail-with-sendmail)
+  (setq send-mail-function 'smtpmail-send-it)
+  ;; (setq send-mail-function 'sendmail-send-it)
+  ;; (setq message-send-mail-function 'message-send-mail-with-sendmail)
+  (setq message-send-mail-function 'message--default-send-mail-function)
   (setq smtpmail-smtp-server "localhost")
   ;; (setq
   ;;    ;; if you need offline mode, set these -- and create the queue dir
@@ -648,8 +668,7 @@ most org export / preview in the browser."
   :config (setq org-mu4e-link-query-in-headers-mode nil))
 
 (use-package org-msg
-  :pin melpa
-
+  ;; :pin melpa
   :config
   (setq org-msg-options "html-postamble:nil H:5 num:nil ^:{} toc:nil"
 	org-msg-startup "hidestars indent inlineimages"
