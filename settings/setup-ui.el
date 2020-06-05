@@ -165,7 +165,10 @@
 ;; (when (member "mononoki-12" (font-family-list))
 ;;   (set-face-attribute 'default nil :font "mononoki-12"))
 ;; https://github.com/be5invis/Iosevka
-(set-face-attribute 'default nil :font "Iosevka-12")
+(cond ((eq system-type 'darwin)
+       (set-face-attribute 'default nil :font "Iosevka-16"))
+      (set-face-attribute 'default nil :font "Iosevka-12")
+      )
 
 (provide 'setup-ui)
 ;;; setup-ui.el ends here
