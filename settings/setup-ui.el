@@ -72,7 +72,12 @@
       switch-to-visible-buffer nil)
 ;; stolen from https://github.com/nex3/perspective-el#some-musings-on-emacs-window-layouts
 (setq display-buffer-alist
-      '(("\\*.*\\*" (display-buffer-reuse-window))
+      '(
+        ("^magit-diff:"
+         (display-buffer-reuse-window display-buffer-at-bottom)
+         (window-width . 0.5)
+         (reusable-frames . nil))
+        ("\\*.*\\*" (display-buffer-reuse-window))
         (".*" (display-buffer-reuse-window display-buffer-same-window))))
 
 (setq display-buffer-reuse-frames t)         ; reuse windows in other frames
