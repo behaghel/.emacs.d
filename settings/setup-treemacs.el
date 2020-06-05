@@ -69,7 +69,13 @@
          ("C-x t t"   . treemacs)
          ("C-x t B"   . treemacs-bookmark)
          ("C-x t C-t" . treemacs-find-file)
-         ("C-x t M-t" . treemacs-find-tag)))
+         ("C-x t M-t" . treemacs-find-tag))
+
+  ;; UI
+  (require 'doom-themes-ext-treemacs)
+  (setq doom-themes-treemacs-theme "doom-colors") ; use the colorful treemacs theme
+  (doom-themes-treemacs-config)
+  )
 
 (use-package treemacs-evil
   :pin melpa
