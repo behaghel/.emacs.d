@@ -222,14 +222,11 @@ most org export / preview in the browser."
             (lambda (msg)
               (when msg
                 (string-match-p "^/mns" (mu4e-message-field msg :maildir))))
-            :vars '(
-                    (user-mail-address         . "hubert.behaghel@marks-and-spencer.com")
-                    (smtpmail-auth-credentials .
-                                                   '(("localhost" 1025 "hubert.behaghel@mnscorp.net" nil)))
-                    (smtpmail-smtp-server      . "localhost")
-                    (smtpmail-smtp-service     . 1025)
-                    )
-            )
+            :vars '((user-mail-address      . "hubert.behaghel@marks-and-spencer.com")
+                    (smtpmail-smtp-service  . 1025) ; davmail SMTP
+                    (mu4e-compose-signature . nil)
+                    ))
+
           ,(make-mu4e-context
             :name "fbehaghel.fr"
             :enter-func (lambda () (mu4e-message ">> behaghel.fr context"))
@@ -649,7 +646,6 @@ most org export / preview in the browser."
   ;; Sending
   ;; sync / blocking
   (setq send-mail-function 'smtpmail-send-it)
-  (setq message-send-mail-function 'message--default-send-mail-function)
   (setq message-send-mail-function 'message-smtpmail-send-it)
   (setq smtpmail-smtp-server "localhost")
   ;; async
