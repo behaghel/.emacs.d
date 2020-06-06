@@ -116,13 +116,9 @@ most org export / preview in the browser."
   (evil-collection-define-key 'normal 'mu4e-main-mode-map
     "ê" 'mu4e-headers-search
     ",hh" 'mu4e-display-manual
-    ",C" 'message-mail                  ; to compose with org-msg
-                                        ; (sent as HTML)
     )
 
   (evil-collection-define-key 'normal 'mu4e-headers-mode-map
-    ",C" 'message-mail                  ; to compose with org-msg
-                                        ; (sent as HTML)
     "F" 'mu4e-compose-forward
     "O" 'mu4e-org-store-and-capture
     "zO" 'org-msg-mode
@@ -232,7 +228,6 @@ most org export / preview in the browser."
                                                    '(("localhost" 1025 "hubert.behaghel@mnscorp.net" nil)))
                     (smtpmail-smtp-server      . "localhost")
                     (smtpmail-smtp-service     . 1025)
-                    (mu4e-compose-signature    . nil)
                     )
             )
           ,(make-mu4e-context
@@ -634,7 +629,9 @@ most org export / preview in the browser."
         message-citation-line-function 'message-insert-formatted-citation-line
         ;; https://www.djcbsoftware.nl/code/mu/mu4e/Writing-messages.html#How-can-I-apply-format_003dflowed-to-my-outgoing-messages_003f
         mu4e-compose-format-flowed t
-        mu4e-compose-signature "Hubert" ;\nhttps://blog.behaghel.org"
+        ;; org-msg doesn't work well with mu4e sig
+        ;; https://github.com/jeremy-compostella/org-msg/issues/57
+        ;; mu4e-compose-signature "Hubert" ;\nhttps://blog.behaghel.org"
         )
   (setq ispell-program-name "aspell")
   (add-hook 'message-mode-hook #'flyspell-mode)
@@ -650,16 +647,20 @@ most org export / preview in the browser."
   ;; Also see use-package org-msg
 
   ;; Sending
+  ;; sync / blocking
   (setq send-mail-function 'smtpmail-send-it)
+  (setq message-send-mail-function 'message--default-send-mail-function)
+  (setq message-send-mail-function 'message-smtpmail-send-it)
+  (setq smtpmail-smtp-server "localhost")
+  ;; async
   ;; (setq send-mail-function 'sendmail-send-it)
   ;; (setq message-send-mail-function 'message-send-mail-with-sendmail)
-  (setq message-send-mail-function 'message--default-send-mail-function)
-  (setq smtpmail-smtp-server "localhost")
   ;; (setq
   ;;    ;; if you need offline mode, set these -- and create the queue dir
   ;;    ;; with 'mu mkdir', i.e.. mu mkdir /home/user/Maildir/queue
   ;;    smtpmail-queue-mail  nil
   ;;    smtpmail-queue-dir  "/home/user/Maildir/queue/cur")
+
   )
 
 (use-package org-mu4e
