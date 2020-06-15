@@ -1,63 +1,33 @@
 
 * Project Backlog
-
-** TODO [#B] Setup Emails in Emacs
+** Setup Emails in Emacs
 :LOGBOOK:
 CLOCK: [2020-04-28 Tue 00:35]--[2020-04-28 Tue 00:35] =>  0:00
 :END:
-*** DONE Fetching
-**** [2020-04-23 Thu 09:28] isync - ArchWiki :grasp:email:emacs:productivity:
-https://wiki.archlinux.org/index.php/Isync
-Comment:
-configure mbsync
-**** [2020-04-23 Thu 09:30] isync: free IMAP and MailDir mailbox synchronizer :grasp:emacs:email:productivity:
-http://isync.sourceforge.net/
-Comment:
-isync (which includes mbsync tool to retrieve emails through IMAP) very popular with mu4e & co
-**** DONE setup davmail for office365 / Sky emails
-Sky's URL is: https://mail2.bskyb.com/Ews/Exchange.asmx
-- http://davmail.sourceforge.net/serversetup.html
-- https://tknv.github.io/2016/12/03/mutt-mbsync/
 *** Managing
-**** [2020-04-23 Thu 09:30] Drowning in Email; mu4e to the Rescue. :grasp:productivity:emacs:email:
-http://www.macs.hw.ac.uk/~rs46/posts/2014-01-13-mu4e-email-client.html
-Comment:
-feedback on mu4e + detailed setup from 2014
+- put newsletters into their own view and manage them as closely as
+  possible from RSS feeds
 **** [2020-04-23 Thu 10:14] Handling Email with Emacs – malb::blog :grasp:emacs:email:productivity:
 https://martinralbrecht.wordpress.com/2016/05/30/handling-email-with-emacs/
 Comment:
 Thorough mu4e setup
-**** [2020-04-23 Thu 10:16] mu4e tutorials | Pragmatic Emacs :grasp:emacs:email:productivity:
-http://pragmaticemacs.com/mu4e-tutorials/
-Comment:
-list of tutorials by pragmaticemacs on mu4e
 **** [2020-04-26 Sun 09:27] mkcms/mu4e-overview: Show overview of maildir :grasp:emacs:email:productivity:
 https://github.com/mkcms/mu4e-overview
 Comment:
 a bit like what you'd expect treemacs to be for emails
-*** Editing
-**** [2020-04-23 Thu 09:28] jeremy-compostella/org-msg: OrgMsg is a GNU/Emacs global minor mode mixing up Org mode and Message mode to compose and reply to emails in a Outlook HTML friendly style. :grasp:productivity:emacs:email:org:
-https://github.com/jeremy-compostella/org-msg
-Comment:
-reply to emails that requires HTML using org-mode
-*** [2020-04-28 Tue 23:07] Exim4Gmail - Debian Wiki :grasp:emacs:email:sydadmin:
-https://wiki.debian.org/Exim4Gmail
-Comment:
-what helped me configure SMTP for mu4e
-*** [2020-05-02 Sat 22:48] Fastmail setup with Emacs, mu4e and mbsync on macOS - Rakhim.org :grasp:emacs:email:productivity:
-
-https://rakhim.org/2020/01/fastmail-setup-with-emacs-mu4e-and-mbsync-on-macos/
-Selection:
-mu4e-attachments-dir "~/Downloads"
-Comment:
-has been really useful in setting up emails in my Emacs
-*** [2020-05-03 Sun 19:34] Ambrevar / mu4e-conversation · GitLab :grasp:emacs:email:productivity:someday:
+**** [2020-05-03 Sun 19:34] Ambrevar / mu4e-conversation · GitLab :grasp:emacs:email:productivity:someday:
 
 https://gitlab.com/ambrevar/mu4e-conversation
 Comment:
 Something to try one day
+*** Editing
+- need to learn the footnote minor mode
+- something to check: line breaking does weird things on the receiving end
 *** Issues
 **** Forwarding with org-msg
+**** Can't accept outlook invite
+accepting doesn't mark me as accepted in the organiser's calendar
+**** TODO Can't send through M&S SMTP
 ** TODO Smooth windowing flow
 *** [2020-04-23 Thu 10:07] nex3/perspective-el: Perspectives for Emacs. :grasp:emacs:wm:productivity:
 https://github.com/nex3/perspective-el
@@ -112,33 +82,12 @@ https://github.com/atheriel/evil-ledger
 *** [2020-04-26 Sun 23:56] Plain Text Accounting with ledger and ledger-likes :grasp:finance:emacs:
 https://www.reddit.com/r/plaintextaccounting/
 
-** DONE commit emacs config
-** DONE version dotfiles for email in emacs
-:LOGBOOK:
-CLOCK: [2020-05-19 Tue 08:36]--[2020-05-19 Tue 08:46] =>  0:10
-CLOCK: [2020-05-19 Tue 07:42]--[2020-05-19 Tue 08:09] =>  0:27
-CLOCK: [2020-05-18 Mon 23:24]--[2020-05-18 Mon 23:30] =>  0:06
-CLOCK: [2020-05-18 Mon 22:09]--[2020-05-18 Mon 22:51] =>  0:42
-CLOCK: [2020-05-18 Mon 19:48]--[2020-05-18 Mon 21:26] =>  1:38
-CLOCK: [2020-05-18 Mon 17:45]--[2020-05-18 Mon 19:00] =>  1:15
-CLOCK: [2020-05-18 Mon 16:52]--[2020-05-18 Mon 17:19] =>  0:27
-:END:
-- [ ] mbsync
-- [ ] imapnotify
-- [ ] dropbox.service
-- [ ] imapnotify.service
-- [ ] mu: ./configure --datadir=/home/behaghel/install/emacs/20200404/share
 ** [2020-04-28 Tue 14:59] bnbeckwith/wc-mode: Wordcount minor mode for Emacs :grasp:emacs:blog:
 
 https://github.com/bnbeckwith/wc-mode
 Comment:
 could be a useful addition to my setup for blogging and writing in Emacs
 * Insipring Emacs Configs
-** [2020-04-24 Fri 23:36] .emacs.d/init.el at master · jethrokuan/.emacs.d :grasp:emacs:config:example:
-https://github.com/jethrokuan/.emacs.d/blob/master/init.el
-Comment:
-Jethro is a master of org workflow
-
 ** [2020-04-26 Sun 23:32] .emacs.d/init.el at master · jethrokuan/.emacs.d :grasp:emacs:productivity:
 https://github.com/jethrokuan/.emacs.d/blob/218ea42779db9d8db5dfdd6c6524abac3f10855c/init.el#L1356
 Selection:
@@ -147,3 +96,24 @@ Selection:
     (flycheck-add-mode 'proselint 'org-mode))
 Comment:
 inspiration for my agenda view
+
+* Setup
+** [2020-04-23 Thu 09:28] jeremy-compostella/org-msg :grasp:productivity:emacs:email:org:
+https://github.com/jeremy-compostella/org-msg OrgMsg is a GNU/Emacs
+global minor mode mixing up Org mode and Message mode to compose and
+reply to emails in a Outlook HTML friendly style.
+
+Comment: reply to emails that requires HTML using org-mode
+** System / outside Emacs
+*** [2020-04-28 Tue 23:07] Exim4Gmail - Debian Wiki :grasp:emacs:email:sydadmin:
+https://wiki.debian.org/Exim4Gmail
+Comment:
+what helped me configure SMTP for mu4e
+
+*** [2020-05-02 Sat 22:48] Fastmail setup with Emacs, mu4e and mbsync on macOS - Rakhim.org :grasp:emacs:email:productivity:
+
+https://rakhim.org/2020/01/fastmail-setup-with-emacs-mu4e-and-mbsync-on-macos/
+Selection:
+mu4e-attachments-dir "~/Downloads"
+Comment:
+has been really useful in setting up emails in my Emacs

@@ -35,7 +35,8 @@ most org export / preview in the browser."
   (setq-local temporary-file-directory "~/tmp"))
 
 ;; where brew install mu puts it
-(add-to-list 'load-path "/usr/local/share/emacs/site-lisp/mu/mu4e")
+(when (eq system-type 'darwin)
+  (add-to-list 'load-path "/usr/local/share/emacs/site-lisp/mu/mu4e"))
 
 ;; https://www.djcbsoftware.nl/code/mu/mu4e/Installation.html#Installation
 ;; mu4e is part of the mu project, a UNIX CLI therefore not on MELPA
@@ -515,7 +516,7 @@ most org export / preview in the browser."
         '( (:date           . 15)    ;; alternatively, use :human-date
            (:maildir        . 15)
            (:flags          . 6)
-           (:from           . 22)
+           (:from-or-to     . 22)
            (:thread-subject . nil)))
   (setq
    mu4e-headers-date-format "%F"     ; ISO format yyyy-mm-dd
