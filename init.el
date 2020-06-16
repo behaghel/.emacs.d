@@ -1222,6 +1222,7 @@ _z_oom on node
 ;; at the end, for windows to pick up the font change
 (require 'setup-ui)
 ;; (require 'setup-treemacs)
+(require 'setup-elfeed)
 (require 'setup-email)
 
 (provide 'init)

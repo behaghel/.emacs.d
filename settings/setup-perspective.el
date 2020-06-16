@@ -49,7 +49,8 @@
       ;; ("s" file ,(concat org-directory "sas.org") "org")
       ("i" file ,(concat org-directory "inbox.org") "org")
       ("h" file ,(concat org-directory "hubert.org") "org")
-      ("m" command mu4e "emails")
+      ("m" command mu4e "mails")
+      ("f" command elfeed "feeds")
       ))
   (defun hub/setup-speed-dial ()
     "Install global keybindings on normal mode with prefix ',o'

@@ -1,0 +1,55 @@
+#+TITLE: Elfeed Feeds
+#+AUTHOR: Hubert Behaghel
+#+EMAIL: behaghel@gmail.com
+#+LANGUAGE: en
+#+OPTIONS: H:4 toc:3 ^:{}
+#+COLUMNS: %25ITEM %TAGS %PRIORITY %TODO
+#+LATEX_HEADER: \usepackage[usenames,hyperref]{xcolor}
+#+LATEX_CLASS_OPTIONS: [colorlinks, linkcolor=red, urlcolor=blue]
+
+* Blogs                                                              :elfeed:
+** Hackers I follow
+*** Emacs                                                           :emacs:
+**** [[https://blog.jethro.dev/index.xml][Jethro Kuan]]                                                    :basb:
+**** [[https://sachachua.com/blog/feed][sacha chua :: living an awesome life]]
+**** [[https://irreal.org/blog/?feed=rss2][Irreal]]
+**** [[http://feeds.feedburner.com/CestLaZ][C'est la Z]]
+**** [[https://blog.aaronbieber.com/posts/index.xml][Posts on The Chronicle]]                                         :hugo:
+*** [[http://pit-claudel.fr/clement/blog/feed/][Code crumbs, by Clément Pit--Claudel]]
+*** https://noonker.github.io/index.xml                              :hugo:
+*** [[https://bartoszmilewski.com/feed/][Bartosz Milewski's Programming Café]]
+** Smarter Every Day
+*** [[https://fs.blog/feed/][Farnam Street]]
+** Tech Leadership                                         :tech:leadership:
+*** [[http://svpg.com/feed/][Silicon Valley Product Group]]
+*** [[https://devskilldojo.com/rss/][Dev Skill Dojo]]
+*** [[http://feeds.gillardmoss.me.uk/pgm?format=xml][Peter Gillard-Moss]]
+*** [[http://danluu.com/atom.xml][Dan Luu]]
+* Newsletters                                                        :elfeed:
+** [[https://www.kill-the-newsletter.com/feeds/z2r71cwv6y4jk5thsz5i.xml][Cycling]]                                                         :cycling:
+email starts with z2r...
+** [[https://www.kill-the-newsletter.com/feeds/hmn770gntgy5uxsv853g.xml][Shopping]]                                                       :shopping:
+email starts with hmn...
+** [[https://www.kill-the-newsletter.com/feeds/nkwu02njn7xdj9tcv0tq.xml][Faith]]                                                             :faith:
+email starts with nkw...
+** [[https://www.kill-the-newsletter.com/feeds/xb4e3wldkhjmd01lo4jg.xml][News]]                                                               :news:
+email starts with xb4...
+** [[https://www.kill-the-newsletter.com/feeds/ghu77yn7laercb4hi5gh.xml][Health]]                                                           :health:
+email starts with ghu...
+** [[https://www.kill-the-newsletter.com/feeds/61a7on3e2q33b8tnef1i.xml][Tech]]                                                               :tech:
+email starts with 61a...
+*** [[http://levelup.patkua.com/?format=rss][Patrick Kua — Level Up]]                                     :leadership:
+*** [[https://www.hillelwayne.com/index.xml][Hillel Wayne's Essays]]
+* Podcasts                                                   :podcast:elfeed:
+** Faith                                                             :faith:
+*** [[https://www.ivoox.com/podcast-10-minutos-jesus_fg_f1633739_filtro_1.xml][10 Minutos con Jesús]]
+*** [[http://feeds.soundcloud.com/users/soundcloud:users:289360986/sounds.rss][Spiritual Batteries]]
+*** [[http://feeds.soundcloud.com/users/soundcloud:users:112746266/sounds.rss][St. Josemaria Institute Podcast]]
+*** [[http://feeds.soundcloud.com/users/soundcloud:users:513005694/sounds.rss][The Dad Project]]
+*** [[https://feeds.megaphone.fm/WWO4858695911][The Jordan B. Peterson Podcast]]
+*** [[https://www.theologieducorps.fr/rss/podcast][Théologie du Corps]]
+** Leadership                                                   :leadership:
+*** [[https://investlikethebest.libsyn.com/rss][Invest Like the Best]]
+* Forums                                                             :elfeed:
+** Tech                                                               :tech:
+*** [[https://discourse.gohugo.io/latest.rss][Hugo]]                                                           :ignore:
