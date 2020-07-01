@@ -96,7 +96,8 @@ Selection:
     (flycheck-add-mode 'proselint 'org-mode))
 Comment:
 inspiration for my agenda view
-
+- http://irfu.cea.fr/Pisp/vianney.lebouteiller/emacs.html#orgf16d962
+- https://github.com/malb/emacs.d/blob/master/malb.org
 * Setup
 ** [2020-04-23 Thu 09:28] jeremy-compostella/org-msg :grasp:productivity:emacs:email:org:
 https://github.com/jeremy-compostella/org-msg OrgMsg is a GNU/Emacs

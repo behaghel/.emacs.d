@@ -15,6 +15,7 @@
 **** [[https://irreal.org/blog/?feed=rss2][Irreal]]
 **** [[http://feeds.feedburner.com/CestLaZ][C'est la Z]]
 **** [[https://blog.aaronbieber.com/posts/index.xml][Posts on The Chronicle]]                                         :hugo:
+[[https://vxlabs.com/index.xml][VxLabs]]
 *** [[http://pit-claudel.fr/clement/blog/feed/][Code crumbs, by Clément Pit--Claudel]]
 *** https://noonker.github.io/index.xml                              :hugo:
 *** [[https://bartoszmilewski.com/feed/][Bartosz Milewski's Programming Café]]

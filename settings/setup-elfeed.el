@@ -31,12 +31,18 @@
   (setq shr-width 80)
   ;; stolen from https://karthinks.com/blog/lazy-elfeed/
   (setq elfeed-show-entry-switch #'elfeed-display-buffer)
+  (setq-default elfeed-search-filter "@6-months-ago +unread -podcast")
   (defun elfeed-display-buffer (buf &optional act)
-    (pop-to-buffer buf '((display-buffer-in-previous-window display-buffer-at-bottom)
-                         ;; (inhibit-same-window . t)
-                         (window-height . 0.7)
-                         (reusable-frames . nil))
-                   ))
+    (pop-to-buffer buf)
+    (set-window-text-height (get-buffer-window) (round (* 0.7 (frame-height))))
+                   ;; '(
+                   ;;   (display-buffer-at-bottom)
+                   ;;   (inhibit-same-window . nil)
+                   ;;       (window-height . 0.8)
+                   ;;       ;; (reusable-frames . nil)
+                   ;;       )
+                   ;; )
+    )
   (defun elfeed-show-eww-open (&optional use-generic-p)
     "open with eww"
     (interactive "P")
