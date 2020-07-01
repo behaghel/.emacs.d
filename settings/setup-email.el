@@ -316,154 +316,210 @@ most org export / preview in the browser."
               :query "from:Yammer")
       ( :name "Sharepoint"
               :query "from:no-reply@sharepointonline.com")
-      ;; Updates
+      ;; Newsletter
       ( :name "Colleague Comms and Engagement"
               :query "from:Colleague.Comms@marks-and-spencer.com")
       ;; GMail
       ;;; Notifications (it's ok if not read)
       ( :name "Strava Notifications"
-              :query "from:no-reply@strava.com")
-      ( :name "Strava Newsletter"
-              :query "list:spc.244190.0.sparkpostmail.com")
-      ( :name "Garmin Newsletter"
-              :query "from:garmin@mails.garmin.com")
-      ( :name "Cycle Plan"
-              :query "from:admin@emails.cycleplan.co.uk")
-      ( :name "VONCRANK"
-              :query "from:info@voncrank.com")
+              :query "from:no-reply@strava.com"
+              :category "cycling")
       ( :name "Ebay Confirmations"
-              :query "from:ebay@ebay.co.uk")
-      ( :name "Ebay"
-              :query "from:ebay@ebay.com")
+              :query "from:ebay@ebay.co.uk OR from:ebay@ebay.com"
+              :category "shopping")
       ( :name "Amazon Confirmations"
-              :query "from:auto-confirm@amazon.co.uk")
+              :query "from:auto-confirm@amazon.co.uk"
+              :category "shopping")
       ( :name "Amazon Updates"
-              :query "from:no-reply@amazon.co.uk")
+              :query "from:no-reply@amazon.co.uk"
+              :category "shopping")
       ( :name "Amazon Shipment"
-              :query "from:shipment-tracking@amazon.co.uk")
+              :query "from:shipment-tracking@amazon.co.uk"
+              :category "shopping")
       ( :name "Amazon Order Updates"
-              :query "from:order-update@amazon.co.uk")
-      ( :name "Amazon Alexa Newsletter"
-              :query "from:amazon-offers@amazon.co.uk")
+              :query "from:order-update@amazon.co.uk"
+              :category "shopping")
       ( :name "Enterprise Rent-a-car"
               :query "list:10780075.xt.local")
       ( :name "Charles Stanley Direct Contract Notes"
               :query "from:info@charles-stanley-direct.co.uk AND subject:\"Contract Note\"")
-      ( :name "Charles Stanley Direct Newsletter"
-              :query "from:info@cs-d.co.uk OR from:\"Charles Stanley Direct\"")
       ( :name "Proactive Investor Alerts"
               :query "from:noreply@proactiveinvestors.com")
       ( :name "HP Instant Ink"
               :query "from:HP@email.hpconnected.com")
-      ( :name "GoHugo Forum"
-              :query "from:gohugo@discoursemail.com")
       ( :name "ParuVendu"
               :query "from:info@paruvendu.fr")
-      ( :name "Marks & Spencer Marketing"
-              :query "list:1060191.xt.local")
       ( :name "Dropbox"
               :query "from:no-reply@dropbox.com")
-      ( :name "Detox Kitchen"
-              :query "from:postman@candymail.co OR list:f07ee3b7aa6b3f3cba844a5f8.228557.list-id.mcsv.net")
-      ( :name "Libertie Shopping"
-              :query "list:contact.boutiquelibertie.com.ipo3-0v378.mj")
-      ( :name "Levi's"
-              :query "from:levis@e.levi.com")
-      ( :name "Executive Shaving"
-              :query "list:a951262677dc714c2205250f2.228673.list-id.mcsv.net")
-      ( :name "InCorio"
-              :query "from:bonjour@incorio.com")
-      ( :name "Hozana"
-              :query "from:contact@hozana.org OR list:ac6ab4ad6642b7f06d375784a.63591.list-id.mcsv.net")
-      ( :name "Union des Français à l'Étranger"
-              :query "list:MTEwMjc5LTU0NzI5MS00Mg==.list-id.communication.excusemyweb.com")
-      ;;; Lists / News (to read when time permits) / Reports
-      ;; Hobby
-      ( :name "Wet Shaving by Mantic59"
-              :query "list:a6f734e009f696324350cdedf.807213.list-id.mcsv.net")
-      ( :name "Kudo Coach"
-              :query "from:hello@kudo.coach")
+      ;; Newsletter
+      ;; I use the wonderfull kill-the-newsletter.com to move
+      ;; newsletters to RSS (read with elfeed).
+      ;; I configure the forwarding filter straight in GMail
+      ;; ( :name "Strava Newsletter"
+      ;;         :query "list:spc.244190.0.sparkpostmail.com"
+      ;;         :category "cycling")
+      ;; ( :name "Garmin Newsletter"
+      ;;         :query "from:garmin@mails.garmin.com"
+      ;;         :category "cycling")
+      ;; ( :name "Cycle Plan"
+      ;;         :query "from:admin@emails.cycleplan.co.uk"
+      ;;         :category "cycling")
+      ;; ( :name "VONCRANK"
+      ;;         :query "from:info@voncrank.com"
+      ;;         :category "cycling")
+      ;; ( :name "Kudo Coach"
+      ;;         :query "from:hello@kudo.coach"
+      ;;         :category "cycling")
+      ;; ( :name "Marks & Spencer Marketing"
+      ;;         :query "list:1060191.xt.local"
+      ;;         :category "shopping")
+      ;; ( :name "Detox Kitchen"
+      ;;         :query "from:postman@candymail.co OR list:f07ee3b7aa6b3f3cba844a5f8.228557.list-id.mcsv.net"
+      ;;         :category "shopping")
+      ;; ( :name "Libertie Shopping"
+      ;;         :query "list:contact.boutiquelibertie.com.ipo3-0v378.mj"
+      ;;         :category "shopping")
+      ;; ( :name "Levi's"
+      ;;         :query "from:levis@e.levi.com"
+      ;;         :category "shopping")
+      ;; ( :name "Executive Shaving"
+      ;;         :query "list:a951262677dc714c2205250f2.228673.list-id.mcsv.net"
+      ;;         :category "shopping")
+      ;; ( :name "InCorio"
+      ;;         :query "from:bonjour@incorio.com"
+      ;;         :category "shopping")
       ;; Religious
-      ( :name "CAFOD"
-              :query "from:news@reply.cafod.net")
-      ( :name "ECLJ"
-              :query "from:secretariat@eclj.org")
-      ( :name "Theodom"
-              :query
-              "list:dominicains.communaute.theodom.org.j8ko-ik9.mj" )
-      ( :name "Retraite dans la Ville"
-              :query "list:dominicains.retraitedanslaville.org.i5tg-l4g.mj")
-      ( :name "Franciscan at Home"
-              :query "list:a1ee93991069fffd045e3a111.56591.list-id.mcsv.net")
-      ( :name "Jean-Baptiste Maillard - Light in the Dark"
-              :query
-              "list:jean-baptiste.maillard.lightsinthedark.info.x0wws-5vl5g.mj")
-      ( :name "AFC France"
-              :query "from:info@afc-france.org")
-      ( :name "Aid to Church in Need"
-              :query "from:enews@acnuk.org OR list:25a175338ce0562b9d08ed926.308377.list-id.mcsv.net")
-      ( :name "Fondation Lejeune"
-              :query "list:contact.fondationlejeune.org.0uiy-095rn.mj")
-      ( :name "Consecration Notre Dame de France"
-              :query "list:MjEzNTMtNTEwNjE3OC0xOQ==.list-id.mailin.fr")
-      ( :name "Revue Codex"
-              :query "from:codex@editionscld.fr")
+      ;; ( :name "Hozana"
+      ;;         :query "from:contact@hozana.org OR list:ac6ab4ad6642b7f06d375784a.63591.list-id.mcsv.net"
+      ;;         :category "faith")
+      ;; ( :name "CAFOD"
+      ;;         :query "from:news@reply.cafod.net"
+      ;;         :category "faith")
+      ;; ( :name "ECLJ"
+      ;;         :query "from:secretariat@eclj.org"
+      ;;         :category "faith")
+      ;; ( :name "Theodom"
+      ;;         :query
+      ;;         "list:dominicains.communaute.theodom.org.j8ko-ik9.mj"
+      ;;         :category "faith")
+      ;; ( :name "Retraite dans la Ville"
+      ;;         :query "list:dominicains.retraitedanslaville.org.i5tg-l4g.mj"
+      ;;         :category "faith")
+      ;; ( :name "Franciscan at Home"
+      ;;         :query "list:a1ee93991069fffd045e3a111.56591.list-id.mcsv.net"
+      ;;         :category "faith")
+      ;; ( :name "Jean-Baptiste Maillard - Light in the Dark"
+      ;;         :query
+      ;;         "list:jean-baptiste.maillard.lightsinthedark.info.x0wws-5vl5g.mj"
+      ;;         :category "faith")
+      ;; ( :name "AFC France"
+      ;;         :query "from:info@afc-france.org"
+      ;;         :category "faith")
+      ;; ( :name "Aid to Church in Need"
+      ;;         :query "from:enews@acnuk.org OR list:25a175338ce0562b9d08ed926.308377.list-id.mcsv.net"
+      ;;         :category "faith")
+      ;; ( :name "Consecration Notre Dame de France"
+      ;;         :query "list:MjEzNTMtNTEwNjE3OC0xOQ==.list-id.mailin.fr"
+      ;;         :category "faith")
+      ;; ( :name "Revue Codex"
+      ;;         :query "from:codex@editionscld.fr"
+      ;;         :category "faith")
       ;; General Info
-      ( :name "Le PCD"
-              :query "from:contact@lepcd.fr")
-      ( :name "La Selection Du Jour"
-              :query "from:lsdjabos@laselectiondujour.com")
-      ( :name "Westminster COVID Update"
-              :query
-              "list:a50c8b0dd980669ef713b4cca.55853.list-id.mcsv.net" )
-      ( :name "TfL"
-              :query "from:Transport_for_London@email.tfl.gov.uk")
-      ( :name "Talk London"
-              :query "from:updates@email.talklondon.london.gov.uk")
-      ( :name "Dr Willem - Lettre Santé Naturelle"
-              :query "list:100017990.xt.local")
-      ( :name "Lettre Nutri-Santé"
-              :query "list:100008586.xt.local")
-      ( :name "Avaaz"
-              :query "from:avaaz@avaaz.org")
-      ;; Technology
-      ( :name "Medium Weekly Newsletter"
-              :query "from:noreply@medium.com")
-      ( :name "SWLW"
-              :query "from:oren@softwareleadweekly.com")
-      ( :name "Patrick Kua — Level Up"
-              :query "from:level-up@getrevue.co")
-      ( :name "Remote HQ"
-              :query "list:info.nohq.co.x33xq-2w4.mj")
-      ( :name "Grafana"
-              :query "list:2aeb5711db2aececc990be536.793549.list-id.mcsv.net")
-      ( :name "Real Python"
-              :query "from:info@realpython.com")
+      ;; ( :name "Union des Français à l'Étranger"
+      ;;         :query "list:MTEwMjc5LTU0NzI5MS00Mg==.list-id.communication.excusemyweb.com"
+      ;;         :category "news")
+      ;; ( :name "Le PCD"
+      ;;         :query "from:contact@lepcd.fr"
+      ;;         :category "news")
+      ;; ( :name "La Selection Du Jour"
+      ;;         :query "from:lsdjabos@laselectiondujour.com"
+      ;;         :category "news")
+      ;; ( :name "Westminster COVID Update"
+      ;;         :query
+      ;;         "list:a50c8b0dd980669ef713b4cca.55853.list-id.mcsv.net"
+      ;;         :category "news")
+      ;; ( :name "TfL"
+      ;;         :query "from:Transport_for_London@email.tfl.gov.uk"
+      ;;         :category "news")
+      ;; ( :name "Talk London"
+      ;;         :query "from:updates@email.talklondon.london.gov.uk"
+      ;;         :category "news")
+      ;; ( :name "Avaaz"
+      ;;         :query "from:avaaz@avaaz.org"
+      ;;         :category "news")
+      ;; ( :name "Dr Willem - Lettre Santé Naturelle"
+      ;;         :query "list:100017990.xt.local"
+      ;;         :category "health")
+      ;; ( :name "Lettre Nutri-Santé"
+      ;;         :query "list:100008586.xt.local"
+      ;;         :category "health")
+      ;; ( :name "Wet Shaving by Mantic59"
+      ;;         :query "list:a6f734e009f696324350cdedf.807213.list-id.mcsv.net"
+      ;;         :category "health")
+      ;; ( :name "GoHugo Forum"
+      ;;         :query "from:gohugo@discoursemail.com"
+      ;;         :category "tech")
+      ;; ( :name "Medium Weekly Newsletter"
+      ;;         :query "from:noreply@medium.com"
+      ;;         :category "tech")
+      ;; ( :name "SWLW"
+      ;;         :query "from:oren@softwareleadweekly.com"
+      ;;         :category "tech")
+      ;; ( :name "Patrick Kua — Level Up"
+      ;;         :query "from:level-up@getrevue.co"
+      ;;         :category "tech")
+      ;; ( :name "Remote HQ"
+      ;;         :query "list:info.nohq.co.x33xq-2w4.mj"
+      ;;         :category "tech")
+      ;; ( :name "Grafana"
+      ;;         :query "list:2aeb5711db2aececc990be536.793549.list-id.mcsv.net"
+      ;;         :category "tech")
+      ;; ( :name "Real Python"
+      ;;         :query "from:info@realpython.com"
+      ;;         :category "tech")
       ( :name "Mu"
-              :query "list:mu-discuss.googlegroups.com")
-      ( :name "Gandi"
-              :query "list:MjY0NzEzOS0xMTk0NDcwLTUz.list-id.market.gandi.net")
-      ( :name "Hillel Wayne's Newsletter"
-              :query "list:hillelwayne.buttondown.email")
-      ( :name "Bartosz Milewski's Programming Cafe"
-              :query "from:\"Bartosz Milewski\"")
-      ( :name "Thoughtworks Radar"
-              :query "from:techradar@thoughtworks.com")
+              :query "list:mu-discuss.googlegroups.com"
+              :category "tech")
+      ;; ( :name "Amazon Alexa Newsletter"
+      ;;         :query "from:amazon-offers@amazon.co.uk"
+      ;;         :category "tech")
+      ;; ( :name "Gandi"
+      ;;         :query "list:MjY0NzEzOS0xMTk0NDcwLTUz.list-id.market.gandi.net"
+      ;;         :category "tech")
+      ;; ( :name "Hillel Wayne's Newsletter"
+      ;;         :query "list:hillelwayne.buttondown.email"
+      ;;         :category "tech")
+      ;; ( :name "Bartosz Milewski's Programming Cafe"
+      ;;         :query "from:\"Bartosz Milewski\""
+      ;;         :category "tech")
+      ;; ( :name "Thoughtworks Radar"
+      ;;         :query "from:techradar@thoughtworks.com"
+      ;;         :category "tech")
       ;; Finance
       ( :name "Money Saving Expert - Cheap Energy Club"
-              :query "list:1081285.xt.local")
+              :query "list:1081285.xt.local"
+              :category "finance")
       ( :name "Bulb"
-              :query "from:hello@bulb.co.uk")
+              :query "from:hello@bulb.co.uk"
+              :category "finance")
       ( :name "HSBC"
-              :query "from:statements@email1.hsbc.co.uk")
+              :query "from:statements@email1.hsbc.co.uk"
+              :category "finance")
       ( :name "Hargreaves Lansdown"
-              :query "from:hl@email.hl.co.uk")
+              :query "from:hl@email.hl.co.uk"
+              :category "finance")
       ( :name "Boursorama"
-              :query "from:noreply@boursorama.fr OR from:noreply@client.boursorama.fr")
+              :query "from:noreply@boursorama.fr OR from:noreply@client.boursorama.fr"
+              :category "finance")
       ( :name "L&C Mortgage"
-              :query "list:500008880.xt.local")
+              :query "list:500008880.xt.local"
+              :category "finance")
+      ( :name "Charles Stanley Direct Newsletter"
+              :query "from:info@cs-d.co.uk OR from:\"Charles Stanley Direct\""
+              :category "finance")
       ( :name "Rightmove"
-              :query "from:autoresponder@rightmove.com")
+              :query "from:autoresponder@rightmove.com"
+              :category "finance")
       ))
   (defun hub/build-noise-query ()
     (let* (
@@ -569,6 +625,7 @@ most org export / preview in the browser."
   (require 'mu4e-icalendar)
   (mu4e-icalendar-setup)
   (setq mu4e-icalendar-trash-after-reply nil) ; nil until I trust it
+  ;; (setq mu4e-icalendar-diary-file "~/.emacs.d/diary-ical")
   ;; org integration
   (require 'org-agenda)
   (setq gnus-icalendar-org-capture-file org-default-notes-file)
@@ -631,14 +688,34 @@ most org export / preview in the browser."
         ;; I'd rather go with 'traditional but I guess the world isn't
         ;; traditional enough
         message-cite-reply-position 'above
+        ;; TODO: think of dropping the last colon: https://www.djcbsoftware.nl/code/mu/mu4e/Writing-messages.html#How-can-I-avoid-Outlook-display-issues_003f
         message-citation-line-format "On %A, %d %B %Y at %R %Z, %N wrote:\n"
         message-citation-line-function 'message-insert-formatted-citation-line
-        ;; https://www.djcbsoftware.nl/code/mu/mu4e/Writing-messages.html#How-can-I-apply-format_003dflowed-to-my-outgoing-messages_003f
-        mu4e-compose-format-flowed t    ; works better without hard newlines
         ;; org-msg doesn't work well with mu4e sig
         ;; https://github.com/jeremy-compostella/org-msg/issues/57
         ;; mu4e-compose-signature "Hubert" ;\nhttps://blog.behaghel.org"
         )
+  ;; Do not auto-wrap lines in favor of format=flowed, but still
+  ;; display them nicely wrapped in Emacs.
+  (setq
+   ;; enable format=flowed
+   ;; - mu4e sets up visual-line-mode and also fill (M-q) to do the right thing
+   ;; - each paragraph is a single long line; at sending, emacs will add the
+   ;;   special line continuation characters.
+   ;; - also see visual-line-fringe-indicators setting below
+   ;; https://www.djcbsoftware.nl/code/mu/mu4e/Writing-messages.html#How-can-I-apply-format_003dflowed-to-my-outgoing-messages_003f
+   mu4e-compose-format-flowed t
+   ;; because it looks like email clients are basically ignoring format=flowed,
+   ;; let's complicate their lives too. send format=flowed with looong lines. :)
+   ;; https://www.ietf.org/rfc/rfc2822.txt
+   fill-flowed-encode-column 998
+   ;; in mu4e with format=flowed, this gives me feedback where the
+   ;; soft-wraps are
+   visual-line-fringe-indicators '(left-curly-arrow right-curly-arrow)
+   )
+  (add-hook 'mu4e-compose-mode-hook 'visual-clean)
+
+
   (setq ispell-program-name "aspell")
   (add-hook 'message-mode-hook #'flyspell-mode)
   (add-hook 'message-mode-hook #'footnote-mode)
@@ -653,6 +730,20 @@ most org export / preview in the browser."
   ;; to select the right language in spell check
   ;; TODO: https://github.com/nschum/auto-dictionary-mode
   ;; (add-hook 'message-mode-hook #'adict-guess-dictionary)
+
+  ;; if you want to request ACK
+  ;; Kindly shared by @Chris00
+  ;; TODO: make it on-demand through a function bound to zK
+  ;; (add-hook
+  ;;  'mu4e-compose-mode-hook
+  ;;  (defun my/add-headers ()
+  ;;    "Add some headers when composing mails."
+  ;;    (save-excursion
+  ;;      (message-add-header
+  ;;       "Return-Receipt-To: Hubert.Behaghel@marks-and-spencer.com\n"
+  ;;       "Disposition-Notification-To: Hubert.Behaghel@marks-and-spencer.com\n")
+  ;;      )))
+
 
   ;; Also see use-package org-msg
 
