@@ -161,6 +161,7 @@ most org export / preview in the browser."
     "zh" 'mu4e-view-toggle-html
     "gs" 'mu4e-headers-prev-unread
     "gt" 'mu4e-headers-next-unread
+    "gb" 'message-goto-body
     "\C-t" 'mu4e-view-headers-next
     "\C-s" 'mu4e-view-headers-prev
     "zÉ" 'mu4e-headers-toggle-include-related
@@ -185,6 +186,7 @@ most org export / preview in the browser."
     "gs" 'message-goto-subject
     "\C-c\C-s" 'message-goto-subject      ; align with org-msg
     "gb" 'message-goto-body
+    (kbd "zn") 'use-hard-newlines       ; reintroduce hard nl
     )
   (evil-collection-define-key 'normal 'org-msg-edit-mode-map
     ",hh" 'mu4e-display-manual
@@ -213,8 +215,9 @@ most org export / preview in the browser."
             (lambda (msg)
               (when msg
                 (string-match-p "^/gmail" (mu4e-message-field msg :maildir))))
-            :vars '((user-mail-address         . "behaghel@gmail.com")
-                    (smtpmail-smtp-service     . 25)
+            :vars '((user-mail-address      . "behaghel@gmail.com")
+                    (smtpmail-smtp-user     . "behaghel@gmail.com")
+                    (smtpmail-smtp-service  . 25)
                     ))
           ,(make-mu4e-context
             :name "mns"
@@ -225,6 +228,7 @@ most org export / preview in the browser."
                 (string-match-p "^/mns" (mu4e-message-field msg :maildir))))
             :vars '((user-mail-address      . "hubert.behaghel@marks-and-spencer.com")
                     (smtpmail-smtp-service  . 1025) ; davmail SMTP
+                    (smtpmail-smtp-user     . "hubert.behaghel@mnscorp.net")
                     (mu4e-compose-signature . nil)
                     ))
 
@@ -238,8 +242,9 @@ most org export / preview in the browser."
                                                     '(:cc :from :to)
                                                     "hubert@behaghel.fr")
                 ))
-            :vars '((user-mail-address         . "hubert@behaghel.fr")
-                    (smtpmail-smtp-service     . 25)
+            :vars '((user-mail-address     . "hubert@behaghel.fr")
+                    (smtpmail-smtp-user    . "hubert@behaghel.fr")
+                    (smtpmail-smtp-service . 25)
                     ))
           ,(make-mu4e-context
             :name "obehaghel.org"
@@ -251,8 +256,9 @@ most org export / preview in the browser."
                                                     '(:cc :from :to)
                                                     "hubert@behaghel.org")
                 ))
-            :vars '((user-mail-address         . "hubert@behaghel.org")
-                    (smtpmail-smtp-service     . 25)
+            :vars '((user-mail-address     . "hubert@behaghel.org")
+                    (smtpmail-smtp-user    . "hubert@behaghel.org")
+                    (smtpmail-smtp-service . 25)
                     ))
           ))
 
@@ -396,6 +402,8 @@ most org export / preview in the browser."
               :query "from:info@afc-france.org")
       ( :name "Aid to Church in Need"
               :query "from:enews@acnuk.org OR list:25a175338ce0562b9d08ed926.308377.list-id.mcsv.net")
+      ( :name "Fondation Lejeune"
+              :query "list:contact.fondationlejeune.org.0uiy-095rn.mj")
       ( :name "Consecration Notre Dame de France"
               :query "list:MjEzNTMtNTEwNjE3OC0xOQ==.list-id.mailin.fr")
       ( :name "Revue Codex"
@@ -626,7 +634,7 @@ most org export / preview in the browser."
         message-citation-line-format "On %A, %d %B %Y at %R %Z, %N wrote:\n"
         message-citation-line-function 'message-insert-formatted-citation-line
         ;; https://www.djcbsoftware.nl/code/mu/mu4e/Writing-messages.html#How-can-I-apply-format_003dflowed-to-my-outgoing-messages_003f
-        mu4e-compose-format-flowed t
+        mu4e-compose-format-flowed t    ; works better without hard newlines
         ;; org-msg doesn't work well with mu4e sig
         ;; https://github.com/jeremy-compostella/org-msg/issues/57
         ;; mu4e-compose-signature "Hubert" ;\nhttps://blog.behaghel.org"
@@ -634,6 +642,10 @@ most org export / preview in the browser."
   (setq ispell-program-name "aspell")
   (add-hook 'message-mode-hook #'flyspell-mode)
   (add-hook 'message-mode-hook #'footnote-mode)
+  ;; I hope this help format=flowed look better
+  (add-hook 'message-mode-hook (lambda () (use-hard-newlines -1)))
+  ;; if this doesn't help, look here:
+  ;; https://emacs.stackexchange.com/questions/3061/how-to-stop-mu4e-from-inserting-line-breaks
 
   ;; TODO: https://github.com/jorgenschaefer/typoel
   ;; (add-hook 'message-mode-hook #'typo-mode)
@@ -648,7 +660,14 @@ most org export / preview in the browser."
   ;; sync / blocking
   (setq send-mail-function 'smtpmail-send-it)
   (setq message-send-mail-function 'message-smtpmail-send-it)
-  (setq smtpmail-smtp-server "localhost")
+  (setq smtpmail-smtp-server "localhost"
+        ;; smtpmail-auth-supported '(login)
+        smtpmail-debug-info t)
+  ;; this uses pass localhost.gpg to retrieve password
+  (require 'auth-source-pass)
+  (auth-source-pass-enable)
+  ;; (setq auth-source-debug t)
+  ;; (setq auth-source-do-cache nil)
   ;; async
   ;; (setq send-mail-function 'sendmail-send-it)
   ;; (setq message-send-mail-function 'message-send-mail-with-sendmail)
