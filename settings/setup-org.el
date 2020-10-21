@@ -280,4 +280,79 @@ of its arguments."
 (use-package ox-clip
   :config
   (evil-define-key 'visual org-mode-map (kbd ",y") 'ox-clip-formatted-copy))
+
+(use-package anki-editor
+  :defer 10
+  :after org
+  :hook (org-capture-after-finalize . anki-editor-reset-cloze-number) ; Reset cloze-number after each capture.
+  :config
+  (evil-collection-define-key 'visual 'org-mode-map
+    ",_"   'anki-editor-cloze-region-dont-incr
+    ",-"   'anki-editor-cloze-region-auto-incr
+    )
+  (evil-collection-define-key 'normal 'org-mode-map
+    ",0"   'anki-editor-reset-cloze-number
+    ",^"   'anki-editor-push-tree
+    )
+
+  (defun anki-editor-cloze-region-auto-incr (&optional arg)
+    "Cloze region without hint and increase card number."
+    (interactive)
+    (anki-editor-cloze-region my-anki-editor-cloze-number "")
+    (setq my-anki-editor-cloze-number (1+ my-anki-editor-cloze-number))
+    (forward-sexp))
+  (defun anki-editor-cloze-region-dont-incr (&optional arg)
+    "Cloze region without hint using the previous card number."
+    (interactive)
+    (anki-editor-cloze-region (1- my-anki-editor-cloze-number) "")
+    (forward-sexp))
+  (defun anki-editor-reset-cloze-number (&optional arg)
+    "Reset cloze number to ARG or 1"
+    (interactive)
+    (setq my-anki-editor-cloze-number (or arg 1)))
+  (defun anki-editor-push-tree ()
+    "Push all notes under a tree."
+    (interactive)
+    (anki-editor-push-notes '(4))
+    (anki-editor-reset-cloze-number))
+  ;; Initialize
+  (anki-editor-reset-cloze-number)
+  (add-to-list 'org-capture-templates
+               '("a" "Anki basic"
+                 entry
+                 (file+headline org-default-notes-file "Anki")
+                 "* %<%H:%M>   %^g\n:PROPERTIES:\n:ANKI_NOTE_TYPE: Basic\n:ANKI_DECK: Mega\n:END:\n** Front\n%?\n** Back\n%x\n"))
+  (add-to-list 'org-capture-templates
+               '("A" "Anki cloze"
+                 entry
+                 (file+headline org-default-notes-file "Anki")
+                 "* %<%H:%M>   %^g\n:PROPERTIES:\n:ANKI_NOTE_TYPE: Cloze\n:ANKI_DECK: Mega\n:END:\n** Text\n%x\n** Extra\n"))
+  )
+(use-package org-download
+  :pin melpa
+  :defer 10
+  :after org
+  ;; Drag-and-drop to `dired`
+  :hook (dired-mode-hook . org-download-enable)
+  :config
+  (require 'org-download)
+  (evil-collection-define-key 'normal 'org-mode-map
+    ",Y"   'org-download-clipboard
+    )
+  ;; org-download use buffer-local variables. Set it individually in files. Otherwise, put things flatly in misc
+  ;; folder.
+  (setq-default org-download-method 'attach ;; Screenshots are stored in data/ directory by ID. Easier to manage
+                org-download-heading-lvl nil
+                org-download-delete-image-after-download t
+                )
+)
+(use-package org-drill
+  :after org
+  :defer 10
+  :config
+  (add-to-list 'org-capture-templates
+               '("y" "sysadmin drill question"
+                  entry
+                  (file+headline "~/Dropbox/Documents/org/learning/sysadmin.org" "Drills")
+                  "\n\n** %^{Question title}                           :sysadmin:drill:\n\n   %^{Question body} \n\n*** Answer \n\n    #+BEGIN_SRC %^{awk_bash} :results output code :in-file ./text-files/%^{text file}\n      %^{awk_bash program}\n    #+END_SRC")))
 (provide 'setup-org)
