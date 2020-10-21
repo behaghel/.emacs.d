@@ -68,6 +68,14 @@
     "B" 'elfeed-search-eww-open
   )
   )
+(use-package elfeed-web
+  :commands (elfeed-web-start)
+  :config
+  ;; on chromebook you also need a forward rule e.g. using this add-on
+  ;; https://chrome.google.com/webstore/detail/connection-forwarder/ahaijnonphgkgnkbklchdhclailflinn/related
+  (setq httpd-host "0.0.0.0")
+  (setq httpd-port 9000)
+  (elfeed-web-start))
 (use-package elfeed-org
   :after elfeed
   :config
@@ -100,9 +108,3 @@
 
 (provide 'setup-elfeed)
 ;;; setup-elfeed.el ends here
-
-
-;; Copyright (C) 2020  Hubert Behaghel
-
-;; Author: Hubert Behaghel <behaghel@gmail.com>
-;; Keywords: news,

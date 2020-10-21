@@ -15,7 +15,9 @@
 **** [[https://irreal.org/blog/?feed=rss2][Irreal]]
 **** [[http://feeds.feedburner.com/CestLaZ][C'est la Z]]
 **** [[https://blog.aaronbieber.com/posts/index.xml][Posts on The Chronicle]]                                         :hugo:
-[[https://vxlabs.com/index.xml][VxLabs]]
+**** [[https://vxlabs.com/index.xml][VxLabs]]
+**** [[https://yiufung.net/index.xml][yiufung.net]]
+**** [[https://jherrlin.github.io/index.xml][jherrlin.github.io]]
 *** [[http://pit-claudel.fr/clement/blog/feed/][Code crumbs, by Clément Pit--Claudel]]
 *** https://noonker.github.io/index.xml                              :hugo:
 *** [[https://bartoszmilewski.com/feed/][Bartosz Milewski's Programming Café]]
@@ -26,6 +28,9 @@
 *** [[https://devskilldojo.com/rss/][Dev Skill Dojo]]
 *** [[http://feeds.gillardmoss.me.uk/pgm?format=xml][Peter Gillard-Moss]]
 *** [[http://danluu.com/atom.xml][Dan Luu]]
+** Faith                                                             :faith:
+*** [[https://www.wordonfire.org/resources/category/article/feed/][Word on Fire]] by Bishop Barron
+
 * Newsletters                                                        :elfeed:
 ** [[https://www.kill-the-newsletter.com/feeds/z2r71cwv6y4jk5thsz5i.xml][Cycling]]                                                         :cycling:
 email starts with z2r...
@@ -41,6 +46,9 @@ email starts with ghu...
 email starts with 61a...
 *** [[http://levelup.patkua.com/?format=rss][Patrick Kua — Level Up]]                                     :leadership:
 *** [[https://www.hillelwayne.com/index.xml][Hillel Wayne's Essays]]
+** [[https://kill-the-newsletter.com/feeds/0fnz2dzt640itnoexxq0.xml][Maker]] of things                                                   :maker:
+email: 0fnz2dzt640itnoexxq0@kill-the-newsletter.com
+
 * Podcasts                                                   :podcast:elfeed:
 ** Faith                                                             :faith:
 *** [[https://www.ivoox.com/podcast-10-minutos-jesus_fg_f1633739_filtro_1.xml][10 Minutos con Jesús]]
