@@ -24,6 +24,9 @@
 
 ;;; Code:
 
+;; Allow Emacs to access content from clipboard.
+(setq x-select-enable-clipboard t
+      x-select-enable-primary t)
 ;; Ligatures
 (global-auto-composition-mode)
 (let ((alist
@@ -163,8 +166,8 @@
 
 ;; https://github.com/be5invis/Iosevka
 ;; (if (eq system-type 'darwin)
-(set-face-attribute 'default nil :font "Iosevka-16")
-;; (set-face-attribute 'default nil :font "Iosevka-12")
+;; (set-face-attribute 'default nil :font "Iosevka-16")
+(set-face-attribute 'default nil :font "Iosevka-12")
 ;; )
 
 (provide 'setup-ui)

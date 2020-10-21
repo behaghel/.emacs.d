@@ -5,6 +5,7 @@
 (define-key evil-normal-state-map (kbd ",cl") 'org-store-link)
 (define-key evil-normal-state-map (kbd ",ca") 'org-agenda)
 (setq org-directory "~/Dropbox/Documents/org/")
+
 (use-package org
   :ensure org-plus-contrib
   :defer t
@@ -17,7 +18,6 @@
   ;; TODO: bring it into the writeroom experience instead
   ;; (with-eval-after-load 'flycheck
   ;;   (flycheck-add-mode 'proselint 'org-mode)
-    )
   :config
   (evil-collection-define-key 'normal 'org-mode-map
     ",or"   'org-babel-open-src-block-result
@@ -53,9 +53,9 @@
   (add-hook 'org-mode-hook
             (lambda () (setq-local comment-auto-fill-only-comments nil)))
 
- ;; (require 'org-mac-link)
- ;; (add-hook 'org-mode-hook (lambda ()
- ;;                            (define-key org-mode-map (kbd "C-c m") 'org-mac-grab-link)))
+  ;; (require 'org-mac-link)
+  ;; (add-hook 'org-mode-hook (lambda ()
+  ;;                            (define-key org-mode-map (kbd "C-c m") 'org-mac-grab-link)))
 
   ;; org-capture && org-agenda
   (setq org-default-notes-file (concat org-directory "inbox.org"))
@@ -118,7 +118,10 @@
   ;; (load-library "/Users/hbe07/tmp/org-reveal/ox-reveal.el")
   (setq org-plantuml-jar-path "~/install/plantuml.jar")
   (add-to-list 'org-src-lang-modes '("plantuml" . plantuml))
-;; (org-babel-do-load-languages 'org-babel-load-languages '((plantuml . t)))
+  ;; (org-babel-do-load-languages 'org-babel-load-languages '((plantuml . t)))
+  ;; from https://github.com/gongzhitaao/orgcss
+  (setq org-html-htmlize-output-type 'css)
+  (setq org-html-head-include-default-style nil)
 
   (defun hub/outline-focus-next-section ()
     (interactive)
@@ -205,7 +208,7 @@ of its arguments."
                ;; Ignore sections marked with tags that are
                ;; excluded from export.
                ((assoc :tags contexts)
-                (if (intersection (org-get-tags-at) org-export-exclude-tags
+                (if (intersection (org-get-tags) org-export-exclude-tags
                                   :test 'equal)
                     (org-forward-same-level 1)
                   nil))
@@ -214,7 +217,7 @@ of its arguments."
           (re-search-forward "\\w+\\W*")))
       (message (format "%d words in %s." wc
                        (if mark-active "region" "buffer")))))
-
+  )
   ;; Presentations
   (use-package org-re-reveal
     :defer t)
