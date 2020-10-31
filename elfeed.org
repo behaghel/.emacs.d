@@ -30,6 +30,9 @@
 *** [[http://danluu.com/atom.xml][Dan Luu]]
 ** Faith                                                             :faith:
 *** [[https://www.wordonfire.org/resources/category/article/feed/][Word on Fire]] by Bishop Barron
+** Maker                                                             :maker:
+*** [[https://www.tweaking4all.com/category/hardware/arduino/feed/][Tweaking4all - arduino]]
+*** [[https://howtomechatronics.com/feed/][How To Mechatronics]]
 
 * Newsletters                                                        :elfeed:
 ** [[https://www.kill-the-newsletter.com/feeds/z2r71cwv6y4jk5thsz5i.xml][Cycling]]                                                         :cycling:
