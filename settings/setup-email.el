@@ -26,7 +26,6 @@
 ;; use mu4e for e-mail in emacs
 (setq mail-user-agent 'mu4e-user-agent)
 
-;; FIXME: only activate when on chromebook
 (defun make-tmp-file-browsable ()
 "Allow temporary files to be accessed by the browser.
 On crostini (chromebook) /tmp isn't visible to Chrome breaking
@@ -149,7 +148,7 @@ most org export / preview in the browser."
            (mu4e-headers-mark-thread nil '(refile)))
     )
   (evil-collection-define-key 'normal 'mu4e-view-mode-map
-    (kbd "<tab>") 'widget-forward
+    (kbd "<tab>") 'widget-forward       ; works on osx but not on chromebook
     "zO" 'org-msg-mode
     "O" 'mu4e-org-store-and-capture
     ",à" 'mu4e-org-store-and-capture
@@ -181,6 +180,11 @@ most org export / preview in the browser."
            (interactive)
            (mu4e-headers-mark-thread nil '(refile)))
     )
+  (when (eq system-type 'gnu/linux)
+    (evil-collection-define-key 'normal 'mu4e-view-mode-map
+      (kbd "<tab>") 'forward-button
+      )
+  )
   (evil-collection-define-key 'normal 'mu4e-compose-mode-map
     ",hh" 'mu4e-display-manual
     "gs" 'message-goto-subject
@@ -611,9 +615,11 @@ most org export / preview in the browser."
   (add-to-list 'mu4e-view-actions
                '("bview in browser" . mu4e-action-view-in-browser) t)
 
+  ;; FIXME: only activate when on chromebook
   ;; FIXME: make-tmp-file-browsable isn't run automatically in spite
   ;; of this:
-  (add-hook 'mu4e-view-mode-hook 'make-tmp-file-browsable)
+  (when (eq system-type 'gnu/linux)
+    (add-hook 'mu4e-main-mode-hook 'make-tmp-file-browsable))
   ;; Call EWW to display HTML messages, not useful for now
   ;; stolen from https://irreal.org/blog/?p=6122
   ;; (defun jcs-view-in-eww (msg)
