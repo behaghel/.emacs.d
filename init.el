@@ -118,7 +118,7 @@
   ;; remove -1 from default value
   ;; this implies PATH and key environment variables are set through
   ;; .profile and not through .zshrc or other interactive-only config files
-  (setq exec-path-from-shell-arguments '("-l"))
+  (setq exec-path-from-shell-arguments '("-l" "-i"))
   (exec-path-from-shell-initialize))
 
 (setq mac-command-key-is-meta t)
@@ -178,6 +178,7 @@
 (global-set-key (kbd "<f10>")
                 (lambda () (interactive)
                   (set-face-attribute 'default nil :font "Iosevka-12")))
+(global-set-key (kbd "M-p") 'eval-print-last-sexp)
 
 (use-package expand-region
   :bind ("M-r" . er/expand-region)
@@ -841,12 +842,9 @@ _z_oom on node
          ;; displays floating panel with debug buttons
          ;; requies emacs 26+
          ;; (lsp-mode . dap-ui-controls-mode)
-         (dap-stopped . (lambda (arg) (call-interactively #'dap-hydra)))
-         (python-mode . (lambda ()(require 'dap-python)))
          ;; (dap-server-log-mode . XXX repaint last entry with
          ;; ansi-colorizing, see function colorize-compilation-buffer)
          )
-
   :bind (:map evil-normal-state-map
               (",dd" . dap-debug)
               (",dl" . dap-debug-last)
@@ -1169,47 +1167,7 @@ _z_oom on node
 (add-to-list 'auto-mode-alist '("\\.plist$" . xml-mode))
 
 ;; Python
-(defun disable-flycheck ()
-  "Flycheck doesn't understand virtualenv. And lsp provides the equivalent."
-  (flycheck-mode -1))
-
-;; switch to the right
-(defvar *python-current-env* nil)
-(defun hub/workon ()
-  "To load the virtual env with the same name as the root dir."
-  (interactive)
-  ;; (message "running hub/workon before: %s"
-  ;;          *python-current-env*)
-  (let* ((rootdir (directory-file-name (projectile-project-root)))
-         (env (file-name-nondirectory rootdir)))
-    (when (and env
-               (not (equal env *python-current-env*)))
-      (progn
-        (setf *python-current-env* env)
-        (pyvenv-workon env)
-        (message "Current python env: %s"
-                 *python-current-env*))))
-  (save-some-buffers t))
-
-(use-package pyvenv
-  :ensure nil
-  :commands (pyvenv-activate pyvenv-workon)
-  :init
-  (add-to-list 'exec-path "~/.pyenv/shims")
-  (setenv "WORKON_HOME" "~/.virtualenvs")
-  (add-hook 'pyvenv-post-activate-hooks 'lsp)
-  (add-hook 'pyvenv-post-activate-hooks 'pyvenv-restart-python)
-  :hook (
-         (python-mode . disable-flycheck)
-         (python-mode . pyvenv-mode)
-         (python-mode . hub/workon)
-         )
-  :config
-  (evil-define-key 'normal python-mode-map ",gr" 'run-python)
-  )
-
-(use-package pydoc
-  :commands (pydoc pydoc-at-point pydoc-browse))
+(require 'setup-python)
 
 ; tweaking to get my proper setup
 ; OSX
