@@ -1,7 +1,7 @@
-;; sbt
 (use-package scala-mode
   :interpreter
   ("scala" . scala-mode)
+  :hook (scala-mode . lsp)
   :config
   (setq
    scala-indent:use-javadoc-style nil
@@ -20,7 +20,7 @@
   ;; (require 'ensime)
   ;; (ensime-scala-mode-hook)
   ;; (ensime-mode)
-  (make-local-variable 'company-backends)
+  ;; (make-local-variable 'company-backends)
   ;; (add-to-list 'company-backends 'ensime-company)
   (defun hub/scala-ret ()
     "Dwim with RET even inside multiline comments."
@@ -29,6 +29,7 @@
     ;; (comment-indent-new-line)
     (scala-indent:insert-asterisk-on-multiline-comment))
   (local-set-key (kbd "RET") 'hub/scala-ret)
+
   (evil-define-key 'insert scala-mode-map (kbd "C-S-<right>") 'sp-slurp-hybrid-sexp)
   (evil-define-key 'insert scala-mode-map (kbd "C-S-<left>") 'sp-barf-hybrid-sexp)
   (evil-define-key 'insert scala-mode-map (kbd "C-d") 'sp-kill-hybrid-sexp)
@@ -51,10 +52,10 @@
                                             (modes   . '(scala-mode))
                                             (repeat  . nil))))))
 
-(use-package lsp-scala
+(use-package lsp-metals
   :after scala-mode
-  :demand t
-  :hook (scala-mode . lsp))
+  :pin melpa
+  :config (setq lsp-metals-treeview-show-when-views-received t))
 
 (use-package sbt-mode
   :commands sbt-start sbt-command
@@ -79,9 +80,9 @@
   ;; for interpretation. It will keep your command history cleaner.
   (local-set-key (kbd "S-RET") 'comint-accumulate)
   (setq sbt:ansi-support t)
-  ;; to make sbt-mode work in Windows
-  ;; you may have to add a guard/check on other platforms
-  (setq sbt:program-options '())
+  ;; sbt-supershell kills sbt-mode:
+  ;; https://github.com/hvesalai/emacs-sbt-mode/issues/152
+  (setq sbt:program-options '("-Dsbt.supershell=false"))
   (add-hook 'sbt-mode-hook
             (lambda ()
               (setq prettify-symbols-alist

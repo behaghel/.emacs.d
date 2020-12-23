@@ -84,6 +84,11 @@
       use-package-always-defer nil
       use-package-always-ensure t)
 
+; stop cluttering my fs with #file.ext#
+(setq backup-directory-alist `((".*" . ,temporary-file-directory))
+      auto-save-file-name-transforms
+      `((".*" ,(concat user-emacs-directory "backups") t)))
+
 (use-package emacs
   :delight (auto-fill-function))
 
@@ -100,10 +105,6 @@
 (use-package hydra)
 
 (require 'setup-evil)
-
-; stop cluttering my fs with #file.ext#
-(setq auto-save-file-name-transforms
-      `((".*" ,(concat user-emacs-directory "backups") t)))
 
 ; Mac
 
@@ -732,7 +733,7 @@ _z_oom on node
   :hook (
          ;; python needs first to be in the right virtualenv
          (python-mode . lsp)
-         (scala-mode . lsp)
+         ;; (scala-mode . lsp)
          (lsp-mode . lsp-lens-mode)
          )
   :commands lsp
@@ -824,6 +825,7 @@ _z_oom on node
 (use-package posframe
   ;; Posframe is a pop-up tool that must be manually installed for dap-mode
   )
+
 (use-package dap-mode
   :pin melpa
   :defer t
