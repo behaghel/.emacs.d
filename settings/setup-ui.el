@@ -90,7 +90,7 @@
 (use-package rainbow-delimiters
   :commands (rainbow-delimiters-mode)
   :config
-  (setq rainbow-delimiters-max-face-count 1)
+  ;; (setq rainbow-delimiters-max-face-count 1)
   (set-face-attribute 'rainbow-delimiters-unmatched-face nil
                       :foreground 'unspecified
                       :inherit 'error))
