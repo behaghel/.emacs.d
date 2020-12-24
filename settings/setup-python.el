@@ -27,12 +27,21 @@
 ;;; Code:
 
 (use-package python
-  :ensure nil
+  ;; :ensure nil
+  :straight (:type built-in)
   ;:custom
   ;; (python-shell-interpreter "ipython")
   ;; (python-shell-interpreter-args "-i --simple-prompt")
   ;; (python-shell-interpreter-args "-i")
   ;; (python-indent-guess-indent-offset-verbose nil)
+  :config
+  (setq python-shell-interpreter "jupyter-console"
+        python-shell-interpreter-args "--simple-prompt"
+        python-shell-prompt-detect-failure-warning nil)
+  (add-to-list 'python-shell-completion-native-disabled-interpreters
+               "jupyter-console")
+  (add-to-list 'python-shell-completion-native-disabled-interpreters
+               "jupyter")
   )
 
 ;; I use pyenv to manage python versions
@@ -106,19 +115,43 @@
 ;;    pipenv-projectile-after-switch-function
 ;;    #'pipenv-projectile-after-switch-extended))
 
-(use-package py-autopep8
-  :hook (python-mode . py-autopep8-enable-on-save))
+;; stolen from https://medium.com/analytics-vidhya/managing-a-python-development-environment-in-emacs-43897fd48c6a
+(use-package buftra
+  :straight (:host github :repo "humitos/buftra.el"))
+
+(use-package py-pyment
+  :straight (:host github :repo "humitos/py-cmd-buffer.el")
+  :config
+  (setq py-pyment-options '("--output=numpydoc")))
+
+(use-package py-isort
+  :straight (:host github :repo "humitos/py-cmd-buffer.el")
+  :hook (python-mode . py-isort-enable-on-save)
+  :config
+  (setq py-isort-options '("--lines=88" "-m=3" "-tc" "-fgw=0" "-ca")))
+
+(use-package py-autoflake
+  :straight (:host github :repo "humitos/py-cmd-buffer.el")
+  :hook (python-mode . py-autoflake-enable-on-save)
+  :config
+  (setq py-autoflake-options '("--expand-star-imports")))
+
+(use-package py-docformatter
+  :straight (:host github :repo "humitos/py-cmd-buffer.el")
+  :hook (python-mode . py-docformatter-enable-on-save)
+  :config
+  (setq py-docformatter-options '("--wrap-summaries=88" "--pre-summary-newline")))
 
 (use-package blacken
   :hook (python-mode . blacken-mode)
   :config
   (setq blacken-line-length '88))
 
-(use-package pydoc
-  :commands (pydoc pydoc-at-point pydoc-browse))
-
 (use-package python-docstring
   :hook (python-mode . python-docstring-mode))
+
+(use-package pydoc
+  :commands (pydoc pydoc-at-point pydoc-browse))
 
 (use-package pip-requirements)
 
