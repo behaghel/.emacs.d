@@ -44,8 +44,9 @@ most org export / preview in the browser."
 ;; that way mu build put all the mu4e elisp files in my load-path on
 ;; `make install' step
 (use-package mu4e
-  :ensure nil
-  :pin manual
+  :disabled t
+  ;; :ensure nil
+  ;; :pin manual
   :config
   ;; a key for
   ;; Search: ê (requête)
@@ -778,11 +779,13 @@ most org export / preview in the browser."
 
 (use-package org-mu4e
   :ensure nil
-  :pin manual
+  :disabled t
+  ;; :pin manual
   :config (setq org-mu4e-link-query-in-headers-mode nil))
 
 (use-package org-msg
   ;; :pin melpa
+  :disabled t
   :config
   (setq org-msg-options "html-postamble:nil H:5 num:nil ^:{} toc:nil"
 	org-msg-startup "hidestars indent inlineimages"

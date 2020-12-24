@@ -41,3 +41,6 @@ bookmarks
 /.dap-breakpoints
 /.lsp-session-v1
 /.persp
+/company-statistics-cache.el
+/straight/*
+!/straight/versions

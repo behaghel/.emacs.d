@@ -6,7 +6,7 @@
 (setq vc-follow-symlinks t)
 (use-package magit
   :commands (magit-status projectile-vc)
-  :pin melpa
+  ;; :pin melpa
   :config
   (setq magit-popup-use-prefix-argument 'default
         ;; magit-completing-read-function 'magit-ido-completing-read

@@ -26,7 +26,7 @@
 
 ;; Keybindings: https://github.com/Alexander-Miller/treemacs#keymap
 (use-package treemacs
-  :pin melpa
+  ;; :pin melpa
   :ensure t
   :after doom-themes
   :defer nil
@@ -78,7 +78,7 @@
   )
 
 (use-package treemacs-evil
-  :pin melpa
+  ;; :pin melpa
   :after treemacs evil
   :ensure t
   :config
@@ -96,23 +96,23 @@
   (define-key evil-treemacs-state-map (kbd "zg")  #'treemacs-git-mode))
 
 (use-package treemacs-projectile
-  :pin melpa
+  ;; :pin melpa
   :after treemacs projectile
   :ensure t)
 
 (use-package treemacs-icons-dired
-  :pin melpa
+  ;; :pin melpa
   :after treemacs dired
   :ensure t
   :config (treemacs-icons-dired-mode))
 
 (use-package treemacs-magit
-  :pin melpa
+  ;; :pin melpa
   :after treemacs magit
   :ensure t)
 
 (use-package treemacs-persp
-  :pin melpa
+  ;; :pin melpa
   :disabled t
   :after treemacs persp-projectile
   :ensure t

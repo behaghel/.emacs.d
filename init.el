@@ -51,38 +51,57 @@
 ;; (toggle-debug-on-error)
 
 ;; install
-(require 'package)
-(require 'cl)
-;; (add-to-list 'package-archives
-;;           '("marmalade" . "http://marmalade-repo.org/packages/"))
-;; (add-to-list 'package-archives
-;;              '("melpa" . "http://melpa.milkbox.net/packages/"))
-;; (add-to-list 'package-archives
-;;              '("melpa-stable" . "http://stable.melpa.org/packages/"))
-(setq
- package-archives '(("gnu" . "http://elpa.gnu.org/packages/")
-                    ("org" . "http://orgmode.org/elpa/")
-                    ("melpa" . "http://melpa.org/packages/")
-                    ("melpa-stable" . "http://stable.melpa.org/packages/"))
- package-archive-priorities '(("melpa-stable" . 1)))
+;; (require 'cl)
 
-; required to find melpa-installed package after restart at init time
-(package-initialize)
+(defvar bootstrap-version)
+(let ((bootstrap-file
+       (expand-file-name "straight/repos/straight.el/bootstrap.el" user-emacs-directory))
+      (bootstrap-version 5))
+  (unless (file-exists-p bootstrap-file)
+    (with-current-buffer
+        (url-retrieve-synchronously
+         "https://raw.githubusercontent.com/raxod502/straight.el/develop/install.el"
+         'silent 'inhibit-cookies)
+      (goto-char (point-max))
+      (eval-print-last-sexp)))
+  (load bootstrap-file nil 'nomessage))
 
-(unless package-archive-contents
-  (package-refresh-contents))
+(setq straight-use-package-by-default t
+      straight-vc-git-default-clone-depth 1)
 
-(unless (package-installed-p 'use-package)
-  (package-install 'use-package))
-(unless (package-installed-p 'diminish)
-  (package-install 'diminish))
+(straight-use-package 'use-package)
 
-(eval-when-compile
-  (require 'use-package))
-(require 'diminish)
+;; ;; (require 'package)
+;; ;; (add-to-list 'package-archives
+;; ;;           '("marmalade" . "http://marmalade-repo.org/packages/"))
+;; ;; (add-to-list 'package-archives
+;; ;;              '("melpa" . "http://melpa.milkbox.net/packages/"))
+;; ;; (add-to-list 'package-archives
+;; ;;              '("melpa-stable" . "http://stable.melpa.org/packages/"))
+;; ;; (setq
+;; ;;  package-archives '(("gnu" . "http://elpa.gnu.org/packages/")
+;; ;;                     ("org" . "http://orgmode.org/elpa/")
+;; ;;                     ("melpa" . "http://melpa.org/packages/")
+;; ;;                     ("melpa-stable" . "http://stable.melpa.org/packages/"))
+;; ;;  package-archive-priorities '(("melpa-stable" . 1)))
+
+;; ; required to find melpa-installed package after restart at init time
+;; (package-initialize)
+
+;; (unless package-archive-contents
+;;   (package-refresh-contents))
+
+;; (unless (package-installed-p 'use-package)
+;;   (package-install 'use-package))
+;; (unless (package-installed-p 'diminish)
+;;   (package-install 'diminish))
+
+;; (eval-when-compile
+;;   (require 'use-package))
+(use-package diminish)
 (setq use-package-verbose t
       use-package-always-defer nil
-      use-package-always-ensure t)
+      use-package-always-ensure nil)
 
 ; stop cluttering my fs with #file.ext#
 (setq backup-directory-alist `((".*" . ,temporary-file-directory))
@@ -362,7 +381,10 @@
   ;; this makes my system slower each time
   (ivy-use-virtual-buffers nil)
   :config
-  (ivy-mode)
+  (ivy-mode))
+
+(use-package counsel
+  :config
   (counsel-mode))
 
 ;; (use-package ivy-rich)
@@ -397,8 +419,6 @@
     :config
     (counsel-projectile-mode))
   )
-
-(require 'setup-perspective)
 
 ;; Ediff
 (setq ediff-diff-options "-w")
@@ -732,9 +752,7 @@ _z_oom on node
         ;; doesn't work with pyls :(
         lsp-enable-snippet nil)
   :hook (
-         ;; python needs first to be in the right virtualenv
-         (python-mode . lsp)
-         ;; (scala-mode . lsp)
+         (sh-mode . lsp)
          (lsp-mode . lsp-lens-mode)
          )
   :commands lsp
@@ -810,7 +828,7 @@ _z_oom on node
 
 (use-package company-lsp
   :defer t
-  :pin melpa
+  ;; :pin melpa
   :config
   (setq company-lsp-cache-candidates 'auto)
   (setq company-minimum-prefix-length 1
@@ -822,13 +840,26 @@ _z_oom on node
   ;;       company-lsp-cache-candidates nil)
 )
 
+;; helps keep track of which completions I use most often and uses
+;; that info the improve the ordering
+(use-package company-statistics
+  :init
+  (company-statistics-mode))
+
+;; lets me cycle through different company backend lists using C-<tab>
+(use-package company-try-hard
+  :bind
+  (("<backtab>" . company-try-hard)
+   :map company-active-map
+   ("<backtab>" . company-try-hard)))
+
 ;; Use the Debug Adapter Protocol for running tests and debugging
 (use-package posframe
   ;; Posframe is a pop-up tool that must be manually installed for dap-mode
   )
 
 (use-package dap-mode
-  :pin melpa
+  ;; :pin melpa
   :defer t
   :commands (dap-ui-mode dap-mode dap-hydra)
   :hook (
@@ -938,7 +969,7 @@ _z_oom on node
   :disabled t
   :after treemacs
   :defer t
-  :pin melpa
+  ;; :pin melpa
   :config
   (lsp-metals-treeview-enable t)
   (setq lsp-metals-treeview-show-when-views-received t)
@@ -1179,6 +1210,7 @@ _z_oom on node
 (put 'narrow-to-region 'disabled nil)
 (put 'erase-buffer 'disabled nil)
 
+(require 'setup-perspective)
 ;; at the end, for windows to pick up the font change
 (require 'setup-ui)
 ;; (require 'setup-treemacs)

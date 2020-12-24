@@ -54,7 +54,7 @@
 
 (use-package lsp-metals
   :after scala-mode
-  :pin melpa
+  ;; :pin melpa
   :config (setq lsp-metals-treeview-show-when-views-received t))
 
 (use-package sbt-mode
@@ -108,7 +108,7 @@
 (use-package ensime
   :disabled
   ;; :commands (ensime ensime-mode)
-  :pin melpa
+  ;; :pin melpa
   :config
   (local-set-key (kbd "C-c C-l") 'hub/ensime-inf-reload)
   (defun hub/ensime-inf-reload ()

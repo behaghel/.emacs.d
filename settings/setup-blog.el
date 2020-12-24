@@ -55,7 +55,7 @@ See `org-capture-templates' for more information."
 
 (use-package ox-hugo
   :ensure t            ;Auto-install the package from Melpa (optional)
-  :pin melpa
+  ;; :pin melpa
   :commands (org-hugo-auto-export-mode)
   :after ox)
 

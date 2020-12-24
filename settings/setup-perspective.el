@@ -4,7 +4,7 @@
 ;;; Code:
 (use-package perspective
   :defer 1
-  :pin melpa
+  ;; :pin melpa
   :bind (("C-x b" . persp-switch-to-buffer*)
          ("C-x k" . persp-kill-buffer*)
          :map evil-normal-state-map
@@ -23,14 +23,12 @@
   )
 
 (use-package persp-projectile
-  :after projectile
-  :defer nil
-  :pin melpa
-  :bind (:map evil-normal-state-map
-              (",op" . projectile-persp-switch-project)
-              (",gp" . persp-switch)
-              )
-  :config
+  :after evil projectile org perspective
+  ;; :straight (:host github :repo "bbatsov/persp-projectile"
+  ;;                 :branch "master")
+  ;; :defer nil
+  ;; :pin melpa
+  )
   (defun hub/speed-dial (key persp &optional fpath command)
     (let ((f `(lambda ()
                 (interactive)
@@ -64,7 +62,9 @@
       )
     )
   (hub/setup-speed-dial)
-  )
+
+(define-key evil-normal-state-map (kbd ",op") 'projectile-persp-switch-project)
+(define-key evil-normal-state-map (kbd ",gp") 'persp-switch)
 
 (winner-mode 1)
 (define-key evil-window-map (kbd "C-<left>") 'winner-undo)

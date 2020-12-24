@@ -28,7 +28,7 @@
 
 (use-package python
   :ensure nil
-  :custom
+  ;:custom
   ;; (python-shell-interpreter "ipython")
   ;; (python-shell-interpreter-args "-i --simple-prompt")
   ;; (python-shell-interpreter-args "-i")
@@ -37,7 +37,7 @@
 
 ;; I use pyenv to manage python versions
 (use-package pyenv-mode
-  :pin melpa
+  ;; :pin melpa
   :commands (pyenv-mode pyenv-mode-set)
   :hook (python-mode . pyenv-mode)
   :config

@@ -107,7 +107,7 @@
   (sml/setup))
 
 (use-package doom-modeline
-  :pin melpa
+  ;; :pin melpa
   :init (doom-modeline-mode 1))
 
 (column-number-mode 1)               ; show column number in mode line
@@ -132,7 +132,7 @@
   (load-theme 'odersky t))
 
 (use-package doom-themes
-  :pin melpa
+  ;; :pin melpa
   :config
   ;; Global settings (defaults)
   (setq doom-themes-enable-bold t    ; if nil, bold is universally disabled

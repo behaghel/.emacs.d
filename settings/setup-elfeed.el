@@ -77,6 +77,7 @@
   (setq httpd-port 9000)
   (elfeed-web-start))
 (use-package elfeed-org
+  :disabled t
   :after elfeed
   :config
   (elfeed-org))

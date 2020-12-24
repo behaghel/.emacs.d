@@ -5,6 +5,7 @@
 (define-key evil-normal-state-map (kbd ",cl") 'org-store-link)
 (define-key evil-normal-state-map (kbd ",ca") 'org-agenda)
 (setq org-directory "~/Dropbox/Documents/org/")
+;;(hub/setup-speed-dial)
 
 (use-package org
   :ensure org-plus-contrib
@@ -235,7 +236,7 @@ of its arguments."
 ;; evil-org see its key bindings here:
 ;; https://github.com/Somelauw/evil-org-mode/blob/master/doc/keythemes.org#basic
 (use-package evil-org
-  :pin melpa
+  ;; :pin melpa
   :after (evil org)
   :hook (
          (org-mode . evil-org-mode)
@@ -274,7 +275,7 @@ of its arguments."
       "K" "S"
       ))
   (add-hook 'org-agenda-mode-hook #'hub/setup-agenda-keybindings)
-    )
+  )
 ;; to copy from org-mode while removing line-wrapping but also
 ;; retaining formatting
 (use-package ox-clip
@@ -329,7 +330,7 @@ of its arguments."
                  "* %<%H:%M>   %^g\n:PROPERTIES:\n:ANKI_NOTE_TYPE: Cloze\n:ANKI_DECK: Mega\n:END:\n** Text\n%x\n** Extra\n"))
   )
 (use-package org-download
-  :pin melpa
+  ;; :pin melpa
   :defer 10
   :after org
   ;; Drag-and-drop to `dired`
