@@ -117,6 +117,7 @@ most org export / preview in the browser."
   (evil-collection-define-key 'normal 'mu4e-main-mode-map
     "ê" 'mu4e-headers-search
     ",hh" 'mu4e-display-manual
+    "zO" 'org-msg-mode
     )
 
   (evil-collection-define-key 'normal 'mu4e-headers-mode-map
@@ -322,8 +323,19 @@ most org export / preview in the browser."
       ( :name "Sharepoint"
               :query "from:no-reply@sharepointonline.com")
       ;; Newsletter
+      ( :name "My Choices"
+              :query "from:rg@blk.mail.rewardgateway.net")
+      ( :name "IT Service Centre"
+              :query "from:ITServiceCentre@marks-and-spencer.com")
+      ( :name "Planned Azure Maintenance"
+              :query "subject:\"Planned Maintenance Notification\"")
+      ;; Updates
       ( :name "Colleague Comms and Engagement"
               :query "from:Colleague.Comms@marks-and-spencer.com")
+      ( :name "IT Communications"
+              :query "from:ITCommunications@marks-and-spencer.com")
+      ( :name "Cloud Brokerage"
+              :query "from:CloudBrokerage@marks-and-spencer.com")
       ;; GMail
       ;;; Notifications (it's ok if not read)
       ( :name "Strava Notifications"
@@ -804,6 +816,10 @@ Hubert
   ;; to avoid an error from diff-hl on deleted buffer right after
   ;; message is sent
   (add-hook 'org-msg-mode-hook (lambda () (diff-hl-mode -1)))
+  ;; TODO: function that disables org-msg, initiate the composition of
+  ;; a new message (plain text), add a hook to reinstate org-msg-mode
+  ;; on successful sending (haven't found the hook but
+  ;; message-send-hook is probably good enough if mu4e go through it)
 
   (org-msg-mode))
 
