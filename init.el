@@ -601,7 +601,7 @@ C-x b RET. The buffer selected is the one returned by (other-buffer)."
   (add-hook 'gfm-mode-hook (lambda () (auto-fill-mode -1)))
   :commands (markdown-mode)
   :config
-  (setq markdown-command "pandoc -c file://${HOME}/.emacs.d/github-pandoc.css --from markdown_github -t html5 --mathjax --highlight-style pygments --standalone")
+  (setq markdown-command "pandoc -c file://${HOME}/.emacs.d/github-pandoc.css --from gfm -t html5 --mathjax --highlight-style pygments --standalone --quiet")
 
   (evil-define-key 'normal markdown-mode-map (kbd ",il") 'markdown-insert-link)
   (evil-define-key 'normal markdown-mode-map (kbd ",iH") 'markdown-insert-header-dwim)
@@ -609,6 +609,8 @@ C-x b RET. The buffer selected is the one returned by (other-buffer)."
   (evil-define-key 'normal markdown-mode-map (kbd ",i2") 'markdown-insert-header-setext-2)
   (evil-define-key 'normal markdown-mode-map (kbd ",i1") 'markdown-insert-header-setext-1)
   (evil-define-key 'normal markdown-mode-map (kbd ",ev") 'markdown-preview)
+  (evil-define-key 'normal markdown-mode-map (kbd "M->") 'markdown-demote)
+  (evil-define-key 'normal markdown-mode-map (kbd "M-<") 'markdown-promote)
   (evil-define-key 'normal markdown-mode-map (kbd ",eV") 'markdown-export-and-preview))
 
 ;; Cucumber

@@ -32,14 +32,6 @@
     )
   (evil-define-key 'motion org-mode-map (kbd "RET") 'org-return)
   (evil-define-key 'motion calendar-mode-map (kbd "RET") 'org-calendar-select)
-  ;; TODO: delete teh below if above replacement is proven to work well
-  ;; (evil-define-key 'normal org-mode-map (kbd ",or") 'org-babel-open-src-block-result)
-  ;; (evil-define-key 'normal org-mode-map (kbd ",ea") 'org-archive-subtree-default)
-  ;; (evil-define-key 'normal org-mode-map (kbd "<next>") 'org-move-subtree-down)
-  ;; (evil-define-key 'normal org-mode-map (kbd "<prior>") 'org-move-subtree-up)
-  ;; (evil-define-key 'normal org-mode-map (kbd ", SPC") 'hub/outline-focus-next-section)
-  ;; (evil-define-key 'normal org-mode-map (kbd ",s") 'outline-up-heading)
-  ;; (evil-define-key 'normal org-mode-map (kbd "à") 'org-refile)
   ;; FIXME: it's not just hiding leading stars, most of the time it's
   ;; all the stars unless I put the cursor on the star that should be
   ;; visible, then it appears at least for a while...
@@ -69,54 +61,47 @@
   (use-package org-cliplink
     :defer t
     :bind (:map evil-normal-state-map
-           (",eP" . org-cliplink)))
+                (",eP" . org-cliplink)))
   (setq org-capture-templates
         '(
           ("i" "inbox" entry (file org-default-notes-file)
-           "* TODO %?")
+           "* TODO %?" :prepend t)
           ("f" "follow-up" entry (file org-default-notes-file)
-           "* TODO %?\n  %i\n  %a")
-          ("l" "link" entry (file org-default-notes-file)
-           "* TODO %(org-cliplink-capture)" :immediate-finish t)
-          ("c" "org-protocol-capture" entry (file org-default-notes-file)
-           "* TODO [[%:link][%:description]]\n\n %i" :immediate-finish t)
+           "* TODO %?\n  %i\n  %a" :prepend t)
           ("r" "respond to email (mu4e)"
            entry (file org-default-notes-file)
            "* TODO REPLY to [[mailto:%:fromaddress][%:fromname]] on %a\nDEADLINE: %(org-insert-time-stamp (org-read-date nil t \"+1d\"))\n%U\n\n"
            :immediate-finish t
            :prepend t)
+          ("l" "link" entry (file+headline org-default-notes-file "Browsing")
+           "* TODO %(org-cliplink-capture)" :immediate-finish t :prepend t)
+          ("c" "org-protocol-capture" entry (file+headline org-default-notes-file "Browsing")
+           "* TODO [[%:link][%:description]]\n\n %i" :immediate-finish t :prepend t)
           ("j" "Journal" entry (file+datetree "journal.org")
-           "* %?\nEntered on %U\n  %i\n  %a")))
+           ("p" "Philosophy" entry (file+datetree (concat org-directory "faith.org"))
+            "* %?\nEntered on %U\n  %i\n  %a")))
+        )
   ;; Note: setup-blog.el also injects a blog template on "b"
-  (setq org-outline-path-complete-in-steps nil)         ; Refile in a single go
-  (setq org-refile-use-outline-path 'file)                  ; Show full paths for refiling
+  (setq org-outline-path-complete-in-steps nil)      ; Refile in a single go
+  (setq org-refile-use-outline-path 'file)           ; Show full paths for refiling
   (setq org-refile-allow-creating-parent-nodes 'confirm)
   (setq org-refile-targets '((org-agenda-files :maxlevel . 3)))
   ;; consider me idle on my currently clocked-in task after 15 minutes
   ;; and ask me to resolve idle time when I am back
   (setq org-clock-idle-time 15)
-  ;; (require 'org-install)
-  ;; (require 'org-habit)
   ;; for easy templates to work (e.g. <s[Tab] to create src block)
   (require 'org-tempo)
 
   ;;; Babel
   ;; org-babel and source code in org
-  ;; (setq org-modules
-  ;;   (quote
-  ;;    (org-bbdb org-bibtex org-docview org-gnus org-info org-irc org-mhe org-rmail org-w3m mac-link)))
-  ;; (use-package ob-elixir)
   (org-babel-do-load-languages
    'org-babel-load-languages
    '((ditaa . t)(plantuml . t)(ruby . t)(awk . t)(gnuplot . t)(R . t)(latex . t)(java . t)))
   (use-package gnuplot-mode
     :defer t)
-  ;; (add-to-list 'org-babel-default-header-args:gnuplot
-  ;;              '((:prologue . "reset")))
   (setq org-confirm-babel-evaluate nil)   ; stop asking. May be dangerous...
   ;; (setq org-latex-listings nil)
   (setq org-reveal-root (getenv "REVEAL_JS_ROOT_URL"))
-  ;; (load-library "/Users/hbe07/tmp/org-reveal/ox-reveal.el")
   (setq org-plantuml-jar-path "~/install/plantuml.jar")
   (add-to-list 'org-src-lang-modes '("plantuml" . plantuml))
   ;; (org-babel-do-load-languages 'org-babel-load-languages '((plantuml . t)))
@@ -222,15 +207,7 @@ of its arguments."
   ;; Presentations
   (use-package org-re-reveal
     :defer t)
-  ;;FIXME: this keeps adding the same value vastly accelerating
-  ;;entropy in the universe
-  ;; (add-hook 'org-mode-hook
-  ;;           '(lambda ()
-  ;;              (setq org-file-apps
-  ;;                    (append '(
-  ;;                              ("\\.pptx\\'" . default)
-  ;;                              ) org-file-apps ))))
-  ;;)
+  )
 
 ;; Evil and org-mode
 ;; evil-org see its key bindings here:
@@ -295,7 +272,6 @@ of its arguments."
     ",0"   'anki-editor-reset-cloze-number
     ",^"   'anki-editor-push-tree
     )
-
   (defun anki-editor-cloze-region-auto-incr (&optional arg)
     "Cloze region without hint and increase card number."
     (interactive)
@@ -328,7 +304,13 @@ of its arguments."
                  entry
                  (file+headline org-default-notes-file "Anki")
                  "* %<%H:%M>   %^g\n:PROPERTIES:\n:ANKI_NOTE_TYPE: Cloze\n:ANKI_DECK: Mega\n:END:\n** Text\n%x\n** Extra\n"))
+
+(use-package org-superstar
+  :hook (org-mode . org-superstar-mode)
+  (setq org-superstar-headline-bullets-list
+        '("❋" "◉" "○" "▷" "◇" "➵" "❧"))
   )
+
 (use-package org-download
   ;; :pin melpa
   :defer 10
@@ -347,6 +329,7 @@ of its arguments."
                 org-download-delete-image-after-download t
                 )
 )
+
 (use-package org-drill
   :after org
   :defer 10
@@ -356,4 +339,5 @@ of its arguments."
                   entry
                   (file+headline "~/Dropbox/Documents/org/learning/sysadmin.org" "Drills")
                   "\n\n** %^{Question title}                           :sysadmin:drill:\n\n   %^{Question body} \n\n*** Answer \n\n    #+BEGIN_SRC %^{awk_bash} :results output code :in-file ./text-files/%^{text file}\n      %^{awk_bash program}\n    #+END_SRC")))
+
 (provide 'setup-org)
