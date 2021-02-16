@@ -67,7 +67,9 @@
   (load bootstrap-file nil 'nomessage))
 
 (setq straight-use-package-by-default t
-      straight-vc-git-default-clone-depth 1)
+      ;; breaks org-version
+      ;; straight-vc-git-default-clone-depth 1
+      )
 
 (straight-use-package 'use-package)
 
@@ -197,7 +199,6 @@
 (global-set-key (kbd "<f10>")
                 (lambda () (interactive)
                   (set-face-attribute 'default nil :font "Iosevka-12")))
-(global-set-key (kbd "M-p") 'eval-print-last-sexp)
 
 (use-package expand-region
   :bind ("M-r" . er/expand-region)
@@ -205,6 +206,9 @@
 
 (define-key key-translation-map (kbd "<f8> <right>") (kbd "→"))
 (define-key key-translation-map (kbd "<f8> i") (kbd "∞"))
+
+(global-set-key (kbd "M-p") 'eval-print-last-sexp)
+(global-set-key (kbd "M-ð") 'eval-last-sexp)
 
 ;; left cmd + right cmd + csrn in order to jump from window to window
 (global-set-key (kbd "M-©") 'evil-window-left)
@@ -443,7 +447,7 @@
 (use-package yasnippet-snippets)
 
 ;;; auto-insert-mode (template filling at file creation time)
-(auto-insert-mode 1)
+(auto-insert-mode 0)
 ;; (add-hook 'find-file-hook 'auto-insert)
 (setq auto-insert-directory "~/.emacs.d/insert/")
 ;; you can use yasnippet to expand it
@@ -883,11 +887,11 @@ _z_oom on node
               (",dl" . dap-debug-last)
               (",de" . dap-eval-thing-at-point)
               (",dD" . dap-debug-recent)
-              ("<f5>" . dap-continue)
-              ("<f9>" . dap-breakpoint-toggle)
-              ("<f10>" . dap-next)
-              ("<f11>" . dap-step-in)
-              ("S-<f11>" . dap-step-out)
+              (",dc" . dap-continue)
+              (",dB" . dap-breakpoint-toggle)
+              (",dn" . dap-next)
+              (",dt" . dap-step-in)
+              (",ds" . dap-step-out)
               :map evil-visual-state-map
               (",d:" . dap-eval-region )
               :map dap-server-log-mode-map
@@ -913,8 +917,8 @@ _z_oom on node
               ( "R" . dap-restart-frame )
               :map +dap-running-session-mode-map
               ( ",dn" . dap-next )
-              ( ",di" . dap-step-in )
-              ( ",do" . dap-step-out )
+              ( ",dt" . dap-step-in )
+              ( ",ds" . dap-step-out )
               ( ",dc" . dap-continue )
               ( ",dL" . dap-ui-locals )
               ( ",dS" . dap-ui-sessions )
