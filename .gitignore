@@ -44,3 +44,6 @@ bookmarks
 /company-statistics-cache.el
 /straight/*
 !/straight/versions
+/emms/
+/games/
+/network-security.data
