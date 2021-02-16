@@ -59,6 +59,7 @@
          (window-width . 0.5)
          (reusable-frames . nil))
         ("\\*.*\\*" (display-buffer-reuse-window))
+        ("\\*pytest\\*.*" (display-buffer-reuse-window display-buffer-at-bottom))
         (".*" (display-buffer-reuse-window display-buffer-same-window))))
 
 (setq display-buffer-reuse-frames t)         ; reuse windows in other frames

@@ -29,6 +29,13 @@
 (use-package python
   ;; :ensure nil
   :straight (:type built-in)
+  :hook (
+         ;; (python-mode . disable-flycheck)
+         ;; (python-mode . pyvenv-mode)
+         ;; (python-mode . hub/workon)
+         (python-mode . (lambda ()(require 'dap-python)))
+         (dap-stopped . (lambda (arg) (call-interactively #'dap-hydra)))
+         )
   ;:custom
   ;; (python-shell-interpreter "ipython")
   ;; (python-shell-interpreter-args "-i --simple-prompt")
@@ -128,7 +135,7 @@
   :straight (:host github :repo "humitos/py-cmd-buffer.el")
   :hook (python-mode . py-isort-enable-on-save)
   :config
-  (setq py-isort-options '("--lines=88" "-m=3" "-tc" "-fgw=0" "-ca")))
+  (setq py-isort-options '("-l 88" "-m=3" "-tc" "-fgw=0" "-ca")))
 
 (use-package py-autoflake
   :straight (:host github :repo "humitos/py-cmd-buffer.el")
@@ -151,9 +158,26 @@
   :hook (python-mode . python-docstring-mode))
 
 (use-package pydoc
-  :commands (pydoc pydoc-at-point pydoc-browse))
+  :commands (pydoc pydoc-at-point pydoc-browse)
+  :bind (:map evil-normal-state-map
+              (",hh" . pydoc-at-point-no-jedi)
+              )
+)
+
+(use-package python-pytest
+  :bind (:map evil-normal-state-map
+              (",th" . python-pytest-dispatch)
+              (",tt" . python-pytest)
+              (",tf" . python-pytest-file)
+              (",t," . python-pytest-file-dwim)
+              (",tr" . python-pytest-repeat)
+              (",tl" . python-pytest-last-failed)
+              )
+)
 
 (use-package pip-requirements)
+
+(use-package ein)
 
 (provide 'setup-python)
 ;;; setup-python.el ends here

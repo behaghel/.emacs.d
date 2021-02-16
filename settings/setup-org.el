@@ -96,7 +96,7 @@
   ;; org-babel and source code in org
   (org-babel-do-load-languages
    'org-babel-load-languages
-   '((ditaa . t)(plantuml . t)(ruby . t)(awk . t)(gnuplot . t)(R . t)(latex . t)(java . t)))
+   '((ditaa . t)(plantuml . t)(ruby . t)(awk . t)(gnuplot . t)(R . t)(latex . t)(java . t)(ein . t)))
   (use-package gnuplot-mode
     :defer t)
   (setq org-confirm-babel-evaluate nil)   ; stop asking. May be dangerous...
