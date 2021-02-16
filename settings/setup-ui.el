@@ -24,45 +24,23 @@
 
 ;;; Code:
 
+(column-number-mode 1)               ; show column number in mode line
+;; more useful frame title, that show either a file or a
+;; buffer name (if the buffer isn't visiting a file)
+(setq frame-title-format
+      '((:eval (if (buffer-file-name)
+                   (abbreviate-file-name (buffer-file-name))
+                 "%b"))))
+
+;; treat every read-only buffer as a pager
+;; navigation: SPC, delete, d, u, etc.
+(setq view-read-only t)
+;; you can switch any buffer to read-only with C-x C-q
+
 ;; Allow Emacs to access content from clipboard.
 (setq x-select-enable-clipboard t
       x-select-enable-primary t)
-;; Ligatures
-(global-auto-composition-mode)
-(let ((alist
-       '((33 . ".\\(?:\\(==\\|[!=]\\)[!=]?\\)")
-         (35 . ".\\(?:\\(###?\\|_(\\|[(:=?[_{]\\)[#(:=?[_{]?\\)")
-         (36 . ".\\(?:\\(>\\)>?\\)")
-         (37 . ".\\(?:\\(%\\)%?\\)")
-         (38 . ".\\(?:\\(&\\)&?\\)")
-         (42 . ".\\(?:\\(\\*\\*\\|[*>]\\)[*>]?\\)")
-         ;; (42 . ".\\(?:\\(\\*\\*\\|[*/>]\\).?\\)")
-         (43 . ".\\(?:\\([>]\\)>?\\)")
-         ;; (43 . ".\\(?:\\(\\+\\+\\|[+>]\\).?\\)")
-         (45 . ".\\(?:\\(-[->]\\|<<\\|>>\\|[-<>|~]\\)[-<>|~]?\\)")
-         ;; (46 . ".\\(?:\\(\\.[.<]\\|[-.=]\\)[-.<=]?\\)")
-         (46 . ".\\(?:\\(\\.<\\|[-=]\\)[-<=]?\\)")
-         (47 . ".\\(?:\\(//\\|==\\|[=>]\\)[/=>]?\\)")
-         ;; (47 . ".\\(?:\\(//\\|==\\|[*/=>]\\).?\\)")
-         (48 . ".\\(?:\\(x[a-fA-F0-9]\\).?\\)")
-         (58 . ".\\(?:\\(::\\|[:<=>]\\)[:<=>]?\\)")
-         (59 . ".\\(?:\\(;\\);?\\)")
-         (60 . ".\\(?:\\(!--\\|\\$>\\|\\*>\\|\\+>\\|-[-<>|]\\|/>\\|<[-<=]\\|=[<>|]\\|==>?\\||>\\||||?\\|~[>~]\\|[$*+/:<=>|~-]\\)[$*+/:<=>|~-]?\\)")
-         (61 . ".\\(?:\\(!=\\|/=\\|:=\\|<<\\|=[=>]\\|>>\\|[=>]\\)[=<>]?\\)")
-         (62 . ".\\(?:\\(->\\|=>\\|>[-=>]\\|[-:=>]\\)[-:=>]?\\)")
-         (63 . ".\\(?:\\([.:=?]\\)[.:=?]?\\)")
-         (91 . ".\\(?:\\(|\\)[]|]?\\)")
-         ;; (92 . ".\\(?:\\([\\n]\\)[\\]?\\)")
-         (94 . ".\\(?:\\(=\\)=?\\)")
-         (95 . ".\\(?:\\(|_\\|[_]\\)_?\\)")
-         (119 . ".\\(?:\\(ww\\)w?\\)")
-         (123 . ".\\(?:\\(|\\)[|}]?\\)")
-         (124 . ".\\(?:\\(->\\|=>\\||[-=>]\\||||*>\\|[]=>|}-]\\).?\\)")
-         (126 . ".\\(?:\\(~>\\|[-=>@~]\\)[-=>@~]?\\)"))))
-  (dolist (char-regexp alist)
-    (set-char-table-range composition-function-table (car char-regexp)
-                          `([,(cdr char-regexp) 0 font-shape-gstring])))
-  )
+
 ;; No annoying buffer for completion, compilation, help...
 (use-package popwin
   :config
@@ -110,8 +88,6 @@
   ;; :pin melpa
   :init (doom-modeline-mode 1))
 
-(column-number-mode 1)               ; show column number in mode line
-
 ;; Look / Theme
 ;; http://pawelbx.github.io/emacs-theme-gallery/
 ;;
@@ -131,8 +107,33 @@
   :config
   (load-theme 'odersky t))
 
+;; https://gitlab.com/protesilaos/modus-themes
+(use-package modus-themes
+  :init
+  ;; Add all your customizations prior to loading the themes
+  (setq modus-themes-slanted-constructs t
+        modus-themes-bold-constructs nil
+        modus-themes-variable-pitch-ui t ; e.g. mode-line, tab-bar
+        modus-themes-variable-pitch-headings t
+        modus-themes-scale-headings t
+        modus-themes-scale-1 1.05
+        modus-themes-scale-2 1.1
+        modus-themes-scale-3 1.15
+        modus-themes-scale-4 1.3
+        modus-themes-scale-5 1.5
+        )
+
+  ;; Load the theme files before enabling a theme
+  (modus-themes-load-themes)
+  :config
+  ;; Load the theme of your choice:
+  (modus-themes-load-operandi) ;; light OR dark (modus-themes-load-vivendi)
+  :bind (:map evil-normal-state-map
+              (",zk" . modus-themes-toggle)))
+
 (use-package doom-themes
-  ;; :pin melpa
+  :disabled t
+  :pin melpa
   :config
   ;; Global settings (defaults)
   (setq doom-themes-enable-bold t    ; if nil, bold is universally disabled
@@ -157,18 +158,50 @@
   (solaire-global-mode +1)
   (solaire-mode-swap-bg))
 
-;; more useful frame title, that show either a file or a
-;; buffer name (if the buffer isn't visiting a file)
-(setq frame-title-format
-      '((:eval (if (buffer-file-name)
-                   (abbreviate-file-name (buffer-file-name))
-                 "%b"))))
-
 ;; https://github.com/be5invis/Iosevka
 ;; (if (eq system-type 'darwin)
-;; (set-face-attribute 'default nil :font "Iosevka-16")
-(set-face-attribute 'default nil :font "Iosevka-12")
-;; )
+;; https://protesilaos.com/codelog/2020-09-05-emacs-note-mixed-font-heights/
+(set-face-attribute 'default nil :font "Iosevka-16")
+(set-face-attribute 'default nil :font "ETBembo-16")
+(set-face-attribute 'fixed-pitch nil :family "Iosevka" :height 1.0)
+(set-face-attribute 'variable-pitch nil :family "ETBembo" :height 1.0)
+
+;; Ligatures
+(global-auto-composition-mode)
+(let ((alist
+       '((33 . ".\\(?:\\(==\\|[!=]\\)[!=]?\\)")
+         (35 . ".\\(?:\\(###?\\|_(\\|[(:=?[_{]\\)[#(:=?[_{]?\\)")
+         (36 . ".\\(?:\\(>\\)>?\\)")
+         (37 . ".\\(?:\\(%\\)%?\\)")
+         (38 . ".\\(?:\\(&\\)&?\\)")
+         (42 . ".\\(?:\\(\\*\\*\\|[*>]\\)[*>]?\\)")
+         ;; (42 . ".\\(?:\\(\\*\\*\\|[*/>]\\).?\\)")
+         (43 . ".\\(?:\\([>]\\)>?\\)")
+         ;; (43 . ".\\(?:\\(\\+\\+\\|[+>]\\).?\\)")
+         (45 . ".\\(?:\\(-[->]\\|<<\\|>>\\|[-<>|~]\\)[-<>|~]?\\)")
+         ;; (46 . ".\\(?:\\(\\.[.<]\\|[-.=]\\)[-.<=]?\\)")
+         (46 . ".\\(?:\\(\\.<\\|[-=]\\)[-<=]?\\)")
+         (47 . ".\\(?:\\(//\\|==\\|[=>]\\)[/=>]?\\)")
+         ;; (47 . ".\\(?:\\(//\\|==\\|[*/=>]\\).?\\)")
+         (48 . ".\\(?:\\(x[a-fA-F0-9]\\).?\\)")
+         (58 . ".\\(?:\\(::\\|[:<=>]\\)[:<=>]?\\)")
+         (59 . ".\\(?:\\(;\\);?\\)")
+         (60 . ".\\(?:\\(!--\\|\\$>\\|\\*>\\|\\+>\\|-[-<>|]\\|/>\\|<[-<=]\\|=[<>|]\\|==>?\\||>\\||||?\\|~[>~]\\|[$*+/:<=>|~-]\\)[$*+/:<=>|~-]?\\)")
+         (61 . ".\\(?:\\(!=\\|/=\\|:=\\|<<\\|=[=>]\\|>>\\|[=>]\\)[=<>]?\\)")
+         (62 . ".\\(?:\\(->\\|=>\\|>[-=>]\\|[-:=>]\\)[-:=>]?\\)")
+         (63 . ".\\(?:\\([.:=?]\\)[.:=?]?\\)")
+         (91 . ".\\(?:\\(|\\)[]|]?\\)")
+         ;; (92 . ".\\(?:\\([\\n]\\)[\\]?\\)")
+         (94 . ".\\(?:\\(=\\)=?\\)")
+         (95 . ".\\(?:\\(|_\\|[_]\\)_?\\)")
+         (119 . ".\\(?:\\(ww\\)w?\\)")
+         (123 . ".\\(?:\\(|\\)[|}]?\\)")
+         (124 . ".\\(?:\\(->\\|=>\\||[-=>]\\||||*>\\|[]=>|}-]\\).?\\)")
+         (126 . ".\\(?:\\(~>\\|[-=>@~]\\)[-=>@~]?\\)"))))
+  (dolist (char-regexp alist)
+    (set-char-table-range composition-function-table (car char-regexp)
+                          `([,(cdr char-regexp) 0 font-shape-gstring])))
+  )
 
 (provide 'setup-ui)
 ;;; setup-ui.el ends here

@@ -733,7 +733,7 @@ _z_oom on node
     ("F" fill-column)
     ("x" nil :color blue))
   :bind (:map evil-normal-state-map
-              (",z" . hydra-folding/body)))
+              (",Z" . hydra-folding/body)))
 
 (use-package flycheck
   :commands flycheck-mode
