@@ -18,11 +18,15 @@
 **** [[https://vxlabs.com/index.xml][VxLabs]]
 **** [[https://yiufung.net/index.xml][yiufung.net]]
 **** [[https://jherrlin.github.io/index.xml][jherrlin.github.io]]
+*** Linux                                                             :OSS:
+**** [[https://linuxfr.org/news.atom][LinuxFR]]
 *** [[http://pit-claudel.fr/clement/blog/feed/][Code crumbs, by Clément Pit--Claudel]]
 *** https://noonker.github.io/index.xml                              :hugo:
 *** [[https://bartoszmilewski.com/feed/][Bartosz Milewski's Programming Café]]
 ** Smarter Every Day
 *** [[https://fs.blog/feed/][Farnam Street]]
+[[https://alexdanco.com/feed/][alexdanco.com]]
+*** [[https://a16z.com/feed/][Andreessen Horowitz RSS Feed]]
 ** Tech Leadership                                         :tech:leadership:
 *** [[http://svpg.com/feed/][Silicon Valley Product Group]]
 *** [[https://devskilldojo.com/rss/][Dev Skill Dojo]]
@@ -33,6 +37,11 @@
 ** Maker                                                             :maker:
 *** [[https://www.tweaking4all.com/category/hardware/arduino/feed/][Tweaking4all - arduino]]
 *** [[https://howtomechatronics.com/feed/][How To Mechatronics]]
+** Watch                                                             :watch:
+*** [[https://theenglishwatch.com/feed/][The English Watch]]
+*** [[https://orionwatch.com/blog?format=rss][Orion Watch]]
+** Smoking
+*** [[https://www.turmeaus.co.uk/blog/feed/][Turmeaus]] (Cgars.co.uk)
 
 * Newsletters                                                        :elfeed:
 ** [[https://www.kill-the-newsletter.com/feeds/z2r71cwv6y4jk5thsz5i.xml][Cycling]]                                                         :cycling:
@@ -62,6 +71,9 @@ email: 0fnz2dzt640itnoexxq0@kill-the-newsletter.com
 *** [[https://www.theologieducorps.fr/rss/podcast][Théologie du Corps]]
 ** Leadership                                                   :leadership:
 *** [[https://investlikethebest.libsyn.com/rss][Invest Like the Best]]
+*** [[https://feeds.simplecast.com/JGE3yC0V][Andreessen Horowitz a16z]]
+** Engineering
+*** [[https://www.dataengineeringpodcast.com/feed/ogg/][Data Engineering Podcast]]
 * Forums                                                             :elfeed:
 ** Tech                                                               :tech:
 *** [[https://discourse.gohugo.io/latest.rss][Hugo]]                                                           :ignore:

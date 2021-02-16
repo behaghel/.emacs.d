@@ -45,6 +45,11 @@ bookmark on where I am in Emacs doc about window management. I should probably r
 https://www.gnu.org/software/emacs/manual/html_node/elisp/Displaying-Buffers.html#Displaying-Buffers
 Comment:
 actually that's probably a better bookmark on where I am in reading Emacs display-buffer framework for window management
+*** [2020-06-13 Sat 22:40] Sergey Matsievskiy / display-buffer-control · GitLab :grasp:emacs:productivity:
+
+https://gitlab.com/matsievskiysv/display-buffer-control
+Comment:
+I should probably use that. The last section of readme is compelling.
 ** set up org-agenda
 *** TODO [#B] build *my* agenda view
 Take inspiration from jethro and super-agenda
@@ -72,6 +77,50 @@ another org-mode workflow, looks interesting
 https://errickson.net/org_agenda_calendar.html
 Comment:
 Another example of applying color to org-agenda
+*** [2020-05-08 Fri 19:40] org mode - Outlook Calendar in org agenda - Emacs Stack Exchange :grasp:emacs:org-mode:productivity:
+
+https://emacs.stackexchange.com/questions/45803/outlook-calendar-in-org-agenda
+Comment:
+if one day I'd want my calendar fully hosted in org-mode
+*** [2020-06-17 Wed 08:01] Steffen Weinreich / msgraph-orgmode · GitLab :grasp:emacs:productivity:
+
+https://gitlab.com/lairsdragon/msgraph-orgmode
+Comment:
+Download outlook calendar as org-mode file.
+*** [2020-05-09 Sat 14:10] Google Calendar Synchronization :grasp:emacs:org-mode:productivity:
+
+https://orgmode.org/worg/org-tutorials/org-google-sync.html
+Comment:
+google calendar <-> org-mode sync
+*** [2020-05-08 Fri 19:47] kiwanami/emacs-calfw: A calendar framework for Emacs :grasp:emacs:productivity:
+
+https://github.com/kiwanami/emacs-calfw
+Comment:
+A proper calendar vizz in Emacs, I am stunned.
+*** [2020-05-08 Fri 20:20] insanum/gcalcli: Google Calendar Command Line Interface :grasp:emacs:org-mode:productivity:
+
+https://github.com/insanum/gcalcli
+Comment:
+Could be useful for setting up calendar in org-mode
+*** [2020-06-17 Wed 08:02] spegoraro/org-alert: System notifications of org agenda items :grasp:mail:emacs:productivity:
+
+https://github.com/spegoraro/org-alert
+** I want to become a writer and build a second brain
+*** [2020-04-28 Tue 14:59] bnbeckwith/wc-mode: Wordcount minor mode for Emacs :grasp:emacs:blog:
+
+https://github.com/bnbeckwith/wc-mode
+Comment:
+could be a useful addition to my setup for blogging and writing in Emacs
+*** [2020-06-13 Sat 22:33] emacsmirror/spray: A speed reading mode :grasp:emacs:productivity:
+
+https://github.com/emacsmirror/spray
+Comment:
+Speed reading in Emacs, gotta try it!
+*** [2020-10-05 Mon 11:54] Top (Org-roam User Manual) :grasp:org:productivity:
+
+https://www.orgroam.com/manual/
+Comment:
+Set up org-roam and start breaking mega files into small focused topics that are well inter-connected
 ** TODO Setup finances in an Emacs Ledger
 *** [2020-04-26 Sun 23:47] Plain Text Accounting, a guide to Ledger and friends - plaintextaccounting.org :grasp:finance:emacs:
 https://plaintextaccounting.org/
@@ -82,12 +131,54 @@ https://github.com/atheriel/evil-ledger
 *** [2020-04-26 Sun 23:56] Plain Text Accounting with ledger and ledger-likes :grasp:finance:emacs:
 https://www.reddit.com/r/plaintextaccounting/
 
-** [2020-04-28 Tue 14:59] bnbeckwith/wc-mode: Wordcount minor mode for Emacs :grasp:emacs:blog:
+* Stuff on the radar
+** [2020-05-04 Mon 23:21] Elisp Reference Sheet    :grasp:emacs:programming:
 
-https://github.com/bnbeckwith/wc-mode
+https://alhassy.github.io/ElispCheatSheet/CheatSheet.pdf
 Comment:
-could be a useful addition to my setup for blogging and writing in Emacs
+stupendous cheat sheet for elisp
+** [2020-05-08 Fri 22:38] dired-ref.pdf :grasp:emacs:productivity:
+
+https://www.gnu.org/software/emacs/refcards/pdf/dired-ref.pdf
+Comment:
+To be archived for easy reference
+** [2020-06-13 Sat 21:14] Using org-mode for meeting minutes • egli.dev :grasp:emacs:productivity:orgmode:
+
+https://egli.dev/posts/using-org-mode-for-meeting-minutes/
+Comment:
+I need to learn more about columnview.
+I should probably have a capture template for meeting minutes. Bonus point if it can be derived from PROPERTIES pertaining to meeting (e.g. attendees)
+** [2020-06-13 Sat 22:51] integral-dw/org-superstar-mode: Make org-mode stars a little more super :grasp:emacs:
+
+https://github.com/integral-dw/org-superstar-mode
+Comment:
+seems a more modern alternative to org-bullets
+# local variables:
+# eval: (anki-editor-mode +1)
+# end:
+** [2020-10-06 Tue 12:40] Emacs Org-mode - Export to another directory? - Stack Overflow :grasp:orgmode:
+
+https://stackoverflow.com/questions/9559753/emacs-org-mode-export-to-another-directory
+Selection:
+#+begin_quote
+(defun org-export-output-file-name-modified (orig-fun extension &optional subtreep pub-dir)
+  (unless pub-dir
+    (setq pub-dir "exported-org-files")
+    (unless (file-directory-p pub-dir)
+      (make-directory pub-dir)))
+  (apply orig-fun extension subtreep pub-dir nil))
+(advice-add 'org-export-output-file-name :around #'org-export-output-file-name-modified)
+#+end_quote
+Comment:
+avoid clutter when you export org files
 * Insipring Emacs Configs
+** [2020-05-13 Wed 09:24] dot-emacs/README.org at 22f4c9dfa4de17537af8dccaba7d294382ded9e7 · zamansky/dot-emacs :grasp:emacs:productivity:
+
+https://github.com/zamansky/dot-emacs/blob/22f4c9dfa4de17537af8dccaba7d294382ded9e7/README.org#L414
+Selection:
+org-msg
+Comment:
+c'est la Z emacs config, lots to take from starting with literate init.el
 ** [2020-04-26 Sun 23:32] .emacs.d/init.el at master · jethrokuan/.emacs.d :grasp:emacs:productivity:
 https://github.com/jethrokuan/.emacs.d/blob/218ea42779db9d8db5dfdd6c6524abac3f10855c/init.el#L1356
 Selection:
