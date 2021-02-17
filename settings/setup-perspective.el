@@ -7,14 +7,14 @@
   ;; :pin melpa
   :bind (("C-x b" . persp-switch-to-buffer*)
          ("C-x k" . persp-kill-buffer*)
-         :map evil-normal-state-map
-         (",gb"   . persp-ivy-switch-buffer)
          ;; also for free from projectile integration
          ;; (",pb"   . persp-counsel-switch-buffer)
          ;; the counsel version preview buffers as they get selected,
          ;; useful when unsure what buffer we are looking for
          )
   :config
+
+  (define-key evil-normal-state-map (kbd ",gb") 'persp-ivy-switch-buffer)
 
   (persp-mode t)
   (add-hook 'kill-emacs-hook #'persp-state-save)

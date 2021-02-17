@@ -37,6 +37,8 @@
   ;; visible, then it appears at least for a while...
   ;; (setq org-hide-leading-stars t)
   (setq org-startup-indented t)
+  (setq org-return-follows-link t)
+  (setq org-footnote-auto-adjust t)
   ;;The following setting hides blank lines between headings which keeps folded view nice and compact.
   (setq org-cycle-separator-lines 0)
   (setq org-src-fontify-natively t)
@@ -58,10 +60,6 @@
   ;; org-protocol: capture outside of Emacs (mostly from browser)
   ;; (start-server) is managed by edit-server-mode in init.el
   (require 'org-protocol)
-  (use-package org-cliplink
-    :defer t
-    :bind (:map evil-normal-state-map
-                (",eP" . org-cliplink)))
   (setq org-capture-templates
         '(
           ("i" "inbox" entry (file org-default-notes-file)
@@ -96,7 +94,7 @@
   ;; org-babel and source code in org
   (org-babel-do-load-languages
    'org-babel-load-languages
-   '((ditaa . t)(plantuml . t)(ruby . t)(awk . t)(gnuplot . t)(R . t)(latex . t)(java . t)(ein . t)))
+   '((ditaa . t)(plantuml . t)(ruby . t)(awk . t)(gnuplot . t)(R . t)(latex . t)(java . t)))
   (use-package gnuplot-mode
     :defer t)
   (setq org-confirm-babel-evaluate nil)   ; stop asking. May be dangerous...
@@ -204,10 +202,10 @@ of its arguments."
       (message (format "%d words in %s." wc
                        (if mark-active "region" "buffer")))))
   )
-  ;; Presentations
-  (use-package org-re-reveal
-    :defer t)
-  )
+
+;; Presentations
+(use-package org-re-reveal
+  :defer t)
 
 ;; Evil and org-mode
 ;; evil-org see its key bindings here:
@@ -253,11 +251,18 @@ of its arguments."
       ))
   (add-hook 'org-agenda-mode-hook #'hub/setup-agenda-keybindings)
   )
+
 ;; to copy from org-mode while removing line-wrapping but also
 ;; retaining formatting
 (use-package ox-clip
   :config
   (evil-define-key 'visual org-mode-map (kbd ",y") 'ox-clip-formatted-copy))
+
+(use-package org-cliplink
+  :defer t
+  :after org
+  :bind (:map evil-normal-state-map
+              (",eP" . org-cliplink)))
 
 (use-package anki-editor
   :defer 10
@@ -304,9 +309,11 @@ of its arguments."
                  entry
                  (file+headline org-default-notes-file "Anki")
                  "* %<%H:%M>   %^g\n:PROPERTIES:\n:ANKI_NOTE_TYPE: Cloze\n:ANKI_DECK: Mega\n:END:\n** Text\n%x\n** Extra\n"))
+  )
 
 (use-package org-superstar
   :hook (org-mode . org-superstar-mode)
+  :config
   (setq org-superstar-headline-bullets-list
         '("❋" "◉" "○" "▷" "◇" "➵" "❧"))
   )

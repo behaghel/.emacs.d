@@ -42,16 +42,8 @@
 ;; Set up load path
 (add-to-list 'load-path settings-dir)
 
-;; putting it earlier in attempt to make it work.
-(setq org-return-follows-link t)
-(setq org-footnote-auto-adjust t)
-
 (setq user-mail-address "behaghel@gmail.com")
 (setq user-full-name "Hubert Behaghel")
-;; (toggle-debug-on-error)
-
-;; install
-;; (require 'cl)
 
 (defvar bootstrap-version)
 (let ((bootstrap-file
@@ -73,204 +65,21 @@
 
 (straight-use-package 'use-package)
 
-;; ;; (require 'package)
-;; ;; (add-to-list 'package-archives
-;; ;;           '("marmalade" . "http://marmalade-repo.org/packages/"))
-;; ;; (add-to-list 'package-archives
-;; ;;              '("melpa" . "http://melpa.milkbox.net/packages/"))
-;; ;; (add-to-list 'package-archives
-;; ;;              '("melpa-stable" . "http://stable.melpa.org/packages/"))
-;; ;; (setq
-;; ;;  package-archives '(("gnu" . "http://elpa.gnu.org/packages/")
-;; ;;                     ("org" . "http://orgmode.org/elpa/")
-;; ;;                     ("melpa" . "http://melpa.org/packages/")
-;; ;;                     ("melpa-stable" . "http://stable.melpa.org/packages/"))
-;; ;;  package-archive-priorities '(("melpa-stable" . 1)))
-
-;; ; required to find melpa-installed package after restart at init time
-;; (package-initialize)
-
-;; (unless package-archive-contents
-;;   (package-refresh-contents))
-
-;; (unless (package-installed-p 'use-package)
-;;   (package-install 'use-package))
-;; (unless (package-installed-p 'diminish)
-;;   (package-install 'diminish))
-
-;; (eval-when-compile
-;;   (require 'use-package))
 (use-package diminish)
 (setq use-package-verbose t
       use-package-always-defer nil
       use-package-always-ensure nil)
-
-; stop cluttering my fs with #file.ext#
-(setq backup-directory-alist `((".*" . ,temporary-file-directory))
-      auto-save-file-name-transforms
-      `((".*" ,(concat user-emacs-directory "backups") t)))
-
-(use-package emacs
-  :delight (auto-fill-function))
 
 (require 'auth-source-pass)
 (auth-source-pass-enable)
 (use-package pinentry)
 (setq epa-pinentry-mode 'loopback)
 
-(use-package better-defaults)
-;; https://github.com/emacs-lsp/lsp-mode#performance
-(setq gc-cons-threshold 100000000)
-(setq read-process-output-max (* 1024 1024)) ;; 1mb
+(require 'hub-utils)
 
-(use-package hydra)
+(require 'setup-general)
 
 (require 'setup-evil)
-
-; Mac
-
-;; Are we on a mac? Thanks @magnars
-(setq is-mac (equal system-type 'darwin))
-
-;; fix for Mac OS X PATH in Emacs GUI (not just macOS...)
-(use-package exec-path-from-shell
-  ;; :if (and window-system is-mac)
-  :config
-  ;; remove -1 from default value
-  ;; this implies PATH and key environment variables are set through
-  ;; .profile and not through .zshrc or other interactive-only config files
-  (setq exec-path-from-shell-arguments '("-l" "-i"))
-  (exec-path-from-shell-initialize))
-
-(setq mac-command-key-is-meta t)
-(setq mac-command-modifier 'meta)
-(setq mac-option-key-is-meta nil)
-(setq mac-option-modifier nil)
-
-(setq ns-use-srgb-colorspace t)
-
-;;;;;;;;;;;;
-; General Behaviour
-;;;;;;;;;;;;
-
-(defun save-all ()
-  "To be used to automatically save when I leave Emacs."
-  (interactive)
-  (save-some-buffers t))
-(add-hook 'focus-out-hook 'save-all)
-
-;; synchronise emacs clipboard with system clipboard
-(use-package clipmon
-  :defer t
-  :ensure t)
-
-;; particularly useful in git repositories to avoid the hassle of
-;; manually reloading each buffer when you change branch.
-(global-auto-revert-mode t)
-
-(use-package undo-tree
-  :diminish undo-tree-mode
-  :bind ("C-é" . undo)
-  :config
-  (global-undo-tree-mode))
-
-(use-package unfill
-  :commands (unfill-region unfill-paragraph toggle-fill-unfill))
-
-(setq comment-auto-fill-only-comments t) ; auto-fill comments and only them
-;; this one seems hard to diminish: insisting
-;; (eval-after-load 'auto-fill-mode '(diminish 'auto-fill-function))
-;; (eval-after-load 'auto-fill '(diminish 'auto-fill-function))
-;; (diminish 'auto-fill-function)
-;; don't wrap for space before French punctuation
-(add-to-list 'fill-nobreak-predicate 'fill-french-nobreak-p)
-
-(setq tab-always-indent 'complete)      ; tab try to indent, if indented complete
-(setq mode-require-final-newline nil)   ; don't add new line at EOF on save
-
-;; General Keybindings
-;;; We don't want shift selection
-(setq shift-select-mode nil)
-(global-set-key (kbd "C-=") 'align-current)
-;; you code you type Enter, you realise you shouldn't have, don't type
-;; backspace furiously to repair, just M-Del
-(global-set-key (kbd "M-<DEL>") 'delete-indentation)
-;; fix windows inability to pick up font change at load time...
-(global-set-key (kbd "<f10>")
-                (lambda () (interactive)
-                  (set-face-attribute 'default nil :font "Iosevka-12")))
-
-(use-package expand-region
-  :bind ("M-r" . er/expand-region)
-  :commands (er/expand-region))
-
-(define-key key-translation-map (kbd "<f8> <right>") (kbd "→"))
-(define-key key-translation-map (kbd "<f8> i") (kbd "∞"))
-
-(global-set-key (kbd "M-p") 'eval-print-last-sexp)
-(global-set-key (kbd "M-ð") 'eval-last-sexp)
-
-;; left cmd + right cmd + csrn in order to jump from window to window
-(global-set-key (kbd "M-©") 'evil-window-left)
-(global-set-key (kbd "M-®") 'evil-window-right)
-(global-set-key (kbd "M-þ") 'evil-window-down)
-(global-set-key (kbd "M-ß") 'evil-window-up)
-;; on macOS bepo differs
-(global-set-key (kbd "M-¸") 'evil-window-left)
-(global-set-key (kbd "M-ᵉ") 'evil-window-down)
-(global-set-key (kbd "M-˘") 'evil-window-right)
-
-;; stolen from https://github.com/magnars/.emacs.d/blob/master/key-bindings.el
-;; Transpose stuff with M-t
-(global-unset-key (kbd "M-t")) ;; which used to be transpose-words
-(global-set-key (kbd "M-t l") 'transpose-lines)
-(global-set-key (kbd "M-t w") 'transpose-words)
-(global-set-key (kbd "M-t s") 'transpose-sexps)
-(global-set-key (kbd "M-t p") 'transpose-params)
-
-(defun transpose-params ()
-  "Presumes that params are in the form (p, p, p) or {p, p, p} or [p, p, p]."
-  (interactive)
-  (let* ((end-of-first (cond
-                        ((looking-at ", ") (point))
-                        ((and (looking-back ",") (looking-at " ")) (- (point) 1))
-                        ((looking-back ", ") (- (point) 2))
-                        (t (error "Place point between params to transpose."))))
-         (start-of-first (save-excursion
-                           (goto-char end-of-first)
-                           (move-backward-out-of-param)
-                           (point)))
-         (start-of-last (+ end-of-first 2))
-         (end-of-last (save-excursion
-                        (goto-char start-of-last)
-                        (move-forward-out-of-param)
-                        (point))))
-    (transpose-regions start-of-first end-of-first start-of-last end-of-last)))
-
-(defun move-forward-out-of-param ()
-  (while (not (looking-at ")\\|, \\| ?}\\| ?\\]"))
-    (cond
-     ((point-is-in-string-p) (move-point-forward-out-of-string))
-     ((looking-at "(\\|{\\|\\[") (forward-list))
-     (t (forward-char)))))
-
-(defun move-backward-out-of-param ()
-  (while (not (looking-back "(\\|, \\|{ ?\\|\\[ ?"))
-    (cond
-     ((point-is-in-string-p) (move-point-backward-out-of-string))
-     ((looking-back ")\\|}\\|\\]") (backward-list))
-     (t (backward-char)))))
-
-(defun current-quotes-char ()
-  (nth 3 (syntax-ppss)))
-
-(defalias 'point-is-in-string-p 'current-quotes-char)
-
-(defun move-point-forward-out-of-string ()
-  (while (point-is-in-string-p) (forward-char)))
-
-(defun move-point-backward-out-of-string ()
-  (while (point-is-in-string-p) (backward-char)))
 
 (use-package smartparens
   :diminish smartparens-mode
@@ -330,32 +139,7 @@
   (smartparens-global-strict-mode)
   )
 
-;; Dired
-(use-package dired-details
-  :disabled t
-  :config
-  (setq-default dired-details-hidden-string "--- ")
-  (dired-details-install))
-(setq dired-dwim-target t)
-(use-package dired-subtree
-  :config
-  (bind-keys :map dired-mode-map
-             ("(" . dired-subtree-insert)
-             (")" . dired-subtree-remove)))
-;;narrow dired to match filter
-(use-package dired-narrow
-  :ensure t
-  :bind (:map dired-mode-map
-              ("/" . dired-narrow)))
-;; clipboard-type feature for copying/moving files.
-;; Mark files then Y to copy them, add more with C-u Y
-;; then go to destination and use X (move) or V (paste)
-(use-package dired-ranger
-  :ensure t
-  :bind (:map dired-mode-map
-              ("Y" . dired-ranger-copy)
-              ("X" . dired-ranger-move)
-              ("V" . dired-ranger-paste)))
+(require 'setup-dired)
 
 ;; ivy
 (use-package ivy
@@ -366,13 +150,7 @@
          ("M-c"   . ivy-copy-selection)
          ("C-c o" . ivy-tv-filtered-candidates)
          ("C-s"   . swiper)
-         ("C-r"   . swiper)
-         :map evil-normal-state-map
-         (",of"   . counsel-find-file)
-         (",ga"   . counsel-ag)
-         (",x"    . counsel-M-x)
-         (",gB"   . ivy-switch-buffer-other-window)
-         )
+         ("C-r"   . swiper))
   :custom
   (ivy-count-format "(%d/%d) ")
   (ivy-display-style 'fancy)
@@ -385,82 +163,56 @@
   ;; this makes my system slower each time
   (ivy-use-virtual-buffers nil)
   :config
+  (define-key evil-normal-state-map (kbd ",ga") 'counsel-ag)
+  (define-key evil-normal-state-map (kbd ",gB") 'ivy-switch-buffer-other-window)
+  (define-key evil-normal-state-map (kbd ",of") 'counsel-find-file)
+  (define-key evil-normal-state-map (kbd ",x") 'counsel-M-x)
   (ivy-mode))
 
 (use-package counsel
   :config
   (counsel-mode))
 
-;; (use-package ivy-rich)
+(require 'setup-eshell)
 
-;; keybindings for projectile (replace s-p with ,p)
-;; https://docs.projectile.mx/en/latest/usage/#interactive-commands
-(use-package projectile
-  :diminish projectile-mode
-  :defer 1
-  :bind (:map projectile-command-map    ; under ,p
-              ("P" . projectile-switch-project)
-              ("p" . persp-switch-last)
-              ("-" . persp-remove-buffer) ; disassociate buffer from persp
-              ("R" . persp-rename)
-              ("X" . persp-kill) ; terminate perspective
-              ("+" . persp-add-buffer) ; associate buffer to current persp
-              ("M" . persp-set-buffer) ; like add but remove from all other
-              ("b" . persp-counsel-switch-buffer) ; persp-aware
-              ("T" . projectile-find-implementation-or-test-other-window)
-              ("C-s" . persp-state-save) ; save perspective layout to file
-              ("C-l" . persp-state-load) ; load perspective layout from file
-)
+(use-package restclient
+  :commands (restclient-mode))
+;; never used it but could prove useful
+;; (use-package company-restclient
+;;   :after restclient company
+;;   :config
+;;   (add-to-list 'company-backends 'company-restclient))
+;; (use-package ob-restclient
+;;   :after org
+;;   :config
+;;   (org-babel-do-load-languages
+;;    'org-babel-load-languages
+;;    '((restclient . t))))
+
+;; Editing text
+(add-hook 'text-mode-hook 'turn-on-auto-fill) ; auto-wrap
+(setq sentence-end-double-space nil)    ; one space is enough after a period to end a sentence
+(define-key evil-normal-state-map (kbd ",bs") 'flyspell-mode)
+
+;; Writing with style
+;; http://rs.io/software-writers-tools-improve-writing/
+;; chase weasel words, count words and more
+;; https://github.com/sachac/artbollocks-mode
+;; http://sachachua.com/blog/2011/12/emacs-artbollocks-mode-el-and-writing-more-clearly/
+
+(use-package artbollocks-mode
+  :commands (artbollocks-mode)
   :config
-  (projectile-mode +1)
-  (define-key projectile-mode-map (kbd "C-c p") 'projectile-command-map)
-  (define-key projectile-mode-map (kbd "s-p") 'projectile-command-map)
-  (evil-define-key 'normal 'projectile-mode-map ",p" 'projectile-command-map)
-  (setq projectile-completion-system 'ivy)
-  (setq projectile-project-search-path '("~/ws/"))
-  (use-package counsel-projectile
-    :after counsel
-    :config
-    (counsel-projectile-mode))
-  )
+  (evil-define-key 'normal artbollocks-mode-map (kbd ",bw") 'artbollocks-count-words))
 
-;; Ediff
-(setq ediff-diff-options "-w")
-(setq ediff-split-window-function 'split-window-horizontally)
-(setq ediff-window-setup-function 'ediff-setup-windows-plain)
+(use-package writeroom-mode
+  :commands (writeroom-mode))
 
-;;; Yasnippet
-(use-package yasnippet
-  :defer t
-  :ensure t
-  :diminish yas-minor-mode
-  :bind (("<C-tab>" . company-yasnippet)
-         :map yas-minor-mode-map
-         ;; expand with company
-         ("<tab>" . nil)
-         ("TAB" . nil))
+(use-package languagetool
   :config
-  (yas-global-mode 1)
-  (setq yas-prompt-functions '(yas/completing-prompt))
-)
-
-(use-package yasnippet-snippets)
-
-;;; auto-insert-mode (template filling at file creation time)
-(auto-insert-mode 0)
-;; (add-hook 'find-file-hook 'auto-insert)
-(setq auto-insert-directory "~/.emacs.d/insert/")
-;; you can use yasnippet to expand it
-;; see: http://www.emacswiki.org/emacs/AutoInsertMode
-;; the standard emacs way use skeleton
-;; see: https://github.com/cinsk/emacs-scripts/blob/8212d714d5c6f6b95e873e8688b30ba130d07775/xskel.el
-;; also: http://www.howardism.org/Technical/Emacs/templates-tutorial.html
-(defun hub/autoinsert-yas-expand (&optional expand-env)
-    "Replace text in yasnippet template optionally passing EXPAND-ENV (let-style)."
-    (yas-expand-snippet (buffer-string) (point-min) (point-max) expand-env))
-(define-auto-insert "\.org" ["template.org" hub/autoinsert-yas-expand])
-;; orj is an extension I invented: org-revealJS
-(define-auto-insert "\.orj" ["template.orj" hub/autoinsert-yas-expand])
+  ;; style and grammar checker
+  (setq langtool-language-tool-jar "/usr/local/Cellar/languagetool/2.6/libexec/languagetool.jar")
+  (define-key evil-normal-state-map (kbd ",bg") 'langtool-check))
 
 (require 'setup-org)
 
@@ -475,120 +227,7 @@
   :config
   (setq edit-server-default-major-mode 'markdown-mode))
 
-;; stolen: http://stackoverflow.com/a/6541072/249234
-(defun func-region (start end func)
-  "Run a function FUNC over the region between START and END in current buffer."
-  (save-excursion
-    (let ((text (delete-and-extract-region start end)))
-      (insert (funcall func text)))))
-
-(defun url-encode-region (start end)
-  "Urlencode the region between START and END in current buffer."
-  (interactive "r")
-  (func-region start end #'url-hexify-string))
-
-(defun url-decode-region (start end)
-  "De-urlencode the region between START and END in current buffer."
-  (interactive "r")
-  (func-region start end #'url-unhex-string))
-
 (require 'setup-blog)
-
-(defun teleprompter ()
-  "Scroll the display at a given interval"
-  (interactive)
-  (while 1
-    (let ((sleep-time 4))
-      (scroll-up-line)
-      (sit-for sleep-time))))
-;; (global-set-key (kbd "’") 'teleprompter)
-
-
-(defun hub/dwim-other-window (f)
-  "Run F in a new window if only one window is visible.
-Otherwise switch to other window before."
-  (if (one-window-p t 'visible)
-      (split-window-right))
-  (other-window 1)
-  (funcall f))
-
-(defun hub/switch-to-other-buffer ()
-  "Switch to topmost non-visible buffer. On default bindings, same as
-C-x b RET. The buffer selected is the one returned by (other-buffer)."
-  (interactive)
-  (switch-to-buffer (other-buffer)))
-
-(defun hub/switch-dwim ()
-  "Switch to the previously visited windows if multiple windows
-  are visible else switch to other buffer."
-  (interactive)
-  (if (one-window-p t 'visible) (evil-buffer)
-    (evil-window-mru)))
-
-(defun hub/copy-buffer-file-name ()
-  "Put the current file name on the clipboard"
-  (interactive)
-  (let ((filename (if (equal major-mode 'dired-mode)
-                      default-directory
-                    (buffer-file-name))))
-    (when filename
-      (with-temp-buffer
-        (insert filename)
-        (clipboard-kill-region (point-min) (point-max)))
-      (message filename))))
-
-;;; Comint
-(setq
- comint-scroll-to-bottom-on-input t
- comint-scroll-to-bottom-on-output t
- comint-show-maximum-output t
- comint-input-ignoredups t
- comint-completion-addsuffix t
- comint-buffer-maximum-size 10000
- )
-;; truncate buffers continuously
-(add-hook 'comint-output-filter-functions 'comint-truncate-buffer)
-(evil-define-key 'normal comint-mode-map ",ee" 'comint-clear-buffer)
-(evil-define-key 'insert comint-mode-map (kbd "C-c C-e") 'comint-clear-buffer)
-
-;; Emacs and the shell
-;; currently my zsh setup fails when used from Emacs with
-;; complete:13: command not found: compdef
-;; (setq shell-file-name "bash")
-
-(require 'setup-eshell)
-
-(use-package restclient
-  :commands (restclient-mode))
-(setq url-http-attempt-keepalives nil)
-
-;;; TRAMP
-(setq tramp-default-method "ssh")
-
-(require 'setup-erc)
-
-(require 'setup-twitter)
-
-(require 'setup-git)
-
-;(require 'setup-multiple-cursors)
-
-;; Editing text
-(add-hook 'text-mode-hook 'turn-on-auto-fill) ; auto-wrap
-(setq sentence-end-double-space nil)    ; one space is enough after a period to end a sentence
-
-;; Writing with style
-;; http://rs.io/software-writers-tools-improve-writing/
-;; chase weasel words, count words and more
-;; https://github.com/sachac/artbollocks-mode
-;; http://sachachua.com/blog/2011/12/emacs-artbollocks-mode-el-and-writing-more-clearly/
-(use-package artbollocks-mode
-  :commands artbollocks-mode)
-
-(use-package writeroom-mode
-  :commands (writeroom-mode))
-
-(setq langtool-language-tool-jar "/usr/local/Cellar/languagetool/2.6/libexec/languagetool.jar")
 
 ;; asciidoc
 (add-hook 'adoc-mode-hook (lambda() (buffer-face-mode t)))
@@ -617,26 +256,125 @@ C-x b RET. The buffer selected is the one returned by (other-buffer)."
   (evil-define-key 'normal markdown-mode-map (kbd "M-<") 'markdown-promote)
   (evil-define-key 'normal markdown-mode-map (kbd ",eV") 'markdown-export-and-preview))
 
-;; Cucumber
-(use-package feature-mode
-  :defer t
-  :mode ("\\.feature$" . feature-mode)
-  :config
-  (setq feature-step-search-path "features/**/*steps.rb")
-  ;; (setq feature-step-search-gems-path "gems/ruby/*/gems/*/**/*steps.rb")
-  (add-hook 'feature-mode-hook
-            (lambda ()
-              (electric-indent-mode -1))))
 ; CODING
-;; keys
-;; stolen here: http://www.emacswiki.org/emacs/CommentingCode
-;; Original idea from
-;; http://www.opensubscriber.com/message/emacs-devel@gnu.org/10971693.html
+(require 'setup-git)
+;; keybindings for projectile (replace s-p with ,p)
+;; https://docs.projectile.mx/en/latest/usage/#interactive-commands
+(use-package projectile
+  :diminish projectile-mode
+  :defer 1
+  :bind (:map projectile-command-map    ; under ,p
+              ("P" . projectile-switch-project)
+              ("p" . persp-switch-last)
+              ("-" . persp-remove-buffer) ; disassociate buffer from persp
+              ("R" . persp-rename)
+              ("X" . persp-kill) ; terminate perspective
+              ("+" . persp-add-buffer) ; associate buffer to current persp
+              ("M" . persp-set-buffer) ; like add but remove from all other
+              ("b" . persp-counsel-switch-buffer) ; persp-aware
+              ("T" . projectile-find-implementation-or-test-other-window)
+              ("C-s" . persp-state-save) ; save perspective layout to file
+              ("C-l" . persp-state-load) ; load perspective layout from file
+              )
+  :config
+  (projectile-mode +1)
+  (define-key projectile-mode-map (kbd "C-c p") 'projectile-command-map)
+  (define-key projectile-mode-map (kbd "s-p") 'projectile-command-map)
+  (evil-define-key 'normal 'projectile-mode-map ",p" 'projectile-command-map)
+  (setq projectile-completion-system 'ivy)
+  (setq projectile-project-search-path '("~/ws/"))
+  (use-package counsel-projectile
+    :after counsel
+    :config
+    (counsel-projectile-mode))) 
 
-;; Debugging
-(use-package realgud
-  :disabled t                           ; install error: can't install org-mac-link??
-  :commands (realgud:gdb realgud:byebug realgud:pry))
+;; Ediff
+(setq ediff-diff-options "-w")
+(setq ediff-split-window-function 'split-window-horizontally)
+(setq ediff-window-setup-function 'ediff-setup-windows-plain)
+
+;;; Yasnippet
+(use-package yasnippet
+  :defer t
+  :ensure t
+  :diminish yas-minor-mode
+  :bind (("<C-tab>" . company-yasnippet)
+         :map yas-minor-mode-map
+         ;; expand with company
+         ("<tab>" . nil)
+         ("TAB" . nil))
+  :config
+  (yas-global-mode 1)
+  (setq yas-prompt-functions '(yas/completing-prompt))
+)
+
+(use-package yasnippet-snippets)
+
+;;; auto-insert-mode is Emacs file templating
+(auto-insert-mode 0)        ; no more the default, use auto-insert manually
+(setq auto-insert-directory "~/.emacs.d/insert/")
+;; you can use yasnippet to expand it
+;; see: http://www.emacswiki.org/emacs/AutoInsertMode
+;; the standard emacs way use skeleton
+;; see: https://github.com/cinsk/emacs-scripts/blob/8212d714d5c6f6b95e873e8688b30ba130d07775/xskel.el
+;; also: http://www.howardism.org/Technical/Emacs/templates-tutorial.html
+(defun hub/autoinsert-yas-expand (&optional expand-env)
+    "Replace text in yasnippet template optionally passing EXPAND-ENV (let-style)."
+    (yas-expand-snippet (buffer-string) (point-min) (point-max) expand-env))
+(define-auto-insert "\.org" ["template.org" hub/autoinsert-yas-expand])
+;; orj is an extension I invented: org-revealJS
+(define-auto-insert "\.orj" ["template.orj" hub/autoinsert-yas-expand])
+
+;; company-mode
+(use-package company
+  :diminish company-mode
+  :init
+  (add-hook 'after-init-hook 'global-company-mode)
+  :bind (("C-," . company-complete)
+         :map minibuffer-local-map
+         ;; give way in minibuffer to company keymap
+         ("\M-n" . nil))
+  :config
+  ;; company dabbrev backend downcase everything by default
+  (setq company-dabbrev-downcase nil)
+  (setq company-selection-wrap-around t)
+  ;; (push 'company-elisp company-backends)
+  ;; (push 'company-yasnippet company-backends)
+  )
+
+(use-package company-quickhelp
+  :defer 4
+  :config
+  (company-quickhelp-mode))
+
+(use-package company-lsp
+  :defer t
+  ;; :pin melpa
+  :config
+  (setq company-lsp-cache-candidates 'auto)
+  (setq company-minimum-prefix-length 1
+        company-idle-delay 0.0)         ;default is 0.2
+  ;; https://www.mortens.dev/blog/emacs-and-the-language-server-protocol/
+  ;; Disable client-side cache because the LSP server does a better job.
+  ;; (setq company-transformers nil
+  ;;       company-lsp-async t
+  ;;       company-lsp-cache-candidates nil)
+)
+
+;; helps keep track of which completions I use most often and uses
+;; that info the improve the ordering
+(use-package company-statistics
+  :init
+  (company-statistics-mode))
+
+;; lets me cycle through different company backend lists using Shift-<tab>
+(use-package company-try-hard
+  :bind
+  (("<backtab>" . company-try-hard)
+   :map company-active-map
+   ("<backtab>" . company-try-hard)))
+
+(use-package hydra)
 
 ;; Navigating
 (use-package ggtags
@@ -648,28 +386,38 @@ C-x b RET. The buffer selected is the one returned by (other-buffer)."
   :config (setq ag-highlight-search t
                 ag-reuse-buffers t))
 
-(defun comment-dwim-line (&optional arg)
-  "Replacement for the 'comment-dwim' command.
-If no region is selected and current line is not blank
-and we are not at the end of the line, then comment
-current line. Replaces default behaviour of 'comment-dwim',
-when it inserts comment at the end of the line."
-  (interactive "*P")
-  (comment-normalize-vars)
-  (if (and (not (region-active-p)) (not (looking-at "[ \t]*$")))
-      (comment-or-uncomment-region (line-beginning-position) (line-end-position))
-    (comment-dwim arg)))
-(global-set-key "\M-;" 'comment-dwim-line)
+;; Use the Tree View Protocol for viewing the project structure and triggering compilation
+(use-package lsp-treemacs
+  :disabled t
+  :after treemacs
+  :defer t
+  ;; :pin melpa
+  :config
+  (lsp-metals-treeview-enable t)
+  (setq lsp-metals-treeview-show-when-views-received t)
+  (lsp-treemacs-sync-mode 1)
+  )
 
-;; RET insert newline and indent + comment if required
-;; Not suitable for multi-line comments à la javadoc
-(defun hub/set-newline-and-indent-comment ()
-  "Bind RET locally to 'comment-indent-new-line'."
-  (interactive)
-  (local-set-key (kbd "RET") 'comment-indent-new-line))
+(use-package dumb-jump
+  :config
+  (define-key evil-normal-state-map (kbd ",gd") 'dumb-jump-go)
+  (define-key evil-normal-state-map (kbd ",gD") 'dumb-jump-go-other-window)
+  (dumb-jump-mode))
 
-
-;; Behaviours
+;; Indenting
+(setq-default indent-tabs-mode nil)     ; no tabs, only spaces
+;; don't delete tabs one space at a time
+(setq backward-delete-char-untabify-method 'hungry)
+(use-package editorconfig
+  :defer t
+  :diminish editorconfig-mode)
+(use-package dtrt-indent
+  :disabled t
+  :defer 3
+  :config
+  (dtrt-indent-mode)
+  (setq dtrt-indent-min-quality 60
+        dtrt-indent-verbosity 3))
 ; automatically indent yanked text in prog-modes
 (dolist (command '(yank yank-pop))
   (eval `(defadvice ,command (after indent-region activate)
@@ -678,42 +426,10 @@ when it inserts comment at the end of the line."
                 (let ((mark-even-if-inactive transient-mark-mode))
                   (indent-region (region-beginning) (region-end) nil))))))
 
-;; Visual
-; stop cluttering my modeline with so many minor modes
-(eval-after-load 'eldoc '(diminish 'eldoc-mode))
-;; (eval-after-load 'auto-complete '(diminish 'auto-complete-mode))
-;; (eval-after-load 'dtrt-indent '(diminish 'dtrt-indent-mode))
 
-;; Syntax
-;;; stolen here: http://emacsredux.com/blog/2013/07/24/highlight-comment-annotations/
-(defun font-lock-comment-annotations ()
-  "Highlight a bunch of well known comment annotations.
-This functions should be added to the hooks of major modes for programming."
-  (font-lock-add-keywords
-   nil '(("\\<XXX\\>" 0 'font-lock-warning-face t)
-         ("\\<\\(FIX\\(ME\\)?\\|TODO\\|OPTIMIZE\\|HACK\\|REFACTOR\\):"
-          1 'font-lock-warning-face t))))
-;; XXX
-(add-hook 'prog-mode-hook 'font-lock-comment-annotations)
-
-;; Modes
-(which-function-mode 1)                 ; which function the point is in
+;; highlight TODO, FIXME, etc.
+(add-hook 'prog-mode-hook 'hub/font-lock-comment-annotations)
 ;; (show-paren-mode 1)                     ; highlight matching brackets
-(setq-default indent-tabs-mode nil)     ; no tabs, only spaces
-;; don't delete tabs one space at a time
-(setq backward-delete-char-untabify-method 'hungry)
-
-(use-package editorconfig
-  :defer t
-  :diminish editorconfig-mode
-  )
-(use-package dtrt-indent
-  :disabled t
-  :defer 3
-  :config
-  (dtrt-indent-mode)
-  (setq dtrt-indent-min-quality 60
-        dtrt-indent-verbosity 3))
 
 (use-package origami
   :commands origami-mode
@@ -739,18 +455,9 @@ _z_oom on node
   :bind (:map evil-normal-state-map
               (",Z" . hydra-folding/body)))
 
-(use-package flycheck
-  :commands flycheck-mode
-  :init (global-flycheck-mode)
-  :defer t
-  :bind (:map evil-normal-state-map
-              (",ge" . flycheck-next-error)
-              (",gE" . flycheck-previous-error))
-)
-
 ;; set prefix for lsp-command-keymap
 ;; all lsp commands: https://github.com/emacs-lsp/lsp-mode#commands
-(setq lsp-keymap-prefix "C-l")
+(setq lsp-keymap-prefix "M-l")
 (use-package lsp-mode
   :defer t
   :init
@@ -761,8 +468,7 @@ _z_oom on node
          (sh-mode . lsp)
          (lsp-mode . lsp-lens-mode)
          )
-  :commands lsp
-  )
+  :commands lsp)
 
 (use-package lsp-ui
   :defer t
@@ -810,60 +516,12 @@ _z_oom on node
 
 (use-package lsp-ivy :commands lsp-ivy-workspace-symbol)
 
-;; company-mode
-(use-package company
-  :diminish company-mode
-  :init
-  (add-hook 'after-init-hook 'global-company-mode)
-  :bind (("C-," . company-complete)
-         :map minibuffer-local-map
-         ;; give way in minibuffer to company keymap
-         ("\M-n" . nil))
-  :config
-  ;; company dabbrev backend downcase everything by default
-  (setq company-dabbrev-downcase nil)
-  (setq company-selection-wrap-around t)
-  ;; (push 'company-elisp company-backends)
-  ;; (push 'company-yasnippet company-backends)
-  )
-
-(use-package company-quickhelp
-  :defer 4
-  :config
-  (company-quickhelp-mode))
-
-(use-package company-lsp
-  :defer t
-  ;; :pin melpa
-  :config
-  (setq company-lsp-cache-candidates 'auto)
-  (setq company-minimum-prefix-length 1
-        company-idle-delay 0.0)         ;default is 0.2
-  ;; https://www.mortens.dev/blog/emacs-and-the-language-server-protocol/
-  ;; Disable client-side cache because the LSP server does a better job.
-  ;; (setq company-transformers nil
-  ;;       company-lsp-async t
-  ;;       company-lsp-cache-candidates nil)
-)
-
-;; helps keep track of which completions I use most often and uses
-;; that info the improve the ordering
-(use-package company-statistics
-  :init
-  (company-statistics-mode))
-
-;; lets me cycle through different company backend lists using C-<tab>
-(use-package company-try-hard
-  :bind
-  (("<backtab>" . company-try-hard)
-   :map company-active-map
-   ("<backtab>" . company-try-hard)))
-
 ;; Use the Debug Adapter Protocol for running tests and debugging
 (use-package posframe
   ;; Posframe is a pop-up tool that must be manually installed for dap-mode
   )
 
+;; Debugging
 (use-package dap-mode
   ;; :pin melpa
   :defer t
@@ -970,25 +628,37 @@ _z_oom on node
                                               (+dap-running-session-mode 1))))
 )
 
-;; Use the Tree View Protocol for viewing the project structure and triggering compilation
-(use-package lsp-treemacs
-  :disabled t
-  :after treemacs
+(use-package realgud
+  :disabled t                           ; install error: can't install org-mac-link??
+  :commands (realgud:gdb realgud:byebug realgud:pry))
+
+;;; Building
+;;; Comint
+(setq
+ comint-scroll-to-bottom-on-input t
+ comint-scroll-to-bottom-on-output t
+ comint-show-maximum-output t
+ comint-input-ignoredups t
+ comint-completion-addsuffix t
+ comint-buffer-maximum-size 10000
+ )
+;; truncate buffers continuously
+(add-hook 'comint-output-filter-functions 'comint-truncate-buffer)
+(evil-define-key 'normal comint-mode-map ",ee" 'comint-clear-buffer)
+(evil-define-key 'insert comint-mode-map (kbd "C-c C-e") 'comint-clear-buffer)
+
+(use-package flycheck
+  :commands flycheck-mode
+  :init (global-flycheck-mode)
   :defer t
-  ;; :pin melpa
   :config
-  (lsp-metals-treeview-enable t)
-  (setq lsp-metals-treeview-show-when-views-received t)
-  (lsp-treemacs-sync-mode 1)
-  )
+  (define-key evil-normal-state-map (kbd ",ge") 'flycheck-next-error)
+  (define-key evil-normal-state-map (kbd ",gE") 'flycheck-previous-error)
+  (define-key evil-normal-state-map (kbd ",)") 'flycheck-next-error)
+  (define-key evil-normal-state-map (kbd ",(") 'flycheck-previous-error)
+)
 
-(use-package dumb-jump
-  :bind (:map evil-normal-state-map
-              (",gd" . dumb-jump-go)
-              (",gD" . dumb-jump-go-other-window))
-  :config (dumb-jump-mode))
-
-;;; Compilation
+;; Compilation
 (require 'ansi-color)
 (defun colorize-compilation-buffer ()
   "Accept coloured output from testing."
@@ -1006,6 +676,7 @@ _z_oom on node
                        ;; (nlinum-mode 1) ; line # are overrated
                        ;; (ggtags-mode 1) ; trial
                        (subword-mode) ; camelcase moves
+                       (flyspell-prog-mode)
                        (turn-on-auto-fill)
                        ;; auto-fill comments and only them
                        ;; (setq-local comment-auto-fill-only-comments t)
@@ -1014,6 +685,9 @@ _z_oom on node
                        (origami-mode)
                        (editorconfig-mode 1)
                        (electric-indent-local-mode)
+                       (define-key evil-normal-state-map (kbd ",bb") 'compile)
+                       (define-key evil-normal-state-map (kbd ",br") 'recompile)
+                       (define-key evil-normal-state-map (kbd ",bx") 'kill-compilation)
                        )))
 ;; (setq linum-format " %3d ")    ; remove graphical glitches with fringe
 
@@ -1024,15 +698,12 @@ _z_oom on node
   (direnv-mode))
 
 ;; Help
+(which-function-mode 1)                 ; which function the point is in
 (use-package dash-at-point
   :if (memq window-system '(mac))
   :commands (dash-at-point dash-at-point-docset)
   :bind (:map evil-normal-state-map (",hd" . dash-at-point)))
 (define-key evil-normal-state-map (kbd ",hI") 'info)
-
-(use-package helm-dash
-  :commands (helm-dash-at-point helm-dash)
-  :bind (:map evil-normal-state-map (",hd" . helm-dash-at-point)))
 
 (use-package whitespace
   :diminish global-whitespace-mode
@@ -1049,38 +720,16 @@ _z_oom on node
 
 (require 'setup-scala)
 
-;; TODO: make a smart "go to definition" where you can configure the
-;; list of functions to try in order.
-;;
-;; For Scala the logic would be:
-;; If connected to ensime, use ensime-search,
-;;
-;;if not or if
-;; unsuccessful, if a tag table is created use it,
-;; (defun scala-smart-gd () (
-;;   (interactive)
-;;   (let ((smart-gd-try-functions-list '(ensime-search
-;; tag-find-symbol-at-point-if-tag-table sbt-grep evil-goto-definition))))
-;;     (smart-gd)
-;;   ))
-;; (evil-define-key 'normal scala-mode-map ",gd" 'scala-smart-gd)
-
 ; Emacs Lisp
-(defun hub/emacs-lisp-config ()
-  "Set up my emacs-lisp hacking environment."
-  ;; (hub/set-newline-and-indent-comment)
-  ;; (rainbow-delimiters-mode t)
-  ;; (eldoc-mode)
-  ;; (electric-indent-local-mode)
-)
-(add-hook 'emacs-lisp-mode-hook 'hub/emacs-lisp-config)
 (require 'jka-compr) ; find-tag to be able to find .el.gz
 (evil-define-key 'normal lisp-mode-shared-map
   ",." 'find-function
   ",hf" 'describe-function
   ",hv" 'describe-variable
+  ",hc" 'describe-char
   ",el" 'eval-last-sexp
   ",il" 'eval-print-last-sexp)
+(eval-after-load 'eldoc '(diminish 'eldoc-mode))
 
 ;; Scheme
 (use-package geiser
@@ -1094,11 +743,6 @@ _z_oom on node
   (evil-define-key 'normal geiser-mode-map ",." 'geiser-edit-symbol-at-point)
   )
 
-;; Smalltalk
-(add-to-list 'auto-mode-alist '("\\.st$" . shampoo-code-mode))
-(add-to-list 'load-path "~/Temp/shampoo-emacs/")
-(autoload 'shampoo-code-mode "shampoo-modes")
-
 (require 'setup-haskell)
 
 (require 'setup-ruby)
@@ -1106,11 +750,6 @@ _z_oom on node
 ;; Web: HTML/CSS
 (add-to-list 'auto-mode-alist '("\\.html$" . html-mode))
 
-;; (use-package zencoding-mode
-;;   :mode "\\.html\\'")
-;; (add-hook 'sgml-mode-hook 'zencoding-mode) ;; Auto-start on any markup modes
-;; (add-hook 'sgml-mode-hook (lambda () (progn (nlinum-mode 1))))
-;; after deleting a tag, indent properly
 (defadvice sgml-delete-tag (after reindent activate)
   (indent-region (point-min) (point-max)))
 (use-package css-mode
@@ -1199,19 +838,23 @@ _z_oom on node
   :config
   (setq alchemist-hooks-test-on-save t))
 
+;; Cucumber
+(use-package feature-mode
+  :defer t
+  :mode ("\\.feature$" . feature-mode)
+  :config
+  (setq feature-step-search-path "features/**/*steps.rb")
+  ;; (setq feature-step-search-gems-path "gems/ruby/*/gems/*/**/*steps.rb")
+  (add-hook 'feature-mode-hook
+            (lambda ()
+              (electric-indent-mode -1))))
+
 ;; OSX launchd plist
 (define-auto-insert "\.plist" ["template.plist" hub/autoinsert-yas-expand])
 (add-to-list 'auto-mode-alist '("\\.plist$" . xml-mode))
 
 ;; Python
 (require 'setup-python)
-
-; tweaking to get my proper setup
-; OSX
-; * iTerm2
-; Preferences > Keys (tab) > Remap Left Command to Left Option
-; Preferences > Profile > Left Option: Meta + Esc
-; * Numpad (for calc): remap keypad-dot to Option+Shift+Keypad-dot
 
 (put 'narrow-to-region 'disabled nil)
 (put 'erase-buffer 'disabled nil)
@@ -1222,6 +865,10 @@ _z_oom on node
 ;; (require 'setup-treemacs)
 (require 'setup-elfeed)
 (require 'setup-email)
+
+;; (require 'setup-erc)
+;; (require 'setup-twitter)
+;; (require 'setup-multiple-cursors)
 
 (provide 'init)
 ;;; init.el ends here

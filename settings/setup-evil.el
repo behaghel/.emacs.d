@@ -8,7 +8,7 @@
   :init
   ;; otherwise evil gives it mappings... not sure what is loading it
   ;; in the first place
-  (when (featurep 'tab-bar) 
+  (when (featurep 'tab-bar)
     (unload-feature 'tab-bar))
   (setq evil-want-integration t) ;; This is optional since it's already set to t by default.
   (setq evil-want-keybinding nil)
@@ -127,10 +127,11 @@
   ;; (define-key evil-insert-state-map (kbd "C-y") 'yank)
   ;; (define-key evil-insert-state-map (kbd "M-y") 'yank-pop)
   (define-key evil-normal-state-map (kbd ",y") 'hub/copy-buffer-file-name)
-  (define-key evil-normal-state-map (kbd ",g/") 'dired)
   (define-key evil-normal-state-map (kbd ",,") 'hub/switch-dwim)
   (define-key evil-visual-state-map (kbd ",|") 'shell-command-on-region)
   (define-key evil-normal-state-map (kbd ",=") 'align-current)
+  (define-key evil-normal-state-map (kbd "ç") 'delete-other-windows)
+  (define-key evil-insert-state-map (kbd "M-ç") 'delete-other-windows)
 
   ;; put xref at the front as it's smarter with codebases
   (setq evil-goto-definition-functions
@@ -156,9 +157,6 @@
 (make-conditional-key-translation (kbd "è") (kbd "C-x") 'not-insert-state-p)
 (make-conditional-key-translation (kbd "È") (kbd "C-u") 'not-insert-state-p)
 
-(define-key evil-normal-state-map (kbd ",gs") 'eshell)
-(define-key evil-normal-state-map (kbd ",el") 'eshell-run-last)
-(define-key evil-normal-state-map (kbd ",gS") 'hub/eshell-other-window)
 ;; you want to *g*o somewhere
 (define-key evil-normal-state-map (kbd ",gg") 'hub/switch-to-other-buffer)
 ;;; Switch to another open buffer
@@ -168,20 +166,9 @@
 (require 'evil-matchit)
 (global-evil-matchit-mode 1)
 
-;;; Dired
-(require 'dired-x)
-
 ;; errors and compilation (*b*uild)
 (define-key evil-normal-state-map (kbd "]e") 'next-error)
 (define-key evil-normal-state-map (kbd "[e") 'previous-error)
-(define-key evil-normal-state-map (kbd ",)") 'flycheck-next-error)
-(define-key evil-normal-state-map (kbd ",(") 'flycheck-previous-error)
-(define-key evil-normal-state-map (kbd ",bb") 'compile)
-(define-key evil-normal-state-map (kbd ",br") 'recompile)
-(define-key evil-normal-state-map (kbd ",bx") 'kill-compilation)
-(define-key evil-normal-state-map (kbd ",bw") 'artbollocks-count-words)
-(define-key evil-normal-state-map (kbd ",bs") 'ispell-buffer)
-(define-key evil-normal-state-map (kbd ",bg") 'langtool-check)
 ;; evil is crazy
 (define-key evil-insert-state-map (kbd "C-d") nil)
 (define-key evil-normal-state-map (kbd "M-.") nil)

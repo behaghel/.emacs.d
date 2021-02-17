@@ -177,7 +177,12 @@
 
 (use-package pip-requirements)
 
-(use-package ein)
+(use-package ein
+  :after org
+  :config
+  (org-babel-do-load-languages
+   'org-babel-load-languages
+   '((ein . t))))
 
 (provide 'setup-python)
 ;;; setup-python.el ends here

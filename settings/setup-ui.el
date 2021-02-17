@@ -89,20 +89,6 @@
   ;; :pin melpa
   :init (doom-modeline-mode 1))
 
-;; Look / Theme
-;; http://pawelbx.github.io/emacs-theme-gallery/
-;;
-;; (load-theme 'zenburn t)
-;; ;; zenburn region face is invisible...
-;; (set-face-attribute 'region nil :background "#666")
-;; (use-package moe-theme
-;;   :config
-;;   (moe-dark))
-;; (use-package dakrone-theme
-;;   :config
-;;   (load-theme 'dakrone t))
-;; http://chriskempson.github.io/base16/#eighties
-;; (load-theme 'base16-eighties-dark t)
 (use-package sublime-themes
   :disabled t
   :config
@@ -128,7 +114,7 @@
   (modus-themes-load-themes)
   :config
   ;; Load the theme of your choice:
-  (modus-themes-load-operandi) ;; light OR dark (modus-themes-load-vivendi)
+  (modus-themes-load-vivendi) ;; dark OR dark (modus-themes-load-operandi)
   :bind (:map evil-normal-state-map
               (",zk" . modus-themes-toggle)))
 
@@ -162,8 +148,7 @@
 ;; https://github.com/be5invis/Iosevka
 ;; (if (eq system-type 'darwin)
 ;; https://protesilaos.com/codelog/2020-09-05-emacs-note-mixed-font-heights/
-(set-face-attribute 'default nil :font "Iosevka-16")
-(set-face-attribute 'default nil :font "ETBembo-16")
+(set-face-attribute 'default nil :font "Iosevka-12")
 (set-face-attribute 'fixed-pitch nil :family "Iosevka" :height 1.0)
 (set-face-attribute 'variable-pitch nil :family "ETBembo" :height 1.0)
 
