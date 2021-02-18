@@ -100,7 +100,7 @@
   ;; Add all your customizations prior to loading the themes
   (setq modus-themes-slanted-constructs t
         modus-themes-bold-constructs nil
-        modus-themes-variable-pitch-ui t ; e.g. mode-line, tab-bar
+        modus-themes-variable-pitch-ui nil ; e.g. mode-line, tab-bar
         modus-themes-variable-pitch-headings t
         modus-themes-scale-headings t
         modus-themes-scale-1 1.05
@@ -150,7 +150,9 @@
 ;; https://protesilaos.com/codelog/2020-09-05-emacs-note-mixed-font-heights/
 (set-face-attribute 'default nil :font "Iosevka-12")
 (set-face-attribute 'fixed-pitch nil :family "Iosevka" :height 1.0)
-(set-face-attribute 'variable-pitch nil :family "ETBembo" :height 1.0)
+(set-face-attribute 'variable-pitch nil :family "FiraGO" :height 1.0)
+;; (set-face-attribute 'variable-pitch nil :family "DejaVu Sans Condensed" :height 1.0)
+;; (set-face-attribute 'variable-pitch nil :family "ETBembo" :height 1.0)
 
 ;; Ligatures
 (global-auto-composition-mode)

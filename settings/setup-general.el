@@ -128,7 +128,7 @@
 (define-key key-translation-map (kbd "<f8> <right>") (kbd "→"))
 (define-key key-translation-map (kbd "<f8> i") (kbd "∞"))
 
-(global-set-key "\M-;" 'comment-dwim-line)
+(global-set-key "\M-;" 'hub/comment-dwim-line)
 
 (provide 'setup-general)
 ;;; setup-general.el ends here
