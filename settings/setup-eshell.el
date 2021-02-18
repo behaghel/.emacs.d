@@ -100,8 +100,8 @@ PWD is not in a git repo (or the git command is not found)."
   (load-theme-buffer-local 'tango-dark (current-buffer)))
 ;; (add-hook 'eshell-mode-hook 'hub/load-term-theme-locally)
 
-(define-key evil-normal-state-map (kbd ",gs") 'eshell)
+(define-key evil-normal-state-map (kbd "gs") 'eshell)
 (define-key evil-normal-state-map (kbd ",el") 'eshell-run-last)
-(define-key evil-normal-state-map (kbd ",gS") 'hub/eshell-other-window)
+(define-key evil-normal-state-map (kbd "gS") 'hub/eshell-other-window)
 
 (provide 'setup-eshell)

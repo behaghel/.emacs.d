@@ -8,9 +8,6 @@
 ;;           - have a clear strategy when to use evil keymaps
 ;;             - z == toggle
 ;;             - g == goto + use [] () {} for prior/next
-;;             - ,g == go to special
-;;               - ,gr -> go to REPL TODO: should be gz
-;;               - ,gs -> go to EShell
 ;;             - , == <leader>
 ;;             - ,v == anything versioning
 ;;             - ,o == open
@@ -163,8 +160,8 @@
   ;; this makes my system slower each time
   (ivy-use-virtual-buffers nil)
   :config
-  (define-key evil-normal-state-map (kbd ",ga") 'counsel-ag)
-  (define-key evil-normal-state-map (kbd ",gB") 'ivy-switch-buffer-other-window)
+  (define-key evil-normal-state-map (kbd "gr") 'counsel-ag)
+  (define-key evil-normal-state-map (kbd "gB") 'ivy-switch-buffer-other-window)
   (define-key evil-normal-state-map (kbd ",of") 'counsel-find-file)
   (define-key evil-normal-state-map (kbd ",x") 'counsel-M-x)
   (ivy-mode))
@@ -397,12 +394,6 @@
   (setq lsp-metals-treeview-show-when-views-received t)
   (lsp-treemacs-sync-mode 1)
   )
-
-(use-package dumb-jump
-  :config
-  (define-key evil-normal-state-map (kbd ",gd") 'dumb-jump-go)
-  (define-key evil-normal-state-map (kbd ",gD") 'dumb-jump-go-other-window)
-  (dumb-jump-mode))
 
 ;; Indenting
 (setq-default indent-tabs-mode nil)     ; no tabs, only spaces
@@ -652,8 +643,8 @@ _z_oom on node
   :init (global-flycheck-mode)
   :defer t
   :config
-  (define-key evil-normal-state-map (kbd ",ge") 'flycheck-next-error)
-  (define-key evil-normal-state-map (kbd ",gE") 'flycheck-previous-error)
+  (define-key evil-normal-state-map (kbd "g)") 'flycheck-next-error)
+  (define-key evil-normal-state-map (kbd "g(") 'flycheck-previous-error)
   (define-key evil-normal-state-map (kbd ",)") 'flycheck-next-error)
   (define-key evil-normal-state-map (kbd ",(") 'flycheck-previous-error)
 )

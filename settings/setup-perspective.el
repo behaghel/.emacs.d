@@ -14,7 +14,7 @@
          )
   :config
 
-  (define-key evil-normal-state-map (kbd ",gb") 'persp-ivy-switch-buffer)
+  (define-key evil-normal-state-map (kbd "gb") 'persp-ivy-switch-buffer)
 
   (persp-mode t)
   (add-hook 'kill-emacs-hook #'persp-state-save)
@@ -64,7 +64,7 @@
   (hub/setup-speed-dial)
 
 (define-key evil-normal-state-map (kbd ",op") 'projectile-persp-switch-project)
-(define-key evil-normal-state-map (kbd ",gp") 'persp-switch)
+(define-key evil-normal-state-map (kbd "gP") 'persp-switch)
 
 (winner-mode 1)
 (define-key evil-window-map (kbd "C-<left>") 'winner-undo)

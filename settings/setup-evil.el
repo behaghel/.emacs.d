@@ -128,6 +128,7 @@
   ;; (define-key evil-insert-state-map (kbd "M-y") 'yank-pop)
   (define-key evil-normal-state-map (kbd ",y") 'hub/copy-buffer-file-name)
   (define-key evil-normal-state-map (kbd ",,") 'hub/switch-dwim)
+  (define-key evil-normal-state-map (kbd ",'") 'hub/switch-to-other-buffer)
   (define-key evil-visual-state-map (kbd ",|") 'shell-command-on-region)
   (define-key evil-normal-state-map (kbd ",=") 'align-current)
   (define-key evil-normal-state-map (kbd "ç") 'delete-other-windows)
@@ -157,18 +158,14 @@
 (make-conditional-key-translation (kbd "è") (kbd "C-x") 'not-insert-state-p)
 (make-conditional-key-translation (kbd "È") (kbd "C-u") 'not-insert-state-p)
 
-;; you want to *g*o somewhere
-(define-key evil-normal-state-map (kbd ",gg") 'hub/switch-to-other-buffer)
-;;; Switch to another open buffer
-;; (define-key evil-normal-state-map (kbd ",gb") 'switch-to-buffer)
-;; (define-key evil-normal-state-map (kbd ",gB") 'switch-to-buffer-other-window)
-
 (require 'evil-matchit)
 (global-evil-matchit-mode 1)
 
 ;; errors and compilation (*b*uild)
-(define-key evil-normal-state-map (kbd "]e") 'next-error)
-(define-key evil-normal-state-map (kbd "[e") 'previous-error)
+(define-key evil-normal-state-map (kbd "g}") 'next-error)
+(define-key evil-normal-state-map (kbd "g{") 'previous-error)
+(define-key evil-normal-state-map (kbd ",}") 'next-error)
+(define-key evil-normal-state-map (kbd ",{") 'previous-error)
 ;; evil is crazy
 (define-key evil-insert-state-map (kbd "C-d") nil)
 (define-key evil-normal-state-map (kbd "M-.") nil)
