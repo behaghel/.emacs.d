@@ -203,7 +203,10 @@
   (evil-define-key 'normal artbollocks-mode-map (kbd ",bw") 'artbollocks-count-words))
 
 (use-package writeroom-mode
-  :commands (writeroom-mode))
+  :commands (writeroom-mode)
+  :config
+  (add-to-list 'writeroom-local-effects #'variable-pitch-mode))
+;; inspiration: https://protesilaos.com/codelog/2020-07-16-emacs-focused-editing/
 
 (use-package languagetool
   :config
