@@ -44,7 +44,7 @@ most org export / preview in the browser."
 ;; that way mu build put all the mu4e elisp files in my load-path on
 ;; `make install' step
 (use-package mu4e
-  :disabled t
+  ;; :disabled t
   ;; :ensure nil
   ;; :pin manual
   :config
