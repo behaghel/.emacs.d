@@ -9,6 +9,7 @@
 
 (use-package org
   :ensure org-plus-contrib
+  :straight (:depth 'full)              ; otherwise org-version breaks
   :defer t
   :commands (org-capture org-agenda)
   :after (evil evil-collection)
