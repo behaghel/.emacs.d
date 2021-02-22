@@ -9,7 +9,6 @@
   ;; :pin melpa
   :config
   (setq magit-popup-use-prefix-argument 'default
-        ;; magit-completing-read-function 'magit-ido-completing-read
         magit-completing-read-function 'ivy-completing-read
         )
 

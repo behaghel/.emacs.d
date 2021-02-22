@@ -1,4 +1,6 @@
 ;; Haskell
+;; TODO: next time you get back to haskell, try
+;; https://github.com/emacs-lsp/lsp-haskell
 ;; unicode input doesn't work with eg >= (Not in scope: ≥): disabled
 ;; (add-hook 'haskell-mode-hook 'turn-on-haskell-unicode-input-method)
 (use-package ghc
@@ -91,18 +93,6 @@
                                (add-to-list 'align-rules-list
                                             '(haskell-left-arrows
                                               (regexp . "\\(\\s-+\\)\\(<-\\|←\\)\\s-+")
-                                              (modes quote (haskell-mode literate-haskell-mode))))))
-
-  ;; (use-package haskell-cabal
-  ;;   :config
-  ;;   (define-key haskell-cabal-mode-map (kbd "C-c C-c") 'haskell-compile))
-  (use-package intero
-    :config
-    ;; (evil-define-key 'normal intero-mode-map ",gr" 'intero-repl)
-    (evil-define-key 'normal intero-mode-map ",gR" 'intero-repl-load)
-    (evil-define-key 'normal intero-mode-map ",." 'intero-goto-definition)
-    (evil-define-key 'normal intero-mode-map ",it" 'intero-type-at)
-    (evil-define-key 'normal intero-mode-map ",ii" 'intero-info)
-))
+                                              (modes quote (haskell-mode literate-haskell-mode)))))))
 
 (provide 'setup-haskell)

@@ -109,6 +109,7 @@ most org export / preview in the browser."
   ;; "zh" mu4e-headers-toggle-threading
   ;; "zé" mu4e-headers-toggle-threading
   ;; "zd" mu4e-headers-toggle-skip-duplicates
+  ;; "zê" mu4e-headers-toggle-full-search
   ;; "gl" mu4e-show-log
   ;; "gL" mu4e-show-log
   ;; "gv" mu4e-select-other-view
@@ -118,6 +119,7 @@ most org export / preview in the browser."
     "ê" 'mu4e-headers-search
     ",hh" 'mu4e-display-manual
     "zO" 'org-msg-mode
+    "zê" 'mu4e-headers-toggle-full-search
     )
 
   (evil-collection-define-key 'normal 'mu4e-headers-mode-map
@@ -135,6 +137,7 @@ most org export / preview in the browser."
     "\C-s" 'mu4e-headers-prev
     "zÉ" 'mu4e-headers-toggle-include-related
     "zé" 'mu4e-headers-toggle-threading
+    "zê" 'mu4e-headers-toggle-full-search
     "gL" 'mu4e-show-log
     "%" 'mu4e-headers-mark-pattern
     ",é" 'mu4e-headers-mark-pattern
@@ -369,149 +372,9 @@ most org export / preview in the browser."
       ( :name "Dropbox"
               :query "from:no-reply@dropbox.com")
       ;; Newsletter
-      ;; I use the wonderfull kill-the-newsletter.com to move
-      ;; newsletters to RSS (read with elfeed).
-      ;; I configure the forwarding filter straight in GMail
-      ;; ( :name "Strava Newsletter"
-      ;;         :query "list:spc.244190.0.sparkpostmail.com"
-      ;;         :category "cycling")
-      ;; ( :name "Garmin Newsletter"
-      ;;         :query "from:garmin@mails.garmin.com"
-      ;;         :category "cycling")
-      ;; ( :name "Cycle Plan"
-      ;;         :query "from:admin@emails.cycleplan.co.uk"
-      ;;         :category "cycling")
-      ;; ( :name "VONCRANK"
-      ;;         :query "from:info@voncrank.com"
-      ;;         :category "cycling")
-      ;; ( :name "Kudo Coach"
-      ;;         :query "from:hello@kudo.coach"
-      ;;         :category "cycling")
-      ;; ( :name "Marks & Spencer Marketing"
-      ;;         :query "list:1060191.xt.local"
-      ;;         :category "shopping")
-      ;; ( :name "Detox Kitchen"
-      ;;         :query "from:postman@candymail.co OR list:f07ee3b7aa6b3f3cba844a5f8.228557.list-id.mcsv.net"
-      ;;         :category "shopping")
-      ;; ( :name "Libertie Shopping"
-      ;;         :query "list:contact.boutiquelibertie.com.ipo3-0v378.mj"
-      ;;         :category "shopping")
-      ;; ( :name "Levi's"
-      ;;         :query "from:levis@e.levi.com"
-      ;;         :category "shopping")
-      ;; ( :name "Executive Shaving"
-      ;;         :query "list:a951262677dc714c2205250f2.228673.list-id.mcsv.net"
-      ;;         :category "shopping")
-      ;; ( :name "InCorio"
-      ;;         :query "from:bonjour@incorio.com"
-      ;;         :category "shopping")
-      ;; Religious
-      ;; ( :name "Hozana"
-      ;;         :query "from:contact@hozana.org OR list:ac6ab4ad6642b7f06d375784a.63591.list-id.mcsv.net"
-      ;;         :category "faith")
-      ;; ( :name "CAFOD"
-      ;;         :query "from:news@reply.cafod.net"
-      ;;         :category "faith")
-      ;; ( :name "ECLJ"
-      ;;         :query "from:secretariat@eclj.org"
-      ;;         :category "faith")
-      ;; ( :name "Theodom"
-      ;;         :query
-      ;;         "list:dominicains.communaute.theodom.org.j8ko-ik9.mj"
-      ;;         :category "faith")
-      ;; ( :name "Retraite dans la Ville"
-      ;;         :query "list:dominicains.retraitedanslaville.org.i5tg-l4g.mj"
-      ;;         :category "faith")
-      ;; ( :name "Franciscan at Home"
-      ;;         :query "list:a1ee93991069fffd045e3a111.56591.list-id.mcsv.net"
-      ;;         :category "faith")
-      ;; ( :name "Jean-Baptiste Maillard - Light in the Dark"
-      ;;         :query
-      ;;         "list:jean-baptiste.maillard.lightsinthedark.info.x0wws-5vl5g.mj"
-      ;;         :category "faith")
-      ;; ( :name "AFC France"
-      ;;         :query "from:info@afc-france.org"
-      ;;         :category "faith")
-      ;; ( :name "Aid to Church in Need"
-      ;;         :query "from:enews@acnuk.org OR list:25a175338ce0562b9d08ed926.308377.list-id.mcsv.net"
-      ;;         :category "faith")
-      ;; ( :name "Consecration Notre Dame de France"
-      ;;         :query "list:MjEzNTMtNTEwNjE3OC0xOQ==.list-id.mailin.fr"
-      ;;         :category "faith")
-      ;; ( :name "Revue Codex"
-      ;;         :query "from:codex@editionscld.fr"
-      ;;         :category "faith")
-      ;; General Info
-      ;; ( :name "Union des Français à l'Étranger"
-      ;;         :query "list:MTEwMjc5LTU0NzI5MS00Mg==.list-id.communication.excusemyweb.com"
-      ;;         :category "news")
-      ;; ( :name "Le PCD"
-      ;;         :query "from:contact@lepcd.fr"
-      ;;         :category "news")
-      ;; ( :name "La Selection Du Jour"
-      ;;         :query "from:lsdjabos@laselectiondujour.com"
-      ;;         :category "news")
-      ;; ( :name "Westminster COVID Update"
-      ;;         :query
-      ;;         "list:a50c8b0dd980669ef713b4cca.55853.list-id.mcsv.net"
-      ;;         :category "news")
-      ;; ( :name "TfL"
-      ;;         :query "from:Transport_for_London@email.tfl.gov.uk"
-      ;;         :category "news")
-      ;; ( :name "Talk London"
-      ;;         :query "from:updates@email.talklondon.london.gov.uk"
-      ;;         :category "news")
-      ;; ( :name "Avaaz"
-      ;;         :query "from:avaaz@avaaz.org"
-      ;;         :category "news")
-      ;; ( :name "Dr Willem - Lettre Santé Naturelle"
-      ;;         :query "list:100017990.xt.local"
-      ;;         :category "health")
-      ;; ( :name "Lettre Nutri-Santé"
-      ;;         :query "list:100008586.xt.local"
-      ;;         :category "health")
-      ;; ( :name "Wet Shaving by Mantic59"
-      ;;         :query "list:a6f734e009f696324350cdedf.807213.list-id.mcsv.net"
-      ;;         :category "health")
-      ;; ( :name "GoHugo Forum"
-      ;;         :query "from:gohugo@discoursemail.com"
-      ;;         :category "tech")
-      ;; ( :name "Medium Weekly Newsletter"
-      ;;         :query "from:noreply@medium.com"
-      ;;         :category "tech")
-      ;; ( :name "SWLW"
-      ;;         :query "from:oren@softwareleadweekly.com"
-      ;;         :category "tech")
-      ;; ( :name "Patrick Kua — Level Up"
-      ;;         :query "from:level-up@getrevue.co"
-      ;;         :category "tech")
-      ;; ( :name "Remote HQ"
-      ;;         :query "list:info.nohq.co.x33xq-2w4.mj"
-      ;;         :category "tech")
-      ;; ( :name "Grafana"
-      ;;         :query "list:2aeb5711db2aececc990be536.793549.list-id.mcsv.net"
-      ;;         :category "tech")
-      ;; ( :name "Real Python"
-      ;;         :query "from:info@realpython.com"
-      ;;         :category "tech")
       ( :name "Mu"
               :query "list:mu-discuss.googlegroups.com"
               :category "tech")
-      ;; ( :name "Amazon Alexa Newsletter"
-      ;;         :query "from:amazon-offers@amazon.co.uk"
-      ;;         :category "tech")
-      ;; ( :name "Gandi"
-      ;;         :query "list:MjY0NzEzOS0xMTk0NDcwLTUz.list-id.market.gandi.net"
-      ;;         :category "tech")
-      ;; ( :name "Hillel Wayne's Newsletter"
-      ;;         :query "list:hillelwayne.buttondown.email"
-      ;;         :category "tech")
-      ;; ( :name "Bartosz Milewski's Programming Cafe"
-      ;;         :query "from:\"Bartosz Milewski\""
-      ;;         :category "tech")
-      ;; ( :name "Thoughtworks Radar"
-      ;;         :query "from:techradar@thoughtworks.com"
-      ;;         :category "tech")
       ;; Finance
       ( :name "Money Saving Expert - Cheap Energy Club"
               :query "list:1081285.xt.local"
@@ -773,11 +636,13 @@ most org export / preview in the browser."
   (setq smtpmail-smtp-server "localhost"
         ;; smtpmail-auth-supported '(login)
         smtpmail-debug-info t)
-  ;; this uses pass localhost.gpg to retrieve password
-  (require 'auth-source-pass)
-  (auth-source-pass-enable)
+  ;; this uses pass localhost.gpg to retrieve password (now moved
+  ;; into init.el as it's not email specific)
+  ;; (require 'auth-source-pass)
+  ;; (auth-source-pass-enable)
   ;; (setq auth-source-debug t)
   ;; (setq auth-source-do-cache nil)
+
   ;; async
   ;; (setq send-mail-function 'sendmail-send-it)
   ;; (setq message-send-mail-function 'message-send-mail-with-sendmail)

@@ -24,6 +24,14 @@
 
 ;;; Code:
 
+(menu-bar-mode -1)
+(when (fboundp 'tool-bar-mode)
+  (tool-bar-mode -1))
+(when (fboundp 'scroll-bar-mode)
+  (scroll-bar-mode -1))
+(when (fboundp 'horizontal-scroll-bar-mode)
+  (horizontal-scroll-bar-mode -1))
+
 (column-number-mode 1)               ; show column number in mode line
 ;; more useful frame title, that show either a file or a
 ;; buffer name (if the buffer isn't visiting a file)

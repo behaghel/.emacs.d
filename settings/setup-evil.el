@@ -119,6 +119,20 @@
   (define-key evil-normal-state-map (kbd "©") 'backward-sexp)
   (define-key evil-normal-state-map (kbd "®") 'forward-sexp)
 
+;; recreate what I am familiar with Pharo
+  (define-key evil-normal-state-map (kbd "M-p") 'eval-print-last-sexp)
+  (define-key evil-normal-state-map (kbd "M-d") 'eval-last-sexp)
+
+  (define-key evil-normal-state-map (kbd "M-B") 'eval-buffer)
+
+  ;; stolen from https://github.com/magnars/.emacs.d/blob/master/key-bindings.el
+  ;; Transpose stuff with M-t
+  (global-unset-key (kbd "M-t")) ;; which used to be transpose-words
+  (define-key evil-normal-state-map (kbd ",tl") 'transpose-lines)
+  (define-key evil-normal-state-map (kbd ",tw") 'transpose-words)
+  (define-key evil-normal-state-map (kbd ",ts") 'transpose-sexps)
+  (define-key evil-normal-state-map (kbd ",tp") 'hub/transpose-params)
+
   ;;;; Other mapping
   ;; (define-key evil-normal-state-map (kbd "C-e") 'evil-end-of-line)
   (define-key evil-insert-state-map (kbd "C-e") 'end-of-line)

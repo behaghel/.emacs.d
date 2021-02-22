@@ -112,16 +112,16 @@
         (kbd ",k") #'evil-sp-substitute
         (kbd ",K") #'sp-kill-sexp
         ;; Finds opening '(' of the current list.
-        (kbd ",(") #'sp-backward-up-sexp
+        (kbd ",{") #'sp-backward-up-sexp
         ;; Finds closing ')' of the current list.
-        (kbd ",)") #'sp-up-sexp
+        (kbd ",}") #'sp-up-sexp
         (kbd ",k") #'sp-down-sexp
         ;; Go to the start of current/previous sexp
         (kbd "[[") #'sp-backward-sexp
         ;; Go to the start of next sexp.
         (kbd "]]") #'sp-forward-sexp
-        (kbd ",{") #'sp-backward-barf-sexp
-        (kbd ",}") #'sp-forward-barf-sexp
+        (kbd ",(") #'sp-backward-barf-sexp
+        (kbd ",)") #'sp-forward-barf-sexp
         (kbd "gn") #'sp-next-sexp
         (kbd "gp") #'sp-previous-sexp
         ;; (define-key evil-motion-state-map "S" 'evil-window-top)
@@ -209,6 +209,7 @@
 ;; inspiration: https://protesilaos.com/codelog/2020-07-16-emacs-focused-editing/
 
 (use-package languagetool
+  :commands (languagetool-check)
   :config
   ;; style and grammar checker
   (setq langtool-language-tool-jar "/usr/local/Cellar/languagetool/2.6/libexec/languagetool.jar")
@@ -265,16 +266,8 @@
   :defer 1
   :bind (:map projectile-command-map    ; under ,p
               ("P" . projectile-switch-project)
-              ("p" . persp-switch-last)
-              ("-" . persp-remove-buffer) ; disassociate buffer from persp
-              ("R" . persp-rename)
-              ("X" . persp-kill) ; terminate perspective
-              ("+" . persp-add-buffer) ; associate buffer to current persp
-              ("M" . persp-set-buffer) ; like add but remove from all other
-              ("b" . persp-counsel-switch-buffer) ; persp-aware
               ("T" . projectile-find-implementation-or-test-other-window)
-              ("C-s" . persp-state-save) ; save perspective layout to file
-              ("C-l" . persp-state-load) ; load perspective layout from file
+              ("F" . projectile-find-file-other-window)
               )
   :config
   (projectile-mode +1)
@@ -286,7 +279,7 @@
   (use-package counsel-projectile
     :after counsel
     :config
-    (counsel-projectile-mode))) 
+    (counsel-projectile-mode)))
 
 ;; Ediff
 (setq ediff-diff-options "-w")
@@ -694,6 +687,7 @@ _z_oom on node
 ;; Help
 (which-function-mode 1)                 ; which function the point is in
 (use-package dash-at-point
+  :disabled t
   :if (memq window-system '(mac))
   :commands (dash-at-point dash-at-point-docset)
   :bind (:map evil-normal-state-map (",hd" . dash-at-point)))

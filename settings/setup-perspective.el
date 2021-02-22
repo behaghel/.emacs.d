@@ -11,7 +11,18 @@
          ;; (",pb"   . persp-counsel-switch-buffer)
          ;; the counsel version preview buffers as they get selected,
          ;; useful when unsure what buffer we are looking for
+         :map projectile-command-map    ; under ,p
+         ("p" . persp-switch-last)
+         ("-" . persp-remove-buffer) ; disassociate buffer from persp
+         ("R" . persp-rename)
+         ("X" . persp-kill) ; terminate perspective
+         ("+" . persp-add-buffer) ; associate buffer to current persp
+         ("M" . persp-set-buffer) ; like add but remove from all other
+         ("b" . persp-counsel-switch-buffer) ; persp-aware
+         ("C-s" . persp-state-save) ; save perspective layout to file
+         ("C-l" . persp-state-load) ; load perspective layout from file
          )
+  :custom (persp-show-modestring nil)
   :config
 
   (define-key evil-normal-state-map (kbd "gb") 'persp-ivy-switch-buffer)

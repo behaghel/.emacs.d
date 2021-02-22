@@ -31,8 +31,6 @@
 (use-package emacs
   :delight (auto-fill-function))
 
-(use-package better-defaults)
-
 ;; https://github.com/emacs-lsp/lsp-mode#performance
 (setq gc-cons-threshold 100000000)
 (setq read-process-output-max (* 1024 1024)) ;; 1mb
@@ -99,10 +97,6 @@
 (setq tramp-default-method "ssh")
 
 ;; General Keybindings
-;; recreate what I am familiar with Pharo
-(global-set-key (kbd "M-p") 'eval-print-last-sexp)
-(global-set-key (kbd "M-ð") 'eval-last-sexp) ; Alt + AltGR + d (do)
-
 ;; left cmd + right cmd + csrn in order to jump from window to window
 (global-set-key (kbd "M-©") 'evil-window-left)
 (global-set-key (kbd "M-®") 'evil-window-right)
@@ -112,14 +106,6 @@
 (global-set-key (kbd "M-¸") 'evil-window-left)
 (global-set-key (kbd "M-ᵉ") 'evil-window-down)
 (global-set-key (kbd "M-˘") 'evil-window-right)
-
-;; stolen from https://github.com/magnars/.emacs.d/blob/master/key-bindings.el
-;; Transpose stuff with M-t
-(global-unset-key (kbd "M-t")) ;; which used to be transpose-words
-(global-set-key (kbd "M-t l") 'transpose-lines)
-(global-set-key (kbd "M-t w") 'transpose-words)
-(global-set-key (kbd "M-t s") 'transpose-sexps)
-(global-set-key (kbd "M-t p") 'hub/transpose-params)
 
 (global-set-key (kbd "C-=") 'align-current)
 ;; you code you type Enter, you realise you shouldn't have, don't type
