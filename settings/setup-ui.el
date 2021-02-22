@@ -95,12 +95,31 @@
 
 (use-package doom-modeline
   ;; :pin melpa
-  :init (doom-modeline-mode 1))
-
-(use-package sublime-themes
-  :disabled t
+  :init (doom-modeline-mode 1)
+  :after perspective
+  :defer 2
   :config
-  (load-theme 'odersky t))
+  (setq doom-modeline-buffer-file-name-style 'relative-to-project)
+  (setq doom-modeline-buffer-encoding nil)
+  (setq doom-modeline-mu4e t)
+
+  ;; no clue why doom-modeline is so exclusive about perspective.el
+  ;; this is all it takes to adapt its persp-mode integration to it
+  (defalias 'safe-persp-name #'persp-name)
+  (defalias 'get-current-persp #'persp-curr)
+  (defun persp-contain-buffer-p (buffer persp)
+    (persp-is-current-buffer buffer))
+  (setq persp-nil-name 'main)
+
+  (setq doom-modeline-persp-name t)
+  ;; TODO:
+  ;; no support for perspective.el out of the box but support for
+  ;; persp-mode
+  ;; looks like that if you advice doom-modeline-update-persp-name to
+  ;; use (persp-name (persp-curr)) from perspective.el instead of
+  ;; (persp-safe-name (get-current-persp)) from persp-mode you fix it
+  ;; https://github.com/seagle0128/doom-modeline/blob/5fca2ea926789ff124113916e7d7313bfbae3f2d/doom-modeline-segments.el#L1476
+)
 
 ;; https://gitlab.com/protesilaos/modus-themes
 (use-package modus-themes

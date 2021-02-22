@@ -411,6 +411,14 @@ most org export / preview in the browser."
       ))
   ;; (length hub/noise-predicates)
 
+  ;; default mu4e-bookmarks value
+  (setq mu4e-bookmarks '(
+                         (:name "Unread messages" :query "flag:unread AND NOT flag:trashed AND NOT maildir:/gmail/archive" :key ?u)
+                         (:name "Today's messages" :query "date:today..now AND NOT maildir:/gmail/INBOX" :key ?t)
+                         (:name "Last 7 days" :query "date:7d..now AND NOT maildir:/gmail/INBOX" :hide-unread t :key ?w)
+                         (:name "Messages with images" :query "mime:image/* AND NOT maildir:/gmail/INBOX" :key ?p)
+                         ))
+
   (add-to-list 'mu4e-bookmarks
                ;; add bookmark for recent messages on the Mu mailing list.
                `( :name "Noise"
@@ -446,6 +454,7 @@ most org export / preview in the browser."
   ;; use "true" for the command (this is the default)
   (setq mu4e-get-mail-command "mbsync -a"
         mu4e-update-interval 450)
+  ;; (setq mu4e-index-cleanup t)
   ;; rename files when moving
   ;; needed for mbsync
   (setq mu4e-change-filenames-when-moving t)
@@ -652,6 +661,10 @@ most org export / preview in the browser."
   ;;    smtpmail-queue-mail  nil
   ;;    smtpmail-queue-dir  "/home/user/Maildir/queue/cur")
 
+  ;; both outlook and GMail take care of filing sent messages under
+  ;; Sent dir
+  (setq mu4e-sent-messages-behavior 'delete)
+
   )
 
 (use-package org-mu4e
@@ -662,7 +675,7 @@ most org export / preview in the browser."
 
 (use-package org-msg
   ;; :pin melpa
-  :disabled t
+  ;; :disabled t
   :config
   (setq org-msg-options "html-postamble:nil H:5 num:nil ^:{} toc:nil"
 	org-msg-startup "hidestars indent inlineimages"
@@ -688,6 +701,8 @@ Hubert
 
   (org-msg-mode))
 
+(use-package mu4e-alert
+  :init (mu4e-alert-enable-mode-line-display))
 
 (provide 'setup-email)
 ;;; setup-email.el ends here
