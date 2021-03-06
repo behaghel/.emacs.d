@@ -94,31 +94,24 @@
   (sml/setup))
 
 (use-package doom-modeline
-  ;; :pin melpa
-  :init (doom-modeline-mode 1)
-  :after perspective
-  :defer 2
+  :hook (after-init . doom-modeline-mode)
   :config
   (setq doom-modeline-buffer-file-name-style 'relative-to-project)
   (setq doom-modeline-buffer-encoding nil)
   (setq doom-modeline-mu4e t)
 
+  ;; FIXME: my hack to make it work for perspective.el isn't working.
+  ;; Either I load the modeline before perspective and the whole hack
+  ;; create infinite loop on every commands or I load it later but it
+  ;; doesn't load well (half loaded?) and require manual fiddling (unload/reload)
   ;; no clue why doom-modeline is so exclusive about perspective.el
   ;; this is all it takes to adapt its persp-mode integration to it
-  (defalias 'safe-persp-name #'persp-name)
-  (defalias 'get-current-persp #'persp-curr)
-  (defun persp-contain-buffer-p (buffer persp)
-    (persp-is-current-buffer buffer))
-  (setq persp-nil-name 'main)
-
-  (setq doom-modeline-persp-name t)
-  ;; TODO:
-  ;; no support for perspective.el out of the box but support for
-  ;; persp-mode
-  ;; looks like that if you advice doom-modeline-update-persp-name to
-  ;; use (persp-name (persp-curr)) from perspective.el instead of
-  ;; (persp-safe-name (get-current-persp)) from persp-mode you fix it
-  ;; https://github.com/seagle0128/doom-modeline/blob/5fca2ea926789ff124113916e7d7313bfbae3f2d/doom-modeline-segments.el#L1476
+  ;; (defalias 'safe-persp-name #'persp-name)
+  ;; (defalias 'get-current-persp #'persp-curr)
+  ;; (defun persp-contain-buffer-p (buffer persp)
+  ;;   (persp-is-current-buffer buffer))
+  ;; (setq persp-nil-name 'main)
+  ;; (setq doom-modeline-persp-name t)
 )
 
 ;; https://gitlab.com/protesilaos/modus-themes
@@ -128,7 +121,7 @@
   (setq modus-themes-slanted-constructs t
         modus-themes-bold-constructs nil
         modus-themes-variable-pitch-ui nil ; e.g. mode-line, tab-bar
-        modus-themes-variable-pitch-headings t
+        modus-themes-variable-pitch-headings nil
         modus-themes-scale-headings t
         modus-themes-scale-1 1.05
         modus-themes-scale-2 1.1
@@ -175,7 +168,7 @@
 ;; https://github.com/be5invis/Iosevka
 ;; (if (eq system-type 'darwin)
 ;; https://protesilaos.com/codelog/2020-09-05-emacs-note-mixed-font-heights/
-(set-face-attribute 'default nil :font "Iosevka-12")
+(set-face-attribute 'default nil :font (if is-mac "Iosevka-16" "Iosevka-12"))
 (set-face-attribute 'fixed-pitch nil :family "Iosevka" :height 1.0)
 (set-face-attribute 'variable-pitch nil :family "FiraGO" :height 1.0)
 ;; (set-face-attribute 'variable-pitch nil :family "DejaVu Sans Condensed" :height 1.0)

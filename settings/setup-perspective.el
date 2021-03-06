@@ -3,6 +3,8 @@
 
 ;;; Code:
 (use-package perspective
+  ;; I am missing something: if you comment the next line, perspective
+  ;; doesn't work: persp-switch void symbol
   :defer 1
   ;; :pin melpa
   :bind (("C-x b" . persp-switch-to-buffer*)
@@ -27,11 +29,10 @@
 
   (define-key evil-normal-state-map (kbd "gb") 'persp-ivy-switch-buffer)
 
-  (persp-mode t)
+  (persp-mode)
   (add-hook 'kill-emacs-hook #'persp-state-save)
   (setq persp-sort 'access
-        persp-state-default-file "~/.emacs.d/.persp")
-  )
+        persp-state-default-file "~/.emacs.d/.persp"))
 
 (use-package persp-projectile
   :after evil projectile org perspective
