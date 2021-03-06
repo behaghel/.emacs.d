@@ -56,7 +56,8 @@
   (load bootstrap-file nil 'nomessage))
 
 (setq straight-use-package-by-default t
-      straight-vc-git-default-clone-depth 1
+      ;; breaks org even when selectively depth set to full
+      ;; straight-vc-git-default-clone-depth 1
       )
 
 (straight-use-package 'use-package)

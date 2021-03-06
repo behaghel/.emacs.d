@@ -7,14 +7,15 @@
 (setq org-directory "~/Dropbox/Documents/org/")
 ;;(hub/setup-speed-dial)
 
+(straight-use-package '(org-plus-contrib :includes org :depth full))
+
 (use-package org
-  :ensure org-plus-contrib
-  :straight (:depth 'full)              ; otherwise org-version breaks
-  :defer t
+  :straight (:depth full)              ; otherwise org-version breaks
+  ;; :defer t
   :commands (org-capture org-agenda)
   :after (evil evil-collection)
   :mode ("\\.\\(org\\|orj\\|org_archive\\|txt\\)$" . org-mode)
-  :init
+  ;; :init
   ;; great idea to be explored but isn't what I need in many occasion.
   ;; http://proselint.com/
   ;; TODO: bring it into the writeroom experience instead

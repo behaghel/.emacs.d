@@ -1,11 +1,6 @@
 #+TITLE: Elfeed Feeds
 #+AUTHOR: Hubert Behaghel
 #+EMAIL: behaghel@gmail.com
-#+LANGUAGE: en
-#+OPTIONS: H:4 toc:3 ^:{}
-#+COLUMNS: %25ITEM %TAGS %PRIORITY %TODO
-#+LATEX_HEADER: \usepackage[usenames,hyperref]{xcolor}
-#+LATEX_CLASS_OPTIONS: [colorlinks, linkcolor=red, urlcolor=blue]
 
 * Blogs                                                              :elfeed:
 ** Hackers I follow
@@ -18,6 +13,9 @@
 **** [[https://vxlabs.com/index.xml][VxLabs]]
 **** [[https://yiufung.net/index.xml][yiufung.net]]
 **** [[https://jherrlin.github.io/index.xml][jherrlin.github.io]]
+*** Mates
+**** [[https://www.searle.dev/feed.xml][Tim Searle]]                                                      :mns:
+
 *** Linux                                                             :OSS:
 **** [[https://linuxfr.org/news.atom][LinuxFR]]
 *** [[http://pit-claudel.fr/clement/blog/feed/][Code crumbs, by Clément Pit--Claudel]]
@@ -25,8 +23,11 @@
 *** [[https://bartoszmilewski.com/feed/][Bartosz Milewski's Programming Café]]
 ** Smarter Every Day
 *** [[https://fs.blog/feed/][Farnam Street]]
-[[https://alexdanco.com/feed/][alexdanco.com]]
-*** [[https://a16z.com/feed/][Andreessen Horowitz RSS Feed]]
+*** [[https://alexdanco.com/feed/][alexdanco.com]]
+*** [[https://a16z.com/feed/][Andreessen Horowitz]]
+*** [[https://stratechery.com/feed/][Stratechery]]
+*** [[http://feeds.hbr.org/harvardbusiness][Harvard Business Review]]
+
 ** Tech Leadership                                         :tech:leadership:
 *** [[http://svpg.com/feed/][Silicon Valley Product Group]]
 *** [[https://devskilldojo.com/rss/][Dev Skill Dojo]]
@@ -77,3 +78,8 @@ email: 0fnz2dzt640itnoexxq0@kill-the-newsletter.com
 * Forums                                                             :elfeed:
 ** Tech                                                               :tech:
 *** [[https://discourse.gohugo.io/latest.rss][Hugo]]                                                           :ignore:
+
+* Local Variables                                                  :noexport:
+# local variables:
+# modus-themes-variable-pitch-headings: nil
+# end:

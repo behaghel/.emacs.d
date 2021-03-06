@@ -25,6 +25,7 @@
 ;;; Code:
 
 (use-package elfeed
+  :straight (:depth full)              ; otherwise org-version breaks
   :commands elfeed
   :config
   ;; to limit width of entries for reading comfort
@@ -77,11 +78,14 @@
   (setq httpd-port 9000)
   (elfeed-web-start))
 (use-package elfeed-org
+  :straight (:depth full)              ; otherwise org-version breaks
+  :commands (elfeed)
   :after elfeed
   :config
   (elfeed-org))
 
 (use-package emms
+  :commands (emms)
   :bind (:map evil-normal-state-map
               ("'mp" . emms-pause)
               ("'mm" . emms)
