@@ -339,8 +339,16 @@ most org export / preview in the browser."
               :query "from:ITCommunications@marks-and-spencer.com")
       ( :name "Cloud Brokerage"
               :query "from:CloudBrokerage@marks-and-spencer.com")
+      ( :name "NewRelic Report"
+              :query "from:noreply@newrelic.com")
+      ( :name "Confluent Updates"
+              :query "from:noreply@confluent.io")
+      ( :name "Clothing & Home Group Communication"
+              :query "from:ClothingHome.GroupCommunication@marks-and-spencer.com")
       ;; GMail
       ;;; Notifications (it's ok if not read)
+      ( :name "Qustodio Notifications"
+              :query "from:no-reply@qustodio.com")
       ( :name "Strava Notifications"
               :query "from:no-reply@strava.com"
               :category "cycling")
@@ -522,9 +530,6 @@ most org export / preview in the browser."
   (setq gnus-icalendar-org-capture-file org-default-notes-file)
   (setq gnus-icalendar-org-capture-headline '("Calendar"))
   (gnus-icalendar-org-setup)
-  ;; FIXME: doesn't work for Outlook Calendar invites but it does for
-  ;; GMail assuming you're not inviting yourself
-  ;; see: https://github.com/djcb/mu/pull/1403#issuecomment-626689596
 
   ;; Processing
   ;; M-x org-store-link should link to the message not the query in
@@ -604,6 +609,11 @@ most org export / preview in the browser."
    ;; soft-wraps are
    visual-line-fringe-indicators '(left-curly-arrow right-curly-arrow)
    )
+  (defun visual-clean ()
+    "Clean up messy buffers (i.e. web wikis or elfeed-show)"
+    (interactive)
+    (visual-line-mode)
+    (visual-fill-column-mode))
   (add-hook 'mu4e-compose-mode-hook 'visual-clean)
 
 
@@ -667,12 +677,6 @@ most org export / preview in the browser."
 
   )
 
-(use-package org-mu4e
-  :ensure nil
-  :disabled t
-  ;; :pin manual
-  :config (setq org-mu4e-link-query-in-headers-mode nil))
-
 (use-package org-msg
   ;; :pin melpa
   ;; :disabled t
@@ -691,9 +695,6 @@ Regards,
 Hubert
 #+end_signature")
   (add-hook 'org-msg-mode-hook 'make-tmp-file-browsable)
-  ;; to avoid an error from diff-hl on deleted buffer right after
-  ;; message is sent
-  (add-hook 'org-msg-mode-hook (lambda () (diff-hl-mode -1)))
   ;; TODO: function that disables org-msg, initiate the composition of
   ;; a new message (plain text), add a hook to reinstate org-msg-mode
   ;; on successful sending (haven't found the hook but
