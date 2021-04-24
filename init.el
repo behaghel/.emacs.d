@@ -314,9 +314,9 @@
 (defun hub/autoinsert-yas-expand (&optional expand-env)
     "Replace text in yasnippet template optionally passing EXPAND-ENV (let-style)."
     (yas-expand-snippet (buffer-string) (point-min) (point-max) expand-env))
-(define-auto-insert "\.org" ["template.org" hub/autoinsert-yas-expand])
+(define-auto-insert "\.org\'" ["template.org" hub/autoinsert-yas-expand])
 ;; orj is an extension I invented: org-revealJS
-(define-auto-insert "\.orj" ["template.orj" hub/autoinsert-yas-expand])
+(define-auto-insert "\.orj\'" ["template.orj" hub/autoinsert-yas-expand])
 
 ;; company-mode
 (use-package company
@@ -838,7 +838,7 @@ _z_oom on node
               (electric-indent-mode -1))))
 
 ;; OSX launchd plist
-(define-auto-insert "\.plist" ["template.plist" hub/autoinsert-yas-expand])
+(define-auto-insert "\.plist\'" ["template.plist" hub/autoinsert-yas-expand])
 (add-to-list 'auto-mode-alist '("\\.plist$" . xml-mode))
 
 ;; Python
