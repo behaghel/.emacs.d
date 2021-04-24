@@ -153,7 +153,7 @@ most org export / preview in the browser."
            (mu4e-headers-mark-thread nil '(refile)))
     )
   (evil-collection-define-key 'normal 'mu4e-view-mode-map
-    (kbd "<tab>") 'widget-forward       ; works on osx but not on chromebook
+    (kbd "<tab>") 'forward-button
     "zO" 'org-msg-mode
     "O" 'mu4e-org-store-and-capture
     ",à" 'mu4e-org-store-and-capture
@@ -185,11 +185,6 @@ most org export / preview in the browser."
            (interactive)
            (mu4e-headers-mark-thread nil '(refile)))
     )
-  (when (eq system-type 'gnu/linux)
-    (evil-collection-define-key 'normal 'mu4e-view-mode-map
-      (kbd "<tab>") 'forward-button
-      )
-  )
   (evil-collection-define-key 'normal 'mu4e-compose-mode-map
     ",hh" 'mu4e-display-manual
     "gs" 'message-goto-subject
@@ -325,6 +320,8 @@ most org export / preview in the browser."
               :query "from:Yammer")
       ( :name "Sharepoint"
               :query "from:no-reply@sharepointonline.com")
+      ( :name "OOTO Messages"
+              :query "subject:/^Automatic reply:/")
       ;; Newsletter
       ( :name "My Choices"
               :query "from:rg@blk.mail.rewardgateway.net")
@@ -332,6 +329,8 @@ most org export / preview in the browser."
               :query "from:ITServiceCentre@marks-and-spencer.com")
       ( :name "Planned Azure Maintenance"
               :query "subject:\"Planned Maintenance Notification\"")
+      ( :name "Palo Alto Updates"
+              :query "from:updates@paloaltonetworks.com")
       ;; Updates
       ( :name "Colleague Comms and Engagement"
               :query "from:Colleague.Comms@marks-and-spencer.com")
@@ -345,6 +344,10 @@ most org export / preview in the browser."
               :query "from:noreply@confluent.io")
       ( :name "Clothing & Home Group Communication"
               :query "from:ClothingHome.GroupCommunication@marks-and-spencer.com")
+      ( :name "Miro Updates"
+              :query "from:daily@updates.miro.com")
+      ( :name "Comments on Planner tasks"
+              :query "subject:/Comments on task/")
       ;; GMail
       ;;; Notifications (it's ok if not read)
       ( :name "Qustodio Notifications"
@@ -379,6 +382,8 @@ most org export / preview in the browser."
               :query "from:info@paruvendu.fr")
       ( :name "Dropbox"
               :query "from:no-reply@dropbox.com")
+      ( :name "Ocado Confirmation"
+              :query "from:customerservices@ocado.com AND subject:\"Confirmation of your order\"")
       ;; Newsletter
       ( :name "Mu"
               :query "list:mu-discuss.googlegroups.com"
@@ -687,8 +692,6 @@ most org export / preview in the browser."
 	org-msg-greeting-name-limit 3
 	org-msg-text-plain-alternative t
 	org-msg-signature "
-
-Regards,
 
 #+begin_signature
 --\n
