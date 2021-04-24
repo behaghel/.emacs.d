@@ -1,3 +1,6 @@
+:preamble:
+#+OPTIONS: H:3 ^:{} toc:nil
+:end:
 #+TITLE: Elfeed Feeds
 #+AUTHOR: Hubert Behaghel
 #+EMAIL: behaghel@gmail.com
@@ -15,24 +18,25 @@
 **** [[https://jherrlin.github.io/index.xml][jherrlin.github.io]]
 *** Mates
 **** [[https://www.searle.dev/feed.xml][Tim Searle]]                                                      :mns:
-
+**** [[https://thesambarnes.com/feed/][Sam Barnes]]
 *** Linux                                                             :OSS:
 **** [[https://linuxfr.org/news.atom][LinuxFR]]
 *** [[http://pit-claudel.fr/clement/blog/feed/][Code crumbs, by Clément Pit--Claudel]]
 *** https://noonker.github.io/index.xml                              :hugo:
 *** [[https://bartoszmilewski.com/feed/][Bartosz Milewski's Programming Café]]
+*** [[https://www.hillelwayne.com/index.xml][Hillel Wayne's Essays]]                                      :newsletter:
 ** Smarter Every Day
 *** [[https://fs.blog/feed/][Farnam Street]]
 *** [[https://alexdanco.com/feed/][alexdanco.com]]
 *** [[https://a16z.com/feed/][Andreessen Horowitz]]
 *** [[https://stratechery.com/feed/][Stratechery]]
 *** [[http://feeds.hbr.org/harvardbusiness][Harvard Business Review]]
-
 ** Tech Leadership                                         :tech:leadership:
 *** [[http://svpg.com/feed/][Silicon Valley Product Group]]
 *** [[https://devskilldojo.com/rss/][Dev Skill Dojo]]
 *** [[http://feeds.gillardmoss.me.uk/pgm?format=xml][Peter Gillard-Moss]]
 *** [[http://danluu.com/atom.xml][Dan Luu]]
+*** [[http://levelup.patkua.com/?format=rss][Patrick Kua — Level Up]]                                     :newsletter:
 ** Faith                                                             :faith:
 *** [[https://www.wordonfire.org/resources/category/article/feed/][Word on Fire]] by Bishop Barron
 ** Maker                                                             :maker:
@@ -57,8 +61,6 @@ email starts with xb4...
 email starts with ghu...
 ** [[https://www.kill-the-newsletter.com/feeds/61a7on3e2q33b8tnef1i.xml][Tech]]                                                               :tech:
 email starts with 61a...
-*** [[http://levelup.patkua.com/?format=rss][Patrick Kua — Level Up]]                                     :leadership:
-*** [[https://www.hillelwayne.com/index.xml][Hillel Wayne's Essays]]
 ** [[https://kill-the-newsletter.com/feeds/0fnz2dzt640itnoexxq0.xml][Maker]] of things                                                   :maker:
 email: 0fnz2dzt640itnoexxq0@kill-the-newsletter.com
 
@@ -75,6 +77,7 @@ email: 0fnz2dzt640itnoexxq0@kill-the-newsletter.com
 *** [[https://feeds.simplecast.com/JGE3yC0V][Andreessen Horowitz a16z]]
 ** Engineering
 *** [[https://www.dataengineeringpodcast.com/feed/ogg/][Data Engineering Podcast]]
+
 * Forums                                                             :elfeed:
 ** Tech                                                               :tech:
 *** [[https://discourse.gohugo.io/latest.rss][Hugo]]                                                           :ignore:
