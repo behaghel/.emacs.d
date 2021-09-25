@@ -478,6 +478,11 @@ most org export / preview in the browser."
   ;; use "true" for the command (this is the default)
   (setq mu4e-get-mail-command "mbsync -a"
         mu4e-update-interval 450)
+  ;; FIXME: make lazy check work, currently just doesn't surface any
+  ;; new mail anymore
+  ;; (setq mu4e-get-mail-command "mbsync -a && touch ~/Maildir/*"
+  ;;       mu4e-update-interval 450
+  ;;       mu4e-index-lazy-check t)
   ;; (setq mu4e-index-cleanup t)
   ;; rename files when moving
   ;; needed for mbsync
@@ -599,7 +604,7 @@ most org export / preview in the browser."
   (setq mu4e-completing-read-function 'completing-read
         ;; I'd rather go with 'traditional but I guess the world isn't
         ;; traditional enough
-        message-cite-reply-position 'above
+        message-cite-reply-position 'above ;FIXME: maybe just on pro emails?
         ;; TODO: think of dropping the last colon: https://www.djcbsoftware.nl/code/mu/mu4e/Writing-messages.html#How-can-I-avoid-Outlook-display-issues_003f
         message-citation-line-format "On %A, %d %B %Y at %R %Z, %N wrote:\n"
         message-citation-line-function 'message-insert-formatted-citation-line
@@ -628,10 +633,11 @@ most org export / preview in the browser."
   (defun visual-clean ()
     "Clean up messy buffers (i.e. web wikis or elfeed-show)"
     (interactive)
-    (visual-line-mode)
-    (visual-fill-column-mode))
+    (turn-off-auto-fill)
+    (when (require 'visual-fill-column nil t)
+      (visual-fill-column-mode))
+    (visual-line-mode t))
   (add-hook 'mu4e-compose-mode-hook 'visual-clean)
-
 
   (setq ispell-program-name "aspell")
   (add-hook 'message-mode-hook #'flyspell-mode)
@@ -709,6 +715,8 @@ most org export / preview in the browser."
 Hubert
 #+end_signature")
   (add-hook 'org-msg-mode-hook 'make-tmp-file-browsable)
+  ;; FIXME: don't auto-fill but only in org-msg composition buffer
+  (add-hook 'org-msg-mode-hook 'turn-off-auto-fill)
   ;; TODO: function that disables org-msg, initiate the composition of
   ;; a new message (plain text), add a hook to reinstate org-msg-mode
   ;; on successful sending (haven't found the hook but
