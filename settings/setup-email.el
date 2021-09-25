@@ -318,6 +318,8 @@ most org export / preview in the browser."
               :query "from:noreply@email.teams.microsoft.com")
       ( :name "Yammer"
               :query "from:Yammer")
+      ( :name "Planner"
+              :query "subject:\"[EXTERNAL] You've been assigned a task!\"")
       ( :name "Sharepoint"
               :query "from:no-reply@sharepointonline.com")
       ( :name "OOTO Messages"
@@ -348,6 +350,15 @@ most org export / preview in the browser."
               :query "from:daily@updates.miro.com")
       ( :name "Comments on Planner tasks"
               :query "subject:/Comments on task/")
+      ( :name "Outlook Focus Report"
+              :query "subject:\"Focus plan weekly update\"")
+      ( :name "Flow Report"
+              :query "from:flow-reports@pluralsight.com")
+      ( :name "Microsoft Forms"
+              :query "from:maccount@microsoft.com")
+      ( :name "VMO Weekly report"
+              :query "subject:/^Weekly VMO & Sourcing Dashboard/")
+
       ;; GMail
       ;;; Notifications (it's ok if not read)
       ( :name "Qustodio Notifications"
