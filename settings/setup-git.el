@@ -27,8 +27,7 @@ the actual manpage using the function `man'."
         ad-do-it)))
 
   (define-key evil-normal-state-map (kbd ",vh") 'magit-file-popup) ; Commit history for current file
-  (define-key evil-normal-state-map (kbd ",vf") 'magit-file-popup) ; Commit history for current file
-  (define-key evil-normal-state-map (kbd ",vb") 'magit-blame-popup) ; Blame for current file
+  (define-key evil-normal-state-map (kbd ",vf") 'magit-file-dispatch) ; Commit history for current file
   (define-key evil-normal-state-map (kbd ",vB") 'vc-annotate) ; Git blame with vc
   (define-key evil-normal-state-map (kbd ",vg") 'vc-git-grep) ; Git grep
   (define-key evil-normal-state-map (kbd ",v/") 'vc-git-grep) ; Git grep

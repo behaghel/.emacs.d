@@ -51,7 +51,8 @@
     :config
     (evil-collection-translate-key nil
       '(evil-window-map evil-normal-state-map evil-motion-state-map
-                        evil-treemacs-state-map Info-mode-map)
+                        evil-treemacs-state-map Info-mode-map
+                        magit-blame-read-only-mode-map git-rebase-mode-map)
       "c" "h"
       "t" "j"
       "T" "J"
@@ -103,6 +104,21 @@
       )
     (add-hook 'doc-view-mode-hook #'hub/setup-docview-keybindings)
 
+    (defun hub/setup-magit-keybindings ()
+      (dolist (map (list magit-staged-section-map magit-unstaged-section-map magit-file-section-map magit-hunk-section-map))
+        (define-key map "s" nil)
+        (evil-define-key 'normal map "s" 'evil-previous-line)
+        (evil-define-key 'normal map "à" 'magit-stage)
+        (evil-define-key 'normal map "À" 'magit-unstage))
+      (evil-collection-define-key 'normal 'magit-status-mode-map
+        (kbd "t") 'evil-next-line       ; default tag
+        (kbd "s") 'evil-previous-line   ; stage
+        (kbd "T") 'magit-tag
+        (kbd "à") 'magit-stage
+        (kbd "À") 'magit-unstage
+        )
+      )
+    (add-hook 'magit-mode-hook #'hub/setup-magit-keybindings)
     (evil-collection-init))
 
   ;; surround
