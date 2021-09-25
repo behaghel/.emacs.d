@@ -852,7 +852,15 @@ _z_oom on node
 (require 'setup-ui)
 ;; (require 'setup-treemacs)
 (require 'setup-elfeed)
-(require 'setup-email)
+(require 'setup-email nil t)
+
+;; NixOS
+(use-package nix-mode
+  :mode "\\.nix\\'")
+
+(use-package company-nixos-options
+  :config
+  (add-to-list 'company-backends 'company-nixos-options))
 
 ;; (require 'setup-erc)
 ;; (require 'setup-twitter)
