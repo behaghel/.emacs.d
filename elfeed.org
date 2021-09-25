@@ -18,6 +18,7 @@
 **** [[https://jherrlin.github.io/index.xml][jherrlin.github.io]]
 **** [[https://endlessparentheses.com/atom.xml][Endless Parentheses]]
 **** [[https://nullprogram.com/feed/][Null Program]]
+**** [[https://bzg.fr/index.xml][Bastien Guerry]]
 *** Mates
 **** [[https://www.searle.dev/feed.xml][Tim Searle]]                                                      :mns:
 **** [[https://thesambarnes.com/feed/][Sam Barnes]]
@@ -26,7 +27,8 @@
 **** [[http://sandervanderburg.blogspot.com/feeds/posts/default][Sander van der Burg]]                                             :nix:
 *** [[http://pit-claudel.fr/clement/blog/feed/][Code crumbs, by Clément Pit--Claudel]]
 *** https://noonker.github.io/index.xml                              :hugo:
-*** [[https://bartoszmilewski.com/feed/][Bartosz Milewski's Programming Café]]
+*** [[https://bartoszmilewski.com/feed/][Bartosz Milewski's Programming Café]]                                :fp:
+*** [[https://ghedam.at/feed.rss][Matthia Gheda]]                                                     :nix:
 *** [[https://www.hillelwayne.com/index.xml][Hillel Wayne's Essays]]                                      :newsletter:
 ** Smarter Every Day
 *** [[https://fs.blog/feed/][Farnam Street]]
