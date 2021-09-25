@@ -16,11 +16,14 @@
 **** [[https://vxlabs.com/index.xml][VxLabs]]
 **** [[https://yiufung.net/index.xml][yiufung.net]]
 **** [[https://jherrlin.github.io/index.xml][jherrlin.github.io]]
+**** [[https://endlessparentheses.com/atom.xml][Endless Parentheses]]
+**** [[https://nullprogram.com/feed/][Null Program]]
 *** Mates
 **** [[https://www.searle.dev/feed.xml][Tim Searle]]                                                      :mns:
 **** [[https://thesambarnes.com/feed/][Sam Barnes]]
-*** Linux                                                             :OSS:
+*** GNU and Linux                                                     :OSS:
 **** [[https://linuxfr.org/news.atom][LinuxFR]]
+**** [[http://sandervanderburg.blogspot.com/feeds/posts/default][Sander van der Burg]]                                             :nix:
 *** [[http://pit-claudel.fr/clement/blog/feed/][Code crumbs, by Clément Pit--Claudel]]
 *** https://noonker.github.io/index.xml                              :hugo:
 *** [[https://bartoszmilewski.com/feed/][Bartosz Milewski's Programming Café]]
@@ -39,6 +42,7 @@
 *** [[http://levelup.patkua.com/?format=rss][Patrick Kua — Level Up]]                                     :newsletter:
 ** Faith                                                             :faith:
 *** [[https://www.wordonfire.org/resources/category/article/feed/][Word on Fire]] by Bishop Barron
+*** [[http://plunkett.hautetfort.com/index.rss][Patrick de Plunkett]]
 ** Maker                                                             :maker:
 *** [[https://www.tweaking4all.com/category/hardware/arduino/feed/][Tweaking4all - arduino]]
 *** [[https://howtomechatronics.com/feed/][How To Mechatronics]]
