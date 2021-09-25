@@ -100,6 +100,7 @@
   (setq doom-modeline-buffer-encoding nil)
   (setq doom-modeline-mu4e t)
 
+  (setq doom-modeline-height 36)
   ;; FIXME: my hack to make it work for perspective.el isn't working.
   ;; Either I load the modeline before perspective and the whole hack
   ;; create infinite loop on every commands or I load it later but it
@@ -166,16 +167,15 @@
   (solaire-mode-swap-bg))
 
 ;; https://github.com/be5invis/Iosevka
-;; (if (eq system-type 'darwin)
 ;; https://protesilaos.com/codelog/2020-09-05-emacs-note-mixed-font-heights/
-(set-face-attribute 'default nil :font (if is-mac "Iosevka-16" "Iosevka-12"))
-(set-face-attribute 'fixed-pitch nil :family "Iosevka" :height 1.0)
+(set-face-attribute 'default nil :family "Iosevka Nerd Font" :height 80)
+;; (set-face-attribute 'default nil :font (if is-mac "Iosevka-16" "Iosevka-12"))
+(set-face-attribute 'fixed-pitch nil :family "Iosevka Nerd Font" :height 1.0)
 (set-face-attribute 'variable-pitch nil :family "FiraGO" :height 1.0)
-;; (set-face-attribute 'variable-pitch nil :family "DejaVu Sans Condensed" :height 1.0)
 ;; (set-face-attribute 'variable-pitch nil :family "ETBembo" :height 1.0)
 
 ;; Ligatures
-(global-auto-composition-mode)
+;(global-auto-composition-mode)
 (let ((alist
        '((33 . ".\\(?:\\(==\\|[!=]\\)[!=]?\\)")
          (35 . ".\\(?:\\(###?\\|_(\\|[(:=?[_{]\\)[#(:=?[_{]?\\)")
@@ -183,14 +183,14 @@
          (37 . ".\\(?:\\(%\\)%?\\)")
          (38 . ".\\(?:\\(&\\)&?\\)")
          (42 . ".\\(?:\\(\\*\\*\\|[*>]\\)[*>]?\\)")
-         ;; (42 . ".\\(?:\\(\\*\\*\\|[*/>]\\).?\\)")
+         (42 . ".\\(?:\\(\\*\\*\\|[*/>]\\).?\\)")
          (43 . ".\\(?:\\([>]\\)>?\\)")
-         ;; (43 . ".\\(?:\\(\\+\\+\\|[+>]\\).?\\)")
+         (43 . ".\\(?:\\(\\+\\+\\|[+>]\\).?\\)")
          (45 . ".\\(?:\\(-[->]\\|<<\\|>>\\|[-<>|~]\\)[-<>|~]?\\)")
-         ;; (46 . ".\\(?:\\(\\.[.<]\\|[-.=]\\)[-.<=]?\\)")
+         (46 . ".\\(?:\\(\\.[.<]\\|[-.=]\\)[-.<=]?\\)")
          (46 . ".\\(?:\\(\\.<\\|[-=]\\)[-<=]?\\)")
          (47 . ".\\(?:\\(//\\|==\\|[=>]\\)[/=>]?\\)")
-         ;; (47 . ".\\(?:\\(//\\|==\\|[*/=>]\\).?\\)")
+         (47 . ".\\(?:\\(//\\|==\\|[*/=>]\\).?\\)")
          (48 . ".\\(?:\\(x[a-fA-F0-9]\\).?\\)")
          (58 . ".\\(?:\\(::\\|[:<=>]\\)[:<=>]?\\)")
          (59 . ".\\(?:\\(;\\);?\\)")
@@ -199,7 +199,7 @@
          (62 . ".\\(?:\\(->\\|=>\\|>[-=>]\\|[-:=>]\\)[-:=>]?\\)")
          (63 . ".\\(?:\\([.:=?]\\)[.:=?]?\\)")
          (91 . ".\\(?:\\(|\\)[]|]?\\)")
-         ;; (92 . ".\\(?:\\([\\n]\\)[\\]?\\)")
+         (92 . ".\\(?:\\([\\n]\\)[\\]?\\)")
          (94 . ".\\(?:\\(=\\)=?\\)")
          (95 . ".\\(?:\\(|_\\|[_]\\)_?\\)")
          (119 . ".\\(?:\\(ww\\)w?\\)")
