@@ -153,7 +153,11 @@ most org export / preview in the browser."
            (mu4e-headers-mark-thread nil '(refile)))
     )
   (evil-collection-define-key 'normal 'mu4e-view-mode-map
-    (kbd "<tab>") 'forward-button
+    (kbd "<tab>") (lambda()
+                    (interactive)
+                    (if (equal system-type 'darwin)
+                        (forward-button 1)
+                      (widget-forward)))
     "zO" 'org-msg-mode
     "O" 'mu4e-org-store-and-capture
     ",à" 'mu4e-org-store-and-capture
@@ -170,7 +174,11 @@ most org export / preview in the browser."
     "\C-s" 'mu4e-view-headers-prev
     "zÉ" 'mu4e-headers-toggle-include-related
     "zé" 'mu4e-headers-toggle-threading
-    "zq" 'mu4e-view-fill-long-lines
+    "zq" (lambda()
+           (interactive)
+           (if mu4e-view-use-gnus
+               (article-fill-long-lines)
+             (mu4e-view-fill-long-lines)))
     "gL" 'mu4e-show-log
     "%" 'mu4e-view-mark-pattern
     ",é" 'mu4e-view-mark-pattern
