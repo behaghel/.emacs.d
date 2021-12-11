@@ -42,7 +42,6 @@
   ;; - stack setup
   ;; - stack --resolver=nightly install ghc-mod --no-copy-bins
   (add-hook 'haskell-mode-hook (lambda () (ghc-init)))
-  (add-hook 'haskell-mode-hook 'intero-mode)
   (use-package hindent
     :config
     ;; first time: stack install hindent

@@ -217,7 +217,6 @@
 (evil-set-initial-state 'twittering-mode 'normal)
 (evil-set-initial-state 'haskell-error-mode 'emacs)
 (evil-set-initial-state 'haskell-interactive-mode 'insert)
-(evil-set-initial-state 'intero-repl-mode 'insert)
 ;;; Info & Evil
 ;; (evil-set-initial-state 'Info 'emacs)
 ;; (evil-define-key 'motion Info-mode-map "l" nil) ; use l to say last
