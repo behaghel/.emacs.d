@@ -19,6 +19,8 @@
 **** [[https://endlessparentheses.com/atom.xml][Endless Parentheses]]
 **** [[https://nullprogram.com/feed/][Null Program]]
 **** [[https://bzg.fr/index.xml][Bastien Guerry]]
+**** [[https://ambrevar.xyz/atom.xml][Ambrevar.xyz]] by Pierre Neidhardt
+
 *** Mates
 **** [[https://www.searle.dev/feed.xml][Tim Searle]]                                                      :mns:
 **** [[https://thesambarnes.com/feed/][Sam Barnes]]
