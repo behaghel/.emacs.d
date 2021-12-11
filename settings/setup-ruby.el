@@ -24,10 +24,10 @@
     (eval-after-load 'minitest
       '(minitest-install-snippets))
     ;; (add-hook 'ruby-mode-hook 'minitest-mode)
-    (evil-define-key 'normal ruby-mode-map ",Tt" 'minitest-verify)
-    (evil-define-key 'normal ruby-mode-map ",Ta" 'minitest-verify-all)
-    (evil-define-key 'normal ruby-mode-map ",Tc" 'minitest-verify-single)
-    (evil-define-key 'normal ruby-mode-map ",Tr" 'minitest-rerun))
+    (evil-define-key 'normal ruby-mode-map ".Tt" 'minitest-verify)
+    (evil-define-key 'normal ruby-mode-map ".Ta" 'minitest-verify-all)
+    (evil-define-key 'normal ruby-mode-map ".Tc" 'minitest-verify-single)
+    (evil-define-key 'normal ruby-mode-map ".Tr" 'minitest-rerun))
 
   (use-package rspec-mode
     :commands (rspec-mode)
@@ -38,15 +38,15 @@
       (if (rspec-buffer-is-spec-p)
           (rspec-verify-single)
         (rspec-verify-method)))
-    (evil-define-key 'normal ruby-mode-map ",et" 'rspec-verify) ; run spec for file
-    (evil-define-key 'normal ruby-mode-map ",eT" 'rspec-verify-matching)
-    (evil-define-key 'normal ruby-mode-map ",ec" 'hub/rspec-verify-it)
-    (evil-define-key 'normal ruby-mode-map ",ea" 'rspec-verify-all)
-    (evil-define-key 'normal ruby-mode-map ",es" 'rspec-toggle-spec-and-target)
-    (evil-define-key 'normal ruby-mode-map ",eS" 'rspec-toggle-spec-and-target-find-example)
-    (evil-define-key 'normal ruby-mode-map ",er" 'rspec-rerun)
-    (evil-define-key 'normal ruby-mode-map ",eR" 'rspec-run-last-failed)
-    (evil-define-key 'normal ruby-mode-map ",ef" 'rspec-run-last-failed))
+    (evil-define-key 'normal ruby-mode-map ".tt" 'rspec-verify) ; run spec for file
+    (evil-define-key 'normal ruby-mode-map ".tT" 'rspec-verify-matching)
+    (evil-define-key 'normal ruby-mode-map ".tc" 'hub/rspec-verify-it)
+    (evil-define-key 'normal ruby-mode-map ".ta" 'rspec-verify-all)
+    (evil-define-key 'normal ruby-mode-map ".ts" 'rspec-toggle-spec-and-target)
+    (evil-define-key 'normal ruby-mode-map ".tS" 'rspec-toggle-spec-and-target-find-example)
+    (evil-define-key 'normal ruby-mode-map ".tr" 'rspec-rerun)
+    (evil-define-key 'normal ruby-mode-map ".tR" 'rspec-run-last-failed)
+    (evil-define-key 'normal ruby-mode-map ".tf" 'rspec-run-last-failed))
 
   (use-package realgud-pry)
   (use-package realgud-byebug)

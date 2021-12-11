@@ -89,6 +89,7 @@
          ("C-<left>" . sp-forward-barf-sexp)
          ("M-<right>" . sp-backward-barf-sexp)
          ("C-<down>" . sp-down-sexp)
+         ("C-<down>" . sp-down-sexp)
          ("C-<up>" . sp-backward-up-sexp)
          ("M-<down>" . sp-backward-down-sexp)
          ("M-<up>" . sp-up-sexp)
@@ -115,15 +116,16 @@
         (kbd ",{") #'sp-backward-up-sexp
         ;; Finds closing ')' of the current list.
         (kbd ",}") #'sp-up-sexp
-        (kbd ",k") #'sp-down-sexp
+        (kbd ",s") #'sp-backward-up-sexp
+        (kbd ",t") #'sp-down-sexp
+        (kbd ",(") #'sp-backward-up-sexp
+        (kbd ",)") #'sp-up-sexp
         ;; Go to the start of current/previous sexp
         (kbd "[[") #'sp-backward-sexp
         ;; Go to the start of next sexp.
         (kbd "]]") #'sp-forward-sexp
-        (kbd ",(") #'sp-backward-barf-sexp
-        (kbd ",)") #'sp-forward-barf-sexp
-        (kbd "gn") #'sp-next-sexp
-        (kbd "gp") #'sp-previous-sexp
+        (kbd ",r") #'sp-next-sexp
+        (kbd ",c") #'sp-previous-sexp
         ;; (define-key evil-motion-state-map "S" 'evil-window-top)
         ;; (define-key evil-motion-state-map "s" 'evil-previous-line)
         ))
@@ -133,8 +135,7 @@
   (add-to-list 'sp-ignore-modes-list 'org-mode)
   (smartparens-global-mode t)
   (show-smartparens-global-mode)
-  (smartparens-global-strict-mode)
-  )
+  (smartparens-global-strict-mode))
 
 (require 'setup-dired)
 
@@ -861,6 +862,12 @@ _z_oom on node
 (use-package company-nixos-options
   :config
   (add-to-list 'company-backends 'company-nixos-options))
+;; (sp-local-pair 'nix-mode "{" nil :post-handlers '(:add (lambda (_id action _context) (save-excursion
+;;                                                                                        (forward-char)
+;;                                                                                        (insert ";")))))
+;; doc hard to find: https://github.com/Fuco1/smartparens/blob/25f4d6d1b732f4deabf922059d22a0a7dc04bd0a/docs/permissions.rst#insertion-specification
+(sp-local-pair 'nix-mode "{" nil :post-handlers '(("||\n[i]" "RET")))
+
 
 ;; (require 'setup-erc)
 ;; (require 'setup-twitter)

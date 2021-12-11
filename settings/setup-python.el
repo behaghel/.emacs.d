@@ -166,12 +166,12 @@
 
 (use-package python-pytest
   :bind (:map evil-normal-state-map
-              (",th" . python-pytest-dispatch)
-              (",tt" . python-pytest)
-              (",tf" . python-pytest-file)
-              (",t," . python-pytest-file-dwim)
-              (",tr" . python-pytest-repeat)
-              (",tl" . python-pytest-last-failed)
+              (".th" . python-pytest-dispatch)
+              (".tt" . python-pytest)
+              (".tf" . python-pytest-file)
+              (".t," . python-pytest-file-dwim)
+              (".tr" . python-pytest-repeat)
+              (".tl" . python-pytest-last-failed)
               )
 )
 
@@ -179,6 +179,7 @@
 
 (use-package ein
   :after org
+  :disabled t
   :config
   (org-babel-do-load-languages
    'org-babel-load-languages

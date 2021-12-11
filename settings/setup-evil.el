@@ -105,7 +105,7 @@
     (add-hook 'doc-view-mode-hook #'hub/setup-docview-keybindings)
 
     (defun hub/setup-magit-keybindings ()
-      (dolist (map (list magit-staged-section-map magit-unstaged-section-map magit-file-section-map magit-hunk-section-map))
+      (dolist (map (list magit-staged-section-map magit-untracked-section-map magit-unstaged-section-map magit-file-section-map magit-hunk-section-map))
         (define-key map "s" nil)
         (evil-define-key 'normal map "s" 'evil-previous-line)
         (evil-define-key 'normal map "à" 'magit-stage)
@@ -144,10 +144,10 @@
   ;; stolen from https://github.com/magnars/.emacs.d/blob/master/key-bindings.el
   ;; Transpose stuff with M-t
   (global-unset-key (kbd "M-t")) ;; which used to be transpose-words
-  (define-key evil-normal-state-map (kbd ",tl") 'transpose-lines)
-  (define-key evil-normal-state-map (kbd ",tw") 'transpose-words)
-  (define-key evil-normal-state-map (kbd ",ts") 'transpose-sexps)
-  (define-key evil-normal-state-map (kbd ",tp") 'hub/transpose-params)
+  (define-key evil-normal-state-map (kbd "Tl") 'transpose-lines)
+  (define-key evil-normal-state-map (kbd "Tw") 'transpose-words)
+  (define-key evil-normal-state-map (kbd "Ts") 'transpose-sexps)
+  (define-key evil-normal-state-map (kbd "Tp") 'hub/transpose-params)
 
   ;;;; Other mapping
   ;; (define-key evil-normal-state-map (kbd "C-e") 'evil-end-of-line)
