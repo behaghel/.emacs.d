@@ -44,6 +44,12 @@ most org export / preview in the browser."
 ;; that way mu build put all the mu4e elisp files in my load-path on
 ;; `make install' step
 (use-package mu4e
+  :straight (:host github
+             :repo "djcb/mu"
+             :branch "master"
+             :files ("mu4e/*")
+             :pre-build (("./autogen.sh" "-Dguile=disabled") ("make")))
+  :custom   (mu4e-mu-binary (expand-file-name "build/mu/mu" (straight--repos-dir "mu")))
   ;; :disabled t
   ;; :ensure nil
   ;; :pin manual
@@ -285,7 +291,7 @@ most org export / preview in the browser."
   (defun contextual-default-folder (suffix)
     (lambda (msg)
       (let* ((msg-context (mu4e-context-determine msg))
-             (context (if msg-context msg-context mu4e~context-current))
+             (context (if msg-context msg-context (mu4e-context-current)))
              (ctx-name (mu4e-context-name context)))
         (concat "/" ctx-name suffix))))
   (setq mu4e-sent-folder   (contextual-default-folder "/sent")
@@ -403,6 +409,8 @@ most org export / preview in the browser."
               :query "from:no-reply@dropbox.com")
       ( :name "Ocado Confirmation"
               :query "from:customerservices@ocado.com AND subject:\"Confirmation of your order\"")
+      ( :name "Netflix"
+              :query "from:info@mailer.netflix.com")
       ;; Newsletter
       ( :name "Mu"
               :query "list:mu-discuss.googlegroups.com"
@@ -642,6 +650,7 @@ most org export / preview in the browser."
     "Clean up messy buffers (i.e. web wikis or elfeed-show)"
     (interactive)
     (turn-off-auto-fill)
+    (setq-local fill-column 82)
     (when (require 'visual-fill-column nil t)
       (visual-fill-column-mode))
     (visual-line-mode t))
@@ -733,7 +742,9 @@ Hubert
   (org-msg-mode))
 
 (use-package mu4e-alert
-  :init (mu4e-alert-enable-mode-line-display))
+  :after mu4e
+  :init (mu4e-alert-enable-mode-line-display)
+  )
 
 (provide 'setup-email)
 ;;; setup-email.el ends here

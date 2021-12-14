@@ -159,6 +159,7 @@
 
 ;; introduce contrast between popup buffers and working buffers
 (use-package solaire-mode
+             :disabled t
   :hook
   ((change-major-mode after-revert ediff-prepare-buffer) . turn-on-solaire-mode)
   (minibuffer-setup . solaire-mode-in-minibuffer)

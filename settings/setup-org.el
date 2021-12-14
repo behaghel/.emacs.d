@@ -7,7 +7,7 @@
 (setq org-directory "~/Dropbox/Documents/org/")
 ;;(hub/setup-speed-dial)
 
-(straight-use-package '(org-plus-contrib :includes org :depth full))
+;(straight-use-package '(org-plus-contrib :includes org :depth full))
 
 (use-package org
   :straight (:depth full)              ; otherwise org-version breaks
