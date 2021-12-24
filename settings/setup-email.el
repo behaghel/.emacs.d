@@ -44,12 +44,12 @@ most org export / preview in the browser."
 ;; that way mu build put all the mu4e elisp files in my load-path on
 ;; `make install' step
 (use-package mu4e
-  :straight (:host github
-             :repo "djcb/mu"
-             :branch "master"
-             :files ("mu4e/*")
-             :pre-build (("./autogen.sh" "-Dguile=disabled") ("make")))
-  :custom   (mu4e-mu-binary (expand-file-name "build/mu/mu" (straight--repos-dir "mu")))
+  ;;; :straight (:host github
+  ;;;            :repo "djcb/mu"
+  ;;;            :branch "master"
+  ;;;            :files ("mu4e/*")
+  ;;;            :pre-build (("./autogen.sh" "-Dguile=disabled") ("make")))
+  ;;; :custom   (mu4e-mu-binary (expand-file-name "build/mu/mu" (straight--repos-dir "mu")))
   ;; :disabled t
   ;; :ensure nil
   ;; :pin manual
