@@ -144,10 +144,10 @@
   ;; stolen from https://github.com/magnars/.emacs.d/blob/master/key-bindings.el
   ;; Transpose stuff with M-t
   (global-unset-key (kbd "M-t")) ;; which used to be transpose-words
-  (define-key evil-normal-state-map (kbd "Tl") 'transpose-lines)
-  (define-key evil-normal-state-map (kbd "Tw") 'transpose-words)
-  (define-key evil-normal-state-map (kbd "Ts") 'transpose-sexps)
-  (define-key evil-normal-state-map (kbd "Tp") 'hub/transpose-params)
+  (define-key evil-normal-state-map (kbd "M-t l") 'transpose-lines)
+  (define-key evil-normal-state-map (kbd "M-t w") 'transpose-words)
+  (define-key evil-normal-state-map (kbd "M-t s") 'transpose-sexps)
+  (define-key evil-normal-state-map (kbd "M-t p") 'hub/transpose-params)
 
   ;;;; Other mapping
   ;; (define-key evil-normal-state-map (kbd "C-e") 'evil-end-of-line)

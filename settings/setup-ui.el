@@ -169,7 +169,7 @@
 
 ;; https://github.com/be5invis/Iosevka
 ;; https://protesilaos.com/codelog/2020-09-05-emacs-note-mixed-font-heights/
-(set-face-attribute 'default nil :family "Iosevka" :height (if is-mac 150 80))
+(set-face-attribute 'default nil :family "Iosevka Nerd Font" :height (if is-mac 150 80))
 ;; (set-face-attribute 'default nil :family "Iosevka Nerd Font" :height 150)
 ;; (set-face-attribute 'default nil :font (if is-mac "Iosevka-16" "Iosevka-12"))
 (set-face-attribute 'fixed-pitch nil :family "Iosevka Nerd Font" :height 1.0)
