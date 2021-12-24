@@ -62,6 +62,12 @@
 
 ;; (straight-use-package 'use-package)
 
+(eval-when-compile
+  (require 'use-package)
+  (require 'use-package-ensure)
+  (setq use-package-verbose nil)
+  (setq use-package-always-ensure t))
+
 (use-package diminish)
 (setq use-package-verbose t
       use-package-always-defer nil
