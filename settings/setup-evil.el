@@ -14,6 +14,8 @@
   (setq evil-want-keybinding nil)
   (defun hub/setup-elisp-debugging-keybindings ()
     "Install debugging keybindings."
+    ;; TODO: one day sort out all keybindings, maybe using general.el
+    ;; https://github.com/noctuid/general.el#key-features
     (evil-collection-define-key 'normal 'debugger-mode-map
       ">" 'backtrace-forward-frame
       "<" 'backtrace-backward-frame

@@ -235,21 +235,19 @@ most org export / preview in the browser."
                 (string-match-p "^/gmail" (mu4e-message-field msg :maildir))))
             :vars '((user-mail-address      . "behaghel@gmail.com")
                     (smtpmail-smtp-user     . "behaghel@gmail.com")
-                    (smtpmail-smtp-service  . 25)
                     ))
           ,(make-mu4e-context
-            :name "mns"
-            :enter-func (lambda () (mu4e-message ">> M&S context"))
+            :name "typeform"
+            :enter-func (lambda () (mu4e-message ">> Typeform context"))
+            :leave-func (lambda () (mu4e-message "<< Typeform context"))
+            ;; we match based on the contact-fields of the message
             :match-func
             (lambda (msg)
               (when msg
-                (string-match-p "^/mns" (mu4e-message-field msg :maildir))))
-            :vars '((user-mail-address      . "hubert.behaghel@marks-and-spencer.com")
-                    (smtpmail-smtp-service  . 1025) ; davmail SMTP
-                    (smtpmail-smtp-user     . "hubert.behaghel@mnscorp.net")
-                    (mu4e-compose-signature . nil)
+                (string-match-p "^/typeform" (mu4e-message-field msg :maildir))))
+            :vars '((user-mail-address      . "hubert.behaghel@typeform.com")
+                    (smtpmail-smtp-user     . "hubert.behaghel@typeform.com")
                     ))
-
           ,(make-mu4e-context
             :name "fbehaghel.fr"
             :enter-func (lambda () (mu4e-message ">> behaghel.fr context"))
@@ -262,7 +260,6 @@ most org export / preview in the browser."
                 ))
             :vars '((user-mail-address     . "hubert@behaghel.fr")
                     (smtpmail-smtp-user    . "hubert@behaghel.fr")
-                    (smtpmail-smtp-service . 25)
                     ))
           ,(make-mu4e-context
             :name "obehaghel.org"
@@ -276,7 +273,6 @@ most org export / preview in the browser."
                 ))
             :vars '((user-mail-address     . "hubert@behaghel.org")
                     (smtpmail-smtp-user    . "hubert@behaghel.org")
-                    (smtpmail-smtp-service . 25)
                     ))
           ))
 
@@ -301,10 +297,13 @@ most org export / preview in the browser."
 
   ;; the maildirs you use frequently; access them with 'j' ('jump')
   (setq   mu4e-maildir-shortcuts
-          '((:maildir "/gmail/archive" :key ?a)
+          '(
+            (:maildir "/gmail/inbox"   :key ?g)
+            (:maildir "/typeform/inbox"     :key ?t)
+            (:maildir "/gmail/archive" :key ?a)
+            (:maildir "/typeform/archive"     :key ?A)
             (:maildir "/gmail/sent"    :key ?s)
-            (:maildir "/gmail/INBOX"   :key ?g)
-            (:maildir "/mns/INBOX"     :key ?m)
+            (:maildir "/typeform/sent"     :key ?S)
             ))
 
 
@@ -326,52 +325,6 @@ most org export / preview in the browser."
       ;; then starts the subject with "Cancelled"
       ( :name "Calendar Notifications"
               :query "mime:text/calendar")
-      ;; M&S
-      ;;; Notifications (it's ok if not read)
-      ( :name "MS Teams"
-              :query "from:noreply@email.teams.microsoft.com")
-      ( :name "Yammer"
-              :query "from:Yammer")
-      ( :name "Planner"
-              :query "subject:\"[EXTERNAL] You've been assigned a task!\"")
-      ( :name "Sharepoint"
-              :query "from:no-reply@sharepointonline.com")
-      ( :name "OOTO Messages"
-              :query "subject:/^Automatic reply:/")
-      ;; Newsletter
-      ( :name "My Choices"
-              :query "from:rg@blk.mail.rewardgateway.net")
-      ( :name "IT Service Centre"
-              :query "from:ITServiceCentre@marks-and-spencer.com")
-      ( :name "Planned Azure Maintenance"
-              :query "subject:\"Planned Maintenance Notification\"")
-      ( :name "Palo Alto Updates"
-              :query "from:updates@paloaltonetworks.com")
-      ;; Updates
-      ( :name "Colleague Comms and Engagement"
-              :query "from:Colleague.Comms@marks-and-spencer.com")
-      ( :name "IT Communications"
-              :query "from:ITCommunications@marks-and-spencer.com")
-      ( :name "Cloud Brokerage"
-              :query "from:CloudBrokerage@marks-and-spencer.com")
-      ( :name "NewRelic Report"
-              :query "from:noreply@newrelic.com")
-      ( :name "Confluent Updates"
-              :query "from:noreply@confluent.io")
-      ( :name "Clothing & Home Group Communication"
-              :query "from:ClothingHome.GroupCommunication@marks-and-spencer.com")
-      ( :name "Miro Updates"
-              :query "from:daily@updates.miro.com")
-      ( :name "Comments on Planner tasks"
-              :query "subject:/Comments on task/")
-      ( :name "Outlook Focus Report"
-              :query "subject:\"Focus plan weekly update\"")
-      ( :name "Flow Report"
-              :query "from:flow-reports@pluralsight.com")
-      ( :name "Microsoft Forms"
-              :query "from:maccount@microsoft.com")
-      ( :name "VMO Weekly report"
-              :query "subject:/^Weekly VMO & Sourcing Dashboard/")
 
       ;; GMail
       ;;; Notifications (it's ok if not read)
@@ -453,17 +406,23 @@ most org export / preview in the browser."
 
   ;; default mu4e-bookmarks value
   (setq mu4e-bookmarks '(
-                         (:name "Unread messages" :query "flag:unread AND NOT flag:trashed AND NOT maildir:/gmail/archive" :key ?u)
-                         (:name "Today's messages" :query "date:today..now AND NOT maildir:/gmail/INBOX" :key ?t)
-                         (:name "Last 7 days" :query "date:7d..now AND NOT maildir:/gmail/INBOX" :hide-unread t :key ?w)
-                         (:name "Messages with images" :query "mime:image/* AND NOT maildir:/gmail/INBOX" :key ?p)
+                         (:name "Inbox" :query "NOT flag:trashed AND maildir:/inbox/" :key ?i)
+                         (:name "Typeform" :query "NOT flag:trashed AND maildir:/typeform/inbox" :key ?t)
+                         (:name "GMail" :query "NOT flag:trashed AND maildir:/gmail/inbox" :key ?g)
+                         (:name "Important" :query "flag:flagged NOT flag:trashed" :key ?f)
+                         (:name "Drafts" :query "NOT flag:trashed AND maildir:/drafts/" :key ?d)
+                         (:name "Today" :query "date:today..now AND NOT maildir:/gmail/inbox" :key ?h)
+                         (:name "Last week" :query "date:7d..now" :hide-unread t :key ?w)
+                         (:name "Last month" :query "date:30d..now" :hide-unread t :key ?m)
+                         (:name "Attachments" :query "flag:attach" :key ?a)
+                         (:name "Invites" :query "mime:text/calendar" :key ?c)
                          ))
 
   (add-to-list 'mu4e-bookmarks
                ;; add bookmark for recent messages on the Mu mailing list.
                `( :name "Noise"
-                        :key  ?N
-                        :query ,(concat "maildir:/INBOX/" " AND ("
+                        :key  ?n
+                        :query ,(concat "maildir:/inbox/" " AND ("
                                         (hub/build-noise-query) ")")))
 
   ;; To delete all meeting notifications or updates
@@ -688,12 +647,18 @@ most org export / preview in the browser."
   ;; Also see use-package org-msg
 
   ;; Sending
+  (setq send-mail-function 'sendmail-send-it
+        message-send-mail-function 'message-send-mail-with-sendmail
+        sendmail-program "msmtp"
+        mail-specify-envelope-from t
+        message-sendmail-envelope-from 'header
+        mail-envelope-from 'header)
   ;; sync / blocking
-  (setq send-mail-function 'smtpmail-send-it)
-  (setq message-send-mail-function 'message-smtpmail-send-it)
-  (setq smtpmail-smtp-server "localhost"
-        ;; smtpmail-auth-supported '(login)
-        smtpmail-debug-info t)
+  ;; (setq send-mail-function 'smtpmail-send-it)
+  ;; (setq message-send-mail-function 'message-smtpmail-send-it)
+  ;; (setq smtpmail-smtp-server "localhost"
+  ;;       ;; smtpmail-auth-supported '(login)
+  ;;       smtpmail-debug-info t)
   ;; this uses pass localhost.gpg to retrieve password (now moved
   ;; into init.el as it's not email specific)
   ;; (require 'auth-source-pass)
@@ -714,6 +679,10 @@ most org export / preview in the browser."
   ;; Sent dir
   (setq mu4e-sent-messages-behavior 'delete)
 
+  (defun mu4e-sidebar ()
+    (interactive)
+    (mu4e)
+    (find-file "~/.emacs.d/settings/mail-sidebar.org"))
   )
 
 (use-package org-msg
@@ -745,6 +714,30 @@ Hubert
   :after mu4e
   :init (mu4e-alert-enable-mode-line-display)
   )
+
+(defun toggle-window-dedicated ()
+  "Toggle whether the current active window is dedicated or not"
+  (interactive)
+  (message
+   (if (let (window (get-buffer-window (current-buffer)))
+         (set-window-dedicated-p window (not (window-dedicated-p window))))
+       "Window '%s' is dedicated"
+     "Window '%s' is normal")
+   (current-buffer)))
+
+(use-package mu4e-dashboard
+  :straight (mu4e-dashboard :type git :host github :repo "rougier/mu4e-dashboard")
+  :custom (mu4e-dashboard-file "~/.emacs.d/settings/mail-sidebar.org")
+  :config
+  ;; (defun open-mail-sidebar (&optional args) (find-file "~/.emacs.d/settings/mail-sidebar.org"))
+  (defun mu4e-dashboard-hook ()
+    (when (string= (file-name-nondirectory buffer-file-name) "mail-sidebar.org")
+      (mu4e-dashboard-mode)
+      ))
+  (add-hook 'find-file-hook 'mu4e-dashboard-hook)
+  ;; (advice-add 'mu4e :after #'open-mail-sidebar)
+  )
+
 
 (provide 'setup-email)
 ;;; setup-email.el ends here

@@ -60,18 +60,29 @@
 (setq switch-to-buffer-preserve-window-point 'already-displayed
       switch-to-visible-buffer nil)
 ;; stolen from https://github.com/nex3/perspective-el#some-musings-on-emacs-window-layouts
+(customize-set-variable 'display-buffer-base-action
+                        '((display-buffer-reuse-window display-buffer-same-window)
+                          (reusable-frames . t)))
+
+(customize-set-variable 'even-window-sizes nil)     ; avoid resizing
+
 (setq display-buffer-alist
       '(
         ("^magit-diff:"
          (display-buffer-reuse-window display-buffer-at-bottom)
          (window-width . 0.5)
          (reusable-frames . nil))
+        ("\\*mu4e"
+         (display-buffer-use-some-window display-buffer-in-previous-window display-buffer-reuse-window)
+         )
         ("\\*.*\\*" (display-buffer-reuse-window))
         ("\\*pytest\\*.*" (display-buffer-reuse-window display-buffer-at-bottom))
-        (".*" (display-buffer-reuse-window display-buffer-same-window))))
-
-(setq display-buffer-reuse-frames t)         ; reuse windows in other frames
-(setq even-window-sizes nil)                 ; display-buffer: avoid resizing
+        ("mail-sidebar.org"
+         (display-buffer-in-side-window)
+         (side . left)(window-width . 36)(dedicated . t)
+         ;; (display-buffer-mark-dedicated . t)
+         )
+        ))
 
 
 (use-package rainbow-delimiters
@@ -117,6 +128,7 @@
 
 ;; https://gitlab.com/protesilaos/modus-themes
 (use-package modus-themes
+  :disabled t
   :init
   ;; Add all your customizations prior to loading the themes
   (setq modus-themes-slanted-constructs t
@@ -157,15 +169,26 @@
   (doom-themes-org-config)
   )
 
+(use-package nano-theme
+  :straight (nano-theme :type git :host github :repo "404cn/nano-theme.el")
+  :config
+  (setq nano-theme-light/dark 'dark)
+  (load-theme 'nano t))
+
 ;; introduce contrast between popup buffers and working buffers
 (use-package solaire-mode
-             :disabled t
-  :hook
-  ((change-major-mode after-revert ediff-prepare-buffer) . turn-on-solaire-mode)
-  (minibuffer-setup . solaire-mode-in-minibuffer)
+  :disabled t
   :config
   (solaire-global-mode +1)
-  (solaire-mode-swap-bg))
+  )
+
+(use-package dashboard
+  :ensure t
+  :config
+  (dashboard-setup-startup-hook)
+  (setq dashboard-projects-switch-function 'projectile-persp-switch-project)
+  (setq dashboard-filter-agenda-entry 'dashboard-filter-agenda-by-todo)
+  )
 
 ;; https://github.com/be5invis/Iosevka
 ;; https://protesilaos.com/codelog/2020-09-05-emacs-note-mixed-font-heights/

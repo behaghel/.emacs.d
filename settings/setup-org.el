@@ -1,9 +1,6 @@
-(global-set-key "\C-cl" 'org-store-link)
-(global-set-key "\C-cc" 'org-capture)
-(global-set-key "\C-ca" 'org-agenda)
-(define-key evil-normal-state-map (kbd ",cc") 'org-capture)
-(define-key evil-normal-state-map (kbd ",cl") 'org-store-link)
-(define-key evil-normal-state-map (kbd ",ca") 'org-agenda)
+(define-key evil-normal-state-map (kbd "SPC c") 'org-capture)
+(define-key evil-normal-state-map (kbd "SPC l") 'org-store-link)
+(define-key evil-normal-state-map (kbd "SPC a") 'org-agenda)
 (setq org-directory "~/Dropbox/Documents/org/")
 ;;(hub/setup-speed-dial)
 
@@ -56,8 +53,13 @@
   ;; org-capture && org-agenda
   (setq org-default-notes-file (concat org-directory "inbox.org"))
   ;; org-agenda-files should be a list of files and not a dir
-  ;; prefer C-c [ to add and C-c ] to remove file from this list
-  ;; (setq org-agenda-files org-directory)
+  (setq org-agenda-files
+        (list
+         (concat org-directory "typeform.org")
+         (concat org-directory "gcal-typeform.org")
+         (concat org-directory "gcal-gmail.org")
+         ;; (concat org-directory "")
+         ))
   ;; org-protocol: capture outside of Emacs (mostly from browser)
   ;; (start-server) is managed by edit-server-mode in init.el
   (require 'org-protocol)

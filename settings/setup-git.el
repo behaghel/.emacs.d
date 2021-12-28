@@ -32,28 +32,6 @@ the actual manpage using the function `man'."
   (define-key evil-normal-state-map (kbd ",vg") 'vc-git-grep) ; Git grep
   (define-key evil-normal-state-map (kbd ",v/") 'vc-git-grep) ; Git grep
   (define-key evil-normal-state-map (kbd ",vD") 'ediff-revision) ; Git diff file on 2 branches
-
-  ;; (use-package git-gutter+
-  ;;   :diminish git-gutter+-mode
-  ;;   :config
-  ;;    ;;; Jump between hunks
-  ;;   (define-key git-gutter+-mode-map (kbd "C-c f n") 'git-gutter+-next-hunk)
-  ;;   (define-key git-gutter+-mode-map (kbd "C-c f p") 'git-gutter+-previous-hunk)
-
-  ;;    ;;; Act on hunks
-  ;;   (define-key git-gutter+-mode-map (kbd "C-c f =") 'git-gutter+-show-hunk)
-  ;;   (define-key git-gutter+-mode-map (kbd "C-c f r") 'git-gutter+-revert-hunks)
-  ;;   ;; Stage hunk at point.
-  ;;   ;; If region is active, stage all hunk lines within the region.
-  ;;   (define-key git-gutter+-mode-map (kbd "C-c f s") 'git-gutter+-stage-hunks)
-  ;;   (define-key git-gutter+-mode-map (kbd "C-c f c") 'git-gutter+-commit)
-  ;;   (define-key git-gutter+-mode-map (kbd "C-c f C") 'git-gutter+-stage-and-commit)
-  ;;   ;; (define-key evil-normal-state-map (kbd ",vr") 'git-gutter+-revert-hunk)
-  ;;   ;; (define-key evil-normal-state-map (kbd ",v+") 'git-gutter+-stage-hunks)
-  ;;   ;; (define-key evil-normal-state-map (kbd ",vn") 'git-gutter+-next-hunk)
-  ;;   ;; (define-key evil-normal-state-map (kbd ",vp") 'git-gutter+-previous-hunk)
-  ;;   ;; (define-key evil-normal-state-map (kbd ",vd") 'git-gutter+-show-hunk)
-  ;;   )
   )
 
 (use-package ssh-agency
@@ -70,7 +48,6 @@ the actual manpage using the function `man'."
 (use-package diff-hl
   :demand
   :config
-  (global-diff-hl-mode)
   (define-key evil-normal-state-map (kbd ",vr") 'diff-hl-revert-hunk)
   (define-key evil-normal-state-map (kbd ",vn") 'diff-hl-next-hunk)
   (define-key evil-normal-state-map (kbd ",vp") 'diff-hl-previous-hunk)
