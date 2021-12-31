@@ -864,16 +864,19 @@ _z_oom on node
 
 ;; NixOS
 (use-package nix-mode
-  :mode "\\.nix\\'")
-
-(use-package company-nixos-options
+  :mode "\\.nix\\'"
   :config
-  (add-to-list 'company-backends 'company-nixos-options))
-;; (sp-local-pair 'nix-mode "{" nil :post-handlers '(:add (lambda (_id action _context) (save-excursion
-;;                                                                                        (forward-char)
-;;                                                                                        (insert ";")))))
-;; doc hard to find: https://github.com/Fuco1/smartparens/blob/25f4d6d1b732f4deabf922059d22a0a7dc04bd0a/docs/permissions.rst#insertion-specification
-(sp-local-pair 'nix-mode "{" nil :post-handlers '(("||\n[i]" "RET")))
+  (use-package company-nixos-options
+    :mode "\\.nix\\'"
+    :config
+    (add-to-list 'company-backends 'company-nixos-options))
+  ;; (sp-local-pair 'nix-mode "{" nil :post-handlers '(:add (lambda (_id action _context) (save-excursion
+  ;;                                                                                        (forward-char)
+  ;;                                                                                        (insert ";")))))
+  ;; doc hard to find: https://github.com/Fuco1/smartparens/blob/25f4d6d1b732f4deabf922059d22a0a7dc04bd0a/docs/permissions.rst#insertion-specification
+  (sp-local-pair 'nix-mode "{" nil :post-handlers '(("||\n[i]" "RET")))
+
+  )
 
 
 ;; (require 'setup-erc)
