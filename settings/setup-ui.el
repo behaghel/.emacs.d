@@ -59,28 +59,60 @@
 ; try to stabilize windows and buffers positions
 (setq switch-to-buffer-preserve-window-point 'already-displayed
       switch-to-visible-buffer nil)
+(setq fit-window-to-buffer-horizontally t)
+(setq window-resize-pixelwise t)
+
 ;; stolen from https://github.com/nex3/perspective-el#some-musings-on-emacs-window-layouts
 (customize-set-variable 'display-buffer-base-action
-                        '((display-buffer-reuse-window display-buffer-same-window)
+                        '((display-buffer-reuse-window
+                           display-buffer-reuse-mode-window
+                           display-buffer-in-previous-window
+                           display-buffer-same-window)
                           (reusable-frames . t)))
 
 (customize-set-variable 'even-window-sizes nil)     ; avoid resizing
 
+
+;; window parameters for windows that shouldn't magically disappear
+;; when another window is created
+(defvar protected-window
+  '(window-parameters . ((no-other-window . t)
+                         (no-delete-other-windows . t))))
+(defvar adjustable-height '(preserve-size . (nil . t)))
+(defvar adjustable-width '(preserve-size . (t . nil)))
 (setq display-buffer-alist
-      '(
+      `(
         ("^magit-diff:"
          (display-buffer-reuse-window display-buffer-at-bottom)
          (window-width . 0.5)
          (reusable-frames . nil))
-        ("\\*mu4e"
-         (display-buffer-use-some-window display-buffer-in-previous-window display-buffer-reuse-window)
+        ;; do not create a new window next to scratch for mu4e
+        ("\\*mu4e" display-buffer-use-some-window)
+        ("\\*info\\*"
+         (display-buffer-reuse-window display-buffer-in-side-window)
+         (side . right))
+        ("\\*Help\\*"
+         (display-buffer-reuse-window display-buffer-in-side-window)
+         (window-width . fit-window-to-buffer)
+         (side . right))
+        ("\\*Org Agenda\\*" display-buffer-in-side-window
+         (side . right) (slot . 0)
+         (window-width . fit-window-to-buffr)
+         ,adjustable-width
+         ,protected-window
          )
-        ("\\*.*\\*" (display-buffer-reuse-window))
+        ("\\*Agenda Commands\\*" display-buffer-in-side-window
+         (side . right) (slot . 0)
+         (window-width . 96)
+         ,adjustable-width
+         ,protected-window
+         )
         ("\\*pytest\\*.*" (display-buffer-reuse-window display-buffer-at-bottom))
-        ("mail-sidebar.org"
+        ("\\*.*\\*" (display-buffer-reuse-window))
+        ("mail-sidebar\\.org"
          (display-buffer-in-side-window)
          (side . left)(window-width . 36)(dedicated . t)
-         ;; (display-buffer-mark-dedicated . t)
+         ,protected-window
          )
         ))
 

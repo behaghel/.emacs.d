@@ -1,6 +1,6 @@
-(define-key evil-normal-state-map (kbd "SPC c") 'org-capture)
-(define-key evil-normal-state-map (kbd "SPC l") 'org-store-link)
-(define-key evil-normal-state-map (kbd "SPC a") 'org-agenda)
+(define-key evil-normal-state-map (kbd ",cc") 'org-capture)
+(define-key evil-normal-state-map (kbd ",cl") 'org-store-link)
+(define-key evil-normal-state-map (kbd ",ca") 'org-agenda)
 (setq org-directory "~/Dropbox/Documents/org/")
 ;;(hub/setup-speed-dial)
 
@@ -51,6 +51,8 @@
   ;;                            (define-key org-mode-map (kbd "C-c m") 'org-mac-grab-link)))
 
   ;; org-capture && org-agenda
+  ; otherwise org-agenda destroys your layout
+  (setq org-agenda-window-setup 'other-window)
   (setq org-default-notes-file (concat org-directory "inbox.org"))
   ;; org-agenda-files should be a list of files and not a dir
   (setq org-agenda-files
@@ -68,7 +70,7 @@
           ("i" "inbox" entry (file org-default-notes-file)
            "* TODO %?" :prepend t)
           ("f" "follow-up" entry (file org-default-notes-file)
-           "* TODO %?\n  %i\n  %a" :prepend t)
+           "* TODO %? %a\n  %i" :prepend t)
           ("r" "respond to email (mu4e)"
            entry (file org-default-notes-file)
            "* TODO REPLY to [[mailto:%:fromaddress][%:fromname]] on %a\nDEADLINE: %(org-insert-time-stamp (org-read-date nil t \"+1d\"))\n%U\n\n"
@@ -78,15 +80,21 @@
            "* TODO %(org-cliplink-capture)" :immediate-finish t :prepend t)
           ("c" "org-protocol-capture" entry (file+headline org-default-notes-file "Browsing")
            "* TODO [[%:link][%:description]]\n\n %i" :immediate-finish t :prepend t)
-          ("j" "Journal" entry (file+datetree "journal.org")
-           ("p" "Philosophy" entry (file+datetree (concat org-directory "faith.org"))
-            "* %?\nEntered on %U\n  %i\n  %a")))
+          ("p" "Philosophy" entry (file+datetree (concat org-directory "faith.org"))
+           "* %?\nEntered on %U\n  %i\n  %a")
+          ("m" "Meeting Minutes" entry (file org-default-notes-file)
+           "* Meeting Minutes\n** Present at meeting\n- [X] Peter\n- [ ] Sarah - [X] Lucy\n ** Agenda\n- item 1\n- item 2\n- item 3\n** Notes\n*** Last meeting minutes are approved                              :decision:\n*** Discussion\n**** TODO Topic 1                                      :@Fred:\n**** TODO Topic 2                                    :@Sara:\n**** DONE Topic 2.1                                      :@Lucy:@Ted:\nDEADLINE: <2020-03-01 So>\n**** Another sub-topic                                    :decision:\n* Actions\n#+BEGIN: columnview :id global :match "/TODO|DONE" :format "%ITEM(What) %TAGS(Who) %DEADLINE(When) %TODO(State)"\n#+END:\n\n* Decisions\n#+BEGIN: columnview :id global :match "decision" :format "%ITEM(decisions)"\n#+END:"
+           :prepend t))
         )
   ;; Note: setup-blog.el also injects a blog template on "b"
   (setq org-outline-path-complete-in-steps nil)      ; Refile in a single go
   (setq org-refile-use-outline-path 'file)           ; Show full paths for refiling
   (setq org-refile-allow-creating-parent-nodes 'confirm)
-  (setq org-refile-targets '((org-agenda-files :maxlevel . 3)))
+  (setq org-refile-targets '(("typeform.org" :maxlevel . 4)
+                             ("faith.org" :maxlevel . 2)
+                             ("hubert.org" :maxlevel . 2)
+                             ("family.org" :maxlevel . 2)
+                             ))
   ;; consider me idle on my currently clocked-in task after 15 minutes
   ;; and ask me to resolve idle time when I am back
   (setq org-clock-idle-time 15)

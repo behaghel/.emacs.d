@@ -61,6 +61,8 @@
       ("h" file ,(concat org-directory "hubert.org") "org")
       ("t" file ,(concat org-directory "typeform.org") "org")
       ("m" command mu4e-sidebar "mails")
+      ("M" perspective "mails")
+      ("d" perspective "main")
       ("f" command elfeed "feeds")
       ))
   (defun hub/setup-speed-dial ()
@@ -76,12 +78,17 @@
     )
   (hub/setup-speed-dial)
 
+  (defun mu4e-sidebar ()
+    (interactive)
+    (mu4e)
+    (find-file "~/.emacs.d/settings/mail-sidebar.org"))
+
 (define-key evil-normal-state-map (kbd ",op") 'projectile-persp-switch-project)
 (define-key evil-normal-state-map (kbd "gP") 'persp-switch)
 
 (winner-mode 1)
-(define-key evil-window-map (kbd "C-<left>") 'winner-undo)
-(define-key evil-window-map (kbd "C-<right>") 'winner-redo)
+(define-key evil-window-map (kbd "u") 'winner-undo)
+(define-key evil-window-map (kbd "U") 'winner-redo)
 
 (provide 'setup-perspective)
 ;;; setup-perspective.el ends here

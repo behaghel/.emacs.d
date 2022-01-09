@@ -51,76 +51,9 @@ most org export / preview in the browser."
   ;;;            :pre-build (("./autogen.sh" "-Dguile=disabled") ("make")))
   ;;; :custom   (mu4e-mu-binary (expand-file-name "build/mu/mu" (straight--repos-dir "mu")))
   ;; :disabled t
-  ;; :ensure nil
+  :ensure nil
   ;; :pin manual
   :config
-  ;; a key for
-  ;; Search: ê (requête)
-  ;; Thread: é
-  ;; Refile: à (agenda-prime as alternative to reach agenda)
-  ;; In All Views
-  ;; "J" mu4e~headers-jump-to-maildir
-  ;; "C" mu4e-compose-new
-  ;; ";" mu4e-context-switch
-  ;; "b" mu4e-headers-search-bookmark
-  ;; "B" mu4e-headers-search-bookmark-edit
-  ;; "k" mu4e-headers-search
-  ;; "ê" mu4e-headers-search
-
-  ;; Main view
-  ;; "u" mu4e-update-mail-and-index
-  ;; "gl" revert-buffer
-  ;; "N" mu4e-news
-  ;; ",hh" mu4e-display-manual
-  ;; "x" mu4e-kill-update-mail
-  ;; "A" mu4e-about
-  ;; "f" smtpmail-send-queued-mail
-  ;; "m" mu4e~main-toggle-mail-sending-mode
-
-  ;; header and reader view
-  ;; "E" mu4e-compose-edit
-  ;; "F" mu4e-compose-forward
-  ;; "R" mu4e-compose-reply
-  ;; "o" mu4e-headers-change-sorting
-  ;; "gl" mu4e-headers-rerun-search
-  ;; "/" mu4e-headers-search-narrow
-  ;; "\" to undo / widen the narrowing
-  ;; "K" mu4e-headers-search-edit
-  ;; "Ê" mu4e-headers-search-edit
-  ;; "x" mu4e-mark-execute-all
-  ;; "a" mu4e-headers-action
-  ;; "*" mu4e-headers-mark-for-something ; TODO: Don't override evil-seach-word-forward?
-  ;; "&" mu4e-headers-mark-custom
-  ;; "A" mu4e-headers-mark-for-action
-  ;; "m" mu4e-headers-mark-for-move
-  ;; "à" mu4e-headers-mark-for-refile
-  ;; "D" mu4e-headers-mark-for-delete
-  ;; "d" mu4e-headers-mark-for-trash
-  ;; "=" mu4e-headers-mark-for-untrash
-  ;; "u" mu4e-headers-mark-for-unmark
-  ;; "U" mu4e-mark-unmark-all
-  ;; "?" mu4e-headers-mark-for-unread
-  ;; "!" mu4e-headers-mark-for-read
-  ;; "%" mu4e-headers-mark-pattern
-  ;; "+" mu4e-headers-mark-for-flag
-  ;; "-" mu4e-headers-mark-for-unflag
-  ;; "[[" mu4e-headers-prev-unread
-  ;; "]]" mu4e-headers-next-unread
-  ;; "gs" mu4e-headers-prev-unread
-  ;; "gt" mu4e-headers-next-unread
-  ;; "\C-t" mu4e-headers-next
-  ;; "\C-s" mu4e-headers-prev
-  ;; "zj" mu4e-headers-toggle-include-related
-  ;; "zÉ" mu4e-headers-toggle-include-related
-  ;; "zh" mu4e-headers-toggle-threading
-  ;; "zé" mu4e-headers-toggle-threading
-  ;; "zd" mu4e-headers-toggle-skip-duplicates
-  ;; "zê" mu4e-headers-toggle-full-search
-  ;; "gl" mu4e-show-log
-  ;; "gL" mu4e-show-log
-  ;; "gv" mu4e-select-other-view
-  ;; "é!" mark all thread as read
-  ;; "éD" mark all thread for Deletion
   (evil-collection-define-key 'normal 'mu4e-main-mode-map
     "ê" 'mu4e-headers-search
     ",hh" 'mu4e-display-manual
@@ -148,13 +81,14 @@ most org export / preview in the browser."
     "%" 'mu4e-headers-mark-pattern
     ",é" 'mu4e-headers-mark-pattern
     "É"  'mu4e-headers-mark-thread
-    "é!" (lambda ()
+    "SPC" nil
+    "z!" (lambda ()
            (interactive)
            (mu4e-headers-mark-thread nil '(read)))
-    "éD" (lambda ()
+    "zD" (lambda ()
            (interactive)
            (mu4e-headers-mark-thread nil '(delete)))
-    "éà" (lambda ()
+    "zà" (lambda ()
            (interactive)
            (mu4e-headers-mark-thread nil '(refile)))
     )
@@ -172,6 +106,7 @@ most org export / preview in the browser."
     ",hh" 'mu4e-display-manual
     "à" 'mu4e-view-mark-for-refile
     "À" 'mu4e-headers-mark-for-archive
+    "Y" 'shr-copy-url                   ; when on a link in html
     "zh" 'mu4e-view-toggle-html
     "gs" 'mu4e-headers-prev-unread
     "gt" 'mu4e-headers-next-unread
@@ -189,13 +124,14 @@ most org export / preview in the browser."
     "%" 'mu4e-view-mark-pattern
     ",é" 'mu4e-view-mark-pattern
     "É"  'mu4e-headers-mark-thread
-    "é!" (lambda ()
+    "SPC" nil
+    "z!" (lambda ()
            (interactive)
            (mu4e-headers-mark-thread nil '(read)))
-    "éD" (lambda ()
+    "zD" (lambda ()
            (interactive)
            (mu4e-headers-mark-thread nil '(delete)))
-    "éà" (lambda ()
+    "zà" (lambda ()
            (interactive)
            (mu4e-headers-mark-thread nil '(refile)))
     )
@@ -220,6 +156,36 @@ most org export / preview in the browser."
     (kbd "M-,") 'message-goto-subject
     )
 
+  (evil-collection-define-key 'normal 'gnus-mime-button-map
+    "t" 'evil-next-line
+    "T" 'gnus-mime-view-part-as-type
+    "\C-s" 'gnus-mime-save-part
+    "p" 'evil-paste-after
+    "\C-p" 'gnus-mime-print-part
+    "r" 'evil-forward-char
+    "R" 'gnus-mime-replace-part
+    "c" 'evil-backward-char
+    "y" 'gnus-mime-copy-part
+    "\C-v" 'gnus-mime-view-part-externally
+    "\C-o" 'gnus-mime-view-part-internally
+    )
+  ;; (defvar gnus-mime-button-commands
+  ;;   '((gnus-article-press-button "\r" "Toggle Display")
+  ;;     (gnus-mime-view-part "v" "View Interactively...")
+  ;;     (gnus-mime-view-part-as-type "t" "View As Type...")
+  ;;     (gnus-mime-view-part-as-charset "C" "View As charset...")
+  ;;     (gnus-mime-save-part "o" "Save...")
+  ;;     (gnus-mime-save-part-and-strip "\C-o" "Save and Strip")
+  ;;     (gnus-mime-replace-part "r" "Replace part")
+  ;;     (gnus-mime-delete-part "d" "Delete part")
+  ;;     (gnus-mime-copy-part "c" "View As Text, In Other Buffer")
+  ;;     (gnus-mime-inline-part "i" "View As Text, In This Buffer")
+  ;;     (gnus-mime-view-part-internally "E" "View Internally") ;; Why `E'?
+  ;;     (gnus-mime-view-part-externally "e" "View Externally")
+  ;;     (gnus-mime-print-part "p" "Print")
+  ;;     (gnus-mime-pipe-part "|" "Pipe To Command...")
+  ;;     (gnus-mime-action-on-part "." "Take action on the part...")))
+
   ;;; Setup
   ;; Contexts / multiple accounts
   (setq mu4e-contexts
@@ -235,7 +201,9 @@ most org export / preview in the browser."
                 (string-match-p "^/gmail" (mu4e-message-field msg :maildir))))
             :vars '((user-mail-address      . "behaghel@gmail.com")
                     (smtpmail-smtp-user     . "behaghel@gmail.com")
-                    ))
+                    (org-msg-signature      . "#+begin_signature
+--\n\nHubert
+#+end_signature")))
           ,(make-mu4e-context
             :name "typeform"
             :enter-func (lambda () (mu4e-message ">> Typeform context"))
@@ -247,6 +215,11 @@ most org export / preview in the browser."
                 (string-match-p "^/typeform" (mu4e-message-field msg :maildir))))
             :vars '((user-mail-address      . "hubert.behaghel@typeform.com")
                     (smtpmail-smtp-user     . "hubert.behaghel@typeform.com")
+                    (org-msg-signature      . "
+
+#+begin_signature
+--\n#+INCLUDE: ~/.signature.typeform.html export html
+#+end_signature")
                     ))
           ,(make-mu4e-context
             :name "fbehaghel.fr"
@@ -325,6 +298,16 @@ most org export / preview in the browser."
       ;; then starts the subject with "Cancelled"
       ( :name "Calendar Notifications"
               :query "mime:text/calendar")
+
+      ;; Typeform
+      ( :name "Incident Summary Report"
+              :query "subject:/^Technical Support Incident Summary Report/")
+      ( :name "Productboard Daily Summary"
+              :query "subject:/^[Productboard] Daily summary/")
+      ( :name "Asana"
+              :query "from:no-reply@asana.com")
+      ( :name "Typeform customer comms"
+              :query "list:spc.270201.0.sparkpostmail.com")
 
       ;; GMail
       ;;; Notifications (it's ok if not read)
@@ -470,11 +453,13 @@ most org export / preview in the browser."
   ;; (better only use that for the last field.
   ;; These are the defaults:
   (setq mu4e-headers-fields
-        '( (:date           . 15)    ;; alternatively, use :human-date
-           (:maildir        . 15)
-           (:flags          . 6)
+        '(
+           (:thread-subject . 42)
            (:from-or-to     . 22)
-           (:thread-subject . nil)))
+           (:date           . 15)    ;; alternatively, use :human-date
+           (:flags          . 6)
+           (:maildir        . 15)
+           ))
   (setq
    mu4e-headers-date-format "%F"     ; ISO format yyyy-mm-dd
    )
@@ -500,9 +485,6 @@ most org export / preview in the browser."
    (add-to-list 'mm-discouraged-alternatives "text/richtext"))
   ;; TODO: need to figure how to switch / toggle to HTML part
   ;; mu4e-view-toggle-html isn't supported in gnus view
-  ;; for now I am adding this action
-  (add-to-list 'mu4e-view-actions
-               '("bview in browser" . mu4e-action-view-in-browser) t)
 
   ;; FIXME: only activate when on chromebook
   ;; FIXME: make-tmp-file-browsable isn't run automatically in spite
@@ -541,7 +523,8 @@ most org export / preview in the browser."
                  :action      (lambda (docid msg target)
 		                ;; must come before proc-move since retag runs
 		                ;; 'sed' on the file
-		                (mu4e~proc-move docid (mu4e~mark-check-target target) "+S-u-N"))))
+                                (mu4e-action-retag-message msg "-\\Inbox")
+		                (mu4e~proc-move docid nil "+S-u-N"))))
   (mu4e~headers-defun-mark-for archive)
 
   ;; Contacts
@@ -678,11 +661,6 @@ most org export / preview in the browser."
   ;; both outlook and GMail take care of filing sent messages under
   ;; Sent dir
   (setq mu4e-sent-messages-behavior 'delete)
-
-  (defun mu4e-sidebar ()
-    (interactive)
-    (mu4e)
-    (find-file "~/.emacs.d/settings/mail-sidebar.org"))
   )
 
 (use-package org-msg
@@ -691,9 +669,14 @@ most org export / preview in the browser."
   :config
   (setq org-msg-options "html-postamble:nil H:5 num:nil ^:{} toc:nil"
 	org-msg-startup "hidestars indent inlineimages"
-	org-msg-greeting-fmt "\nHi %s,\n\n"
+	org-msg-greeting-fmt "\nHi%s,\n\n"
 	org-msg-greeting-name-limit 3
 	org-msg-text-plain-alternative t
+        ;; 'top-posting is the default but is it what you want?
+        org-msg-posting-style 'top-posting
+        org-msg-default-alternatives '((new           . (text))
+                                       (reply-to-html . (text html))
+                                       (reply-to-text . (text)))
 	org-msg-signature "
 
 #+begin_signature
@@ -708,9 +691,24 @@ Hubert
   ;; on successful sending (haven't found the hook but
   ;; message-send-hook is probably good enough if mu4e go through it)
 
+  (defun my-org-msg-composition-parameters (orig-fun &rest args)
+    "Tweak my greeting message and my signature when replying as
+   plain/text."
+    (let ((res (apply orig-fun args)))
+      ;; not perfect as when replying with both text and html, text
+      ;; has no signature
+      (when (equal (cadr args) '(text))
+        (setf (alist-get 'signature res)
+              (replace-regexp-in-string "\\.html.*" ""
+                                        org-msg-signature)))
+      res))
+  (advice-add 'org-msg-composition-parameters
+              :around #'my-org-msg-composition-parameters)
   (org-msg-mode))
 
 (use-package mu4e-alert
+  ; it's now something I see on my desktop
+  :disabled t
   :after mu4e
   :init (mu4e-alert-enable-mode-line-display)
   )
