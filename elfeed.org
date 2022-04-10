@@ -23,7 +23,8 @@
 
 *** Mates
 **** [[https://www.searle.dev/feed.xml][Tim Searle]]                                                      :mns:
-**** [[https://thesambarnes.com/feed/][Sam Barnes]]
+**** [[https://thesambarnes.com/feed/][Sam Barnes]]                                                      :mns:
+**** [[https://mostlymaths.net/index.xml][Ruben Berenguel]]                                            :typeform:
 *** GNU and Linux                                                     :OSS:
 **** [[https://linuxfr.org/news.atom][LinuxFR]]
 **** [[http://sandervanderburg.blogspot.com/feeds/posts/default][Sander van der Burg]]                                             :nix:
