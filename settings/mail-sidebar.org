@@ -1,22 +1,22 @@
-* Mailboxes [[mu:flag:unread|%3d][119]]
+* Mailboxes [[mu:flag:unread|%3d][ 67]]
 
-  [[mu:m:/typeform/inbox or m:/gmail/inbox][Inbox]] ............... [[mu:m:/typeform/inbox or m:/gmail/inbox|%2d][72]]
-  ↳[[mu:m:/typeform/inbox][Typeform]] ........ [[mu:m:/typeform/inbox flag:unread|%2d][23]]/[[mu:m:/typeform/inbox|%2d][27]]
-  ↳[[mu:m:/gmail/inbox][Gmail]] ........... [[mu:m:/gmail/inbox flag:unread|%2d][42]]/[[mu:m:/gmail/inbox|%2d][45]]
-  [[mu:flag:flagged][Important]] ........... [[mu:flag:flagged|%2d][ 4]]
-龎  [[mu:m:/typeform/drafts or m:/gmail/drafts][Drafts]] .............. [[mu:m:/typeform/drafts or m:/gmail/drafts|%2d][ 0]]
-  [[mu:m:/typeform/sent or m:/gmail/sent][Sent]] .............. [[mu:m:/typeform/sent or m:/gmail/sent|%4d][8351]]
-  [[mu:m:/typeform/archive or m:/gmail/archive][Archive]] .......... [[mu:m:/typeform/archive or m:/gmail/archive|%5d][98447]]
+  [[mu:m:/typeform/inbox or m:/gmail/inbox][Inbox]] .............. [[mu:m:/typeform/inbox or m:/gmail/inbox|%3d][106]]
+  ↳[[mu:m:/typeform/inbox][Typeform]] ........ [[mu:m:/typeform/inbox flag:unread|%2d][ 6]]/[[mu:m:/typeform/inbox|%2d][11]]
+  ↳[[mu:m:/gmail/inbox][Gmail]] ........... [[mu:m:/gmail/inbox flag:unread|%2d][59]]/[[mu:m:/gmail/inbox|%2d][95]]
+  [[mu:flag:flagged][Important]] ........... [[mu:flag:flagged|%2d][ 3]]
+龎  [[mu:m:/typeform/drafts or m:/gmail/drafts][Drafts]] .............. [[mu:m:/typeform/drafts or m:/gmail/drafts|%2d][ 8]]
+  [[mu:m:/typeform/sent or m:/gmail/sent][Sent]] .............. [[mu:m:/typeform/sent or m:/gmail/sent|%4d][8564]]
+  [[mu:m:/typeform/archive or m:/gmail/archive][Archive]] ......... [[mu:m:/typeform/archive or m:/gmail/archive|%6d][100845]]
 
 * Recently
 
-  [[mu:date:today..now][Today]] .............. [[mu:date:today..now|%3d][ 28]]
-  [[mu:date:2d..today and not date:today..now][Yesterday]] .......... [[mu:date:2d..today and not date:today..now|%3d][ 60]]
-  [[mu:date:1w..now][Last week]] ......... [[mu:date:7d..now|%4d][ 337]]
-  [[mu:date:4w..now][Last month]] ........ [[mu:date:4w..|%4d][1235]]
+  [[mu:date:today..now][Today]] .............. [[mu:date:today..now|%3d][ 31]]
+  [[mu:date:2d..today and not date:today..now][Yesterday]] .......... [[mu:date:2d..today and not date:today..now|%3d][134]]
+  [[mu:date:1w..now][Last week]] ......... [[mu:date:7d..now|%4d][ 481]]
+  [[mu:date:4w..now][Last month]] ........ [[mu:date:4w..|%4d][1774]]
 
- [[mime:text/calendar][Invites]] ........ [[mu:mime:text/calendar flag:unread|%2d][13]] /[[mu:mime:text/calendar|%4d][ 746]]
- [[flag:attach][Attachments]] ........ [[mu:flag:attach|%4d][9612]]
+ [[mime:text/calendar][Invites]] ........ [[mu:mime:text/calendar flag:unread|%2d][ 0]] /[[mu:mime:text/calendar|%4d][1301]]
+ [[flag:attach][Attachments]] ........ [[mu:flag:attach|%4d][++++]]
  [[flag:encrypted][Encrypted]] ............ [[mu:flag:encrypted|%2d][ 0]]
 
 * Tags
@@ -26,17 +26,17 @@
 
 * People
 
-[[mu:from:pau.minoves@typeform.com][Pau Minoves]] ........... [[mu:from:pau.minoves@typeform.com|%3d][ 20]]
-[[mu:from:ajh1954@googlemail.com][Andrew Hegarty]] ........ [[mu:from:ajh1954@googlemail.com|%3d][117]]
+[[mu:from:pau.minoves@typeform.com][Pau Minoves]] ........... [[mu:from:pau.minoves@typeform.com|%3d][ 53]]
+[[mu:from:ajh1954@googlemail.com][Andrew Hegarty]] ........ [[mu:from:ajh1954@googlemail.com|%3d][132]]
 
 * Mailing lists
 
-[[mu:list:mu-discuss.googlegroups.com][Mu4e discussions]] .... [[mu:list:mu-discuss.googlegroups.com|%5d][ 1090]]
+[[mu:list:mu-discuss.googlegroups.com][Mu4e discussions]] .... [[mu:list:mu-discuss.googlegroups.com|%5d][ 1152]]
 
 * Years
 
-[[mu:date:20220101..20221231][Year 2022]] ........... [[mu:date:20220101..20221231|%5d][    0]]
-[[m    0e:20210101..20211231][Year 2021]] ........... [[mu:date:20210101..20211231|%5d][ 9405]]
+[[mu:date:20220101..20221231][Year 2022]] ........... [[mu:date:20220101..20221231|%5d][ 2477]]
+[[m    0e:20210101..20211231][Year 2021]] ........... [[mu:date:20210101..20211231|%5d][ 9583]]
 [[m 9376e:20200101..20201231][Year 2020]] ........... [[mu:date:20200101..20201231|%5d][ 8657]]
 [[m 8657e:20190101..20191231][Year 2019]] ........... [[mu:date:20190101..20191231|%5d][ 8070]]
 

@@ -217,9 +217,21 @@
 (use-package dashboard
   :ensure t
   :config
+  (setq dashboard-set-heading-icons t
+        dashboard-set-file-icons t
+        dashboard-set-navigator t)
   (dashboard-setup-startup-hook)
   (setq dashboard-projects-switch-function 'projectile-persp-switch-project)
   (setq dashboard-filter-agenda-entry 'dashboard-filter-agenda-by-todo)
+  ;; (defun dashboard-insert-todo (list-size)
+  ;;   (let (dashboard-filter-agenda-entry dashboard-filter-agenda-by-todo)
+  ;;     (dashboard-insert-agenda list-size)))
+  ;; (add-to-list 'dashboard-item-generators  '(todo . dashboard-insert-todo))
+  (setq dashboard-items '( ;(todo . 7)
+                          (agenda . 8)
+                          (projects . 5)
+                          (recents  . 5)
+                          (bookmarks . 5)))
   )
 
 ;; https://github.com/be5invis/Iosevka
