@@ -92,6 +92,21 @@ most org export / preview in the browser."
            (interactive)
            (mu4e-headers-mark-thread nil '(refile)))
     )
+
+  (defun hub/copy-url-at-point-dwim (url)
+    "Copy the URL under point to the kill ring.
+If in an shr context (html) then it takes it from there
+otherwise it looks for a plain text url. With a prefix argument,
+or if there is no link under point, but there is an image under
+point then copy the URL of the image under point instead."
+    (interactive (list (shr-url-at-point current-prefix-arg)))
+    (let ((target (or url (ffap-url-at-point))))
+      (if (not target)
+          (message "No URL under point")
+        (setq target (url-encode-url target))
+        (kill-new target)
+        (message "Copied %s" target))))
+
   (evil-collection-define-key 'normal 'mu4e-view-mode-map
     (kbd "<tab>") (lambda()
                     (interactive)
@@ -106,7 +121,7 @@ most org export / preview in the browser."
     ",hh" 'mu4e-display-manual
     "à" 'mu4e-view-mark-for-refile
     "À" 'mu4e-headers-mark-for-archive
-    "Y" 'shr-copy-url                   ; when on a link in html
+    "Y" 'hub/copy-url-at-point-dwim                  ; when on a link in html
     "zh" 'mu4e-view-toggle-html
     "gs" 'mu4e-headers-prev-unread
     "gt" 'mu4e-headers-next-unread
@@ -302,13 +317,42 @@ most org export / preview in the browser."
       ;; Typeform
       ( :name "Incident Summary Report"
               :query "subject:/^Technical Support Incident Summary Report/")
-      ( :name "Productboard Daily Summary"
-              :query "subject:/^[Productboard] Daily summary/")
+      ( :name "Product Board"
+              :query "from:feedback@productboard.com")
+
+      ( :name "Typeform StatusPage"
+              :query "from:noreply@statuspage.io")
       ( :name "Asana"
               :query "from:no-reply@asana.com")
       ( :name "Typeform customer comms"
               :query "list:spc.270201.0.sparkpostmail.com")
+      ( :name "Miro Daily"
+              :query "from:daily@updates.miro.com")
+      ( :name "Miro Invites"
+              :query "from:invites@notifications.miro.com")
+      ( :name "Miro Notifs"
+              :query "from:notification@miro.com")
+      ( :name "Google Drive Share"
+              :query "from:drive-shares-dm-noreply@google.com")
+      ( :name "Google Docs Comments"
+              :query "from:comments-noreply@docs.google.com")
+      ( :name "Zoom"
+              :query "from:no-reply@zoom.us")
+      ( :name "Jira"
+              :query "from:jira@typeform.com")
+      ( :name "15Five"
+              :query "from:notifications@15five.com")
+      ( :name "Datadog"
+              :query "from:no-reply@dtdg.co")
+      ( :name "Google Workspace"
+              :query "from:workspace-noreply@google.com")
+      ( :name "GreenHouse"
+              :query "from:no-reply@greenhouse.io")
+      ( :name "Clockwise"
+              :query "from:hello@getclockwise.com")
 
+      ( :name "Slack"
+              :query "from:no-reply@slack.com")
       ;; GMail
       ;;; Notifications (it's ok if not read)
       ( :name "Qustodio Notifications"
@@ -524,7 +568,7 @@ most org export / preview in the browser."
 		                ;; must come before proc-move since retag runs
 		                ;; 'sed' on the file
                                 (mu4e-action-retag-message msg "-\\Inbox")
-		                (mu4e~proc-move docid nil "+S-u-N"))))
+		                (mu4e~proc-move docid target "+S-u-N"))))
   (mu4e~headers-defun-mark-for archive)
 
   ;; Contacts
