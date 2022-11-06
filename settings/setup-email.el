@@ -320,6 +320,10 @@ point then copy the URL of the image under point instead."
       ( :name "Product Board"
               :query "from:feedback@productboard.com")
 
+      ( :name "Newbie"
+              :query "from:home@comms.typeform.com subject:/^Welcome our newbies/")
+      ( :name "NotionHQ"
+              :query "from:notify@mail.notion.so")
       ( :name "Typeform StatusPage"
               :query "from:noreply@statuspage.io")
       ( :name "Asana"
@@ -515,6 +519,7 @@ point then copy the URL of the image under point instead."
         ;; mu4e-use-fancy-chars t
         ;; gmail style conversations: not by default activate with zé
         mu4e-headers-include-related nil
+        gnus-inhibit-mime-unbuttonizing nil
         )
   (when (fboundp 'imagemagick-register-types)
     (imagemagick-register-types))
