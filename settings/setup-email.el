@@ -50,6 +50,9 @@ most org export / preview in the browser."
   ;;;            :files ("mu4e/*")
   ;;;            :pre-build (("./autogen.sh" "-Dguile=disabled") ("make")))
   ;;; :custom   (mu4e-mu-binary (expand-file-name "build/mu/mu" (straight--repos-dir "mu")))
+  :load-path "/nix/store/cn8v646s7g0r711aqdzz9ciyx0kd6x53-mu-1.6.10/share/emacs/site-lisp"
+  :straight (:files ("/nix/store/cn8v646s7g0r711aqdzz9ciyx0kd6x53-mu-1.6.10/share/emacs/site-lisp/mu4e/*") :pre-build ())
+  :custom   (mu4e-mu-binary "/etc/profiles/per-user/hub/bin/mu")
   ;; :disabled t
   :ensure nil
   ;; :pin manual
