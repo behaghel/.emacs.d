@@ -110,6 +110,9 @@
     :defer t)
   (setq org-confirm-babel-evaluate nil)   ; stop asking. May be dangerous...
   ;; (setq org-latex-listings nil)
+  (setq org-latex-compiler "lualatex")
+  (setq org-preview-latex-default-process 'dvisvgm)
+
   (setq org-reveal-root (getenv "REVEAL_JS_ROOT_URL"))
   (setq org-plantuml-jar-path "~/install/plantuml.jar")
   (add-to-list 'org-src-lang-modes '("plantuml" . plantuml))
