@@ -275,6 +275,7 @@ of its arguments."
   :bind (:map evil-normal-state-map
               (",eP" . org-cliplink)))
 
+;; https://yiufung.net/post/anki-org/
 (use-package anki-editor
   :defer 10
   :after org
@@ -314,12 +315,12 @@ of its arguments."
                '("a" "Anki basic"
                  entry
                  (file+headline org-default-notes-file "Anki")
-                 "* %<%H:%M>   %^g\n:PROPERTIES:\n:ANKI_NOTE_TYPE: Basic\n:ANKI_DECK: Mega\n:END:\n** Front\n%?\n** Back\n%x\n"))
+                 "* %U   %^g\n:PROPERTIES:\n:ANKI_NOTE_TYPE: Basic\n:ANKI_DECK: from-org\n:END:\n** Front\n%?\n** Back\n%x\n"))
   (add-to-list 'org-capture-templates
                '("A" "Anki cloze"
                  entry
                  (file+headline org-default-notes-file "Anki")
-                 "* %<%H:%M>   %^g\n:PROPERTIES:\n:ANKI_NOTE_TYPE: Cloze\n:ANKI_DECK: Mega\n:END:\n** Text\n%x\n** Extra\n"))
+                 "* %U   %^g\n:PROPERTIES:\n:ANKI_NOTE_TYPE: Cloze\n:ANKI_DECK: from-org\n:END:\n** Text\n%x\n** Extra\n"))
   )
 
 (use-package org-superstar
