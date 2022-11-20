@@ -227,7 +227,7 @@
 ;; Use emacs to edit textarea in Chrome
 (use-package edit-server
   :if window-system
-  :ensure t
+  ;; :ensure t
   :defer 5
   :init
   (add-hook 'after-init-hook 'server-start t)
@@ -296,7 +296,7 @@
 ;;; Yasnippet
 (use-package yasnippet
   :defer t
-  :ensure t
+  ;; :ensure t
   :diminish yas-minor-mode
   :bind (("<C-tab>" . company-yasnippet)
          :map yas-minor-mode-map
@@ -755,7 +755,7 @@ _z_oom on node
   (use-package css-eldoc)
   )
 (use-package scss-mode
-  :ensure t
+  ;; :ensure t
   :mode "\\.scss\\'")
 
 (add-hook 'sgml-mode-hook
@@ -860,6 +860,7 @@ _z_oom on node
 ;; (require 'setup-treemacs)
 (require 'setup-elfeed)
 (require 'setup-email nil t)
+(require 'setup-brain)
 (require 'setup-private nil t)
 
 ;; NixOS

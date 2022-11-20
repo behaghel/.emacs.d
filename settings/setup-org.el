@@ -1,6 +1,3 @@
-(define-key evil-normal-state-map (kbd ",cc") 'org-capture)
-(define-key evil-normal-state-map (kbd ",cl") 'org-store-link)
-(define-key evil-normal-state-map (kbd ",ca") 'org-agenda)
 (setq org-directory "~/Dropbox/Documents/org/")
 ;;(hub/setup-speed-dial)
 
@@ -18,9 +15,12 @@
   ;; (with-eval-after-load 'flycheck
   ;;   (flycheck-add-mode 'proselint 'org-mode)
   :config
+  (define-key evil-normal-state-map (kbd ",oc") 'org-capture)
+  (define-key evil-normal-state-map (kbd ",ol") 'org-store-link)
+  (define-key evil-normal-state-map (kbd ",oa") 'org-agenda)
   (evil-collection-define-key 'normal 'org-mode-map
     ",or"   'org-babel-open-src-block-result
-    ",ea"   'org-archive-subtree-default
+    ",à"   'org-archive-subtree-default
     ",s"    'outline-up-heading
     "à"     'org-refile
     (kbd ", SPC")   'hub/outline-focus-next-section
@@ -90,6 +90,7 @@
   (setq org-outline-path-complete-in-steps nil)      ; Refile in a single go
   (setq org-refile-use-outline-path 'file)           ; Show full paths for refiling
   (setq org-refile-allow-creating-parent-nodes 'confirm)
+  (setq org-reverse-note-order t)       ; refile at the top / prepend
   (setq org-refile-targets '(("typeform.org" :maxlevel . 4)
                              ("faith.org" :maxlevel . 2)
                              ("hubert.org" :maxlevel . 2)

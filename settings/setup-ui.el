@@ -49,6 +49,9 @@
 (setq x-select-enable-clipboard t
       x-select-enable-primary t)
 
+;; no noise
+(setq visible-bell t)
+
 ;; No annoying buffer for completion, compilation, help...
 (use-package popwin
   :config
