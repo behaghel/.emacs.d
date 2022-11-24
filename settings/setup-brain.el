@@ -95,3 +95,5 @@
   ;; `denote-link-or-create'.  You may want to bind them to keys as well.)
 
   )
+
+(provide 'setup-brain)

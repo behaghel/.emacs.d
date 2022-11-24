@@ -24,7 +24,9 @@
          ("C-s" . persp-state-save) ; save perspective layout to file
          ("C-l" . persp-state-load) ; load perspective layout from file
          )
-  :custom (persp-show-modestring nil)
+  :custom
+  (persp-show-modestring nil)
+  (persp-mode-prefix-key (kbd "C-p"))
   :config
 
   (define-key evil-normal-state-map (kbd "gb") 'persp-ivy-switch-buffer)

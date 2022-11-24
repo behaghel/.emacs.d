@@ -96,6 +96,18 @@
                              ("hubert.org" :maxlevel . 2)
                              ("family.org" :maxlevel . 2)
                              ))
+  ;; stolen from https://kristofferbalintona.me/posts/202206141852/#understanding-org-cite-export-processors
+  (setq org-cite-global-bibliography (list (concat org-directory "my.bib")))
+  (setq
+   org-cite-csl-locales-dir "~/.emacs.d/straight/repos/org/etc/csl"
+   org-cite-csl-styles-dir "~/Zotero/styles")
+  (setq org-cite-export-processors
+        '((md . (csl "chicago-fullnote-bibliography.csl"))   ; Footnote reliant
+          (latex . biblatex)                                 ; For humanities
+          (odt . (csl "chicago-fullnote-bibliography.csl"))  ; Footnote reliant
+          (html . (csl "chicago-fullnote-bibliography.csl"))  ; Footnote reliant
+          (t . (csl "modern-language-association.csl"))      ; Fallback
+          ))
   ;; consider me idle on my currently clocked-in task after 15 minutes
   ;; and ask me to resolve idle time when I am back
   (setq org-clock-idle-time 15)
@@ -327,11 +339,18 @@ of its arguments."
                  "* %U   %^g\n:PROPERTIES:\n:ANKI_NOTE_TYPE: Cloze\n:ANKI_DECK: from-org\n:END:\n** Text\n%x\n** Extra\n"))
   )
 
-(use-package org-superstar
-  :hook (org-mode . org-superstar-mode)
-  :config
-  (setq org-superstar-headline-bullets-list
-        '("❋" "◉" "○" "▷" "◇" "➵" "❧"))
+;; (use-package org-superstar
+;;   :hook (org-mode . org-superstar-mode)
+;;   :config
+;;   (setq org-superstar-headline-bullets-list
+;;         '("❋" "◉" "○" "▷" "◇" "➵" "❧"))
+;;   )
+
+(use-package org-modern
+  :after org
+  :hook
+  (org-mode . or-modern-mode)
+  (org-agenda-finalize . org-modern-agenda)
   )
 
 (use-package org-download
@@ -362,5 +381,7 @@ of its arguments."
                   entry
                   (file+headline "~/Dropbox/Documents/org/learning/sysadmin.org" "Drills")
                   "\n\n** %^{Question title}                           :sysadmin:drill:\n\n   %^{Question body} \n\n*** Answer \n\n    #+BEGIN_SRC %^{awk_bash} :results output code :in-file ./text-files/%^{text file}\n      %^{awk_bash program}\n    #+END_SRC")))
+
+(use-package citeproc)
 
 (provide 'setup-org)
