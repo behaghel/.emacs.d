@@ -1,23 +1,23 @@
-* Mailboxes [[mu:flag:unread|%3d][ 67]]
+* Mailboxes [[mu:flag:unread|%3d][914]]
 
-  [[mu:m:/typeform/inbox or m:/gmail/inbox][Inbox]] .............. [[mu:m:/typeform/inbox or m:/gmail/inbox|%3d][106]]
-  ↳[[mu:m:/typeform/inbox][Typeform]] ........ [[mu:m:/typeform/inbox flag:unread|%2d][ 6]]/[[mu:m:/typeform/inbox|%2d][11]]
-  ↳[[mu:m:/gmail/inbox][Gmail]] ........... [[mu:m:/gmail/inbox flag:unread|%2d][59]]/[[mu:m:/gmail/inbox|%2d][95]]
-  [[mu:flag:flagged][Important]] ........... [[mu:flag:flagged|%2d][ 3]]
-龎  [[mu:m:/typeform/drafts or m:/gmail/drafts][Drafts]] .............. [[mu:m:/typeform/drafts or m:/gmail/drafts|%2d][ 8]]
-  [[mu:m:/typeform/sent or m:/gmail/sent][Sent]] .............. [[mu:m:/typeform/sent or m:/gmail/sent|%4d][8564]]
-  [[mu:m:/typeform/archive or m:/gmail/archive][Archive]] ......... [[mu:m:/typeform/archive or m:/gmail/archive|%6d][100845]]
+  [[mu:m:/behaghel.fr/inbox or m:/gmail/inbox][Inbox]] ............. [[mu:m:/behaghel.fr/inbox or m:/gmail/inbox|%3d][589]]
+  ↳[[mu:m:/behaghel.fr/inbox][behaghel.fr]]........ [[mu:m:/behaghel.fr/inbox flag:unread|%2d][ 2]]/[[mu:m:/behaghel.fr/inbox|%2d][ 5]]
+  ↳[[mu:m:/gmail/inbox][Gmail]] ............ [[mu:m:/gmail/inbox flag:unread|%3d][366]]/ [[mu:m:/gmail/inbox|%3d][584]]
+  [[mu:flag:flagged][Important]] .......... [[mu:flag:flagged|%2d][42]]
+龎  [[mu:m:/behaghel.fr/drafts or m:/gmail/drafts][Drafts]] ............. [[mu:m:/behaghel.fr/drafts or m:/gmail/drafts|%2d][13]]
+  [[mu:m:/behaghel.fr/sent or m:/gmail/sent][Sent]] ............. [[mu:m:/behaghel.fr/sent or m:/gmail/sent|%4d][9782]]
+  [[mu:m:/behaghel.fr/archive or m:/gmail/archive][Archive]] ........ [[mu:m:/behaghel.fr/archive or m:/gmail/archive|%6d][104755]]
 
 * Recently
 
-  [[mu:date:today..now][Today]] .............. [[mu:date:today..now|%3d][ 31]]
-  [[mu:date:2d..today and not date:today..now][Yesterday]] .......... [[mu:date:2d..today and not date:today..now|%3d][134]]
-  [[mu:date:1w..now][Last week]] ......... [[mu:date:7d..now|%4d][ 481]]
-  [[mu:date:4w..now][Last month]] ........ [[mu:date:4w..|%4d][1774]]
+  [[mu:date:today..now][Today]] ..............[[mu:date:today..now|%3d][ 14]]
+  [[mu:date:2d..today and not date:today..now][Yesterday]] ..........[[mu:date:2d..today and not date:today..now|%3d][ 24]]
+  [[mu:date:1w..now][Last week]] ......... [[mu:date:7d..now|%3d][113]]
+  [[mu:date:4w..now][Last month]] ....... [[mu:date:4w..|%4d][ 174]]
 
- [[mime:text/calendar][Invites]] ........ [[mu:mime:text/calendar flag:unread|%2d][ 0]] /[[mu:mime:text/calendar|%4d][1301]]
- [[flag:attach][Attachments]] ........ [[mu:flag:attach|%4d][++++]]
- [[flag:encrypted][Encrypted]] ............ [[mu:flag:encrypted|%2d][ 0]]
+ [[mime:text/calendar][Invites]] ........ [[mu:mime:text/calendar flag:unread|%2d][58]] /[[mu:mime:text/calendar|%4d][4401]]
+ [[flag:attach][Attachments]] ....... [[mu:flag:attach|%5d][15392]]
+ [[flag:encrypted][Encrypted]] ............ [[mu:flag:encrypted|%2d][ 1]]
 
 * Tags
 
@@ -26,19 +26,19 @@
 
 * People
 
-[[mu:from:pau.minoves@typeform.com][Pau Minoves]] ........... [[mu:from:pau.minoves@typeform.com|%3d][ 53]]
-[[mu:from:ajh1954@googlemail.com][Andrew Hegarty]] ........ [[mu:from:ajh1954@googlemail.com|%3d][132]]
+[[mu:from:pau.minoves@typeform.com][Pau Minoves]] ........... [[mu:from:pau.minoves@typeform.com|%3d][144]]
+[[mu:from:ajh1954@googlemail.com][Andrew Hegarty]] ........ [[mu:from:ajh1954@googlemail.com|%3d][218]]
 
 * Mailing lists
 
-[[mu:list:mu-discuss.googlegroups.com][Mu4e discussions]] .... [[mu:list:mu-discuss.googlegroups.com|%5d][ 1152]]
+[[mu:list:mu-discuss.googlegroups.com][Mu4e discussions]] .... [[mu:list:mu-discuss.googlegroups.com|%5d][ 1423]]
 
 * Years
 
-[[mu:date:20220101..20221231][Year 2022]] ........... [[mu:date:20220101..20221231|%5d][ 2477]]
-[[m    0e:20210101..20211231][Year 2021]] ........... [[mu:date:20210101..20211231|%5d][ 9583]]
-[[m 9376e:20200101..20201231][Year 2020]] ........... [[mu:date:20200101..20201231|%5d][ 8657]]
-[[m 8657e:20190101..20191231][Year 2019]] ........... [[mu:date:20190101..20191231|%5d][ 8070]]
+[[mu:date:20220101..20221231][Year 2022]] ........... [[mu:date:20220101..20221231|%5d][19497]]
+[[m    0e:20210101..20211231][Year 2021]] ........... [[mu:date:20210101..20211231|%5d][ 9710]]
+[[m 9376e:20200101..20201231][Year 2020]] ........... [[mu:date:20200101..20201231|%5d][ 8699]]
+[[m 8657e:20190101..20191231][Year 2019]] ........... [[mu:date:20190101..20191231|%5d][ 8116]]
 
 *  /Configuration/
 :PROPERTIES:
@@ -54,9 +54,9 @@ mu find --sortfield=date --reverse --fields "f s" $query  | head -$count
 #+END_SRC
 
 #+KEYMAP: u | mu4e-headers-search "flag:unread"
-#+KEYMAP: i | mu4e-headers-search "m:/typeform/inbox or m:/gmail/inbox"
-#+KEYMAP: d | mu4e-headers-search "m:/typeform/drafts or m:/gmail/drafts"
-#+KEYMAP: s | mu4e-headers-search "m:/typeform/sent or m:/gmail/sent"
+#+KEYMAP: i | mu4e-headers-search "m:/behaghel.fr/inbox or m:/gmail/inbox"
+#+KEYMAP: d | mu4e-headers-search "m:/behaghel.fr/drafts or m:/gmail/drafts"
+#+KEYMAP: s | mu4e-headers-search "m:/behaghel.fr/sent or m:/gmail/sent"
 #+KEYMAP: f | mu4e-headers-search "flag:flagged"
 
 #+KEYMAP: t | mu4e-headers-search "date:today..now"

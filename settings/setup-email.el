@@ -50,8 +50,8 @@ most org export / preview in the browser."
   ;;;            :files ("mu4e/*")
   ;;;            :pre-build (("./autogen.sh" "-Dguile=disabled") ("make")))
   ;;; :custom   (mu4e-mu-binary (expand-file-name "build/mu/mu" (straight--repos-dir "mu")))
-  :load-path "/nix/store/cn8v646s7g0r711aqdzz9ciyx0kd6x53-mu-1.6.10/share/emacs/site-lisp"
-  :straight (:files ("/nix/store/cn8v646s7g0r711aqdzz9ciyx0kd6x53-mu-1.6.10/share/emacs/site-lisp/mu4e/*") :pre-build ())
+  :load-path "~/.local/share/emacs/site-lisp"
+  :straight (:files ("~/.local/share/emacs/site-lisp/mu4e/*") :pre-build ())
   :custom   (mu4e-mu-binary "/etc/profiles/per-user/hub/bin/mu")
   ;; :disabled t
   :ensure nil
@@ -223,23 +223,6 @@ point then copy the URL of the image under point instead."
 --\n\nHubert
 #+end_signature")))
           ,(make-mu4e-context
-            :name "typeform"
-            :enter-func (lambda () (mu4e-message ">> Typeform context"))
-            :leave-func (lambda () (mu4e-message "<< Typeform context"))
-            ;; we match based on the contact-fields of the message
-            :match-func
-            (lambda (msg)
-              (when msg
-                (string-match-p "^/typeform" (mu4e-message-field msg :maildir))))
-            :vars '((user-mail-address      . "hubert.behaghel@typeform.com")
-                    (smtpmail-smtp-user     . "hubert.behaghel@typeform.com")
-                    (org-msg-signature      . "
-
-#+begin_signature
---\n#+INCLUDE: ~/.signature.typeform.html export html
-#+end_signature")
-                    ))
-          ,(make-mu4e-context
             :name "fbehaghel.fr"
             :enter-func (lambda () (mu4e-message ">> behaghel.fr context"))
             :match-func
@@ -290,11 +273,11 @@ point then copy the URL of the image under point instead."
   (setq   mu4e-maildir-shortcuts
           '(
             (:maildir "/gmail/inbox"   :key ?g)
-            (:maildir "/typeform/inbox"     :key ?t)
+            (:maildir "/behaghel.fr/inbox"     :key ?t)
             (:maildir "/gmail/archive" :key ?a)
-            (:maildir "/typeform/archive"     :key ?A)
+            (:maildir "/behaghel.fr/archive"     :key ?A)
             (:maildir "/gmail/sent"    :key ?s)
-            (:maildir "/typeform/sent"     :key ?S)
+            (:maildir "/behaghel.fr/sent"     :key ?S)
             ))
 
 
@@ -317,49 +300,6 @@ point then copy the URL of the image under point instead."
       ( :name "Calendar Notifications"
               :query "mime:text/calendar")
 
-      ;; Typeform
-      ( :name "Incident Summary Report"
-              :query "subject:/^Technical Support Incident Summary Report/")
-      ( :name "Product Board"
-              :query "from:feedback@productboard.com")
-
-      ( :name "Newbie"
-              :query "from:home@comms.typeform.com subject:/^Welcome our newbies/")
-      ( :name "NotionHQ"
-              :query "from:notify@mail.notion.so")
-      ( :name "Typeform StatusPage"
-              :query "from:noreply@statuspage.io")
-      ( :name "Asana"
-              :query "from:no-reply@asana.com")
-      ( :name "Typeform customer comms"
-              :query "list:spc.270201.0.sparkpostmail.com")
-      ( :name "Miro Daily"
-              :query "from:daily@updates.miro.com")
-      ( :name "Miro Invites"
-              :query "from:invites@notifications.miro.com")
-      ( :name "Miro Notifs"
-              :query "from:notification@miro.com")
-      ( :name "Google Drive Share"
-              :query "from:drive-shares-dm-noreply@google.com")
-      ( :name "Google Docs Comments"
-              :query "from:comments-noreply@docs.google.com")
-      ( :name "Zoom"
-              :query "from:no-reply@zoom.us")
-      ( :name "Jira"
-              :query "from:jira@typeform.com")
-      ( :name "15Five"
-              :query "from:notifications@15five.com")
-      ( :name "Datadog"
-              :query "from:no-reply@dtdg.co")
-      ( :name "Google Workspace"
-              :query "from:workspace-noreply@google.com")
-      ( :name "GreenHouse"
-              :query "from:no-reply@greenhouse.io")
-      ( :name "Clockwise"
-              :query "from:hello@getclockwise.com")
-
-      ( :name "Slack"
-              :query "from:no-reply@slack.com")
       ;; GMail
       ;;; Notifications (it's ok if not read)
       ( :name "Qustodio Notifications"
@@ -441,7 +381,7 @@ point then copy the URL of the image under point instead."
   ;; default mu4e-bookmarks value
   (setq mu4e-bookmarks '(
                          (:name "Inbox" :query "NOT flag:trashed AND maildir:/inbox/" :key ?i)
-                         (:name "Typeform" :query "NOT flag:trashed AND maildir:/typeform/inbox" :key ?t)
+                         (:name "behaghel.fr" :query "NOT flag:trashed AND maildir:/behaghel.fr/inbox" :key ?t)
                          (:name "GMail" :query "NOT flag:trashed AND maildir:/gmail/inbox" :key ?g)
                          (:name "Important" :query "flag:flagged NOT flag:trashed" :key ?f)
                          (:name "Drafts" :query "NOT flag:trashed AND maildir:/drafts/" :key ?d)
