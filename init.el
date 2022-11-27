@@ -674,7 +674,6 @@ _z_oom on node
                        (turn-on-auto-fill)
                        ;; auto-fill comments and only them
                        ;; (setq-local comment-auto-fill-only-comments t)
-                       (rainbow-delimiters-mode t)
                        (eldoc-mode)
                        (origami-mode)
                        (editorconfig-mode 1)

@@ -121,6 +121,8 @@
 
 
 (use-package rainbow-delimiters
+  :disabled t
+  :hook (prog-mode . rainbow-delimiters-mode)
   :commands (rainbow-delimiters-mode)
   :config
   ;; (setq rainbow-delimiters-max-face-count 1)
@@ -138,28 +140,6 @@
   :config
   (setq sml/theme 'respectful)
   (sml/setup))
-
-(use-package doom-modeline
-  :hook (after-init . doom-modeline-mode)
-  :config
-  (setq doom-modeline-buffer-file-name-style 'relative-to-project)
-  (setq doom-modeline-buffer-encoding nil)
-  (setq doom-modeline-mu4e t)
-
-  (setq doom-modeline-height 36)
-  ;; FIXME: my hack to make it work for perspective.el isn't working.
-  ;; Either I load the modeline before perspective and the whole hack
-  ;; create infinite loop on every commands or I load it later but it
-  ;; doesn't load well (half loaded?) and require manual fiddling (unload/reload)
-  ;; no clue why doom-modeline is so exclusive about perspective.el
-  ;; this is all it takes to adapt its persp-mode integration to it
-  ;; (defalias 'safe-persp-name #'persp-name)
-  ;; (defalias 'get-current-persp #'persp-curr)
-  ;; (defun persp-contain-buffer-p (buffer persp)
-  ;;   (persp-is-current-buffer buffer))
-  ;; (setq persp-nil-name 'main)
-  ;; (setq doom-modeline-persp-name t)
-)
 
 ;; https://gitlab.com/protesilaos/modus-themes
 (use-package modus-themes
@@ -186,29 +166,10 @@
   :bind (:map evil-normal-state-map
               (",zk" . modus-themes-toggle)))
 
-(use-package doom-themes
-  :disabled t
-  :pin melpa
-  :config
-  ;; Global settings (defaults)
-  (setq doom-themes-enable-bold t    ; if nil, bold is universally disabled
-        doom-themes-enable-italic t) ; if nil, italics is universally disabled
-  ;; (load-theme 'doom-one t)
-  (load-theme 'doom-material t)
-
-  ;; Enable flashing mode-line on errors
-  (doom-themes-visual-bell-config)
-
-  ;; Corrects (and improves) org-mode's native fontification.
-  (require 'doom-themes-ext-org)
-  (doom-themes-org-config)
-  )
-
 (use-package nano-theme
-  :straight (nano-theme :type git :host github :repo "404cn/nano-theme.el")
+  :straight (nano-theme :type git :host github :repo "rougier/nano-theme")
   :config
-  (setq nano-theme-light/dark 'dark)
-  (load-theme 'nano t))
+  (nano-dark))
 
 ;; introduce contrast between popup buffers and working buffers
 (use-package solaire-mode
