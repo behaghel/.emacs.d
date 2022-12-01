@@ -33,7 +33,7 @@
   ;; FIXME: it's not just hiding leading stars, most of the time it's
   ;; all the stars unless I put the cursor on the star that should be
   ;; visible, then it appears at least for a while...
-  ;; (setq org-hide-leading-stars t)
+  (setq org-hide-leading-stars t)
   (setq org-startup-indented t)
   (setq org-return-follows-link t)
   (setq org-footnote-auto-adjust t)
@@ -349,7 +349,7 @@ of its arguments."
 (use-package org-modern
   :after org
   :hook
-  (org-mode . or-modern-mode)
+  (org-mode . org-modern-mode)
   (org-agenda-finalize . org-modern-agenda)
   )
 

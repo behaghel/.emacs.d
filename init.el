@@ -278,9 +278,11 @@
               )
   :config
   (projectile-mode +1)
+  (define-key evil-normal-state-map (kbd "gb") 'projectile-switch-to-buffer)
+  (define-key evil-normal-state-map (kbd "gB") 'projectile-switch-to-buffer-other-window)
   (define-key projectile-mode-map (kbd "C-c p") 'projectile-command-map)
   (define-key projectile-mode-map (kbd "s-p") 'projectile-command-map)
-  (evil-define-key 'normal 'projectile-mode-map ",p" 'projectile-command-map)
+  (evil-define-key 'normal projectile-mode-map ",p" 'projectile-command-map)
   (setq projectile-completion-system 'ivy)
   (setq projectile-project-search-path '("~/ws/"))
   (use-package counsel-projectile
@@ -866,18 +868,13 @@ _z_oom on node
 (use-package nix-mode
   :mode "\\.nix\\'"
   :config
-  (use-package company-nixos-options
-    :mode "\\.nix\\'"
-    :config
-    (add-to-list 'company-backends 'company-nixos-options))
-  ;; (sp-local-pair 'nix-mode "{" nil :post-handlers '(:add (lambda (_id action _context) (save-excursion
-  ;;                                                                                        (forward-char)
-  ;;                                                                                        (insert ";")))))
-  ;; doc hard to find: https://github.com/Fuco1/smartparens/blob/25f4d6d1b732f4deabf922059d22a0a7dc04bd0a/docs/permissions.rst#insertion-specification
   (sp-local-pair 'nix-mode "{" nil :post-handlers '(("||\n[i]" "RET")))
-
   )
 
+(use-package company-nixos-options
+  :mode "\\.nix\\'"
+  :config
+  (add-to-list 'company-backends 'company-nixos-options))
 
 ;; (require 'setup-erc)
 ;; (require 'setup-twitter)

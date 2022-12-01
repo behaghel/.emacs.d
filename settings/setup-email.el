@@ -273,7 +273,7 @@ point then copy the URL of the image under point instead."
   (setq   mu4e-maildir-shortcuts
           '(
             (:maildir "/gmail/inbox"   :key ?g)
-            (:maildir "/behaghel.fr/inbox"     :key ?t)
+            (:maildir "/behaghel.fr/inbox"     :key ?b)
             (:maildir "/gmail/archive" :key ?a)
             (:maildir "/behaghel.fr/archive"     :key ?A)
             (:maildir "/gmail/sent"    :key ?s)
@@ -723,6 +723,8 @@ Hubert
   (defun mu4e-dashboard-hook ()
     (when (string= (file-name-nondirectory buffer-file-name) "mail-sidebar.org")
       (mu4e-dashboard-mode)
+      (when (functionp org-modern-mode)
+        (org-modern-mode 0))
       ))
   (add-hook 'find-file-hook 'mu4e-dashboard-hook)
   ;; (advice-add 'mu4e :after #'open-mail-sidebar)
