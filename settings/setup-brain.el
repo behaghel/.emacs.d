@@ -1,18 +1,20 @@
 (use-package denote
   :config
 
-  (evil-collection-define-key 'normal 'org-mode-map
+  (evil-collection-define-key 'normal 'global
     ",nn"   #'denote
     ",nN"   #'denote-type
     ",nd"   #'denote-date
     ",ns"   #'denote-subdirectory
     ",nt"   #'denote-template
-    ",nl"   #'denote-link
-    ",nL"   #'denote-link-add-links
-    ",nb"   #'denote-link-backlinks
-    ",nf"   #'denote-link-find-file
-    ",nB"   #'denote-link-find-backlink
     ",nr"   #'denote-rename-file
+    )
+  (evil-collection-define-key 'normal 'org-mode-map
+    ",nl"   #'denote-link-or-create     ; insert a link
+    ",nL"   #'denote-link-add-links     ; add all matching links
+    ",nb"   #'denote-link-backlinks     ; show backlinks
+    ",nf"   #'denote-link-find-file     ; open a note
+    ",nB"   #'denote-link-find-backlink ; open a backlinking note
     ",nR"   #'denote-rename-file-using-front-matter
     )
   ;; Key bindings specifically for Dired.
@@ -22,7 +24,7 @@
   ;;   (define-key map (kbd "C-c C-d C-R") #'denote-dired-rename-marked-files-using-front-matter))
 
   (setq denote-directory (expand-file-name "~/Dropbox/Documents/org/notes/"))
-  (setq denote-known-keywords '("emacs" "faith" "family" "hubert" "pro"))
+  (setq denote-known-keywords '("emacs" "faith" "family" "hubert" "pro" "engineering" "leadership"))
   (setq denote-infer-keywords t)
   (setq denote-sort-keywords t)
   ;; (setq denote-file-type nil) ; Org is the default, set others here
@@ -90,9 +92,6 @@
                    :immediate-finish nil
                    :kill-buffer t
                    :jump-to-captured t)))
-
-  ;; Also check the commands `denote-link-after-creating',
-  ;; `denote-link-or-create'.  You may want to bind them to keys as well.)
 
   )
 

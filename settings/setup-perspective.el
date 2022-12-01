@@ -25,11 +25,11 @@
          ("C-l" . persp-state-load) ; load perspective layout from file
          )
   :custom
-  (persp-show-modestring nil)
+  (persp-sort 'access)
+  (persp-show-modestring t)
+  (persp-modestring-short t)
   (persp-mode-prefix-key (kbd "C-p"))
   :config
-
-  (define-key evil-normal-state-map (kbd "gb") 'persp-ivy-switch-buffer)
 
   (persp-mode)
   (add-hook 'kill-emacs-hook #'persp-state-save)

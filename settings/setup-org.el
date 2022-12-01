@@ -20,7 +20,7 @@
   (define-key evil-normal-state-map (kbd ",oa") 'org-agenda)
   (evil-collection-define-key 'normal 'org-mode-map
     ",or"   'org-babel-open-src-block-result
-    ",à"   'org-archive-subtree-default
+    ",à"    'org-archive-subtree-default
     ",s"    'outline-up-heading
     "à"     'org-refile
     (kbd ", SPC")   'hub/outline-focus-next-section
@@ -30,12 +30,12 @@
     )
   (evil-define-key 'motion org-mode-map (kbd "RET") 'org-return)
   (evil-define-key 'motion calendar-mode-map (kbd "RET") 'org-calendar-select)
+  (setq org-return-follows-link t)
   ;; FIXME: it's not just hiding leading stars, most of the time it's
   ;; all the stars unless I put the cursor on the star that should be
   ;; visible, then it appears at least for a while...
   (setq org-hide-leading-stars t)
   (setq org-startup-indented t)
-  (setq org-return-follows-link t)
   (setq org-footnote-auto-adjust t)
   ;;The following setting hides blank lines between headings which keeps folded view nice and compact.
   (setq org-cycle-separator-lines 0)
@@ -45,10 +45,6 @@
   ;; doesn't get word-wrapping. Deactivating just for org-mode.
   (add-hook 'org-mode-hook
             (lambda () (setq-local comment-auto-fill-only-comments nil)))
-
-  ;; (require 'org-mac-link)
-  ;; (add-hook 'org-mode-hook (lambda ()
-  ;;                            (define-key org-mode-map (kbd "C-c m") 'org-mac-grab-link)))
 
   ;; org-capture && org-agenda
   ; otherwise org-agenda destroys your layout
@@ -80,7 +76,7 @@
            "* TODO %(org-cliplink-capture)" :immediate-finish t :prepend t)
           ("c" "org-protocol-capture" entry (file+headline org-default-notes-file "Browsing")
            "* TODO [[%:link][%:description]]\n\n %i" :immediate-finish t :prepend t)
-          ("p" "Philosophy" entry (file+datetree (concat org-directory "faith.org"))
+          ("p" "Philosophy" entry (file "faith.org")
            "* %?\nEntered on %U\n  %i\n  %a")
           ("m" "Meeting Minutes" entry (file org-default-notes-file)
            "* Meeting Minutes\n** Present at meeting\n- [X] Peter\n- [ ] Sarah - [X] Lucy\n ** Agenda\n- item 1\n- item 2\n- item 3\n** Notes\n*** Last meeting minutes are approved                              :decision:\n*** Discussion\n**** TODO Topic 1                                      :@Fred:\n**** TODO Topic 2                                    :@Sara:\n**** DONE Topic 2.1                                      :@Lucy:@Ted:\nDEADLINE: <2020-03-01 So>\n**** Another sub-topic                                    :decision:\n* Actions\n#+BEGIN: columnview :id global :match "/TODO|DONE" :format "%ITEM(What) %TAGS(Who) %DEADLINE(When) %TODO(State)"\n#+END:\n\n* Decisions\n#+BEGIN: columnview :id global :match "decision" :format "%ITEM(decisions)"\n#+END:"
@@ -339,19 +335,41 @@ of its arguments."
                  "* %U   %^g\n:PROPERTIES:\n:ANKI_NOTE_TYPE: Cloze\n:ANKI_DECK: from-org\n:END:\n** Text\n%x\n** Extra\n"))
   )
 
-;; (use-package org-superstar
-;;   :hook (org-mode . org-superstar-mode)
-;;   :config
-;;   (setq org-superstar-headline-bullets-list
-;;         '("❋" "◉" "○" "▷" "◇" "➵" "❧"))
-;;   )
-
 (use-package org-modern
   :after org
+  :custom
+  (org-modern-hide-stars nil) ; adds extra indentation
   :hook
   (org-mode . org-modern-mode)
   (org-agenda-finalize . org-modern-agenda)
+  :config
+  (setq
+   ;; Edit settings
+   org-catch-invisible-edits 'show-and-error
+   org-special-ctrl-a/e t
+   org-insert-heading-respect-content nil
+
+   ;; Org styling, hide markup etc.
+   org-hide-emphasis-markers t
+   org-pretty-entities t
+   org-ellipsis "…"
+
+   ;; Agenda styling
+   org-agenda-tags-column 0
+   org-agenda-block-separator ?─
+   org-agenda-time-grid
+   '((daily today require-timed)
+     (800 1000 1200 1400 1600 1800 2000)
+     " ┄┄┄┄┄ " "┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄")
+   org-agenda-current-time-string
+   "⭠ now ─────────────────────────────────────────────────")
   )
+
+(use-package org-modern-indent
+  :disabled t
+  :straight (:type git :host github :repo "jdtsmith/org-modern-indent")
+  :hook
+  (org-indent-mode . org-modern-indent-mode))
 
 (use-package org-download
   ;; :pin melpa

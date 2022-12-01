@@ -143,7 +143,7 @@
 
 ;; https://gitlab.com/protesilaos/modus-themes
 (use-package modus-themes
-  :disabled t
+  ;; :disabled t
   :init
   ;; Add all your customizations prior to loading the themes
   (setq modus-themes-slanted-constructs t
@@ -168,6 +168,7 @@
 
 (use-package nano-theme
   :straight (nano-theme :type git :host github :repo "rougier/nano-theme")
+  :disabled t
   :config
   (nano-dark))
 
@@ -177,6 +178,9 @@
   :config
   (solaire-global-mode +1)
   )
+
+(use-package all-the-icons
+  :if (display-graphic-p))
 
 (use-package dashboard
   :ensure t
@@ -193,17 +197,32 @@
   ;; (add-to-list 'dashboard-item-generators  '(todo . dashboard-insert-todo))
   (setq dashboard-items '( ;(todo . 7)
                           (agenda . 8)
+                          (denote . 5)
                           (projects . 5)
                           (recents  . 5)
                           (bookmarks . 5)))
+  (defun dashboard-insert-denote (list-size)
+    (let ((recent-notes (seq-sort-by
+                         #'file-name-nondirectory
+                         (lambda (x y) (string-lessp y x))
+                         (denote-directory-text-only-files))))
+      (insert (all-the-icons-octicon "repo" :height 1.2 :v-adjust 0.0 :face 'dashboard-heading))
+      (dashboard-insert-section "Recent Notes:"
+                                recent-notes
+                                list-size
+                                "n"
+                                `(lambda (&rest ignore)
+                                   (find-file-existing ,el))
+                                (denote-retrieve-title-value el (denote-filetype-heuristics el)))))
+  (add-to-list 'dashboard-item-generators  '(denote . dashboard-insert-denote))
   )
 
 ;; https://github.com/be5invis/Iosevka
 ;; https://protesilaos.com/codelog/2020-09-05-emacs-note-mixed-font-heights/
-(set-face-attribute 'default nil :family "Iosevka Nerd Font" :height (if is-mac 150 80))
-;; (set-face-attribute 'default nil :family "Iosevka Nerd Font" :height 150)
+(set-face-attribute 'default nil :family "Iosevka Nerd Font" :height (if is-mac 180 80))
+;; (set-face-attribute 'default nil :family "Iosevka Nerd Font")
 ;; (set-face-attribute 'default nil :font (if is-mac "Iosevka-16" "Iosevka-12"))
-(set-face-attribute 'fixed-pitch nil :family "Iosevka Nerd Font" :height 1.0)
+(set-face-attribute 'fixed-pitch nil :family "Iosevka Nerd Font" :height 160)
 (set-face-attribute 'variable-pitch nil :family "FiraGO" :height 1.0)
 ;; (set-face-attribute 'variable-pitch nil :family "ETBembo" :height 1.0)
 
