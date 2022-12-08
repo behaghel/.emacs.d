@@ -1,14 +1,21 @@
 (use-package denote
   :config
 
-  (evil-collection-define-key 'normal 'global
-    ",nn"   #'denote
-    ",nN"   #'denote-type
-    ",nd"   #'denote-date
-    ",ns"   #'denote-subdirectory
-    ",nt"   #'denote-template
-    ",nr"   #'denote-rename-file
-    )
+  (evil-global-set-key 'normal
+    ",no"   #'denote-open-or-create)
+  (evil-global-set-key 'normal
+    ",nn"   #'denote)
+  (evil-global-set-key 'normal
+    ",nt"   #'denote-type)
+  (evil-global-set-key 'normal
+    ",nd"   #'denote-date)
+  (evil-global-set-key 'normal
+    ",ns"   #'denote-subdirectory)
+  (evil-global-set-key 'normal
+    ",nt"   #'denote-template)
+  (evil-global-set-key 'normal
+    ",nr"   #'denote-rename-file)
+
   (evil-collection-define-key 'normal 'org-mode-map
     ",nl"   #'denote-link-or-create     ; insert a link
     ",nL"   #'denote-link-add-links     ; add all matching links

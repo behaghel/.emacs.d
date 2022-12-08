@@ -179,7 +179,7 @@ point then copy the URL of the image under point instead."
     "T" 'gnus-mime-view-part-as-type
     "\C-s" 'gnus-mime-save-part
     "p" 'evil-paste-after
-    "\C-p" 'gnus-mime-print-part
+    "P" 'gnus-mime-print-part
     "r" 'evil-forward-char
     "R" 'gnus-mime-replace-part
     "c" 'evil-backward-char
@@ -338,6 +338,13 @@ point then copy the URL of the image under point instead."
               :query "from:customerservices@ocado.com AND subject:\"Confirmation of your order\"")
       ( :name "Netflix"
               :query "from:info@mailer.netflix.com")
+      ( :name "Analyzati code"
+        :query "from:hello@analyzati.com AND subject:\"Security code - Analyzati\"")
+      ( :name "idealista"
+        :query "from:noresponder@idealista.com")
+      ( :name "Amazon Orders"
+        :query "from:confirmar-envio@amazon.es")
+
       ;; Newsletter
       ( :name "Mu"
               :query "list:mu-discuss.googlegroups.com"
@@ -516,9 +523,15 @@ point then copy the URL of the image under point instead."
 		                ;; must come before proc-move since retag runs
 		                ;; 'sed' on the file
                                 (mu4e-action-retag-message msg "-\\Inbox")
-		                (mu4e~proc-move docid target "+S-u-N"))))
+		                (mu4e--server-move docid target "+S-u-N"))))
   (mu4e~headers-defun-mark-for archive)
 
+  ;; attempt to remove GMail Inbox label on refile
+  (add-hook 'mu4e-mark-execute-pre-hook
+            (lambda (mark msg)
+              (cond ((member mark '(refile trash)) (mu4e-action-retag-message msg "-\\Inbox"))
+                    ((equal mark 'flag) (mu4e-action-retag-message msg "\\Starred"))
+                    ((equal mark 'unflag) (mu4e-action-retag-message msg "-\\Starred")))))
   ;; Contacts
   ;; stolen from https://martinralbrecht.wordpress.com/2016/05/30/handling-email-with-emacs/
   (defun malb/canonicalise-contact-name (name)

@@ -201,8 +201,6 @@
 ;; errors and compilation (*b*uild)
 (define-key evil-normal-state-map (kbd "g}") 'next-error)
 (define-key evil-normal-state-map (kbd "g{") 'previous-error)
-(define-key evil-normal-state-map (kbd ",}") 'next-error)
-(define-key evil-normal-state-map (kbd ",{") 'previous-error)
 ;; evil is crazy
 (define-key evil-insert-state-map (kbd "C-d") nil)
 (define-key evil-normal-state-map (kbd "M-.") nil)

@@ -54,7 +54,8 @@
   (setq org-agenda-files
         (list
          (concat org-directory "typeform.org")
-         (concat org-directory "gcal-typeform.org")
+         (concat org-directory "hubert.org")
+         (concat org-directory "inbox.org")
          (concat org-directory "gcal-gmail.org")
          ;; (concat org-directory "")
          ))

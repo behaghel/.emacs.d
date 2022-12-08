@@ -28,7 +28,7 @@
   (persp-sort 'access)
   (persp-show-modestring t)
   (persp-modestring-short t)
-  (persp-mode-prefix-key (kbd "C-p"))
+  (persp-suppress-no-prefix-key-warning t)
   :config
 
   (persp-mode)

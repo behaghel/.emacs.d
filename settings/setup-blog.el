@@ -35,13 +35,21 @@ See `org-capture-templates' for more information."
 
   (add-to-list 'org-capture-templates
                '("b"                ;`org-capture' binding + h
-                 "Blog post"
+                 "Blog post (all-posts.org)"
                  entry
                  ;; It is assumed that below file is present in `org-directory'
                  ;; and that it has a "Blog Ideas" heading. It can even be a
                  ;; symlink pointing to the actual location of all-posts.org!
-                 (file+olp "all-posts.org" "All Blog Posts")
+                 (file+olp "~/ws/blog.behaghel.org/content-org/all-posts.org" "All Blog Posts")
                  (function org-hugo-new-subtree-post-capture-template))))
+  (add-to-list 'org-capture-templates
+               '("B"                ;`org-capture' binding + h
+                 "Blog post (standalone)"
+                 plain
+                 (file denote-last-path)
+                 ;; #'org-hugo-new-subtree-post-capture-template
+                 #'denote-org-capture
+                 ))
 
 (defun blog-post-hook ()
   (let ((current-path (or (buffer-file-name) "don't know")))
