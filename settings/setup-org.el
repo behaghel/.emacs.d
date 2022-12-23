@@ -53,7 +53,7 @@
   ;; org-agenda-files should be a list of files and not a dir
   (setq org-agenda-files
         (list
-         (concat org-directory "typeform.org")
+         ;; (concat org-directory "typeform.org")
          (concat org-directory "hubert.org")
          (concat org-directory "inbox.org")
          (concat org-directory "gcal-gmail.org")
@@ -123,6 +123,12 @@
   (setq org-latex-compiler "lualatex")
   (setq org-preview-latex-default-process 'dvisvgm)
 
+  ;; src block indentation / editing / syntax highlighting
+  (setq org-src-fontify-natively t
+        org-src-window-setup 'current-window ;; edit in current window
+        org-src-strip-leading-and-trailing-blank-lines t
+        org-src-preserve-indentation t ;; do not put two spaces on the left
+        org-src-tab-acts-natively t)
   (setq org-reveal-root (getenv "REVEAL_JS_ROOT_URL"))
   (setq org-plantuml-jar-path "~/install/plantuml.jar")
   (add-to-list 'org-src-lang-modes '("plantuml" . plantuml))

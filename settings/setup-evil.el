@@ -222,6 +222,12 @@
 (evil-set-initial-state 'twittering-mode 'normal)
 (evil-set-initial-state 'haskell-error-mode 'emacs)
 (evil-set-initial-state 'haskell-interactive-mode 'insert)
+;; in fact, what I want is that the temp buffer used by org-babel to
+;; indent natively always use the insert evil keymap as it sends tab
+;; but then triggers evil-jump-forward instead of
+;; indent-for-tab-command because it hit the normal mode instead of
+;; the insert mode. (see function org-edit-src-code)
+(evil-set-initial-state 'prog-mode 'insert)
 ;;; Info & Evil
 ;; (evil-set-initial-state 'Info 'emacs)
 ;; (evil-define-key 'motion Info-mode-map "l" nil) ; use l to say last

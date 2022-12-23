@@ -871,10 +871,14 @@ _z_oom on node
   (sp-local-pair 'nix-mode "{" nil :post-handlers '(("||\n[i]" "RET")))
   )
 
-(use-package company-nixos-options
-  :mode "\\.nix\\'"
-  :config
-  (add-to-list 'company-backends 'company-nixos-options))
+;; AWK
+(add-hook 'awk-mode-hook (lambda ()
+                           (setq c-basic-offset 2)))
+
+;; (use-package company-nixos-options
+;;   :mode "\\.nix\\'"
+;;   :config
+;;   (add-to-list 'company-backends 'company-nixos-options))
 
 ;; (require 'setup-erc)
 ;; (require 'setup-twitter)
