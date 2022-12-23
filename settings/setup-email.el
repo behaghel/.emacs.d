@@ -273,11 +273,14 @@ point then copy the URL of the image under point instead."
   (setq   mu4e-maildir-shortcuts
           '(
             (:maildir "/gmail/inbox"   :key ?g)
-            (:maildir "/behaghel.fr/inbox"     :key ?b)
-            (:maildir "/gmail/archive" :key ?a)
-            (:maildir "/behaghel.fr/archive"     :key ?A)
+            (:maildir "/behaghel.fr/inbox"     :key ?f)
+            (:maildir "/behaghel.org/inbox"     :key ?o)
+            (:maildir "/gmail/archive" :key ?G)
+            (:maildir "/behaghel.fr/archive"     :key ?F)
+            (:maildir "/behaghel.org/archive"     :key ?O)
             (:maildir "/gmail/sent"    :key ?s)
-            (:maildir "/behaghel.fr/sent"     :key ?S)
+            (:maildir "/behaghel.fr/sent"     :key ?h)
+            (:maildir "/behaghel.org/sent"     :key ?S)
             ))
 
 
@@ -339,11 +342,40 @@ point then copy the URL of the image under point instead."
       ( :name "Netflix"
               :query "from:info@mailer.netflix.com")
       ( :name "Analyzati code"
-        :query "from:hello@analyzati.com AND subject:\"Security code - Analyzati\"")
+              :query "from:hello@analyzati.com AND subject:\"Security code - Analyzati\"")
       ( :name "idealista"
-        :query "from:noresponder@idealista.com")
+        :query "from:noresponder@idealista.com OR from:noresponder@avisos.idealista.com")
+
       ( :name "Amazon Orders"
         :query "from:confirmar-envio@amazon.es")
+      ( :name "Amazon Kindle Orders"
+        :query "from:digital-no-reply@amazon.es")
+
+      ( :name "FreeNow"
+        :query "from:no-reply@free-now.com")
+      ( :name "NAGA"
+        :query "from:noreply@nagamarkets.com")
+      ( :name "Otta"
+        :query "from:hello@otta.com")
+      ( :name "OCU"
+             :query "from:noreply@notify.ocu.org")
+      ( :name "OCU Mailing Lists"
+             :query "from:maillist@emailing.ocu.org")
+
+      (:name "BBVA"
+             :query "from:bbva@comunica.bbva.com")
+      (:name "mediolanum"
+             :query "from:bancomediolanum@bancomediolanum.es")
+      ( :name "Analyzati"
+             :query "from:hello@analyzati.com")
+      ( :name "Property Search"
+             :query "subject:/^Your Property Search/")
+      ( :name "LinkedIn Job Alerts"
+        :query "from:jobalerts-noreply@linkedin.com")
+      ( :name "LinkedIn Newsletters"
+        :query "from:newsletters-noreply@linkedin.com")
+
+
 
       ;; Newsletter
       ( :name "Mu"
@@ -388,13 +420,12 @@ point then copy the URL of the image under point instead."
   ;; default mu4e-bookmarks value
   (setq mu4e-bookmarks '(
                          (:name "Inbox" :query "NOT flag:trashed AND maildir:/inbox/" :key ?i)
-                         (:name "behaghel.fr" :query "NOT flag:trashed AND maildir:/behaghel.fr/inbox" :key ?t)
+                         (:name "behaghel.org" :query "NOT flag:trashed AND maildir:/behaghel.org/inbox" :key ?t)
                          (:name "GMail" :query "NOT flag:trashed AND maildir:/gmail/inbox" :key ?g)
+                         (:name "behaghel.fr" :query "NOT flag:trashed AND maildir:/behaghel.fr/inbox" :key ?t)
                          (:name "Important" :query "flag:flagged NOT flag:trashed" :key ?f)
                          (:name "Drafts" :query "NOT flag:trashed AND maildir:/drafts/" :key ?d)
                          (:name "Today" :query "date:today..now AND NOT maildir:/gmail/inbox" :key ?h)
-                         (:name "Last week" :query "date:7d..now" :hide-unread t :key ?w)
-                         (:name "Last month" :query "date:30d..now" :hide-unread t :key ?m)
                          (:name "Attachments" :query "flag:attach" :key ?a)
                          (:name "Invites" :query "mime:text/calendar" :key ?c)
                          ))
@@ -484,6 +515,10 @@ point then copy the URL of the image under point instead."
    (add-to-list 'mm-discouraged-alternatives "text/richtext"))
   ;; TODO: need to figure how to switch / toggle to HTML part
   ;; mu4e-view-toggle-html isn't supported in gnus view
+  ;; to get gpg signature verified and buttonised
+  (setq
+   gnus-buttonized-mime-types '("multipart/signed")
+   mm-verify-option 'known)
 
   ;; FIXME: only activate when on chromebook
   ;; FIXME: make-tmp-file-browsable isn't run automatically in spite
@@ -672,17 +707,23 @@ point then copy the URL of the image under point instead."
   ;; :pin melpa
   ;; :disabled t
   :config
-  (setq org-msg-options "html-postamble:nil H:5 num:nil ^:{} toc:nil"
+  (setq org-msg-options "html-postamble:nil H:5 num:nil ^:{} toc:nil author:nil email:nil \\n:t"
 	org-msg-startup "hidestars indent inlineimages"
 	org-msg-greeting-fmt "\nHi%s,\n\n"
 	org-msg-greeting-name-limit 3
 	org-msg-text-plain-alternative t
         ;; 'top-posting is the default but is it what you want?
         org-msg-posting-style 'top-posting
-        org-msg-default-alternatives '((new           . (text))
+        ;; once upon a time, I was trying to avoid html format as much
+        ;; as possible but my need for it depends on the content
+        ;; I produce not the one I receive. I shall not use org-msg if
+        ;; I want plain text. E.g. rendering of tables in text doesn't
+        ;; look great.
+        org-msg-default-alternatives '((new           . (text html))
                                        (reply-to-html . (text html))
-                                       (reply-to-text . (text)))
-	org-msg-signature "
+                                       (reply-to-text . (text html)))
+        org-msg-convert-citation t
+        org-msg-signature "
 
 #+begin_signature
 --\n
@@ -693,8 +734,8 @@ Hubert
   (add-hook 'org-msg-mode-hook 'turn-off-auto-fill)
   ;; TODO: function that disables org-msg, initiate the composition of
   ;; a new message (plain text), add a hook to reinstate org-msg-mode
-  ;; on successful sending (haven't found the hook but
-  ;; message-send-hook is probably good enough if mu4e go through it)
+  ;; on successful sending
+  ;; see inspiration here: https://github.com/jeremy-compostella/org-msg/pull/149/files
 
   (defun my-org-msg-composition-parameters (orig-fun &rest args)
     "Tweak my greeting message and my signature when replying as
@@ -714,6 +755,7 @@ Hubert
 (use-package mu4e-alert
   ; it's now something I see on my desktop
   :disabled t
+
   :after mu4e
   :init (mu4e-alert-enable-mode-line-display)
   )
