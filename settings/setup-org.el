@@ -27,6 +27,7 @@
     ;; chromebook remap alt + <up/down> to <prior/next>
     (kbd "<next>")  'org-move-subtree-down
     (kbd "<prior>") 'org-move-subtree-up
+    ",fn" 'org-footnote-new
     )
   (evil-define-key 'motion org-mode-map (kbd "RET") 'org-return)
   (evil-define-key 'motion calendar-mode-map (kbd "RET") 'org-calendar-select)
@@ -231,6 +232,20 @@ of its arguments."
           (re-search-forward "\\w+\\W*")))
       (message (format "%d words in %s." wc
                        (if mark-active "region" "buffer")))))
+
+  ;; stolen from https://gist.github.com/khinsen/7ed357eed9b27f142e4fa6f5c4ad45dd
+  (defun org-pinboard-store-link ()
+    "Store a link taken from a pinboard buffer."
+    (when (eq major-mode 'pinboard-mode)
+      (pinboard-with-current-pin pin
+        (org-store-link-props
+         :type "pinboard"
+         :link (alist-get 'href pin)
+         :description (alist-get 'description pin)))))
+
+  (org-link-set-parameters "pinboard"
+                           :follow #'browse-url
+                           :store #'org-pinboard-store-link)
   )
 
 ;; Presentations

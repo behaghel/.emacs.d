@@ -345,6 +345,8 @@ point then copy the URL of the image under point instead."
               :query "from:hello@analyzati.com AND subject:\"Security code - Analyzati\"")
       ( :name "idealista"
         :query "from:noresponder@idealista.com OR from:noresponder@avisos.idealista.com")
+      ( :name "CosmoCaixa"
+        :query "from:info@news.cosmocaixa.org")
 
       ( :name "Amazon Orders"
         :query "from:confirmar-envio@amazon.es")

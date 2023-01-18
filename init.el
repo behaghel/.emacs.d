@@ -204,6 +204,7 @@
 ;; https://github.com/sachac/artbollocks-mode
 ;; http://sachachua.com/blog/2011/12/emacs-artbollocks-mode-el-and-writing-more-clearly/
 
+(use-package pinboard)
 (use-package artbollocks-mode
   :commands (artbollocks-mode)
   :config
