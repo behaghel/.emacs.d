@@ -28,7 +28,7 @@
 (use-package treemacs
   ;; :pin melpa
   :ensure t
-  :after doom-themes
+  :after (doom-themes)
   :defer nil
   :config
   (progn
@@ -79,7 +79,7 @@
 
 (use-package treemacs-evil
   ;; :pin melpa
-  :after treemacs evil
+  :after (treemacs evil)
   :ensure t
   :config
   ;; (define-key evil-treemacs-state-map (kbd "th")  nil)
@@ -97,24 +97,24 @@
 
 (use-package treemacs-projectile
   ;; :pin melpa
-  :after treemacs projectile
+  :after (treemacs projectile)
   :ensure t)
 
 (use-package treemacs-icons-dired
   ;; :pin melpa
-  :after treemacs dired
+  :after (treemacs dired)
   :ensure t
   :config (treemacs-icons-dired-mode))
 
 (use-package treemacs-magit
   ;; :pin melpa
-  :after treemacs magit
+  :after (treemacs magit)
   :ensure t)
 
 (use-package treemacs-persp
   ;; :pin melpa
   :disabled t
-  :after treemacs persp-projectile
+  :after (treemacs persp-projectile)
   :ensure t
   :config (treemacs-set-scope-type 'Perspectives))
 

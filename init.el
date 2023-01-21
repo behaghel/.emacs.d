@@ -183,11 +183,11 @@
   :commands (restclient-mode))
 ;; never used it but could prove useful
 ;; (use-package company-restclient
-;;   :after restclient company
+;;   :after (restclient company)
 ;;   :config
 ;;   (add-to-list 'company-backends 'company-restclient))
 ;; (use-package ob-restclient
-;;   :after org
+;;   :after (org)
 ;;   :config
 ;;   (org-babel-do-load-languages
 ;;    'org-babel-load-languages
@@ -267,30 +267,6 @@
 
 ; CODING
 (require 'setup-git)
-;; keybindings for projectile (replace s-p with ,p)
-;; https://docs.projectile.mx/en/latest/usage/#interactive-commands
-(use-package projectile
-  :diminish projectile-mode
-  :defer 1
-  :bind (:map projectile-command-map    ; under ,p
-              ("P" . projectile-switch-project)
-              ("T" . projectile-find-implementation-or-test-other-window)
-              ("F" . projectile-find-file-other-window)
-              )
-  :config
-  (projectile-mode +1)
-  (define-key evil-normal-state-map (kbd "gb") 'projectile-switch-to-buffer)
-  (define-key evil-normal-state-map (kbd "gB") 'projectile-switch-to-buffer-other-window)
-  (define-key projectile-mode-map (kbd "C-c p") 'projectile-command-map)
-  (define-key projectile-mode-map (kbd "s-p") 'projectile-command-map)
-  (evil-define-key 'normal projectile-mode-map ",p" 'projectile-command-map)
-  (setq projectile-completion-system 'ivy)
-  (setq projectile-project-search-path '("~/ws/"))
-  (use-package counsel-projectile
-    :after counsel
-    :config
-    (counsel-projectile-mode)))
-
 ;; Ediff
 (setq ediff-diff-options "-w")
 (setq ediff-split-window-function 'split-window-horizontally)
@@ -392,7 +368,7 @@
 ;; Use the Tree View Protocol for viewing the project structure and triggering compilation
 (use-package lsp-treemacs
   :disabled t
-  :after treemacs
+  :after (treemacs)
   :defer t
   ;; :pin melpa
   :config
@@ -430,7 +406,7 @@
 
 (use-package origami
   :commands origami-mode
-  :after hydra
+  :after (hydra)
   :init
   (defhydra hydra-folding (:color red :hint nil)
     "
@@ -689,7 +665,7 @@ _z_oom on node
 
 ;; https://github.com/wbolster/emacs-direnv
 (use-package direnv
-  :after exec-path-from-shell
+  :after (exec-path-from-shell)
   :config
   (direnv-mode))
 

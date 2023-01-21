@@ -144,27 +144,31 @@
 ;; https://gitlab.com/protesilaos/modus-themes
 (use-package modus-themes
   ;; :disabled t
-  :init
+  :ensure t
+  :demand t
+  :bind (:map evil-normal-state-map
+              (",zk" . modus-themes-toggle))
+  :config
   ;; Add all your customizations prior to loading the themes
   (setq modus-themes-slanted-constructs t
         modus-themes-bold-constructs nil
         modus-themes-variable-pitch-ui nil ; e.g. mode-line, tab-bar
-        modus-themes-variable-pitch-headings nil
-        modus-themes-scale-headings t
-        modus-themes-scale-1 1.05
-        modus-themes-scale-2 1.1
-        modus-themes-scale-3 1.15
-        modus-themes-scale-4 1.3
-        modus-themes-scale-5 1.5
+        modus-themes-headings '(
+                                (1 . (variable-pitch extrabold 1.05))
+                                (2 . (variable-pitch 1.1))
+                                (3 . (variable-pitch semibold 1.15))
+                                (4 . (1.3))
+                                (5 . (1.5))
+                                (agenda-date . (1.3))
+                                (agenda-structure . (variable-pitch light 1.8))
+                                (t . (1.1))
+                                )
+        modus-themes-mixed-fonts t
+        modus-themes-prompts '(extrabold italic)
+        modus-themes-org-blocks 'tinted-background
+        modus-themes-mode-line '(borderless )
         )
-
-  ;; Load the theme files before enabling a theme
-  (modus-themes-load-themes)
-  :config
-  ;; Load the theme of your choice:
-  (modus-themes-load-vivendi) ;; dark OR dark (modus-themes-load-operandi)
-  :bind (:map evil-normal-state-map
-              (",zk" . modus-themes-toggle)))
+  (load-theme 'modus-vivendi-tinted :no-confirm))
 
 (use-package nano-theme
   :straight (nano-theme :type git :host github :repo "rougier/nano-theme")
@@ -210,6 +214,7 @@
       (dashboard-insert-section "Recent Notes:"
                                 recent-notes
                                 list-size
+                                'notes
                                 "n"
                                 `(lambda (&rest ignore)
                                    (find-file-existing ,el))

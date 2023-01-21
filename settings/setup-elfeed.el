@@ -80,7 +80,7 @@
 (use-package elfeed-org
   :straight (:depth full)              ; otherwise org-version breaks
   :commands (elfeed)
-  :after elfeed
+  :after (elfeed)
   :config
   (elfeed-org))
 

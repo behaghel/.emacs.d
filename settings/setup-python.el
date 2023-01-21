@@ -116,7 +116,7 @@
 
 ;; (use-package pipenv
 ;;   :hook (python-mode . pipenv-mode)
-;;   :after pyvenv
+;;   :after (pyvenv)
 ;;   :init
 ;;   (setq
 ;;    pipenv-projectile-after-switch-function
@@ -178,7 +178,7 @@
 (use-package pip-requirements)
 
 (use-package ein
-  :after org
+  :after (org)
   :disabled t
   :config
   (org-babel-do-load-languages

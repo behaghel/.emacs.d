@@ -305,14 +305,14 @@ of its arguments."
 
 (use-package org-cliplink
   :defer t
-  :after org
+  :after (org)
   :bind (:map evil-normal-state-map
               (",eP" . org-cliplink)))
 
 ;; https://yiufung.net/post/anki-org/
 (use-package anki-editor
   :defer 10
-  :after org
+  :after (org)
   :hook (org-capture-after-finalize . anki-editor-reset-cloze-number) ; Reset cloze-number after each capture.
   :config
   (evil-collection-define-key 'visual 'org-mode-map
@@ -358,7 +358,7 @@ of its arguments."
   )
 
 (use-package org-modern
-  :after org
+  :after (org)
   :custom
   (org-modern-hide-stars nil) ; adds extra indentation
   :hook
@@ -396,7 +396,7 @@ of its arguments."
 (use-package org-download
   ;; :pin melpa
   :defer 10
-  :after org
+  :after (org)
   ;; Drag-and-drop to `dired`
   :hook (dired-mode-hook . org-download-enable)
   :config
@@ -413,7 +413,7 @@ of its arguments."
 )
 
 (use-package org-drill
-  :after org
+  :after (org)
   :defer 10
   :config
   (add-to-list 'org-capture-templates

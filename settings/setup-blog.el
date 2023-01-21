@@ -65,7 +65,7 @@ See `org-capture-templates' for more information."
   :ensure t            ;Auto-install the package from Melpa (optional)
   ;; :pin melpa
   :commands (org-hugo-auto-export-mode)
-  :after ox)
+  :after (ox))
 
 (defun hub/sluggify (title)
   "Transform the TITLE of an article into a slug suitable for an URL."

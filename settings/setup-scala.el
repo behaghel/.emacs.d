@@ -53,7 +53,7 @@
                                             (repeat  . nil))))))
 
 (use-package lsp-metals
-  :after scala-mode
+  :after (scala-mode)
   ;; :pin melpa
   :config (setq lsp-metals-treeview-show-when-views-received t))
 

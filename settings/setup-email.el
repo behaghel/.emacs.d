@@ -758,7 +758,7 @@ Hubert
   ; it's now something I see on my desktop
   :disabled t
 
-  :after mu4e
+  :after (mu4e)
   :init (mu4e-alert-enable-mode-line-display)
   )
 

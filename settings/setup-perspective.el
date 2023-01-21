@@ -2,47 +2,39 @@
 ;;; Commentary:
 
 ;;; Code:
-(use-package perspective
-  ;; I am missing something: if you comment the next line, perspective
-  ;; doesn't work: persp-switch void symbol
-  :defer 1
-  ;; :pin melpa
-  :bind (("C-x b" . persp-switch-to-buffer*)
-         ("C-x k" . persp-kill-buffer*)
-         ;; also for free from projectile integration
-         ;; (",pb"   . persp-counsel-switch-buffer)
-         ;; the counsel version preview buffers as they get selected,
-         ;; useful when unsure what buffer we are looking for
+;; keybindings for projectile (replace s-p with ,p)
+;; https://docs.projectile.mx/en/latest/usage/#interactive-commands
+(use-package projectile
+  :after (perspective)
+  :diminish projectile-mode
+  :bind (
          :map projectile-command-map    ; under ,p
-         ("p" . persp-switch-last)
-         ("-" . persp-remove-buffer) ; disassociate buffer from persp
-         ("R" . persp-rename)
-         ("X" . persp-kill) ; terminate perspective
-         ("+" . persp-add-buffer) ; associate buffer to current persp
-         ("M" . persp-set-buffer) ; like add but remove from all other
-         ("b" . persp-counsel-switch-buffer) ; persp-aware
-         ("C-s" . persp-state-save) ; save perspective layout to file
-         ("C-l" . persp-state-load) ; load perspective layout from file
-         )
-  :custom
-  (persp-sort 'access)
-  (persp-show-modestring t)
-  (persp-modestring-short t)
-  (persp-suppress-no-prefix-key-warning t)
+           ;; also for free from projectile integration
+           ;; (",pb"   . persp-counsel-switch-buffer)
+           ;; the counsel version preview buffers as they get selected,
+           ;; useful when unsure what buffer we are looking for
+              ("p" . persp-switch-last)
+              ("-" . persp-remove-buffer) ; disassociate buffer from persp
+              ("R" . persp-rename)
+              ("X" . persp-kill) ; terminate perspective
+              ("+" . persp-add-buffer) ; associate buffer to current persp
+              ("M" . persp-set-buffer) ; like add but remove from all other
+              ("b" . persp-counsel-switch-buffer) ; persp-aware
+              ("C-s" . persp-state-save) ; save perspective layout to file
+              ("C-l" . persp-state-load) ; load perspective layout from file
+              ("P" . projectile-switch-project)
+              ("T" . projectile-find-implementation-or-test-other-window)
+              ("F" . projectile-find-file-other-window)
+              )
   :config
-
-  (persp-mode)
-  (add-hook 'kill-emacs-hook #'persp-state-save)
-  (setq persp-sort 'access
-        persp-state-default-file "~/.emacs.d/.persp"))
-
-(use-package persp-projectile
-  :after evil projectile org perspective
-  ;; :straight (:host github :repo "bbatsov/persp-projectile"
-  ;;                 :branch "master")
-  ;; :defer nil
-  ;; :pin melpa
-  )
+  (projectile-mode +1)
+  (define-key evil-normal-state-map (kbd "gb") 'projectile-switch-to-buffer)
+  (define-key evil-normal-state-map (kbd "gB") 'projectile-switch-to-buffer-other-window)
+  (define-key projectile-mode-map (kbd "C-c p") 'projectile-command-map)
+  (define-key projectile-mode-map (kbd "s-p") 'projectile-command-map)
+  (evil-define-key 'normal projectile-mode-map ",p" 'projectile-command-map)
+  (setq projectile-completion-system 'ivy)
+  (setq projectile-project-search-path '("~/ws/"))
   (defun hub/speed-dial (key persp &optional fpath command)
     (let ((f `(lambda ()
                 (interactive)
@@ -84,9 +76,41 @@
     (interactive)
     (mu4e)
     (find-file "~/.emacs.d/settings/mail-sidebar.org"))
+  )
 
-(define-key evil-normal-state-map (kbd ",op") 'projectile-persp-switch-project)
-(define-key evil-normal-state-map (kbd "gP") 'persp-switch)
+(use-package counsel-projectile
+  :after (counsel)
+  :config
+  (counsel-projectile-mode))
+
+(use-package perspective
+    ;; :pin melpa
+    :bind (("C-x b" . persp-switch-to-buffer*)
+           ("C-x k" . persp-kill-buffer*)
+           :map evil-normal-state-map
+           ("gP" . persp-switch)
+           )
+    :custom
+    (persp-sort 'access)
+    (persp-show-modestring t)
+    (persp-modestring-short t)
+    (persp-suppress-no-prefix-key-warning t)
+    :init
+    (persp-mode)
+    :config
+    (add-hook 'kill-emacs-hook #'persp-state-save)
+    (setq persp-sort 'access
+          persp-state-default-file "~/.emacs.d/.persp"))
+
+(use-package persp-projectile
+  ;; :after (evil projectile org perspective)
+  :bind (:map evil-normal-state-map
+              (",op" . projectile-persp-switch-project))
+  ;; :straight (:host github :repo "bbatsov/persp-projectile"
+  ;;                 :branch "master")
+  ;; :defer nil
+  ;; :pin melpa
+  )
 
 (winner-mode 1)
 (define-key evil-window-map (kbd "u") 'winner-undo)

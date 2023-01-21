@@ -40,7 +40,7 @@ the actual manpage using the function `man'."
   (setenv "SSH_ASKPASS" "git-gui--askpass"))
 ;; (use-package magithub
 ;;   :disabled
-;;   :after magit
+;;   :after (magit)
 ;;   :ensure t
 ;;   :config
 ;;   (magithub-feature-autoinject t))

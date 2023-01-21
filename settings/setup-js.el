@@ -123,7 +123,7 @@ mjs/project-node-module-special-cases."
 
 (use-package js2-refactor
   :commands (js2-mode js2-jsx-mode)
-  :after js2-mode
+  :after (js2-mode)
   :bind (:map js2-mode-map
               ("C-<right>" . js2r-forward-slurp)
               ("C-<left>" .  js2r-forward-barf)
@@ -194,7 +194,7 @@ one of the installed versions (arbitrarily: the last)."
 ;; completion and code navigation
 (use-package tern
   :commands (js2-mode js2-jsx-mode)
-  :after js2-mode
+  :after (js2-mode)
   :bind (:map tern-mode-keymap
               ("M-." . nil)
               ("M-," . nil))
@@ -218,13 +218,13 @@ unreachable."
 (use-package company-tern
   :disabled t                           ; defunkt?
   :commands (js2-mode js2-jsx-mode)
-  :after tern
+  :after (tern)
   :config
   (add-to-list 'company-backends 'company-tern))
 
 (use-package xref-js2
   :commands (js2-mode js2-jsx-mode)
-  :after js2-mode
+  :after (js2-mode)
   :config
   (add-hook 'js2-mode-hook (lambda ()
                              (add-hook 'xref-backend-functions #'xref-js2-xref-backend nil t))))
