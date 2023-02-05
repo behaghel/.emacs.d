@@ -709,7 +709,7 @@ point then copy the URL of the image under point instead."
   ;; :pin melpa
   ;; :disabled t
   :config
-  (setq org-msg-options "html-postamble:nil H:5 num:nil ^:{} toc:nil author:nil email:nil \\n:t"
+  (setq org-msg-options "html-postamble:nil H:5 num:nil ^:{} toc:nil author:nil email:nil \\n:t tex:dvipng"
 	org-msg-startup "hidestars indent inlineimages"
 	org-msg-greeting-fmt "\nHi%s,\n\n"
 	org-msg-greeting-name-limit 3

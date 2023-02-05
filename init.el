@@ -207,8 +207,13 @@
 (use-package pinboard)
 (use-package artbollocks-mode
   :commands (artbollocks-mode)
-  :config
-  (evil-define-key 'normal artbollocks-mode-map (kbd ",bw") 'artbollocks-count-words))
+  :bind (:map evil-normal-state-map     ;TODO: don't pollute global normal map
+              (",bw" . artbollocks-count-words)
+              (",bg" . artbollocks-grade-level)
+              (",be" . artbollocks-reading-ease)
+              (",br" . artbollocks-readability-index)
+              )
+  )
 
 (use-package writeroom-mode
   :commands (writeroom-mode)
@@ -218,6 +223,9 @@
 
 (use-package languagetool
   :commands (languagetool-check)
+  :bind (:map evil-normal-state-map
+              (",bc" . langtool-check)
+              )
   :config
   ;; style and grammar checker
   (setq langtool-language-tool-jar "/usr/local/Cellar/languagetool/2.6/libexec/languagetool.jar")
