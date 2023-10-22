@@ -56,7 +56,7 @@ See `org-capture-templates' for more information."
 (defun blog-post-hook ()
   (let ((current-path (or (buffer-file-name) "don't know")))
     (cond ((string-match blog-posts-dir current-path)
-           (ispell-change-dictionary "uk")
+           (ispell-change-dictionary "en_GB")
            (setq-local ispell-check-comments nil)
            (writeroom-mode)
            (artbollocks-mode)
