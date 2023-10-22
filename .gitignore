@@ -27,6 +27,7 @@ bookmarks
 /transient/history.el
 /server/server
 /custom.el
+/eln-cache/
 !/.cache/
 /.cache/*
 !/.cache/lsp/
