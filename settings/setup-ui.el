@@ -89,8 +89,6 @@
          (display-buffer-reuse-window display-buffer-at-bottom)
          (window-width . 0.5)
          (reusable-frames . nil))
-        ;; do not create a new window next to scratch for mu4e
-        ("\\*mu4e" display-buffer-use-some-window)
         ("\\*info\\*"
          (display-buffer-reuse-window display-buffer-in-side-window)
          (side . right))
