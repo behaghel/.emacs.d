@@ -32,8 +32,10 @@
 ;; to stop M-x customize to pollute my init.el: http://emacsblog.org/2008/12/06/quick-tip-detaching-the-custom-file/
 (setq custom-file "~/.emacs.d/custom.el")
 (load custom-file 'noerror)
+
 (setq hub-lisp-dir (expand-file-name "lisp" user-emacs-directory))
 (add-to-list 'load-path hub-lisp-dir)  ; to include my .el
+
 (setq settings-dir
       (expand-file-name "settings" user-emacs-directory))
 ;; Set up load path
@@ -57,8 +59,7 @@
 
 (setq straight-use-package-by-default t
       ;; breaks org even when selectively depth set to full
-      ;; straight-vc-git-default-clone-depth 1
-      )
+      ;; straight-vc-git-default-clone-depth 1)
 
 (straight-use-package 'use-package)
 
@@ -193,6 +194,8 @@
 ;;    'org-babel-load-languages
 ;;    '((restclient . t))))
 
+;; (use-package pinboard)
+
 ;; Editing text
 (add-hook 'text-mode-hook 'turn-on-auto-fill) ; auto-wrap
 (setq sentence-end-double-space nil)    ; one space is enough after a period to end a sentence
@@ -203,17 +206,13 @@
 ;; chase weasel words, count words and more
 ;; https://github.com/sachac/artbollocks-mode
 ;; http://sachachua.com/blog/2011/12/emacs-artbollocks-mode-el-and-writing-more-clearly/
-
-(use-package pinboard)
 (use-package artbollocks-mode
   :commands (artbollocks-mode)
   :bind (:map evil-normal-state-map     ;TODO: don't pollute global normal map
               (",bw" . artbollocks-count-words)
               (",bg" . artbollocks-grade-level)
               (",be" . artbollocks-reading-ease)
-              (",br" . artbollocks-readability-index)
-              )
-  )
+              (",br" . artbollocks-readability-index)))
 
 (use-package writeroom-mode
   :commands (writeroom-mode)
@@ -224,25 +223,13 @@
 (use-package languagetool
   :commands (languagetool-check)
   :bind (:map evil-normal-state-map
-              (",bc" . langtool-check)
-              )
+              (",bc" . langtool-check))
   :config
   ;; style and grammar checker
   (setq langtool-language-tool-jar "/usr/local/Cellar/languagetool/2.6/libexec/languagetool.jar")
   (define-key evil-normal-state-map (kbd ",bg") 'langtool-check))
 
 (require 'setup-org)
-
-;; Use emacs to edit textarea in Chrome
-(use-package edit-server
-  :if window-system
-  ;; :ensure t
-  :defer 5
-  :init
-  (add-hook 'after-init-hook 'server-start t)
-  (add-hook 'after-init-hook 'edit-server-start t)
-  :config
-  (setq edit-server-default-major-mode 'markdown-mode))
 
 (require 'setup-blog)
 
@@ -868,6 +855,18 @@ _z_oom on node
 ;; (require 'setup-erc)
 ;; (require 'setup-twitter)
 ;; (require 'setup-multiple-cursors)
+
+;; Use emacs to edit textarea in Chrome
+(use-package edit-server
+  :if window-system
+  ;; :ensure t
+  :defer 5
+  :init
+  (add-hook 'after-init-hook 'server-start t)
+  (add-hook 'after-init-hook 'edit-server-start t)
+  :config
+  (setq edit-server-default-major-mode 'markdown-mode))
+
 
 (provide 'init)
 ;;; init.el ends here
