@@ -59,7 +59,8 @@
 
 (setq straight-use-package-by-default t
       ;; breaks org even when selectively depth set to full
-      ;; straight-vc-git-default-clone-depth 1)
+      ;; straight-vc-git-default-clone-depth 1
+      )
 
 (straight-use-package 'use-package)
 
@@ -85,98 +86,11 @@
 
 (require 'setup-evil)
 
-(use-package smartparens
-  :diminish smartparens-mode
-  :defer 2
-  ;; this works great for lisp languages
-  ;; ("C-<right>" . sp-forward-slurp-sexp)
-  ;; this works better for other languages
-  :bind (("C-<right>" . sp-slurp-hybrid-sexp)
-         ("M-<left>" . sp-backward-slurp-sexp)
-         ("C-<left>" . sp-forward-barf-sexp)
-         ("M-<right>" . sp-backward-barf-sexp)
-         ("C-<down>" . sp-down-sexp)
-         ("C-<down>" . sp-down-sexp)
-         ("C-<up>" . sp-backward-up-sexp)
-         ("M-<down>" . sp-backward-down-sexp)
-         ("M-<up>" . sp-up-sexp)
-         ("S-M-f" . sp-forward-sexp)
-         ("S-M-b" . sp-backward-sexp))
-  :init
-  (use-package evil-smartparens
-    :diminish evil-smartparens-mode
-    :config
-    (defadvice evil-sp--add-bindings
-        (after evil-sp--add-bindings-after activate)
-      (evil-define-key 'normal evil-smartparens-mode-map
-        (kbd ",l") #'evil-sp-change
-        (kbd ",L") #'evil-sp-change-line
-        (kbd ",K") #'evil-sp-change-whole-line
-        (kbd ",D") #'evil-sp-delete-line
-        (kbd "D") nil
-        (kbd "c") nil
-        (kbd "s") nil
-        (kbd "S") nil
-        (kbd ",k") #'evil-sp-substitute
-        (kbd ",K") #'sp-kill-sexp
-        ;; Finds opening '(' of the current list.
-        (kbd ",{") #'sp-backward-up-sexp
-        ;; Finds closing ')' of the current list.
-        (kbd ",}") #'sp-up-sexp
-        (kbd ",s") #'sp-backward-up-sexp
-        (kbd ",t") #'sp-down-sexp
-        (kbd ",(") #'sp-backward-up-sexp
-        (kbd ",)") #'sp-up-sexp
-        ;; Go to the start of current/previous sexp
-        (kbd "[[") #'sp-backward-sexp
-        ;; Go to the start of next sexp.
-        (kbd "]]") #'sp-forward-sexp
-        (kbd ",r") #'sp-next-sexp
-        (kbd ",c") #'sp-previous-sexp
-        ;; (define-key evil-motion-state-map "S" 'evil-window-top)
-        ;; (define-key evil-motion-state-map "s" 'evil-previous-line)
-        ))
-    (add-hook 'smartparens-enabled-hook #'evil-smartparens-mode))
-  :config
-  (require 'smartparens-config)
-  (add-to-list 'sp-ignore-modes-list 'org-mode)
-  (smartparens-global-mode t)
-  (show-smartparens-global-mode)
-  (smartparens-global-strict-mode))
+(use-package general)
+
+(require 'setup-completion)
 
 (require 'setup-dired)
-
-;; ivy
-(use-package ivy
-  :defer nil
-  :diminish
-  :delight counsel-mode
-  :bind (("M-D"   . send-m-del)
-         ("M-c"   . ivy-copy-selection)
-         ("C-c o" . ivy-tv-filtered-candidates)
-         ("C-s"   . swiper)
-         ("C-r"   . swiper))
-  :custom
-  (ivy-count-format "(%d/%d) ")
-  (ivy-display-style 'fancy)
-  ;; I suspect with ivy virtual buffers
-  ;; there is a bug where
-  ;; bookmark module is required at
-  ;; each ivy-switch-buffer,
-  ;; bookmark post load hooks are
-  ;; run each time as well and somehow
-  ;; this makes my system slower each time
-  (ivy-use-virtual-buffers nil)
-  :config
-  (define-key evil-normal-state-map (kbd "gr") 'counsel-ag)
-  (define-key evil-normal-state-map (kbd "gB") 'ivy-switch-buffer-other-window)
-  (define-key evil-normal-state-map (kbd ",of") 'counsel-find-file)
-  (define-key evil-normal-state-map (kbd ",x") 'counsel-M-x)
-  (ivy-mode))
-
-(use-package counsel
-  :config
-  (counsel-mode))
 
 (require 'setup-eshell)
 
@@ -299,54 +213,64 @@
 ;; orj is an extension I invented: org-revealJS
 (define-auto-insert "\.orj\'" ["template.orj" hub/autoinsert-yas-expand])
 
-;; company-mode
-(use-package company
-  :diminish company-mode
+(use-package smartparens
+  :diminish smartparens-mode
+  :defer 2
+  ;; this works great for lisp languages
+  ;; ("C-<right>" . sp-forward-slurp-sexp)
+  ;; this works better for other languages
+  :bind (("C-<right>" . sp-slurp-hybrid-sexp)
+         ("M-<left>" . sp-backward-slurp-sexp)
+         ("C-<left>" . sp-forward-barf-sexp)
+         ("M-<right>" . sp-backward-barf-sexp)
+         ("C-<down>" . sp-down-sexp)
+         ("C-<down>" . sp-down-sexp)
+         ("C-<up>" . sp-backward-up-sexp)
+         ("M-<down>" . sp-backward-down-sexp)
+         ("M-<up>" . sp-up-sexp)
+         ("S-M-f" . sp-forward-sexp)
+         ("S-M-b" . sp-backward-sexp))
   :init
-  (add-hook 'after-init-hook 'global-company-mode)
-  :bind (("C-," . company-complete)
-         :map minibuffer-local-map
-         ;; give way in minibuffer to company keymap
-         ("\M-n" . nil))
+  (use-package evil-smartparens
+    :diminish evil-smartparens-mode
+    :config
+    (defadvice evil-sp--add-bindings
+        (after evil-sp--add-bindings-after activate)
+      (evil-define-key 'normal evil-smartparens-mode-map
+        (kbd ",l") #'evil-sp-change
+        (kbd ",L") #'evil-sp-change-line
+        (kbd ",K") #'evil-sp-change-whole-line
+        (kbd ",D") #'evil-sp-delete-line
+        (kbd "D") nil
+        (kbd "c") nil
+        (kbd "s") nil
+        (kbd "S") nil
+        (kbd ",k") #'evil-sp-substitute
+        (kbd ",K") #'sp-kill-sexp
+        ;; Finds opening '(' of the current list.
+        (kbd ",{") #'sp-backward-up-sexp
+        ;; Finds closing ')' of the current list.
+        (kbd ",}") #'sp-up-sexp
+        (kbd ",s") #'sp-backward-up-sexp
+        (kbd ",t") #'sp-down-sexp
+        (kbd ",(") #'sp-backward-up-sexp
+        (kbd ",)") #'sp-up-sexp
+        ;; Go to the start of current/previous sexp
+        (kbd "[[") #'sp-backward-sexp
+        ;; Go to the start of next sexp.
+        (kbd "]]") #'sp-forward-sexp
+        (kbd ",r") #'sp-next-sexp
+        (kbd ",c") #'sp-previous-sexp
+        ;; (define-key evil-motion-state-map "S" 'evil-window-top)
+        ;; (define-key evil-motion-state-map "s" 'evil-previous-line)
+        ))
+    (add-hook 'smartparens-enabled-hook #'evil-smartparens-mode))
   :config
-  ;; company dabbrev backend downcase everything by default
-  (setq company-dabbrev-downcase nil)
-  (setq company-selection-wrap-around t)
-  ;; (push 'company-elisp company-backends)
-  ;; (push 'company-yasnippet company-backends)
-  )
-
-(use-package company-quickhelp
-  :defer 4
-  :config
-  (company-quickhelp-mode))
-
-(use-package company-lsp
-  :defer t
-  ;; :pin melpa
-  :config
-  (setq company-lsp-cache-candidates 'auto)
-  (setq company-minimum-prefix-length 1
-        company-idle-delay 0.0)         ;default is 0.2
-  ;; https://www.mortens.dev/blog/emacs-and-the-language-server-protocol/
-  ;; Disable client-side cache because the LSP server does a better job.
-  ;; (setq company-transformers nil
-  ;;       company-lsp-async t
-  ;;       company-lsp-cache-candidates nil)
-)
-
-;; helps keep track of which completions I use most often and uses
-;; that info the improve the ordering
-(use-package company-statistics
-  :init
-  (company-statistics-mode))
-
-;; lets me cycle through different company backend lists using Shift-<tab>
-(use-package company-try-hard
-  :bind
-  (("<backtab>" . company-try-hard)
-   :map company-active-map
-   ("<backtab>" . company-try-hard)))
+  (require 'smartparens-config)
+  (add-to-list 'sp-ignore-modes-list 'org-mode)
+  (smartparens-global-mode t)
+  (show-smartparens-global-mode)
+  (smartparens-global-strict-mode))
 
 (use-package hydra)
 

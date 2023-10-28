@@ -191,8 +191,6 @@
 (make-conditional-key-translation (kbd "è") (kbd "C-x") 'not-insert-state-p)
 (make-conditional-key-translation (kbd "È") (kbd "C-u") 'not-insert-state-p)
 
-(require 'evil-matchit)
-(global-evil-matchit-mode 1)
 
 ;; errors and compilation (*b*uild)
 (define-key evil-normal-state-map (kbd "g}") 'next-error)

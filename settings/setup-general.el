@@ -34,6 +34,8 @@
 ;; https://github.com/emacs-lsp/lsp-mode#performance
 (setq gc-cons-threshold 100000000)
 (setq read-process-output-max (* 1024 1024)) ;; 1mb
+(setq native-comp-async-report-warnings-errors 'silent)
+(setq native-compile-prune-cache t)
 
 ; Mac
 ;; Are we on a mac? Thanks @magnars
