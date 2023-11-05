@@ -6,12 +6,10 @@
 (setq vc-follow-symlinks t)
 (use-package magit
   :straight (:depth full)
-  :commands (magit-status projectile-vc)
+  :commands (magit-status)
   ;; :pin melpa
   :config
-  (setq magit-popup-use-prefix-argument 'default
-        magit-completing-read-function 'ivy-completing-read
-        )
+  (setq magit-popup-use-prefix-argument 'default)
 
   (global-git-commit-mode)
   (defadvice Info-follow-nearest-node (around gitman activate)

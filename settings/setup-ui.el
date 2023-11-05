@@ -109,7 +109,7 @@
          ,protected-window
          )
         ("\\*pytest\\*.*" (display-buffer-reuse-window display-buffer-at-bottom))
-        ("\\*.*\\*" (display-buffer-reuse-window))
+        ;; ("\\*.*\\*" (display-buffer-reuse-window))
         ("mail-sidebar\\.org"
          (display-buffer-in-side-window)
          (side . left)(window-width . 36)(dedicated . t)
@@ -191,7 +191,7 @@
         dashboard-set-file-icons t
         dashboard-set-navigator t)
   (dashboard-setup-startup-hook)
-  (setq dashboard-projects-switch-function 'projectile-persp-switch-project)
+  (setq dashboard-projects-switch-function 'project-switch-project)
   (setq dashboard-filter-agenda-entry 'dashboard-filter-agenda-by-todo)
   ;; (defun dashboard-insert-todo (list-size)
   ;;   (let (dashboard-filter-agenda-entry dashboard-filter-agenda-by-todo)

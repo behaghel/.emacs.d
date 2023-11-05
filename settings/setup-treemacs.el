@@ -57,7 +57,6 @@
          (",tb" . treemacs-bookmark)
          (",tf" . treemacs-find-file)
          (",tj" . treemacs-find-tag)
-         (",tp" . treemacs-projectile)
          (",td" . treemacs-remove-project-from-workspace)
          (",t+" . treemacs-create-workspace)
          (",tE" . treemacs-edit-workspaces)
@@ -95,11 +94,6 @@
   (define-key evil-treemacs-state-map (kbd "za")  #'treemacs-filewatch-mode)
   (define-key evil-treemacs-state-map (kbd "zg")  #'treemacs-git-mode))
 
-(use-package treemacs-projectile
-  ;; :pin melpa
-  :after (treemacs projectile)
-  :ensure t)
-
 (use-package treemacs-icons-dired
   ;; :pin melpa
   :after (treemacs dired)
@@ -110,13 +104,6 @@
   ;; :pin melpa
   :after (treemacs magit)
   :ensure t)
-
-(use-package treemacs-persp
-  ;; :pin melpa
-  :disabled t
-  :after (treemacs persp-projectile)
-  :ensure t
-  :config (treemacs-set-scope-type 'Perspectives))
 
 (provide 'setup-treemacs)
 ;;; setup-treemacs.el ends here

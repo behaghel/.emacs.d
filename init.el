@@ -347,67 +347,6 @@ _z_oom on node
   :bind (:map evil-normal-state-map
               (",Z" . hydra-folding/body)))
 
-;; set prefix for lsp-command-keymap
-;; all lsp commands: https://github.com/emacs-lsp/lsp-mode#commands
-(setq lsp-keymap-prefix "M-l")
-(use-package lsp-mode
-  :defer t
-  :init
-  (setq lsp-prefer-flymake nil
-        ;; doesn't work with pyls :(
-        lsp-enable-snippet nil)
-  :hook (
-         (sh-mode . lsp)
-         (lsp-mode . lsp-lens-mode)
-         )
-  :commands lsp)
-
-(use-package lsp-ui
-  :defer t
-  :commands lsp-ui-mode
-  :bind (:map evil-normal-state-map
-              (",B?" . netrom/lsp-hydra/body))
-  :config
-  ;; https://www.mortens.dev/blog/emacs-and-the-language-server-protocol/
-  (setq netrom--general-lsp-hydra-heads
-        '(;; Xref
-          ("d" xref-find-definitions "Definitions" :column "Xref")
-          ("D" xref-find-definitions-other-window "-> other win")
-          ("r" xref-find-references "References")
-          ("s" counsel-ag "Search")
-
-          ;; Peek
-          ("C-d" lsp-ui-peek-find-definitions "Definitions" :column "Peek")
-          ("C-r" lsp-ui-peek-find-references "References")
-          ("C-i" lsp-ui-peek-find-implementation "Implementation")
-
-          ;; LSP
-          ("p" lsp-describe-thing-at-point "Describe at point" :column "LSP")
-          ("C-a" lsp-execute-code-action "Execute code action")
-          ("R" lsp-rename "Rename")
-          ("t" lsp-goto-type-definition "Type definition")
-          ("i" lsp-goto-implementation "Implementation")
-          ("f" lsp-ui-imenu "Filter funcs/classes (Helm)")
-          ("C-c" lsp-describe-session "Describe session")
-
-          ;; Flycheck
-          ("l" lsp-ui-flycheck-list "List errs/warns/notes" :column "Flycheck"))
-
-        netrom--misc-lsp-hydra-heads
-        '(;; Misc
-          ("q" nil "Cancel" :column "Misc")
-          ("b" pop-tag-mark "Back")))
-
-  ;; Create general hydra.
-  (eval `(defhydra netrom/lsp-hydra (:color blue :hint nil)
-           ,@(append
-              netrom--general-lsp-hydra-heads
-              netrom--misc-lsp-hydra-heads)))
-
-  )
-
-(use-package lsp-ivy :commands lsp-ivy-workspace-symbol)
-
 ;; Use the Debug Adapter Protocol for running tests and debugging
 (use-package posframe
   ;; Posframe is a pop-up tool that must be manually installed for dap-mode
@@ -543,6 +482,7 @@ _z_oom on node
   :commands flycheck-mode
   :init (global-flycheck-mode)
   :defer t
+  :disabled t
   :config
   (define-key evil-normal-state-map (kbd "g)") 'flycheck-next-error)
   (define-key evil-normal-state-map (kbd "g(") 'flycheck-previous-error)
@@ -579,6 +519,7 @@ _z_oom on node
                        (define-key evil-normal-state-map (kbd ",bb") 'compile)
                        (define-key evil-normal-state-map (kbd ",br") 'recompile)
                        (define-key evil-normal-state-map (kbd ",bx") 'kill-compilation)
+                       (define-key evil-insert-state-map (kbd "M-RET") 'indent-new-comment-line)
                        )))
 ;; (setq linum-format " %3d ")    ; remove graphical glitches with fringe
 
@@ -767,14 +708,21 @@ _z_oom on node
   (sp-local-pair 'nix-mode "{" nil :post-handlers '(("||\n[i]" "RET")))
   )
 
+(use-package use-package-ensure-system-package
+  :ensure t)
+(use-package eglot
+  :ensure nil
+  ;; ensure `nil' is on the PATH (lsp server for nix)
+  :ensure-system-package
+  (nil . "nix profile install github:oxalica/nil")
+  :config
+  (add-to-list 'eglot-server-programs '(nix-mode . ("nil")))
+  :hook
+  (nix-mode . eglot-ensure))
+
 ;; AWK
 (add-hook 'awk-mode-hook (lambda ()
                            (setq c-basic-offset 2)))
-
-;; (use-package company-nixos-options
-;;   :mode "\\.nix\\'"
-;;   :config
-;;   (add-to-list 'company-backends 'company-nixos-options))
 
 ;; (require 'setup-erc)
 ;; (require 'setup-twitter)

@@ -65,54 +65,11 @@
   (if (executable-find "eslint_d")
       (setq flycheck-javascript-eslint-executable "eslint_d")
     (warn "emacs-js: You might want to install eslint_d: sudo npm install -g eslint_d."))
-  ;; (add-hook 'js2-mode-hook
-  ;;           (lambda ()
-  ;;             (when (projectile-project-p)
-  ;;               (setq
-  ;;                flycheck-javascript-eslint-executable (concat (projectile-project-root) "node_modules/.bin/eslint"))
-  ;;               ;; (setq flycheck-eslint-rules-directories (cons (projectile-project-root) flycheck-eslint-rules-directories))))
-  ;;               )))
-
-  ;; (add-hook 'js2-mode-hook (lambda ()
-  ;;                            (setq flycheck-enabled-checkers (list 'javascript-eslint))))
 
   (add-hook 'js2-mode-hook 'turn-off-auto-fill)
 
   (flycheck-add-mode 'javascript-jshint 'js2-jsx-mode)
   )
-
-;; https://github.com/verdammelt/dotfiles/blob/master/.emacs.d/init-javascript.el
-(defvar mjs/project-node-module-special-cases (list)
-  "Some projects may not have their node_modules directory at
-  their top level.")
-(defvar mjs/previous-node-modules-added-to-path nil)
-(defun mjs/add-node-modules-in-path ()
-  "I don't install project dependencies globally so I need to add
-the .node_modules/.bin directory to the exec path. Sometimes the
-node_modules directory is not in the project root, add special
-case subdirectory names to
-mjs/project-node-module-special-cases."
-  (interactive)
-  ;; (projectile-current-project-files)
-  ;; (message (projectile-project-root))
-  (let* ((project-root (if (projectile-project-p) (projectile-project-root) (locate-dominating-file default-directory "package.json")))
-         (all-possibilities
-          (mapcar #'(lambda (dir) (expand-file-name "./node_modules/.bin" dir))
-                  (cons project-root mjs/project-node-module-special-cases)))
-         (node-modules-bind-dir
-          (cl-find-if #'file-exists-p all-possibilities)))
-    (when mjs/previous-node-modules-added-to-path
-      (setq exec-path
-            (cl-remove mjs/previous-node-modules-added-to-path exec-path
-                       :test #'string=)
-            mjs/previous-node-modules-added-to-path nil))
-    (when node-modules-bind-dir
-      (setq mjs/previous-node-modules-added-to-path node-modules-bind-dir
-            exec-path (cl-pushnew node-modules-bind-dir exec-path
-                                  :test #'string=)))))
-
-(with-eval-after-load 'projectile
-  (add-hook 'projectile-after-switch-project-hook 'mjs/add-node-modules-in-path))
 
 (use-package color-identifiers-mode
   :commands (js2-mode js2-jsx-mode)
