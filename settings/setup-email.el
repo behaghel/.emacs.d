@@ -422,13 +422,13 @@ point then copy the URL of the image under point instead."
 
   ;; default mu4e-bookmarks value
   (setq mu4e-bookmarks '(
-                         (:name "Inbox" :query "NOT flag:trashed AND maildir:/inbox/" :key ?i)
-                         (:name "behaghel.org" :query "NOT flag:trashed AND maildir:/behaghel.org/inbox" :key ?t)
-                         (:name "GMail" :query "NOT flag:trashed AND maildir:/gmail/inbox" :key ?g)
-                         (:name "behaghel.fr" :query "NOT flag:trashed AND maildir:/behaghel.fr/inbox" :key ?t)
-                         (:name "Important" :query "flag:flagged NOT flag:trashed" :key ?f)
-                         (:name "Drafts" :query "NOT flag:trashed AND maildir:/drafts/" :key ?d)
-                         (:name "Today" :query "date:today..now AND NOT maildir:/gmail/inbox" :key ?h)
+                         (:name "Inbox" :query "maildir:/inbox/ AND NOT flag:trashed" :key ?i)
+                         (:name "behaghel.org" :query "maildir:/behaghel.org/inbox AND NOT flag:trashed" :key ?t)
+                         (:name "GMail" :query "maildir:/gmail/inbox AND NOT flag:trashed" :key ?g)
+                         (:name "behaghel.fr" :query "maildir:/behaghel.fr/inbox AND NOT flag:trashed" :key ?t)
+                         (:name "Important" :query "flag:flagged AND NOT flag:trashed" :key ?f)
+                         (:name "Drafts" :query "maildir:/drafts/ AND NOT flag:trashed" :key ?d)
+                         (:name "Today" :query "date:today..now AND NOT maildir:/gmail/inbox AND NOT flag:trashed" :key ?h)
                          (:name "Attachments" :query "flag:attach" :key ?a)
                          (:name "Invites" :query "mime:text/calendar" :key ?c)
                          ))
