@@ -152,11 +152,11 @@
         modus-themes-bold-constructs nil
         modus-themes-variable-pitch-ui nil ; e.g. mode-line, tab-bar
         modus-themes-headings '(
-                                (1 . (variable-pitch extrabold 1.05))
-                                (2 . (variable-pitch 1.1))
+                                (1 . (variable-pitch extrabold 1.5))
+                                (2 . (variable-pitch 1.3))
                                 (3 . (variable-pitch semibold 1.15))
-                                (4 . (1.3))
-                                (5 . (1.5))
+                                (4 . (1.1))
+                                (5 . (1.05))
                                 (agenda-date . (1.3))
                                 (agenda-structure . (variable-pitch light 1.8))
                                 (t . (1.1))
