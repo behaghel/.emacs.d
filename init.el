@@ -322,6 +322,7 @@
 ;; highlight TODO, FIXME, etc.
 (add-hook 'prog-mode-hook 'hub/font-lock-comment-annotations)
 ;; (show-paren-mode 1)                     ; highlight matching brackets
+(setq treesit-font-lock-level 4)
 
 (use-package origami
   :commands origami-mode
@@ -718,7 +719,8 @@ _z_oom on node
   :config
   (add-to-list 'eglot-server-programs '(nix-mode . ("nil")))
   :hook
-  (nix-mode . eglot-ensure))
+  (nix-mode . eglot-ensure)
+  (scala-ts-mode . eglot-ensure))
 
 ;; AWK
 (add-hook 'awk-mode-hook (lambda ()

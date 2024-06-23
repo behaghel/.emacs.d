@@ -1,7 +1,9 @@
+(straight-use-package '(scala-ts-mode :type git :host github :repo "KaranAhlawat/scala-ts-mode"))
 (use-package scala-mode
+  :mode "\\.s\\(cala\|bt\\)$"
   :interpreter
   ("scala" . scala-mode)
-  :hook (scala-mode . lsp)
+  ;; :hook (scala-mode . lsp)
   :config
   (setq
    scala-indent:use-javadoc-style nil
@@ -22,13 +24,13 @@
   ;; (ensime-mode)
   ;; (make-local-variable 'company-backends)
   ;; (add-to-list 'company-backends 'ensime-company)
-  (defun hub/scala-ret ()
-    "Dwim with RET even inside multiline comments."
-    (interactive)
-    (newline-and-indent)
-    ;; (comment-indent-new-line)
-    (scala-indent:insert-asterisk-on-multiline-comment))
-  (local-set-key (kbd "RET") 'hub/scala-ret)
+  ;; (defun hub/scala-ret ()
+  ;;   "Dwim with RET even inside multiline comments."
+  ;;   (interactive)
+  ;;   (newline-and-indent)
+  ;;   ;; (comment-indent-new-line)
+  ;;   (scala-indent:insert-asterisk-on-multiline-comment))
+  ;; (local-set-key (kbd "RET") 'hub/scala-ret)
 
   (evil-define-key 'insert scala-mode-map (kbd "C-S-<right>") 'sp-slurp-hybrid-sexp)
   (evil-define-key 'insert scala-mode-map (kbd "C-S-<left>") 'sp-barf-hybrid-sexp)
@@ -51,11 +53,6 @@
                                             (group   . 1)
                                             (modes   . '(scala-mode))
                                             (repeat  . nil))))))
-
-(use-package lsp-metals
-  :after (scala-mode)
-  ;; :pin melpa
-  :config (setq lsp-metals-treeview-show-when-views-received t))
 
 (use-package sbt-mode
   :commands sbt-start sbt-command
