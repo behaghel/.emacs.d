@@ -145,8 +145,6 @@
 
 (require 'setup-org)
 
-(require 'setup-blog)
-
 ;; asciidoc
 (add-hook 'adoc-mode-hook (lambda() (buffer-face-mode t)))
 (add-to-list 'auto-mode-alist (cons "\\.asciidoc\\'" 'adoc-mode))

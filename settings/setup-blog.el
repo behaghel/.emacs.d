@@ -16,7 +16,7 @@
     (insert-file-contents template)
     (hub/autoinsert-yas-expand `((title ,title)))
     (add-hook 'find-file-hooks 'auto-insert)))
-(define-key evil-normal-state-map (kbd ",nb") 'hub/create-post)
+(define-key evil-normal-state-map (kbd ",np") 'hub/create-post)
 
 ;; stolen from https://ox-hugo.scripter.co/doc/org-capture-setup/
 ;; Populates only the EXPORT_FILE_NAME property in the inserted headline.

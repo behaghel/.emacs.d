@@ -22,6 +22,7 @@
     ",or"   'org-babel-open-src-block-result
     ",à"    'org-archive-subtree-default
     ",s"    'outline-up-heading
+    ",t"    'outline-down-heading
     "à"     'org-refile
     (kbd ", SPC")   'hub/outline-focus-next-section
     ;; chromebook remap alt + <up/down> to <prior/next>
@@ -31,6 +32,8 @@
     )
   (evil-define-key 'motion org-mode-map (kbd "RET") 'org-return)
   (evil-define-key 'motion calendar-mode-map (kbd "RET") 'org-calendar-select)
+  (evil-define-key 'insert org-mode-map (kbd "M-RET") 'org-meta-return)
+
   (setq org-return-follows-link t)
   ;; FIXME: it's not just hiding leading stars, most of the time it's
   ;; all the stars unless I put the cursor on the star that should be
@@ -84,12 +87,13 @@
            "* Meeting Minutes\n** Present at meeting\n- [X] Peter\n- [ ] Sarah - [X] Lucy\n ** Agenda\n- item 1\n- item 2\n- item 3\n** Notes\n*** Last meeting minutes are approved                              :decision:\n*** Discussion\n**** TODO Topic 1                                      :@Fred:\n**** TODO Topic 2                                    :@Sara:\n**** DONE Topic 2.1                                      :@Lucy:@Ted:\nDEADLINE: <2020-03-01 So>\n**** Another sub-topic                                    :decision:\n* Actions\n#+BEGIN: columnview :id global :match "/TODO|DONE" :format "%ITEM(What) %TAGS(Who) %DEADLINE(When) %TODO(State)"\n#+END:\n\n* Decisions\n#+BEGIN: columnview :id global :match "decision" :format "%ITEM(decisions)"\n#+END:"
            :prepend t))
         )
+  (require 'setup-blog)
   ;; Note: setup-blog.el also injects a blog template on "b"
   (setq org-outline-path-complete-in-steps nil)      ; Refile in a single go
   (setq org-refile-use-outline-path 'file)           ; Show full paths for refiling
   (setq org-refile-allow-creating-parent-nodes 'confirm)
   (setq org-reverse-note-order t)       ; refile at the top / prepend
-  (setq org-refile-targets '(("typeform.org" :maxlevel . 4)
+  (setq org-refile-targets '(("veriff.org" :maxlevel . 4)
                              ("faith.org" :maxlevel . 2)
                              ("hubert.org" :maxlevel . 2)
                              ("family.org" :maxlevel . 2)
@@ -358,6 +362,7 @@ of its arguments."
   )
 
 (use-package org-modern
+  :disabled t
   :after (org)
   :custom
   (org-modern-hide-stars nil) ; adds extra indentation

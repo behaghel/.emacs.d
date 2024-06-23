@@ -19,7 +19,7 @@
   (evil-collection-define-key 'normal 'org-mode-map
     ",nl"   #'denote-link-or-create     ; insert a link
     ",nL"   #'denote-link-add-links     ; add all matching links
-    ",nb"   #'denote-link-backlinks     ; show backlinks
+    ",nb"   #'denote-backlinks     ; show backlinks
     ",nf"   #'denote-link-find-file     ; open a note
     ",nB"   #'denote-link-find-backlink ; open a backlinking note
     ",nR"   #'denote-rename-file-using-front-matter
@@ -30,7 +30,7 @@
   ;;   (define-key map (kbd "C-c C-d C-r") #'denote-dired-rename-marked-files)
   ;;   (define-key map (kbd "C-c C-d C-R") #'denote-dired-rename-marked-files-using-front-matter))
 
-  (setq denote-directory (expand-file-name "~/Dropbox/Documents/org/notes/"))
+  (setq denote-directory (expand-file-name "~/ws/blog.behaghel.org/content-org/journal/"))
   (setq denote-known-keywords '("emacs" "faith" "family" "hubert" "pro" "engineering" "leadership"))
   (setq denote-infer-keywords t)
   (setq denote-sort-keywords t)
