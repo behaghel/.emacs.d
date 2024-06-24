@@ -1,59 +1,67 @@
-(straight-use-package '(scala-ts-mode :type git :host github :repo "KaranAhlawat/scala-ts-mode"))
-(use-package scala-mode
-  :mode "\\.s\\(cala\|bt\\)$"
-  :interpreter
-  ("scala" . scala-mode)
-  ;; :hook (scala-mode . lsp)
-  :config
-  (setq
-   scala-indent:use-javadoc-style nil
-   scala-indent:align-forms t
-   scala-indent:align-parameters t
-   scala-indent:default-run-on-strategy 1
-   ; otherwise flycheck hides sbt errors with M-n/p
-   flycheck-standard-error-navigation nil)
-  ;; is buggy with scala-mode2
-  ;; FIXME: doesn't look like I'm useful...
-  ;; (make-local-variable 'comment-style)
-  ;; (setq comment-style 'multi-line)
-  ;; scala-mode doesn't work well (yet) with auto-fill
-  ;; use M-q to wrap and indent long comments
-  (turn-off-auto-fill)
-  ;; (require 'ensime)
-  ;; (ensime-scala-mode-hook)
-  ;; (ensime-mode)
-  ;; (make-local-variable 'company-backends)
-  ;; (add-to-list 'company-backends 'ensime-company)
-  ;; (defun hub/scala-ret ()
-  ;;   "Dwim with RET even inside multiline comments."
-  ;;   (interactive)
-  ;;   (newline-and-indent)
-  ;;   ;; (comment-indent-new-line)
-  ;;   (scala-indent:insert-asterisk-on-multiline-comment))
-  ;; (local-set-key (kbd "RET") 'hub/scala-ret)
+;;; setup-scala.el --- efficient coding in Scala     -*- lexical-binding: t; -*-
 
-  (evil-define-key 'insert scala-mode-map (kbd "C-S-<right>") 'sp-slurp-hybrid-sexp)
-  (evil-define-key 'insert scala-mode-map (kbd "C-S-<left>") 'sp-barf-hybrid-sexp)
-  (evil-define-key 'insert scala-mode-map (kbd "C-d") 'sp-kill-hybrid-sexp)
-  ;; { + Return => create a block and put the cursor on its own line
-  (sp-local-pair 'scala-mode "{" nil :post-handlers '(("||\n[i]" "RET")))
+;; Copyright (C) 2024  Hubert Behaghel
 
-  ;; TODO: fixme. Goal when I call align-current in a scala file it
-  ;; magically align on => and <-
-  (add-hook 'align-load-hook (lambda ()
-                             (add-to-list 'align-rules-list
-                                          '(scala-cases
-                                            (regexp  . "\\(\\s-+\\)\\(=>\\)")
-                                            (group   . 1)
-                                            (modes   . '(scala-mode))
-                                            (repeat  . nil)))
-                             (add-to-list 'align-rules-list
-                                          '(scala-align
-                                            (regexp  . "\\(\\s-+\\)\\(<-\\)")
-                                            (group   . 1)
-                                            (modes   . '(scala-mode))
-                                            (repeat  . nil))))))
+;; Author: Hubert Behaghel <behaghel@gmail.com>
+;; Keywords: languages
 
+;; This program is free software; you can redistribute it and/or modify
+;; it under the terms of the GNU General Public License as published by
+;; the Free Software Foundation, either version 3 of the License, or
+;; (at your option) any later version.
+
+;; This program is distributed in the hope that it will be useful,
+;; but WITHOUT ANY WARRANTY; without even the implied warranty of
+;; MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+;; GNU General Public License for more details.
+
+;; You should have received a copy of the GNU General Public License
+;; along with this program.  If not, see <https://www.gnu.org/licenses/>.
+
+;;; Commentary:
+
+;; My setup for coding in scala.
+;; It uses `metals' as language server for `eglot'.
+;; I assume you have nix and direnv installed and configured.
+;;
+;; In your `.envrc'
+;;
+;;;; use flake github:devinsideyou/scala-seed
+;;
+;; learn more: https://github.com/DevInsideYou/scala-seed
+;;
+;; you can use it in a top directory for all your scala project like
+;; `~/ws/scala/...'
+;;
+;; Bootstrap a scala project:
+;;
+;;;; cs launch giter8 -- devinsideyou/scala-seed  # Scala 2
+;;
+;;;; cs launch giter8 -- devinsideyou/scala3-seed # Scala 3
+;;
+;; To install `metals' in your project
+;;
+;;;; cs bootstrap \
+;;;; --java-opt -XX:+UseG1GC \
+;;;; --java-opt -XX:+UseStringDeduplication  \
+;;;; --java-opt -Xss4m \
+;;;; --java-opt -Xms100m \
+;;;; --java-opt -Dmetals.client=emacs \
+;;;; org.scalameta:metals_2.13:1.3.2 -o metals -f
+;;
+;; You may be able to tweak the above -o option to put it straight
+;; into your PATH. Otherwise, add it to your `exec-path' in Emacs
+;;
+;;;; (setq exec-path (append exec-path '("/Users/hub/ws/learning-scala/playground")))
+
+;;; Code:
+
+(use-package scala-ts-mode
+  :straight '(scala-ts-mode :type git :host github :repo "KaranAhlawat/scala-ts-mode")
+  :bind
+  ;; *.worksheet.sc evaluates on save
+  ("C-c C-c" . save-buffer)
+ )
 (use-package sbt-mode
   :commands sbt-start sbt-command
   :config
@@ -103,3 +111,4 @@
   (evil-define-key 'visual scala-mode-map ",el" 'sbt-send-region))
 
 (provide 'setup-scala)
+;;; setup-scala.el ends here

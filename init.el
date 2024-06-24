@@ -282,18 +282,6 @@
   :config (setq ag-highlight-search t
                 ag-reuse-buffers t))
 
-;; Use the Tree View Protocol for viewing the project structure and triggering compilation
-(use-package lsp-treemacs
-  :disabled t
-  :after (treemacs)
-  :defer t
-  ;; :pin melpa
-  :config
-  (lsp-metals-treeview-enable t)
-  (setq lsp-metals-treeview-show-when-views-received t)
-  (lsp-treemacs-sync-mode 1)
-  )
-
 ;; Indenting
 (setq-default indent-tabs-mode nil)     ; no tabs, only spaces
 ;; don't delete tabs one space at a time
@@ -530,11 +518,6 @@ _z_oom on node
 
 ;; Help
 (which-function-mode 1)                 ; which function the point is in
-(use-package dash-at-point
-  :disabled t
-  :if (memq window-system '(mac))
-  :commands (dash-at-point dash-at-point-docset)
-  :bind (:map evil-normal-state-map (",hd" . dash-at-point)))
 (define-key evil-normal-state-map (kbd ",hI") 'info)
 
 (use-package whitespace
@@ -716,6 +699,7 @@ _z_oom on node
   (nil . "nix profile install github:oxalica/nil")
   :config
   (add-to-list 'eglot-server-programs '(nix-mode . ("nil")))
+  (add-to-list 'eglot-server-programs '(scala-ts-mode . ("metals")))
   :hook
   (nix-mode . eglot-ensure)
   (scala-ts-mode . eglot-ensure))
@@ -726,6 +710,7 @@ _z_oom on node
 
 ;; (require 'setup-erc)
 ;; (require 'setup-twitter)
+;; (require 'setup-ai)
 ;; (require 'setup-multiple-cursors)
 
 ;; Use emacs to edit textarea in Chrome
