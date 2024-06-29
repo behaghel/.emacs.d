@@ -29,6 +29,7 @@
 
 ;; On Windows: set HOME environment variable and put .emacs.d in there!
 
+(defvar native-comp-deferred-compilation-deny-list nil)
 ;; to stop M-x customize to pollute my init.el: http://emacsblog.org/2008/12/06/quick-tip-detaching-the-custom-file/
 (setq custom-file "~/.emacs.d/custom.el")
 (load custom-file 'noerror)
@@ -83,6 +84,7 @@
 (require 'hub-utils)
 
 (require 'setup-general)
+(server-start)
 
 (require 'setup-evil)
 
@@ -96,11 +98,6 @@
 
 (use-package restclient
   :commands (restclient-mode))
-;; never used it but could prove useful
-;; (use-package company-restclient
-;;   :after (restclient company)
-;;   :config
-;;   (add-to-list 'company-backends 'company-restclient))
 ;; (use-package ob-restclient
 ;;   :after (org)
 ;;   :config
@@ -174,6 +171,11 @@
 
 ; CODING
 (require 'setup-git)
+;; (require 'setup-lsp)
+
+(use-package eglot
+  :ensure t)
+
 ;; Ediff
 (setq ediff-diff-options "-w")
 (setq ediff-split-window-function 'split-window-horizontally)
@@ -334,121 +336,6 @@ _z_oom on node
   :bind (:map evil-normal-state-map
               (",Z" . hydra-folding/body)))
 
-;; Use the Debug Adapter Protocol for running tests and debugging
-(use-package posframe
-  ;; Posframe is a pop-up tool that must be manually installed for dap-mode
-  )
-
-;; Debugging
-(use-package dap-mode
-  ;; :pin melpa
-  :defer t
-  :commands (dap-ui-mode dap-mode dap-hydra)
-  :hook (
-         (lsp-mode . dap-mode)
-         (lsp-mode . dap-ui-mode)
-         ;; enables mouse hover support
-         (lsp-mode . dap-tooltip-mode)
-         ;; use tooltips for mouse hover
-         ;; if it is not enabled `dap-mode' will use the minibuffer.
-         ;; (lsp-mode . tooltip-mode)
-         ;; displays floating panel with debug buttons
-         ;; requies emacs 26+
-         ;; (lsp-mode . dap-ui-controls-mode)
-         ;; (dap-server-log-mode . XXX repaint last entry with
-         ;; ansi-colorizing, see function colorize-compilation-buffer)
-         )
-  :bind (:map evil-normal-state-map
-              (",dd" . dap-debug)
-              (",dl" . dap-debug-last)
-              (",de" . dap-eval-thing-at-point)
-              (",dD" . dap-debug-recent)
-              (",dc" . dap-continue)
-              (",dB" . dap-breakpoint-toggle)
-              (",dn" . dap-next)
-              (",dt" . dap-step-in)
-              (",ds" . dap-step-out)
-              :map evil-visual-state-map
-              (",d:" . dap-eval-region )
-              :map dap-server-log-mode-map
-              ( "n" . dap-next )
-              ( "i" . dap-step-in )
-              ( "o" . dap-step-out )
-              ( "c" . dap-continue )
-              ( "L" . dap-ui-locals )
-              ( "S" . dap-ui-sessions )
-              ( "E" . dap-ui-expressions )
-              ( "B" . dap-ui-breakpoints )
-              ( "R" . dap-ui-repl )
-              ( "l" . dap-go-to-output-buffer )
-              ( "q" . dap-disconnect )
-              ;; H : Continue until Point
-              ( ":" . dap-eval )
-              ( "b" . dap-breakpoint-add )
-              ( "u" . dap-breakpoint-delete )
-              ( ">" . dap-switch-stack-frame )
-              ( "<" . dap-switch-stack-frame )
-              ;; g? : Help
-              ;; J : Jump to debugger location
-              ( "R" . dap-restart-frame )
-              :map +dap-running-session-mode-map
-              ( ",dn" . dap-next )
-              ( ",dt" . dap-step-in )
-              ( ",ds" . dap-step-out )
-              ( ",dc" . dap-continue )
-              ( ",dL" . dap-ui-locals )
-              ( ",dS" . dap-ui-sessions )
-              ( ",dE" . dap-ui-expressions )
-              ( ",dB" . dap-ui-breakpoints )
-              ( ",dR" . dap-ui-repl )
-              ( ",dt" . dap-go-to-output-buffer )
-              ( ",dq" . dap-disconnect )
-              ;; H : Continue until Point
-              ( ",d:" . dap-eval )
-              ( ",dba" . dap-breakpoint-add )
-              ( ",dbu" . dap-breakpoint-delete )
-              ( ",dbb" . dap-breakpoint-toggle )
-              ( ",dbc" . dap-breakpoint-condition )
-              ( ",dbC" . dap-breakpoint-hit-condition )
-              ( ",dbl" . dap-breakpoint-log-message )
-              ( ",d>" . dap-switch-stack-frame )
-              ( ",d<" . dap-switch-stack-frame )
-              ;; g? : Help
-              ;; J : Jump to debugger location
-              ( ",dR" . dap-restart-frame )
-              )
-  :config
-  ;; https://github.com/emacs-lsp/dap-mode/wiki/How-to-activate-minor-modes-when-stepping-through-code
-  (define-minor-mode +dap-running-session-mode
-    "A mode for adding keybindings to running sessions"
-    nil
-    nil
-    (make-sparse-keymap)
-    (evil-normalize-keymaps) ;; if you use evil, this is necessary to update the keymaps
-    ;; The following code adds to the dap-terminated-hook
-    ;; so that this minor mode will be deactivated when the debugger finishes
-    (when +dap-running-session-mode
-      (let ((session-at-creation (dap--cur-active-session-or-die)))
-        (add-hook 'dap-terminated-hook
-                  (lambda (session)
-                    (when (eq session session-at-creation)
-                      (+dap-running-session-mode -1)))))))
-
-  ;; Activate this minor mode when dap is initialized
-  (add-hook 'dap-session-created-hook '+dap-running-session-mode)
-
-  ;; Activate this minor mode when hitting a breakpoint in another file
-  (add-hook 'dap-stopped-hook '+dap-running-session-mode)
-
-  ;; Activate this minor mode when stepping into code in another file
-  (add-hook 'dap-stack-frame-changed-hook (lambda (session)
-                                            (when (dap--session-running session)
-                                              (+dap-running-session-mode 1))))
-)
-
-(use-package realgud
-  :disabled t                           ; install error: can't install org-mac-link??
-  :commands (realgud:gdb realgud:byebug realgud:pry))
 
 ;;; Building
 ;;; Comint
@@ -532,6 +419,41 @@ _z_oom on node
   :init (global-whitespace-cleanup-mode))
 
 ;; LANGUAGES
+(use-package treesit
+  :straight (:type built-in)
+  :config
+  (setq treesit-language-source-alist
+        '((bash "https://github.com/tree-sitter/tree-sitter-bash")
+          (cmake "https://github.com/uyha/tree-sitter-cmake")
+          (css "https://github.com/tree-sitter/tree-sitter-css")
+          (elisp "https://github.com/Wilfred/tree-sitter-elisp")
+          (go "https://github.com/tree-sitter/tree-sitter-go")
+          (html "https://github.com/tree-sitter/tree-sitter-html")
+          (javascript "https://github.com/tree-sitter/tree-sitter-javascript" "master" "src")
+          (json "https://github.com/tree-sitter/tree-sitter-json")
+          (make "https://github.com/alemuller/tree-sitter-make")
+          (markdown "https://github.com/ikatyang/tree-sitter-markdown")
+          (python "https://github.com/tree-sitter/tree-sitter-python")
+          (toml "https://github.com/tree-sitter/tree-sitter-toml")
+          (tsx "https://github.com/tree-sitter/tree-sitter-typescript" "master" "tsx/src")
+          (typescript "https://github.com/tree-sitter/tree-sitter-typescript" "master" "typescript/src")
+          (yaml "https://github.com/ikatyang/tree-sitter-yaml"))
+        treesit-font-lock-settings t
+        treesit-simple-indent-rules t
+        treesit-defun-type-regexp t
+        treesit-defun-name-function t)
+  (setq major-mode-remap-alist
+        '((yaml-mode . yaml-ts-mode)
+          (bash-mode . bash-ts-mode)
+          (js2-mode . js-ts-mode)
+          (typescript-mode . typescript-ts-mode)
+          (typescriptreact-mode . typescriptreact-ts-mode)
+          (json-mode . json-ts-mode)
+          (css-mode . css-ts-mode)
+          (python-mode . python-ts-mode)
+          ))
+  (treesit-major-mode-setup)
+  )
 
 (require 'setup-scala)
 
@@ -560,7 +482,7 @@ _z_oom on node
 
 (require 'setup-haskell)
 
-(require 'setup-ruby)
+;; (require 'setup-ruby)
 
 ;; Web: HTML/CSS
 (add-to-list 'auto-mode-alist '("\\.html$" . html-mode))
@@ -601,31 +523,6 @@ _z_oom on node
 ;; gnuplot
 (use-package gnuplot
   :commands (gnuplot-mode gnuplot-make-buffer))
-;; R
-;;(require 'ess-site)
-;; ESS config
-;; (use-package ess-site
-;;   :mode ("\\.R\\'" . R-mode)
-;;   :commands R
-;;   :config
-;;   (eval-after-load "comint"
-;;     '(progn
-;;        (define-key comint-mode-map [up]
-;;          'comint-previous-matching-input-from-input)
-;;        (define-key comint-mode-map [down]
-;;          'comint-next-matching-input-from-input)
-
-;;        ;; also recommended for ESS use --
-;;        (setq comint-scroll-to-bottom-on-output 'others)
-;;        (setq comint-scroll-show-maximum-output t)
-;;        ;; somewhat extreme, almost disabling writing in *R*, *shell* buffers above prompt:
-;;        (setq comint-scroll-to-bottom-on-input 'this)
-;;        )))
-;; (evil-define-key 'normal ess-mode-map ",ho" 'ess-display-help-on-object)
-;; (evil-define-key 'visual ess-mode-map ",l" 'ess-eval-region)
-;; (evil-define-key 'visual ess-mode-map ",L" 'ess-eval-region-and-go)
-
-;; also see comint section
 
 (require 'setup-clojure)
 
