@@ -306,6 +306,10 @@
                 (let ((mark-even-if-inactive transient-mark-mode))
                   (indent-region (region-beginning) (region-end) nil))))))
 
+(use-package apheleia
+  :ensure t
+  :config
+  (apheleia-global-mode +1))
 
 ;; highlight TODO, FIXME, etc.
 (add-hook 'prog-mode-hook 'hub/font-lock-comment-annotations)
@@ -358,8 +362,6 @@ _z_oom on node
   :defer t
   :disabled t
   :config
-  (define-key evil-normal-state-map (kbd "g)") 'flycheck-next-error)
-  (define-key evil-normal-state-map (kbd "g(") 'flycheck-previous-error)
   (define-key evil-normal-state-map (kbd ",)") 'flycheck-next-error)
   (define-key evil-normal-state-map (kbd ",(") 'flycheck-previous-error)
 )
@@ -394,6 +396,8 @@ _z_oom on node
                        (define-key evil-normal-state-map (kbd ",br") 'recompile)
                        (define-key evil-normal-state-map (kbd ",bx") 'kill-compilation)
                        (define-key evil-insert-state-map (kbd "M-RET") 'indent-new-comment-line)
+                       (define-key evil-normal-state-map (kbd "g)") 'flymake-goto-next-error)
+                       (define-key evil-normal-state-map (kbd "g(") 'flymake-goto-previous-error)
                        )))
 ;; (setq linum-format " %3d ")    ; remove graphical glitches with fringe
 
