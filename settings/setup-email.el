@@ -52,7 +52,7 @@ most org export / preview in the browser."
   ;;; :custom   (mu4e-mu-binary (expand-file-name "build/mu/mu" (straight--repos-dir "mu")))
   :load-path "~/.local/share/emacs/site-lisp"
   :straight (:files ("~/.local/share/emacs/site-lisp/mu4e/*") :pre-build ())
-  :custom   (mu4e-mu-binary "/etc/profiles/per-user/hub/bin/mu")
+  :custom   (mu4e-mu-binary "~/.nix-profile/bin/mu")
   ;; :disabled t
   :ensure nil
   ;; :pin manual
