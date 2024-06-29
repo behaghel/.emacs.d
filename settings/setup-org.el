@@ -134,7 +134,7 @@
         org-src-strip-leading-and-trailing-blank-lines t
         org-src-preserve-indentation t ;; do not put two spaces on the left
         org-src-tab-acts-natively t)
-  (setq org-reveal-root (getenv "REVEAL_JS_ROOT_URL"))
+  (setq org-re-reveal-root (concat (getenv "HOME") "/Apps/reveal.js"))
   (setq org-plantuml-jar-path "~/install/plantuml.jar")
   (add-to-list 'org-src-lang-modes '("plantuml" . plantuml))
   ;; (org-babel-do-load-languages 'org-babel-load-languages '((plantuml . t)))
