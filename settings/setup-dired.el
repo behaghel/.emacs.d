@@ -30,7 +30,7 @@
   :config
   (setq dired-dwim-target t)
   (setq dired-listing-switches
-        "-XGFhlv --group-directories-first --time-style=long-iso")
+        "-XGFahlv --group-directories-first --time-style=long-iso")
   (define-key evil-normal-state-map (kbd "g/") 'dired))
 (use-package dired-aux
   :straight nil
