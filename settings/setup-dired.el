@@ -27,6 +27,7 @@
 
 (use-package dired
   :straight nil
+  :after evil
   :config
   (setq dired-dwim-target t)
   (setq dired-listing-switches
@@ -34,6 +35,7 @@
   (define-key evil-normal-state-map (kbd "g/") 'dired))
 (use-package dired-aux
   :straight nil
+  :after evil
   :config
   (evil-define-key 'normal dired-mode-map ",vv" 'dired-vc-next-action) ; dwim on marks: add, commit, etc.
   (setq dired-isearch-filenames 'dwim)

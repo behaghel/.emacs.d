@@ -229,6 +229,7 @@ parses its input."
   )
 
 (use-package corfu
+  :after evil
   :hook (lsp-completion-mode . kb/corfu-setup-lsp) ; Use corfu for lsp completion
   :general
   (:keymaps 'corfu-map

@@ -223,6 +223,8 @@
          ("M-<left>" . sp-backward-slurp-sexp)
          ("C-<left>" . sp-forward-barf-sexp)
          ("M-<right>" . sp-backward-barf-sexp)
+         ("M-(" . sp-backward-unwrap-sexp)
+         ("M-)" . sp-unwrap-sexp)
          ("C-<down>" . sp-down-sexp)
          ("C-<down>" . sp-down-sexp)
          ("C-<up>" . sp-backward-up-sexp)
@@ -248,9 +250,9 @@
         (kbd ",k") #'evil-sp-substitute
         (kbd ",K") #'sp-kill-sexp
         ;; Finds opening '(' of the current list.
-        (kbd ",{") #'sp-backward-up-sexp
+        ;; (kbd ",{") #'sp-backward-up-sexp
         ;; Finds closing ')' of the current list.
-        (kbd ",}") #'sp-up-sexp
+        ;; (kbd ",}") #'sp-up-sexp
         (kbd ",s") #'sp-backward-up-sexp
         (kbd ",t") #'sp-down-sexp
         (kbd ",(") #'sp-backward-up-sexp
@@ -483,6 +485,8 @@ _z_oom on node
   (evil-define-key 'normal geiser-mode-map ",ii" 'geiser-doc-symbol-at-point)
   (evil-define-key 'normal geiser-mode-map ",." 'geiser-edit-symbol-at-point)
   )
+(use-package geiser-guile)
+(add-to-list 'Info-directory-list "~/.local/share/info/")
 
 (require 'setup-haskell)
 
@@ -624,7 +628,6 @@ _z_oom on node
   (add-hook 'after-init-hook 'edit-server-start t)
   :config
   (setq edit-server-default-major-mode 'markdown-mode))
-
 
 (provide 'init)
 ;;; init.el ends here

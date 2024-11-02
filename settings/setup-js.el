@@ -19,7 +19,7 @@
 ;; great tree-sitter-based indentation for typescript/tsx, css, json
 (use-package tsi
   :after tree-sitter
-  :quelpa (tsi :fetcher github :repo "orzechowskid/tsi.el")
+  :straight (:type git :host github :repo "orzechowskid/tsi.el")
   ;; define autoload definitions which when actually invoked will cause package to be loaded
   :commands (tsi-typescript-mode tsi-json-mode tsi-css-mode)
   :init

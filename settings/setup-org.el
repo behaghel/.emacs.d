@@ -43,7 +43,6 @@
   (setq org-footnote-auto-adjust t)
   ;;The following setting hides blank lines between headings which keeps folded view nice and compact.
   (setq org-cycle-separator-lines 0)
-  (setq org-src-fontify-natively t)
   (setq org-archive-location "archive/%s_archive::datetree/")
   ;; having (setq comment-auto-fill-only-comments t) means org-mode
   ;; doesn't get word-wrapping. Deactivating just for org-mode.

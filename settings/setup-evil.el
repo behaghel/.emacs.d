@@ -5,6 +5,7 @@
 ;;  making a glove out of evil
 ;;; Code:
 (use-package evil
+  :demand t
   :init
   (setq evil-want-integration t) ;; This is optional since it's already set to t by default.
   (setq evil-want-keybinding nil)
@@ -128,6 +129,7 @@
   ;; before my config for my config to win
   ;; otherwise in visual s call surround where I want to go on previous line
   (global-evil-surround-mode 1)
+  (define-key evil-visual-state-map (kbd ",s") 'evil-surround-change)
   (define-key evil-normal-state-map (kbd "W") 'evil-window-next)
   (define-key evil-window-map "h" 'evil-window-set-height)
   (define-key evil-window-map "_" 'split-window-vertically)
@@ -166,32 +168,6 @@
   (define-key evil-normal-state-map (kbd ",=") 'align-current)
   (define-key evil-normal-state-map (kbd "ç") 'delete-other-windows)
   (define-key evil-insert-state-map (kbd "M-ç") 'delete-other-windows)
-
-  ;; put xref at the front as it's smarter with codebases
-  (setq evil-goto-definition-functions
-        '(evil-goto-definition-xref evil-goto-definition-imenu
-                                    evil-goto-definition-semantic
-                                    evil-goto-definition-search)) )
-;; stolen from http://www.emacswiki.org/emacs/Evil#toc12
-;; Note: lexical-binding must be t in order for this to work correctly.
-(defun make-conditional-key-translation (key-from key-to translate-keys-p)
-  "Make a Key Translation such that if the translate-keys-p function returns true,
-   key-from translates to key-to, else key-from translates to itself.  translate-keys-p
-   takes key-from as an argument."
-  (define-key key-translation-map key-from
-    (lambda (prompt)
-      (if (funcall translate-keys-p key-from) key-to key-from))))
-(defun not-insert-state-p (key-from)
-  "Returns whether conditional key translations should be active.  See make-conditional-key-translation function. "
-  (and
-   ;; Only allow a non identity translation if we're beginning a Key Sequence.
-   (equal key-from (this-command-keys))
-   (or (evil-motion-state-p) (evil-normal-state-p) (evil-visual-state-p))))
-
-(make-conditional-key-translation (kbd "è") (kbd "C-x") 'not-insert-state-p)
-(make-conditional-key-translation (kbd "È") (kbd "C-u") 'not-insert-state-p)
-
-
 ;; errors and compilation (*b*uild)
 (define-key evil-normal-state-map (kbd "g}") 'next-error)
 (define-key evil-normal-state-map (kbd "g{") 'previous-error)
@@ -225,6 +201,33 @@
 ;;; Info & Evil
 ;; (evil-set-initial-state 'Info 'emacs)
 ;; (evil-define-key 'motion Info-mode-map "l" nil) ; use l to say last
+(evil-set-initial-state 'calc-mode 'emacs)
+
+  ;; put xref at the front as it's smarter with codebases
+  (setq evil-goto-definition-functions
+        '(evil-goto-definition-xref evil-goto-definition-imenu
+                                    evil-goto-definition-semantic
+                                    evil-goto-definition-search)))
+;; stolen from http://www.emacswiki.org/emacs/Evil#toc12
+;; Note: lexical-binding must be t in order for this to work correctly.
+(defun make-conditional-key-translation (key-from key-to translate-keys-p)
+  "Make a Key Translation such that if the translate-keys-p function returns true,
+   key-from translates to key-to, else key-from translates to itself.  translate-keys-p
+   takes key-from as an argument."
+  (define-key key-translation-map key-from
+    (lambda (prompt)
+      (if (funcall translate-keys-p key-from) key-to key-from))))
+(defun not-insert-state-p (key-from)
+  "Returns whether conditional key translations should be active.  See make-conditional-key-translation function. "
+  (and
+   ;; Only allow a non identity translation if we're beginning a Key Sequence.
+   (equal key-from (this-command-keys))
+   (or (evil-motion-state-p) (evil-normal-state-p) (evil-visual-state-p))))
+
+(make-conditional-key-translation (kbd "è") (kbd "C-x") 'not-insert-state-p)
+(make-conditional-key-translation (kbd "È") (kbd "C-u") 'not-insert-state-p)
+
+
 
 (provide 'setup-evil)
 ;;; setup-evil.el ends here

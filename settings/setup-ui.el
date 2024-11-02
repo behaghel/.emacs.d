@@ -220,14 +220,12 @@
   (add-to-list 'dashboard-item-generators  '(denote . dashboard-insert-denote))
   )
 
-;; https://github.com/be5invis/Iosevka
-;; https://protesilaos.com/codelog/2020-09-05-emacs-note-mixed-font-heights/
-(set-face-attribute 'default nil :family "Iosevka Nerd Font Mono" :height (if is-mac 180 160))
-;; (set-face-attribute 'default nil :family "Iosevka Nerd Font")
-;; (set-face-attribute 'default nil :font (if is-mac "Iosevka-16" "Iosevka-12"))
-(set-face-attribute 'fixed-pitch nil :family "Iosevka Nerd Font Mono" :height (if is-mac 180 160))
-(set-face-attribute 'variable-pitch nil :family "FiraGO" :height 1.0)
-;; (set-face-attribute 'variable-pitch nil :family "ETBembo" :height 1.0)
+https://github.com/be5invis/Iosevka
+https://protesilaos.com/codelog/2020-09-05-emacs-note-mixed-font-heights/
+(set-face-attribute 'default nil :family "Hasklug Nerd Font Mono" :height 180)
+(set-face-attribute 'fixed-pitch nil :family "Hasklug Nerd Font Mono" :height 1.0)
+(set-face-attribute 'variable-pitch nil :family "ETBembo" :height 1.0)
+;; (set-face-attribute 'variable-pitch nil :family "FiraGO")
 
 (provide 'setup-ui)
 ;;; setup-ui.el ends here
