@@ -611,7 +611,7 @@ _z_oom on node
 
 ;; (require 'setup-erc)
 ;; (require 'setup-twitter)
-;; (require 'setup-ai)
+(require 'setup-ai)
 ;; (require 'setup-multiple-cursors)
 
 ;; Use emacs to edit textarea in Chrome

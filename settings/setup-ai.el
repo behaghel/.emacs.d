@@ -27,6 +27,7 @@
 ;; we recommend using use-package to organize your init.el
 (use-package codeium
   :straight '(:type git :host github :repo "Exafunction/codeium.el")
+  :disabled t
   :hook
   (prog-mode .
       (lambda ()
@@ -80,5 +81,22 @@
   (setq codeium/document/text 'my-codeium/document/text)
   (setq codeium/document/cursor_offset 'my-codeium/document/cursor_offset))
 
+(use-package org-ai
+ :straight '(:type git :host github :repo "rksm/org-ai"
+                   :local-repo "org-ai"
+                   :files ("*.el" "README.md" "snippets"))
+ :commands (org-ai-mode org-ai-global-mode)
+ :init
+ (add-hook 'org-mode-hook #'org-ai-mode)
+ (setq org-ai-openai-api-token nil)
+ )
+(use-package whisper
+  :straight '(:type git :host github :repo "natrys/whisper.el")
+  :config
+  (setq whisper-install-directory "/tmp/"
+        whisper-model "base"
+        whisper-language "en"
+        whisper-translate nil
+        whisper-use-threads (/ (num-processors) 2)))
 (provide 'setup-ai)
 ;;; setup-ai.el ends here
