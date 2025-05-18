@@ -79,6 +79,7 @@ where Mu4e may live in different locations."
   :custom   (mu4e-mu-binary (or hub/mu-binary "mu"))
   ;; :disabled t
   :ensure nil
+  :straight nil
   ;; :pin manual
   :config
   (evil-collection-define-key 'normal 'mu4e-main-mode-map
