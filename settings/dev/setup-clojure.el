@@ -56,9 +56,7 @@ opening 4clojure questions"
         (beginning-of-line)
         ;; Check the answer.
         (cl-letf ((answer
-                   (buffer-substring (point) (point-max)))
-                  ;; Preserve buffer contents, in case you failed.
-                  ((buffer-string)))
+                   (buffer-substring (point) (point-max))))
           (goto-char (point-min))
           (while (search-forward "__" nil t)
             (replace-match answer))

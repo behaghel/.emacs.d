@@ -27,7 +27,7 @@
 (setq mail-user-agent 'mu4e-user-agent)
 
 (defun make-tmp-file-browsable ()
-"Allow temporary files to be accessed by the browser.
+  "Allow temporary files to be accessed by the browser.
 On crostini (chromebook) /tmp isn't visible to Chrome breaking
 most org export / preview in the browser."
   (interactive)
@@ -68,19 +68,9 @@ where Mu4e may live in different locations."
 ;; that way mu build put all the mu4e elisp files in my load-path on
 ;; `make install' step
 (use-package mu4e
-  ;;; :straight (:host github
-  ;;;            :repo "djcb/mu"
-  ;;;            :branch "master"
-  ;;;            :files ("mu4e/*")
-  ;;;            :pre-build (("./autogen.sh" "-Dguile=disabled") ("make")))
-  ;;; :custom   (mu4e-mu-binary (expand-file-name "build/mu/mu" (straight--repos-dir "mu")))
   :init (unless hub/mu-binary
           (message "mu binary not found; mu4e may not be available"))
   :custom   (mu4e-mu-binary (or hub/mu-binary "mu"))
-  ;; :disabled t
-  :ensure nil
-  :straight nil
-  ;; :pin manual
   :config
   (evil-collection-define-key 'normal 'mu4e-main-mode-map
     "ê" 'mu4e-headers-search
@@ -323,118 +313,118 @@ point then copy the URL of the image under point instead."
   ;; https://emacs.stackexchange.com/questions/51999/muting-threads-in-mu4e
   ;; and also https://www.reddit.com/r/emacs/comments/eu7xxy/mu4e_empty_trash_folder_in_regular_intervals/
   (setq hub/noise-predicates
-    '(
-      ;; You could try to automatically process cancellations. Outlook
-      ;; then starts the subject with "Cancelled"
-      ( :name "Calendar Notifications"
-              :query "mime:text/calendar")
+        '(
+          ;; You could try to automatically process cancellations. Outlook
+          ;; then starts the subject with "Cancelled"
+          ( :name "Calendar Notifications"
+            :query "mime:text/calendar")
 
-      ;; GMail
+          ;; GMail
       ;;; Notifications (it's ok if not read)
-      ( :name "Qustodio Notifications"
-              :query "from:no-reply@qustodio.com")
-      ( :name "Strava Notifications"
-              :query "from:no-reply@strava.com"
-              :category "cycling")
-      ( :name "Ebay Confirmations"
-              :query "from:ebay@ebay.co.uk OR from:ebay@ebay.com"
-              :category "shopping")
-      ( :name "Amazon Confirmations"
-              :query "from:auto-confirm@amazon.co.uk"
-              :category "shopping")
-      ( :name "Amazon Updates"
-              :query "from:no-reply@amazon.co.uk"
-              :category "shopping")
-      ( :name "Amazon Shipment"
-              :query "from:shipment-tracking@amazon.co.uk"
-              :category "shopping")
-      ( :name "Amazon Order Updates"
-              :query "from:order-update@amazon.co.uk"
-              :category "shopping")
-      ( :name "Enterprise Rent-a-car"
-              :query "list:10780075.xt.local")
-      ( :name "Charles Stanley Direct Contract Notes"
-              :query "from:info@charles-stanley-direct.co.uk AND subject:\"Contract Note\"")
-      ( :name "Proactive Investor Alerts"
-              :query "from:noreply@proactiveinvestors.com")
-      ( :name "HP Instant Ink"
-              :query "from:HP@email.hpconnected.com")
-      ( :name "ParuVendu"
-              :query "from:info@paruvendu.fr")
-      ( :name "Dropbox"
-              :query "from:no-reply@dropbox.com")
-      ( :name "Ocado Confirmation"
-              :query "from:customerservices@ocado.com AND subject:\"Confirmation of your order\"")
-      ( :name "Netflix"
-              :query "from:info@mailer.netflix.com")
-      ( :name "Analyzati code"
-              :query "from:hello@analyzati.com AND subject:\"Security code - Analyzati\"")
-      ( :name "idealista"
-        :query "from:noresponder@idealista.com OR from:noresponder@avisos.idealista.com")
-      ( :name "CosmoCaixa"
-        :query "from:info@news.cosmocaixa.org")
+          ( :name "Qustodio Notifications"
+            :query "from:no-reply@qustodio.com")
+          ( :name "Strava Notifications"
+            :query "from:no-reply@strava.com"
+            :category "cycling")
+          ( :name "Ebay Confirmations"
+            :query "from:ebay@ebay.co.uk OR from:ebay@ebay.com"
+            :category "shopping")
+          ( :name "Amazon Confirmations"
+            :query "from:auto-confirm@amazon.co.uk"
+            :category "shopping")
+          ( :name "Amazon Updates"
+            :query "from:no-reply@amazon.co.uk"
+            :category "shopping")
+          ( :name "Amazon Shipment"
+            :query "from:shipment-tracking@amazon.co.uk"
+            :category "shopping")
+          ( :name "Amazon Order Updates"
+            :query "from:order-update@amazon.co.uk"
+            :category "shopping")
+          ( :name "Enterprise Rent-a-car"
+            :query "list:10780075.xt.local")
+          ( :name "Charles Stanley Direct Contract Notes"
+            :query "from:info@charles-stanley-direct.co.uk AND subject:\"Contract Note\"")
+          ( :name "Proactive Investor Alerts"
+            :query "from:noreply@proactiveinvestors.com")
+          ( :name "HP Instant Ink"
+            :query "from:HP@email.hpconnected.com")
+          ( :name "ParuVendu"
+            :query "from:info@paruvendu.fr")
+          ( :name "Dropbox"
+            :query "from:no-reply@dropbox.com")
+          ( :name "Ocado Confirmation"
+            :query "from:customerservices@ocado.com AND subject:\"Confirmation of your order\"")
+          ( :name "Netflix"
+            :query "from:info@mailer.netflix.com")
+          ( :name "Analyzati code"
+            :query "from:hello@analyzati.com AND subject:\"Security code - Analyzati\"")
+          ( :name "idealista"
+            :query "from:noresponder@idealista.com OR from:noresponder@avisos.idealista.com")
+          ( :name "CosmoCaixa"
+            :query "from:info@news.cosmocaixa.org")
 
-      ( :name "Amazon Orders"
-        :query "from:confirmar-envio@amazon.es")
-      ( :name "Amazon Kindle Orders"
-        :query "from:digital-no-reply@amazon.es")
+          ( :name "Amazon Orders"
+            :query "from:confirmar-envio@amazon.es")
+          ( :name "Amazon Kindle Orders"
+            :query "from:digital-no-reply@amazon.es")
 
-      ( :name "FreeNow"
-        :query "from:no-reply@free-now.com")
-      ( :name "NAGA"
-        :query "from:noreply@nagamarkets.com")
-      ( :name "Otta"
-        :query "from:hello@otta.com")
-      ( :name "OCU"
-             :query "from:noreply@notify.ocu.org")
-      ( :name "OCU Mailing Lists"
-             :query "from:maillist@emailing.ocu.org")
+          ( :name "FreeNow"
+            :query "from:no-reply@free-now.com")
+          ( :name "NAGA"
+            :query "from:noreply@nagamarkets.com")
+          ( :name "Otta"
+            :query "from:hello@otta.com")
+          ( :name "OCU"
+            :query "from:noreply@notify.ocu.org")
+          ( :name "OCU Mailing Lists"
+            :query "from:maillist@emailing.ocu.org")
 
-      (:name "BBVA"
-             :query "from:bbva@comunica.bbva.com")
-      (:name "mediolanum"
-             :query "from:bancomediolanum@bancomediolanum.es")
-      ( :name "Analyzati"
-             :query "from:hello@analyzati.com")
-      ( :name "Property Search"
-             :query "subject:/^Your Property Search/")
-      ( :name "LinkedIn Job Alerts"
-        :query "from:jobalerts-noreply@linkedin.com")
-      ( :name "LinkedIn Newsletters"
-        :query "from:newsletters-noreply@linkedin.com")
+          (:name "BBVA"
+                 :query "from:bbva@comunica.bbva.com")
+          (:name "mediolanum"
+                 :query "from:bancomediolanum@bancomediolanum.es")
+          ( :name "Analyzati"
+            :query "from:hello@analyzati.com")
+          ( :name "Property Search"
+            :query "subject:/^Your Property Search/")
+          ( :name "LinkedIn Job Alerts"
+            :query "from:jobalerts-noreply@linkedin.com")
+          ( :name "LinkedIn Newsletters"
+            :query "from:newsletters-noreply@linkedin.com")
 
 
 
-      ;; Newsletter
-      ( :name "Mu"
-              :query "list:mu-discuss.googlegroups.com"
-              :category "tech")
-      ;; Finance
-      ( :name "Money Saving Expert - Cheap Energy Club"
-              :query "list:1081285.xt.local"
-              :category "finance")
-      ( :name "Bulb"
-              :query "from:hello@bulb.co.uk"
-              :category "finance")
-      ( :name "HSBC"
-              :query "from:statements@email1.hsbc.co.uk"
-              :category "finance")
-      ( :name "Hargreaves Lansdown"
-              :query "from:hl@email.hl.co.uk"
-              :category "finance")
-      ( :name "Boursorama"
-              :query "from:noreply@boursorama.fr OR from:noreply@client.boursorama.fr"
-              :category "finance")
-      ( :name "L&C Mortgage"
-              :query "list:500008880.xt.local"
-              :category "finance")
-      ( :name "Charles Stanley Direct Newsletter"
-              :query "from:info@cs-d.co.uk OR from:\"Charles Stanley Direct\""
-              :category "finance")
-      ( :name "Rightmove"
-              :query "from:autoresponder@rightmove.com"
-              :category "finance")
-      ))
+          ;; Newsletter
+          ( :name "Mu"
+            :query "list:mu-discuss.googlegroups.com"
+            :category "tech")
+          ;; Finance
+          ( :name "Money Saving Expert - Cheap Energy Club"
+            :query "list:1081285.xt.local"
+            :category "finance")
+          ( :name "Bulb"
+            :query "from:hello@bulb.co.uk"
+            :category "finance")
+          ( :name "HSBC"
+            :query "from:statements@email1.hsbc.co.uk"
+            :category "finance")
+          ( :name "Hargreaves Lansdown"
+            :query "from:hl@email.hl.co.uk"
+            :category "finance")
+          ( :name "Boursorama"
+            :query "from:noreply@boursorama.fr OR from:noreply@client.boursorama.fr"
+            :category "finance")
+          ( :name "L&C Mortgage"
+            :query "list:500008880.xt.local"
+            :category "finance")
+          ( :name "Charles Stanley Direct Newsletter"
+            :query "from:info@cs-d.co.uk OR from:\"Charles Stanley Direct\""
+            :category "finance")
+          ( :name "Rightmove"
+            :query "from:autoresponder@rightmove.com"
+            :category "finance")
+          ))
   (defun hub/build-noise-query ()
     (let* (
            (lplist hub/noise-predicates)
@@ -461,9 +451,9 @@ point then copy the URL of the image under point instead."
   (add-to-list 'mu4e-bookmarks
                ;; add bookmark for recent messages on the Mu mailing list.
                `( :name "Noise"
-                        :key  ?n
-                        :query ,(concat "maildir:/inbox/" " AND ("
-                                        (hub/build-noise-query) ")")))
+                  :key  ?n
+                  :query ,(concat "maildir:/inbox/" " AND ("
+                                  (hub/build-noise-query) ")")))
 
   ;; To delete all meeting notifications or updates
   ;; 1. call M-x mu4e-headers-toggle-full-search to not limit search to
@@ -511,12 +501,12 @@ point then copy the URL of the image under point instead."
   ;; These are the defaults:
   (setq mu4e-headers-fields
         '(
-           (:thread-subject . 42)
-           (:from-or-to     . 22)
-           (:date           . 15)    ;; alternatively, use :human-date
-           (:flags          . 6)
-           (:maildir        . 15)
-           ))
+          (:thread-subject . 42)
+          (:from-or-to     . 22)
+          (:date           . 15)    ;; alternatively, use :human-date
+          (:flags          . 6)
+          (:maildir        . 15)
+          ))
   (setq
    mu4e-headers-date-format "%F"     ; ISO format yyyy-mm-dd
    )
@@ -539,8 +529,8 @@ point then copy the URL of the image under point instead."
         shr-color-visible-luminance-min 80)
   ;; prefer the plain text version when available in gnus view
   (with-eval-after-load "mm-decode"
-   (add-to-list 'mm-discouraged-alternatives "text/html")
-   (add-to-list 'mm-discouraged-alternatives "text/richtext"))
+    (add-to-list 'mm-discouraged-alternatives "text/html")
+    (add-to-list 'mm-discouraged-alternatives "text/richtext"))
   ;; TODO: need to figure how to switch / toggle to HTML part
   ;; mu4e-view-toggle-html isn't supported in gnus view
   ;; to get gpg signature verified and buttonised
@@ -781,7 +771,7 @@ Hubert
   (org-msg-mode))
 
 (use-package mu4e-alert
-  ; it's now something I see on my desktop
+                                        ; it's now something I see on my desktop
   :disabled t
 
   :after (mu4e)
@@ -801,6 +791,7 @@ Hubert
 (use-package mu4e-dashboard
   :straight (mu4e-dashboard :type git :host github :repo "rougier/mu4e-dashboard")
   :custom (mu4e-dashboard-file "~/.emacs.d/settings/mail-sidebar.org")
+  :after mu4e
   :config
   ;; (defun open-mail-sidebar (&optional args) (find-file "~/.emacs.d/settings/mail-sidebar.org"))
   (defun mu4e-dashboard-hook ()

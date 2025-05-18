@@ -69,7 +69,7 @@
       ;; breaks org even when selectively depth set to full
       ;; straight-vc-git-default-clone-depth 1
       )
-
+(use-package diminish)
 (straight-use-package 'use-package)
 
 (setq use-package-verbose t
@@ -265,8 +265,8 @@
 (require 'setup-brain)
 (require 'setup-private nil t)
 
-(use-package use-package-ensure-system-package
-  :ensure t)
+;; (use-package use-package-ensure-system-package
+;;   :ensure t)
 
 ;; APPS
 ;; (require 'setup-erc)

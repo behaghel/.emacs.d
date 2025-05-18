@@ -90,9 +90,10 @@
 ;;   ;; (ggtags-mode nil)
 
 
-  (if (executable-find "eslint_d")
-      (setq flycheck-javascript-eslint-executable "eslint_d")
-    (warn "emacs-js: You might want to install eslint_d: sudo npm install -g eslint_d."))
+(when (executable-find "eslint_d")
+  (setq flycheck-javascript-eslint-executable "eslint_d")
+  ;; (warn "emacs-js: You might want to install eslint_d: sudo npm install -g eslint_d.")
+  )
 
 ;;   (add-hook 'js2-mode-hook 'turn-off-auto-fill)
 

@@ -2,19 +2,19 @@
   :config
 
   (evil-global-set-key 'normal
-    ",no"   #'denote-open-or-create)
+                       ",no"   #'denote-open-or-create)
   (evil-global-set-key 'normal
-    ",nn"   #'denote)
+                       ",nn"   #'denote)
   (evil-global-set-key 'normal
-    ",nt"   #'denote-type)
+                       ",nt"   #'denote-type)
   (evil-global-set-key 'normal
-    ",nd"   #'denote-date)
+                       ",nd"   #'denote-date)
   (evil-global-set-key 'normal
-    ",ns"   #'denote-subdirectory)
+                       ",ns"   #'denote-subdirectory)
   (evil-global-set-key 'normal
-    ",nt"   #'denote-template)
+                       ",nt"   #'denote-template)
   (evil-global-set-key 'normal
-    ",nr"   #'denote-rename-file)
+                       ",nr"   #'denote-rename-file)
 
   (evil-collection-define-key 'normal 'org-mode-map
     ",nl"   #'denote-link-or-create     ; insert a link
@@ -37,14 +37,13 @@
   ;; (setq denote-file-type nil) ; Org is the default, set others here
   (setq denote-prompts '(title keywords))
   (setq denote-excluded-directories-regexp nil)
+  (setq denote-rename-confirmations '(rewrite-front-matter modify-file-name))
 
   ;; Pick dates, where relevant, with Org's advanced interface:
   (setq denote-date-prompt-use-org-read-date t)
 
-
   ;; Read this manual for how to specify `denote-templates'.  We do not
   ;; include an example here to avoid potential confusion.
-
 
   ;; We allow multi-word keywords by default.  The author's personal
   ;; preference is for single-word keywords for a more rigid workflow.
@@ -61,9 +60,9 @@
 
   ;; If you use Markdown or plain text files (Org renders links as buttons
   ;; right away)
-  (add-hook 'find-file-hook #'denote-link-buttonize-buffer)
+  (add-hook 'text-mode-hook #'denote-fontify-links-mode-maybe)
 
-  ; fontify file name fragments in Dired
+  ;; fontify file name fragments in Dired
   ;; We use different ways to specify a path for demo purposes.
   (setq denote-dired-directories
         (list denote-directory

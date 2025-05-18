@@ -36,13 +36,13 @@
   (defun elfeed-display-buffer (buf &optional act)
     (pop-to-buffer buf)
     (set-window-text-height (get-buffer-window) (round (* 0.7 (frame-height))))
-                   ;; '(
-                   ;;   (display-buffer-at-bottom)
-                   ;;   (inhibit-same-window . nil)
-                   ;;       (window-height . 0.8)
-                   ;;       ;; (reusable-frames . nil)
-                   ;;       )
-                   ;; )
+    ;; '(
+    ;;   (display-buffer-at-bottom)
+    ;;   (inhibit-same-window . nil)
+    ;;       (window-height . 0.8)
+    ;;       ;; (reusable-frames . nil)
+    ;;       )
+    ;; )
     )
   (defun elfeed-show-eww-open (&optional use-generic-p)
     "open with eww"
@@ -61,28 +61,28 @@
     (kbd "C-s") 'elfeed-show-prev
     "B" 'elfeed-show-eww-open
     "q" 'delete-window
-  )
+    )
   (evil-collection-define-key 'normal 'elfeed-search-mode-map
     "U" 'elfeed-update
     "à" 'elfeed-search-untag-all-unread
     "b" 'elfeed-search-browse-url
     "B" 'elfeed-search-eww-open
+    )
   )
-  )
-(use-package elfeed-web
-  :commands (elfeed-web-start)
-  :config
-  ;; on chromebook you also need a forward rule e.g. using this add-on
-  ;; https://chrome.google.com/webstore/detail/connection-forwarder/ahaijnonphgkgnkbklchdhclailflinn/related
-  (setq httpd-host "0.0.0.0")
-  (setq httpd-port 9000)
-  (elfeed-web-start))
-(use-package elfeed-org
-  :straight (:depth full)              ; otherwise org-version breaks
-  :commands (elfeed)
-  :after (elfeed)
-  :config
-  (elfeed-org))
+;; (use-package elfeed-web
+;;   :commands (elfeed-web-start)
+;;   :config
+;;   ;; on chromebook you also need a forward rule e.g. using this add-on
+;;   ;; https://chrome.google.com/webstore/detail/connection-forwarder/ahaijnonphgkgnkbklchdhclailflinn/related
+;;   (setq httpd-host "0.0.0.0")
+;;   (setq httpd-port 9000)
+;;   (elfeed-web-start))
+;; (use-package elfeed-org
+;;   :straight (:depth full)              ; otherwise org-version breaks
+;;   :commands (elfeed)
+;;   :after (elfeed)
+;;   :config
+;;   (elfeed-org))
 
 (use-package emms
   :commands (emms)

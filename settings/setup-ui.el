@@ -40,9 +40,6 @@
                    (abbreviate-file-name (buffer-file-name))
                  "%b"))))
 
-(use-package diminish)
-
-;; treat every read-only buffer as a pager
 ;; navigation: SPC, delete, d, u, etc.
 (setq view-read-only t)
 ;; you can switch any buffer to read-only with C-x C-q

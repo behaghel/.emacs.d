@@ -137,14 +137,22 @@
 
   ;; Prefix the current candidate with “» ”. From
   ;; https://github.com/minad/vertico/wiki#prefix-current-candidate-with-arrow
-  (advice-add #'vertico--format-candidate :around
-              (lambda (orig cand prefix suffix index _start)
-                (setq cand (funcall orig cand prefix suffix index _start))
-                (concat
-                 (if (= vertico--index index)
-                     (propertize "» " 'face 'vertico-current)
-                   "  ")
-                 cand)))
+  (defvar +vertico-current-arrow t)
+
+  (cl-defmethod vertico--format-candidate :around
+    (cand prefix suffix index start &context ((and +vertico-current-arrow
+                                                   (not (bound-and-true-p vertico-flat-mode)))
+                                              (eql t)))
+    (setq cand (cl-call-next-method cand prefix suffix index start))
+    (if (bound-and-true-p vertico-grid-mode)
+        (if (= vertico--index index)
+            (concat #("▶" 0 1 (face vertico-current)) cand)
+          (concat #("_" 0 1 (display " ")) cand))
+      (if (= vertico--index index)
+          (concat
+           #(" " 0 1 (display (left-fringe right-triangle vertico-current)))
+           cand)
+        cand)))
   )
 
 ;; Persist history over Emacs restarts. Vertico sorts by history position.
@@ -192,11 +200,11 @@ the first word of the candidate.  If ANCHORED is `both' require
 that the first and last initials appear in the first and last
 words of the candidate, respectively."
     (orderless--separated-by
-     '(seq (zero-or-more alpha) word-end (zero-or-more (not alpha)))
-     (cl-loop for char across component collect `(seq word-start ,char))
-     (when anchored '(seq (group buffer-start) (zero-or-more (not alpha))))
-     (when (eq anchored 'both)
-       '(seq (zero-or-more alpha) word-end (zero-or-more (not alpha)) eol))))
+        '(seq (zero-or-more alpha) word-end (zero-or-more (not alpha)))
+      (cl-loop for char across component collect `(seq word-start ,char))
+      (when anchored '(seq (group buffer-start) (zero-or-more (not alpha))))
+      (when (eq anchored 'both)
+        '(seq (zero-or-more alpha) word-end (zero-or-more (not alpha)) eol))))
 
   (defun orderless-strict-initialism (component)
     "Match a COMPONENT as a strict initialism.
