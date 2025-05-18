@@ -104,7 +104,7 @@
    org-cite-csl-styles-dir "~/Zotero/styles")
   (setq org-cite-export-processors
         '((md . (csl "chicago-fullnote-bibliography.csl"))   ; Footnote reliant
-          (latex . biblatex)                                 ; For humanities
+          (latex biblatex)                                 ; For humanities
           (odt . (csl "chicago-fullnote-bibliography.csl"))  ; Footnote reliant
           (html . (csl "chicago-fullnote-bibliography.csl"))  ; Footnote reliant
           (t . (csl "modern-language-association.csl"))      ; Fallback
