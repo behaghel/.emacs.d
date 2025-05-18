@@ -2,6 +2,11 @@
 (use-package typescript-mode
   :after tree-sitter
   :config
+  ;; Ensure tree-sitter based TypeScript mode is loaded so that its
+  ;; keymap exists when deriving new modes.  Without this `define-derived-mode'
+  ;; would fail with "Wrong type argument: keymapp, nil" when it tries to copy
+  ;; `typescript-ts-mode-map'.
+  (require 'typescript-ts-mode)
   ;; we choose this instead of tsx-mode so that eglot can automatically figure out language for server
   ;; see https://github.com/joaotavora/eglot/issues/624 and https://github.com/joaotavora/eglot#handling-quirky-servers
   (define-derived-mode typescriptreact-mode typescript-mode
