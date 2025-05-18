@@ -1,0 +1,23 @@
+name: Emacs configuration test
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+
+jobs:
+  load-config:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      - name: Install Emacs
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y emacs-nox
+
+      - name: Load init file
+        run: |
+          export HOME=$GITHUB_WORKSPACE
+          emacs --batch -l init.el --eval '(message "Loaded init.el")' --kill
