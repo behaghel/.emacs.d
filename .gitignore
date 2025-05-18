@@ -60,3 +60,7 @@ bookmarks
 /eln-cache/
 /session.*
 /tree-sitter/
+
+# Nix
+result/
+.direnv/
