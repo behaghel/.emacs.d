@@ -155,8 +155,8 @@
                                 (1 . (variable-pitch extrabold 1.15))
                                 (2 . (variable-pitch 1.1))
                                 (3 . (variable-pitch semibold 1.05))
-                                (4 . (1))
-                                (5 . (0.9))
+                                (4 . (variable-pitch 1))
+                                (5 . (variable-pitch 0.9))
                                 (agenda-date . (0.8))
                                 (agenda-structure . (variable-pitch light 1))
                                 (t . (1))
@@ -207,7 +207,7 @@
     (let ((recent-notes (seq-sort-by
                          #'file-name-nondirectory
                          (lambda (x y) (string-lessp y x))
-                         (denote-directory-text-only-files))))
+                         (denote-directory-files))))
       (insert (all-the-icons-octicon "repo" :height 1.2 :v-adjust 0.0 :face 'dashboard-heading))
       (dashboard-insert-section "Recent Notes:"
                                 recent-notes
@@ -220,10 +220,8 @@
   (add-to-list 'dashboard-item-generators  '(denote . dashboard-insert-denote))
   )
 
-https://github.com/be5invis/Iosevka
-https://protesilaos.com/codelog/2020-09-05-emacs-note-mixed-font-heights/
-(set-face-attribute 'default nil :family "Hasklug Nerd Font Mono" :height 180)
-(set-face-attribute 'fixed-pitch nil :family "Hasklug Nerd Font Mono" :height 1.0)
+(set-face-attribute 'default nil :family "Ubuntu Mono" :height 180)
+(set-face-attribute 'fixed-pitch nil :family "Ubuntu Mono" :height 1.0)
 (set-face-attribute 'variable-pitch nil :family "ETBembo" :height 1.0)
 ;; (set-face-attribute 'variable-pitch nil :family "FiraGO")
 
