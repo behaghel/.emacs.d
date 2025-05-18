@@ -27,11 +27,17 @@
 ;;
 ;;; Code:
 
+;; Ensure `user-emacs-directory' is the directory of this file when running in
+;; environments such as GitHub actions where HOME might not point to the
+;; repository root.
+(setq user-emacs-directory
+      (file-name-directory (or load-file-name buffer-file-name)))
+
 ;; On Windows: set HOME environment variable and put .emacs.d in there!
 
 (defvar native-comp-deferred-compilation-deny-list nil)
 ;; to stop M-x customize to pollute my init.el: http://emacsblog.org/2008/12/06/quick-tip-detaching-the-custom-file/
-(setq custom-file "~/.emacs.d/custom.el")
+(setq custom-file (expand-file-name "custom.el" user-emacs-directory))
 (load custom-file 'noerror)
 
 (setq hub-lisp-dir (expand-file-name "lisp" user-emacs-directory))

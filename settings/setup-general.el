@@ -54,6 +54,7 @@
 
 
 (use-package exec-path-from-shell
+  :if (display-graphic-p)
   :config
   ;; remove -1 from default value
   ;; this implies PATH and key environment variables are set through
