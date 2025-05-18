@@ -40,6 +40,8 @@
                    (abbreviate-file-name (buffer-file-name))
                  "%b"))))
 
+(use-package diminish)
+
 ;; treat every read-only buffer as a pager
 ;; navigation: SPC, delete, d, u, etc.
 (setq view-read-only t)
@@ -59,7 +61,7 @@
 
 ;; remember last position last time file was edited
 (save-place-mode 1)
-; try to stabilize windows and buffers positions
+                                        ; try to stabilize windows and buffers positions
 (setq switch-to-buffer-preserve-window-point 'already-displayed
       switch-to-visible-buffer nil)
 (setq fit-window-to-buffer-horizontally t)
