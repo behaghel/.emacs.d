@@ -209,3 +209,8 @@ Selection:
 mu4e-attachments-dir "~/Downloads"
 Comment:
 has been really useful in setting up emails in my Emacs
+* Development
+This repository provides a Nix flake for a reproducible development environment.
+Run `nix develop` to enter a shell with Emacs and Git configured to use
+`.githooks`.  The post-commit hook formats changed Emacs Lisp files and
+reports style issues detected by `checkdoc`.
