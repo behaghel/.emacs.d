@@ -33,9 +33,33 @@ most org export / preview in the browser."
   (interactive)
   (setq-local temporary-file-directory "~/tmp"))
 
-;; where brew install mu puts it
-(when (eq system-type 'darwin)
-  (add-to-list 'load-path "/usr/local/share/emacs/site-lisp/mu/mu4e"))
+;; --------------------------------------------------------------------------
+;; Mu4e setup helpers
+;; --------------------------------------------------------------------------
+(require 'cl-lib)
+
+(defun hub/add-mu4e-load-path ()
+  "Locate Mu4e and add its lisp directory to `load-path'.
+Return the path to the `mu' binary when found.  This makes the
+configuration resilient across macOS, Linux and NixOS installs
+where Mu4e may live in different locations."
+  (let* ((mu-bin (executable-find "mu"))
+         (prefix (when mu-bin (expand-file-name ".." (file-name-directory mu-bin))))
+         (candidates (list
+                      (when prefix (expand-file-name "share/emacs/site-lisp/mu/mu4e" prefix))
+                      (when prefix (expand-file-name "share/emacs/site-lisp/mu4e" prefix))
+                      "/usr/local/share/emacs/site-lisp/mu/mu4e"
+                      "/usr/local/share/emacs/site-lisp/mu4e"
+                      "/usr/share/emacs/site-lisp/mu/mu4e"
+                      "/usr/share/emacs/site-lisp/mu4e")))
+    (cl-loop for dir in candidates do
+             (when (and dir (file-directory-p dir))
+               (add-to-list 'load-path dir)
+               (cl-return)))
+    mu-bin))
+
+(defvar hub/mu-binary (hub/add-mu4e-load-path)
+  "Location of the `mu' binary if available.")
 
 ;; https://www.djcbsoftware.nl/code/mu/mu4e/Installation.html#Installation
 ;; mu4e is part of the mu project, a UNIX CLI therefore not on MELPA
@@ -50,9 +74,9 @@ most org export / preview in the browser."
   ;;;            :files ("mu4e/*")
   ;;;            :pre-build (("./autogen.sh" "-Dguile=disabled") ("make")))
   ;;; :custom   (mu4e-mu-binary (expand-file-name "build/mu/mu" (straight--repos-dir "mu")))
-  :load-path "~/.local/share/emacs/site-lisp"
-  :straight (:files ("~/.local/share/emacs/site-lisp/mu4e/*") :pre-build ())
-  :custom   (mu4e-mu-binary "~/.nix-profile/bin/mu")
+  :init (unless hub/mu-binary
+          (message "mu binary not found; mu4e may not be available"))
+  :custom   (mu4e-mu-binary (or hub/mu-binary "mu"))
   ;; :disabled t
   :ensure nil
   ;; :pin manual
