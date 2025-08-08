@@ -162,6 +162,7 @@ _z_oom on node
 (use-package treesit
   :straight (:type built-in)
   :config
+  (evil-normalize-keymaps)
   (setq treesit-language-source-alist
         '((bash "https://github.com/tree-sitter/tree-sitter-bash")
           (cmake "https://github.com/uyha/tree-sitter-cmake")
