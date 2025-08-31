@@ -68,6 +68,7 @@ where Mu4e may live in different locations."
 ;; that way mu build put all the mu4e elisp files in my load-path on
 ;; `make install' step
 (use-package mu4e
+  :straight (:type built-in)
   :init (unless hub/mu-binary
           (message "mu binary not found; mu4e may not be available"))
   :custom   (mu4e-mu-binary (or hub/mu-binary "mu"))
