@@ -69,12 +69,17 @@
       ;; breaks org even when selectively depth set to full
       ;; straight-vc-git-default-clone-depth 1
       )
-(use-package diminish)
 (straight-use-package 'use-package)
+(require 'use-package)
+(require 'use-package-ensure)
+(require 'use-package-delight)
+(require 'use-package-diminish)
 
 (setq use-package-verbose t
       use-package-always-defer nil
       use-package-always-ensure nil)
+
+(use-package diminish)
 
 (require 'auth-source-pass)
 (auth-source-pass-enable)
