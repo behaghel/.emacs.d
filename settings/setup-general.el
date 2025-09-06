@@ -23,7 +23,7 @@
 ;; Where I put better defauls and general config for my Emacs
 
 ;;; Code:
-; stop cluttering my fs with #file.ext#
+					; stop cluttering my fs with #file.ext#
 (setq backup-directory-alist `((".*" . ,temporary-file-directory))
       auto-save-file-name-transforms
       `((".*" ,(concat user-emacs-directory "backups") t)))
@@ -37,7 +37,7 @@
 (setq native-comp-async-report-warnings-errors 'silent)
 (setq native-compile-prune-cache t)
 
-; Mac
+					; Mac
 ;; Are we on a mac? Thanks @magnars
 (setq is-mac (equal system-type 'darwin))
 (setq mac-command-key-is-meta t)
@@ -45,12 +45,12 @@
 (setq mac-option-key-is-meta nil)
 (setq mac-option-modifier nil)
 (setq ns-use-srgb-colorspace t)
-; tweaking to get my proper setup
-; OSX
-; * iTerm2
-; Preferences > Keys (tab) > Remap Left Command to Left Option
-; Preferences > Profile > Left Option: Meta + Esc
-; * Numpad (for calc): remap keypad-dot to Option+Shift+Keypad-dot
+					; tweaking to get my proper setup
+					; OSX
+					; * iTerm2
+					; Preferences > Keys (tab) > Remap Left Command to Left Option
+					; Preferences > Profile > Left Option: Meta + Esc
+					; * Numpad (for calc): remap keypad-dot to Option+Shift+Keypad-dot
 
 
 (use-package exec-path-from-shell

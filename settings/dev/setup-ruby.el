@@ -1,4 +1,4 @@
-; Ruby
+					; Ruby
 (use-package inf-ruby
   :commands (ruby-mode)
   :config
@@ -36,8 +36,8 @@
       "Run example at point or spec related to method at point."
       (interactive)
       (if (rspec-buffer-is-spec-p)
-          (rspec-verify-single)
-        (rspec-verify-method)))
+	  (rspec-verify-single)
+	(rspec-verify-method)))
     (evil-define-key 'normal ruby-mode-map ".tt" 'rspec-verify) ; run spec for file
     (evil-define-key 'normal ruby-mode-map ".tT" 'rspec-verify-matching)
     (evil-define-key 'normal ruby-mode-map ".tc" 'hub/rspec-verify-it)
@@ -55,8 +55,8 @@
   (add-hook 'after-init-hook 'inf-ruby-switch-setup)
   ;; When you've hit the breakpoint, hit C-x C-q to enable inf-ruby.
   (add-hook 'inf-ruby-mode-hook '(lambda ()
-                                   ;; turn off the annoying input echo in irb
-                                   (setq comint-process-echoes t)))
+				   ;; turn off the annoying input echo in irb
+				   (setq comint-process-echoes t)))
   ;; stolen from https://github.com/rejeep/ruby-tools.el/blob/master/ruby-tools.el
   (defun ruby-tools-looking-around (back at)
     "Check if looking backwards at BACK and forward at AT."
@@ -65,20 +65,20 @@
     "Interpolate with #{} in some places."
     (interactive)
     (if (and mark-active (equal (point) (region-end)))
-        (exchange-point-and-mark))
+	(exchange-point-and-mark))
     (insert "#")
     (when (or
-           (ruby-tools-looking-around "\"[^\"\n]*" "[^\"\n]*\"")
-           (ruby-tools-looking-around "`[^`\n]*"   "[^`\n]*`")
-           (ruby-tools-looking-around "%([^(\n]*"  "[^)\n]*)"))
+	   (ruby-tools-looking-around "\"[^\"\n]*" "[^\"\n]*\"")
+	   (ruby-tools-looking-around "`[^`\n]*"   "[^`\n]*`")
+	   (ruby-tools-looking-around "%([^(\n]*"  "[^)\n]*)"))
       (cond (mark-active
-             (goto-char (region-beginning))
-             (insert "{")
-             (goto-char (region-end))
-             (insert "}"))
-            (t
-             (insert "{}")
-             (forward-char -1)))))
+	     (goto-char (region-beginning))
+	     (insert "{")
+	     (goto-char (region-end))
+	     (insert "}"))
+	    (t
+	     (insert "{}")
+	     (forward-char -1)))))
   (defun hub-ruby-config ()
     "My Ruby config."
     (local-set-key (kbd "#") 'ruby-tools-interpolate)

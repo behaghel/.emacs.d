@@ -12,14 +12,14 @@
 (defun core/startup-maximize-gc-and-io ()
   "Loosen GC and disable file-name handlers for speed."
   (setq gc-cons-threshold most-positive-fixnum
-        gc-cons-percentage 0.6
-        file-name-handler-alist nil))
+	gc-cons-percentage 0.6
+	file-name-handler-alist nil))
 
 (defun core/startup-restore-gc-and-io ()
   "Restore GC and file-name handlers after init or heavy work."
   (setq gc-cons-threshold core/startup--saved-gc-cons-threshold
-        gc-cons-percentage core/startup--saved-gc-cons-percentage
-        file-name-handler-alist core/startup--saved-file-name-handler-alist))
+	gc-cons-percentage core/startup--saved-gc-cons-percentage
+	file-name-handler-alist core/startup--saved-file-name-handler-alist))
 
 (provide 'core-startup)
 ;;; startup.el ends here

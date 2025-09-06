@@ -19,17 +19,17 @@
   (define-key evil-normal-state-map (kbd ",ol") 'org-store-link)
   (define-key evil-normal-state-map (kbd ",oa") 'org-agenda)
   (evil-collection-define-key 'normal 'org-mode-map
-    ",or"   'org-babel-open-src-block-result
-    ",à"    'org-archive-subtree-default
-    ",s"    'outline-up-heading
-    ",t"    'outline-down-heading
-    "à"     'org-refile
-    (kbd ", SPC")   'hub/outline-focus-next-section
-    ;; chromebook remap alt + <up/down> to <prior/next>
-    (kbd "<next>")  'org-move-subtree-down
-    (kbd "<prior>") 'org-move-subtree-up
-    ",fn" 'org-footnote-new
-    )
+			      ",or"   'org-babel-open-src-block-result
+			      ",à"    'org-archive-subtree-default
+			      ",s"    'outline-up-heading
+			      ",t"    'outline-down-heading
+			      "à"     'org-refile
+			      (kbd ", SPC")   'hub/outline-focus-next-section
+			      ;; chromebook remap alt + <up/down> to <prior/next>
+			      (kbd "<next>")  'org-move-subtree-down
+			      (kbd "<prior>") 'org-move-subtree-up
+			      ",fn" 'org-footnote-new
+			      )
   (evil-define-key 'motion org-mode-map (kbd "RET") 'org-return)
   (evil-define-key 'motion calendar-mode-map (kbd "RET") 'org-calendar-select)
   (evil-define-key 'insert org-mode-map (kbd "M-RET") 'org-meta-return)
@@ -47,45 +47,45 @@
   ;; having (setq comment-auto-fill-only-comments t) means org-mode
   ;; doesn't get word-wrapping. Deactivating just for org-mode.
   (add-hook 'org-mode-hook
-            (lambda () (setq-local comment-auto-fill-only-comments nil)))
+	    (lambda () (setq-local comment-auto-fill-only-comments nil)))
 
   ;; org-capture && org-agenda
-                                        ; otherwise org-agenda destroys your layout
+					; otherwise org-agenda destroys your layout
   (setq org-agenda-window-setup 'other-window)
   (setq org-default-notes-file (concat org-directory "inbox.org"))
   ;; org-agenda-files should be a list of files and not a dir
   (setq org-agenda-files
-        (list
-         ;; (concat org-directory "typeform.org")
-         (concat org-directory "hubert.org")
-         (concat org-directory "inbox.org")
-         (concat org-directory "gcal-gmail.org")
-         ;; (concat org-directory "")
-         ))
+	(list
+	 ;; (concat org-directory "typeform.org")
+	 (concat org-directory "hubert.org")
+	 (concat org-directory "inbox.org")
+	 (concat org-directory "gcal-gmail.org")
+	 ;; (concat org-directory "")
+	 ))
   ;; org-protocol: capture outside of Emacs (mostly from browser)
   ;; (start-server) is managed by edit-server-mode in init.el
   (require 'org-protocol)
   (setq org-capture-templates
-        '(
-          ("i" "inbox" entry (file org-default-notes-file)
-           "* TODO %?" :prepend t)
-          ("f" "follow-up" entry (file org-default-notes-file)
-           "* TODO %? %a\n  %i" :prepend t)
-          ("r" "respond to email (mu4e)"
-           entry (file org-default-notes-file)
-           "* TODO REPLY to [[mailto:%:fromaddress][%:fromname]] on %a\nDEADLINE: %(org-insert-time-stamp (org-read-date nil t \"+1d\"))\n%U\n\n"
-           :immediate-finish t
-           :prepend t)
-          ("l" "link" entry (file+headline org-default-notes-file "Browsing")
-           "* TODO %(org-cliplink-capture)" :immediate-finish t :prepend t)
-          ("c" "org-protocol-capture" entry (file+headline org-default-notes-file "Browsing")
-           "* TODO [[%:link][%:description]]\n\n %i" :immediate-finish t :prepend t)
-          ("p" "Philosophy" entry (file "faith.org")
-           "* %?\nEntered on %U\n  %i\n  %a")
-          ("m" "Meeting Minutes" entry (file org-default-notes-file)
-           "* Meeting Minutes\n** Present at meeting\n- [X] Peter\n- [ ] Sarah - [X] Lucy\n ** Agenda\n- item 1\n- item 2\n- item 3\n** Notes\n*** Last meeting minutes are approved                              :decision:\n*** Discussion\n**** TODO Topic 1                                      :@Fred:\n**** TODO Topic 2                                    :@Sara:\n**** DONE Topic 2.1                                      :@Lucy:@Ted:\nDEADLINE: <2020-03-01 So>\n**** Another sub-topic                                    :decision:\n* Actions\n#+BEGIN: columnview :id global :match "/TODO|DONE" :format "%ITEM(What) %TAGS(Who) %DEADLINE(When) %TODO(State)"\n#+END:\n\n* Decisions\n#+BEGIN: columnview :id global :match "decision" :format "%ITEM(decisions)"\n#+END:"
-           :prepend t))
-        )
+	'(
+	  ("i" "inbox" entry (file org-default-notes-file)
+	   "* TODO %?" :prepend t)
+	  ("f" "follow-up" entry (file org-default-notes-file)
+	   "* TODO %? %a\n  %i" :prepend t)
+	  ("r" "respond to email (mu4e)"
+	   entry (file org-default-notes-file)
+	   "* TODO REPLY to [[mailto:%:fromaddress][%:fromname]] on %a\nDEADLINE: %(org-insert-time-stamp (org-read-date nil t \"+1d\"))\n%U\n\n"
+	   :immediate-finish t
+	   :prepend t)
+	  ("l" "link" entry (file+headline org-default-notes-file "Browsing")
+	   "* TODO %(org-cliplink-capture)" :immediate-finish t :prepend t)
+	  ("c" "org-protocol-capture" entry (file+headline org-default-notes-file "Browsing")
+	   "* TODO [[%:link][%:description]]\n\n %i" :immediate-finish t :prepend t)
+	  ("p" "Philosophy" entry (file "faith.org")
+	   "* %?\nEntered on %U\n  %i\n  %a")
+	  ("m" "Meeting Minutes" entry (file org-default-notes-file)
+	   "* Meeting Minutes\n** Present at meeting\n- [X] Peter\n- [ ] Sarah - [X] Lucy\n ** Agenda\n- item 1\n- item 2\n- item 3\n** Notes\n*** Last meeting minutes are approved                              :decision:\n*** Discussion\n**** TODO Topic 1                                      :@Fred:\n**** TODO Topic 2                                    :@Sara:\n**** DONE Topic 2.1                                      :@Lucy:@Ted:\nDEADLINE: <2020-03-01 So>\n**** Another sub-topic                                    :decision:\n* Actions\n#+BEGIN: columnview :id global :match "/TODO|DONE" :format "%ITEM(What) %TAGS(Who) %DEADLINE(When) %TODO(State)"\n#+END:\n\n* Decisions\n#+BEGIN: columnview :id global :match "decision" :format "%ITEM(decisions)"\n#+END:"
+	   :prepend t))
+	)
   (require 'setup-blog)
   ;; Note: setup-blog.el also injects a blog template on "b"
   (setq org-outline-path-complete-in-steps nil)      ; Refile in a single go
@@ -93,22 +93,22 @@
   (setq org-refile-allow-creating-parent-nodes 'confirm)
   (setq org-reverse-note-order t)       ; refile at the top / prepend
   (setq org-refile-targets '(("veriff.org" :maxlevel . 4)
-                             ("faith.org" :maxlevel . 2)
-                             ("hubert.org" :maxlevel . 2)
-                             ("family.org" :maxlevel . 2)
-                             ))
+			     ("faith.org" :maxlevel . 2)
+			     ("hubert.org" :maxlevel . 2)
+			     ("family.org" :maxlevel . 2)
+			     ))
   ;; stolen from https://kristofferbalintona.me/posts/202206141852/#understanding-org-cite-export-processors
   (setq org-cite-global-bibliography (list (concat org-directory "my.bib")))
   (setq
    org-cite-csl-locales-dir (expand-file-name "straight/repos/org/etc/csl" user-emacs-directory)
    org-cite-csl-styles-dir "~/Zotero/styles")
   (setq org-cite-export-processors
-        '((md . (csl "chicago-fullnote-bibliography.csl"))   ; Footnote reliant
-          (latex biblatex)                                 ; For humanities
-          (odt . (csl "chicago-fullnote-bibliography.csl"))  ; Footnote reliant
-          (html . (csl "chicago-fullnote-bibliography.csl"))  ; Footnote reliant
-          (t . (csl "modern-language-association.csl"))      ; Fallback
-          ))
+	'((md . (csl "chicago-fullnote-bibliography.csl"))   ; Footnote reliant
+	  (latex biblatex)                                 ; For humanities
+	  (odt . (csl "chicago-fullnote-bibliography.csl"))  ; Footnote reliant
+	  (html . (csl "chicago-fullnote-bibliography.csl"))  ; Footnote reliant
+	  (t . (csl "modern-language-association.csl"))      ; Fallback
+	  ))
   ;; consider me idle on my currently clocked-in task after 15 minutes
   ;; and ask me to resolve idle time when I am back
   (setq org-clock-idle-time 15)
@@ -127,10 +127,10 @@
 
   ;; src block indentation / editing / syntax highlighting
   (setq org-src-fontify-natively t
-        org-src-window-setup 'current-window ;; edit in current window
-        org-src-strip-leading-and-trailing-blank-lines t
-        org-src-preserve-indentation t ;; do not put two spaces on the left
-        org-src-tab-acts-natively t)
+	org-src-window-setup 'current-window ;; edit in current window
+	org-src-strip-leading-and-trailing-blank-lines t
+	org-src-preserve-indentation t ;; do not put two spaces on the left
+	org-src-tab-acts-natively t)
   (setq org-re-reveal-root (concat (getenv "HOME") "/Apps/reveal.js"))
   (setq org-plantuml-jar-path "~/install/plantuml.jar")
   (add-to-list 'org-src-lang-modes '("plantuml" . plantuml))
@@ -148,8 +148,8 @@
   ;; stolen from http://orgmode.org/worg/org-hacks.html
   ;; TODO: compare with elpa package org-wc
   (defun org-word-count (beg end
-                             &optional count-latex-macro-args?
-                             count-footnotes?)
+			     &optional count-latex-macro-args?
+			     count-footnotes?)
     "Report the number of words in the Org mode buffer or selected region.
 Ignores:
 - comments
@@ -169,84 +169,84 @@ of its arguments."
     (interactive "r")
     (unless mark-active
       (setf beg (point-min)
-            end (point-max)))
+	    end (point-max)))
     (let ((wc 0)
-          (latex-macro-regexp "\\\\[A-Za-z]+\\(\\[[^]]*\\]\\|\\){\\([^}]*\\)}"))
+	  (latex-macro-regexp "\\\\[A-Za-z]+\\(\\[[^]]*\\]\\|\\){\\([^}]*\\)}"))
       (save-excursion
-        (goto-char beg)
-        (while (< (point) end)
-          (cond
-           ;; Ignore comments.
-           ((or (org-in-commented-line) (org-at-table-p))
-            nil)
-           ;; Ignore hyperlinks. But if link has a description, count
-           ;; the words within the description.
-           ((looking-at org-bracket-link-analytic-regexp)
-            (when (match-string-no-properties 5)
-              (let ((desc (match-string-no-properties 5)))
-                (save-match-data
-                  (incf wc (length (remove "" (org-split-string
-                                               desc "\\W")))))))
-            (goto-char (match-end 0)))
-           ((looking-at org-any-link-re)
-            (goto-char (match-end 0)))
-           ;; Ignore source code blocks.
-           ((org-between-regexps-p "^#\\+BEGIN_SRC\\W" "^#\\+END_SRC\\W")
-            nil)
-           ;; Ignore inline source blocks, counting them as 1 word.
-           ((save-excursion
-              (backward-char)
-              (looking-at org-babel-inline-src-block-regexp))
-            (goto-char (match-end 0))
-            (setf wc (+ 2 wc)))
-           ;; Count latex macros as 1 word, ignoring their arguments.
-           ((save-excursion
-              (backward-char)
-              (looking-at latex-macro-regexp))
-            (goto-char (if count-latex-macro-args?
-                           (match-beginning 2)
-                         (match-end 0)))
-            (setf wc (+ 2 wc)))
-           ;; Ignore footnotes.
-           ((and (not count-footnotes?)
-                 (or (org-footnote-at-definition-p)
-                     (org-footnote-at-reference-p)))
-            nil)
-           (t
-            (let ((contexts (org-context)))
-              (cond
-               ;; Ignore tags and TODO keywords, etc.
-               ((or (assoc :todo-keyword contexts)
-                    (assoc :priority contexts)
-                    (assoc :keyword contexts)
-                    (assoc :checkbox contexts))
-                nil)
-               ;; Ignore sections marked with tags that are
-               ;; excluded from export.
-               ((assoc :tags contexts)
-                (if (intersection (org-get-tags) org-export-exclude-tags
-                                  :test 'equal)
-                    (org-forward-same-level 1)
-                  nil))
-               (t
-                (incf wc))))))
-          (re-search-forward "\\w+\\W*")))
+	(goto-char beg)
+	(while (< (point) end)
+	  (cond
+	   ;; Ignore comments.
+	   ((or (org-in-commented-line) (org-at-table-p))
+	    nil)
+	   ;; Ignore hyperlinks. But if link has a description, count
+	   ;; the words within the description.
+	   ((looking-at org-bracket-link-analytic-regexp)
+	    (when (match-string-no-properties 5)
+	      (let ((desc (match-string-no-properties 5)))
+		(save-match-data
+		  (incf wc (length (remove "" (org-split-string
+					       desc "\\W")))))))
+	    (goto-char (match-end 0)))
+	   ((looking-at org-any-link-re)
+	    (goto-char (match-end 0)))
+	   ;; Ignore source code blocks.
+	   ((org-between-regexps-p "^#\\+BEGIN_SRC\\W" "^#\\+END_SRC\\W")
+	    nil)
+	   ;; Ignore inline source blocks, counting them as 1 word.
+	   ((save-excursion
+	      (backward-char)
+	      (looking-at org-babel-inline-src-block-regexp))
+	    (goto-char (match-end 0))
+	    (setf wc (+ 2 wc)))
+	   ;; Count latex macros as 1 word, ignoring their arguments.
+	   ((save-excursion
+	      (backward-char)
+	      (looking-at latex-macro-regexp))
+	    (goto-char (if count-latex-macro-args?
+			   (match-beginning 2)
+			 (match-end 0)))
+	    (setf wc (+ 2 wc)))
+	   ;; Ignore footnotes.
+	   ((and (not count-footnotes?)
+		 (or (org-footnote-at-definition-p)
+		     (org-footnote-at-reference-p)))
+	    nil)
+	   (t
+	    (let ((contexts (org-context)))
+	      (cond
+	       ;; Ignore tags and TODO keywords, etc.
+	       ((or (assoc :todo-keyword contexts)
+		    (assoc :priority contexts)
+		    (assoc :keyword contexts)
+		    (assoc :checkbox contexts))
+		nil)
+	       ;; Ignore sections marked with tags that are
+	       ;; excluded from export.
+	       ((assoc :tags contexts)
+		(if (intersection (org-get-tags) org-export-exclude-tags
+				  :test 'equal)
+		    (org-forward-same-level 1)
+		  nil))
+	       (t
+		(incf wc))))))
+	  (re-search-forward "\\w+\\W*")))
       (message (format "%d words in %s." wc
-                       (if mark-active "region" "buffer")))))
+		       (if mark-active "region" "buffer")))))
 
   ;; stolen from https://gist.github.com/khinsen/7ed357eed9b27f142e4fa6f5c4ad45dd
   (defun org-pinboard-store-link ()
     "Store a link taken from a pinboard buffer."
     (when (eq major-mode 'pinboard-mode)
       (pinboard-with-current-pin pin
-                                 (org-store-link-props
-                                  :type "pinboard"
-                                  :link (alist-get 'href pin)
-                                  :description (alist-get 'description pin)))))
+				 (org-store-link-props
+				  :type "pinboard"
+				  :link (alist-get 'href pin)
+				  :description (alist-get 'description pin)))))
 
   (org-link-set-parameters "pinboard"
-                           :follow #'browse-url
-                           :store #'org-pinboard-store-link)
+			   :follow #'browse-url
+			   :store #'org-pinboard-store-link)
   )
 
 ;; Presentations
@@ -260,13 +260,13 @@ of its arguments."
   ;; :pin melpa
   :after (evil org)
   :hook (
-         (org-mode . evil-org-mode)
-         )
+	 (org-mode . evil-org-mode)
+	 )
   :config
   (setq evil-org-movement-bindings '((up . "s")
-                                     (down . "t")
-                                     (left . "c")
-                                     (right . "r")))
+				     (down . "t")
+				     (left . "c")
+				     (right . "r")))
   ;; 'todo' theme takes over 't' which is 'down' for bepo
   ;; 'heading' theme does something weird with O in normal mode
   (evil-org-set-key-theme '(textobjects return insert navigation additional shift calendar))
@@ -275,26 +275,26 @@ of its arguments."
 
   (defun hub/setup-agenda-keybindings ()
     (evil-collection-translate-key 'motion 'org-agenda-mode-map
-      ;; hjkl rotation
-      "c" "h"
-      "C" "H"
-      "t" "j"
-      "T" "J"
-      "s" "k"
-      "S" "K"
-      "r" "l"
-      "R" "L"
-      ;;
-      ":" "t"               ; todo, tags
-      "H" "T"               ; timer
-      "e" "c"               ; config, capture, category, clock, cancel, calendar
-      "a" "c"               ; category, clock, cancel, calendar
-      "L" "C"               ; convert, capture
-      "é" "r"               ; redo, regexp, report
-      "É" "R"               ; redo all
-      "|" "s"               ; filter
-      "K" "S"
-      ))
+				   ;; hjkl rotation
+				   "c" "h"
+				   "C" "H"
+				   "t" "j"
+				   "T" "J"
+				   "s" "k"
+				   "S" "K"
+				   "r" "l"
+				   "R" "L"
+				   ;;
+				   ":" "t"               ; todo, tags
+				   "H" "T"               ; timer
+				   "e" "c"               ; config, capture, category, clock, cancel, calendar
+				   "a" "c"               ; category, clock, cancel, calendar
+				   "L" "C"               ; convert, capture
+				   "é" "r"               ; redo, regexp, report
+				   "É" "R"               ; redo all
+				   "|" "s"               ; filter
+				   "K" "S"
+				   ))
   (add-hook 'org-agenda-mode-hook #'hub/setup-agenda-keybindings)
   )
 
@@ -308,7 +308,7 @@ of its arguments."
   :defer t
   :after (org)
   :bind (:map evil-normal-state-map
-              (",eP" . org-cliplink)))
+	      (",eP" . org-cliplink)))
 
 ;; https://yiufung.net/post/anki-org/
 (use-package anki-editor
@@ -317,13 +317,13 @@ of its arguments."
   :hook (org-capture-after-finalize . anki-editor-reset-cloze-number) ; Reset cloze-number after each capture.
   :config
   (evil-collection-define-key 'visual 'org-mode-map
-    ",_"   'anki-editor-cloze-region-dont-incr
-    ",-"   'anki-editor-cloze-region-auto-incr
-    )
+			      ",_"   'anki-editor-cloze-region-dont-incr
+			      ",-"   'anki-editor-cloze-region-auto-incr
+			      )
   (evil-collection-define-key 'normal 'org-mode-map
-    ",0"   'anki-editor-reset-cloze-number
-    ",^"   'anki-editor-push-tree
-    )
+			      ",0"   'anki-editor-reset-cloze-number
+			      ",^"   'anki-editor-push-tree
+			      )
   (defun anki-editor-cloze-region-auto-incr (&optional arg)
     "Cloze region without hint and increase card number."
     (interactive)
@@ -347,15 +347,15 @@ of its arguments."
   ;; Initialize
   (anki-editor-reset-cloze-number)
   (add-to-list 'org-capture-templates
-               '("a" "Anki basic"
-                 entry
-                 (file+headline org-default-notes-file "Anki")
-                 "* %U   %^g\n:PROPERTIES:\n:ANKI_NOTE_TYPE: Basic\n:ANKI_DECK: from-org\n:END:\n** Front\n%?\n** Back\n%x\n"))
+	       '("a" "Anki basic"
+		 entry
+		 (file+headline org-default-notes-file "Anki")
+		 "* %U   %^g\n:PROPERTIES:\n:ANKI_NOTE_TYPE: Basic\n:ANKI_DECK: from-org\n:END:\n** Front\n%?\n** Back\n%x\n"))
   (add-to-list 'org-capture-templates
-               '("A" "Anki cloze"
-                 entry
-                 (file+headline org-default-notes-file "Anki")
-                 "* %U   %^g\n:PROPERTIES:\n:ANKI_NOTE_TYPE: Cloze\n:ANKI_DECK: from-org\n:END:\n** Text\n%x\n** Extra\n"))
+	       '("A" "Anki cloze"
+		 entry
+		 (file+headline org-default-notes-file "Anki")
+		 "* %U   %^g\n:PROPERTIES:\n:ANKI_NOTE_TYPE: Cloze\n:ANKI_DECK: from-org\n:END:\n** Text\n%x\n** Extra\n"))
   )
 
 (use-package org-modern
@@ -404,14 +404,14 @@ of its arguments."
   :config
   (require 'org-download)
   (evil-collection-define-key 'normal 'org-mode-map
-    ",Y"   'org-download-clipboard
-    )
+			      ",Y"   'org-download-clipboard
+			      )
   ;; org-download use buffer-local variables. Set it individually in files. Otherwise, put things flatly in misc
   ;; folder.
   (setq-default org-download-method 'attach ;; Screenshots are stored in data/ directory by ID. Easier to manage
-                org-download-heading-lvl nil
-                org-download-delete-image-after-download t
-                )
+		org-download-heading-lvl nil
+		org-download-delete-image-after-download t
+		)
   )
 
 (use-package org-drill
@@ -419,10 +419,10 @@ of its arguments."
   :defer 10
   :config
   (add-to-list 'org-capture-templates
-               '("y" "sysadmin drill question"
-                 entry
-                 (file+headline "~/Dropbox/Documents/org/learning/sysadmin.org" "Drills")
-                 "\n\n** %^{Question title}                           :sysadmin:drill:\n\n   %^{Question body} \n\n*** Answer \n\n    #+BEGIN_SRC %^{awk_bash} :results output code :in-file ./text-files/%^{text file}\n      %^{awk_bash program}\n    #+END_SRC")))
+	       '("y" "sysadmin drill question"
+		 entry
+		 (file+headline "~/Dropbox/Documents/org/learning/sysadmin.org" "Drills")
+		 "\n\n** %^{Question title}                           :sysadmin:drill:\n\n   %^{Question body} \n\n*** Answer \n\n    #+BEGIN_SRC %^{awk_bash} :results output code :in-file ./text-files/%^{text file}\n      %^{awk_bash program}\n    #+END_SRC")))
 
 (use-package citeproc)
 

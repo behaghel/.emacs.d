@@ -13,10 +13,10 @@
   :demand t)
 
 (general-create-definer hub/leader
-  :states '(normal visual motion emacs)
-  :keymaps 'override
-  :prefix ","
-  :non-normal-prefix "C-,")
+			:states '(normal visual motion emacs)
+			:keymaps 'override
+			:prefix ","
+			:non-normal-prefix "C-,")
 
 (provide 'core-keybinds)
 ;;; keybinds.el ends here

@@ -18,7 +18,7 @@
 (use-package ag
   :commands (ag ag-files ag-regexp ag-project ag-dired)
   :config (setq ag-highlight-search t
-                ag-reuse-buffers t))
+		ag-reuse-buffers t))
 
 ;; Indenting
 (setq-default indent-tabs-mode nil)     ; no tabs, only spaces
@@ -33,14 +33,14 @@
   :config
   (dtrt-indent-mode)
   (setq dtrt-indent-min-quality 60
-        dtrt-indent-verbosity 3))
-                                        ; automatically indent yanked text in prog-modes
+	dtrt-indent-verbosity 3))
+					; automatically indent yanked text in prog-modes
 (dolist (command '(yank yank-pop))
   (eval `(defadvice ,command (after indent-region activate)
-           (and (not current-prefix-arg)
-                (derived-mode-p 'prog-mode)
-                (let ((mark-even-if-inactive transient-mark-mode))
-                  (indent-region (region-beginning) (region-end) nil))))))
+	   (and (not current-prefix-arg)
+		(derived-mode-p 'prog-mode)
+		(let ((mark-even-if-inactive transient-mark-mode))
+		  (indent-region (region-beginning) (region-end) nil))))))
 
 (use-package apheleia
   :ensure t
@@ -57,24 +57,24 @@
   :after (hydra)
   :init
   (defhydra hydra-folding (:color red :hint nil)
-    "
+	    "
 _o_pen node    _n_ext fold       toggle forw_a_rd    _u_ndo            _F_ill column: %`fill-column
 _c_lose node   _p_revious fold   toggle _A_ll        _r_edo            e_x_it
 _z_oom on node
 "
-    ("o" origami-open-node)
-    ("c" origami-close-node)
-    ("z" origami-show-only-node)
-    ("u" origami-undo)
-    ("r" origami-redo)
-    ("n" origami-next-fold)
-    ("p" origami-previous-fold)
-    ("a" origami-forward-toggle-node)
-    ("A" origami-toggle-all-nodes)
-    ("F" fill-column)
-    ("x" nil :color blue))
+	    ("o" origami-open-node)
+	    ("c" origami-close-node)
+	    ("z" origami-show-only-node)
+	    ("u" origami-undo)
+	    ("r" origami-redo)
+	    ("n" origami-next-fold)
+	    ("p" origami-previous-fold)
+	    ("a" origami-forward-toggle-node)
+	    ("A" origami-toggle-all-nodes)
+	    ("F" fill-column)
+	    ("x" nil :color blue))
   :bind (:map evil-normal-state-map
-              (",Z" . hydra-folding/body)))
+	      (",Z" . hydra-folding/body)))
 
 
 ;;; Building
@@ -114,27 +114,27 @@ _z_oom on node
       compilation-context-lines 5)      ; auto scroll in compilation buffer
 
 (add-hook 'prog-mode-hook
-          (lambda () (progn
-                                        ; all code buffers with nlinum
-                                        ; (so much faster than linum!)
-                       ;; (nlinum-mode 1) ; line # are overrated
-                       ;; (ggtags-mode 1) ; trial
-                       (subword-mode) ; camelcase moves
-                       (flyspell-prog-mode)
-                       (turn-on-auto-fill)
-                       ;; auto-fill comments and only them
-                       ;; (setq-local comment-auto-fill-only-comments t)
-                       (eldoc-mode)
-                       (origami-mode)
-                       (editorconfig-mode 1)
-                       (electric-indent-local-mode)
-                       (define-key evil-normal-state-map (kbd ",bb") 'compile)
-                       (define-key evil-normal-state-map (kbd ",br") 'recompile)
-                       (define-key evil-normal-state-map (kbd ",bx") 'kill-compilation)
-                       (define-key evil-insert-state-map (kbd "M-RET") 'indent-new-comment-line)
-                       (define-key evil-normal-state-map (kbd "g)") 'flymake-goto-next-error)
-                       (define-key evil-normal-state-map (kbd "g(") 'flymake-goto-previous-error)
-                       )))
+	  (lambda () (progn
+					; all code buffers with nlinum
+					; (so much faster than linum!)
+		       ;; (nlinum-mode 1) ; line # are overrated
+		       ;; (ggtags-mode 1) ; trial
+		       (subword-mode) ; camelcase moves
+		       (flyspell-prog-mode)
+		       (turn-on-auto-fill)
+		       ;; auto-fill comments and only them
+		       ;; (setq-local comment-auto-fill-only-comments t)
+		       (eldoc-mode)
+		       (origami-mode)
+		       (editorconfig-mode 1)
+		       (electric-indent-local-mode)
+		       (define-key evil-normal-state-map (kbd ",bb") 'compile)
+		       (define-key evil-normal-state-map (kbd ",br") 'recompile)
+		       (define-key evil-normal-state-map (kbd ",bx") 'kill-compilation)
+		       (define-key evil-insert-state-map (kbd "M-RET") 'indent-new-comment-line)
+		       (define-key evil-normal-state-map (kbd "g)") 'flymake-goto-next-error)
+		       (define-key evil-normal-state-map (kbd "g(") 'flymake-goto-previous-error)
+		       )))
 ;; (setq linum-format " %3d ")    ; remove graphical glitches with fringe
 
 ;; https://github.com/wbolster/emacs-direnv
@@ -162,39 +162,40 @@ _z_oom on node
 (use-package treesit
   :straight (:type built-in)
   :config
-  (with-eval-after-load 'evil
-    (evil-normalize-keymaps))
+  ;; (evil-normalize-keymaps)
   (setq treesit-language-source-alist
-        '((bash "https://github.com/tree-sitter/tree-sitter-bash")
-          (cmake "https://github.com/uyha/tree-sitter-cmake")
-          (css "https://github.com/tree-sitter/tree-sitter-css")
-          (elisp "https://github.com/Wilfred/tree-sitter-elisp")
-          (go "https://github.com/tree-sitter/tree-sitter-go")
-          (html "https://github.com/tree-sitter/tree-sitter-html")
-          (javascript "https://github.com/tree-sitter/tree-sitter-javascript" "master" "src")
-          (json "https://github.com/tree-sitter/tree-sitter-json")
-          (make "https://github.com/alemuller/tree-sitter-make")
-          (markdown "https://github.com/ikatyang/tree-sitter-markdown")
-          (python "https://github.com/tree-sitter/tree-sitter-python")
-          (toml "https://github.com/tree-sitter/tree-sitter-toml")
-          (tsx "https://github.com/tree-sitter/tree-sitter-typescript" "master" "tsx/src")
-          (typescript "https://github.com/tree-sitter/tree-sitter-typescript" "master" "typescript/src")
-          (yaml "https://github.com/ikatyang/tree-sitter-yaml"))
-        treesit-font-lock-settings t
-        treesit-simple-indent-rules t
-        treesit-defun-type-regexp t
-        treesit-defun-name-function t)
+	'((bash "https://github.com/tree-sitter/tree-sitter-bash")
+	  (cmake "https://github.com/uyha/tree-sitter-cmake")
+	  (css "https://github.com/tree-sitter/tree-sitter-css")
+	  (elisp "https://github.com/Wilfred/tree-sitter-elisp")
+	  (go "https://github.com/tree-sitter/tree-sitter-go")
+	  (html "https://github.com/tree-sitter/tree-sitter-html")
+	  (javascript "https://github.com/tree-sitter/tree-sitter-javascript" "master" "src")
+	  (json "https://github.com/tree-sitter/tree-sitter-json")
+	  (make "https://github.com/alemuller/tree-sitter-make")
+	  (markdown "https://github.com/ikatyang/tree-sitter-markdown")
+	  (python "https://github.com/tree-sitter/tree-sitter-python")
+	  (toml "https://github.com/tree-sitter/tree-sitter-toml")
+	  (tsx "https://github.com/tree-sitter/tree-sitter-typescript" "master" "tsx/src")
+	  (typescript "https://github.com/tree-sitter/tree-sitter-typescript" "master" "typescript/src")
+	  (yaml "https://github.com/ikatyang/tree-sitter-yaml"))
+	treesit-font-lock-settings t
+	treesit-simple-indent-rules t
+	treesit-defun-type-regexp t
+	treesit-defun-name-function t
+	)
   (setq major-mode-remap-alist
-        '((yaml-mode . yaml-ts-mode)
-          (bash-mode . bash-ts-mode)
-          (js2-mode . js-ts-mode)
-          (typescript-mode . typescript-ts-mode)
-          (typescriptreact-mode . typescriptreact-ts-mode)
-          (json-mode . json-ts-mode)
-          (css-mode . css-ts-mode)
-          (python-mode . python-ts-mode)
-          ))
-  (treesit-major-mode-setup)
+	'((yaml-mode . yaml-ts-mode)
+	  (bash-mode . bash-ts-mode)
+	  (js2-mode . js-ts-mode)
+	  (typescript-mode . typescript-ts-mode)
+	  (typescriptreact-mode . typescriptreact-ts-mode)
+	  (json-mode . json-ts-mode)
+	  (css-mode . css-ts-mode)
+	  (python-mode . python-ts-mode)
+	  ))
+  ;; slight delay to give a chance for all keymaps to be initialised
+  (run-with-idle-timer 0.1 nil #'treesit-major-mode-setup)
   )
 
 ;; NixOS
@@ -206,15 +207,15 @@ _z_oom on node
 
 (require 'setup-scala)
 
-                                        ; Emacs Lisp
+					; Emacs Lisp
 (require 'jka-compr) ; find-tag to be able to find .el.gz
 (evil-define-key 'normal lisp-mode-shared-map
-  ",." 'find-function
-  ",hf" 'describe-function
-  ",hv" 'describe-variable
-  ",hc" 'describe-char
-  ",el" 'eval-last-sexp
-  ",il" 'eval-print-last-sexp)
+		 ",." 'find-function
+		 ",hf" 'describe-function
+		 ",hv" 'describe-variable
+		 ",hc" 'describe-char
+		 ",el" 'eval-last-sexp
+		 ",il" 'eval-print-last-sexp)
 (eval-after-load 'eldoc '(diminish 'eldoc-mode))
 
 ;; Scheme
@@ -252,10 +253,10 @@ _z_oom on node
   :mode "\\.scss\\'")
 
 (add-hook 'sgml-mode-hook
-          (lambda ()
-            ;; Default indentation to 2, but let SGML mode guess, too.
-            (set (make-local-variable 'sgml-basic-offset) 4)
-            (sgml-guess-indent)))
+	  (lambda ()
+	    ;; Default indentation to 2, but let SGML mode guess, too.
+	    (set (make-local-variable 'sgml-basic-offset) 4)
+	    (sgml-guess-indent)))
 
 (require 'setup-js)
 
@@ -268,7 +269,7 @@ _z_oom on node
 
 (use-package yaml-mode
   :mode (("\\.yml$" . yaml-mode)
-         ("\\.yaml$" . yaml-mode))
+	 ("\\.yaml$" . yaml-mode))
   :defer t)
 
 ;; gnuplot
@@ -288,13 +289,13 @@ _z_oom on node
   (add-hook 'elixir-mode-hook 'alchemist-mode)
 
   (sp-with-modes '(elixir-mode)
-    (sp-local-pair "fn" "end"
-                   :when '(("SPC" "RET"))
-                   :actions '(insert navigate))
-    (sp-local-pair "do" "end"
-                   :when '(("SPC" "RET"))
-                   :post-handlers '(sp-ruby-def-post-handler)
-                   :actions '(insert navigate))))
+		 (sp-local-pair "fn" "end"
+				:when '(("SPC" "RET"))
+				:actions '(insert navigate))
+		 (sp-local-pair "do" "end"
+				:when '(("SPC" "RET"))
+				:post-handlers '(sp-ruby-def-post-handler)
+				:actions '(insert navigate))))
 
 (use-package alchemist
   :commands alchemist-mode
@@ -309,8 +310,8 @@ _z_oom on node
   (setq feature-step-search-path "features/**/*steps.rb")
   ;; (setq feature-step-search-gems-path "gems/ruby/*/gems/*/**/*steps.rb")
   (add-hook 'feature-mode-hook
-            (lambda ()
-              (electric-indent-mode -1))))
+	    (lambda ()
+	      (electric-indent-mode -1))))
 
 ;; OSX launchd plist
 (define-auto-insert "\.plist\'" ["template.plist" hub/autoinsert-yas-expand])
@@ -333,7 +334,7 @@ _z_oom on node
 
 ;; AWK
 (add-hook 'awk-mode-hook (lambda ()
-                           (setq c-basic-offset 2)))
+			   (setq c-basic-offset 2)))
 
 (provide 'dev-common)
 ;;; common.el ends here

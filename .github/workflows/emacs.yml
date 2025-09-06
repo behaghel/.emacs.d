@@ -17,6 +17,27 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y emacs-nox
 
+      - name: Cache straight.el and eln-cache
+        uses: actions/cache@v4
+        with:
+          path: |
+            ${{ github.workspace }}/straight/repos
+            ${{ github.workspace }}/straight/build
+            ${{ github.workspace }}/eln-cache
+          key: straight-${{ runner.os }}-${{ hashFiles('core/packages.el', 'docs/config.org', 'settings/**/*.el') }}
+          restore-keys: |
+            straight-${{ runner.os }}-
+
+      - name: Pre-commit checks (elisp format + checkdoc)
+        run: |
+          export HOME=$GITHUB_WORKSPACE
+          chmod +x scripts/elisp-format scripts/elisp-checkdoc
+          mapfile -t el_files < <(git ls-files "*.el")
+          if [ ${#el_files[@]} -gt 0 ]; then
+            ./scripts/elisp-format "${el_files[@]}"
+            ./scripts/elisp-checkdoc "${el_files[@]}"
+          fi
+
       - name: Tangle literate config
         run: |
           emacs --batch -l org --eval '(org-babel-tangle-file "docs/config.org")'

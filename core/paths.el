@@ -9,7 +9,7 @@
   :demand t
   :init
   (setq no-littering-etc-directory (expand-file-name "etc/" user-emacs-directory)
-        no-littering-var-directory (expand-file-name "var/" user-emacs-directory)))
+	no-littering-var-directory (expand-file-name "var/" user-emacs-directory)))
 
 (provide 'core-paths)
 ;;; paths.el ends here

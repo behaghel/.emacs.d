@@ -61,7 +61,7 @@
   :bind
   ;; *.worksheet.sc evaluates on save
   ("C-c C-c" . save-buffer)
- )
+  )
 (use-package sbt-mode
   :commands sbt-start sbt-command
   :config
@@ -89,11 +89,11 @@
   ;; https://github.com/hvesalai/emacs-sbt-mode/issues/152
   (setq sbt:program-options '("-Dsbt.supershell=false"))
   (add-hook 'sbt-mode-hook
-            (lambda ()
-              (setq prettify-symbols-alist
-                    `((,(expand-file-name (directory-file-name (sbt:find-root))) . ?⌂)
-                      (,(expand-file-name "~") . ?~)))
-              (prettify-symbols-mode t)))
+	    (lambda ()
+	      (setq prettify-symbols-alist
+		    `((,(expand-file-name (directory-file-name (sbt:find-root))) . ?⌂)
+		      (,(expand-file-name "~") . ?~)))
+	      (prettify-symbols-mode t)))
   ;; default (sbt) is not enough to get ANSI colors as sbt infers that
   ;; it's not supported. Forcing colors in sbt output.
   ;;(setq sbt:program-name "sbt -Dspecs2.color=true -Dsbt.log.format=true")

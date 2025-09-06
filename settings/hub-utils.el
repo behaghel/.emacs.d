@@ -34,19 +34,19 @@
   "Presumes that params are in the form (p, p, p) or {p, p, p} or [p, p, p]."
   (interactive)
   (let* ((end-of-first (cond
-                        ((looking-at ", ") (point))
-                        ((and (looking-back ",") (looking-at " ")) (- (point) 1))
-                        ((looking-back ", ") (- (point) 2))
-                        (t (error "Place point between params to transpose."))))
-         (start-of-first (save-excursion
-                           (goto-char end-of-first)
-                           (move-backward-out-of-param)
-                           (point)))
-         (start-of-last (+ end-of-first 2))
-         (end-of-last (save-excursion
-                        (goto-char start-of-last)
-                        (move-forward-out-of-param)
-                        (point))))
+			((looking-at ", ") (point))
+			((and (looking-back ",") (looking-at " ")) (- (point) 1))
+			((looking-back ", ") (- (point) 2))
+			(t (error "Place point between params to transpose."))))
+	 (start-of-first (save-excursion
+			   (goto-char end-of-first)
+			   (move-backward-out-of-param)
+			   (point)))
+	 (start-of-last (+ end-of-first 2))
+	 (end-of-last (save-excursion
+			(goto-char start-of-last)
+			(move-forward-out-of-param)
+			(point))))
     (transpose-regions start-of-first end-of-first start-of-last end-of-last)))
 
 (defun move-forward-out-of-param ()
@@ -126,12 +126,12 @@ C-x b RET. The buffer selected is the one returned by (other-buffer)."
   "Put the current file name on the clipboard"
   (interactive)
   (let ((filename (if (equal major-mode 'dired-mode)
-                      default-directory
-                    (buffer-file-name))))
+		      default-directory
+		    (buffer-file-name))))
     (when filename
       (with-temp-buffer
-        (insert filename)
-        (clipboard-kill-region (point-min) (point-max)))
+	(insert filename)
+	(clipboard-kill-region (point-min) (point-max)))
       (message filename))))
 
 (defun hub/comment-dwim-line (&optional arg)
@@ -152,7 +152,7 @@ when it inserts comment at the end of the line."
 This functions should be added to the hooks of major modes for programming."
   (font-lock-add-keywords
    nil '(("\\<XXX\\>" 0 'font-lock-warning-face t)
-         ("\\<\\(FIX\\(ME\\)?\\|TODO\\|OPTIMIZE\\|HACK\\|REFACTOR\\):"
-          1 'font-lock-warning-face t))))
+	 ("\\<\\(FIX\\(ME\\)?\\|TODO\\|OPTIMIZE\\|HACK\\|REFACTOR\\):"
+	  1 'font-lock-warning-face t))))
 (provide 'hub-utils)
 ;;; hub-utils.el ends here

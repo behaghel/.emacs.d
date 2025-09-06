@@ -30,8 +30,8 @@
   :disabled t
   :hook
   (prog-mode .
-             (lambda ()
-               (setq-local completion-at-point-functions (list (cape-super-capf #'codeium-completion-at-point #'eglot-completion-at-point)))))
+	     (lambda ()
+	       (setq-local completion-at-point-functions (list (cape-super-capf #'codeium-completion-at-point #'eglot-completion-at-point)))))
 
   ;; if you want multiple completion backends, use cape (https://github.com/minad/cape):
   ;; (add-hook 'python-mode-hook
@@ -55,15 +55,15 @@
 
   ;; get codeium status in the modeline
   (setq codeium-mode-line-enable
-        (lambda (api) (not (memq api '(CancelRequest Heartbeat AcceptCompletion)))))
+	(lambda (api) (not (memq api '(CancelRequest Heartbeat AcceptCompletion)))))
   (add-to-list 'mode-line-format '(:eval (car-safe codeium-mode-line)) t)
   ;; alternatively for a more extensive mode-line
   ;; (add-to-list 'mode-line-format '(-50 "" codeium-mode-line) t)
 
   ;; use M-x codeium-diagnose to see apis/fields that would be sent to the local language server
   (setq codeium-api-enabled
-        (lambda (api)
-          (memq api '(GetCompletions Heartbeat CancelRequest GetAuthToken RegisterUser auth-redirect AcceptCompletion))))
+	(lambda (api)
+	  (memq api '(GetCompletions Heartbeat CancelRequest GetAuthToken RegisterUser auth-redirect AcceptCompletion))))
   ;; you can also set a config for a single buffer like this:
   ;; (add-hook 'python-mode-hook
   ;;     (lambda ()
@@ -83,8 +83,8 @@
 
 (use-package org-ai
   :straight '(:type git :host github :repo "rksm/org-ai"
-                    :local-repo "org-ai"
-                    :files ("*.el" "README.md" "snippets"))
+		    :local-repo "org-ai"
+		    :files ("*.el" "README.md" "snippets"))
   :commands (org-ai-mode org-ai-global-mode)
   :init
   (add-hook 'org-mode-hook #'org-ai-mode)
@@ -95,9 +95,9 @@
   :straight '(:type git :host github :repo "natrys/whisper.el")
   :config
   (setq whisper-install-directory "/tmp/"
-        whisper-model "base"
-        whisper-language "en"
-        whisper-translate nil
-        whisper-use-threads (/ (num-processors) 2)))
+	whisper-model "base"
+	whisper-language "en"
+	whisper-translate nil
+	whisper-use-threads (/ (num-processors) 2)))
 (provide 'setup-ai)
 ;;; setup-ai.el ends here

@@ -166,15 +166,15 @@ directory. If there is a .nvmrc file use that - otherwise pick
 one of the installed versions (arbitrarily: the last)."
     (when mjs/previous-node-version
       (setq exec-path
-            (cl-remove mjs/previous-node-version exec-path
-                       :test #'string=)
-            mjs/previous-node-version nil))
+	    (cl-remove mjs/previous-node-version exec-path
+		       :test #'string=)
+	    mjs/previous-node-version nil))
     (if (file-exists-p ".nvmrc")
-        (nvm-use-for ".")
+	(nvm-use-for ".")
       (nvm-use (caar (last (nvm--installed-versions)))))
     (setq mjs/previous-node-version (getenv "NVM_BIN")
-          exec-path (cl-pushnew mjs/previous-node-version exec-path
-                                :test #'string=)))
+	  exec-path (cl-pushnew mjs/previous-node-version exec-path
+				:test #'string=)))
   (with-eval-after-load 'projectile
     (add-hook 'projectile-after-switch-project-hook 'mjs/choose-node-version))
   )

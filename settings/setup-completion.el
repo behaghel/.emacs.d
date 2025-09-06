@@ -27,7 +27,7 @@
 (use-package marginalia
   :general
   (:keymaps 'minibuffer-local-map
-            "M-A" 'marginalia-cycle)
+	    "M-A" 'marginalia-cycle)
   :custom
   (marginalia-max-relative-age 0)
   (marginalia-align 'right)
@@ -41,45 +41,45 @@
 (use-package vertico
   :demand t                             ; Otherwise won't get loaded immediately
   :straight (vertico :files (:defaults "extensions/*") ; Special recipe to load extensions conveniently
-                     :includes (vertico-indexed
-                                vertico-flat
-                                vertico-grid
-                                vertico-mouse
-                                vertico-quick
-                                vertico-buffer
-                                vertico-repeat
-                                vertico-reverse
-                                vertico-directory
-                                vertico-multiform
-                                vertico-unobtrusive
-                                ))
+		     :includes (vertico-indexed
+				vertico-flat
+				vertico-grid
+				vertico-mouse
+				vertico-quick
+				vertico-buffer
+				vertico-repeat
+				vertico-reverse
+				vertico-directory
+				vertico-multiform
+				vertico-unobtrusive
+				))
   :general
   (:keymaps '(normal insert visual motion)
-            "M-," #'vertico-repeat
-            )
+	    "M-," #'vertico-repeat
+	    )
   (:keymaps 'vertico-map
-            "<tab>" #'vertico-insert ; Set manually otherwise setting `vertico-quick-insert' overrides this
-            "<escape>" #'minibuffer-keyboard-quit
-            "?" #'minibuffer-completion-help
-            "C-M-n" #'vertico-next-group
-            "C-M-p" #'vertico-previous-group
-            ;; Multiform toggles
-            "<backspace>" #'vertico-directory-delete-char
-            "C-w" #'vertico-directory-delete-word
-            "C-<backspace>" #'vertico-directory-delete-word
-            "RET" #'vertico-directory-enter
-            "C-i" #'vertico-quick-insert
-            "C-o" #'vertico-quick-exit
-            "M-o" #'kb/vertico-quick-embark
-            "M-G" #'vertico-multiform-grid
-            "M-F" #'vertico-multiform-flat
-            "M-R" #'vertico-multiform-reverse
-            "M-U" #'vertico-multiform-unobtrusive
-            "C-l" #'kb/vertico-multiform-flat-toggle
-            )
+	    "<tab>" #'vertico-insert ; Set manually otherwise setting `vertico-quick-insert' overrides this
+	    "<escape>" #'minibuffer-keyboard-quit
+	    "?" #'minibuffer-completion-help
+	    "C-M-n" #'vertico-next-group
+	    "C-M-p" #'vertico-previous-group
+	    ;; Multiform toggles
+	    "<backspace>" #'vertico-directory-delete-char
+	    "C-w" #'vertico-directory-delete-word
+	    "C-<backspace>" #'vertico-directory-delete-word
+	    "RET" #'vertico-directory-enter
+	    "C-i" #'vertico-quick-insert
+	    "C-o" #'vertico-quick-exit
+	    "M-o" #'kb/vertico-quick-embark
+	    "M-G" #'vertico-multiform-grid
+	    "M-F" #'vertico-multiform-flat
+	    "M-R" #'vertico-multiform-reverse
+	    "M-U" #'vertico-multiform-unobtrusive
+	    "C-l" #'kb/vertico-multiform-flat-toggle
+	    )
   :hook ((rfn-eshadow-update-overlay . vertico-directory-tidy) ; Clean up file path when typing
-         (minibuffer-setup . vertico-repeat-save) ; Make sure vertico state is saved
-         )
+	 (minibuffer-setup . vertico-repeat-save) ; Make sure vertico state is saved
+	 )
   :custom
   (vertico-count 13)
   (vertico-resize t)
@@ -110,7 +110,7 @@
     (interactive)
     (vertico-multiform--display-toggle 'vertico-flat-mode)
     (if vertico-flat-mode
-        (vertico-multiform--temporary-mode 'vertico-reverse-mode -1)
+	(vertico-multiform--temporary-mode 'vertico-reverse-mode -1)
       (vertico-multiform--temporary-mode 'vertico-reverse-mode 1)))
   (defun kb/vertico-quick-embark (&optional arg)
     "Embark on candidate using quick keys."
@@ -123,13 +123,13 @@
   ;; https://github.com/minad/vertico#tramp-hostname-completion
   (defun kb/basic-remote-try-completion (string table pred point)
     (and (vertico--remote-p string)
-         (completion-basic-try-completion string table pred point)))
+	 (completion-basic-try-completion string table pred point)))
   (defun kb/basic-remote-all-completions (string table pred point)
     (and (vertico--remote-p string)
-         (completion-basic-all-completions string table pred point)))
+	 (completion-basic-all-completions string table pred point)))
   (add-to-list 'completion-styles-alist
-               '(basic-remote           ; Name of `completion-style'
-                 kb/basic-remote-try-completion kb/basic-remote-all-completions nil))
+	       '(basic-remote           ; Name of `completion-style'
+		 kb/basic-remote-try-completion kb/basic-remote-all-completions nil))
   :config
   (vertico-mode)
   ;; Extensions
@@ -141,18 +141,18 @@
 
   (cl-defmethod vertico--format-candidate :around
     (cand prefix suffix index start &context ((and +vertico-current-arrow
-                                                   (not (bound-and-true-p vertico-flat-mode)))
-                                              (eql t)))
+						   (not (bound-and-true-p vertico-flat-mode)))
+					      (eql t)))
     (setq cand (cl-call-next-method cand prefix suffix index start))
     (if (bound-and-true-p vertico-grid-mode)
-        (if (= vertico--index index)
-            (concat #("▶" 0 1 (face vertico-current)) cand)
-          (concat #("_" 0 1 (display " ")) cand))
+	(if (= vertico--index index)
+	    (concat #("▶" 0 1 (face vertico-current)) cand)
+	  (concat #("_" 0 1 (display " ")) cand))
       (if (= vertico--index index)
-          (concat
-           #(" " 0 1 (display (left-fringe right-triangle vertico-current)))
-           cand)
-        cand)))
+	  (concat
+	   #(" " 0 1 (display (left-fringe right-triangle vertico-current)))
+	   cand)
+	cand)))
   )
 
 ;; Persist history over Emacs restarts. Vertico sorts by history position.
@@ -165,8 +165,8 @@
   (completion-category-defaults nil)    ; I want to be in control!
   (completion-category-overrides
    '((file (styles basic-remote ; For `tramp' hostname completion with `vertico'
-                   orderless
-                   ))
+		   orderless
+		   ))
      (eglot (styles orderless))
      ))
 
@@ -200,11 +200,11 @@ the first word of the candidate.  If ANCHORED is `both' require
 that the first and last initials appear in the first and last
 words of the candidate, respectively."
     (orderless--separated-by
-        '(seq (zero-or-more alpha) word-end (zero-or-more (not alpha)))
-      (cl-loop for char across component collect `(seq word-start ,char))
-      (when anchored '(seq (group buffer-start) (zero-or-more (not alpha))))
-      (when (eq anchored 'both)
-        '(seq (zero-or-more alpha) word-end (zero-or-more (not alpha)) eol))))
+     '(seq (zero-or-more alpha) word-end (zero-or-more (not alpha)))
+     (cl-loop for char across component collect `(seq word-start ,char))
+     (when anchored '(seq (group buffer-start) (zero-or-more (not alpha))))
+     (when (eq anchored 'both)
+       '(seq (zero-or-more alpha) word-end (zero-or-more (not alpha)) eol))))
 
   (defun orderless-strict-initialism (component)
     "Match a COMPONENT as a strict initialism.
@@ -241,16 +241,16 @@ parses its input."
   :hook (lsp-completion-mode . kb/corfu-setup-lsp) ; Use corfu for lsp completion
   :general
   (:keymaps 'corfu-map
-            :states 'insert
-            "C-n" #'corfu-next
-            "C-p" #'corfu-previous
-            "<escape>" #'corfu-quit
-            "<return>" #'corfu-insert
-            "H-SPC" #'corfu-insert-separator
-            ;; "SPC" #'corfu-insert-separator ; Use when `corfu-quit-at-boundary' is non-nil
-            "M-d" #'corfu-show-documentation
-            "C-g" #'corfu-quit
-            "M-l" #'corfu-show-location)
+	    :states 'insert
+	    "C-n" #'corfu-next
+	    "C-p" #'corfu-previous
+	    "<escape>" #'corfu-quit
+	    "<return>" #'corfu-insert
+	    "H-SPC" #'corfu-insert-separator
+	    ;; "SPC" #'corfu-insert-separator ; Use when `corfu-quit-at-boundary' is non-nil
+	    "M-d" #'corfu-show-documentation
+	    "C-g" #'corfu-quit
+	    "M-l" #'corfu-show-location)
   :custom
   ;; Works with `indent-for-tab-command'. Make sure tab doesn't indent when you
   ;; want to perform completion
@@ -302,7 +302,7 @@ parses its input."
   (defun corfu-enable-always-in-minibuffer ()
     "Enable Corfu in the minibuffer if Vertico/Mct are not active."
     (unless (or (bound-and-true-p mct--active) ; Useful if I ever use MCT
-                (bound-and-true-p vertico--input))
+		(bound-and-true-p vertico--input))
       (setq-local corfu-auto nil)       ; Ensure auto completion is disabled
       (corfu-mode 1)))
   (add-hook 'minibuffer-setup-hook #'corfu-enable-always-in-minibuffer 1)
@@ -312,7 +312,7 @@ parses its input."
     "Use orderless completion style with lsp-capf instead of the
 default lsp-passthrough."
     (setf (alist-get 'styles (alist-get 'lsp-capf completion-category-defaults))
-          '(orderless))))
+	  '(orderless))))
 
 (use-package kind-icon
   :after corfu
@@ -355,9 +355,9 @@ default lsp-passthrough."
   :config
   ;; Hide the mode line of the Embark live/completions buffers
   (add-to-list 'display-buffer-alist
-               '("\\`\\*Embark Collect \\(Live\\|Completions\\)\\*"
-                 nil
-                 (window-parameters (mode-line-format . none)))))
+	       '("\\`\\*Embark Collect \\(Live\\|Completions\\)\\*"
+		 nil
+		 (window-parameters (mode-line-format . none)))))
 
 ;; Consult users will also want the embark-consult package.
 (use-package embark-consult
@@ -370,22 +370,22 @@ default lsp-passthrough."
   ;; Bind dedicated completion commands
   ;; Alternative prefix keys: C-c p, M-p, M-+, ...
   :bind (("C-c p p" . completion-at-point) ;; capf
-         ("C-c p t" . complete-tag)        ;; etags
-         ("C-c p d" . cape-dabbrev)        ;; or dabbrev-completion
-         ("C-c p h" . cape-history)
-         ("C-c p f" . cape-file)
-         ("C-c p k" . cape-keyword)
-         ("C-c p s" . cape-elisp-symbol)
-         ("C-c p e" . cape-elisp-block)
-         ("C-c p a" . cape-abbrev)
-         ("C-c p l" . cape-line)
-         ("C-c p w" . cape-dict)
-         ("C-c p :" . cape-emoji)
-         ("C-c p \\" . cape-tex)
-         ("C-c p _" . cape-tex)
-         ("C-c p ^" . cape-tex)
-         ("C-c p &" . cape-sgml)
-         ("C-c p r" . cape-rfc1345))
+	 ("C-c p t" . complete-tag)        ;; etags
+	 ("C-c p d" . cape-dabbrev)        ;; or dabbrev-completion
+	 ("C-c p h" . cape-history)
+	 ("C-c p f" . cape-file)
+	 ("C-c p k" . cape-keyword)
+	 ("C-c p s" . cape-elisp-symbol)
+	 ("C-c p e" . cape-elisp-block)
+	 ("C-c p a" . cape-abbrev)
+	 ("C-c p l" . cape-line)
+	 ("C-c p w" . cape-dict)
+	 ("C-c p :" . cape-emoji)
+	 ("C-c p \\" . cape-tex)
+	 ("C-c p _" . cape-tex)
+	 ("C-c p ^" . cape-tex)
+	 ("C-c p &" . cape-sgml)
+	 ("C-c p r" . cape-rfc1345))
   :init
   ;; Add to the global default value of `completion-at-point-functions' which is
   ;; used by `completion-at-point'.  The order of the functions matters, the

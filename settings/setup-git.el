@@ -17,12 +17,12 @@
 manual, then instead of following that cross reference show
 the actual manpage using the function `man'."
     (let ((node (Info-get-token
-                 (point) "\\*note[ \n\t]+"
-                 "\\*note[ \n\t]+\\([^:]*\\):\\(:\\|[ \n\t]*(\\)?")))
+		 (point) "\\*note[ \n\t]+"
+		 "\\*note[ \n\t]+\\([^:]*\\):\\(:\\|[ \n\t]*(\\)?")))
       (if (and node (string-match "^(gitman)\\(.+\\)" node))
-          (progn (require 'man)
-                 (man (match-string 1 node)))
-        ad-do-it)))
+	  (progn (require 'man)
+		 (man (match-string 1 node)))
+	ad-do-it)))
 
   (define-key evil-normal-state-map (kbd ",vh") 'magit-file-popup) ; Commit history for current file
   (define-key evil-normal-state-map (kbd ",vf") 'magit-file-dispatch) ; Commit history for current file

@@ -64,8 +64,8 @@ after not being used in a hundred sessions."
 		     (prin1 (- value 0.01))
 		     (insert ")\n")))
 		 eshell-autojump-map)
-	  (delete-char -1); eat newline
-	  (insert ")"))
+	(delete-char -1); eat newline
+	(insert ")"))
       (write-file eshell-autojump-file))))
 
 (add-hook 'eshell-directory-change-hook
@@ -77,7 +77,7 @@ after not being used in a hundred sessions."
     (eshell-autojump-load))
   (let ((curdir (eshell/pwd)))
     (if (gethash curdir eshell-autojump-map)
-        (puthash curdir (1+ (gethash curdir eshell-autojump-map)) eshell-autojump-map)
+	(puthash curdir (1+ (gethash curdir eshell-autojump-map)) eshell-autojump-map)
       (puthash curdir 1 eshell-autojump-map))))
 
 (defun eshell-autojump-candidates ()
@@ -119,5 +119,5 @@ Otherwise, call `eshell/cd' with the result."
       (eshell/cd result))))
 
 (provide 'eshell-autojump)
-    
+
 ;;; eshell-autojump.el ends here

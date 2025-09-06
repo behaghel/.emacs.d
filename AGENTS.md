@@ -10,10 +10,12 @@
 ## Build, Test, and Development Commands
 - Enter dev shell (Emacs, EditorConfig, Git preconfigured):
   - `nix develop` (or `nix develop .`).
+  - Important: run all project commands from the devenv shell. This ensures consistent Emacs/pre-commit versions.
 - Quick load check (mirrors CI):
   - `HOME=$PWD emacs --batch -l init.el --eval '(message "Loaded")' --kill`.
 - Check a file with checkdoc:
   - `emacs --batch path/to/file.el -l checkdoc --eval '(checkdoc-file "path/to/file.el" t)'`.
+  - Compatibility: if your Emacs only supports one-arg `checkdoc-file`, use `(checkdoc-file "path/to/file.el")`.
 
 ## Coding Style & Naming Conventions
 - Indentation: spaces, 2 spaces (see `.editorconfig`); no tabs in Lisp.
@@ -46,3 +48,27 @@
 - Flow for larger efforts: create a meta/setup branch first (e.g., `chore/git-discipline`), push it, then branch the long‑running migration work from it (e.g., `refactor/migration-base`).
 - WIP management: if needed, `git stash push -u` to move in‑progress changes between branches cleanly.
 - Agent etiquette: the agent announces new branches, commits frequently, and requests approval before network actions (e.g., `git push`).
+
+## Pre-commit Enforcement (devenv)
+
+- Hooks: formatting and `checkdoc` run as pre-commit hooks using devenv’s `pre-commit` integration.
+- What runs:
+  - `elisp-format`: formats changed `*.el` (indent + `whitespace-cleanup`). If it modifies files, the commit is blocked; re-stage and commit again.
+  - `elisp-checkdoc`: runs `checkdoc` on changed `*.el`. Any warnings fail the commit. We ignore purely structural header/footer warnings (e.g., package first-line, Commentary/Code headings, footer provide) to accommodate our module naming.
+- Usage:
+  - Enter the dev shell: `nix develop`. It auto-installs the pre-commit hooks.
+  - Commit as usual; hooks will run on staged `*.el` files.
+  - To install manually: `pre-commit install --install-hooks`.
+  - To validate everything proactively before committing: `pre-commit run -a`.
+  - Convenience (devenv):
+    - `devenv run elisp:format-all` to format all tracked `.el` files.
+    - `devenv run elisp:checkdoc-all` to run checkdoc on all tracked `.el` files.
+    - `devenv run pre-commit:all` to run all pre-commit checks on all files.
+- Requirements: `emacs` available in the shell (provided via devenv); `pre-commit` is included.
+- CI: mirror checks can be added later; for now local hooks enforce cleanliness before pushing.
+
+## Agent Devenv Discipline
+
+- Always run commands inside `nix develop` shells for this repo.
+- Keep one or two `nix develop` shells open during a session to avoid start-up overhead and ensure hooks are installed.
+- When automating from scripts, prefer `nix develop -c <command>` or `devenv run <task>` to preserve environment parity with CI.

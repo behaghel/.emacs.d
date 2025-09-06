@@ -1,0 +1,37 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+shopt -s nullglob
+
+files=("$@")
+if [ ${#files[@]} -eq 0 ]; then
+  exit 0
+fi
+
+format_file() {
+  local f="$1"
+  [ -f "$f" ] || return 0
+  emacs --batch "$f" \
+    --eval '(emacs-lisp-mode)' \
+    --eval '(indent-region (point-min) (point-max))' \
+    --eval '(whitespace-cleanup)' \
+    --eval '(save-buffer)' >/dev/null 2>&1 || return 1
+}
+
+status=0
+for f in "${files[@]}"; do
+  case "$f" in
+    *.el) format_file "$f" || status=1 ;;
+    *) ;; # ignore non-elisp
+  esac
+done
+
+# Enforce: fail if formatting changed files so the user recommits
+if ! git diff --quiet -- "${files[@]}"; then
+  echo "Elisp formatting updated files. Please re-stage and re-commit." >&2
+  git --no-pager diff --name-only -- "${files[@]}" | sed 's/^/  changed: /'
+  exit 1
+fi
+
+exit $status
+
