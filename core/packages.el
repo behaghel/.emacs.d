@@ -19,6 +19,8 @@
 
 (setq straight-use-package-by-default t)
 
+(straight-use-package 'straight) ;; Manage straight.el with itself so it is pinned in versions
+
 (straight-use-package 'use-package)
 (require 'use-package)
 (require 'use-package-ensure)
