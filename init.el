@@ -125,10 +125,10 @@
 
 (require 'hub-utils)
 
-(require 'editing/general)
-(server-start)
-
-(require 'setup-evil)
+(when (and (featurep 'core-predicates) (hub/interactive-p))
+  (require 'editing/general)
+  (server-start)
+  (require 'setup-evil))
 
 (use-package smartparens
   :diminish smartparens-mode
@@ -195,7 +195,8 @@
 
 (use-package general)
 
-(require 'setup-completion)
+(when (and (featurep 'core-predicates) (hub/interactive-p))
+  (require 'setup-completion))
 
 ;;; Yasnippet
 (use-package yasnippet
@@ -298,12 +299,14 @@
 
 (require 'setup-perspective)
 ;; at the end, for windows to pick up the font change
-(require 'ui/core)
+(when (and (featurep 'core-predicates) (hub/interactive-p))
+  (require 'ui/core))
 ;; (require 'setup-multiple-cursors)
 (put 'narrow-to-region 'disabled nil)
 (put 'erase-buffer 'disabled nil)
 
-(require 'setup-treemacs)
+(when (and (featurep 'core-predicates) (hub/interactive-p))
+  (require 'setup-treemacs))
 (require 'setup-brain)
 (require 'setup-private nil t)
 
