@@ -12,7 +12,9 @@ status=0
 for f in "${files[@]}"; do
   case "$f" in
     *.el)
-      msg=$(emacs --batch "$f" -l checkdoc --eval "(checkdoc-file \"$f\" t)" 2>&1 || true)
+      msg=$(emacs --batch "$f" -l checkdoc \
+        --eval "(let ((file \"$f\")) (condition-case _ (checkdoc-file file t) (wrong-number-of-arguments (checkdoc-file file))))" \
+        2>&1 || true)
       if [ -n "$msg" ]; then
         status=1
         echo "checkdoc warnings in $f:" >&2
@@ -28,4 +30,3 @@ if [ $status -ne 0 ]; then
 fi
 
 exit $status
-
