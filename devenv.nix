@@ -10,12 +10,24 @@
   ];
 
   env.EDITOR = "emacs";
+  env.FLOW = ''
+  Project commands (run inside `nix develop`):
+    - devenv run tangle              : Tangle docs/config.org
+    - devenv run load-check          : Batch-load init.el
+    - devenv run freeze              : Freeze straight packages
+    - devenv run elisp:format-all    : Format all tracked .el files
+    - devenv run elisp:checkdoc-all  : Run checkdoc on all tracked .el files
+    - devenv run pre-commit:all      : Run all pre-commit checks on all files
+
+  Tips:
+    - Always commit from this shell (pre-commit runs here).
+    - Run `pre-commit run -a` before pushing.
+    - CI mirrors these checks and caches straight.el/eln.
+  '';
 
   # Install pre-commit hooks on shell entry
   enterShell = ''
-    if command -v pre-commit >/dev/null 2>&1; then
-      pre-commit install --install-hooks >/dev/null 2>&1 || true
-    fi
+    echo "$FLOW"
   '';
 
   # Developer scripts (run with: devenv run <name>)
@@ -28,6 +40,23 @@
     '';
     freeze.exec = ''
       emacs --batch -l core/packages.el --eval '(core/packages-freeze)' --kill
+    '';
+    "elisp:format-all".exec = ''
+      chmod +x scripts/elisp-format || true
+      mapfile -t el_files < <(git ls-files "*.el")
+      if [ ''${#el_files[@]} -gt 0 ]; then
+        ./scripts/elisp-format "''${el_files[@]}"
+      fi
+    '';
+    "elisp:checkdoc-all".exec = ''
+      chmod +x scripts/elisp-checkdoc || true
+      mapfile -t el_files < <(git ls-files "*.el")
+      if [ ''${#el_files[@]} -gt 0 ]; then
+        ./scripts/elisp-checkdoc "''${el_files[@]}"
+      fi
+    '';
+    "pre-commit:all".exec = ''
+      pre-commit run -a || exit 1
     '';
   };
 

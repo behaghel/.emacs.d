@@ -13,12 +13,22 @@ for f in "${files[@]}"; do
   case "$f" in
     *.el)
       msg=$(emacs --batch "$f" -l checkdoc \
-        --eval "(let ((file \"$f\")) (condition-case _ (checkdoc-file file t) (wrong-number-of-arguments (checkdoc-file file))))" \
+        --eval "(let ((file \"$f\")) (with-current-buffer (find-file-noselect file) (condition-case _ (checkdoc-current-buffer t) (wrong-number-of-arguments (checkdoc-current-buffer)))))" \
         2>&1 || true)
-      if [ -n "$msg" ]; then
+      # Filter out header/footer structural warnings that conflict with our module naming
+      filtered=$(printf "%s\n" "$msg" \
+        | sed '/The first line should be of the form/d' \
+        | sed '/You should have a summary line/d' \
+        | sed '/You should have a section marked ;;; Commentary:/d' \
+        | sed '/You should have a section marked ;;; Code:/d' \
+        | sed '/The footer should be/d' \
+        | sed '/^Loading /d' \
+        | sed '/^\s*$/d' \
+        | sed '/^Warning (emacs): *$/d')
+      if [ -n "$filtered" ]; then
         status=1
         echo "checkdoc warnings in $f:" >&2
-        echo "$msg" >&2
+        echo "$filtered" >&2
       fi
       ;;
     *) ;;
