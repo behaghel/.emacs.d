@@ -56,6 +56,8 @@
 ;; Set up load path
 (add-to-list 'load-path settings-dir)
 (add-to-list 'load-path (expand-file-name "dev" settings-dir))
+;; Project modules live under modules/, expose them on load-path for feature-based require
+(add-to-list 'load-path (expand-file-name "modules" user-emacs-directory))
 
 (setq user-mail-address "behaghel@gmail.com")
 (setq user-full-name "Hubert Behaghel")
