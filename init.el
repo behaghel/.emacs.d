@@ -34,6 +34,11 @@
 (setq user-emacs-directory
       (file-name-directory (or load-file-name buffer-file-name)))
 
+;; CI optimizations for straight.el: avoid modification checks and use shallow clones.
+(when (getenv "GITHUB_ACTIONS")
+  (setq straight-check-for-modifications 'never)
+  (setq straight-vc-git-default-clone-depth 1))
+
 ;; Ensure a writable temp directory exists within `user-emacs-directory`.
 ;; Some async/native compilation paths try to place temp files under
 ;; `~/.emacs.d/tmp/` — create it proactively to avoid CI failures.
@@ -85,6 +90,12 @@
    (require 'use-package-ensure)
    (require 'use-package-delight)
    (require 'use-package-diminish)))
+
+;; In CI, if a pinned versions file exists, thaw to it early to avoid rebuilds.
+(when (getenv "GITHUB_ACTIONS")
+  (let ((versions-file (expand-file-name "straight/versions/default.el" user-emacs-directory)))
+    (when (file-exists-p versions-file)
+      (ignore-errors (straight-thaw-versions)))))
 
 (setq use-package-verbose t
       use-package-always-defer nil

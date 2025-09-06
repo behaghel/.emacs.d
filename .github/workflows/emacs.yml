@@ -17,6 +17,12 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y emacs-nox
 
+      - name: Detect Emacs version
+        id: emacs-version
+        run: |
+          v=$(emacs --batch --eval '(princ emacs-version)')
+          echo "version=$v" >> "$GITHUB_OUTPUT"
+
       - name: Cache straight.el and eln-cache
         id: straight-cache
         uses: actions/cache@v4
@@ -24,8 +30,10 @@ jobs:
           path: |
             ${{ github.workspace }}/straight/repos
             ${{ github.workspace }}/straight/build
+            ${{ github.workspace }}/straight/build-cache.el
+            ${{ github.workspace }}/straight/versions/default.el
             ${{ github.workspace }}/eln-cache
-          key: straight-${{ runner.os }}-${{ hashFiles('core/packages.el', 'docs/config.org', 'settings/**/*.el') }}
+          key: straight-${{ runner.os }}-emacs-${{ steps.emacs-version.outputs.version }}-versions-${{ hashFiles('straight/versions/default.el') }}
           restore-keys: |
             straight-${{ runner.os }}-
 
