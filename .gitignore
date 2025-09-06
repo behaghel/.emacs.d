@@ -54,6 +54,8 @@ bookmarks
 /org-gcal/
 /persist/
 /straight/
+!/straight/versions/
+!/straight/versions/default.el
 /history
 /projects
 /codeium/

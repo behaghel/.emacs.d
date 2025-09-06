@@ -171,6 +171,25 @@ Selection:
 #+end_quote
 Comment:
 avoid clutter when you export org files
+* Pinning & Caching
+To keep CI fast and builds reproducible we pin package versions and cache
+straight.el artifacts in GitHub Actions.
+
+- Pin package versions
+  - Enter the dev shell: ~nix develop~
+  - Freeze versions: ~devenv run freeze~
+  - Commit the generated file: ~straight/versions/default.el~
+
+- CI cache
+  - Caches the following paths:
+    - ~straight/repos~, ~straight/build~, ~straight/build-cache.el~
+    - ~straight/versions/default.el~ (keyed), and ~eln-cache~
+  - Cache key includes Emacs version and the hash of the pinned versions file
+    to ensure stable reuse across runs, while refreshing on intentional updates.
+
+- Local tips
+  - Run ~devenv run pre-commit:all~ before pushing to catch issues early.
+  - Use ~devenv run load-check~ to batch-load ~init.el~ quickly.
 * Insipring Emacs Configs
 ** [2020-05-13 Wed 09:24] dot-emacs/README.org at 22f4c9dfa4de17537af8dccaba7d294382ded9e7 · zamansky/dot-emacs :grasp:emacs:productivity:
 

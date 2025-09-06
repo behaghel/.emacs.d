@@ -67,6 +67,15 @@
 - Requirements: `emacs` available in the shell (provided via devenv); `pre-commit` is included.
 - CI: mirror checks can be added later; for now local hooks enforce cleanliness before pushing.
 
+## Dependency Pinning (straight.el)
+
+- Rationale: pinning produces a stable `straight/versions/default.el` so CI caches hit reliably and local installs are reproducible.
+- Pin versions:
+  - `devenv run freeze` (runs Emacs batch and writes `straight/versions/default.el`).
+  - Commit the generated file as part of the change that introduced or updated packages.
+- CI cache keys: include Emacs version and the hash of `straight/versions/default.el` to avoid unnecessary rebuilds while allowing intentional updates to refresh caches.
+- Updating deps: run `devenv run freeze` after making changes, review the diff in `straight/versions/default.el`, and commit it.
+
 ## Agent Devenv Discipline
 
 - Always run commands inside `nix develop` shells for this repo.
