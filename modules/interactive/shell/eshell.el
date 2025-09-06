@@ -1,4 +1,9 @@
-;;; setup-eshell.el --- Eshell configuration  -*- lexical-binding: t; -*-
+;;; eshell.el --- Shell: Eshell configuration -*- lexical-binding: t; -*-
+
+;;; Commentary:
+;; Eshell helpers, prompt, history, and DX commands.
+
+;;; Code:
 
 (use-package eshell
   :straight nil
@@ -17,15 +22,14 @@
     (hub/dwim-other-window 'eshell))
 
   (defun hub/load-term-theme-locally ()
-    "Load the color theme I want to use for term into the current buffer."
+    "Load per-buffer terminal theme for eshell."
     (load-theme-buffer-local 'tango-dark (current-buffer)))
   :general
   (:states 'normal
 	   "gs" 'eshell
 	   ",el" 'eshell-run-last
 	   "gS" 'hub/eshell-other-window)
-  :hook
-  (eshell-mode . hub/load-term-theme-locally)
+  :hook (eshell-mode . hub/load-term-theme-locally)
   :config
   (require 'em-term)
   (add-to-list 'eshell-visual-commands "sbt")
@@ -35,12 +39,9 @@
   (add-to-list 'eshell-command-completions-alist '("tar" "\(\.tar|\.tgz\|\.tar\.gz\)\'") )
   (setq eshell-cmpl-cycle-completions t)
 
-  ;; stolen from http://blog.liangzan.net/blog/2012/12/12/customizing-your-emacs-eshell-prompt/
-  (defun eshell/ef (fname-regexp &rest dir) (ef fname-regexp default-directory))
-
-  ;; ---- path manipulation
+  ;; Path manipulation helpers
   (defun pwd-repl-home (pwd)
-    "Detect when PWD includes HOME and substitute this part with '~'."
+    "Replace leading $HOME in PWD with ~."
     (let* ((home (expand-file-name (getenv "HOME")))
 	   (home-len (length home)))
       (if (and (>= (length pwd) home-len)
@@ -49,7 +50,7 @@
 	pwd)))
 
   (defun curr-dir-git-branch-string (pwd)
-    "Return current git branch as a string or empty string if none."
+    "Return current git branch for PWD as a propertized string, or empty."
     (when (and (eshell-search-path "git")
 	       (locate-dominating-file pwd ".git"))
       (let ((git-output (shell-command-to-string
@@ -87,5 +88,5 @@
   (setq eshell-highlight-prompt nil)
   (require 'eshell-autojump))
 
-(provide 'setup-eshell)
-;;; setup-eshell.el ends here
+(provide 'shell/eshell)
+;;; eshell.el ends here

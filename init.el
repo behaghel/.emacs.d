@@ -300,13 +300,19 @@
 (require 'setup-perspective)
 ;; at the end, for windows to pick up the font change
 (when (and (featurep 'core-predicates) (hub/interactive-p))
-  (require 'ui/core))
+  (require 'ui/core)
+  (if (display-graphic-p)
+      (require 'ui/gui)
+    (require 'ui/tty)))
 ;; (require 'setup-multiple-cursors)
 (put 'narrow-to-region 'disabled nil)
 (put 'erase-buffer 'disabled nil)
 
 (when (and (featurep 'core-predicates) (hub/interactive-p))
-  (require 'navigation/treemacs))
+  (require 'navigation/treemacs)
+  (require 'vcs/git)
+  (require 'navigation/dired)
+  (require 'shell/eshell))
 (require 'setup-brain)
 (require 'setup-private nil t)
 
