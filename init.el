@@ -68,14 +68,14 @@
    (message "[init] core-packages failed, falling back: %S" err)
    (defvar bootstrap-version)
    (let* ((repo "radian-software/straight.el")
-          (branch "develop")
-          (install-url (format "https://raw.githubusercontent.com/%s/%s/install.el" repo branch))
-          (bootstrap-file (expand-file-name "straight/repos/straight.el/bootstrap.el" user-emacs-directory)))
+	  (branch "develop")
+	  (install-url (format "https://raw.githubusercontent.com/%s/%s/install.el" repo branch))
+	  (bootstrap-file (expand-file-name "straight/repos/straight.el/bootstrap.el" user-emacs-directory)))
      (unless (file-exists-p bootstrap-file)
        (with-current-buffer
-           (url-retrieve-synchronously install-url 'silent 'inhibit-cookies)
-         (goto-char (point-max))
-         (eval-print-last-sexp)))
+	   (url-retrieve-synchronously install-url 'silent 'inhibit-cookies)
+	 (goto-char (point-max))
+	 (eval-print-last-sexp)))
      (load bootstrap-file nil 'nomessage))
    (setq straight-use-package-by-default t)
    (straight-use-package 'use-package)
@@ -115,52 +115,52 @@
   ;; ("C-<right>" . sp-forward-slurp-sexp)
   ;; this works better for other languages
   :bind (("C-<right>" . sp-slurp-hybrid-sexp)
-         ("M-<left>" . sp-backward-slurp-sexp)
-         ("C-<left>" . sp-forward-barf-sexp)
-         ("M-<right>" . sp-backward-barf-sexp)
-         ("M-(" . sp-backward-unwrap-sexp)
-         ("M-)" . sp-unwrap-sexp)
-         ("C-<down>" . sp-down-sexp)
-         ("C-<down>" . sp-down-sexp)
-         ("C-<up>" . sp-backward-up-sexp)
-         ("M-<down>" . sp-backward-down-sexp)
-         ("M-<up>" . sp-up-sexp)
-         ("S-M-f" . sp-forward-sexp)
-         ("S-M-b" . sp-backward-sexp))
+	 ("M-<left>" . sp-backward-slurp-sexp)
+	 ("C-<left>" . sp-forward-barf-sexp)
+	 ("M-<right>" . sp-backward-barf-sexp)
+	 ("M-(" . sp-backward-unwrap-sexp)
+	 ("M-)" . sp-unwrap-sexp)
+	 ("C-<down>" . sp-down-sexp)
+	 ("C-<down>" . sp-down-sexp)
+	 ("C-<up>" . sp-backward-up-sexp)
+	 ("M-<down>" . sp-backward-down-sexp)
+	 ("M-<up>" . sp-up-sexp)
+	 ("S-M-f" . sp-forward-sexp)
+	 ("S-M-b" . sp-backward-sexp))
   :init
   (use-package evil-smartparens
     :diminish evil-smartparens-mode
     :config
     (defadvice evil-sp--add-bindings
-        (after evil-sp--add-bindings-after activate)
+	(after evil-sp--add-bindings-after activate)
       (evil-define-key 'normal evil-smartparens-mode-map
-        (kbd ",l") #'evil-sp-change
-        (kbd ",L") #'evil-sp-change-line
-        (kbd ",K") #'evil-sp-change-whole-line
-        (kbd ",D") #'evil-sp-delete-line
-        (kbd "D") nil
-        (kbd "c") nil
-        (kbd "s") nil
-        (kbd "S") nil
-        (kbd ",k") #'evil-sp-substitute
-        (kbd ",K") #'sp-kill-sexp
-        ;; Finds opening '(' of the current list.
-        ;; (kbd ",{") #'sp-backward-up-sexp
-        ;; Finds closing ')' of the current list.
-        ;; (kbd ",}") #'sp-up-sexp
-        (kbd ",s") #'sp-backward-up-sexp
-        (kbd ",t") #'sp-down-sexp
-        (kbd ",(") #'sp-backward-up-sexp
-        (kbd ",)") #'sp-up-sexp
-        ;; Go to the start of current/previous sexp
-        (kbd "[[") #'sp-backward-sexp
-        ;; Go to the start of next sexp.
-        (kbd "]]") #'sp-forward-sexp
-        (kbd ",r") #'sp-next-sexp
-        (kbd ",c") #'sp-previous-sexp
-        ;; (define-key evil-motion-state-map "S" 'evil-window-top)
-        ;; (define-key evil-motion-state-map "s" 'evil-previous-line)
-        ))
+		       (kbd ",l") #'evil-sp-change
+		       (kbd ",L") #'evil-sp-change-line
+		       (kbd ",K") #'evil-sp-change-whole-line
+		       (kbd ",D") #'evil-sp-delete-line
+		       (kbd "D") nil
+		       (kbd "c") nil
+		       (kbd "s") nil
+		       (kbd "S") nil
+		       (kbd ",k") #'evil-sp-substitute
+		       (kbd ",K") #'sp-kill-sexp
+		       ;; Finds opening '(' of the current list.
+		       ;; (kbd ",{") #'sp-backward-up-sexp
+		       ;; Finds closing ')' of the current list.
+		       ;; (kbd ",}") #'sp-up-sexp
+		       (kbd ",s") #'sp-backward-up-sexp
+		       (kbd ",t") #'sp-down-sexp
+		       (kbd ",(") #'sp-backward-up-sexp
+		       (kbd ",)") #'sp-up-sexp
+		       ;; Go to the start of current/previous sexp
+		       (kbd "[[") #'sp-backward-sexp
+		       ;; Go to the start of next sexp.
+		       (kbd "]]") #'sp-forward-sexp
+		       (kbd ",r") #'sp-next-sexp
+		       (kbd ",c") #'sp-previous-sexp
+		       ;; (define-key evil-motion-state-map "S" 'evil-window-top)
+		       ;; (define-key evil-motion-state-map "s" 'evil-previous-line)
+		       ))
     (add-hook 'smartparens-enabled-hook #'evil-smartparens-mode))
   :config
   (require 'smartparens-config)
@@ -181,10 +181,10 @@
   ;; :ensure t
   :diminish yas-minor-mode
   :bind (("<C-tab>" . company-yasnippet)
-         :map yas-minor-mode-map
-         ;; expand with company
-         ("<tab>" . nil)
-         ("TAB" . nil))
+	 :map yas-minor-mode-map
+	 ;; expand with company
+	 ("<tab>" . nil)
+	 ("TAB" . nil))
   :config
   (yas-global-mode 1)
   (setq yas-prompt-functions '(yas/completing-prompt))
@@ -222,10 +222,10 @@
 (use-package artbollocks-mode
   :commands (artbollocks-mode)
   :bind (:map evil-normal-state-map     ;TODO: don't pollute global normal map
-              (",bw" . artbollocks-count-words)
-              (",bg" . artbollocks-grade-level)
-              (",be" . artbollocks-reading-ease)
-              (",br" . artbollocks-readability-index)))
+	      (",bw" . artbollocks-count-words)
+	      (",bg" . artbollocks-grade-level)
+	      (",be" . artbollocks-reading-ease)
+	      (",br" . artbollocks-readability-index)))
 
 (use-package writeroom-mode
   :commands (writeroom-mode)
@@ -236,7 +236,7 @@
 (use-package languagetool
   :commands (languagetool-check)
   :bind (:map evil-normal-state-map
-              (",bc" . langtool-check))
+	      (",bc" . langtool-check))
   :config
   ;; style and grammar checker
   (setq langtool-language-tool-jar "/usr/local/Cellar/languagetool/2.6/libexec/languagetool.jar")
@@ -252,8 +252,8 @@
 (use-package markdown-mode
   :defer t
   :mode (("\\.md\\'" . markdown-mode)
-         ("\\.markdown\\'" . markdown-mode)
-         ("README\\.md\\'" . gfm-mode))
+	 ("\\.markdown\\'" . markdown-mode)
+	 ("README\\.md\\'" . gfm-mode))
   :init
   ;; in github flavour markdown, \n are enforced strictly
   (add-hook 'gfm-mode-hook (lambda () (auto-fill-mode -1)))
@@ -271,7 +271,7 @@
   (evil-define-key 'normal markdown-mode-map (kbd "M-<") 'markdown-promote)
   (evil-define-key 'normal markdown-mode-map (kbd ",eV") 'markdown-export-and-preview))
 
-                                        ; CODING
+					; CODING
 (require 'dev-common)
 
 (require 'setup-perspective)

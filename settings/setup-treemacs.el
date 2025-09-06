@@ -28,11 +28,11 @@
 (use-package treemacs
   :after (doom-themes evil)
   :bind (("M-0"       . treemacs-select-window)
-         ("C-x t 1"   . treemacs-delete-other-windows)
-         ("C-x t t"   . treemacs)
-         ("C-x t B"   . treemacs-bookmark)
-         ("C-x t C-t" . treemacs-find-file)
-         ("C-x t M-t" . treemacs-find-tag))
+	 ("C-x t 1"   . treemacs-delete-other-windows)
+	 ("C-x t t"   . treemacs)
+	 ("C-x t B"   . treemacs-bookmark)
+	 ("C-x t C-t" . treemacs-find-file)
+	 ("C-x t M-t" . treemacs-find-tag))
   :config
   (require 'treemacs-icons)
   ;; The default width and height of the icons is 22 pixels. If you are
@@ -46,7 +46,7 @@
   (require 'treemacs-fringe-indicator)
   (treemacs-fringe-indicator-mode t)
   (pcase (cons (not (null (executable-find "git")))
-               (not (null treemacs-python-executable)))
+	       (not (null treemacs-python-executable)))
     (`(t . t)
      (treemacs-git-mode 'deferred))
     (`(t . _)
@@ -61,9 +61,9 @@
   ;; ,ot to open treemacs and ,oT to find file in it
   (with-eval-after-load 'evil-collection
     (evil-collection-define-key 'normal 'global
-      ",gt" 'treemacs-select-window
-      ",mt" 'treemacs-bookmark
-      )))
+				",gt" 'treemacs-select-window
+				",mt" 'treemacs-bookmark
+				)))
 
 (use-package treemacs-evil
   :after (treemacs evil)

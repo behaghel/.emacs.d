@@ -37,16 +37,16 @@
 (use-package pydoc
   :commands (pydoc pydoc-at-point pydoc-browse)
   :bind (:map evil-normal-state-map
-              (",hh" . pydoc-at-point-no-jedi)))
+	      (",hh" . pydoc-at-point-no-jedi)))
 
 (use-package python-pytest
   :bind (:map evil-normal-state-map
-              (",Th" . python-pytest-dispatch)
-              (",Tt" . python-pytest)
-              (",Tf" . python-pytest-file)
-              (",T," . python-pytest-file-dwim)
-              (",Tr" . python-pytest-repeat)
-              (",Tl" . python-pytest-last-failed)))
+	      (",Th" . python-pytest-dispatch)
+	      (",Tt" . python-pytest)
+	      (",Tf" . python-pytest-file)
+	      (",T," . python-pytest-file-dwim)
+	      (",Tr" . python-pytest-repeat)
+	      (",Tl" . python-pytest-last-failed)))
 
 (use-package pip-requirements)
 
