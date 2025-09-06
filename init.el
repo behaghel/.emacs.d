@@ -36,7 +36,8 @@
 
 ;; CI optimizations for straight.el: avoid modification checks and use shallow clones.
 (when (getenv "GITHUB_ACTIONS")
-  (setq straight-check-for-modifications 'never)
+  ;; Older straight.el expects a list here; use nil to disable checks in CI.
+  (setq straight-check-for-modifications nil)
   (setq straight-vc-git-default-clone-depth 1))
 
 ;; Ensure a writable temp directory exists within `user-emacs-directory`.
