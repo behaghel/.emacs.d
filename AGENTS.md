@@ -37,3 +37,12 @@
 - GPG/Pass: this config uses `auth-source-pass` and `pinentry`; ensure your keychain is set up.
 - Package management uses `straight.el` on demand; do not commit cache/vendor directories.
 
+## Git Discipline & Branching Workflow
+
+- Branching: start each task on a fresh branch from the current base (`main` or the agreed feature base). Use prefixes like `feat/…`, `fix/…`, `chore/…`, or `refactor/…`.
+- Commits: commit early and often with focused diffs; use short, imperative subjects and include scope when helpful, e.g., `[settings/setup-foo.el] Describe change`.
+- Push & CI: push branches to `origin` regularly and verify GitHub Actions status. Fix CI breaks before continuing related work.
+- Remotes: use SSH remotes (e.g., `git@github.com:behaghel/.emacs.d.git`). Avoid interactive GitHub logins; no HTTPS remotes.
+- Flow for larger efforts: create a meta/setup branch first (e.g., `chore/git-discipline`), push it, then branch the long‑running migration work from it (e.g., `refactor/migration-base`).
+- WIP management: if needed, `git stash push -u` to move in‑progress changes between branches cleanly.
+- Agent etiquette: the agent announces new branches, commits frequently, and requests approval before network actions (e.g., `git push`).
