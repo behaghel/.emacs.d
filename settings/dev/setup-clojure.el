@@ -24,11 +24,11 @@
     :init
     ;; Add custom magic requires.
     (dolist (mapping '(("maps" . "outpace.util.maps")
-                       ("seqs" . "outpace.util.seqs")
-                       ("times" . "outpace.util.times")
-                       ("repl" . "outpace.util.repl")
-                       ("time" . "clj-time.core")
-                       ("string" . "clojure.string")))
+		       ("seqs" . "outpace.util.seqs")
+		       ("times" . "outpace.util.times")
+		       ("repl" . "outpace.util.repl")
+		       ("time" . "clj-time.core")
+		       ("string" . "clojure.string")))
       (add-to-list 'cljr-magic-require-namespaces mapping t))
     (setq cljr-favor-prefix-notation nil)
     :config
@@ -49,18 +49,18 @@ opening 4clojure questions"
   (interactive)
   (unless
       (save-excursion
-        ;; Find last sexp (the answer).
-        (goto-char (point-max))
-        (forward-sexp -1)
-        ;; go to the beginning of the line for answer like :a :b :c
-        (beginning-of-line)
-        ;; Check the answer.
-        (cl-letf ((answer
-                   (buffer-substring (point) (point-max))))
-          (goto-char (point-min))
-          (while (search-forward "__" nil t)
-            (replace-match answer))
-          (string-match "failed." (4clojure-check-answers))))
+	;; Find last sexp (the answer).
+	(goto-char (point-max))
+	(forward-sexp -1)
+	;; go to the beginning of the line for answer like :a :b :c
+	(beginning-of-line)
+	;; Check the answer.
+	(cl-letf ((answer
+		   (buffer-substring (point) (point-max))))
+	  (goto-char (point-min))
+	  (while (search-forward "__" nil t)
+	    (replace-match answer))
+	  (string-match "failed." (4clojure-check-answers))))
     (4clojure-next-question)))
 
 (defadvice 4clojure/start-new-problem
@@ -86,16 +86,16 @@ opening 4clojure questions"
    :type "POST"
    :sync t
    :headers '(
-              ("User-Agent" . "Mozilla/5.0 (X11; Linux x86_64; rv:28.0) Gecko/20100101  Firefox/28.0")
-              ("Referer" . "http://www.4clojure.com/login")
-              )
-                                        ;   :parser 'buffer-string
+	      ("User-Agent" . "Mozilla/5.0 (X11; Linux x86_64; rv:28.0) Gecko/20100101  Firefox/28.0")
+	      ("Referer" . "http://www.4clojure.com/login")
+	      )
+					;   :parser 'buffer-string
    :data `(("user" . ,user) ("pwd" . ,pwd))
    :success (function*
-             (lambda (&key data &allow-other-keys)
-               data))
-                                        ; when server send 302 header, `request` redirect request with original method POST,
-                                        ; So 4clojure will not handle this redirect and given 404
+	     (lambda (&key data &allow-other-keys)
+	       data))
+					; when server send 302 header, `request` redirect request with original method POST,
+					; So 4clojure will not handle this redirect and given 404
    :status-code '((404 . (lambda (&rest _) (message "login successful!"))))
    )
   )

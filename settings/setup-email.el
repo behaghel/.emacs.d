@@ -44,18 +44,18 @@ Return the path to the `mu' binary when found.  This makes the
 configuration resilient across macOS, Linux and NixOS installs
 where Mu4e may live in different locations."
   (let* ((mu-bin (executable-find "mu"))
-         (prefix (when mu-bin (expand-file-name ".." (file-name-directory mu-bin))))
-         (candidates (list
-                      (when prefix (expand-file-name "share/emacs/site-lisp/mu/mu4e" prefix))
-                      (when prefix (expand-file-name "share/emacs/site-lisp/mu4e" prefix))
-                      "/usr/local/share/emacs/site-lisp/mu/mu4e"
-                      "/usr/local/share/emacs/site-lisp/mu4e"
-                      "/usr/share/emacs/site-lisp/mu/mu4e"
-                      "/usr/share/emacs/site-lisp/mu4e")))
+	 (prefix (when mu-bin (expand-file-name ".." (file-name-directory mu-bin))))
+	 (candidates (list
+		      (when prefix (expand-file-name "share/emacs/site-lisp/mu/mu4e" prefix))
+		      (when prefix (expand-file-name "share/emacs/site-lisp/mu4e" prefix))
+		      "/usr/local/share/emacs/site-lisp/mu/mu4e"
+		      "/usr/local/share/emacs/site-lisp/mu4e"
+		      "/usr/share/emacs/site-lisp/mu/mu4e"
+		      "/usr/share/emacs/site-lisp/mu4e")))
     (cl-loop for dir in candidates do
-             (when (and dir (file-directory-p dir))
-               (add-to-list 'load-path dir)
-               (cl-return)))
+	     (when (and dir (file-directory-p dir))
+	       (add-to-list 'load-path dir)
+	       (cl-return)))
     mu-bin))
 
 (defvar hub/mu-binary (hub/add-mu4e-load-path)
@@ -70,47 +70,47 @@ where Mu4e may live in different locations."
 (use-package mu4e
   :straight (:type built-in)
   :init (unless hub/mu-binary
-          (message "mu binary not found; mu4e may not be available"))
+	  (message "mu binary not found; mu4e may not be available"))
   :custom   (mu4e-mu-binary (or hub/mu-binary "mu"))
   :config
   (evil-collection-define-key 'normal 'mu4e-main-mode-map
-    "ê" 'mu4e-headers-search
-    ",hh" 'mu4e-display-manual
-    "zO" 'org-msg-mode
-    "zê" 'mu4e-headers-toggle-full-search
-    )
+			      "ê" 'mu4e-headers-search
+			      ",hh" 'mu4e-display-manual
+			      "zO" 'org-msg-mode
+			      "zê" 'mu4e-headers-toggle-full-search
+			      )
 
   (evil-collection-define-key 'normal 'mu4e-headers-mode-map
-    "F" 'mu4e-compose-forward
-    "O" 'mu4e-org-store-and-capture
-    "zO" 'org-msg-mode
-    ",à" 'mu4e-org-store-and-capture
-    "ê" 'mu4e-headers-search
-    "Ê" 'mu4e-headers-search-edit
-    "à" 'mu4e-headers-mark-for-refile
-    "À" 'mu4e-headers-mark-for-archive
-    "gs" 'mu4e-headers-prev-unread
-    "gt" 'mu4e-headers-next-unread
-    "\C-t" 'mu4e-headers-next
-    "\C-s" 'mu4e-headers-prev
-    "zÉ" 'mu4e-headers-toggle-include-related
-    "zé" 'mu4e-headers-toggle-threading
-    "zê" 'mu4e-headers-toggle-full-search
-    "gL" 'mu4e-show-log
-    "%" 'mu4e-headers-mark-pattern
-    ",é" 'mu4e-headers-mark-pattern
-    "É"  'mu4e-headers-mark-thread
-    "SPC" nil
-    "z!" (lambda ()
-           (interactive)
-           (mu4e-headers-mark-thread nil '(read)))
-    "zD" (lambda ()
-           (interactive)
-           (mu4e-headers-mark-thread nil '(delete)))
-    "zà" (lambda ()
-           (interactive)
-           (mu4e-headers-mark-thread nil '(refile)))
-    )
+			      "F" 'mu4e-compose-forward
+			      "O" 'mu4e-org-store-and-capture
+			      "zO" 'org-msg-mode
+			      ",à" 'mu4e-org-store-and-capture
+			      "ê" 'mu4e-headers-search
+			      "Ê" 'mu4e-headers-search-edit
+			      "à" 'mu4e-headers-mark-for-refile
+			      "À" 'mu4e-headers-mark-for-archive
+			      "gs" 'mu4e-headers-prev-unread
+			      "gt" 'mu4e-headers-next-unread
+			      "\C-t" 'mu4e-headers-next
+			      "\C-s" 'mu4e-headers-prev
+			      "zÉ" 'mu4e-headers-toggle-include-related
+			      "zé" 'mu4e-headers-toggle-threading
+			      "zê" 'mu4e-headers-toggle-full-search
+			      "gL" 'mu4e-show-log
+			      "%" 'mu4e-headers-mark-pattern
+			      ",é" 'mu4e-headers-mark-pattern
+			      "É"  'mu4e-headers-mark-thread
+			      "SPC" nil
+			      "z!" (lambda ()
+				     (interactive)
+				     (mu4e-headers-mark-thread nil '(read)))
+			      "zD" (lambda ()
+				     (interactive)
+				     (mu4e-headers-mark-thread nil '(delete)))
+			      "zà" (lambda ()
+				     (interactive)
+				     (mu4e-headers-mark-thread nil '(refile)))
+			      )
 
   (defun hub/copy-url-at-point-dwim (url)
     "Copy the URL under point to the kill ring.
@@ -121,88 +121,88 @@ point then copy the URL of the image under point instead."
     (interactive (list (shr-url-at-point current-prefix-arg)))
     (let ((target (or url (ffap-url-at-point))))
       (if (not target)
-          (message "No URL under point")
-        (setq target (url-encode-url target))
-        (kill-new target)
-        (message "Copied %s" target))))
+	  (message "No URL under point")
+	(setq target (url-encode-url target))
+	(kill-new target)
+	(message "Copied %s" target))))
 
   (evil-collection-define-key 'normal 'mu4e-view-mode-map
-    (kbd "<tab>") (lambda()
-                    (interactive)
-                    (if (equal system-type 'darwin)
-                        (forward-button 1)
-                      (widget-forward)))
-    "zO" 'org-msg-mode
-    "O" 'mu4e-org-store-and-capture
-    ",à" 'mu4e-org-store-and-capture
-    "F" 'mu4e-compose-forward
-    "ê" 'mu4e-headers-search
-    ",hh" 'mu4e-display-manual
-    "à" 'mu4e-view-mark-for-refile
-    "À" 'mu4e-headers-mark-for-archive
-    "Y" 'hub/copy-url-at-point-dwim                  ; when on a link in html
-    "zh" 'mu4e-view-toggle-html
-    "gs" 'mu4e-headers-prev-unread
-    "gt" 'mu4e-headers-next-unread
-    "gb" 'message-goto-body
-    "\C-t" 'mu4e-view-headers-next
-    "\C-s" 'mu4e-view-headers-prev
-    "zÉ" 'mu4e-headers-toggle-include-related
-    "zé" 'mu4e-headers-toggle-threading
-    "zq" (lambda()
-           (interactive)
-           (if mu4e-view-use-gnus
-               (article-fill-long-lines)
-             (mu4e-view-fill-long-lines)))
-    "gL" 'mu4e-show-log
-    "%" 'mu4e-view-mark-pattern
-    ",é" 'mu4e-view-mark-pattern
-    "É"  'mu4e-headers-mark-thread
-    "SPC" nil
-    "z!" (lambda ()
-           (interactive)
-           (mu4e-headers-mark-thread nil '(read)))
-    "zD" (lambda ()
-           (interactive)
-           (mu4e-headers-mark-thread nil '(delete)))
-    "zà" (lambda ()
-           (interactive)
-           (mu4e-headers-mark-thread nil '(refile)))
-    )
+			      (kbd "<tab>") (lambda()
+					      (interactive)
+					      (if (equal system-type 'darwin)
+						  (forward-button 1)
+						(widget-forward)))
+			      "zO" 'org-msg-mode
+			      "O" 'mu4e-org-store-and-capture
+			      ",à" 'mu4e-org-store-and-capture
+			      "F" 'mu4e-compose-forward
+			      "ê" 'mu4e-headers-search
+			      ",hh" 'mu4e-display-manual
+			      "à" 'mu4e-view-mark-for-refile
+			      "À" 'mu4e-headers-mark-for-archive
+			      "Y" 'hub/copy-url-at-point-dwim                  ; when on a link in html
+			      "zh" 'mu4e-view-toggle-html
+			      "gs" 'mu4e-headers-prev-unread
+			      "gt" 'mu4e-headers-next-unread
+			      "gb" 'message-goto-body
+			      "\C-t" 'mu4e-view-headers-next
+			      "\C-s" 'mu4e-view-headers-prev
+			      "zÉ" 'mu4e-headers-toggle-include-related
+			      "zé" 'mu4e-headers-toggle-threading
+			      "zq" (lambda()
+				     (interactive)
+				     (if mu4e-view-use-gnus
+					 (article-fill-long-lines)
+				       (mu4e-view-fill-long-lines)))
+			      "gL" 'mu4e-show-log
+			      "%" 'mu4e-view-mark-pattern
+			      ",é" 'mu4e-view-mark-pattern
+			      "É"  'mu4e-headers-mark-thread
+			      "SPC" nil
+			      "z!" (lambda ()
+				     (interactive)
+				     (mu4e-headers-mark-thread nil '(read)))
+			      "zD" (lambda ()
+				     (interactive)
+				     (mu4e-headers-mark-thread nil '(delete)))
+			      "zà" (lambda ()
+				     (interactive)
+				     (mu4e-headers-mark-thread nil '(refile)))
+			      )
   (evil-collection-define-key 'normal 'mu4e-compose-mode-map
-    ",hh" 'mu4e-display-manual
-    "gs" 'message-goto-subject
-    "\C-c\C-s" 'message-goto-subject      ; align with org-msg
-    "gb" 'message-goto-body
-    (kbd "zn") 'use-hard-newlines       ; reintroduce hard nl
-    )
+			      ",hh" 'mu4e-display-manual
+			      "gs" 'message-goto-subject
+			      "\C-c\C-s" 'message-goto-subject      ; align with org-msg
+			      "gb" 'message-goto-body
+			      (kbd "zn") 'use-hard-newlines       ; reintroduce hard nl
+			      )
   (evil-collection-define-key 'normal 'org-msg-edit-mode-map
-    ",hh" 'mu4e-display-manual
-    "gs" 'message-goto-subject
-    "gb" 'org-msg-goto-body
-    )
+			      ",hh" 'mu4e-display-manual
+			      "gs" 'message-goto-subject
+			      "gb" 'org-msg-goto-body
+			      )
   (evil-collection-define-key 'insert 'mu4e-compose-mode-map
-    (kbd "M-.") 'message-goto-body
-    (kbd "M-,") 'message-goto-subject
-    )
+			      (kbd "M-.") 'message-goto-body
+			      (kbd "M-,") 'message-goto-subject
+			      )
   (evil-collection-define-key 'insert 'org-msg-edit-mode-map
-    (kbd "M-.") 'org-msg-goto-body
-    (kbd "M-,") 'message-goto-subject
-    )
+			      (kbd "M-.") 'org-msg-goto-body
+			      (kbd "M-,") 'message-goto-subject
+			      )
 
   (evil-collection-define-key 'normal 'gnus-mime-button-map
-    "t" 'evil-next-line
-    "T" 'gnus-mime-view-part-as-type
-    "\C-s" 'gnus-mime-save-part
-    "p" 'evil-paste-after
-    "P" 'gnus-mime-print-part
-    "r" 'evil-forward-char
-    "R" 'gnus-mime-replace-part
-    "c" 'evil-backward-char
-    "y" 'gnus-mime-copy-part
-    "\C-v" 'gnus-mime-view-part-externally
-    "\C-o" 'gnus-mime-view-part-internally
-    )
+			      "t" 'evil-next-line
+			      "T" 'gnus-mime-view-part-as-type
+			      "\C-s" 'gnus-mime-save-part
+			      "p" 'evil-paste-after
+			      "P" 'gnus-mime-print-part
+			      "r" 'evil-forward-char
+			      "R" 'gnus-mime-replace-part
+			      "c" 'evil-backward-char
+			      "y" 'gnus-mime-copy-part
+			      "\C-v" 'gnus-mime-view-part-externally
+			      "\C-o" 'gnus-mime-view-part-internally
+			      )
   ;; (defvar gnus-mime-button-commands
   ;;   '((gnus-article-press-button "\r" "Toggle Display")
   ;;     (gnus-mime-view-part "v" "View Interactively...")
@@ -223,52 +223,52 @@ point then copy the URL of the image under point instead."
   ;;; Setup
   ;; Contexts / multiple accounts
   (setq mu4e-contexts
-        `(
-          ,(make-mu4e-context
-            :name "gmail"
-            :enter-func (lambda () (mu4e-message ">> GMail context"))
-            :leave-func (lambda () (mu4e-message "<< GMail context"))
-            ;; we match based on the contact-fields of the message
-            :match-func
-            (lambda (msg)
-              (when msg
-                (string-match-p "^/gmail" (mu4e-message-field msg :maildir))))
-            :vars '((user-mail-address      . "behaghel@gmail.com")
-                    (smtpmail-smtp-user     . "behaghel@gmail.com")
-                    (org-msg-signature      . "#+begin_signature
+	`(
+	  ,(make-mu4e-context
+	    :name "gmail"
+	    :enter-func (lambda () (mu4e-message ">> GMail context"))
+	    :leave-func (lambda () (mu4e-message "<< GMail context"))
+	    ;; we match based on the contact-fields of the message
+	    :match-func
+	    (lambda (msg)
+	      (when msg
+		(string-match-p "^/gmail" (mu4e-message-field msg :maildir))))
+	    :vars '((user-mail-address      . "behaghel@gmail.com")
+		    (smtpmail-smtp-user     . "behaghel@gmail.com")
+		    (org-msg-signature      . "#+begin_signature
 --\n\nHubert
 #+end_signature")))
-          ,(make-mu4e-context
-            :name "fbehaghel.fr"
-            :enter-func (lambda () (mu4e-message ">> behaghel.fr context"))
-            :match-func
-            (lambda (msg)
-              (when msg
-                (mu4e-message-contact-field-matches msg
-                                                    '(:cc :from :to)
-                                                    "hubert@behaghel.fr")
-                ))
-            :vars '((user-mail-address     . "hubert@behaghel.fr")
-                    (smtpmail-smtp-user    . "hubert@behaghel.fr")
-                    ))
-          ,(make-mu4e-context
-            :name "obehaghel.org"
-            :enter-func (lambda () (mu4e-message ">> behaghel.org context"))
-            :match-func
-            (lambda (msg)
-              (when msg
-                (mu4e-message-contact-field-matches msg
-                                                    '(:cc :from :to)
-                                                    "hubert@behaghel.org")
-                ))
-            :vars '((user-mail-address     . "hubert@behaghel.org")
-                    (smtpmail-smtp-user    . "hubert@behaghel.org")
-                    ))
-          ))
+	  ,(make-mu4e-context
+	    :name "fbehaghel.fr"
+	    :enter-func (lambda () (mu4e-message ">> behaghel.fr context"))
+	    :match-func
+	    (lambda (msg)
+	      (when msg
+		(mu4e-message-contact-field-matches msg
+						    '(:cc :from :to)
+						    "hubert@behaghel.fr")
+		))
+	    :vars '((user-mail-address     . "hubert@behaghel.fr")
+		    (smtpmail-smtp-user    . "hubert@behaghel.fr")
+		    ))
+	  ,(make-mu4e-context
+	    :name "obehaghel.org"
+	    :enter-func (lambda () (mu4e-message ">> behaghel.org context"))
+	    :match-func
+	    (lambda (msg)
+	      (when msg
+		(mu4e-message-contact-field-matches msg
+						    '(:cc :from :to)
+						    "hubert@behaghel.org")
+		))
+	    :vars '((user-mail-address     . "hubert@behaghel.org")
+		    (smtpmail-smtp-user    . "hubert@behaghel.org")
+		    ))
+	  ))
 
   ;; start with the first (default) context;
   (setq mu4e-context-policy 'pick-first
-        mu4e-compose-context-policy 'ask-if-none)
+	mu4e-compose-context-policy 'ask-if-none)
 
   ;; the next are relative to the root maildir
   ;; (see `mu info`).
@@ -277,28 +277,28 @@ point then copy the URL of the image under point instead."
   (defun contextual-default-folder (suffix)
     (lambda (msg)
       (let* ((msg-context (mu4e-context-determine msg))
-             (context (if msg-context msg-context (mu4e-context-current)))
-             (ctx-name (mu4e-context-name context))
-             (box-path (if (string-match-p "behaghel." ctx-name) (substring ctx-name 1 nil) ctx-name)))
-        (concat "/" box-path suffix))))
+	     (context (if msg-context msg-context (mu4e-context-current)))
+	     (ctx-name (mu4e-context-name context))
+	     (box-path (if (string-match-p "behaghel." ctx-name) (substring ctx-name 1 nil) ctx-name)))
+	(concat "/" box-path suffix))))
   (setq mu4e-sent-folder   (contextual-default-folder "/sent")
-        mu4e-drafts-folder (contextual-default-folder "/drafts")
-        mu4e-refile-folder (contextual-default-folder "/archive")
-        mu4e-trash-folder  (contextual-default-folder "/trash"))
+	mu4e-drafts-folder (contextual-default-folder "/drafts")
+	mu4e-refile-folder (contextual-default-folder "/archive")
+	mu4e-trash-folder  (contextual-default-folder "/trash"))
 
   ;; the maildirs you use frequently; access them with 'j' ('jump')
   (setq   mu4e-maildir-shortcuts
-          '(
-            (:maildir "/gmail/inbox"   :key ?g)
-            (:maildir "/behaghel.fr/inbox"     :key ?f)
-            (:maildir "/behaghel.org/inbox"     :key ?o)
-            (:maildir "/gmail/archive" :key ?G)
-            (:maildir "/behaghel.fr/archive"     :key ?F)
-            (:maildir "/behaghel.org/archive"     :key ?O)
-            (:maildir "/gmail/sent"    :key ?s)
-            (:maildir "/behaghel.fr/sent"     :key ?h)
-            (:maildir "/behaghel.org/sent"     :key ?S)
-            ))
+	  '(
+	    (:maildir "/gmail/inbox"   :key ?g)
+	    (:maildir "/behaghel.fr/inbox"     :key ?f)
+	    (:maildir "/behaghel.org/inbox"     :key ?o)
+	    (:maildir "/gmail/archive" :key ?G)
+	    (:maildir "/behaghel.fr/archive"     :key ?F)
+	    (:maildir "/behaghel.org/archive"     :key ?O)
+	    (:maildir "/gmail/sent"    :key ?s)
+	    (:maildir "/behaghel.fr/sent"     :key ?h)
+	    (:maildir "/behaghel.org/sent"     :key ?S)
+	    ))
 
 
   ;; attempt to reinvent Other view from Outlook which is pretty much
@@ -314,147 +314,147 @@ point then copy the URL of the image under point instead."
   ;; https://emacs.stackexchange.com/questions/51999/muting-threads-in-mu4e
   ;; and also https://www.reddit.com/r/emacs/comments/eu7xxy/mu4e_empty_trash_folder_in_regular_intervals/
   (setq hub/noise-predicates
-        '(
-          ;; You could try to automatically process cancellations. Outlook
-          ;; then starts the subject with "Cancelled"
-          ( :name "Calendar Notifications"
-            :query "mime:text/calendar")
+	'(
+	  ;; You could try to automatically process cancellations. Outlook
+	  ;; then starts the subject with "Cancelled"
+	  ( :name "Calendar Notifications"
+	    :query "mime:text/calendar")
 
-          ;; GMail
+	  ;; GMail
       ;;; Notifications (it's ok if not read)
-          ( :name "Qustodio Notifications"
-            :query "from:no-reply@qustodio.com")
-          ( :name "Strava Notifications"
-            :query "from:no-reply@strava.com"
-            :category "cycling")
-          ( :name "Ebay Confirmations"
-            :query "from:ebay@ebay.co.uk OR from:ebay@ebay.com"
-            :category "shopping")
-          ( :name "Amazon Confirmations"
-            :query "from:auto-confirm@amazon.co.uk"
-            :category "shopping")
-          ( :name "Amazon Updates"
-            :query "from:no-reply@amazon.co.uk"
-            :category "shopping")
-          ( :name "Amazon Shipment"
-            :query "from:shipment-tracking@amazon.co.uk"
-            :category "shopping")
-          ( :name "Amazon Order Updates"
-            :query "from:order-update@amazon.co.uk"
-            :category "shopping")
-          ( :name "Enterprise Rent-a-car"
-            :query "list:10780075.xt.local")
-          ( :name "Charles Stanley Direct Contract Notes"
-            :query "from:info@charles-stanley-direct.co.uk AND subject:\"Contract Note\"")
-          ( :name "Proactive Investor Alerts"
-            :query "from:noreply@proactiveinvestors.com")
-          ( :name "HP Instant Ink"
-            :query "from:HP@email.hpconnected.com")
-          ( :name "ParuVendu"
-            :query "from:info@paruvendu.fr")
-          ( :name "Dropbox"
-            :query "from:no-reply@dropbox.com")
-          ( :name "Ocado Confirmation"
-            :query "from:customerservices@ocado.com AND subject:\"Confirmation of your order\"")
-          ( :name "Netflix"
-            :query "from:info@mailer.netflix.com")
-          ( :name "Analyzati code"
-            :query "from:hello@analyzati.com AND subject:\"Security code - Analyzati\"")
-          ( :name "idealista"
-            :query "from:noresponder@idealista.com OR from:noresponder@avisos.idealista.com")
-          ( :name "CosmoCaixa"
-            :query "from:info@news.cosmocaixa.org")
+	  ( :name "Qustodio Notifications"
+	    :query "from:no-reply@qustodio.com")
+	  ( :name "Strava Notifications"
+	    :query "from:no-reply@strava.com"
+	    :category "cycling")
+	  ( :name "Ebay Confirmations"
+	    :query "from:ebay@ebay.co.uk OR from:ebay@ebay.com"
+	    :category "shopping")
+	  ( :name "Amazon Confirmations"
+	    :query "from:auto-confirm@amazon.co.uk"
+	    :category "shopping")
+	  ( :name "Amazon Updates"
+	    :query "from:no-reply@amazon.co.uk"
+	    :category "shopping")
+	  ( :name "Amazon Shipment"
+	    :query "from:shipment-tracking@amazon.co.uk"
+	    :category "shopping")
+	  ( :name "Amazon Order Updates"
+	    :query "from:order-update@amazon.co.uk"
+	    :category "shopping")
+	  ( :name "Enterprise Rent-a-car"
+	    :query "list:10780075.xt.local")
+	  ( :name "Charles Stanley Direct Contract Notes"
+	    :query "from:info@charles-stanley-direct.co.uk AND subject:\"Contract Note\"")
+	  ( :name "Proactive Investor Alerts"
+	    :query "from:noreply@proactiveinvestors.com")
+	  ( :name "HP Instant Ink"
+	    :query "from:HP@email.hpconnected.com")
+	  ( :name "ParuVendu"
+	    :query "from:info@paruvendu.fr")
+	  ( :name "Dropbox"
+	    :query "from:no-reply@dropbox.com")
+	  ( :name "Ocado Confirmation"
+	    :query "from:customerservices@ocado.com AND subject:\"Confirmation of your order\"")
+	  ( :name "Netflix"
+	    :query "from:info@mailer.netflix.com")
+	  ( :name "Analyzati code"
+	    :query "from:hello@analyzati.com AND subject:\"Security code - Analyzati\"")
+	  ( :name "idealista"
+	    :query "from:noresponder@idealista.com OR from:noresponder@avisos.idealista.com")
+	  ( :name "CosmoCaixa"
+	    :query "from:info@news.cosmocaixa.org")
 
-          ( :name "Amazon Orders"
-            :query "from:confirmar-envio@amazon.es")
-          ( :name "Amazon Kindle Orders"
-            :query "from:digital-no-reply@amazon.es")
+	  ( :name "Amazon Orders"
+	    :query "from:confirmar-envio@amazon.es")
+	  ( :name "Amazon Kindle Orders"
+	    :query "from:digital-no-reply@amazon.es")
 
-          ( :name "FreeNow"
-            :query "from:no-reply@free-now.com")
-          ( :name "NAGA"
-            :query "from:noreply@nagamarkets.com")
-          ( :name "Otta"
-            :query "from:hello@otta.com")
-          ( :name "OCU"
-            :query "from:noreply@notify.ocu.org")
-          ( :name "OCU Mailing Lists"
-            :query "from:maillist@emailing.ocu.org")
+	  ( :name "FreeNow"
+	    :query "from:no-reply@free-now.com")
+	  ( :name "NAGA"
+	    :query "from:noreply@nagamarkets.com")
+	  ( :name "Otta"
+	    :query "from:hello@otta.com")
+	  ( :name "OCU"
+	    :query "from:noreply@notify.ocu.org")
+	  ( :name "OCU Mailing Lists"
+	    :query "from:maillist@emailing.ocu.org")
 
-          (:name "BBVA"
-                 :query "from:bbva@comunica.bbva.com")
-          (:name "mediolanum"
-                 :query "from:bancomediolanum@bancomediolanum.es")
-          ( :name "Analyzati"
-            :query "from:hello@analyzati.com")
-          ( :name "Property Search"
-            :query "subject:/^Your Property Search/")
-          ( :name "LinkedIn Job Alerts"
-            :query "from:jobalerts-noreply@linkedin.com")
-          ( :name "LinkedIn Newsletters"
-            :query "from:newsletters-noreply@linkedin.com")
+	  (:name "BBVA"
+		 :query "from:bbva@comunica.bbva.com")
+	  (:name "mediolanum"
+		 :query "from:bancomediolanum@bancomediolanum.es")
+	  ( :name "Analyzati"
+	    :query "from:hello@analyzati.com")
+	  ( :name "Property Search"
+	    :query "subject:/^Your Property Search/")
+	  ( :name "LinkedIn Job Alerts"
+	    :query "from:jobalerts-noreply@linkedin.com")
+	  ( :name "LinkedIn Newsletters"
+	    :query "from:newsletters-noreply@linkedin.com")
 
 
 
-          ;; Newsletter
-          ( :name "Mu"
-            :query "list:mu-discuss.googlegroups.com"
-            :category "tech")
-          ;; Finance
-          ( :name "Money Saving Expert - Cheap Energy Club"
-            :query "list:1081285.xt.local"
-            :category "finance")
-          ( :name "Bulb"
-            :query "from:hello@bulb.co.uk"
-            :category "finance")
-          ( :name "HSBC"
-            :query "from:statements@email1.hsbc.co.uk"
-            :category "finance")
-          ( :name "Hargreaves Lansdown"
-            :query "from:hl@email.hl.co.uk"
-            :category "finance")
-          ( :name "Boursorama"
-            :query "from:noreply@boursorama.fr OR from:noreply@client.boursorama.fr"
-            :category "finance")
-          ( :name "L&C Mortgage"
-            :query "list:500008880.xt.local"
-            :category "finance")
-          ( :name "Charles Stanley Direct Newsletter"
-            :query "from:info@cs-d.co.uk OR from:\"Charles Stanley Direct\""
-            :category "finance")
-          ( :name "Rightmove"
-            :query "from:autoresponder@rightmove.com"
-            :category "finance")
-          ))
+	  ;; Newsletter
+	  ( :name "Mu"
+	    :query "list:mu-discuss.googlegroups.com"
+	    :category "tech")
+	  ;; Finance
+	  ( :name "Money Saving Expert - Cheap Energy Club"
+	    :query "list:1081285.xt.local"
+	    :category "finance")
+	  ( :name "Bulb"
+	    :query "from:hello@bulb.co.uk"
+	    :category "finance")
+	  ( :name "HSBC"
+	    :query "from:statements@email1.hsbc.co.uk"
+	    :category "finance")
+	  ( :name "Hargreaves Lansdown"
+	    :query "from:hl@email.hl.co.uk"
+	    :category "finance")
+	  ( :name "Boursorama"
+	    :query "from:noreply@boursorama.fr OR from:noreply@client.boursorama.fr"
+	    :category "finance")
+	  ( :name "L&C Mortgage"
+	    :query "list:500008880.xt.local"
+	    :category "finance")
+	  ( :name "Charles Stanley Direct Newsletter"
+	    :query "from:info@cs-d.co.uk OR from:\"Charles Stanley Direct\""
+	    :category "finance")
+	  ( :name "Rightmove"
+	    :query "from:autoresponder@rightmove.com"
+	    :category "finance")
+	  ))
   (defun hub/build-noise-query ()
     (let* (
-           (lplist hub/noise-predicates)
-           (get-query (lambda (entry) (concat "(" (plist-get entry :query) ")")))
-           (f (lambda (acc entry) (concat (funcall get-query entry) " OR " acc))))
+	   (lplist hub/noise-predicates)
+	   (get-query (lambda (entry) (concat "(" (plist-get entry :query) ")")))
+	   (f (lambda (acc entry) (concat (funcall get-query entry) " OR " acc))))
       (message "%s"
-               (seq-reduce f (cdr lplist) (funcall get-query (car lplist))))
+	       (seq-reduce f (cdr lplist) (funcall get-query (car lplist))))
       ))
   ;; (length hub/noise-predicates)
 
   ;; default mu4e-bookmarks value
   (setq mu4e-bookmarks '(
-                         (:name "Inbox" :query "maildir:/inbox/ AND NOT flag:trashed" :key ?i)
-                         (:name "behaghel.org" :query "maildir:/behaghel.org/inbox AND NOT flag:trashed" :key ?t)
-                         (:name "GMail" :query "maildir:/gmail/inbox AND NOT flag:trashed" :key ?g)
-                         (:name "behaghel.fr" :query "maildir:/behaghel.fr/inbox AND NOT flag:trashed" :key ?t)
-                         (:name "Important" :query "flag:flagged AND NOT flag:trashed" :key ?f)
-                         (:name "Drafts" :query "maildir:/drafts/ AND NOT flag:trashed" :key ?d)
-                         (:name "Today" :query "date:today..now AND NOT maildir:/gmail/inbox AND NOT flag:trashed" :key ?h)
-                         (:name "Attachments" :query "flag:attach" :key ?a)
-                         (:name "Invites" :query "mime:text/calendar" :key ?c)
-                         ))
+			 (:name "Inbox" :query "maildir:/inbox/ AND NOT flag:trashed" :key ?i)
+			 (:name "behaghel.org" :query "maildir:/behaghel.org/inbox AND NOT flag:trashed" :key ?t)
+			 (:name "GMail" :query "maildir:/gmail/inbox AND NOT flag:trashed" :key ?g)
+			 (:name "behaghel.fr" :query "maildir:/behaghel.fr/inbox AND NOT flag:trashed" :key ?t)
+			 (:name "Important" :query "flag:flagged AND NOT flag:trashed" :key ?f)
+			 (:name "Drafts" :query "maildir:/drafts/ AND NOT flag:trashed" :key ?d)
+			 (:name "Today" :query "date:today..now AND NOT maildir:/gmail/inbox AND NOT flag:trashed" :key ?h)
+			 (:name "Attachments" :query "flag:attach" :key ?a)
+			 (:name "Invites" :query "mime:text/calendar" :key ?c)
+			 ))
 
   (add-to-list 'mu4e-bookmarks
-               ;; add bookmark for recent messages on the Mu mailing list.
-               `( :name "Noise"
-                  :key  ?n
-                  :query ,(concat "maildir:/inbox/" " AND ("
-                                  (hub/build-noise-query) ")")))
+	       ;; add bookmark for recent messages on the Mu mailing list.
+	       `( :name "Noise"
+		  :key  ?n
+		  :query ,(concat "maildir:/inbox/" " AND ("
+				  (hub/build-noise-query) ")")))
 
   ;; To delete all meeting notifications or updates
   ;; 1. call M-x mu4e-headers-toggle-full-search to not limit search to
@@ -483,7 +483,7 @@ point then copy the URL of the image under point instead."
   ;; If you get your mail without an explicit command,
   ;; use "true" for the command (this is the default)
   (setq mu4e-get-mail-command "mbsync -a"
-        mu4e-update-interval 450)
+	mu4e-update-interval 450)
   ;; FIXME: make lazy check work, currently just doesn't surface any
   ;; new mail anymore
   ;; (setq mu4e-get-mail-command "mbsync -a && touch ~/Maildir/*"
@@ -501,33 +501,33 @@ point then copy the URL of the image under point instead."
   ;; (better only use that for the last field.
   ;; These are the defaults:
   (setq mu4e-headers-fields
-        '(
-          (:thread-subject . 42)
-          (:from-or-to     . 22)
-          (:date           . 15)    ;; alternatively, use :human-date
-          (:flags          . 6)
-          (:maildir        . 15)
-          ))
+	'(
+	  (:thread-subject . 42)
+	  (:from-or-to     . 22)
+	  (:date           . 15)    ;; alternatively, use :human-date
+	  (:flags          . 6)
+	  (:maildir        . 15)
+	  ))
   (setq
    mu4e-headers-date-format "%F"     ; ISO format yyyy-mm-dd
    )
   (setq message-kill-buffer-on-exit t)
   (setq mu4e-attachment-dir "~/Downloads"
-        mu4e-headers-skip-duplicates t
-        mu4e-view-show-images t
-        ;; messes up with alignment, not that useful anyway
-        ;; mu4e-use-fancy-chars t
-        ;; gmail style conversations: not by default activate with zé
-        mu4e-headers-include-related nil
-        gnus-inhibit-mime-unbuttonizing nil
-        )
+	mu4e-headers-skip-duplicates t
+	mu4e-view-show-images t
+	;; messes up with alignment, not that useful anyway
+	;; mu4e-use-fancy-chars t
+	;; gmail style conversations: not by default activate with zé
+	mu4e-headers-include-related nil
+	gnus-inhibit-mime-unbuttonizing nil
+	)
   (when (fboundp 'imagemagick-register-types)
     (imagemagick-register-types))
   ;; to really display images inline (and not at the end of the message)
   ;; see https://github.com/djcb/mu/issues/868#issuecomment-543315407
   (setq mu4e-view-use-gnus t
-        ;; adapt for dark theme
-        shr-color-visible-luminance-min 80)
+	;; adapt for dark theme
+	shr-color-visible-luminance-min 80)
   ;; prefer the plain text version when available in gnus view
   (with-eval-after-load "mm-decode"
     (add-to-list 'mm-discouraged-alternatives "text/html")
@@ -568,24 +568,24 @@ point then copy the URL of the image under point instead."
   (setq org-mu4e-link-query-in-headers-mode nil)
   ;; mark as read and refile (archive) in one go
   (add-to-list 'mu4e-marks
-               '(archive
-                 :char       "À"
-                 :prompt     "Archive"
-                 :dyn-target  (lambda (target msg) (mu4e-get-refile-folder msg))
-                 :show-target (lambda (target) target)
-                 :action      (lambda (docid msg target)
-		                ;; must come before proc-move since retag runs
-		                ;; 'sed' on the file
-                                (mu4e-action-retag-message msg "-\\Inbox")
-		                (mu4e--server-move docid target "+S-u-N"))))
+	       '(archive
+		 :char       "À"
+		 :prompt     "Archive"
+		 :dyn-target  (lambda (target msg) (mu4e-get-refile-folder msg))
+		 :show-target (lambda (target) target)
+		 :action      (lambda (docid msg target)
+				;; must come before proc-move since retag runs
+				;; 'sed' on the file
+				(mu4e-action-retag-message msg "-\\Inbox")
+				(mu4e--server-move docid target "+S-u-N"))))
   (mu4e~headers-defun-mark-for archive)
 
   ;; attempt to remove GMail Inbox label on refile
   (add-hook 'mu4e-mark-execute-pre-hook
-            (lambda (mark msg)
-              (cond ((member mark '(refile trash)) (mu4e-action-retag-message msg "-\\Inbox"))
-                    ((equal mark 'flag) (mu4e-action-retag-message msg "\\Starred"))
-                    ((equal mark 'unflag) (mu4e-action-retag-message msg "-\\Starred")))))
+	    (lambda (mark msg)
+	      (cond ((member mark '(refile trash)) (mu4e-action-retag-message msg "-\\Inbox"))
+		    ((equal mark 'flag) (mu4e-action-retag-message msg "\\Starred"))
+		    ((equal mark 'unflag) (mu4e-action-retag-message msg "-\\Starred")))))
   ;; Contacts
   ;; stolen from https://martinralbrecht.wordpress.com/2016/05/30/handling-email-with-emacs/
   (defun malb/canonicalise-contact-name (name)
@@ -593,25 +593,25 @@ point then copy the URL of the image under point instead."
     (let ((case-fold-search nil))
       (setq name (or name ""))
       (if (string-match-p "^[^ ]+@[^ ]+\.[^ ]" name)
-          ""
-        (progn
-          ;; drop email address
-          (setq name (replace-regexp-in-string "^\\(.*\\) [^ ]+@[^ ]+\.[^ ]" "\\1" name))
-          ;; strip quotes
-          (setq name (replace-regexp-in-string "^\"\\(.*\\)\"" "\\1" name))
-          ;; deal with YELL’d last names
-          (setq name (replace-regexp-in-string "^\\(\\<[[:upper:]]+\\>\\) \\(.*\\)" "\\2 \\1" name))
-          ;; Foo, Bar becomes Bar Foo
-          (setq name (replace-regexp-in-string "^\\(.*\\), \\([^ ]+\\).*" "\\2 \\1" name))
-          ;; look up names and replace from static table, TODO look this up by email
-          (setq name (or (cdr (assoc name malb/mu4e-name-replacements)) name))
-          ))))
+	  ""
+	(progn
+	  ;; drop email address
+	  (setq name (replace-regexp-in-string "^\\(.*\\) [^ ]+@[^ ]+\.[^ ]" "\\1" name))
+	  ;; strip quotes
+	  (setq name (replace-regexp-in-string "^\"\\(.*\\)\"" "\\1" name))
+	  ;; deal with YELL’d last names
+	  (setq name (replace-regexp-in-string "^\\(\\<[[:upper:]]+\\>\\) \\(.*\\)" "\\2 \\1" name))
+	  ;; Foo, Bar becomes Bar Foo
+	  (setq name (replace-regexp-in-string "^\\(.*\\), \\([^ ]+\\).*" "\\2 \\1" name))
+	  ;; look up names and replace from static table, TODO look this up by email
+	  (setq name (or (cdr (assoc name malb/mu4e-name-replacements)) name))
+	  ))))
 
   (defun malb/mu4e-contact-rewrite-function (contact)
     "Adapt normalisation function for CONTACT in mu4e workflow."
     (let* ((name (or (plist-get contact :name) ""))
-           (mail (plist-get contact :mail))
-           (case-fold-search nil))
+	   (mail (plist-get contact :mail))
+	   (case-fold-search nil))
       (plist-put contact :name (malb/canonicalise-contact-name name))
       contact))
 
@@ -619,16 +619,16 @@ point then copy the URL of the image under point instead."
 
   ;; Composing
   (setq mu4e-completing-read-function 'completing-read
-        ;; I'd rather go with 'traditional but I guess the world isn't
-        ;; traditional enough
-        message-cite-reply-position 'above ;FIXME: maybe just on pro emails?
-        ;; TODO: think of dropping the last colon: https://www.djcbsoftware.nl/code/mu/mu4e/Writing-messages.html#How-can-I-avoid-Outlook-display-issues_003f
-        message-citation-line-format "On %A, %d %B %Y at %R %Z, %N wrote:\n"
-        message-citation-line-function 'message-insert-formatted-citation-line
-        ;; org-msg doesn't work well with mu4e sig
-        ;; https://github.com/jeremy-compostella/org-msg/issues/57
-        ;; mu4e-compose-signature "Hubert" ;\nhttps://blog.behaghel.org"
-        )
+	;; I'd rather go with 'traditional but I guess the world isn't
+	;; traditional enough
+	message-cite-reply-position 'above ;FIXME: maybe just on pro emails?
+	;; TODO: think of dropping the last colon: https://www.djcbsoftware.nl/code/mu/mu4e/Writing-messages.html#How-can-I-avoid-Outlook-display-issues_003f
+	message-citation-line-format "On %A, %d %B %Y at %R %Z, %N wrote:\n"
+	message-citation-line-function 'message-insert-formatted-citation-line
+	;; org-msg doesn't work well with mu4e sig
+	;; https://github.com/jeremy-compostella/org-msg/issues/57
+	;; mu4e-compose-signature "Hubert" ;\nhttps://blog.behaghel.org"
+	)
   ;; Do not auto-wrap lines in favor of format=flowed, but still
   ;; display them nicely wrapped in Emacs.
   (setq
@@ -690,11 +690,11 @@ point then copy the URL of the image under point instead."
 
   ;; Sending
   (setq send-mail-function 'sendmail-send-it
-        message-send-mail-function 'message-send-mail-with-sendmail
-        sendmail-program "msmtp"
-        mail-specify-envelope-from t
-        message-sendmail-envelope-from 'header
-        mail-envelope-from 'header)
+	message-send-mail-function 'message-send-mail-with-sendmail
+	sendmail-program "msmtp"
+	mail-specify-envelope-from t
+	message-sendmail-envelope-from 'header
+	mail-envelope-from 'header)
   ;; sync / blocking
   ;; (setq send-mail-function 'smtpmail-send-it)
   ;; (setq message-send-mail-function 'message-smtpmail-send-it)
@@ -731,18 +731,18 @@ point then copy the URL of the image under point instead."
 	org-msg-greeting-fmt "\nHi%s,\n\n"
 	org-msg-greeting-name-limit 3
 	org-msg-text-plain-alternative t
-        ;; 'top-posting is the default but is it what you want?
-        org-msg-posting-style 'top-posting
-        ;; once upon a time, I was trying to avoid html format as much
-        ;; as possible but my need for it depends on the content
-        ;; I produce not the one I receive. I shall not use org-msg if
-        ;; I want plain text. E.g. rendering of tables in text doesn't
-        ;; look great.
-        org-msg-default-alternatives '((new           . (text html))
-                                       (reply-to-html . (text html))
-                                       (reply-to-text . (text html)))
-        org-msg-convert-citation t
-        org-msg-signature "
+	;; 'top-posting is the default but is it what you want?
+	org-msg-posting-style 'top-posting
+	;; once upon a time, I was trying to avoid html format as much
+	;; as possible but my need for it depends on the content
+	;; I produce not the one I receive. I shall not use org-msg if
+	;; I want plain text. E.g. rendering of tables in text doesn't
+	;; look great.
+	org-msg-default-alternatives '((new           . (text html))
+				       (reply-to-html . (text html))
+				       (reply-to-text . (text html)))
+	org-msg-convert-citation t
+	org-msg-signature "
 
 #+begin_signature
 --\n
@@ -763,16 +763,16 @@ Hubert
       ;; not perfect as when replying with both text and html, text
       ;; has no signature
       (when (equal (cadr args) '(text))
-        (setf (alist-get 'signature res)
-              (replace-regexp-in-string "\\.html.*" ""
-                                        org-msg-signature)))
+	(setf (alist-get 'signature res)
+	      (replace-regexp-in-string "\\.html.*" ""
+					org-msg-signature)))
       res))
   (advice-add 'org-msg-composition-parameters
-              :around #'my-org-msg-composition-parameters)
+	      :around #'my-org-msg-composition-parameters)
   (org-msg-mode))
 
 (use-package mu4e-alert
-                                        ; it's now something I see on my desktop
+					; it's now something I see on my desktop
   :disabled t
 
   :after (mu4e)
@@ -784,7 +784,7 @@ Hubert
   (interactive)
   (message
    (if (let (window (get-buffer-window (current-buffer)))
-         (set-window-dedicated-p window (not (window-dedicated-p window))))
+	 (set-window-dedicated-p window (not (window-dedicated-p window))))
        "Window '%s' is dedicated"
      "Window '%s' is normal")
    (current-buffer)))
@@ -799,7 +799,7 @@ Hubert
     (when (string= (file-name-nondirectory buffer-file-name) "mail-sidebar.org")
       (mu4e-dashboard-mode)
       (when (functionp org-modern-mode)
-        (org-modern-mode 0))
+	(org-modern-mode 0))
       ))
   (add-hook 'find-file-hook 'mu4e-dashboard-hook)
   ;; (advice-add 'mu4e :after #'open-mail-sidebar)

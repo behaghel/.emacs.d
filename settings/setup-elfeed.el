@@ -56,18 +56,18 @@
       (elfeed-search-browse-url use-generic-p)))
 
   (evil-collection-define-key 'normal 'elfeed-show-mode-map
-    (kbd "TAB") 'shr-next-link
-    (kbd "C-t") 'elfeed-show-next
-    (kbd "C-s") 'elfeed-show-prev
-    "B" 'elfeed-show-eww-open
-    "q" 'delete-window
-    )
+			      (kbd "TAB") 'shr-next-link
+			      (kbd "C-t") 'elfeed-show-next
+			      (kbd "C-s") 'elfeed-show-prev
+			      "B" 'elfeed-show-eww-open
+			      "q" 'delete-window
+			      )
   (evil-collection-define-key 'normal 'elfeed-search-mode-map
-    "U" 'elfeed-update
-    "à" 'elfeed-search-untag-all-unread
-    "b" 'elfeed-search-browse-url
-    "B" 'elfeed-search-eww-open
-    )
+			      "U" 'elfeed-update
+			      "à" 'elfeed-search-untag-all-unread
+			      "b" 'elfeed-search-browse-url
+			      "B" 'elfeed-search-eww-open
+			      )
   )
 ;; (use-package elfeed-web
 ;;   :commands (elfeed-web-start)
@@ -87,26 +87,26 @@
 (use-package emms
   :commands (emms)
   :bind (:map evil-normal-state-map
-              ("'mp" . emms-pause)
-              ("'mm" . emms)
-              )
+	      ("'mp" . emms-pause)
+	      ("'mm" . emms)
+	      )
   :config
   (progn
     (emms-all)
     (emms-default-players)
     (setq emms-player-list '(emms-player-vlc-playlist
-                             emms-player-vlc
-                             emms-player-mplayer
-                             emms-player-mpg321
-                             emms-player-ogg123))
+			     emms-player-vlc
+			     emms-player-mplayer
+			     emms-player-mpg321
+			     emms-player-ogg123))
     (defun browse-with-emms (url &optional new-window)
       (emms-play-url url))
 
     (setq browse-url-browser-function
-          '(
-            ("mp3$" . browse-with-emms)
-            ("." . browse-url-default-browser)
-            ))
+	  '(
+	    ("mp3$" . browse-with-emms)
+	    ("." . browse-url-default-browser)
+	    ))
 
     ))
 

@@ -14,25 +14,25 @@
     ;; TODO: one day sort out all keybindings, maybe using general.el
     ;; https://github.com/noctuid/general.el#key-features
     (evil-collection-define-key 'normal 'debugger-mode-map
-      ">" 'backtrace-forward-frame
-      "<" 'backtrace-backward-frame
-      "C" 'backtrace-toggle-print-circle
-      "Y" 'backtrace-toggle-print-gensym
-      "…" 'backtrace-expand-ellipses
-      "|" 'backtrace-multi-line
-      "_" 'backtrace-single-line
-      "S" 'backtrace-goto-source
-      "H" 'backtrace-help-follow-symbol
-      "L" 'backtrace-toggle-locals
-      "n" 'debugger-step-through
-      "i" 'debugger-step-through
-      "c" 'debugger-continue
-      "o" 'debugger-jump
-      ":" 'debugger-eval-expression
-      "x" 'debugger-record-expression
-      "D" 'debugger-frame-clear
-      ";" 'debugger-return-value
-      )
+				">" 'backtrace-forward-frame
+				"<" 'backtrace-backward-frame
+				"C" 'backtrace-toggle-print-circle
+				"Y" 'backtrace-toggle-print-gensym
+				"…" 'backtrace-expand-ellipses
+				"|" 'backtrace-multi-line
+				"_" 'backtrace-single-line
+				"S" 'backtrace-goto-source
+				"H" 'backtrace-help-follow-symbol
+				"L" 'backtrace-toggle-locals
+				"n" 'debugger-step-through
+				"i" 'debugger-step-through
+				"c" 'debugger-continue
+				"o" 'debugger-jump
+				":" 'debugger-eval-expression
+				"x" 'debugger-record-expression
+				"D" 'debugger-frame-clear
+				";" 'debugger-return-value
+				)
     )
   (advice-add 'evil-collection-debug-setup :after 'hub/setup-elisp-debugging-keybindings)
   :config
@@ -49,45 +49,45 @@
     :custom (evil-collection-company-use-tng nil)
     :config
     (evil-collection-translate-key nil
-      '(evil-window-map evil-normal-state-map evil-motion-state-map
-                        evil-treemacs-state-map Info-mode-map
-                        magit-blame-read-only-mode-map git-rebase-mode-map)
-      "c" "h"
-      "t" "j"
-      "T" "J"
-      "s" "k"
-      "S" "K"
-      "r" "l"
-      "l" "c"
-      "L" "C"
-      "h" "t"
-      "H" "T"
-      "k" "s"
-      "K" "S"
-      "j" "r"
-      "é" "w"
-      "É" "W"
-      )
+				   '(evil-window-map evil-normal-state-map evil-motion-state-map
+						     evil-treemacs-state-map Info-mode-map
+						     magit-blame-read-only-mode-map git-rebase-mode-map)
+				   "c" "h"
+				   "t" "j"
+				   "T" "J"
+				   "s" "k"
+				   "S" "K"
+				   "r" "l"
+				   "l" "c"
+				   "L" "C"
+				   "h" "t"
+				   "H" "T"
+				   "k" "s"
+				   "K" "S"
+				   "j" "r"
+				   "é" "w"
+				   "É" "W"
+				   )
 
     ;; org-agenda translation are in setup-org.el
     (defun hub/hjkl-rotation (_mode mode-keymaps &rest _rest)
       (evil-collection-translate-key 'normal mode-keymaps
-        "c" "h"
-        "t" "j"
-        "T" "J"
-        "s" "k"
-        "S" "K"
-        "r" "l"
-        "l" "c"
-        "L" "C"
-        "h" "t"
-        "H" "T"
-        "k" "s"
-        "K" "S"
-        "j" "r"
-        "é" "w"
-        "É" "W"
-        ))
+				     "c" "h"
+				     "t" "j"
+				     "T" "J"
+				     "s" "k"
+				     "S" "K"
+				     "r" "l"
+				     "l" "c"
+				     "L" "C"
+				     "h" "t"
+				     "H" "T"
+				     "k" "s"
+				     "K" "S"
+				     "j" "r"
+				     "é" "w"
+				     "É" "W"
+				     ))
     ;; called after evil-collection makes its keybindings
     (add-hook 'evil-collection-setup-hook #'hub/hjkl-rotation)
 
@@ -95,32 +95,32 @@
     ;; with bépo layout
     (defun hub/setup-docview-keybindings ()
       (evil-collection-define-key 'normal 'doc-view-mode-map
-        (kbd "s s") nil
-        (kbd "s m") nil
-        (kbd "s b") nil
-        (kbd "s r") nil
+				  (kbd "s s") nil
+				  (kbd "s m") nil
+				  (kbd "s b") nil
+				  (kbd "s r") nil
 
-        (kbd "z s") 'doc-view-set-slice
-        (kbd "z m") 'doc-view-set-slice-using-mouse
-        (kbd "z b") 'doc-view-set-slice-from-bounding-box
-        (kbd "z r") 'doc-view-reset-slice
-        )
+				  (kbd "z s") 'doc-view-set-slice
+				  (kbd "z m") 'doc-view-set-slice-using-mouse
+				  (kbd "z b") 'doc-view-set-slice-from-bounding-box
+				  (kbd "z r") 'doc-view-reset-slice
+				  )
       )
     (add-hook 'doc-view-mode-hook #'hub/setup-docview-keybindings)
 
     (defun hub/setup-magit-keybindings ()
       (dolist (map (list magit-staged-section-map magit-untracked-section-map magit-unstaged-section-map magit-file-section-map magit-hunk-section-map))
-        (define-key map "s" nil)
-        (evil-define-key 'normal map "s" 'evil-previous-line)
-        (evil-define-key 'normal map "à" 'magit-stage)
-        (evil-define-key 'normal map "À" 'magit-unstage))
+	(define-key map "s" nil)
+	(evil-define-key 'normal map "s" 'evil-previous-line)
+	(evil-define-key 'normal map "à" 'magit-stage)
+	(evil-define-key 'normal map "À" 'magit-unstage))
       (evil-collection-define-key 'normal 'magit-status-mode-map
-        (kbd "t") 'evil-next-line       ; default tag
-        (kbd "s") 'evil-previous-line   ; stage
-        (kbd "T") 'magit-tag
-        (kbd "à") 'magit-stage
-        (kbd "À") 'magit-unstage
-        )
+				  (kbd "t") 'evil-next-line       ; default tag
+				  (kbd "s") 'evil-previous-line   ; stage
+				  (kbd "T") 'magit-tag
+				  (kbd "à") 'magit-stage
+				  (kbd "À") 'magit-unstage
+				  )
       )
     (add-hook 'magit-mode-hook #'hub/setup-magit-keybindings)
     (evil-collection-init))
@@ -140,7 +140,7 @@
   (define-key evil-normal-state-map (kbd "©") 'backward-sexp)
   (define-key evil-normal-state-map (kbd "®") 'forward-sexp)
 
-;; recreate what I am familiar with Pharo
+  ;; recreate what I am familiar with Pharo
   (define-key evil-normal-state-map (kbd "M-p") 'eval-print-last-sexp)
   (define-key evil-normal-state-map (kbd "M-d") 'eval-last-sexp)
 
@@ -168,46 +168,46 @@
   (define-key evil-normal-state-map (kbd ",=") 'align-current)
   (define-key evil-normal-state-map (kbd "ç") 'delete-other-windows)
   (define-key evil-insert-state-map (kbd "M-ç") 'delete-other-windows)
-;; errors and compilation (*b*uild)
-(define-key evil-normal-state-map (kbd "g}") 'next-error)
-(define-key evil-normal-state-map (kbd "g{") 'previous-error)
-;; evil is crazy
-(define-key evil-insert-state-map (kbd "C-d") nil)
-(define-key evil-normal-state-map (kbd "M-.") nil)
+  ;; errors and compilation (*b*uild)
+  (define-key evil-normal-state-map (kbd "g}") 'next-error)
+  (define-key evil-normal-state-map (kbd "g{") 'previous-error)
+  ;; evil is crazy
+  (define-key evil-insert-state-map (kbd "C-d") nil)
+  (define-key evil-normal-state-map (kbd "M-.") nil)
 
-;; Evil has those but I don't need evil to handle completion
-;; (define-key evil-insert-state-map "\C-n" 'evil-complete-next)
-;; (define-key evil-insert-state-map "\C-p" 'evil-complete-previous)
-(define-key evil-insert-state-map "\C-n" nil)
-(define-key evil-insert-state-map "\C-p" nil)
+  ;; Evil has those but I don't need evil to handle completion
+  ;; (define-key evil-insert-state-map "\C-n" 'evil-complete-next)
+  ;; (define-key evil-insert-state-map "\C-p" 'evil-complete-previous)
+  (define-key evil-insert-state-map "\C-n" nil)
+  (define-key evil-insert-state-map "\C-p" nil)
 ;;;; Default state
-;; (evil-set-initial-state 'dired-mode 'emacs)
-;; (evil-set-initial-state 'fundamental-mode 'emacs)
-(evil-set-initial-state 'ess-help-mode 'emacs)
-(evil-set-initial-state 'erc-mode 'emacs)
-(evil-set-initial-state 'image-mode 'emacs)
-(evil-set-initial-state 'cider-stacktrace-mode 'emacs)
-(evil-set-initial-state 'epa-key-list-mode 'emacs)
-;; (evil-set-initial-state 'magit-popup-mode 'emacs)
-(evil-set-initial-state 'twittering-mode 'normal)
-(evil-set-initial-state 'haskell-error-mode 'emacs)
-(evil-set-initial-state 'haskell-interactive-mode 'insert)
-;; in fact, what I want is that the temp buffer used by org-babel to
-;; indent natively always use the insert evil keymap as it sends tab
-;; but then triggers evil-jump-forward instead of
-;; indent-for-tab-command because it hit the normal mode instead of
-;; the insert mode. (see function org-edit-src-code)
-(evil-set-initial-state 'prog-mode 'insert)
+  ;; (evil-set-initial-state 'dired-mode 'emacs)
+  ;; (evil-set-initial-state 'fundamental-mode 'emacs)
+  (evil-set-initial-state 'ess-help-mode 'emacs)
+  (evil-set-initial-state 'erc-mode 'emacs)
+  (evil-set-initial-state 'image-mode 'emacs)
+  (evil-set-initial-state 'cider-stacktrace-mode 'emacs)
+  (evil-set-initial-state 'epa-key-list-mode 'emacs)
+  ;; (evil-set-initial-state 'magit-popup-mode 'emacs)
+  (evil-set-initial-state 'twittering-mode 'normal)
+  (evil-set-initial-state 'haskell-error-mode 'emacs)
+  (evil-set-initial-state 'haskell-interactive-mode 'insert)
+  ;; in fact, what I want is that the temp buffer used by org-babel to
+  ;; indent natively always use the insert evil keymap as it sends tab
+  ;; but then triggers evil-jump-forward instead of
+  ;; indent-for-tab-command because it hit the normal mode instead of
+  ;; the insert mode. (see function org-edit-src-code)
+  (evil-set-initial-state 'prog-mode 'insert)
 ;;; Info & Evil
-;; (evil-set-initial-state 'Info 'emacs)
-;; (evil-define-key 'motion Info-mode-map "l" nil) ; use l to say last
-(evil-set-initial-state 'calc-mode 'emacs)
+  ;; (evil-set-initial-state 'Info 'emacs)
+  ;; (evil-define-key 'motion Info-mode-map "l" nil) ; use l to say last
+  (evil-set-initial-state 'calc-mode 'emacs)
 
   ;; put xref at the front as it's smarter with codebases
   (setq evil-goto-definition-functions
-        '(evil-goto-definition-xref evil-goto-definition-imenu
-                                    evil-goto-definition-semantic
-                                    evil-goto-definition-search)))
+	'(evil-goto-definition-xref evil-goto-definition-imenu
+				    evil-goto-definition-semantic
+				    evil-goto-definition-search)))
 ;; stolen from http://www.emacswiki.org/emacs/Evil#toc12
 ;; Note: lexical-binding must be t in order for this to work correctly.
 (defun make-conditional-key-translation (key-from key-to translate-keys-p)
@@ -215,8 +215,8 @@
    key-from translates to key-to, else key-from translates to itself.  translate-keys-p
    takes key-from as an argument."
   (define-key key-translation-map key-from
-    (lambda (prompt)
-      (if (funcall translate-keys-p key-from) key-to key-from))))
+	      (lambda (prompt)
+		(if (funcall translate-keys-p key-from) key-to key-from))))
 (defun not-insert-state-p (key-from)
   "Returns whether conditional key translations should be active.  See make-conditional-key-translation function. "
   (and
