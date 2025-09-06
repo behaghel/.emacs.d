@@ -15,6 +15,7 @@
 ;;               > ,el -> execute file or region by loading it in REPL
 ;;             - ,h == anything help
 ;;             - ,n == new / create
+;;             - ,m == mark, bookmark, store
 ;;             - coding:
 ;;               - ,.  -> find definition for symbol at point
 ;;               - ,hh -> go to help for symbol at point
@@ -52,34 +53,41 @@
 (setq user-mail-address "behaghel@gmail.com")
 (setq user-full-name "Hubert Behaghel")
 
-(defvar bootstrap-version)
-(let ((bootstrap-file
-       (expand-file-name "straight/repos/straight.el/bootstrap.el" user-emacs-directory))
-      (bootstrap-version 5))
-  (unless (file-exists-p bootstrap-file)
-    (with-current-buffer
-        (url-retrieve-synchronously
-         "https://raw.githubusercontent.com/raxod502/straight.el/develop/install.el"
-         'silent 'inhibit-cookies)
-      (goto-char (point-max))
-      (eval-print-last-sexp)))
-  (load bootstrap-file nil 'nomessage))
-
-(setq straight-use-package-by-default t
-      ;; breaks org even when selectively depth set to full
-      ;; straight-vc-git-default-clone-depth 1
-      )
-(straight-use-package 'use-package)
-(require 'use-package)
-(require 'use-package-ensure)
-(require 'use-package-delight)
-(require 'use-package-diminish)
+;; Use centralized package management from core/ with safe fallback
+(add-to-list 'load-path (expand-file-name "core" user-emacs-directory))
+(condition-case err
+    (require 'core-packages)
+  (error
+   (message "[init] core-packages failed, falling back: %S" err)
+   (defvar bootstrap-version)
+   (let* ((repo "radian-software/straight.el")
+          (branch "develop")
+          (install-url (format "https://raw.githubusercontent.com/%s/%s/install.el" repo branch))
+          (bootstrap-file (expand-file-name "straight/repos/straight.el/bootstrap.el" user-emacs-directory)))
+     (unless (file-exists-p bootstrap-file)
+       (with-current-buffer
+           (url-retrieve-synchronously install-url 'silent 'inhibit-cookies)
+         (goto-char (point-max))
+         (eval-print-last-sexp)))
+     (load bootstrap-file nil 'nomessage))
+   (setq straight-use-package-by-default t)
+   (straight-use-package 'use-package)
+   (require 'use-package)
+   (require 'use-package-ensure)
+   (require 'use-package-delight)
+   (require 'use-package-diminish)))
 
 (setq use-package-verbose t
       use-package-always-defer nil
       use-package-always-ensure nil)
 
 (use-package diminish)
+
+;; Core paths and autoloads (under-the-hood only)
+;; Standardize etc/ and var/ via no-littering (requires use-package)
+(ignore-errors (require 'core-paths))
+;; Provide streamlined access to writing helpers without changing UX
+(autoload 'writing/enable-basics "modules/writing/writing" nil t)
 
 (require 'auth-source-pass)
 (auth-source-pass-enable)
@@ -179,7 +187,7 @@
 
 ;;; auto-insert-mode is Emacs file templating
 (auto-insert-mode 0)        ; no more the default, use auto-insert manually
-(setq auto-insert-directory "~/.emacs.d/insert/")
+(setq auto-insert-directory (expand-file-name "insert/" user-emacs-directory))
 ;; you can use yasnippet to expand it
 ;; see: http://www.emacswiki.org/emacs/AutoInsertMode
 ;; the standard emacs way use skeleton
@@ -266,7 +274,7 @@
 (put 'narrow-to-region 'disabled nil)
 (put 'erase-buffer 'disabled nil)
 
-;; (require 'setup-treemacs)
+(require 'setup-treemacs)
 (require 'setup-brain)
 (require 'setup-private nil t)
 

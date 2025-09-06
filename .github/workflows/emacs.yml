@@ -17,7 +17,16 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y emacs-nox
 
+      - name: Tangle literate config
+        run: |
+          emacs --batch -l org --eval '(org-babel-tangle-file "docs/config.org")'
+
       - name: Load init file
         run: |
           export HOME=$GITHUB_WORKSPACE
           emacs --batch -l init.el --eval '(message "Loaded init.el")' --kill
+
+      - name: Run ERT smoke tests
+        run: |
+          export HOME=$GITHUB_WORKSPACE
+          emacs --batch -l ert -l test/smoke.el -f ert-run-tests-batch-and-exit

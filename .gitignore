@@ -6,6 +6,7 @@ places
 *~
 tramp
 var/
+etc/
 projectile-bookmarks.eld
 url/
 auto-save-list/
