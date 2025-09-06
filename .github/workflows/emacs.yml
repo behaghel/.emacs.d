@@ -18,6 +18,7 @@ jobs:
           sudo apt-get install -y emacs-nox
 
       - name: Cache straight.el and eln-cache
+        id: straight-cache
         uses: actions/cache@v4
         with:
           path: |
@@ -27,6 +28,18 @@ jobs:
           key: straight-${{ runner.os }}-${{ hashFiles('core/packages.el', 'docs/config.org', 'settings/**/*.el') }}
           restore-keys: |
             straight-${{ runner.os }}-
+
+      - name: Report cache status (pre-run)
+        run: |
+          echo "Cache hit: ${{ steps.straight-cache.outputs.cache-hit }}"
+          for d in straight/repos straight/build eln-cache; do
+            p="${{ github.workspace }}/$d"
+            if [ -d "$p" ]; then
+              du -sh "$p" || true
+            else
+              echo "Missing: $d"
+            fi
+          done
 
       - name: Pre-commit checks (elisp format + checkdoc)
         run: |
@@ -51,3 +64,15 @@ jobs:
         run: |
           export HOME=$GITHUB_WORKSPACE
           emacs --batch -l ert -l test/smoke.el -f ert-run-tests-batch-and-exit
+
+      - name: Report cache status (post-run)
+        if: always()
+        run: |
+          for d in straight/repos straight/build eln-cache; do
+            p="${{ github.workspace }}/$d"
+            if [ -d "$p" ]; then
+              du -sh "$p" || true
+            else
+              echo "Missing: $d"
+            fi
+          done
