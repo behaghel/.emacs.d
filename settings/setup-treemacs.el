@@ -26,67 +26,48 @@
 
 ;; Keybindings: https://github.com/Alexander-Miller/treemacs#keymap
 (use-package treemacs
-  ;; :pin melpa
-  :ensure t
-  :after (doom-themes)
-  :defer nil
-  :config
-  (progn
-    (require 'treemacs-icons)
-    ;; The default width and height of the icons is 22 pixels. If you are
-    ;; using a Hi-DPI display, uncomment this to double the icon size.
-    ;;(treemacs-resize-icons 44)
-
-    (require 'treemacs-follow-mode)
-    (treemacs-follow-mode t)
-    (require 'treemacs-filewatch-mode)
-    (treemacs-filewatch-mode t)
-    (require 'treemacs-fringe-indicator)
-    (treemacs-fringe-indicator-mode t)
-    (pcase (cons (not (null (executable-find "git")))
-                 (not (null treemacs-python-executable)))
-      (`(t . t)
-       (treemacs-git-mode 'deferred))
-      (`(t . _)
-       (treemacs-git-mode 'simple))))
-  :bind (
-         :map evil-normal-state-map
-         (",tt" . treemacs)
-         (",t1" . treemacs-delete-other-windows)
-         (",to" . treemacs-select-window)
-         (",tb" . treemacs-bookmark)
-         (",tf" . treemacs-find-file)
-         (",tj" . treemacs-find-tag)
-         (",td" . treemacs-remove-project-from-workspace)
-         (",t+" . treemacs-create-workspace)
-         (",tE" . treemacs-edit-workspaces)
-         (",ts" . treemacs-switch-workspace)
-
-         :map global-map
-         ("M-0"       . treemacs-select-window)
+  :after (doom-themes evil)
+  :bind (("M-0"       . treemacs-select-window)
          ("C-x t 1"   . treemacs-delete-other-windows)
          ("C-x t t"   . treemacs)
          ("C-x t B"   . treemacs-bookmark)
          ("C-x t C-t" . treemacs-find-file)
          ("C-x t M-t" . treemacs-find-tag))
+  :config
+  (require 'treemacs-icons)
+  ;; The default width and height of the icons is 22 pixels. If you are
+  ;; using a Hi-DPI display, uncomment this to double the icon size.
+  ;;(treemacs-resize-icons 44)
+
+  (require 'treemacs-follow-mode)
+  (treemacs-follow-mode t)
+  (require 'treemacs-filewatch-mode)
+  (treemacs-filewatch-mode t)
+  (require 'treemacs-fringe-indicator)
+  (treemacs-fringe-indicator-mode t)
+  (pcase (cons (not (null (executable-find "git")))
+               (not (null treemacs-python-executable)))
+    (`(t . t)
+     (treemacs-git-mode 'deferred))
+    (`(t . _)
+     (treemacs-git-mode 'simple)))
 
   ;; UI
   (require 'doom-themes-ext-treemacs)
   (setq doom-themes-treemacs-theme "doom-colors") ; use the colorful treemacs theme
   (doom-themes-treemacs-config)
-  )
+
+  ;; Evil keybindings using evil-collection approach
+  ;; ,ot to open treemacs and ,oT to find file in it
+  (with-eval-after-load 'evil-collection
+    (evil-collection-define-key 'normal 'global
+      ",gt" 'treemacs-select-window
+      ",mt" 'treemacs-bookmark
+      )))
 
 (use-package treemacs-evil
-  ;; :pin melpa
   :after (treemacs evil)
-  :ensure t
   :config
-  ;; (define-key evil-treemacs-state-map (kbd "th")  nil)
-  ;; (define-key evil-treemacs-state-map (kbd "tw")  nil)
-  ;; (define-key evil-treemacs-state-map (kbd "tv")  nil)
-  ;; (define-key evil-treemacs-state-map (kbd "tf")  nil)
-  ;; (define-key evil-treemacs-state-map (kbd "ta")  nil)
-  ;; (define-key evil-treemacs-state-map (kbd "tg")  nil)
   (define-key evil-treemacs-state-map (kbd "z.")  #'treemacs-toggle-show-dotfiles)
   (define-key evil-treemacs-state-map (kbd "zw")  #'treemacs-toggle-fixed-width)
   (define-key evil-treemacs-state-map (kbd "zv")  #'treemacs-fringe-indicator-mode)
@@ -95,15 +76,11 @@
   (define-key evil-treemacs-state-map (kbd "zg")  #'treemacs-git-mode))
 
 (use-package treemacs-icons-dired
-  ;; :pin melpa
   :after (treemacs dired)
-  :ensure t
   :config (treemacs-icons-dired-mode))
 
 (use-package treemacs-magit
-  ;; :pin melpa
-  :after (treemacs magit)
-  :ensure t)
+  :after (treemacs magit))
 
 (provide 'setup-treemacs)
 ;;; setup-treemacs.el ends here

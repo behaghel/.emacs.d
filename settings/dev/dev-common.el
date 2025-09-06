@@ -162,8 +162,7 @@ _z_oom on node
 (use-package treesit
   :straight (:type built-in)
   :config
-  (with-eval-after-load 'evil
-    (evil-normalize-keymaps))
+  ;; (evil-normalize-keymaps)
   (setq treesit-language-source-alist
         '((bash "https://github.com/tree-sitter/tree-sitter-bash")
           (cmake "https://github.com/uyha/tree-sitter-cmake")
@@ -183,7 +182,8 @@ _z_oom on node
         treesit-font-lock-settings t
         treesit-simple-indent-rules t
         treesit-defun-type-regexp t
-        treesit-defun-name-function t)
+        treesit-defun-name-function t
+        )
   (setq major-mode-remap-alist
         '((yaml-mode . yaml-ts-mode)
           (bash-mode . bash-ts-mode)
@@ -194,7 +194,8 @@ _z_oom on node
           (css-mode . css-ts-mode)
           (python-mode . python-ts-mode)
           ))
-  (treesit-major-mode-setup)
+  ;; slight delay to give a chance for all keymaps to be initialised
+  (run-with-idle-timer 0.1 nil #'treesit-major-mode-setup)
   )
 
 ;; NixOS
