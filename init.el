@@ -128,7 +128,7 @@
 (when (and (featurep 'core-predicates) (hub/interactive-p))
   (require 'editing/general)
   (server-start)
-  (require 'setup-evil))
+  (require 'editing/evil))
 
 (use-package smartparens
   :diminish smartparens-mode
@@ -196,7 +196,7 @@
 (use-package general)
 
 (when (and (featurep 'core-predicates) (hub/interactive-p))
-  (require 'setup-completion))
+  (require 'completion/core))
 
 ;;; Yasnippet
 (use-package yasnippet
@@ -306,7 +306,7 @@
 (put 'erase-buffer 'disabled nil)
 
 (when (and (featurep 'core-predicates) (hub/interactive-p))
-  (require 'setup-treemacs))
+  (require 'navigation/treemacs))
 (require 'setup-brain)
 (require 'setup-private nil t)
 
