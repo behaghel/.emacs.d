@@ -34,6 +34,13 @@
 (setq user-emacs-directory
       (file-name-directory (or load-file-name buffer-file-name)))
 
+;; Ensure a writable temp directory exists within `user-emacs-directory`.
+;; Some async/native compilation paths try to place temp files under
+;; `~/.emacs.d/tmp/` — create it proactively to avoid CI failures.
+(let ((tmpdir (expand-file-name "tmp" user-emacs-directory)))
+  (unless (file-directory-p tmpdir)
+    (ignore-errors (make-directory tmpdir t))))
+
 ;; On Windows: set HOME environment variable and put .emacs.d in there!
 
 (defvar native-comp-deferred-compilation-deny-list nil)
