@@ -65,3 +65,15 @@ bookmarks
 # Nix
 result/
 .direnv/
+/.devenv.flake.nix
+/.devenv/
+
+# Devenv
+.devenv*
+devenv.local.nix
+
+# direnv
+.direnv
+
+# pre-commit
+.pre-commit-config.yaml

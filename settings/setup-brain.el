@@ -2,28 +2,28 @@
   :config
 
   (evil-global-set-key 'normal
-                       ",no"   #'denote-open-or-create)
+		       ",no"   #'denote-open-or-create)
   (evil-global-set-key 'normal
-                       ",nn"   #'denote)
+		       ",nn"   #'denote)
   (evil-global-set-key 'normal
-                       ",nt"   #'denote-type)
+		       ",nt"   #'denote-type)
   (evil-global-set-key 'normal
-                       ",nd"   #'denote-date)
+		       ",nd"   #'denote-date)
   (evil-global-set-key 'normal
-                       ",ns"   #'denote-subdirectory)
+		       ",ns"   #'denote-subdirectory)
   (evil-global-set-key 'normal
-                       ",nt"   #'denote-template)
+		       ",nt"   #'denote-template)
   (evil-global-set-key 'normal
-                       ",nr"   #'denote-rename-file)
+		       ",nr"   #'denote-rename-file)
 
   (evil-collection-define-key 'normal 'org-mode-map
-    ",nl"   #'denote-link-or-create     ; insert a link
-    ",nL"   #'denote-link-add-links     ; add all matching links
-    ",nb"   #'denote-backlinks     ; show backlinks
-    ",nf"   #'denote-link-find-file     ; open a note
-    ",nB"   #'denote-link-find-backlink ; open a backlinking note
-    ",nR"   #'denote-rename-file-using-front-matter
-    )
+			      ",nl"   #'denote-link-or-create     ; insert a link
+			      ",nL"   #'denote-link-add-links     ; add all matching links
+			      ",nb"   #'denote-backlinks     ; show backlinks
+			      ",nf"   #'denote-link-find-file     ; open a note
+			      ",nB"   #'denote-link-find-backlink ; open a backlinking note
+			      ",nR"   #'denote-rename-file-using-front-matter
+			      )
   ;; Key bindings specifically for Dired.
   ;; (let ((map dired-mode-map))
   ;;   (define-key map (kbd "C-c C-d C-i") #'denote-link-dired-marked-notes)
@@ -65,10 +65,10 @@
   ;; fontify file name fragments in Dired
   ;; We use different ways to specify a path for demo purposes.
   (setq denote-dired-directories
-        (list denote-directory
-              ;; (thread-last denote-directory (expand-file-name "attachments"))
-              ;; (expand-file-name "~/Documents/books")
-              ))
+	(list denote-directory
+	      ;; (thread-last denote-directory (expand-file-name "attachments"))
+	      ;; (expand-file-name "~/Documents/books")
+	      ))
 
   ;; Generic (great if you rename files Denote-style in lots of places):
   ;; (add-hook 'dired-mode-hook #'denote-dired-mode)
@@ -91,13 +91,13 @@
   (with-eval-after-load 'org-capture
     (setq denote-org-capture-specifiers "%l\n%i\n%?")
     (add-to-list 'org-capture-templates
-                 '("n" "New note (with denote.el)" plain
-                   (file denote-last-path)
-                   #'denote-org-capture
-                   :no-save t
-                   :immediate-finish nil
-                   :kill-buffer t
-                   :jump-to-captured t)))
+		 '("n" "New note (with denote.el)" plain
+		   (file denote-last-path)
+		   #'denote-org-capture
+		   :no-save t
+		   :immediate-finish nil
+		   :kill-buffer t
+		   :jump-to-captured t)))
 
   )
 

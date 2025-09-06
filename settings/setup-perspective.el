@@ -5,17 +5,17 @@
 (use-package perspective
   :defer t
   :general (:keymaps 'persp-mode-map
-                     :states 'normal
-                     "gP" #'persp-switch
-                     "g," #'persp-switch-last
-                     ",p," #'persp-switch-to-buffer*
-                     ",pk" #'persp-kill-buffer*
-                     ",p-" #'persp-remove-buffer ; disassociate buffer from persp
-                     ",p+" #'persp-add-buffer    ; associate buffer to current persp
-                     ",pM" #'persp-set-buffer    ; like add but remove from all other
-                     ",pR" #'persp-rename
-                     ",pX" #'persp-kill          ; terminate perspective
-                     )
+		     :states 'normal
+		     "gP" #'persp-switch
+		     "g," #'persp-switch-last
+		     ",p," #'persp-switch-to-buffer*
+		     ",pk" #'persp-kill-buffer*
+		     ",p-" #'persp-remove-buffer ; disassociate buffer from persp
+		     ",p+" #'persp-add-buffer    ; associate buffer to current persp
+		     ",pM" #'persp-set-buffer    ; like add but remove from all other
+		     ",pR" #'persp-rename
+		     ",pX" #'persp-kill          ; terminate perspective
+		     )
   :custom
   (persp-sort 'access)
   (persp-show-modestring t)
@@ -26,39 +26,39 @@
   :config
   (defun hub/speed-dial (key persp &optional fpath command)
     (let ((f `(lambda ()
-                (interactive)
-                (persp-switch ,persp)
-                ,@(when fpath `((find-file ,fpath)))
-                ,@(when command `((,command)))
-                )
-             ))
+		(interactive)
+		(persp-switch ,persp)
+		,@(when fpath `((find-file ,fpath)))
+		,@(when command `((,command)))
+		)
+	     ))
       (define-key evil-normal-state-map (kbd (concat ",o" key)) (eval f)))
     )
   (setq hub/speed-dial-items
-        `(
-          ("E" perspective ".emacs.d")
-          ("e" file ,(expand-file-name "init.el" user-emacs-directory) ".emacs.d")
-          ("n" file "~/nixos-config/configurations/home/hubertbehaghel.nix" "nixos-config")
-          ("O" perspective "org")
-          ;; ("s" file ,(concat org-directory "sas.org") "org")
-          ("i" file ,(concat org-directory "inbox.org") "org")
-          ("h" file ,(concat org-directory "hubert.org") "org")
-          ("m" command mu4e-sidebar "mails")
-          ("M" perspective "mails")
-          ("d" perspective "main")
-          ("f" command elfeed "feeds")
-          ("t" command treemacs "Treemacs")
-          ("T" command treemacs-find-file "Treemacs Find File")
-          ))
+	`(
+	  ("E" perspective ".emacs.d")
+	  ("e" file ,(expand-file-name "init.el" user-emacs-directory) ".emacs.d")
+	  ("n" file "~/nixos-config/configurations/home/hubertbehaghel.nix" "nixos-config")
+	  ("O" perspective "org")
+	  ;; ("s" file ,(concat org-directory "sas.org") "org")
+	  ("i" file ,(concat org-directory "inbox.org") "org")
+	  ("h" file ,(concat org-directory "hubert.org") "org")
+	  ("m" command mu4e-sidebar "mails")
+	  ("M" perspective "mails")
+	  ("d" perspective "main")
+	  ("f" command elfeed "feeds")
+	  ("t" command treemacs "Treemacs")
+	  ("T" command treemacs-find-file "Treemacs Find File")
+	  ))
   (defun hub/setup-speed-dial ()
     "Install global keybindings on normal mode with prefix ',o'
     for every item in var hub/speed-dial-items."
     (dolist (binding hub/speed-dial-items)
       (pcase binding
-        (`(,key perspective ,persp) (hub/speed-dial key persp))
-        (`(,key file ,path ,persp) (hub/speed-dial key persp path))
-        (`(,key command ,cmd ,persp) (hub/speed-dial key persp nil cmd))
-        )
+	(`(,key perspective ,persp) (hub/speed-dial key persp))
+	(`(,key file ,path ,persp) (hub/speed-dial key persp path))
+	(`(,key command ,cmd ,persp) (hub/speed-dial key persp nil cmd))
+	)
       )
     )
   (hub/setup-speed-dial)
@@ -70,55 +70,55 @@
 
   (add-hook 'kill-emacs-hook #'persp-state-save)
   (setq persp-sort 'access
-        persp-state-default-file (expand-file-name "persp.state"
-                                                (expand-file-name "var/" user-emacs-directory)))
+	persp-state-default-file (expand-file-name "persp.state"
+						   (expand-file-name "var/" user-emacs-directory)))
   (make-directory (file-name-directory persp-state-default-file) t))
 (use-package perspective-project-bridge
   :after (perspective)
   :general (:keymaps '(normal)
-                     "gp" #'project-switch-project
-                     ",pb" #'project-switch-to-buffer
-                     ",P" #'project-other-window-command
-                     ",pf" #'project-find-file
-                     ",p/" #'project-dired
-                     ",ps" #'project-search
-                     ",pS" #'project-query-replace-regexp
-                     ",p$" #'project-shell
-                     ",pe" #'project-eshell
-                     ",pb" #'project-compile
-                     )
+		     "gp" #'project-switch-project
+		     ",pb" #'project-switch-to-buffer
+		     ",P" #'project-other-window-command
+		     ",pf" #'project-find-file
+		     ",p/" #'project-dired
+		     ",ps" #'project-search
+		     ",pS" #'project-query-replace-regexp
+		     ",p$" #'project-shell
+		     ",pe" #'project-eshell
+		     ",pb" #'project-compile
+		     )
   :hook
   (perspective-project-bridge-mode . (lambda ()
-                                       (if perspective-project-bridge-mode
-                                           (perspective-project-bridge-find-perspectives-for-all-buffers)
-                                         (perspective-project-bridge-kill-perspectives))))
+				       (if perspective-project-bridge-mode
+					   (perspective-project-bridge-find-perspectives-for-all-buffers)
+					 (perspective-project-bridge-kill-perspectives))))
   (persp-mode . perspective-project-bridge-mode)
   )
 
 (use-package consult
   :general
   (:keymaps '(normal)
-            ",hh" #'consult-history
-            ",hm" #'consult-man
-            ",hi" #'consult-info
-            "gB" #'consult-buffer-other-window ;; orig. switch-to-buffer-other-window
-            "gm" #'consult-bookmark            ;; orig. bookmark-jump
-            "gb" #'consult-project-buffer      ;; orig. project-switch-to-buffer
-            ;; M-g bindings in `goto-map'
-            "g}" #'consult-compile-error
-            "ge" #'consult-flymake             ;; Alternative: consult-flycheck
-            "g." #'consult-goto-line           ;; orig. goto-line
-            "gh" #'consult-outline             ;; Alternative: consult-org-heading
-            ;; M-s bindings in `search-map'
-            ",e/" #'consult-find               ;; Alternative: consult-fd
-            ",e." #'consult-locate
-            ",eg" #'consult-grep
-            ",eG" #'consult-git-grep
-            ",er" #'consult-ripgrep
-            ",e;" #'consult-line
-            ",eL" #'consult-line-multi
-            ",ek" #'consult-keep-lines
-            ",eu" #'consult-focus-lines)       ;; orig. previous-matching-history-element
+	    ",hh" #'consult-history
+	    ",hm" #'consult-man
+	    ",hi" #'consult-info
+	    "gB" #'consult-buffer-other-window ;; orig. switch-to-buffer-other-window
+	    "gm" #'consult-bookmark            ;; orig. bookmark-jump
+	    "gb" #'consult-project-buffer      ;; orig. project-switch-to-buffer
+	    ;; M-g bindings in `goto-map'
+	    "g}" #'consult-compile-error
+	    "ge" #'consult-flymake             ;; Alternative: consult-flycheck
+	    "g." #'consult-goto-line           ;; orig. goto-line
+	    "gh" #'consult-outline             ;; Alternative: consult-org-heading
+	    ;; M-s bindings in `search-map'
+	    ",e/" #'consult-find               ;; Alternative: consult-fd
+	    ",e." #'consult-locate
+	    ",eg" #'consult-grep
+	    ",eG" #'consult-git-grep
+	    ",er" #'consult-ripgrep
+	    ",e;" #'consult-line
+	    ",eL" #'consult-line-multi
+	    ",ek" #'consult-keep-lines
+	    ",eu" #'consult-focus-lines)       ;; orig. previous-matching-history-element
   (;; C-c bindings in `mode-specific-map'
    :keymaps '(normal insert)
    "C-c M-x" #'consult-mode-command
@@ -129,10 +129,10 @@
    )
   ;; Minibuffer history
   (:keymaps 'minibuffer-local-map
-            :states '(normal insert)
-            "M-s" #'consult-history                 ;; orig. next-matching-history-element
-            "M-r" #'consult-history
-            )
+	    :states '(normal insert)
+	    "M-s" #'consult-history                 ;; orig. next-matching-history-element
+	    "M-r" #'consult-history
+	    )
 
   ;; Enable automatic preview at point in the *Completions* buffer. This is
   ;; relevant when you use the default completion UI.
@@ -145,7 +145,7 @@
   ;; preview for `consult-register', `consult-register-load',
   ;; `consult-register-store' and the Emacs built-ins.
   (setq register-preview-delay 0.5
-        register-preview-function #'consult-register-format)
+	register-preview-function #'consult-register-format)
 
   ;; Optionally tweak the register preview window.
   ;; This adds thin lines, sorting and hides the mode line of the window.
@@ -153,7 +153,7 @@
 
   ;; Use Consult to select xref locations with preview
   (setq xref-show-xrefs-function #'consult-xref
-        xref-show-definitions-function #'consult-xref)
+	xref-show-definitions-function #'consult-xref)
 
   ;; Configure other variables and modes in the :config section,
   ;; after lazily loading the package.

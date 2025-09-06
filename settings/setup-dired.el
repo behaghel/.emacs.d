@@ -31,7 +31,7 @@
   :config
   (setq dired-dwim-target t)
   (setq dired-listing-switches
-        "-XGFahlv --group-directories-first --time-style=long-iso")
+	"-XGFahlv --group-directories-first --time-style=long-iso")
   (define-key evil-normal-state-map (kbd "g/") 'dired))
 (use-package dired-aux
   :straight nil
@@ -44,13 +44,13 @@
 (use-package dired-subtree
   :config
   (bind-keys :map dired-mode-map
-             ("<tab>" . dired-subtree-toggle)
-             ("<C-tab>" . dired-subtree-cycle)))
+	     ("<tab>" . dired-subtree-toggle)
+	     ("<C-tab>" . dired-subtree-cycle)))
 ;;narrow dired to match filter
 (use-package dired-narrow
   :ensure t
   :bind (:map dired-mode-map
-              (">" . dired-narrow)))
+	      (">" . dired-narrow)))
 (use-package wdired
   :config
   (setq wdired-allow-to-change-permissions t)
@@ -61,9 +61,9 @@
 (use-package dired-ranger
   :ensure t
   :bind (:map dired-mode-map
-              ("Y" . dired-ranger-copy)
-              ("X" . dired-ranger-move)
-              ("V" . dired-ranger-paste)))
+	      ("Y" . dired-ranger-copy)
+	      ("X" . dired-ranger-move)
+	      ("V" . dired-ranger-paste)))
 
 (provide 'setup-dired)
 ;;; setup-dired.el ends here
