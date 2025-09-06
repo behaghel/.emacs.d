@@ -1,0 +1,167 @@
+#+title: Emacs Configuration (Literate)
+#+PROPERTY: header-args:emacs-lisp :results silent :noweb no-export
+
+This file is the literate source of core configuration. It tangles to files
+under =core/= and can be extended to modules over time. Tangling is safe and
+does not change runtime unless =init.el= is updated to load these files.
+
+* Startup
+#+begin_src emacs-lisp :tangle ../core/startup.el
+;;; startup.el --- Core startup helpers -*- lexical-binding: t; -*-
+
+;;; Commentary:
+;; Helpers to manage GC and file-name-handlers during intensive operations.
+
+;;; Code:
+
+(defvar core/startup--saved-gc-cons-threshold gc-cons-threshold)
+(defvar core/startup--saved-gc-cons-percentage gc-cons-percentage)
+(defvar core/startup--saved-file-name-handler-alist file-name-handler-alist)
+
+(defun core/startup-maximize-gc-and-io ()
+  "Loosen GC and disable file-name handlers for speed."
+  (setq gc-cons-threshold most-positive-fixnum
+        gc-cons-percentage 0.6
+        file-name-handler-alist nil))
+
+(defun core/startup-restore-gc-and-io ()
+  "Restore GC and file-name handlers after init or heavy work."
+  (setq gc-cons-threshold core/startup--saved-gc-cons-threshold
+        gc-cons-percentage core/startup--saved-gc-cons-percentage
+        file-name-handler-alist core/startup--saved-file-name-handler-alist))
+
+(provide 'core-startup)
+;;; startup.el ends here
+#+end_src
+
+* Packages
+#+begin_src emacs-lisp :tangle ../core/packages.el
+;;; packages.el --- straight.el bootstrap and use-package -*- lexical-binding: t; -*-
+
+;;; Commentary:
+;; Centralizes package management with straight.el and use-package.
+
+;;; Code:
+
+(defvar bootstrap-version)
+(let* ((repo "radian-software/straight.el")
+       (branch "develop")
+       (install-url (format "https://raw.githubusercontent.com/%s/%s/install.el" repo branch))
+       (bootstrap-file (expand-file-name "straight/repos/straight.el/bootstrap.el" user-emacs-directory)))
+  (unless (file-exists-p bootstrap-file)
+    (with-current-buffer
+        (url-retrieve-synchronously install-url 'silent 'inhibit-cookies)
+      (goto-char (point-max))
+      (eval-print-last-sexp)))
+  (load bootstrap-file nil 'nomessage))
+
+(setq straight-use-package-by-default t)
+
+(straight-use-package 'use-package)
+(require 'use-package)
+(require 'use-package-ensure)
+(require 'use-package-delight)
+(require 'use-package-diminish)
+
+;;;###autoload
+(defun core/packages-freeze ()
+  (interactive)
+  (straight-freeze-versions))
+
+;;;###autoload
+(defun core/packages-thaw ()
+  (interactive)
+  (straight-thaw-versions))
+
+(provide 'core-packages)
+;;; packages.el ends here
+#+end_src
+
+* Keybindings
+#+begin_src emacs-lisp :tangle ../core/keybinds.el
+;;; keybinds.el --- Central keybinding definitions -*- lexical-binding: t; -*-
+
+;;; Commentary:
+;; Evil is foundational here; global leader map lives here.
+;; Mode-specific bindings should be placed in their respective modules.
+
+;;; Code:
+
+(use-package evil
+  :demand t)
+
+(use-package general
+  :demand t)
+
+(general-create-definer hub/leader
+  :states '(normal visual motion emacs)
+  :keymaps 'override
+  :prefix ","
+  :non-normal-prefix "C-,")
+
+(provide 'core-keybinds)
+;;; keybinds.el ends here
+#+end_src
+
+* UI
+#+begin_src emacs-lisp :tangle ../core/ui.el
+;;; ui.el --- Minimal UI defaults -*- lexical-binding: t; -*-
+
+;;; Commentary:
+;; Keep this minimal to avoid UX changes; elaborate theming lives in modules/ui/.
+
+;;; Code:
+
+(provide 'core-ui)
+;;; ui.el ends here
+#+end_src
+
+* Paths
+#+begin_src emacs-lisp :tangle ../core/paths.el
+;;; paths.el --- Standardize paths and state files -*- lexical-binding: t; -*-
+
+;;; Commentary:
+;; Configure no-littering to keep configuration/state tidy under etc/ and var/.
+
+;;; Code:
+
+(use-package no-littering
+  :demand t
+  :init
+  (setq no-littering-etc-directory (expand-file-name "etc/" user-emacs-directory)
+        no-littering-var-directory (expand-file-name "var/" user-emacs-directory)))
+
+(provide 'core-paths)
+;;; paths.el ends here
+#+end_src
+
+* Writing
+#+begin_src emacs-lisp :tangle ../modules/writing/writing.el
+;;; writing.el --- Writing-focused helpers -*- lexical-binding: t; -*-
+
+;;; Commentary:
+;; Denote, focused writing, and basic quality tools. Inert unless explicitly
+;; enabled by user commands or hooks.
+
+;;; Code:
+
+(use-package denote :defer t)
+(use-package writeroom-mode :defer t)
+(use-package olivetti :defer t)
+
+;;;###autoload
+(defun writing/enable-basics ()
+  "Enable a minimal writing environment for the current buffer."
+  (interactive)
+  (when (fboundp 'variable-pitch-mode) (variable-pitch-mode 1))
+  (when (fboundp 'visual-line-mode) (visual-line-mode 1))
+  (when (require 'olivetti nil t) (olivetti-mode 1))
+  (when (require 'writeroom-mode nil t) (writeroom-mode 1)))
+
+(provide 'mod-writing)
+;;; writing.el ends here
+#+end_src
+
+* Notes
+- Tangling: =emacs --batch -l org --eval '(org-babel-tangle-file "docs/config.org")'=
+- Integration: load these from =init.el= after we verify parity.
