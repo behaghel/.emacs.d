@@ -313,6 +313,10 @@
   (require 'vcs/git)
   (require 'navigation/dired)
   (require 'shell/eshell))
+
+;; Knowledge & writing
+(require 'org/core)
+(require 'notes/brain))
 (require 'setup-brain)
 (require 'setup-private nil t)
 
