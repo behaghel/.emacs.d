@@ -50,7 +50,7 @@
             (lambda () (setq-local comment-auto-fill-only-comments nil)))
 
   ;; org-capture && org-agenda
-  ; otherwise org-agenda destroys your layout
+                                        ; otherwise org-agenda destroys your layout
   (setq org-agenda-window-setup 'other-window)
   (setq org-default-notes-file (concat org-directory "inbox.org"))
   ;; org-agenda-files should be a list of files and not a dir
@@ -100,7 +100,7 @@
   ;; stolen from https://kristofferbalintona.me/posts/202206141852/#understanding-org-cite-export-processors
   (setq org-cite-global-bibliography (list (concat org-directory "my.bib")))
   (setq
-   org-cite-csl-locales-dir "~/.emacs.d/straight/repos/org/etc/csl"
+   org-cite-csl-locales-dir (expand-file-name "straight/repos/org/etc/csl" user-emacs-directory)
    org-cite-csl-styles-dir "~/Zotero/styles")
   (setq org-cite-export-processors
         '((md . (csl "chicago-fullnote-bibliography.csl"))   ; Footnote reliant
@@ -112,8 +112,6 @@
   ;; consider me idle on my currently clocked-in task after 15 minutes
   ;; and ask me to resolve idle time when I am back
   (setq org-clock-idle-time 15)
-  ;; for easy templates to work (e.g. <s[Tab] to create src block)
-  (require 'org-tempo)
 
   ;;; Babel
   ;; org-babel and source code in org
@@ -241,10 +239,10 @@ of its arguments."
     "Store a link taken from a pinboard buffer."
     (when (eq major-mode 'pinboard-mode)
       (pinboard-with-current-pin pin
-        (org-store-link-props
-         :type "pinboard"
-         :link (alist-get 'href pin)
-         :description (alist-get 'description pin)))))
+                                 (org-store-link-props
+                                  :type "pinboard"
+                                  :link (alist-get 'href pin)
+                                  :description (alist-get 'description pin)))))
 
   (org-link-set-parameters "pinboard"
                            :follow #'browse-url
@@ -414,7 +412,7 @@ of its arguments."
                 org-download-heading-lvl nil
                 org-download-delete-image-after-download t
                 )
-)
+  )
 
 (use-package org-drill
   :after (org)
@@ -422,9 +420,9 @@ of its arguments."
   :config
   (add-to-list 'org-capture-templates
                '("y" "sysadmin drill question"
-                  entry
-                  (file+headline "~/Dropbox/Documents/org/learning/sysadmin.org" "Drills")
-                  "\n\n** %^{Question title}                           :sysadmin:drill:\n\n   %^{Question body} \n\n*** Answer \n\n    #+BEGIN_SRC %^{awk_bash} :results output code :in-file ./text-files/%^{text file}\n      %^{awk_bash program}\n    #+END_SRC")))
+                 entry
+                 (file+headline "~/Dropbox/Documents/org/learning/sysadmin.org" "Drills")
+                 "\n\n** %^{Question title}                           :sysadmin:drill:\n\n   %^{Question body} \n\n*** Answer \n\n    #+BEGIN_SRC %^{awk_bash} :results output code :in-file ./text-files/%^{text file}\n      %^{awk_bash program}\n    #+END_SRC")))
 
 (use-package citeproc)
 

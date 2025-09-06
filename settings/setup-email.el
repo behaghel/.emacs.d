@@ -555,7 +555,7 @@ point then copy the URL of the image under point instead."
   (require 'mu4e-icalendar)
   (mu4e-icalendar-setup)
   (setq mu4e-icalendar-trash-after-reply nil) ; nil until I trust it
-  ;; (setq mu4e-icalendar-diary-file "~/.emacs.d/diary-ical")
+  ;; (setq mu4e-icalendar-diary-file (expand-file-name "diary-ical" user-emacs-directory))
   ;; org integration
   (require 'org-agenda)
   (setq gnus-icalendar-org-capture-file org-default-notes-file)
@@ -791,10 +791,10 @@ Hubert
 
 (use-package mu4e-dashboard
   :straight (mu4e-dashboard :type git :host github :repo "rougier/mu4e-dashboard")
-  :custom (mu4e-dashboard-file "~/.emacs.d/settings/mail-sidebar.org")
+  :custom (mu4e-dashboard-file (expand-file-name "settings/mail-sidebar.org" user-emacs-directory))
   :after mu4e
   :config
-  ;; (defun open-mail-sidebar (&optional args) (find-file "~/.emacs.d/settings/mail-sidebar.org"))
+  ;; (defun open-mail-sidebar (&optional args) (find-file (expand-file-name "settings/mail-sidebar.org" user-emacs-directory)))
   (defun mu4e-dashboard-hook ()
     (when (string= (file-name-nondirectory buffer-file-name) "mail-sidebar.org")
       (mu4e-dashboard-mode)
