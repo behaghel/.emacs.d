@@ -1,0 +1,31 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+shopt -s nullglob
+
+files=("$@")
+if [ ${#files[@]} -eq 0 ]; then
+  exit 0
+fi
+
+status=0
+for f in "${files[@]}"; do
+  case "$f" in
+    *.el)
+      msg=$(emacs --batch "$f" -l checkdoc --eval "(checkdoc-file \"$f\" t)" 2>&1 || true)
+      if [ -n "$msg" ]; then
+        status=1
+        echo "checkdoc warnings in $f:" >&2
+        echo "$msg" >&2
+      fi
+      ;;
+    *) ;;
+  esac
+done
+
+if [ $status -ne 0 ]; then
+  echo "Pre-commit failed: checkdoc warnings above." >&2
+fi
+
+exit $status
+

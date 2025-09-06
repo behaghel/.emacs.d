@@ -46,3 +46,16 @@
 - Flow for larger efforts: create a meta/setup branch first (e.g., `chore/git-discipline`), push it, then branch the long‑running migration work from it (e.g., `refactor/migration-base`).
 - WIP management: if needed, `git stash push -u` to move in‑progress changes between branches cleanly.
 - Agent etiquette: the agent announces new branches, commits frequently, and requests approval before network actions (e.g., `git push`).
+
+## Pre-commit Enforcement (devenv)
+
+- Hooks: formatting and `checkdoc` run as pre-commit hooks using devenv’s `pre-commit` integration.
+- What runs:
+  - `elisp-format`: formats changed `*.el` (indent + `whitespace-cleanup`). If it modifies files, the commit is blocked; re-stage and commit again.
+  - `elisp-checkdoc`: runs `checkdoc` on changed `*.el`. Any warnings fail the commit.
+- Usage:
+  - Enter the dev shell: `nix develop`. It auto-installs the pre-commit hooks.
+  - Commit as usual; hooks will run on staged `*.el` files.
+  - To install manually: `pre-commit install --install-hooks`.
+- Requirements: `emacs` available in the shell (provided via devenv); `pre-commit` is included.
+- CI: mirror checks can be added later; for now local hooks enforce cleanliness before pushing.
