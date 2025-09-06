@@ -76,6 +76,20 @@
 - CI cache keys: include Emacs version and the hash of `straight/versions/default.el` to avoid unnecessary rebuilds while allowing intentional updates to refresh caches.
 - Updating deps: run `devenv run freeze` after making changes, review the diff in `straight/versions/default.el`, and commit it.
 
+## CI Emacs Versions
+
+- Runner setup: CI installs Emacs via `jcs090218/setup-emacs@v1` and pins a specific version (currently `30.2`). This uses GitHub’s toolcache to speed up runs and ensures parity across checks.
+- Why: consistent Emacs across CI runs keeps caches effective and avoids version‑specific regressions.
+- Bump policy: update the `version:` in `.github/workflows/emacs.yml` when adopting a new major/minor. If package changes are involved, run `devenv run freeze` and commit the updated `straight/versions/default.el`.
+- Test multiple versions (matrix):
+  - Example workflow fragment:
+    - `strategy.matrix.emacs: ["29.4", "30.2"]`
+    - Setup step:
+      - `uses: jcs090218/setup-emacs@v1`
+      - `with: version: ${{ matrix.emacs }}`
+  - Our cache key already includes the detected Emacs version, so caches stay distinct per version.
+- Local tip: develop with a matching Emacs when validating version bumps (the dev shell provides `emacs-nox`; you can pin nixpkgs if exact versions are needed).
+
 ## Agent Devenv Discipline
 
 - Always run commands inside `nix develop` shells for this repo.

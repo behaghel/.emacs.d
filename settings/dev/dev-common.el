@@ -52,16 +52,19 @@
 ;; (show-paren-mode 1)                     ; highlight matching brackets
 (setq treesit-font-lock-level 4)
 
+
+;; Load origami in interactive sessions (GUI or TTY), skip in batch to avoid face issues.
 (use-package origami
+  :unless noninteractive
   :commands origami-mode
   :after (hydra)
   :init
   (defhydra hydra-folding (:color red :hint nil)
 	    "
-_o_pen node    _n_ext fold       toggle forw_a_rd    _u_ndo            _F_ill column: %`fill-column
-_c_lose node   _p_revious fold   toggle _A_ll        _r_edo            e_x_it
-_z_oom on node
-"
+ _o_pen node    _n_ext fold       toggle forw_a_rd    _u_ndo            _F_ill column: %`fill-column
+ _c_lose node   _p_revious fold   toggle _A_ll        _r_edo            e_x_it
+ _z_oom on node
+ "
 	    ("o" origami-open-node)
 	    ("c" origami-close-node)
 	    ("z" origami-show-only-node)
@@ -125,7 +128,7 @@ _z_oom on node
 		       ;; auto-fill comments and only them
 		       ;; (setq-local comment-auto-fill-only-comments t)
 		       (eldoc-mode)
-		       (origami-mode)
+		       (when (featurep 'origami) (origami-mode))
 		       (editorconfig-mode 1)
 		       (electric-indent-local-mode)
 		       (define-key evil-normal-state-map (kbd ",bb") 'compile)
