@@ -49,6 +49,11 @@ jobs:
             fi
           done
 
+      - name: Architecture lint
+        run: |
+          export HOME=$GITHUB_WORKSPACE
+          emacs --batch -l init.el -l scripts/lint-architecture.el
+
       - name: Pre-commit checks (elisp format + checkdoc)
         run: |
           export HOME=$GITHUB_WORKSPACE

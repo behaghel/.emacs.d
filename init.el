@@ -34,6 +34,10 @@
 (setq user-emacs-directory
       (file-name-directory (or load-file-name buffer-file-name)))
 
+;; Environment predicates (batch/gui/tty/interactive/ci)
+(add-to-list 'load-path (expand-file-name "core" user-emacs-directory))
+(ignore-errors (require 'core-predicates))
+
 ;; CI optimizations for straight.el: avoid modification checks and use shallow clones.
 (when (getenv "GITHUB_ACTIONS")
   ;; Older straight.el expects a list here; use nil to disable checks in CI.
@@ -62,8 +66,12 @@
 ;; Set up load path
 (add-to-list 'load-path settings-dir)
 (add-to-list 'load-path (expand-file-name "dev" settings-dir))
-;; Project modules live under modules/, expose them on load-path for feature-based require
+;; Project modules: begin migrating to layered paths.
+;; Keep legacy modules/ on load-path for now (writing, etc.). Also add
+;; interactive layer path so interactive-only modules are not visible in batch.
 (add-to-list 'load-path (expand-file-name "modules" user-emacs-directory))
+(when (and (featurep 'core-predicates) (hub/interactive-p))
+  (add-to-list 'load-path (expand-file-name "modules/interactive" user-emacs-directory)))
 
 (setq user-mail-address "behaghel@gmail.com")
 (setq user-full-name "Hubert Behaghel")
@@ -117,7 +125,7 @@
 
 (require 'hub-utils)
 
-(require 'setup-general)
+(require 'editing/general)
 (server-start)
 
 (require 'setup-evil)
@@ -290,7 +298,7 @@
 
 (require 'setup-perspective)
 ;; at the end, for windows to pick up the font change
-(require 'setup-ui)
+(require 'ui/core)
 ;; (require 'setup-multiple-cursors)
 (put 'narrow-to-region 'disabled nil)
 (put 'erase-buffer 'disabled nil)

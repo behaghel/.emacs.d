@@ -52,5 +52,5 @@
 (use-package treemacs-magit
   :after (treemacs magit))
 
-(provide 'hub/navigation/treemacs)
+(provide 'navigation/treemacs)
 ;;; treemacs.el ends here

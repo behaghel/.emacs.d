@@ -5,7 +5,7 @@
 
 ;;; Code:
 
-(require 'hub/completion/core)
+(require 'completion/core)
 
 (provide 'setup-completion)
 ;;; setup-completion.el ends here

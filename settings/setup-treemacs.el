@@ -5,7 +5,7 @@
 
 ;;; Code:
 
-(require 'hub/navigation/treemacs)
+(require 'navigation/treemacs)
 
 (provide 'setup-treemacs)
 ;;; setup-treemacs.el ends here

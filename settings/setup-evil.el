@@ -5,7 +5,7 @@
 
 ;;; Code:
 
-(require 'hub/editing/evil)
+(require 'editing/evil)
 
 (provide 'setup-evil)
 ;;; setup-evil.el ends here

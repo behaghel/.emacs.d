@@ -232,5 +232,5 @@
 	 ("C-c p &" . cape-sgml)
 	 ("C-c p r" . cape-rfc1345)))
 
-(provide 'hub/completion/core)
+(provide 'completion/core)
 ;;; core.el ends here

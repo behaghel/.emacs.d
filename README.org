@@ -190,6 +190,38 @@ straight.el artifacts in GitHub Actions.
 - Local tips
   - Run ~devenv run pre-commit:all~ before pushing to catch issues early.
   - Use ~devenv run load-check~ to batch-load ~init.el~ quickly.
+
+* Architecture
+We organize modules by runtime layers to load only what’s relevant in each
+context (fast CI, pleasant interactive UX in both GUI and terminal).
+
+- Layers
+  - ~core~: always-on, no UI side effects (paths, packages, defaults).
+  - ~interactive~: loaded only when not batch (TTY or GUI) — developer experience
+    features, keymaps, global minor modes, etc.
+  - ~gui~: GUI-only adornments (icons, fringes, fancy faces).
+  - ~tty~: TTY-friendly alternatives for terminal usage.
+  - ~batch~: CI/batch-only optimizations (optional layer).
+
+- Paths and features
+  - Files live under ~modules/<layer>/<category>/...~ and provide category
+    features like ~editing/evil~, ~navigation/treemacs~, ~completion/core~.
+  - Legacy wrappers in ~settings/setup-*.el~ remain and ~require~ these features
+    while continuing to ~provide~ ~setup-*~ for compatibility.
+
+- Enforcement
+  - ~init.el~ filters ~load-path~ by layer: batch sessions do not include
+    ~modules/interactive~, so interactive-only modules cannot load in CI/batch.
+  - GUI/TTY specialization can be added similarly by exposing only
+    ~modules/gui~ or ~modules/tty~ per session.
+
+- Predicates
+  - ~core/predicates.el~ defines helpers used across modules:
+    - ~hub/interactive-p~, ~hub/batch-p~, ~hub/gui-p~, ~hub/tty-p~, ~hub/ci-p~.
+
+- Conventions
+  - Keep the ~hub/~ prefix for identifiers (functions/commands) only. Do not
+    use ~hub/~ in feature names or paths; use category namespaces instead.
 * Insipring Emacs Configs
 ** [2020-05-13 Wed 09:24] dot-emacs/README.org at 22f4c9dfa4de17537af8dccaba7d294382ded9e7 · zamansky/dot-emacs :grasp:emacs:productivity:
 

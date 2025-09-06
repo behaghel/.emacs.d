@@ -155,5 +155,5 @@
 (make-conditional-key-translation (kbd "è") (kbd "C-x") 'not-insert-state-p)
 (make-conditional-key-translation (kbd "È") (kbd "C-u") 'not-insert-state-p)
 
-(provide 'hub/editing/evil)
+(provide 'editing/evil)
 ;;; evil.el ends here

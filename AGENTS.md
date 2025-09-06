@@ -7,6 +7,22 @@
 - `snippets/`, `insert/`, `eshell/`: editor assets and templates.
 - `.githooks/post-commit`: formats changed `*.el` files and runs `checkdoc`.
 
+### Environment Layers (Architecture)
+- Layers: structure modules by runtime context for predictability and speed.
+  - `core`: always-on, no UI side effects (e.g., paths, packages).
+  - `interactive`: loaded only when not batch (TTY or GUI) — DX features, keymaps.
+  - `gui`: GUI-only adornments (icons, fringes, fancy faces).
+  - `tty`: TTY-friendly alternatives and tweaks.
+  - `batch`: CI/batch-only optimizations (optional).
+- Paths and features:
+  - Modules live under `modules/<layer>/<category>/...` and provide category features like `editing/evil`, `navigation/treemacs`, `completion/core`.
+  - `settings/setup-*.el` wrappers remain and require the new features, continuing to provide `setup-*` for backward compatibility.
+- Enforcement:
+  - `init.el` filters `load-path` by layer: batch sessions do not see `modules/interactive`, so interactive-only modules cannot load in batch.
+  - GUI/TTY specializations can be added similarly (only one on `load-path`).
+- Predicates: `core/predicates.el` defines helpers used across modules:
+  - `hub/interactive-p`, `hub/batch-p`, `hub/gui-p`, `hub/tty-p`, `hub/ci-p`.
+
 ## Build, Test, and Development Commands
 - Enter dev shell (Emacs, EditorConfig, Git preconfigured):
   - `nix develop` (or `nix develop .`).
@@ -20,7 +36,8 @@
 ## Coding Style & Naming Conventions
 - Indentation: spaces, 2 spaces (see `.editorconfig`); no tabs in Lisp.
 - File naming: `settings/setup-<topic>.el`, language modules in `settings/dev/`.
-- Elisp: prefer `hub/` prefix for repo-specific helpers and commands.
+- Elisp identifiers: prefix repo-specific helper functions/commands with `hub/` (e.g., `hub/transpose-params`).
+- Module features and paths: do not use `hub/` in feature names or on-disk paths; use category namespaces like `editing/evil`, `navigation/treemacs`, `completion/core` under `modules/<layer>/<category>/...`.
 - Formatting: post-commit hook auto-indents and runs `whitespace-cleanup`; fix any `checkdoc` warnings reported.
 
 ## Testing Guidelines
