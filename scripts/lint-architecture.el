@@ -23,6 +23,8 @@
   "Return non-nil if FILE contains (require 'setup-...) outside comments/strings."
   (with-temp-buffer
     (insert-file-contents file)
+    ;; Ensure correct syntax rules when scanning for comments/strings
+    (emacs-lisp-mode)
     (goto-char (point-min))
     (catch 'found
       (while (re-search-forward "(require 'setup-[^)']+)" nil t)
