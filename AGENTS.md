@@ -7,6 +7,8 @@
 - `modules/interactive/dev/common.el`: shared development defaults.
 - `lisp/`: custom helpers (e.g., `eshell-autojump.el`, `hub-utils.el`).
 - `snippets/`, `insert/`: editor assets and templates.
+- `etc/`: static assets and configuration resources (e.g., CSS, templates).
+- `var/`: runtime state and caches (recentf, savehist, treemacs, project list, persp.state, etc.).
 - Eshell: aliases tracked at `modules/interactive/shell/alias.eshell`; state under `.cache/eshell/`.
 - `.githooks/post-commit`: formats changed `*.el` files and runs `checkdoc`.
 
@@ -20,6 +22,7 @@
 - Paths and features:
   - Modules live under `modules/<layer>/<category>/...` and provide category features like `editing/evil`, `navigation/treemacs`, `completion/core`.
   - The legacy `settings/` folder is retired. No tracked files should remain there; CI fails if any do.
+  - Convention: keep non-versioned, variable files under `var/` and static assets under `etc/`. Avoid putting ephemeral state files at the repo root — route them to `var/` in code.
 - Enforcement:
   - `init.el` filters `load-path` by layer: batch sessions do not see `modules/interactive`, so interactive-only modules cannot load in batch.
   - GUI/TTY specializations can be added similarly (only one on `load-path`).

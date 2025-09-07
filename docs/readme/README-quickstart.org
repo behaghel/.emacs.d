@@ -23,6 +23,10 @@ This is a pragmatic guide to run, hack, and ship changes fast.
 - `scripts/`: CI and tooling (cache warmers, lint).
 - `private/`: your machine-specific settings (not tracked).
   - Eshell: aliases at `modules/interactive/shell/alias.eshell`; state under `.cache/eshell/`.
+ - `etc/`: static assets (e.g., CSS for exporters).
+ - `var/`: runtime state and caches (recentf, savehist, treemacs, project list, persp.state).
+
+Principle: avoid state files at the repo root; route variable, non‑versioned files into `var/` and place static assets in `etc/`.
 
 * Common Commands
 - Format + checkdoc (pre-commit): `devenv run pre-commit:all`
