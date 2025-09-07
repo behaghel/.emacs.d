@@ -22,6 +22,9 @@
 (hub/ci--stub-mu4e)
 
 ;; Load full init, which will now consider session interactive
-(load (expand-file-name "init.el" user-emacs-directory))
+(let* ((this-file (or load-file-name buffer-file-name))
+       (scripts-dir (file-name-directory this-file))
+       (repo-root (file-name-directory (directory-file-name scripts-dir))))
+  (load (expand-file-name "init.el" repo-root)))
 
 (message "CI full-load completed")
