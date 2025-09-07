@@ -265,7 +265,6 @@
   (setq langtool-language-tool-jar "/usr/local/Cellar/languagetool/2.6/libexec/languagetool.jar")
   (define-key evil-normal-state-map (kbd ",bg") 'langtool-check))
 
-(require 'setup-org)
 
 ;; asciidoc
 (add-hook 'adoc-mode-hook (lambda() (buffer-face-mode t)))
@@ -297,7 +296,6 @@
 					; CODING
 (require 'dev-common)
 
-(require 'setup-perspective)
 ;; at the end, for windows to pick up the font change
 (when (and (featurep 'core-predicates) (hub/interactive-p))
   (require 'ui/core)
@@ -312,29 +310,20 @@
   (require 'navigation/treemacs)
   (require 'vcs/git)
   (require 'navigation/dired)
-  (require 'shell/eshell))
-
-;; Knowledge & writing
-(require 'org/core)
-(require 'notes/brain)
-(require 'tools/blog)
-(require 'tools/ai)
-(require 'apps/elfeed)
-(require 'email/core))
-(require 'setup-brain)
+  (require 'shell/eshell)
+  ;; Knowledge & writing
+  (require 'org/core)
+  (require 'notes/brain)
+  (require 'tools/blog)
+  (require 'tools/ai)
+  (require 'apps/elfeed)
+  (require 'email/core))
 (require 'setup-private nil t)
 
 ;; (use-package use-package-ensure-system-package
 ;;   :ensure t)
 
-;; APPS
-;; (require 'setup-erc)
-;; (require 'setup-twitter)
-(require 'setup-ai)
-(require 'setup-elfeed)
-;; Email
-(require 'setup-dired)
-(require 'setup-eshell)
+;; APPS (legacy wrappers removed in favor of layered modules)
 (use-package restclient
   :commands (restclient-mode))
 
