@@ -305,7 +305,6 @@
   (if (display-graphic-p)
       (require 'ui/gui)
     (require 'ui/tty)))
-;; (require 'setup-multiple-cursors)
 (put 'narrow-to-region 'disabled nil)
 (put 'erase-buffer 'disabled nil)
 

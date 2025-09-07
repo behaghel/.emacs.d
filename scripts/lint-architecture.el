@@ -19,15 +19,22 @@
 (message "Architecture lint passed")
 
 ;; Legacy requires: flag any (require 'setup-*) anywhere in the tree
+(defun hub--file-has-legacy-setup-require-p (file)
+  "Return non-nil if FILE contains (require 'setup-...) outside comments/strings."
+  (with-temp-buffer
+    (insert-file-contents file)
+    (goto-char (point-min))
+    (catch 'found
+      (while (re-search-forward "(require 'setup-[^)']+)" nil t)
+	(let ((pos (match-beginning 0))
+	      (ppss (syntax-ppss (match-beginning 0))))
+	  (unless (or (nth 4 ppss) (nth 3 ppss)) ; in comment or string
+	    (throw 'found t))))
+      nil)))
+
 (let* ((default-directory user-emacs-directory)
        (files (split-string (shell-command-to-string "git ls-files '*.el'") "\n" t))
-       (violations (seq-filter
-		    (lambda (f)
-		      (with-temp-buffer
-			(insert-file-contents f)
-			(goto-char (point-min))
-			(re-search-forward "(require 'setup-[^)']+)" nil t)))
-		    files)))
+       (violations (seq-filter #'hub--file-has-legacy-setup-require-p files)))
   (when violations
     (error "Legacy requires of setup-* found: %S" violations)))
 
