@@ -51,6 +51,8 @@ bookmarks
 /games/
 /network-security.data
 /settings/setup-private.el
+# New location for machine-specific private settings
+/private/
 /.org-generic-id-locations
 /org-gcal/
 /persist/
