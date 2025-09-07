@@ -46,6 +46,10 @@
     :ensure t
     :custom (evil-collection-company-use-tng nil)
     :config
+    ;; Avoid initializing integrations for packages not present (notably mu4e in CI)
+    (when (fboundp 'locate-library)
+      (unless (locate-library "mu4e")
+	(setq evil-collection-mode-list (delq 'mu4e evil-collection-mode-list))))
     (evil-collection-translate-key nil
 				   '(evil-window-map evil-normal-state-map evil-motion-state-map
 						     evil-treemacs-state-map Info-mode-map

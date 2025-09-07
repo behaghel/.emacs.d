@@ -6,6 +6,9 @@
 
 ;;; Code:
 
+(defvar org-directory (expand-file-name "org/" (or (getenv "HOME") "~"))
+  "Fallback location for Org files when `org/core' is not loaded yet.")
+
 (use-package perspective
   :defer t
   :general (:keymaps 'persp-mode-map

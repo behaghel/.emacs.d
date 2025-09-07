@@ -20,6 +20,7 @@
 
 (defun hub/ci--stub-mu4e ()
   (unless (require 'mu4e nil 'noerror)
+    (defvar mu4e-mu-version "ci-stub")
     (defvar mu4e-main-mode-map (make-sparse-keymap))
     (defvar mu4e-headers-mode-map (make-sparse-keymap))
     (defun mu4e-message (&rest _args) (ignore))

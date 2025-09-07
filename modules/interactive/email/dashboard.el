@@ -6,6 +6,7 @@
 ;;; Code:
 
 (use-package mu4e-dashboard
+  :if (locate-library "mu4e-headers")
   :after mu4e
   :straight (mu4e-dashboard :type git :host github :repo "rougier/mu4e-dashboard")
   :custom (mu4e-dashboard-file (expand-file-name "settings/mail-sidebar.org" user-emacs-directory))

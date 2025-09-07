@@ -296,7 +296,8 @@
   (evil-define-key 'normal markdown-mode-map (kbd ",eV") 'markdown-export-and-preview))
 
 					; CODING
-(require 'dev-common)
+(when (or hub/force-interactive (and (featurep 'core-predicates) (hub/interactive-p)))
+  (require 'dev-common))
 
 ;; at the end, for windows to pick up the font change
 (when (or hub/force-interactive (and (featurep 'core-predicates) (hub/interactive-p)))
