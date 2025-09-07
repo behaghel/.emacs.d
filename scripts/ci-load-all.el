@@ -8,6 +8,8 @@
 (setq use-package-verbose t)
 (setq use-package-minimum-reported-time 0.01)
 (defvar hub/ci-start-time (current-time))
+;; In PR CI runs, skip optional/network-heavy modules (AI, notes) to avoid clones
+(setenv "HUB_CI_SKIP_OPTIONALS" "1")
 
 ;; Disable straight network ops and stub use-package in CI.
 (setq straight-use-package-by-default nil)

@@ -315,9 +315,11 @@
   (require 'shell/eshell)
   ;; Knowledge & writing
   (require 'org/core)
-  (require 'notes/brain)
+  (unless (getenv "HUB_CI_SKIP_OPTIONALS")
+    (require 'notes/brain))
   (require 'tools/blog)
-  (require 'tools/ai)
+  (unless (getenv "HUB_CI_SKIP_OPTIONALS")
+    (require 'tools/ai))
   (require 'apps/elfeed)
   (require 'email/core))
 (require 'setup-private nil t)
