@@ -1,6 +1,3 @@
-:preamble:
-#+OPTIONS: H:3 ^:{} toc:nil
-:end:
 #+TITLE: Elfeed Feeds
 #+AUTHOR: Hubert Behaghel
 #+EMAIL: behaghel@gmail.com
@@ -90,8 +87,3 @@ email: 0fnz2dzt640itnoexxq0@kill-the-newsletter.com
 * Forums                                                             :elfeed:
 ** Tech                                                               :tech:
 *** [[https://discourse.gohugo.io/latest.rss][Hugo]]                                                           :ignore:
-
-* Local Variables                                                  :noexport:
-# local variables:
-# modus-themes-variable-pitch-headings: nil
-# end:
