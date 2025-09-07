@@ -6,10 +6,8 @@
 
 ;;; Code:
 
-(defvar org-directory (expand-file-name "org/" (or (getenv "HOME") "~"))
-  "Base directory for Org files.
-This is overridden by `org/core' during init. Consumers should not
-capture its value at load time; compute paths at call time instead.")
+;; Org paths are computed at call time via lambdas to respect
+;; the current value of `org-directory' from org/core.
 
 (use-package perspective
   :defer t

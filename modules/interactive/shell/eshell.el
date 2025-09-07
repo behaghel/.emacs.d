@@ -5,6 +5,8 @@
 
 ;;; Code:
 
+(require 'hub-utils)
+
 (use-package eshell
   :straight nil
   :init

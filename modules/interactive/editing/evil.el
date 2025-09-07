@@ -6,6 +6,8 @@
 
 ;;; Code:
 
+(require 'hub-utils)
+
 (use-package evil
   :demand t
   :init

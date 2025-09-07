@@ -5,6 +5,8 @@
 
 ;;; Code:
 
+(require 'hub-utils)
+
 ;; Stop cluttering FS with #file.ext# and centralize backups
 (setq backup-directory-alist `((".*" . ,temporary-file-directory))
       auto-save-file-name-transforms `((".*" ,(concat user-emacs-directory "backups") t)))

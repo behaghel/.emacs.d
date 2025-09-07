@@ -18,7 +18,22 @@
 ;; Exit cleanly
 (message "Architecture lint passed")
 
-;; (Removed) Legacy setup-* require lint: no longer enforced in CI
+;; Lint: any reference to hub/* functions should declare (require 'hub-utils)
+(let* ((default-directory user-emacs-directory)
+       (files (split-string (shell-command-to-string "git ls-files 'modules/**/*.el' 'lisp/*.el'" ) "\n" t))
+       (violations '()))
+  (dolist (f files)
+    (with-temp-buffer
+      (insert-file-contents f)
+      (goto-char (point-min))
+      (let ((uses-hub (re-search-forward "\\bhub/[A-Za-z0-9_-]+" nil t))
+	    (has-require (save-excursion
+			   (goto-char (point-min))
+			   (re-search-forward "(require 'hub-utils)" nil t))))
+	(when (and uses-hub (not has-require))
+	  (push f violations)))))
+  (when violations
+    (error "Modules use hub/* without (require 'hub-utils): %S" (nreverse violations))))
 
 ;; Ensure settings/ contains no tracked files (folder is deprecated)
 (let* ((default-directory user-emacs-directory)

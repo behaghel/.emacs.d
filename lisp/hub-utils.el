@@ -75,6 +75,15 @@
       (with-temp-buffer (insert filename) (clipboard-kill-region (point-min) (point-max)))
       (message filename))))
 
+(defun hub/sluggify (s)
+  "Return a URL slug for string S.
+Lowercase, trim, replace non-alphanumerics with '-', and collapse repeats."
+  (let* ((down (downcase (string-trim s)))
+	 (norm (replace-regexp-in-string "[^a-z0-9]+" "-" down))
+	 (collapse (replace-regexp-in-string "-+" "-" norm))
+	 (trimmed (string-trim collapse "^-+" "-+$")))
+    trimmed))
+
 (defun hub/comment-dwim-line (&optional arg)
   "Comment DWIM on current line if no region; otherwise delegate."
   (interactive "*P")

@@ -5,6 +5,8 @@
 
 ;;; Code:
 
+(require 'hub-utils)
+
 ;; Ediff
 (setq ediff-diff-options "-w")
 (setq ediff-split-window-function 'split-window-horizontally)
