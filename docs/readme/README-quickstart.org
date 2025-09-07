@@ -22,6 +22,7 @@ This is a pragmatic guide to run, hack, and ship changes fast.
 - `lisp/`: repo-specific helpers (`hub-utils.el`, eshell helpers, etc.).
 - `scripts/`: CI and tooling (cache warmers, lint).
 - `private/`: your machine-specific settings (not tracked).
+  - Eshell: aliases at `modules/interactive/shell/alias.eshell`; state under `.cache/eshell/`.
 
 * Common Commands
 - Format + checkdoc (pre-commit): `devenv run pre-commit:all`
@@ -43,4 +44,3 @@ This is a pragmatic guide to run, hack, and ship changes fast.
 - If packages don’t build in CI, thaw pinned versions early: set `straight/versions/default.el` and rerun.
 - mu4e in CI is stubbed; check locally with a real `mu` binary if email features misbehave.
 - To force full interactive load in batch, export `HUB_FORCE_FULL_LOAD=1`.
-

@@ -6,7 +6,8 @@
 - `modules/lang/`: language tooling (Scala, JS/TS, Python, etc.).
 - `modules/interactive/dev/common.el`: shared development defaults.
 - `lisp/`: custom helpers (e.g., `eshell-autojump.el`, `hub-utils.el`).
-- `snippets/`, `insert/`, `eshell/`: editor assets and templates.
+- `snippets/`, `insert/`: editor assets and templates.
+- Eshell: aliases tracked at `modules/interactive/shell/alias.eshell`; state under `.cache/eshell/`.
 - `.githooks/post-commit`: formats changed `*.el` files and runs `checkdoc`.
 
 ### Environment Layers (Architecture)
