@@ -65,7 +65,7 @@
   (defun mu4e-sidebar ()
     (interactive)
     (mu4e)
-    (find-file (expand-file-name "settings/mail-sidebar.org" user-emacs-directory)))
+    (find-file (expand-file-name "docs/mail-sidebar.org" user-emacs-directory)))
 
   (add-hook 'kill-emacs-hook #'persp-state-save)
   (setq persp-sort 'access
