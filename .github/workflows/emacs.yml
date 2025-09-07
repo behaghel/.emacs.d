@@ -6,6 +6,45 @@ on:
   pull_request:
 
 jobs:
+
+  warm-cache:
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      - name: Setup Emacs
+        uses: jcs090218/setup-emacs@master
+        with:
+          version: '30.2'
+
+      - name: Detect Emacs version
+        id: emacs-version-warm
+        run: |
+          v=$(emacs --batch --eval '(princ emacs-version)')
+          echo "version=$v" >> "$GITHUB_OUTPUT"
+
+      - name: Cache straight.el and eln-cache (warm)
+        id: straight-cache-warm
+        uses: actions/cache@v4
+        with:
+          path: |
+            ${{ github.workspace }}/straight/repos
+            ${{ github.workspace }}/straight/build
+            ${{ github.workspace }}/straight/build-cache.el
+            ${{ github.workspace }}/straight/versions/default.el
+            ${{ github.workspace }}/eln-cache
+          key: straight-${{ runner.os }}-emacs-${{ steps.emacs-version-warm.outputs.version }}-versions-${{ hashFiles('straight/versions/default.el') }}
+          restore-keys: |
+            straight-${{ runner.os }}-
+
+      - name: Warm straight cache via full load
+        run: |
+          export HOME=$GITHUB_WORKSPACE
+          export HUB_FORCE_FULL_LOAD=1
+          emacs --batch -l scripts/ci-warm-all.el
+
   load-config:
     runs-on: ubuntu-latest
     steps:
