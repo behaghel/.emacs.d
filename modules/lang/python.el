@@ -2,7 +2,7 @@
 
 ;;; Code:
 
-(use-package python :straight (:type built-in) :hook ((python-mode . ensure-eglot)))
+(use-package python :straight (:type built-in) :hook ((python-mode . eglot-ensure)))
 (use-package python-docstring :hook (python-mode . python-docstring-mode))
 (use-package pydoc :commands (pydoc pydoc-at-point pydoc-browse)
   :bind (:map evil-normal-state-map (",hh" . pydoc-at-point-no-jedi)))
