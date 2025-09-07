@@ -26,9 +26,10 @@ If URL is non-nil (from `shr-url-at-point'), prefer it. Otherwise try
 			      "ê" 'mu4e-headers-search
 			      ",hh" 'mu4e-display-manual
 			      "zO" 'org-msg-mode
-			      "zê" 'mu4e-headers-toggle-full-search)
+			      "zê" 'mu4e-headers-toggle-full-search))
 
-  ;; headers view
+(with-eval-after-load 'mu4e-headers
+  ;; headers view (bind only after mu4e-headers is available)
   (evil-collection-define-key 'normal 'mu4e-headers-mode-map
 			      "F"  'mu4e-compose-forward
 			      "O"  'mu4e-org-store-and-capture
