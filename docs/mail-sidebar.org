@@ -1,0 +1,5 @@
+#+TITLE: MU4E Dashboard
+#+AUTHOR: Hubert Behaghel
+
+# This file was moved from settings/mail-sidebar.org
+

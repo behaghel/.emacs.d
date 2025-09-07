@@ -63,11 +63,8 @@
 (setq hub-lisp-dir (expand-file-name "lisp" user-emacs-directory))
 (add-to-list 'load-path hub-lisp-dir)  ; to include my .el
 
-(setq settings-dir
-      (expand-file-name "settings" user-emacs-directory))
-;; Set up load path
-(add-to-list 'load-path settings-dir)
-(add-to-list 'load-path (expand-file-name "dev" settings-dir))
+;; Legacy settings/ folder is being retired; do not add it to load-path.
+;; Private machine-specific setup now lives under private/setup.el (gitignored).
 ;; Project modules: begin migrating to layered paths.
 ;; Keep legacy modules/ on load-path for now (writing, etc.). Also add
 ;; interactive layer path so interactive-only modules are not visible in batch.
@@ -300,7 +297,7 @@
 
 					; CODING
 (when (or hub/force-interactive (and (featurep 'core-predicates) (hub/interactive-p)))
-  (require 'dev-common))
+  (require 'dev/common))
 
 ;; at the end, for windows to pick up the font change
 (when (or hub/force-interactive (and (featurep 'core-predicates) (hub/interactive-p)))
@@ -327,7 +324,12 @@
     (require 'tools/ai))
   (require 'apps/elfeed)
   (require 'email/core))
-(require 'setup-private nil t)
+;; Load private, machine-specific settings if present (new path first, legacy second)
+(let ((private-new (expand-file-name "private/setup.el" user-emacs-directory))
+      (private-legacy (expand-file-name "settings/setup-private.el" user-emacs-directory)))
+  (cond
+   ((file-exists-p private-new) (load private-new t))
+   ((file-exists-p private-legacy) (load private-legacy t))))
 
 ;; (use-package use-package-ensure-system-package
 ;;   :ensure t)

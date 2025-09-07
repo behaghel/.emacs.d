@@ -35,3 +35,9 @@
     (error "Legacy requires of setup-* found outside allowed paths: %S" violations)))
 
 (message "Architecture + legacy require lint passed")
+
+;; Ensure settings/ contains no tracked files (folder is deprecated)
+(let* ((default-directory user-emacs-directory)
+       (tracked (split-string (shell-command-to-string "git ls-files 'settings/**' 2>/dev/null") "\n" t)))
+  (when tracked
+    (error "settings/ should be empty; tracked files found: %S" tracked)))
