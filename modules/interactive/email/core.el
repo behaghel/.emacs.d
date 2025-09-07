@@ -37,8 +37,9 @@
 
 ;; Pull in modularized pieces
 (require 'email/contexts)
-;; (require 'email/bookmarks)
-;; (require 'email/view)
+;; Optional: uncomment as modules are migrated
+(ignore-errors (require 'email/bookmarks))
+(ignore-errors (require 'email/view))
 ;; (require 'email/compose)
 ;; (require 'email/dashboard)
 

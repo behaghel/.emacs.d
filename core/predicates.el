@@ -9,9 +9,13 @@
   "Return non-nil when running in batch (noninteractive)."
   noninteractive)
 
+(defvar hub/ci-forced-interactive (getenv "HUB_FORCE_FULL_LOAD")
+  "When non-nil, treat batch sessions as interactive for CI full-load checks.")
+
 (defun hub/interactive-p ()
-  "Return non-nil when running interactively (not batch)."
-  (not (hub/batch-p)))
+  "Return non-nil when running interactively (not batch).
+In CI full-load mode, this can be forced via HUB_FORCE_FULL_LOAD."
+  (or (not (hub/batch-p)) hub/ci-forced-interactive))
 
 (defun hub/gui-p ()
   "Return non-nil when running with a graphical display."
