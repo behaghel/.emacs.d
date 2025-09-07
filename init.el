@@ -286,7 +286,8 @@
   (add-hook 'gfm-mode-hook (lambda () (auto-fill-mode -1)))
   :commands (markdown-mode)
   :config
-  (setq markdown-command "pandoc -c file://${HOME}/.emacs.d/github-pandoc.css --from gfm -t html5 --mathjax --highlight-style pygments --standalone --quiet")
+  (setq markdown-command (format "pandoc -c file://%s --from gfm -t html5 --mathjax --highlight-style pygments --standalone --quiet"
+				 (expand-file-name "etc/github-pandoc.css" user-emacs-directory)))
 
   (evil-define-key 'normal markdown-mode-map (kbd ",il") 'markdown-insert-link)
   (evil-define-key 'normal markdown-mode-map (kbd ",iH") 'markdown-insert-header-dwim)
