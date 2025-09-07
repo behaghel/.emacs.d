@@ -40,9 +40,17 @@ This avoids running major-mode hooks to keep CI fast and side-effect free."
 
 (let* ((default-directory user-emacs-directory)
        (files (split-string (shell-command-to-string "git ls-files '*.el'") "\n" t))
-       (violations (seq-filter #'hub--file-has-legacy-setup-require-p files)))
+       (total (length files))
+       (idx 0)
+       violations)
+  (message "[lint] Scanning %d elisp files for legacy setup-* requires" total)
+  (dolist (f files)
+    (setq idx (1+ idx))
+    (when (zerop (% idx 50)) (message "[lint] scanned %d/%d" idx total))
+    (when (hub--file-has-legacy-setup-require-p f)
+      (push f violations)))
   (when violations
-    (error "Legacy requires of setup-* found: %S" violations)))
+    (error "Legacy requires of setup-* found: %S" (nreverse violations))))
 
 (message "Architecture + legacy require lint passed")
 
