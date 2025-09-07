@@ -60,7 +60,7 @@
 	   "* Meeting Minutes\n** Present at meeting\n- [X] Peter\n- [ ] Sarah - [X] Lucy\n ** Agenda\n- item 1\n- item 2\n- item 3\n** Notes\n*** Last meeting minutes are approved                              :decision:\n*** Discussion\n**** TODO Topic 1                                      :@Fred:\n**** TODO Topic 2                                    :@Sara:\n**** DONE Topic 2.1                                      :@Lucy:@Ted:\nDEADLINE: <2020-03-01 So>\n**** Another sub-topic                                    :decision:\n* Actions\n#+BEGIN: columnview :id global :match \"/TODO|DONE\" :format \"%ITEM(What) %TAGS(Who) %DEADLINE(When) %TODO(State)\"\n#+END:\n\n* Decisions\n#+BEGIN: columnview :id global :match \"decision\" :format \"%ITEM(decisions)\"\n#+END:")
 	  ))
 
-  (require 'setup-blog)
+  (require 'tools/blog)
   (setq org-outline-path-complete-in-steps nil
 	org-refile-use-outline-path 'file
 	org-refile-allow-creating-parent-nodes 'confirm

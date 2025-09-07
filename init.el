@@ -230,7 +230,7 @@
 ;; orj is an extension I invented: org-revealJS
 (define-auto-insert "\.orj\'" ["template.orj" hub/autoinsert-yas-expand])
 
-(require 'setup-git)
+
 
 ;; Editing text
 (add-hook 'text-mode-hook 'turn-on-auto-fill) ; auto-wrap
@@ -316,7 +316,11 @@
 
 ;; Knowledge & writing
 (require 'org/core)
-(require 'notes/brain))
+(require 'notes/brain)
+(require 'tools/blog)
+(require 'tools/ai)
+(require 'apps/elfeed)
+(require 'email/core))
 (require 'setup-brain)
 (require 'setup-private nil t)
 
@@ -328,7 +332,7 @@
 ;; (require 'setup-twitter)
 (require 'setup-ai)
 (require 'setup-elfeed)
-(require 'setup-email nil t)
+;; Email
 (require 'setup-dired)
 (require 'setup-eshell)
 (use-package restclient
