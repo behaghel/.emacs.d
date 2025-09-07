@@ -17,3 +17,21 @@
 
 ;; Exit cleanly
 (message "Architecture lint passed")
+
+;; Legacy requires: flag any (require 'setup-*) outside settings/dev and setup-private.el
+(let* ((default-directory user-emacs-directory)
+       (files (split-string (shell-command-to-string "git ls-files '*.el'") "\n" t))
+       (violations
+	(seq-filter
+	 (lambda (f)
+	   (and (not (string-prefix-p "settings/dev/" f))
+		(not (string= f "settings/setup-private.el"))
+		(with-temp-buffer
+		  (insert-file-contents f)
+		  (goto-char (point-min))
+		  (re-search-forward "(require 'setup-[^)']+)" nil t))))
+	 files)))
+  (when violations
+    (error "Legacy requires of setup-* found outside allowed paths: %S" violations)))
+
+(message "Architecture + legacy require lint passed")
