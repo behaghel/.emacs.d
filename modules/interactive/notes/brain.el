@@ -23,7 +23,14 @@
 			      ",nB" #'denote-link-find-backlink
 			      ",nR" #'denote-rename-file-using-front-matter)
 
-  (setq denote-directory (expand-file-name "~/ws/blog.behaghel.org/content-org/journal/")
+  (defgroup hub/notes nil
+    "Notes configuration for Denote."
+    :group 'denote)
+  (defcustom hub/denote-directory (expand-file-name "~/ws/blog.behaghel.org/content-org/journal/")
+    "Default directory for Denote notes."
+    :type 'directory
+    :group 'hub/notes)
+  (setq denote-directory hub/denote-directory
 	denote-known-keywords '("emacs" "faith" "family" "hubert" "pro" "engineering" "leadership")
 	denote-infer-keywords t
 	denote-sort-keywords t

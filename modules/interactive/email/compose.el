@@ -5,10 +5,21 @@
 
 ;;; Code:
 
+(defgroup hub/tmp nil
+  "Temporary directory configuration."
+  :group 'environment)
+
+(defcustom hub/tmp-directory (expand-file-name "var/tmp/" user-emacs-directory)
+  "Base directory for temporary files created by helper modes."
+  :type 'directory
+  :group 'hub/tmp)
+
 (defun make-tmp-file-browsable ()
   "Allow temporary files to be accessed by the browser."
   (interactive)
-  (setq-local temporary-file-directory "~/tmp"))
+  (let ((dir hub/tmp-directory))
+    (unless (file-directory-p dir) (make-directory dir t))
+    (setq-local temporary-file-directory dir)))
 
 (use-package org-msg
   :after org

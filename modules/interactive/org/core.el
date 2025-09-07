@@ -5,7 +5,26 @@
 
 ;;; Code:
 
-(setq org-directory "~/Dropbox/Documents/org/")
+(defgroup hub/org nil
+  "Customizations for Org paths."
+  :group 'org)
+
+(defcustom hub/org-directory "~/Dropbox/Documents/org/"
+  "Default Org directory. Set to nil to avoid overriding."
+  :type '(choice (const :tag "Do not override" nil) directory)
+  :group 'hub/org)
+
+(defcustom hub/org-bibliography-file (expand-file-name "Dropbox/Documents/library.bib" (getenv "HOME"))
+  "Default bibliography file for org-cite."
+  :type 'file
+  :group 'hub/org)
+
+(defcustom hub/org-plantuml-jar "~/install/plantuml.jar"
+  "Default PlantUML jar path."
+  :type 'file
+  :group 'hub/org)
+
+(when hub/org-directory (setq org-directory hub/org-directory))
 
 (use-package org
   :straight (:depth full)
@@ -74,14 +93,14 @@
   (setq org-confirm-babel-evaluate nil
 	org-export-allow-bind-keywords t
 	org-export-backends '(ascii html latex md odt)
-	org-cite-global-bibliography (list (expand-file-name "Dropbox/Documents/library.bib" (getenv "HOME")))
+	org-cite-global-bibliography (list hub/org-bibliography-file)
 	org-cite-csl-styles-dir (expand-file-name "straight/repos/org/etc/csl" user-emacs-directory)
 	org-cite-csl-locales-dir (expand-file-name "straight/repos/org/etc/csl" user-emacs-directory)
 	org-src-preserve-indentation t
 	org-src-window-setup 'other-window
 	org-src-tab-acts-natively t)
   (setq org-re-reveal-root (concat (getenv "HOME") "/Apps/reveal.js"))
-  (setq org-plantuml-jar-path "~/install/plantuml.jar")
+  (setq org-plantuml-jar-path hub/org-plantuml-jar)
   (add-to-list 'org-src-lang-modes '("plantuml" . plantuml))
   (setq org-html-htmlize-output-type 'css
 	org-html-head-include-default-style nil)

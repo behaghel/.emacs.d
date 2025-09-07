@@ -18,6 +18,19 @@
 ;; Exit cleanly
 (message "Architecture lint passed")
 
+;; Core must not require namespaced module features (contain "/").
+(let* ((default-directory user-emacs-directory)
+       (core-files (split-string (shell-command-to-string "git ls-files 'core/*.el'") "\n" t))
+       (bad '()))
+  (dolist (f core-files)
+    (with-temp-buffer
+      (insert-file-contents f)
+      (goto-char (point-min))
+      (while (re-search-forward "(require '([^)']*/[^)']+))" nil t)
+	(push (format "%s:%d" f (line-number-at-pos)) bad))))
+  (when bad
+    (error "Core requires namespaced features: %S" (nreverse bad))))
+
 ;; Lint: any reference to hub/* functions should declare (require 'hub-utils)
 (let* ((default-directory user-emacs-directory)
        (files (split-string (shell-command-to-string "git ls-files 'modules/**/*.el' 'lisp/*.el'" ) "\n" t))
