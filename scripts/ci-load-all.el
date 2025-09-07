@@ -5,6 +5,9 @@
 
 (setq hub/ci-forced-interactive t)
 (setenv "HUB_FORCE_FULL_LOAD" "1")
+(setq use-package-verbose t)
+(setq use-package-minimum-reported-time 0.01)
+(defvar hub/ci-start-time (current-time))
 
 (defun hub/ci--stub-mu4e ()
   (unless (require 'mu4e nil 'noerror)
@@ -27,4 +30,16 @@
        (repo-root (file-name-directory (directory-file-name scripts-dir))))
   (load (expand-file-name "init.el" repo-root)))
 
-(message "CI full-load completed")
+;; Report present/missing layered features and total time
+(let* ((expected '(ui/core ui/gui ui/tty
+			   editing/evil completion/core navigation/treemacs
+			   vcs/git navigation/dired shell/eshell
+			   org/core notes/brain tools/blog tools/ai
+			   apps/elfeed email/core email/contexts email/bookmarks email/view))
+       (present (seq-filter (lambda (f) (featurep f)) expected))
+       (missing (seq-remove (lambda (f) (featurep f)) expected))
+       (elapsed (float-time (time-subtract (current-time) hub/ci-start-time))))
+  (message "[ci-load-all] Present: %s" present)
+  (when missing (message "[ci-load-all] Missing: %s" missing))
+  (message "[ci-load-all] Total load time: %.3fs" elapsed)
+  (message "CI full-load completed"))
