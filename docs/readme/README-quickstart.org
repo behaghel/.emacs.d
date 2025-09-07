@@ -1,0 +1,46 @@
+#+TITLE: Emacs Config — Quickstart
+
+This is a pragmatic guide to run, hack, and ship changes fast.
+
+* TL;DR
+- Dev shell: `nix develop` (always run inside it)
+- Load check: `HOME=$PWD emacs --batch -l init.el --eval '(message "Loaded")' --kill`
+- Full CI load: `HOME=$PWD HUB_FORCE_FULL_LOAD=1 emacs --batch -l scripts/ci-load-all.el`
+- Freeze deps: `devenv run freeze` (commit straight/versions/default.el)
+- Pre-commit all: `devenv run pre-commit:all`
+
+* First Run
+1. Clone repo and `nix develop`.
+2. Optional: create `private/setup.el` for secrets (gitignored). If you had a legacy `settings/setup-private.el`, it still loads if present.
+3. Start Emacs normally. On first run straight.el will build packages; subsequent runs use caches.
+
+* Layout
+- `core/`: bootstrap and helpers (`core-*.el`).
+- `modules/`: layered modules loaded by context.
+  - `modules/interactive/...`: editor UX (evil, treemacs, org, email, etc.).
+  - `modules/lang/`: language setups (js, scala, python, haskell, clojure, ruby).
+- `lisp/`: repo-specific helpers (`hub-utils.el`, eshell helpers, etc.).
+- `scripts/`: CI and tooling (cache warmers, lint).
+- `private/`: your machine-specific settings (not tracked).
+
+* Common Commands
+- Format + checkdoc (pre-commit): `devenv run pre-commit:all`
+- Load architecture lint: `HOME=$PWD emacs --batch -l init.el -l scripts/lint-architecture.el`
+- Full-load report: `HOME=$PWD HUB_FORCE_FULL_LOAD=1 emacs --batch -l scripts/ci-load-all.el`
+- Run tests: `HOME=$PWD emacs --batch -l ert -l test/smoke.el -f ert-run-tests-batch-and-exit`
+
+* Editing Essentials
+- Evil enabled; leader is `,`
+- Keymaps live in their modules (see `modules/interactive/...`).
+- mu4e sidebar: `,o m` (opens mu4e and the dashboard org file).
+
+* Contributing
+- Branch from `main` with prefixes (`feat/`, `fix/`, `chore/`, `refactor/`).
+- Keep commits focused; run `pre-commit:all` locally.
+- CI pins Emacs and straight versions for reproducibility.
+
+* Troubleshooting
+- If packages don’t build in CI, thaw pinned versions early: set `straight/versions/default.el` and rerun.
+- mu4e in CI is stubbed; check locally with a real `mu` binary if email features misbehave.
+- To force full interactive load in batch, export `HUB_FORCE_FULL_LOAD=1`.
+

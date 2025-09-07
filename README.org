@@ -1,123 +1,13 @@
 
-* Project Backlog
-** Setup Emails in Emacs
-:LOGBOOK:
-CLOCK: [2020-04-28 Tue 00:35]--[2020-04-28 Tue 00:35] =>  0:00
-:END:
-*** Managing
-- put newsletters into their own view and manage them as closely as
-  possible from RSS feeds
-**** [2020-04-23 Thu 10:14] Handling Email with Emacs – malb::blog :grasp:emacs:email:productivity:
-https://martinralbrecht.wordpress.com/2016/05/30/handling-email-with-emacs/
-Comment:
-Thorough mu4e setup
-**** [2020-04-26 Sun 09:27] mkcms/mu4e-overview: Show overview of maildir :grasp:emacs:email:productivity:
-https://github.com/mkcms/mu4e-overview
-Comment:
-a bit like what you'd expect treemacs to be for emails
-**** [2020-05-03 Sun 19:34] Ambrevar / mu4e-conversation · GitLab :grasp:emacs:email:productivity:someday:
+#+TITLE: Emacs Configuration — README (draft selector)
 
-https://gitlab.com/ambrevar/mu4e-conversation
-Comment:
-Something to try one day
-*** Editing
-- need to learn the footnote minor mode
-- something to check: line breaking does weird things on the receiving end
-*** Issues
-**** Forwarding with org-msg
-**** Can't accept outlook invite
-accepting doesn't mark me as accepted in the organiser's calendar
-**** TODO Can't send through M&S SMTP
-** TODO Smooth windowing flow
-*** [2020-04-23 Thu 10:07] nex3/perspective-el: Perspectives for Emacs. :grasp:emacs:wm:productivity:
-https://github.com/nex3/perspective-el
-Comment:
-perspective-el seems to be the tool I need to do window layout management in Emacs the right way
-*** [2020-04-23 Thu 10:08] ESS – Emacs Speaks Statistics :grasp:emacs:wm:productivity:
-https://ess.r-project.org/Manual/ess.html#Controlling-buffer-display
-Comment:
-ESS doc has some good insights on display-buffer that is window management in Emacs
-*** [2020-04-23 Thu 10:09] Dedicated Windows - GNU Emacs Lisp Reference Manual :grasp:emacs:wm:productivity:
-https://www.gnu.org/software/emacs/manual/html_node/elisp/Dedicated-Windows.html#Dedicated-Windows
-Comment:
-bookmark on where I am in Emacs doc about window management. I should probably read that in the info straight from within Emacs :)
-*** [2020-04-23 Thu 10:11] Displaying Buffers - GNU Emacs Lisp Reference Manual :grasp:emacs:wm:productivity:
-https://www.gnu.org/software/emacs/manual/html_node/elisp/Displaying-Buffers.html#Displaying-Buffers
-Comment:
-actually that's probably a better bookmark on where I am in reading Emacs display-buffer framework for window management
-*** [2020-06-13 Sat 22:40] Sergey Matsievskiy / display-buffer-control · GitLab :grasp:emacs:productivity:
+This README is under active rewrite. Three new drafts are available:
 
-https://gitlab.com/matsievskiysv/display-buffer-control
-Comment:
-I should probably use that. The last section of readme is compelling.
-** set up org-agenda
-*** TODO [#B] build *my* agenda view
-Take inspiration from jethro and super-agenda
-**** [2020-04-25 Sat 21:52] kidd/org-gcal.el: Org sync with Google Calendar. (active maintained project as of 2019-11-06) :grasp:emacs:productivity:calendar:
-https://github.com/kidd/org-gcal.el
-Comment:
-for when my emails will be in Emacs and my org-agenda workflow is in my fingers
-**** [2020-04-26 Sun 22:04] org mode - Defining different fonts (color) per file in org-agenda - Emacs Stack Exchange :grasp:emacs:productivity:
-https://emacs.stackexchange.com/questions/23824/defining-different-fonts-color-per-file-in-org-agenda
-Comment:
-org-agenda views are colorless, needs fixing
+- Quickstart-focused: docs/readme/README-quickstart.org
+- Architecture-first: docs/readme/README-architecture.org
+- User handbook: docs/readme/README-handbook.org
 
-**** [2020-04-26 Sun 23:40] alphapapa/org-super-agenda: Supercharge your Org daily/weekly agenda by grouping items :grasp:emacs:org-mode:productivity:
-https://github.com/alphapapa/org-super-agenda
-
-*** [2020-04-26 Sun 23:42] Improving the Agenda  :grasp:emacs:productivity:
-https://llazarek.com/2018/07/improving-the-agenda.html
-Comment:
-various ideas that seem useful. In particular, colorful agenda view
-*** [2020-04-26 Sun 23:56] Getting Boxes Done, the Code :grasp:emacs:productivity:
-http://www.howardism.org/Technical/Emacs/getting-more-boxes-done.html
-Comment:
-another org-mode workflow, looks interesting
-*** [2020-04-27 Mon 00:00] Org-Agenda as a Calendar :grasp:emacs:productivity:
-https://errickson.net/org_agenda_calendar.html
-Comment:
-Another example of applying color to org-agenda
-*** [2020-05-08 Fri 19:40] org mode - Outlook Calendar in org agenda - Emacs Stack Exchange :grasp:emacs:org-mode:productivity:
-
-https://emacs.stackexchange.com/questions/45803/outlook-calendar-in-org-agenda
-Comment:
-if one day I'd want my calendar fully hosted in org-mode
-*** [2020-06-17 Wed 08:01] Steffen Weinreich / msgraph-orgmode · GitLab :grasp:emacs:productivity:
-
-https://gitlab.com/lairsdragon/msgraph-orgmode
-Comment:
-Download outlook calendar as org-mode file.
-*** [2020-05-09 Sat 14:10] Google Calendar Synchronization :grasp:emacs:org-mode:productivity:
-
-https://orgmode.org/worg/org-tutorials/org-google-sync.html
-Comment:
-google calendar <-> org-mode sync
-*** [2020-05-08 Fri 19:47] kiwanami/emacs-calfw: A calendar framework for Emacs :grasp:emacs:productivity:
-
-https://github.com/kiwanami/emacs-calfw
-Comment:
-A proper calendar vizz in Emacs, I am stunned.
-*** [2020-05-08 Fri 20:20] insanum/gcalcli: Google Calendar Command Line Interface :grasp:emacs:org-mode:productivity:
-
-https://github.com/insanum/gcalcli
-Comment:
-Could be useful for setting up calendar in org-mode
-*** [2020-06-17 Wed 08:02] spegoraro/org-alert: System notifications of org agenda items :grasp:mail:emacs:productivity:
-
-https://github.com/spegoraro/org-alert
-** I want to become a writer and build a second brain
-*** [2020-04-28 Tue 14:59] bnbeckwith/wc-mode: Wordcount minor mode for Emacs :grasp:emacs:blog:
-
-https://github.com/bnbeckwith/wc-mode
-Comment:
-could be a useful addition to my setup for blogging and writing in Emacs
-*** [2020-06-13 Sat 22:33] emacsmirror/spray: A speed reading mode :grasp:emacs:productivity:
-
-https://github.com/emacsmirror/spray
-Comment:
-Speed reading in Emacs, gotta try it!
-*** [2020-10-05 Mon 11:54] Top (Org-roam User Manual) :grasp:org:productivity:
-
+Pick a direction and we’ll converge the final README from these.
 https://www.orgroam.com/manual/
 Comment:
 Set up org-roam and start breaking mega files into small focused topics that are well inter-connected
@@ -171,6 +61,58 @@ Selection:
 #+end_quote
 Comment:
 avoid clutter when you export org files
+* Pinning & Caching
+To keep CI fast and builds reproducible we pin package versions and cache
+straight.el artifacts in GitHub Actions.
+
+- Pin package versions
+  - Enter the dev shell: ~nix develop~
+  - Freeze versions: ~devenv run freeze~
+  - Commit the generated file: ~straight/versions/default.el~
+
+- CI cache
+  - Caches the following paths:
+    - ~straight/repos~, ~straight/build~, ~straight/build-cache.el~
+    - ~straight/versions/default.el~ (keyed), and ~eln-cache~
+  - Cache key includes Emacs version and the hash of the pinned versions file
+    to ensure stable reuse across runs, while refreshing on intentional updates.
+
+- Local tips
+  - Run ~devenv run pre-commit:all~ before pushing to catch issues early.
+  - Use ~devenv run load-check~ to batch-load ~init.el~ quickly.
+
+* Architecture
+We organize modules by runtime layers to load only what’s relevant in each
+context (fast CI, pleasant interactive UX in both GUI and terminal).
+
+- Layers
+  - ~core~: always-on, no UI side effects (paths, packages, defaults).
+  - ~interactive~: loaded only when not batch (TTY or GUI) — developer experience
+    features, keymaps, global minor modes, etc.
+  - ~gui~: GUI-only adornments (icons, fringes, fancy faces).
+  - ~tty~: TTY-friendly alternatives for terminal usage.
+  - ~batch~: CI/batch-only optimizations (optional layer).
+
+- Paths and features
+  - Files live under ~modules/<layer>/<category>/...~ and provide category
+    features like ~editing/evil~, ~navigation/treemacs~, ~completion/core~.
+  - The historic ~settings/~ layout has been retired; language configs now live
+    under ~modules/lang/~ and shared dev defaults under
+    ~modules/interactive/dev/common.el~.
+
+- Enforcement
+  - ~init.el~ filters ~load-path~ by layer: batch sessions do not include
+    ~modules/interactive~, so interactive-only modules cannot load in CI/batch.
+  - GUI/TTY specialization can be added similarly by exposing only
+    ~modules/gui~ or ~modules/tty~ per session.
+
+- Predicates
+  - ~core/predicates.el~ defines helpers used across modules:
+    - ~hub/interactive-p~, ~hub/batch-p~, ~hub/gui-p~, ~hub/tty-p~, ~hub/ci-p~.
+
+- Conventions
+  - Keep the ~hub/~ prefix for identifiers (functions/commands) only. Do not
+    use ~hub/~ in feature names or paths; use category namespaces instead.
 * Insipring Emacs Configs
 ** [2020-05-13 Wed 09:24] dot-emacs/README.org at 22f4c9dfa4de17537af8dccaba7d294382ded9e7 · zamansky/dot-emacs :grasp:emacs:productivity:
 

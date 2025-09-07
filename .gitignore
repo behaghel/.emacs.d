@@ -45,15 +45,20 @@ bookmarks
 /.persp
 /company-statistics-cache.el
 /straight/*
-!/straight/versions
+!/straight/versions/
+!/straight/versions/default.el
 /emms/
 /games/
 /network-security.data
 /settings/setup-private.el
+# New location for machine-specific private settings
+/private/
 /.org-generic-id-locations
 /org-gcal/
 /persist/
-/straight/
+## Keep versions tracked; ignore other straight content
+!/straight/versions/
+!/straight/versions/default.el
 /history
 /projects
 /codeium/

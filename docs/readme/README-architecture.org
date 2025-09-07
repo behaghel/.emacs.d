@@ -1,0 +1,52 @@
+#+TITLE: Emacs Config — Architecture
+
+This document explains the design: layers, loading, and CI integration.
+
+* Goals
+- Fast, predictable loads in CI and locally
+- Interactive-only features stay out of batch
+- Clear module boundaries and naming
+- Reproducible dependencies
+
+* Layers and Predicates
+- Predicates: `core/core-predicates.el` defines `hub/interactive-p`, `hub/batch-p`, `hub/gui-p`, `hub/tty-p`, `hub/ci-p`.
+- Layers:
+  - core: always loaded (packages, paths, defaults)
+  - interactive: only when `(hub/interactive-p)` (evil, treemacs, org, email, etc.)
+  - gui/tty: UI splits for display-specific tweaks
+  - batch: CI helpers (scripts)
+
+* Module Layout
+- Features are named by category path, e.g., `editing/evil`, `navigation/treemacs`, `email/core`.
+- On disk under `modules/<layer>/<category>.el`.
+- Language modules live under `modules/lang/*.el` and are loaded by dev/common as needed.
+
+* Loading Strategy
+- `init.el` sets load-path and conditionally adds `modules/interactive` only when interactive (or `HUB_FORCE_FULL_LOAD=1`).
+- Email: mu4e is optional; CI stubs ensure loading even without a `mu` binary.
+- Private config is optional: `private/setup.el` (or legacy `settings/setup-private.el`).
+
+* Packages and Pinning
+- Centralized bootstrap in `core/core-packages.el` (straight + use-package).
+- Freeze with `devenv run freeze` → commit `straight/versions/default.el`.
+- CI cache key includes Emacs version and versions file hash.
+
+* CI Workflow
+- Jobs:
+  - warm-cache (on main): populates straight and eln caches via `scripts/ci-warm-all.el`.
+  - load-config: architecture lint, full-load check, checkdoc/format, tangle, smoke tests.
+- Guards:
+  - Assert no fallback to emergency bootstrap (must load `core-packages`).
+  - Forbid any `(require 'setup-*)` in repo.
+  - Fail if `settings/` has any tracked files.
+
+* Migration Notes
+- Legacy `settings/` retired; use `modules/lang/` and `modules/interactive/dev/common.el`.
+- `hub-utils.el` now under `lisp/`.
+- mu4e dashboard org moved under `modules/interactive/email/` for co-location.
+
+* Extending
+- New feature: place under the right layer and use `provide` with a namespaced feature (`category/name`).
+- Avoid global side effects in core; prefer interactive modules for UX.
+- Respect naming: no `hub/` prefix in features or file paths; reserve for function names.
+

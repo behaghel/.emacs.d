@@ -2,10 +2,28 @@
 
 ## Project Structure & Module Organization
 - `init.el`: entry point; sets `user-emacs-directory` and loads modules.
-- `settings/`: modular configuration (`setup-*.el`) and language tooling under `settings/dev/`.
-- `lisp/`: custom helpers (e.g., `eshell-autojump.el`).
+- `modules/`: layered modules by runtime context (see below).
+- `modules/lang/`: language tooling (Scala, JS/TS, Python, etc.).
+- `modules/interactive/dev/common.el`: shared development defaults.
+- `lisp/`: custom helpers (e.g., `eshell-autojump.el`, `hub-utils.el`).
 - `snippets/`, `insert/`, `eshell/`: editor assets and templates.
 - `.githooks/post-commit`: formats changed `*.el` files and runs `checkdoc`.
+
+### Environment Layers (Architecture)
+- Layers: structure modules by runtime context for predictability and speed.
+  - `core`: always-on, no UI side effects (e.g., paths, packages).
+  - `interactive`: loaded only when not batch (TTY or GUI) — DX features, keymaps.
+  - `gui`: GUI-only adornments (icons, fringes, fancy faces).
+  - `tty`: TTY-friendly alternatives and tweaks.
+  - `batch`: CI/batch-only optimizations (optional).
+- Paths and features:
+  - Modules live under `modules/<layer>/<category>/...` and provide category features like `editing/evil`, `navigation/treemacs`, `completion/core`.
+  - The legacy `settings/` folder is retired. No tracked files should remain there; CI fails if any do.
+- Enforcement:
+  - `init.el` filters `load-path` by layer: batch sessions do not see `modules/interactive`, so interactive-only modules cannot load in batch.
+  - GUI/TTY specializations can be added similarly (only one on `load-path`).
+- Predicates: `core/predicates.el` defines helpers used across modules:
+  - `hub/interactive-p`, `hub/batch-p`, `hub/gui-p`, `hub/tty-p`, `hub/ci-p`.
 
 ## Build, Test, and Development Commands
 - Enter dev shell (Emacs, EditorConfig, Git preconfigured):
@@ -19,8 +37,9 @@
 
 ## Coding Style & Naming Conventions
 - Indentation: spaces, 2 spaces (see `.editorconfig`); no tabs in Lisp.
-- File naming: `settings/setup-<topic>.el`, language modules in `settings/dev/`.
-- Elisp: prefer `hub/` prefix for repo-specific helpers and commands.
+- File naming: language modules in `modules/lang/*.el`; shared dev defaults in `modules/interactive/dev/common.el`.
+- Elisp identifiers: prefix repo-specific helper functions/commands with `hub/` (e.g., `hub/transpose-params`).
+- Module features and paths: do not use `hub/` in feature names or on-disk paths; use category namespaces like `editing/evil`, `navigation/treemacs`, `completion/core` under `modules/<layer>/<category>/...`.
 - Formatting: post-commit hook auto-indents and runs `whitespace-cleanup`; fix any `checkdoc` warnings reported.
 
 ## Testing Guidelines
@@ -31,18 +50,18 @@
 
 ## Commit & Pull Request Guidelines
 - Commit messages: short, imperative subject; include scope when useful, e.g. `[init.el] Load without error`.
-- PRs: describe the change, affected modules (`settings/...`), and any user-visible behavior; link related issues.
+- PRs: describe the change, affected modules (e.g., `modules/...`, `lisp/...`), and any user-visible behavior; link related issues.
 - Screenshots/gifs welcome for UI changes (themes, layouts), but not required.
 
 ## Security & Configuration Tips
-- Secrets and machine-specific settings go in `settings/setup-private.el` (gitignored) and are loaded optionally.
+- Secrets and machine-specific settings go in `private/setup.el` (gitignored) and are loaded optionally. For backward compatibility, `settings/setup-private.el` is loaded if present.
 - GPG/Pass: this config uses `auth-source-pass` and `pinentry`; ensure your keychain is set up.
 - Package management uses `straight.el` on demand; do not commit cache/vendor directories.
 
 ## Git Discipline & Branching Workflow
 
 - Branching: start each task on a fresh branch from the current base (`main` or the agreed feature base). Use prefixes like `feat/…`, `fix/…`, `chore/…`, or `refactor/…`.
-- Commits: commit early and often with focused diffs; use short, imperative subjects and include scope when helpful, e.g., `[settings/setup-foo.el] Describe change`.
+- Commits: commit early and often with focused diffs; use short, imperative subjects and include scope when helpful, e.g., `[modules/lang/js.el] Describe change`.
 - Push & CI: push branches to `origin` regularly and verify GitHub Actions status. Fix CI breaks before continuing related work.
 - Remotes: use SSH remotes (e.g., `git@github.com:behaghel/.emacs.d.git`). Avoid interactive GitHub logins; no HTTPS remotes.
 - Flow for larger efforts: create a meta/setup branch first (e.g., `chore/git-discipline`), push it, then branch the long‑running migration work from it (e.g., `refactor/migration-base`).
@@ -66,6 +85,29 @@
     - `devenv run pre-commit:all` to run all pre-commit checks on all files.
 - Requirements: `emacs` available in the shell (provided via devenv); `pre-commit` is included.
 - CI: mirror checks can be added later; for now local hooks enforce cleanliness before pushing.
+
+## Dependency Pinning (straight.el)
+
+- Rationale: pinning produces a stable `straight/versions/default.el` so CI caches hit reliably and local installs are reproducible.
+- Pin versions:
+  - `devenv run freeze` (runs Emacs batch and writes `straight/versions/default.el`).
+  - Commit the generated file as part of the change that introduced or updated packages.
+- CI cache keys: include Emacs version and the hash of `straight/versions/default.el` to avoid unnecessary rebuilds while allowing intentional updates to refresh caches.
+- Updating deps: run `devenv run freeze` after making changes, review the diff in `straight/versions/default.el`, and commit it.
+
+## CI Emacs Versions
+
+- Runner setup: CI installs Emacs via `jcs090218/setup-emacs@v1` and pins a specific version (currently `30.2`). This uses GitHub’s toolcache to speed up runs and ensures parity across checks.
+- Why: consistent Emacs across CI runs keeps caches effective and avoids version‑specific regressions.
+- Bump policy: update the `version:` in `.github/workflows/emacs.yml` when adopting a new major/minor. If package changes are involved, run `devenv run freeze` and commit the updated `straight/versions/default.el`.
+- Test multiple versions (matrix):
+  - Example workflow fragment:
+    - `strategy.matrix.emacs: ["29.4", "30.2"]`
+    - Setup step:
+      - `uses: jcs090218/setup-emacs@v1`
+      - `with: version: ${{ matrix.emacs }}`
+  - Our cache key already includes the detected Emacs version, so caches stay distinct per version.
+- Local tip: develop with a matching Emacs when validating version bumps (the dev shell provides `emacs-nox`; you can pin nixpkgs if exact versions are needed).
 
 ## Agent Devenv Discipline
 

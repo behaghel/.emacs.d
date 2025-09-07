@@ -6,27 +6,98 @@ on:
   pull_request:
 
 jobs:
+
+  warm-cache:
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      - name: Setup Emacs
+        uses: jcs090218/setup-emacs@master
+        with:
+          version: '30.2'
+
+      - name: Detect Emacs version
+        id: emacs-version-warm
+        run: |
+          v=$(emacs --batch --eval '(princ emacs-version)')
+          echo "version=$v" >> "$GITHUB_OUTPUT"
+
+      - name: Cache straight.el and eln-cache (warm)
+        id: straight-cache-warm
+        uses: actions/cache@v4
+        with:
+          path: |
+            ${{ github.workspace }}/straight/repos
+            ${{ github.workspace }}/straight/build
+            ${{ github.workspace }}/straight/build-cache.el
+            ${{ github.workspace }}/straight/versions/default.el
+            ${{ github.workspace }}/eln-cache
+          key: straight-${{ runner.os }}-emacs-${{ steps.emacs-version-warm.outputs.version }}-versions-${{ hashFiles('straight/versions/default.el') }}
+          restore-keys: |
+            straight-${{ runner.os }}-
+
+      - name: Warm straight cache via full load
+        run: |
+          export HOME=$GITHUB_WORKSPACE
+          export HUB_FORCE_FULL_LOAD=1
+          emacs --batch -l scripts/ci-warm-all.el
+
   load-config:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
         uses: actions/checkout@v3
 
-      - name: Install Emacs
+      - name: Setup Emacs
+        uses: jcs090218/setup-emacs@master
+        with:
+          version: '30.2'
+
+      - name: Detect Emacs version
+        id: emacs-version
         run: |
-          sudo apt-get update
-          sudo apt-get install -y emacs-nox
+          v=$(emacs --batch --eval '(princ emacs-version)')
+          echo "version=$v" >> "$GITHUB_OUTPUT"
 
       - name: Cache straight.el and eln-cache
+        id: straight-cache
         uses: actions/cache@v4
         with:
           path: |
             ${{ github.workspace }}/straight/repos
             ${{ github.workspace }}/straight/build
+            ${{ github.workspace }}/straight/build-cache.el
+            ${{ github.workspace }}/straight/versions/default.el
             ${{ github.workspace }}/eln-cache
-          key: straight-${{ runner.os }}-${{ hashFiles('core/packages.el', 'docs/config.org', 'settings/**/*.el') }}
+          key: straight-${{ runner.os }}-emacs-${{ steps.emacs-version.outputs.version }}-versions-${{ hashFiles('straight/versions/default.el') }}
           restore-keys: |
             straight-${{ runner.os }}-
+
+      - name: Report cache status (pre-run)
+        run: |
+          echo "Cache hit: ${{ steps.straight-cache.outputs.cache-hit }}"
+          for d in straight/repos straight/build eln-cache; do
+            p="${{ github.workspace }}/$d"
+            if [ -d "$p" ]; then
+              du -sh "$p" || true
+            else
+              echo "Missing: $d"
+            fi
+          done
+
+      - name: Architecture lint
+        run: |
+          export HOME=$GITHUB_WORKSPACE
+          emacs --batch -l init.el -l scripts/lint-architecture.el
+
+      - name: Full config load (forced interactive)
+        run: |
+          export HOME=$GITHUB_WORKSPACE
+          export HUB_FORCE_FULL_LOAD=1
+          emacs --batch -l scripts/ci-load-all.el
 
       - name: Pre-commit checks (elisp format + checkdoc)
         run: |
@@ -51,3 +122,15 @@ jobs:
         run: |
           export HOME=$GITHUB_WORKSPACE
           emacs --batch -l ert -l test/smoke.el -f ert-run-tests-batch-and-exit
+
+      - name: Report cache status (post-run)
+        if: always()
+        run: |
+          for d in straight/repos straight/build eln-cache; do
+            p="${{ github.workspace }}/$d"
+            if [ -d "$p" ]; then
+              du -sh "$p" || true
+            else
+              echo "Missing: $d"
+            fi
+          done

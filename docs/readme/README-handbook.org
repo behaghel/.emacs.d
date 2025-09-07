@@ -1,0 +1,51 @@
+#+TITLE: Emacs Config — User Handbook
+
+This is a practical guide to everyday workflows in this config.
+
+* Daily Driver
+- Start Emacs inside `nix develop` for consistent tools.
+- Use perspectives to jump contexts:
+  - `,o e`: .emacs.d
+  - `,o O`: org workspace; `,o i` inbox; `,o h` hubert.org
+  - `,o m`: mail (mu4e + dashboard)
+  - `,o f`: feeds (elfeed)
+  - `,o t` / `,o T`: treemacs / treemacs-find-file
+
+* Email (mu4e)
+- Open: `,o m` or `M-x mu4e`
+- Dashboard sidebar: modules/interactive/email/mail-sidebar.org
+- Headers view keys (examples):
+  - `ê`: search; `Ê`: edit search
+  - `gt` / `gs`: next/prev unread
+  - `zé`: toggle threading; `zÉ`: include related
+  - `%` or `,é`: mark by pattern; `É`: mark thread
+
+* Writing
+- Focused editing: `M-x writeroom-mode`
+- Style helpers: `writegood-mode`, `flyspell`, `typo-mode`
+- Markdown: `,ev` preview; `,eV` export + preview
+- Org: agenda and notes under your `org-directory` (see modules/interactive/org/core.el)
+
+* Navigation
+- Evil everywhere; leader is `,`
+- Consult for search/jump:
+  - `,e;`: consult-line; `,er`: ripgrep; `,eg`: grep; `,e.`: locate
+  - `gb`: project buffers; `g.`: goto line; `gh`: outline
+
+* Projects
+- Perspective + project bridge: project commands on `,p*` (find-file, search, compile, etc.)
+- Winner mode: `C-w u` / `C-w U` to undo/redo window layouts
+
+* Languages
+- Language setups under modules/lang/*.el (JS/TS, Scala, Python, Haskell, Clojure, Ruby)
+- Eglot hooks enabled where appropriate
+- Treesitter remaps configured for common modes
+
+* Secrets
+- Place machine-specific config in `private/setup.el` (gitignored). Legacy `settings/setup-private.el` still loads if present.
+
+* Maintenance
+- Pre-commit hooks format Elisp and run checkdoc on changed files
+- Full-load check: `HOME=$PWD HUB_FORCE_FULL_LOAD=1 emacs --batch -l scripts/ci-load-all.el`
+- Freeze deps after adding/updating packages: `devenv run freeze`
+

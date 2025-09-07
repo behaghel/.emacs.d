@@ -34,6 +34,18 @@
 (setq user-emacs-directory
       (file-name-directory (or load-file-name buffer-file-name)))
 
+;; Environment predicates (batch/gui/tty/interactive/ci)
+(add-to-list 'load-path (expand-file-name "core" user-emacs-directory))
+(ignore-errors (require 'core-predicates))
+;; CI override: allow forcing interactive layer loading without predicates
+(defvar hub/force-interactive (getenv "HUB_FORCE_FULL_LOAD"))
+
+;; CI optimizations for straight.el: avoid modification checks and use shallow clones.
+(when (getenv "GITHUB_ACTIONS")
+  ;; Older straight.el expects a list here; use nil to disable checks in CI.
+  (setq straight-check-for-modifications nil)
+  (setq straight-vc-git-default-clone-depth 1))
+
 ;; Ensure a writable temp directory exists within `user-emacs-directory`.
 ;; Some async/native compilation paths try to place temp files under
 ;; `~/.emacs.d/tmp/` — create it proactively to avoid CI failures.
@@ -51,19 +63,24 @@
 (setq hub-lisp-dir (expand-file-name "lisp" user-emacs-directory))
 (add-to-list 'load-path hub-lisp-dir)  ; to include my .el
 
-(setq settings-dir
-      (expand-file-name "settings" user-emacs-directory))
-;; Set up load path
-(add-to-list 'load-path settings-dir)
-(add-to-list 'load-path (expand-file-name "dev" settings-dir))
+;; Legacy settings/ folder is being retired; do not add it to load-path.
+;; Private machine-specific setup now lives under private/setup.el (gitignored).
+;; Project modules: begin migrating to layered paths.
+;; Keep legacy modules/ on load-path for now (writing, etc.). Also add
+;; interactive layer path so interactive-only modules are not visible in batch.
+(add-to-list 'load-path (expand-file-name "modules" user-emacs-directory))
+(when (or hub/force-interactive (and (featurep 'core-predicates) (hub/interactive-p)))
+  (add-to-list 'load-path (expand-file-name "modules/interactive" user-emacs-directory)))
 
 (setq user-mail-address "behaghel@gmail.com")
 (setq user-full-name "Hubert Behaghel")
 
 ;; Use centralized package management from core/ with safe fallback
 (add-to-list 'load-path (expand-file-name "core" user-emacs-directory))
+(defvar hub/core-packages-load-ok nil)
 (condition-case err
-    (require 'core-packages)
+    (progn (require 'core-packages)
+	   (setq hub/core-packages-load-ok t))
   (error
    (message "[init] core-packages failed, falling back: %S" err)
    (defvar bootstrap-version)
@@ -82,7 +99,14 @@
    (require 'use-package)
    (require 'use-package-ensure)
    (require 'use-package-delight)
-   (require 'use-package-diminish)))
+   (require 'use-package-diminish)
+   (setq hub/core-packages-load-ok nil)))
+
+;; In CI, if a pinned versions file exists, thaw to it early to avoid rebuilds.
+(when (getenv "GITHUB_ACTIONS")
+  (let ((versions-file (expand-file-name "straight/versions/default.el" user-emacs-directory)))
+    (when (file-exists-p versions-file)
+      (ignore-errors (straight-thaw-versions)))))
 
 (setq use-package-verbose t
       use-package-always-defer nil
@@ -103,10 +127,10 @@
 
 (require 'hub-utils)
 
-(require 'setup-general)
-(server-start)
-
-(require 'setup-evil)
+(when (or hub/force-interactive (and (featurep 'core-predicates) (hub/interactive-p)))
+  (require 'editing/general)
+  (server-start)
+  (require 'editing/evil))
 
 (use-package smartparens
   :diminish smartparens-mode
@@ -173,7 +197,8 @@
 
 (use-package general)
 
-(require 'setup-completion)
+(when (or hub/force-interactive (and (featurep 'core-predicates) (hub/interactive-p)))
+  (require 'completion/core))
 
 ;;; Yasnippet
 (use-package yasnippet
@@ -207,7 +232,7 @@
 ;; orj is an extension I invented: org-revealJS
 (define-auto-insert "\.orj\'" ["template.orj" hub/autoinsert-yas-expand])
 
-(require 'setup-git)
+
 
 ;; Editing text
 (add-hook 'text-mode-hook 'turn-on-auto-fill) ; auto-wrap
@@ -242,7 +267,6 @@
   (setq langtool-language-tool-jar "/usr/local/Cellar/languagetool/2.6/libexec/languagetool.jar")
   (define-key evil-normal-state-map (kbd ",bg") 'langtool-check))
 
-(require 'setup-org)
 
 ;; asciidoc
 (add-hook 'adoc-mode-hook (lambda() (buffer-face-mode t)))
@@ -272,30 +296,44 @@
   (evil-define-key 'normal markdown-mode-map (kbd ",eV") 'markdown-export-and-preview))
 
 					; CODING
-(require 'dev-common)
+(when (or hub/force-interactive (and (featurep 'core-predicates) (hub/interactive-p)))
+  (require 'dev/common))
 
-(require 'setup-perspective)
 ;; at the end, for windows to pick up the font change
-(require 'setup-ui)
-;; (require 'setup-multiple-cursors)
+(when (or hub/force-interactive (and (featurep 'core-predicates) (hub/interactive-p)))
+  (require 'ui/core)
+  (if (display-graphic-p)
+      (require 'ui/gui)
+    (require 'ui/tty)))
 (put 'narrow-to-region 'disabled nil)
 (put 'erase-buffer 'disabled nil)
 
-(require 'setup-treemacs)
-(require 'setup-brain)
-(require 'setup-private nil t)
+(when (or hub/force-interactive (and (featurep 'core-predicates) (hub/interactive-p)))
+  (require 'navigation/treemacs)
+  (require 'navigation/perspective)
+  (require 'vcs/git)
+  (require 'navigation/dired)
+  (require 'shell/eshell)
+  ;; Knowledge & writing
+  (require 'org/core)
+  (unless (getenv "HUB_CI_SKIP_OPTIONALS")
+    (require 'notes/brain))
+  (require 'tools/blog)
+  (unless (getenv "HUB_CI_SKIP_OPTIONALS")
+    (require 'tools/ai))
+  (require 'apps/elfeed)
+  (require 'email/core))
+;; Load private, machine-specific settings if present (new path first, legacy second)
+(let ((private-new (expand-file-name "private/setup.el" user-emacs-directory))
+      (private-legacy (expand-file-name "settings/setup-private.el" user-emacs-directory)))
+  (cond
+   ((file-exists-p private-new) (load private-new t))
+   ((file-exists-p private-legacy) (load private-legacy t))))
 
 ;; (use-package use-package-ensure-system-package
 ;;   :ensure t)
 
-;; APPS
-;; (require 'setup-erc)
-;; (require 'setup-twitter)
-(require 'setup-ai)
-(require 'setup-elfeed)
-(require 'setup-email nil t)
-(require 'setup-dired)
-(require 'setup-eshell)
+;; APPS (legacy wrappers removed in favor of layered modules)
 (use-package restclient
   :commands (restclient-mode))
 
