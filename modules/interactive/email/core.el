@@ -40,8 +40,8 @@
 ;; Optional: uncomment as modules are migrated
 (ignore-errors (require 'email/bookmarks))
 (ignore-errors (require 'email/view))
-;; (require 'email/compose)
-;; (require 'email/dashboard)
+(ignore-errors (require 'email/compose))
+(ignore-errors (require 'email/dashboard))
 
 (provide 'email/core)
 ;;; core.el ends here
