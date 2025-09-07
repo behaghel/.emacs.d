@@ -71,8 +71,18 @@ capture its value at load time; compute paths at call time instead.")
 
   (defun mu4e-sidebar ()
     (interactive)
+    ;; Show mu4e main in the current window
     (mu4e)
-    (find-file (expand-file-name "modules/interactive/email/mail-sidebar.org" user-emacs-directory)))
+    ;; Display the dashboard sidebar as a left side-window, keep focus on main
+    (let* ((path (expand-file-name "modules/interactive/email/mail-sidebar.org" user-emacs-directory))
+	   (buf  (find-file-noselect path)))
+      (display-buffer-in-side-window
+       buf '((side . left)
+	     (slot . -1)
+	     (window-width . 40)
+	     (window-parameters . ((no-delete-other-windows . t)
+				   (no-other-window . t)))))
+      (balance-windows)))
 
   (add-hook 'kill-emacs-hook #'persp-state-save)
   (setq persp-sort 'access
