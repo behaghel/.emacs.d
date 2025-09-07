@@ -119,6 +119,13 @@
 ;; Core paths and autoloads (under-the-hood only)
 ;; Standardize etc/ and var/ via no-littering (requires use-package)
 (ignore-errors (require 'core-paths))
+;; Keep variable state under var/: prefer explicit files for common state
+(setq
+ recentf-save-file (expand-file-name "var/recentf-save.el" user-emacs-directory)
+ savehist-file     (expand-file-name "var/savehist.el" user-emacs-directory)
+ save-place-file   (expand-file-name "var/save-place.el" user-emacs-directory)
+ project-list-file (expand-file-name "var/project-list.el" user-emacs-directory)
+ tramp-persistency-file-name (expand-file-name "var/tramp" user-emacs-directory))
 ;; Provide streamlined access to writing helpers without changing UX
 (autoload 'writing/enable-basics "modules/writing/writing" nil t)
 
