@@ -39,4 +39,7 @@
        (elapsed (float-time (time-subtract (current-time) hub/ci-start-time))))
   (message "[ci-warm-all] Present: %s" present)
   (when missing (message "[ci-warm-all] Missing: %s" missing))
+  (when (boundp 'hub/core-packages-load-ok)
+    (unless hub/core-packages-load-ok
+      (error "core-packages fallback used during CI warm-load")))
   (message "[ci-warm-all] Total load time: %.3fs" elapsed))

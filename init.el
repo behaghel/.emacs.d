@@ -80,8 +80,10 @@
 
 ;; Use centralized package management from core/ with safe fallback
 (add-to-list 'load-path (expand-file-name "core" user-emacs-directory))
+(defvar hub/core-packages-load-ok nil)
 (condition-case err
-    (require 'core-packages)
+    (progn (require 'core-packages)
+	   (setq hub/core-packages-load-ok t))
   (error
    (message "[init] core-packages failed, falling back: %S" err)
    (defvar bootstrap-version)
@@ -100,7 +102,8 @@
    (require 'use-package)
    (require 'use-package-ensure)
    (require 'use-package-delight)
-   (require 'use-package-diminish)))
+   (require 'use-package-diminish)
+   (setq hub/core-packages-load-ok nil)))
 
 ;; In CI, if a pinned versions file exists, thaw to it early to avoid rebuilds.
 (when (getenv "GITHUB_ACTIONS")

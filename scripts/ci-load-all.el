@@ -57,5 +57,8 @@
 	     hub/ci-forced-interactive (hub/interactive-p)))
   (message "[ci-load-all] Present: %s" present)
   (when missing (message "[ci-load-all] Missing: %s" missing))
+  (when (boundp 'hub/core-packages-load-ok)
+    (unless hub/core-packages-load-ok
+      (error "core-packages fallback used during CI full-load")))
   (message "[ci-load-all] Total load time: %.3fs" elapsed)
   (message "CI full-load completed"))
