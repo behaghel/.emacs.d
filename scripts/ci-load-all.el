@@ -39,6 +39,10 @@
        (present (seq-filter (lambda (f) (featurep f)) expected))
        (missing (seq-remove (lambda (f) (featurep f)) expected))
        (elapsed (float-time (time-subtract (current-time) hub/ci-start-time))))
+  (message "[ci-load-all] core-predicates loaded: %s" (featurep 'core-predicates))
+  (when (featurep 'core-predicates)
+    (message "[ci-load-all] hub/ci-forced-interactive=%s hub/interactive-p=%s"
+	     hub/ci-forced-interactive (hub/interactive-p)))
   (message "[ci-load-all] Present: %s" present)
   (when missing (message "[ci-load-all] Missing: %s" missing))
   (message "[ci-load-all] Total load time: %.3fs" elapsed)
