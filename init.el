@@ -95,6 +95,8 @@
 	 (eval-print-last-sexp)))
      (load bootstrap-file nil 'nomessage))
    (setq straight-use-package-by-default t)
+   ;; Use SSH for cloning packages to avoid HTTPS auth prompts
+   (setq straight-vc-git-default-protocol 'ssh)
    (straight-use-package 'use-package)
    (require 'use-package)
    (require 'use-package-ensure)
