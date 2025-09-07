@@ -214,6 +214,7 @@
 	 ("TAB" . nil))
   :config
   (yas-global-mode 1)
+  (add-to-list 'yas-snippet-dirs (expand-file-name "modules/interactive/editing/snippets" user-emacs-directory))
   (setq yas-prompt-functions '(yas/completing-prompt))
   )
 

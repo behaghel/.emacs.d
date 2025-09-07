@@ -79,7 +79,7 @@ capture its value at load time; compute paths at call time instead.")
       (display-buffer-in-side-window
        buf '((side . left)
 	     (slot . -1)
-	     (window-width . 40)
+	     (window-width . 10)
 	     (window-parameters . ((no-delete-other-windows . t)
 				   (no-other-window . t)))))
       (balance-windows)))
