@@ -12,7 +12,6 @@
 (setq vc-follow-symlinks t)
 
 (use-package magit
-  :straight (:depth full)
   :commands (magit-status)
   :config
   (setq magit-popup-use-prefix-argument 'default)
