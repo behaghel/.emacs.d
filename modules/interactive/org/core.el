@@ -99,7 +99,11 @@
 	org-src-preserve-indentation t
 	org-src-window-setup 'other-window
 	org-src-tab-acts-natively t)
-  (setq org-re-reveal-root (concat (getenv "HOME") "/Apps/reveal.js"))
+  (defcustom hub/org-re-reveal-root (expand-file-name "Apps/reveal.js" (getenv "HOME"))
+    "Root directory for reveal.js used by org-re-reveal."
+    :type 'directory
+    :group 'hub/org)
+  (setq org-re-reveal-root hub/org-re-reveal-root)
   (setq org-plantuml-jar-path hub/org-plantuml-jar)
   (add-to-list 'org-src-lang-modes '("plantuml" . plantuml))
   (setq org-html-htmlize-output-type 'css

@@ -28,6 +28,24 @@ This is a pragmatic guide to run, hack, and ship changes fast.
 
 Principle: avoid state files at the repo root; route variable, non‑versioned files into `var/` and place static assets in `etc/`.
 
+* Configurable Paths (Override in `private/setup.el`)
+- Org: `hub/org-directory`, `hub/org-bibliography-file`, `hub/org-plantuml-jar`, `hub/org-re-reveal-root`
+- Denote: `hub/denote-directory`
+- Email (mu4e): `hub/mu4e-contexts`, `hub/mu4e-maildir-shortcuts`
+- Blog: `hub/blog-root`, `hub/blog-posts-dir`, `hub/blog-all-posts-file`
+- Temporary files: `hub/tmp-directory`
+
+Example overrides:
+#+begin_src elisp
+(setq hub/org-directory "~/Dropbox/Documents/org/")
+(setq hub/org-bibliography-file (expand-file-name "Dropbox/Documents/library.bib" (getenv "HOME")))
+(setq hub/org-plantuml-jar "~/install/plantuml.jar")
+(setq hub/org-re-reveal-root (expand-file-name "Apps/reveal.js" (getenv "HOME")))
+(setq hub/denote-directory "~/notes/")
+(setq hub/tmp-directory (expand-file-name "var/tmp/" user-emacs-directory))
+;; mu4e contexts/shortcuts, blog paths as needed...
+#+end_src
+
 * Common Commands
 - Format + checkdoc (pre-commit): `devenv run pre-commit:all`
 - Load architecture lint: `HOME=$PWD emacs --batch -l init.el -l scripts/lint-architecture.el`

@@ -23,6 +23,19 @@
   - Modules live under `modules/<layer>/<category>/...` and provide category features like `editing/evil`, `navigation/treemacs`, `completion/core`.
   - The legacy `settings/` folder is retired. No tracked files should remain there; CI fails if any do.
   - Convention: keep non-versioned, variable files under `var/` and static assets under `etc/`. Avoid putting ephemeral state files at the repo root — route them to `var/` in code.
+
+### Overriding Paths and Accounts
+Place overrides in `private/setup.el` (gitignored). Examples:
+- `(setq hub/org-directory "~/Dropbox/Documents/org/")`
+- `(setq hub/org-bibliography-file (expand-file-name "Dropbox/Documents/library.bib" (getenv "HOME")))`
+- `(setq hub/org-plantuml-jar "~/install/plantuml.jar")`
+- `(setq hub/org-re-reveal-root (expand-file-name "Apps/reveal.js" (getenv "HOME")))`
+- `(setq hub/denote-directory "~/notes/")`
+- `(setq hub/tmp-directory (expand-file-name "var/tmp/" user-emacs-directory))`
+- `(setq hub/blog-root "~/ws/blog.behaghel.org")`
+- `(setq hub/blog-posts-dir (expand-file-name "content-org" hub/blog-root))`
+- `(setq hub/blog-all-posts-file (expand-file-name "content-org/all-posts.org" hub/blog-root))`
+- `(setq hub/mu4e-contexts (list ...))` and `(setq hub/mu4e-maildir-shortcuts '(...))`
 - Enforcement:
   - `init.el` filters `load-path` by layer: batch sessions do not see `modules/interactive`, so interactive-only modules cannot load in batch.
   - GUI/TTY specializations can be added similarly (only one on `load-path`).
