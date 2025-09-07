@@ -21,13 +21,15 @@
     (defun mu4e-message-contact-field-matches (&rest _args) nil)
     (provide 'mu4e)))
 
-;; Provide mu4e stubs before init.el brings in email modules
-(hub/ci--stub-mu4e)
-
-;; Load full init, which will now consider session interactive
+;; Compute repo root and ensure core predicates are available early
 (let* ((this-file (or load-file-name buffer-file-name))
        (scripts-dir (file-name-directory this-file))
        (repo-root (file-name-directory (directory-file-name scripts-dir))))
+  (add-to-list 'load-path (expand-file-name "core" repo-root))
+  (ignore-errors (require 'core-predicates))
+  ;; Provide mu4e stubs before init.el brings in email modules
+  (hub/ci--stub-mu4e)
+  ;; Load full init from repo root (treating session as interactive)
   (load (expand-file-name "init.el" repo-root)))
 
 ;; Report present/missing layered features and total time
