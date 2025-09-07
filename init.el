@@ -37,6 +37,8 @@
 ;; Environment predicates (batch/gui/tty/interactive/ci)
 (add-to-list 'load-path (expand-file-name "core" user-emacs-directory))
 (ignore-errors (require 'core-predicates))
+;; CI override: allow forcing interactive layer loading without predicates
+(defvar hub/force-interactive (getenv "HUB_FORCE_FULL_LOAD"))
 
 ;; CI optimizations for straight.el: avoid modification checks and use shallow clones.
 (when (getenv "GITHUB_ACTIONS")
@@ -70,7 +72,7 @@
 ;; Keep legacy modules/ on load-path for now (writing, etc.). Also add
 ;; interactive layer path so interactive-only modules are not visible in batch.
 (add-to-list 'load-path (expand-file-name "modules" user-emacs-directory))
-(when (and (featurep 'core-predicates) (hub/interactive-p))
+(when (or hub/force-interactive (and (featurep 'core-predicates) (hub/interactive-p)))
   (add-to-list 'load-path (expand-file-name "modules/interactive" user-emacs-directory)))
 
 (setq user-mail-address "behaghel@gmail.com")
@@ -125,7 +127,7 @@
 
 (require 'hub-utils)
 
-(when (and (featurep 'core-predicates) (hub/interactive-p))
+(when (or hub/force-interactive (and (featurep 'core-predicates) (hub/interactive-p)))
   (require 'editing/general)
   (server-start)
   (require 'editing/evil))
@@ -195,7 +197,7 @@
 
 (use-package general)
 
-(when (and (featurep 'core-predicates) (hub/interactive-p))
+(when (or hub/force-interactive (and (featurep 'core-predicates) (hub/interactive-p)))
   (require 'completion/core))
 
 ;;; Yasnippet
@@ -297,7 +299,7 @@
 (require 'dev-common)
 
 ;; at the end, for windows to pick up the font change
-(when (and (featurep 'core-predicates) (hub/interactive-p))
+(when (or hub/force-interactive (and (featurep 'core-predicates) (hub/interactive-p)))
   (require 'ui/core)
   (if (display-graphic-p)
       (require 'ui/gui)
@@ -306,7 +308,7 @@
 (put 'narrow-to-region 'disabled nil)
 (put 'erase-buffer 'disabled nil)
 
-(when (and (featurep 'core-predicates) (hub/interactive-p))
+(when (or hub/force-interactive (and (featurep 'core-predicates) (hub/interactive-p)))
   (require 'navigation/treemacs)
   (require 'vcs/git)
   (require 'navigation/dired)
