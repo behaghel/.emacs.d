@@ -20,19 +20,23 @@
 
 ;; Legacy requires: flag any (require 'setup-*) anywhere in the tree
 (defun hub--file-has-legacy-setup-require-p (file)
-  "Return non-nil if FILE contains (require 'setup-...) outside comments/strings."
+  "Return non-nil if FILE contains (require 'setup-...) outside comments/strings.
+This avoids running major-mode hooks to keep CI fast and side-effect free."
   (with-temp-buffer
-    (insert-file-contents file)
-    ;; Ensure correct syntax rules when scanning for comments/strings
-    (emacs-lisp-mode)
-    (goto-char (point-min))
-    (catch 'found
-      (while (re-search-forward "(require 'setup-[^)']+)" nil t)
-	(let ((pos (match-beginning 0))
-	      (ppss (syntax-ppss (match-beginning 0))))
-	  (unless (or (nth 4 ppss) (nth 3 ppss)) ; in comment or string
-	    (throw 'found t))))
-      nil)))
+    (let ((enable-local-variables nil)
+	  (enable-local-eval nil)
+	  (inhibit-message t))
+      (insert-file-contents file nil nil nil t)
+      ;; Use the Elisp syntax table directly to make `syntax-ppss` comment-aware
+      (set-syntax-table emacs-lisp-mode-syntax-table)
+      (goto-char (point-min))
+      (catch 'found
+	(while (re-search-forward "(require 'setup-[^)']+)" nil t)
+	  (let* ((pos (match-beginning 0))
+		 (ppss (syntax-ppss pos)))
+	    (unless (or (nth 4 ppss) (nth 3 ppss)) ; comment or string
+	      (throw 'found t))))
+	nil))))
 
 (let* ((default-directory user-emacs-directory)
        (files (split-string (shell-command-to-string "git ls-files '*.el'") "\n" t))
