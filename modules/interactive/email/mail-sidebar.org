@@ -75,3 +75,4 @@ mu find --sortfield=date --reverse --fields "f s" $query  | head -$count
 #+KEYMAP: O | mu4e-headers-change-sorting
 #+KEYMAP: x | mu4e-mark-execute-all t
 #+KEYMAP: <return> | org-open-at-point
+
