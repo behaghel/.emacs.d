@@ -1,7 +1,7 @@
 ;;; core.el --- Completion: Vertico/Orderless/Corfu -*- lexical-binding: t; -*-
 
 ;;; Commentary:
-;; Extracted from settings/setup-completion.el. Provides minibuffer and
+;; Extracted from legacy setup-completion.el. Provides minibuffer and
 ;; in-buffer completion stack.
 
 ;;; Code:

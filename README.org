@@ -206,8 +206,9 @@ context (fast CI, pleasant interactive UX in both GUI and terminal).
 - Paths and features
   - Files live under ~modules/<layer>/<category>/...~ and provide category
     features like ~editing/evil~, ~navigation/treemacs~, ~completion/core~.
-  - Legacy wrappers in ~settings/setup-*.el~ remain and ~require~ these features
-    while continuing to ~provide~ ~setup-*~ for compatibility.
+  - The historic ~settings/~ layout has been retired; language configs now live
+    under ~modules/lang/~ and shared dev defaults under
+    ~modules/interactive/dev/common.el~.
 
 - Enforcement
   - ~init.el~ filters ~load-path~ by layer: batch sessions do not include

@@ -1,7 +1,7 @@
 ;;; treemacs.el --- Navigation: Treemacs config -*- lexical-binding: t; -*-
 
 ;;; Commentary:
-;; Extracted from settings/setup-treemacs.el. Treemacs core + evil + extras.
+;; Extracted from legacy setup-treemacs.el. Treemacs core + evil + extras.
 
 ;;; Code:
 

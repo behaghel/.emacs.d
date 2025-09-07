@@ -2,8 +2,10 @@
 
 ## Project Structure & Module Organization
 - `init.el`: entry point; sets `user-emacs-directory` and loads modules.
-- `settings/`: modular configuration (`setup-*.el`) and language tooling under `settings/dev/`.
-- `lisp/`: custom helpers (e.g., `eshell-autojump.el`).
+- `modules/`: layered modules by runtime context (see below).
+- `modules/lang/`: language tooling (Scala, JS/TS, Python, etc.).
+- `modules/interactive/dev/common.el`: shared development defaults.
+- `lisp/`: custom helpers (e.g., `eshell-autojump.el`, `hub-utils.el`).
 - `snippets/`, `insert/`, `eshell/`: editor assets and templates.
 - `.githooks/post-commit`: formats changed `*.el` files and runs `checkdoc`.
 
@@ -16,7 +18,7 @@
   - `batch`: CI/batch-only optimizations (optional).
 - Paths and features:
   - Modules live under `modules/<layer>/<category>/...` and provide category features like `editing/evil`, `navigation/treemacs`, `completion/core`.
-  - `settings/setup-*.el` wrappers remain and require the new features, continuing to provide `setup-*` for backward compatibility.
+  - The legacy `settings/` folder is retired. No tracked files should remain there; CI fails if any do.
 - Enforcement:
   - `init.el` filters `load-path` by layer: batch sessions do not see `modules/interactive`, so interactive-only modules cannot load in batch.
   - GUI/TTY specializations can be added similarly (only one on `load-path`).
@@ -35,7 +37,7 @@
 
 ## Coding Style & Naming Conventions
 - Indentation: spaces, 2 spaces (see `.editorconfig`); no tabs in Lisp.
-- File naming: `settings/setup-<topic>.el`, language modules in `settings/dev/`.
+- File naming: language modules in `modules/lang/*.el`; shared dev defaults in `modules/interactive/dev/common.el`.
 - Elisp identifiers: prefix repo-specific helper functions/commands with `hub/` (e.g., `hub/transpose-params`).
 - Module features and paths: do not use `hub/` in feature names or on-disk paths; use category namespaces like `editing/evil`, `navigation/treemacs`, `completion/core` under `modules/<layer>/<category>/...`.
 - Formatting: post-commit hook auto-indents and runs `whitespace-cleanup`; fix any `checkdoc` warnings reported.
@@ -48,18 +50,18 @@
 
 ## Commit & Pull Request Guidelines
 - Commit messages: short, imperative subject; include scope when useful, e.g. `[init.el] Load without error`.
-- PRs: describe the change, affected modules (`settings/...`), and any user-visible behavior; link related issues.
+- PRs: describe the change, affected modules (e.g., `modules/...`, `lisp/...`), and any user-visible behavior; link related issues.
 - Screenshots/gifs welcome for UI changes (themes, layouts), but not required.
 
 ## Security & Configuration Tips
-- Secrets and machine-specific settings go in `settings/setup-private.el` (gitignored) and are loaded optionally.
+- Secrets and machine-specific settings go in `private/setup.el` (gitignored) and are loaded optionally. For backward compatibility, `settings/setup-private.el` is loaded if present.
 - GPG/Pass: this config uses `auth-source-pass` and `pinentry`; ensure your keychain is set up.
 - Package management uses `straight.el` on demand; do not commit cache/vendor directories.
 
 ## Git Discipline & Branching Workflow
 
 - Branching: start each task on a fresh branch from the current base (`main` or the agreed feature base). Use prefixes like `feat/…`, `fix/…`, `chore/…`, or `refactor/…`.
-- Commits: commit early and often with focused diffs; use short, imperative subjects and include scope when helpful, e.g., `[settings/setup-foo.el] Describe change`.
+- Commits: commit early and often with focused diffs; use short, imperative subjects and include scope when helpful, e.g., `[modules/lang/js.el] Describe change`.
 - Push & CI: push branches to `origin` regularly and verify GitHub Actions status. Fix CI breaks before continuing related work.
 - Remotes: use SSH remotes (e.g., `git@github.com:behaghel/.emacs.d.git`). Avoid interactive GitHub logins; no HTTPS remotes.
 - Flow for larger efforts: create a meta/setup branch first (e.g., `chore/git-discipline`), push it, then branch the long‑running migration work from it (e.g., `refactor/migration-base`).

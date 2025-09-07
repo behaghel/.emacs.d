@@ -2,7 +2,7 @@
 
 ;;; Commentary:
 ;; Perspective and project bridge configuration, speed-dial helpers, and
-;; consult bindings. Migrated from settings/setup-perspective.el.
+;; consult bindings. Migrated from legacy setup-perspective.el.
 
 ;;; Code:
 

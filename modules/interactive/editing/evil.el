@@ -1,7 +1,7 @@
 ;;; evil.el --- Editing: Evil & friends -*- lexical-binding: t; -*-
 
 ;;; Commentary:
-;; Extracted from settings/setup-evil.el. Provides Evil configuration,
+;; Extracted from legacy setup-evil.el. Provides Evil configuration,
 ;; keybindings, and integrations (collection, surround, etc.).
 
 ;;; Code:
