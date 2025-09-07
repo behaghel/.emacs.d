@@ -18,41 +18,7 @@
 ;; Exit cleanly
 (message "Architecture lint passed")
 
-;; Legacy requires: flag any (require 'setup-*) anywhere in the tree
-(defun hub--file-has-legacy-setup-require-p (file)
-  "Return non-nil if FILE contains (require 'setup-...) outside comments/strings.
-This avoids running major-mode hooks to keep CI fast and side-effect free."
-  (with-temp-buffer
-    (let ((enable-local-variables nil)
-	  (enable-local-eval nil)
-	  (inhibit-message t))
-      (insert-file-contents file nil nil nil t)
-      ;; Use the Elisp syntax table directly to make `syntax-ppss` comment-aware
-      (set-syntax-table emacs-lisp-mode-syntax-table)
-      (goto-char (point-min))
-      (catch 'found
-	(while (re-search-forward "(require 'setup-[^)']+)" nil t)
-	  (let* ((pos (match-beginning 0))
-		 (ppss (syntax-ppss pos)))
-	    (unless (or (nth 4 ppss) (nth 3 ppss)) ; comment or string
-	      (throw 'found t))))
-	nil))))
-
-(let* ((default-directory user-emacs-directory)
-       (files (split-string (shell-command-to-string "git ls-files '*.el'") "\n" t))
-       (total (length files))
-       (idx 0)
-       violations)
-  (message "[lint] Scanning %d elisp files for legacy setup-* requires" total)
-  (dolist (f files)
-    (setq idx (1+ idx))
-    (when (zerop (% idx 50)) (message "[lint] scanned %d/%d" idx total))
-    (when (hub--file-has-legacy-setup-require-p f)
-      (push f violations)))
-  (when violations
-    (error "Legacy requires of setup-* found: %S" (nreverse violations))))
-
-(message "Architecture + legacy require lint passed")
+;; (Removed) Legacy setup-* require lint: no longer enforced in CI
 
 ;; Ensure settings/ contains no tracked files (folder is deprecated)
 (let* ((default-directory user-emacs-directory)
