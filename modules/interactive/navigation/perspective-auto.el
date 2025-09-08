@@ -7,16 +7,16 @@
 
 ;;; Code:
 
-(require 'project)
-(require 'hub-utils)
-
 ;; Compatibility: Emacs versions lacking `define-completion-category'
 ;; (older than 29/30) may encounter configs that attempt to register
-;; custom completion categories. Provide a no-op to keep batch loads
-;; and CI green; actual behavior is unaffected in those versions.
+;; custom completion categories (e.g., from project.el). Provide a no-op
+;; early, before requiring `project', to keep batch loads and CI green.
 (unless (fboundp 'define-completion-category)
   (defun define-completion-category (&rest _args)
     nil))
+
+(require 'project)
+(require 'hub-utils)
 ;; Allow batch parse/tests to load this file even if perspective is not installed
 (unless (require 'perspective nil 'noerror)
   ;; Minimal fallbacks so this module can load without the package.
