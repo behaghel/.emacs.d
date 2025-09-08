@@ -322,6 +322,7 @@
 (when (or hub/force-interactive (and (featurep 'core-predicates) (hub/interactive-p)))
   (require 'navigation/treemacs)
   (require 'navigation/perspective)
+  (require 'navigation/perspective-auto)
   (require 'vcs/git)
   (require 'navigation/dired)
   (require 'shell/eshell)
