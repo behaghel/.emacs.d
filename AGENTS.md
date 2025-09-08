@@ -93,14 +93,14 @@ Place overrides in `private/setup.el` (gitignored). Examples:
   - `elisp-format`: formats changed `*.el` (indent + `whitespace-cleanup`). If it modifies files, the commit is blocked; re-stage and commit again.
   - `elisp-checkdoc`: runs `checkdoc` on changed `*.el`. Any warnings fail the commit. We ignore purely structural header/footer warnings (e.g., package first-line, Commentary/Code headings, footer provide) to accommodate our module naming.
 - Usage:
-  - Enter the dev shell: `nix develop`. It auto-installs the pre-commit hooks.
+  - Enable the environment with `direnv allow`. It auto-installs the pre-commit hooks.
   - Commit as usual; hooks will run on staged `*.el` files.
   - To install manually: `pre-commit install --install-hooks`.
-  - To validate everything proactively before committing: `pre-commit run -a`.
+  - To validate everything proactively before committing: `devenv shell -- pre-commit run -a`.
   - Convenience (devenv):
-    - `devenv run elisp:format-all` to format all tracked `.el` files.
-    - `devenv run elisp:checkdoc-all` to run checkdoc on all tracked `.el` files.
-    - `devenv run pre-commit:all` to run all pre-commit checks on all files.
+    - `devenv shell -- ./scripts/elisp-format $(git ls-files "*.el")` to format all tracked `.el` files.
+    - `devenv shell -- ./scripts/elisp-checkdoc $(git ls-files "*.el")` to run checkdoc on all tracked `.el` files.
+    - `devenv shell -- pre-commit run -a` to run all pre-commit checks on all files.
 - Requirements: `emacs` available in the shell (provided via devenv); `pre-commit` is included.
 - CI: mirror checks can be added later; for now local hooks enforce cleanliness before pushing.
 
@@ -108,16 +108,16 @@ Place overrides in `private/setup.el` (gitignored). Examples:
 
 - Rationale: pinning produces a stable `straight/versions/default.el` so CI caches hit reliably and local installs are reproducible.
 - Pin versions:
-  - `devenv run freeze` (runs Emacs batch and writes `straight/versions/default.el`).
+  - `devenv shell -- emacs --batch -l core/core-packages.el --eval '(core/packages-freeze)' --kill` (writes `straight/versions/default.el`).
   - Commit the generated file as part of the change that introduced or updated packages.
 - CI cache keys: include Emacs version and the hash of `straight/versions/default.el` to avoid unnecessary rebuilds while allowing intentional updates to refresh caches.
-- Updating deps: run `devenv run freeze` after making changes, review the diff in `straight/versions/default.el`, and commit it.
+- Updating deps: rerun the freeze command after changes, review the diff in `straight/versions/default.el`, and commit it.
 
 ## CI Emacs Versions
 
 - Runner setup: CI installs Emacs via `jcs090218/setup-emacs@v1` and pins a specific version (currently `30.2`). This uses GitHub’s toolcache to speed up runs and ensures parity across checks.
 - Why: consistent Emacs across CI runs keeps caches effective and avoids version‑specific regressions.
-- Bump policy: update the `version:` in `.github/workflows/emacs.yml` when adopting a new major/minor. If package changes are involved, run `devenv run freeze` and commit the updated `straight/versions/default.el`.
+- Bump policy: update the `version:` in `.github/workflows/emacs.yml` when adopting a new major/minor. If package changes are involved, rerun the freeze command and commit the updated `straight/versions/default.el`.
 - Test multiple versions (matrix):
   - Example workflow fragment:
     - `strategy.matrix.emacs: ["29.4", "30.2"]`
@@ -131,7 +131,7 @@ Place overrides in `private/setup.el` (gitignored). Examples:
 
 - Prefer direnv-activated shells for all work; the environment is auto-loaded.
 - Keep a shell open in the repo so pre-commit hooks and tools stay available.
-- When automating from scripts, prefer `devenv run <task>` to preserve environment parity with CI. If direnv isn’t available, use `devenv shell` or `devenv run` directly.
+- When automating from scripts, prefer `devenv shell -- <command>` to preserve environment parity with CI.
 
 ## Quality Gates & Handoff Discipline
 

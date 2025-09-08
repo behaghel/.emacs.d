@@ -50,7 +50,7 @@ Override these in `private/setup.el` to keep the repo portable.
 
 * Packages and Pinning
 - Centralized bootstrap in `core/core-packages.el` (straight + use-package).
-- Freeze with `devenv run freeze` → commit `straight/versions/default.el`.
+- Freeze with: `devenv run freeze` → commit `straight/versions/default.el`.
 - CI cache key includes Emacs version and versions file hash.
 
 * CI Workflow
