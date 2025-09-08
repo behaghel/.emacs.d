@@ -43,9 +43,10 @@ Place overrides in `private/setup.el` (gitignored). Examples:
   - `hub/interactive-p`, `hub/batch-p`, `hub/gui-p`, `hub/tty-p`, `hub/ci-p`.
 
 ## Build, Test, and Development Commands
-- Enter dev shell (Emacs, EditorConfig, Git preconfigured):
-  - `nix develop` (or `nix develop .`).
-  - Important: run all project commands from the devenv shell. This ensures consistent Emacs/pre-commit versions.
+- Enter the environment via direnv (devenv-managed):
+  - Ensure direnv is enabled for your shell, then run `direnv allow` at repo root.
+  - The environment auto-activates on `cd` into the repo (Emacs, EditorConfig, Git, pre-commit configured).
+  - Use `devenv run <task>` for project commands to preserve parity with CI.
 - Quick load check (mirrors CI):
   - `HOME=$PWD emacs --batch -l init.el --eval '(message "Loaded")' --kill`.
 - Check a file with checkdoc:
@@ -128,9 +129,9 @@ Place overrides in `private/setup.el` (gitignored). Examples:
 
 ## Agent Devenv Discipline
 
-- Always run commands inside `nix develop` shells for this repo.
-- Keep one or two `nix develop` shells open during a session to avoid start-up overhead and ensure hooks are installed.
-- When automating from scripts, prefer `nix develop -c <command>` or `devenv run <task>` to preserve environment parity with CI.
+- Prefer direnv-activated shells for all work; the environment is auto-loaded.
+- Keep a shell open in the repo so pre-commit hooks and tools stay available.
+- When automating from scripts, prefer `devenv run <task>` to preserve environment parity with CI. If direnv isn’t available, use `devenv shell` or `devenv run` directly.
 
 ## Quality Gates & Handoff Discipline
 
