@@ -131,3 +131,23 @@ Place overrides in `private/setup.el` (gitignored). Examples:
 - Always run commands inside `nix develop` shells for this repo.
 - Keep one or two `nix develop` shells open during a session to avoid start-up overhead and ensure hooks are installed.
 - When automating from scripts, prefer `nix develop -c <command>` or `devenv run <task>` to preserve environment parity with CI.
+
+## Quality Gates & Handoff Discipline
+
+- Pre-commit must run all gates locally before any commit:
+  - Format: `elisp-format` on staged `*.el`.
+  - Doc: `elisp-checkdoc` on staged `*.el`.
+  - Parse: `elisp-parse` batch-loads staged `*.el` to catch syntax/load errors.
+  - Unit tests: `elisp-ert` runs ERT tests under `test/*-test.el`.
+- After editing `devenv.nix` pre-commit hooks, re-enter the shell and reinstall hooks:
+  - `nix develop` (or `direnv reload`), then `pre-commit install --install-hooks`.
+  - Verify: `cat .pre-commit-config.yaml` includes all hooks (not just format/checkdoc).
+- For new modules or larger refactors:
+  - Add a minimal ERT test that exercises the module’s main behavior.
+  - Prefer `apply_patch` diffs over ad-hoc string replacements for Elisp.
+  - Sanity-load changed files in batch: `devenv run load-check` or `scripts/elisp-parse`.
+  - Avoid handing off with parse errors; run `devenv run pre-commit:all` before pushing.
+- CI mirrors gates that matter:
+  - Loads full config in batch.
+  - Runs ERT tests for changed modules on PRs; all tests on pushes.
+  - Fails if core requires namespaced module features; enforces explicit `hub-utils` dependencies.
