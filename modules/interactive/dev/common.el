@@ -187,7 +187,6 @@
 
 ;; Eglot basics
 (use-package eglot
-  :ensure nil
   :config
   (add-to-list 'eglot-server-programs '(nix-mode . ("nil")))
   (add-to-list 'eglot-server-programs '(scala-ts-mode . ("metals")))
