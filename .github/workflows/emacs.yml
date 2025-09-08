@@ -123,6 +123,32 @@ jobs:
           export HOME=$GITHUB_WORKSPACE
           emacs --batch -l ert -l test/smoke.el -f ert-run-tests-batch-and-exit
 
+      - name: Run ERT module tests (changed on PR)
+        if: github.event_name == 'pull_request'
+        run: |
+          export HOME=$GITHUB_WORKSPACE
+          # Detect any changes under modules/ or test/
+          git fetch --no-tags --depth=1 origin +${{ github.event.pull_request.base.ref }}:refs/remotes/origin/${{ github.event.pull_request.base.ref }}
+          CHANGED=$(git diff --name-only origin/${{ github.event.pull_request.base.ref }}... | grep -E '^(modules/.+\.el|test/.+\.el)$' || true)
+          if [ -n "$CHANGED" ]; then
+            echo "Changed files:
+$CHANGED"
+            # Run all tests for simplicity when modules/tests changed in PR
+            emacs --batch -l ert -l test/test-helpers.el -l test/perspective-auto-test.el -f ert-run-tests-batch-and-exit
+          else
+            echo "No module/test changes detected; skipping module tests."
+          fi
+
+      - name: Run all ERT module tests (pushes)
+        if: github.event_name == 'push'
+        run: |
+          export HOME=$GITHUB_WORKSPACE
+          if ls test/*-test.el >/dev/null 2>&1; then
+            emacs --batch -l ert -l test/test-helpers.el -l test/perspective-auto-test.el -f ert-run-tests-batch-and-exit
+          else
+            echo "No module tests present"
+          fi
+
       - name: Report cache status (post-run)
         if: always()
         run: |
