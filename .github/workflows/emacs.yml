@@ -131,8 +131,8 @@ jobs:
           git fetch --no-tags --depth=1 origin +${{ github.event.pull_request.base.ref }}:refs/remotes/origin/${{ github.event.pull_request.base.ref }}
           CHANGED=$(git diff --name-only origin/${{ github.event.pull_request.base.ref }}... | grep -E '^(modules/.+\.el|test/.+\.el)$' || true)
           if [ -n "$CHANGED" ]; then
-            echo "Changed files:
-$CHANGED"
+            echo "Changed files:"
+            echo "$CHANGED"
             # Run all tests for simplicity when modules/tests changed in PR
             emacs --batch -l ert -l test/test-helpers.el -l test/perspective-auto-test.el -f ert-run-tests-batch-and-exit
           else
