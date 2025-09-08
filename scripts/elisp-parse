@@ -1,0 +1,10 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+if [ "$#" -eq 0 ]; then
+  echo "No files provided" >&2
+  exit 0
+fi
+
+# Load each provided elisp file in batch to catch parse/load errors.
+emacs --batch -Q -L .   --eval '(progn (setq inhibit-message t) (message "Elisp parse check start"))'   $(for f in "$@"; do printf " -l %q" "$f"; done)   --eval '(message "Elisp parse check ok")'

@@ -50,6 +50,22 @@
     '';
     "elisp:checkdoc-all".exec = ''
       chmod +x scripts/elisp-checkdoc || true
+      elisp-parse = {
+        enable = true;
+        name = "elisp-parse";
+        entry = "./scripts/elisp-parse";
+        language = "system";
+        files = "\.el$";
+        pass_filenames = true;
+      };
+      elisp-ert = {
+        enable = true;
+        name = "elisp-ert";
+        entry = "./scripts/elisp-ert";
+        language = "system";
+        files = "(modules/.+\.el|test/.+\.el)";
+        pass_filenames = false;
+      };
       mapfile -t el_files < <(git ls-files "*.el")
       if [ ''${#el_files[@]} -gt 0 ]; then
         ./scripts/elisp-checkdoc "''${el_files[@]}"
