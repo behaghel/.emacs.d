@@ -5,6 +5,8 @@
 
 ;;; Code:
 
+(require 'hub-utils)
+
 (defgroup hub/org nil
   "Customizations for Org paths."
   :group 'org)

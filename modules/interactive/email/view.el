@@ -5,6 +5,8 @@
 
 ;;; Code:
 
+(require 'hub-utils)
+
 (require 'ffap)
 
 (defun hub/copy-url-at-point-dwim (url)

@@ -5,6 +5,8 @@
 
 ;;; Code:
 
+(require 'hub-utils)
+
 (defgroup hub/mu4e nil
   "Customizations for mu4e contexts and shortcuts."
   :group 'mu4e)

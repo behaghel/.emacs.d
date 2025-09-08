@@ -8,6 +8,9 @@
 (require 'ert)
 (require 'project)
 
+;; Ensure core helpers namespace is available to modules under test
+(add-to-list 'load-path (expand-file-name "lisp" default-directory))
+
 (defmacro hub/with-temp-project (body-file &rest body)
   "Create a temporary project with a git root and visit BODY-FILE, then run BODY.
 BODY-FILE is a path relative to the project root."

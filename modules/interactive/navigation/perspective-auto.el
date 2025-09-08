@@ -8,6 +8,7 @@
 ;;; Code:
 
 (require 'project)
+(require 'hub-utils)
 ;; Allow batch parse/tests to load this file even if perspective is not installed
 (unless (require 'perspective nil 'noerror)
   ;; Minimal fallbacks so this module can load without the package.

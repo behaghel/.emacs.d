@@ -6,6 +6,8 @@
 
 ;;; Code:
 
+(require 'hub-utils)
+
 ;; Org paths are computed at call time via lambdas to respect
 ;; the current value of `org-directory' from org/core.
 

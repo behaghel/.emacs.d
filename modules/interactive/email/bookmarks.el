@@ -5,6 +5,8 @@
 
 ;;; Code:
 
+(require 'hub-utils)
+
 (defvar hub/noise-predicates nil
   "Plist list of (:name :query [:category]) entries considered noisy.")
 

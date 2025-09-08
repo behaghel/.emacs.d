@@ -5,6 +5,8 @@
 
 ;;; Code:
 
+(require 'hub-utils)
+
 (use-package denote
   :config
   (evil-global-set-key 'normal ",no" #'denote-open-or-create)

@@ -5,6 +5,8 @@
 
 ;;; Code:
 
+(require 'hub-utils)
+
 (defgroup hub/tmp nil
   "Temporary directory configuration."
   :group 'environment)
