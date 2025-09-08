@@ -46,9 +46,9 @@ Place overrides in `private/setup.el` (gitignored). Examples:
 - Enter the environment via direnv (devenv-managed):
   - Ensure direnv is enabled for your shell, then run `direnv allow` at repo root.
   - The environment auto-activates on `cd` into the repo (Emacs, EditorConfig, Git, pre-commit configured).
-  - Use `devenv run <task>` for project commands to preserve parity with CI.
+  - Use `devenv shell -- <command>` to run one-off commands in the devenv shell.
 - Quick load check (mirrors CI):
-  - `HOME=$PWD emacs --batch -l init.el --eval '(message "Loaded")' --kill`.
+  - `devenv shell -- env HOME=$PWD emacs --batch -l init.el --eval '(message "Loaded")' --kill`.
 - Check a file with checkdoc:
   - `emacs --batch path/to/file.el -l checkdoc --eval '(checkdoc-file "path/to/file.el" t)'`.
   - Compatibility: if your Emacs only supports one-arg `checkdoc-file`, use `(checkdoc-file "path/to/file.el")`.
