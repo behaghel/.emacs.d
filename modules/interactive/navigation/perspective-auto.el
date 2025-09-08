@@ -144,7 +144,8 @@
 	     (hub/persp--treemacs-visible-p))
     (let ((proj (project-current nil)))
       (when proj
-	(hub/persp--treemacs-align-to-project proj)))))
+	(save-selected-window
+	  (hub/persp--treemacs-align-to-project proj))))))
 
 (define-minor-mode hub/persp-auto-project-mode
   "Automatically create/switch to a perspective per project on file visit."
