@@ -18,6 +18,24 @@
   (defmacro use-package (name &rest _args)
     `(progn (provide ',name))))
 
+;; Capture straight.el process output on failure so CI logs include details
+(defun hub/ci--setup-straight-logging ()
+  (with-eval-after-load 'straight
+    (defun hub/ci--dump-straight-process-buffer ()
+      (let ((buf (get-buffer "*straight-process*")))
+	(when (buffer-live-p buf)
+	  (with-current-buffer buf
+	    (message "[straight-process] BEGIN")
+	    (message "%s" (buffer-string))
+	    (message "[straight-process] END")))))
+    (advice-add 'straight--process-output :around
+		(lambda (orig &rest args)
+		  (condition-case err
+		      (apply orig args)
+		    (error
+		     (hub/ci--dump-straight-process-buffer)
+		     (signal (car err) (cdr err))))))))
+
 (defun hub/ci--stub-mu4e ()
   (unless (require 'mu4e nil 'noerror)
     (defvar mu4e-mu-version "ci-stub")
@@ -37,6 +55,7 @@
        (repo-root (file-name-directory (directory-file-name scripts-dir))))
   (add-to-list 'load-path (expand-file-name "core" repo-root))
   (ignore-errors (require 'core-predicates))
+  (hub/ci--setup-straight-logging)
   ;; Provide mu4e stubs before init.el brings in email modules
   (hub/ci--stub-mu4e)
   ;; Load full init from repo root (treating session as interactive)
