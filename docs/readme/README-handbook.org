@@ -3,7 +3,7 @@
 This is a practical guide to everyday workflows in this config.
 
 * Daily Driver
-- Start Emacs inside `nix develop` for consistent tools.
+- Enable direnv (`direnv allow`) so the environment auto-activates.
 - Use perspectives to jump contexts:
   - `,o e`: .emacs.d
   - `,o O`: org workspace; `,o i` inbox; `,o h` hubert.org

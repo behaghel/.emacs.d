@@ -6,6 +6,8 @@
 
 ;;; Code:
 
+(require 'hub-utils)
+
 (use-package evil
   :demand t
   :init
@@ -43,7 +45,6 @@
 
   (use-package evil-collection
     :after (evil evil-matchit)
-    :ensure t
     :custom (evil-collection-company-use-tng nil)
     :config
     ;; Avoid initializing integrations for packages not present (notably mu4e in CI)

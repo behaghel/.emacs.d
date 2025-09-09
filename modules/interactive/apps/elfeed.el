@@ -35,6 +35,13 @@
 			      "b" 'elfeed-search-browse-url
 			      "B" 'elfeed-search-eww-open))
 
+(use-package elfeed-org
+  :after elfeed
+  :straight (:host github :repo "remyhonig/elfeed-org" :protocol https)
+  :config
+  (setq rmh-elfeed-org-files (list (expand-file-name "modules/interactive/apps/elfeed.org" user-emacs-directory)))
+  (elfeed-org))
+
 ;; Optional web interface
 ;; (use-package elfeed-web
 ;;   :commands (elfeed-web-start)

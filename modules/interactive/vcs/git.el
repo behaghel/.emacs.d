@@ -8,11 +8,12 @@
 (use-package gist
   :commands (gist-buffer gist-buffer-private gist-region gist-region-private gist-list))
 
-(define-key evil-normal-state-map (kbd ",vs") 'magit-status)
 (setq vc-follow-symlinks t)
 
+;; trigger command keybinding shouldn't live inside (use-package):
+;; chicken/egg problem
+(define-key evil-normal-state-map (kbd ",vs") 'magit-status)
 (use-package magit
-  :straight (:depth full)
   :commands (magit-status)
   :config
   (setq magit-popup-use-prefix-argument 'default)

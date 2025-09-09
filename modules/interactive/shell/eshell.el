@@ -5,9 +5,14 @@
 
 ;;; Code:
 
+(require 'hub-utils)
+
 (use-package eshell
   :straight nil
   :init
+  ;; Relocate eshell state under project cache and use repo-tracked aliases file
+  (setq eshell-directory-name (expand-file-name ".cache/eshell/" user-emacs-directory)
+	eshell-aliases-file (expand-file-name "modules/interactive/shell/alias.eshell" user-emacs-directory))
   (defun eshell-run-last ()
     "Relaunch last command without moving point."
     (interactive)

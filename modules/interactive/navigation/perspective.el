@@ -6,8 +6,10 @@
 
 ;;; Code:
 
-(defvar org-directory (expand-file-name "org/" (or (getenv "HOME") "~"))
-  "Fallback location for Org files when `org/core' is not loaded yet.")
+(require 'hub-utils)
+
+;; Org paths are computed at call time via lambdas to respect
+;; the current value of `org-directory' from org/core.
 
 (use-package perspective
   :defer t
@@ -31,11 +33,16 @@
   (persp-mode)
   :config
   (defun hub/speed-dial (key persp &optional fpath command)
-    (let ((f `(lambda ()
-		(interactive)
-		(persp-switch ,persp)
-		,@(when fpath `((find-file ,fpath)))
-		,@(when command `((,command))))))
+    (let* ((path-form (cond
+		       ((and fpath (functionp fpath)) `(find-file (funcall ,fpath)))
+		       ((and fpath (listp fpath) (eq (car-safe fpath) 'lambda)) `(find-file (funcall ,fpath)))
+		       (fpath `(find-file ,fpath))
+		       (t nil)))
+	   (f `(lambda ()
+		 (interactive)
+		 (persp-switch ,persp)
+		 ,@ (when path-form (list path-form))
+		 ,@ (when command `((,command))))))
       (define-key evil-normal-state-map (kbd (concat ",o" key)) (eval f))))
 
   (setq hub/speed-dial-items
@@ -43,8 +50,8 @@
 	  ("e" file ,(expand-file-name "init.el" user-emacs-directory) ".emacs.d")
 	  ("n" file "~/nixos-config/configurations/home/hubertbehaghel.nix" "nixos-config")
 	  ("O" perspective "org")
-	  ("i" file ,(concat org-directory "inbox.org") "org")
-	  ("h" file ,(concat org-directory "hubert.org") "org")
+	  ("i" file ,(lambda () (concat org-directory "inbox.org")) "org")
+	  ("h" file ,(lambda () (concat org-directory "hubert.org")) "org")
 	  ("m" command mu4e-sidebar "mails")
 	  ("M" perspective "mails")
 	  ("d" perspective "main")
@@ -64,8 +71,18 @@
 
   (defun mu4e-sidebar ()
     (interactive)
+    ;; Show mu4e main in the current window
     (mu4e)
-    (find-file (expand-file-name "modules/interactive/email/mail-sidebar.org" user-emacs-directory)))
+    ;; Display the dashboard sidebar as a left side-window, keep focus on main
+    (let* ((path (expand-file-name "modules/interactive/email/mail-sidebar.org" user-emacs-directory))
+	   (buf  (find-file-noselect path)))
+      (display-buffer-in-side-window
+       buf '((side . left)
+	     (slot . -1)
+	     (window-width . 10)
+	     (window-parameters . ((no-delete-other-windows . t)
+				   (no-other-window . t)))))
+      (balance-windows)))
 
   (add-hook 'kill-emacs-hook #'persp-state-save)
   (setq persp-sort 'access

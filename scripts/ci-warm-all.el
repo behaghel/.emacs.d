@@ -21,11 +21,33 @@
     (defun mu4e-message-contact-field-matches (&rest _args) nil)
     (provide 'mu4e)))
 
+;; Capture straight.el process output on failure so CI logs include details.
+(defun hub/ci--setup-straight-logging ()
+  (with-eval-after-load 'straight
+    (defun hub/ci--dump-straight-process-buffer ()
+      (let ((buf (get-buffer "*straight-process*")))
+	(when (buffer-live-p buf)
+	  (with-current-buffer buf
+	    (message "[straight-process] BEGIN")
+	    (message "%s" (buffer-string))
+	    (message "[straight-process] END")))))
+    (advice-add 'straight--process-output :around
+		(lambda (orig &rest args)
+		  (condition-case err
+		      (apply orig args)
+		    (error
+		     (hub/ci--dump-straight-process-buffer)
+		     (signal (car err) (cdr err))))))))
+
 (let* ((this-file (or load-file-name buffer-file-name))
        (scripts-dir (file-name-directory this-file))
        (repo-root (file-name-directory (directory-file-name scripts-dir))))
   (add-to-list 'load-path (expand-file-name "core" repo-root))
   (ignore-errors (require 'core-predicates))
+  ;; Prefer HTTPS for cloning in CI to avoid SSH key requirements.
+  ;; Use defvar so configs under test can still override this preference.
+  (defvar straight-vc-git-default-protocol 'https)
+  (hub/ci--setup-straight-logging)
   (hub/ci--stub-mu4e)
   (load (expand-file-name "init.el" repo-root)))
 

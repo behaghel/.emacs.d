@@ -16,7 +16,7 @@
   (setq use-dialog-box nil))
 
 (use-package org-ai
-  :straight '(:type git :host github :repo "rksm/org-ai.el")
+  :straight '(:type git :host github :repo "rksm/org-ai")
   :after (org)
   :custom (org-ai-default-chat-model "gpt-4")
   :config

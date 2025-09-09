@@ -11,18 +11,15 @@
 
   env.EDITOR = "emacs";
   env.FLOW = ''
-  Project commands (run inside `nix develop`):
-    - devenv run tangle              : Tangle docs/config.org
-    - devenv run load-check          : Batch-load init.el
-    - devenv run freeze              : Freeze straight packages
-    - devenv run elisp:format-all    : Format all tracked .el files
-    - devenv run elisp:checkdoc-all  : Run checkdoc on all tracked .el files
-    - devenv run pre-commit:all      : Run all pre-commit checks on all files
-
-  Tips:
-    - Always commit from this shell (pre-commit runs here).
-    - Run `pre-commit run -a` before pushing.
-    - CI mirrors these checks and caches straight.el/eln.
+  Project commands:
+    - CI full load       : devenv shell -- ci:load-all
+    - Format all elisp   : devenv shell -- elisp:format-all
+    - Checkdoc all elisp : devenv shell -- elisp:checkdoc-all
+    - Tangle config      : devenv shell -- tangle
+    - Load check         : devenv shell -- load-check
+    - Freeze packages    : devenv shell -- freeze
+    - Pre-commit (all)   : devenv shell -- pre-commit:all
+    - devenv shell -- <command>     : Run one-off commands in the dev shell
   '';
 
   # Install pre-commit hooks on shell entry
@@ -40,6 +37,10 @@
     '';
     freeze.exec = ''
       emacs --batch -l core/packages.el --eval '(core/packages-freeze)' --kill
+    ''
+    ;
+    "ci:load-all".exec = ''
+      HOME=$PWD HUB_FORCE_FULL_LOAD=1 emacs --batch -l scripts/ci-load-all.el
     '';
     "elisp:format-all".exec = ''
       chmod +x scripts/elisp-format || true
@@ -61,7 +62,7 @@
   };
 
   # Enforce formatting and checkdoc via pre-commit
-  pre-commit = {
+  git-hooks = {
     hooks = {
       elisp-format = {
         enable = true;
@@ -79,6 +80,24 @@
         files = "\\.el$";
         pass_filenames = true;
       };
+
+      elisp-parse = {
+        enable = true;
+        name = "elisp-parse";
+        entry = "./scripts/elisp-parse";
+        language = "system";
+        files = "\.el$";
+        pass_filenames = true;
+      };
+      elisp-ert = {
+        enable = true;
+        name = "elisp-ert";
+        entry = "./scripts/elisp-ert";
+        language = "system";
+        files = "(modules/.+\.el|test/.+\.el)";
+        pass_filenames = false;
+      };
+
     };
   };
 }

@@ -1,0 +1,70 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+# Ensure Emacs is available to provide actionable errors
+if ! command -v emacs >/dev/null 2>&1; then
+  echo "[elisp-parse] ERROR: 'emacs' not found in PATH" >&2
+  exit 127
+fi
+
+if [ "$#" -eq 0 ]; then
+  # No files staged/selected; nothing to do
+  exit 0
+fi
+
+fail=0
+for f in "$@"; do
+  out=$(emacs --batch -Q \
+    --eval "(setq inhibit-message t)" \
+    --eval "(let* ((args command-line-args-left)
+                   (file (car (if (and args (string= (car args) \"--\")) (cdr args) args))))
+               (with-temp-buffer
+                 (condition-case err
+                     (progn
+                       (insert-file-contents file)
+                       (goto-char (point-min))
+                       (catch 'done
+                         (while t
+                           ;; Manually skip whitespace and ; comments to avoid
+                           ;; relying on major-mode syntax tables.
+                           (while (and (not (eobp)) (memq (char-after) '(?\t ?\n ?\r ?\f ?\s)))
+                             (forward-char))
+                           (while (and (not (eobp)) (eq (char-after) ?;))
+                             (end-of-line)
+                             (while (and (not (eobp)) (memq (char-after) '(?\t ?\n ?\r ?\f ?\s)))
+                               (forward-char)))
+                           (when (eobp)
+                             (throw 'done t))
+                           (condition-case er2
+                               (read (current-buffer))
+                             (end-of-file
+                              ;; Unexpected EOF while reading a form: real error
+                              (signal (car er2) (cdr er2)))
+                             (error
+                              (signal (car er2) (cdr er2))))))
+                       ;; Silence on success to keep hook output tidy
+                       (princ \"\"))
+                   (error
+                    (let* ((ln (line-number-at-pos (point)))
+                           (col (current-column))
+                           (msg (error-message-string err))
+                           (ctx (save-excursion
+                                  (buffer-substring-no-properties
+                                   (line-beginning-position)
+                                   (line-end-position))))
+                           (caret (make-string (max 0 col) ? )))
+                      (princ (format \"[elisp-parse] ERROR %s:%d:%d: %s\\n> %s\\n  %s^\\n\"
+                                     file ln col msg ctx caret))
+                      (kill-emacs 1))))))" -- "$f" 2>&1) || rc=$?; rc=${rc:-0}
+
+  # Echo any output (errors) from Emacs
+  if [ -n "${out}" ]; then
+    echo "$out"
+  fi
+
+  if [ "${rc}" -ne 0 ]; then
+    fail=1
+  fi
+done
+
+exit "$fail"

@@ -2,6 +2,8 @@
 
 ;;; Code:
 
+(require 'hub-utils)
+
 (use-package scala-ts-mode
   :straight '(scala-ts-mode :type git :host github :repo "KaranAhlawat/scala-ts-mode")
   :bind (("C-c C-c" . save-buffer)))

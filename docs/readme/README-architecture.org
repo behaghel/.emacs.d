@@ -21,6 +21,28 @@ This document explains the design: layers, loading, and CI integration.
 - On disk under `modules/<layer>/<category>.el`.
 - Language modules live under `modules/lang/*.el` and are loaded by dev/common as needed.
 
+* Paths and State
+- `etc/`: static assets and configuration resources (CSS, templates) checked into the repo.
+- `var/`: runtime state and caches (recentf, savehist, treemacs, project list, persp.state, org state). Route state files here in code instead of the repo root.
+
+* Configurable Paths (Defcustoms)
+- Org (group `hub/org`):
+  - `hub/org-directory`: default Org directory (overrides `org-directory` when non-nil).
+  - `hub/org-bibliography-file`: default bibliography for `org-cite`.
+  - `hub/org-plantuml-jar`: PlantUML jar path for Babel.
+  - `hub/org-re-reveal-root`: path to reveal.js for `org-re-reveal`.
+- Denote (group `hub/notes`):
+  - `hub/denote-directory`: default notes directory.
+- Email (group `hub/mu4e`):
+  - `hub/mu4e-contexts`: list of contexts; when non-nil, replaces defaults.
+  - `hub/mu4e-maildir-shortcuts`: maildir shortcuts; when non-nil, replaces defaults.
+- Blog (group `hub/blog`):
+  - `hub/blog-root`, `hub/blog-posts-dir`, `hub/blog-all-posts-file`.
+- Temporary files (group `hub/tmp`):
+  - `hub/tmp-directory`: base dir used by helpers like `org-msg` composition hook.
+
+Override these in `private/setup.el` to keep the repo portable.
+
 * Loading Strategy
 - `init.el` sets load-path and conditionally adds `modules/interactive` only when interactive (or `HUB_FORCE_FULL_LOAD=1`).
 - Email: mu4e is optional; CI stubs ensure loading even without a `mu` binary.
@@ -28,7 +50,7 @@ This document explains the design: layers, loading, and CI integration.
 
 * Packages and Pinning
 - Centralized bootstrap in `core/core-packages.el` (straight + use-package).
-- Freeze with `devenv run freeze` → commit `straight/versions/default.el`.
+- Freeze with: `devenv run freeze` → commit `straight/versions/default.el`.
 - CI cache key includes Emacs version and versions file hash.
 
 * CI Workflow
@@ -49,4 +71,3 @@ This document explains the design: layers, loading, and CI integration.
 - New feature: place under the right layer and use `provide` with a namespaced feature (`category/name`).
 - Avoid global side effects in core; prefer interactive modules for UX.
 - Respect naming: no `hub/` prefix in features or file paths; reserve for function names.
-

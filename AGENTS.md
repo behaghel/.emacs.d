@@ -6,7 +6,10 @@
 - `modules/lang/`: language tooling (Scala, JS/TS, Python, etc.).
 - `modules/interactive/dev/common.el`: shared development defaults.
 - `lisp/`: custom helpers (e.g., `eshell-autojump.el`, `hub-utils.el`).
-- `snippets/`, `insert/`, `eshell/`: editor assets and templates.
+- `snippets/`, `insert/`: editor assets and templates.
+- `etc/`: static assets and configuration resources (e.g., CSS, templates).
+- `var/`: runtime state and caches (recentf, savehist, treemacs, project list, persp.state, etc.).
+- Eshell: aliases tracked at `modules/interactive/shell/alias.eshell`; state under `.cache/eshell/`.
 - `.githooks/post-commit`: formats changed `*.el` files and runs `checkdoc`.
 
 ### Environment Layers (Architecture)
@@ -19,6 +22,20 @@
 - Paths and features:
   - Modules live under `modules/<layer>/<category>/...` and provide category features like `editing/evil`, `navigation/treemacs`, `completion/core`.
   - The legacy `settings/` folder is retired. No tracked files should remain there; CI fails if any do.
+  - Convention: keep non-versioned, variable files under `var/` and static assets under `etc/`. Avoid putting ephemeral state files at the repo root — route them to `var/` in code.
+
+### Overriding Paths and Accounts
+Place overrides in `private/setup.el` (gitignored). Examples:
+- `(setq hub/org-directory "~/Dropbox/Documents/org/")`
+- `(setq hub/org-bibliography-file (expand-file-name "Dropbox/Documents/library.bib" (getenv "HOME")))`
+- `(setq hub/org-plantuml-jar "~/install/plantuml.jar")`
+- `(setq hub/org-re-reveal-root (expand-file-name "Apps/reveal.js" (getenv "HOME")))`
+- `(setq hub/denote-directory "~/notes/")`
+- `(setq hub/tmp-directory (expand-file-name "var/tmp/" user-emacs-directory))`
+- `(setq hub/blog-root "~/ws/blog.behaghel.org")`
+- `(setq hub/blog-posts-dir (expand-file-name "content-org" hub/blog-root))`
+- `(setq hub/blog-all-posts-file (expand-file-name "content-org/all-posts.org" hub/blog-root))`
+- `(setq hub/mu4e-contexts (list ...))` and `(setq hub/mu4e-maildir-shortcuts '(...))`
 - Enforcement:
   - `init.el` filters `load-path` by layer: batch sessions do not see `modules/interactive`, so interactive-only modules cannot load in batch.
   - GUI/TTY specializations can be added similarly (only one on `load-path`).
@@ -26,11 +43,12 @@
   - `hub/interactive-p`, `hub/batch-p`, `hub/gui-p`, `hub/tty-p`, `hub/ci-p`.
 
 ## Build, Test, and Development Commands
-- Enter dev shell (Emacs, EditorConfig, Git preconfigured):
-  - `nix develop` (or `nix develop .`).
-  - Important: run all project commands from the devenv shell. This ensures consistent Emacs/pre-commit versions.
+- Enter the environment via direnv (devenv-managed):
+  - Ensure direnv is enabled for your shell, then run `direnv allow` at repo root.
+  - The environment auto-activates on `cd` into the repo (Emacs, EditorConfig, Git, pre-commit configured).
+  - Use `devenv shell -- <command>` to run one-off commands in the devenv shell.
 - Quick load check (mirrors CI):
-  - `HOME=$PWD emacs --batch -l init.el --eval '(message "Loaded")' --kill`.
+  - `devenv shell -- env HOME=$PWD emacs --batch -l init.el --eval '(message "Loaded")' --kill`.
 - Check a file with checkdoc:
   - `emacs --batch path/to/file.el -l checkdoc --eval '(checkdoc-file "path/to/file.el" t)'`.
   - Compatibility: if your Emacs only supports one-arg `checkdoc-file`, use `(checkdoc-file "path/to/file.el")`.
@@ -75,14 +93,14 @@
   - `elisp-format`: formats changed `*.el` (indent + `whitespace-cleanup`). If it modifies files, the commit is blocked; re-stage and commit again.
   - `elisp-checkdoc`: runs `checkdoc` on changed `*.el`. Any warnings fail the commit. We ignore purely structural header/footer warnings (e.g., package first-line, Commentary/Code headings, footer provide) to accommodate our module naming.
 - Usage:
-  - Enter the dev shell: `nix develop`. It auto-installs the pre-commit hooks.
+  - Enable the environment with `direnv allow`. It auto-installs the pre-commit hooks.
   - Commit as usual; hooks will run on staged `*.el` files.
   - To install manually: `pre-commit install --install-hooks`.
-  - To validate everything proactively before committing: `pre-commit run -a`.
+  - To validate everything proactively before committing: `devenv shell -- pre-commit run -a`.
   - Convenience (devenv):
-    - `devenv run elisp:format-all` to format all tracked `.el` files.
-    - `devenv run elisp:checkdoc-all` to run checkdoc on all tracked `.el` files.
-    - `devenv run pre-commit:all` to run all pre-commit checks on all files.
+    - `devenv shell -- ./scripts/elisp-format $(git ls-files "*.el")` to format all tracked `.el` files.
+    - `devenv shell -- ./scripts/elisp-checkdoc $(git ls-files "*.el")` to run checkdoc on all tracked `.el` files.
+    - `devenv shell -- pre-commit run -a` to run all pre-commit checks on all files.
 - Requirements: `emacs` available in the shell (provided via devenv); `pre-commit` is included.
 - CI: mirror checks can be added later; for now local hooks enforce cleanliness before pushing.
 
@@ -90,16 +108,16 @@
 
 - Rationale: pinning produces a stable `straight/versions/default.el` so CI caches hit reliably and local installs are reproducible.
 - Pin versions:
-  - `devenv run freeze` (runs Emacs batch and writes `straight/versions/default.el`).
+  - `devenv shell -- emacs --batch -l core/core-packages.el --eval '(core/packages-freeze)' --kill` (writes `straight/versions/default.el`).
   - Commit the generated file as part of the change that introduced or updated packages.
 - CI cache keys: include Emacs version and the hash of `straight/versions/default.el` to avoid unnecessary rebuilds while allowing intentional updates to refresh caches.
-- Updating deps: run `devenv run freeze` after making changes, review the diff in `straight/versions/default.el`, and commit it.
+- Updating deps: rerun the freeze command after changes, review the diff in `straight/versions/default.el`, and commit it.
 
 ## CI Emacs Versions
 
 - Runner setup: CI installs Emacs via `jcs090218/setup-emacs@v1` and pins a specific version (currently `30.2`). This uses GitHub’s toolcache to speed up runs and ensures parity across checks.
 - Why: consistent Emacs across CI runs keeps caches effective and avoids version‑specific regressions.
-- Bump policy: update the `version:` in `.github/workflows/emacs.yml` when adopting a new major/minor. If package changes are involved, run `devenv run freeze` and commit the updated `straight/versions/default.el`.
+- Bump policy: update the `version:` in `.github/workflows/emacs.yml` when adopting a new major/minor. If package changes are involved, rerun the freeze command and commit the updated `straight/versions/default.el`.
 - Test multiple versions (matrix):
   - Example workflow fragment:
     - `strategy.matrix.emacs: ["29.4", "30.2"]`
@@ -111,6 +129,26 @@
 
 ## Agent Devenv Discipline
 
-- Always run commands inside `nix develop` shells for this repo.
-- Keep one or two `nix develop` shells open during a session to avoid start-up overhead and ensure hooks are installed.
-- When automating from scripts, prefer `nix develop -c <command>` or `devenv run <task>` to preserve environment parity with CI.
+- Prefer direnv-activated shells for all work; the environment is auto-loaded.
+- Keep a shell open in the repo so pre-commit hooks and tools stay available.
+- When automating from scripts, prefer `devenv shell -- <command>` to preserve environment parity with CI.
+
+## Quality Gates & Handoff Discipline
+
+- Pre-commit must run all gates locally before any commit:
+  - Format: `elisp-format` on staged `*.el`.
+  - Doc: `elisp-checkdoc` on staged `*.el`.
+  - Parse: `elisp-parse` batch-loads staged `*.el` to catch syntax/load errors.
+  - Unit tests: `elisp-ert` runs ERT tests under `test/*-test.el`.
+- After editing `devenv.nix` pre-commit hooks, re-enter the shell and reinstall hooks:
+  - `nix develop` (or `direnv reload`), then `pre-commit install --install-hooks`.
+  - Verify: `cat .pre-commit-config.yaml` includes all hooks (not just format/checkdoc).
+- For new modules or larger refactors:
+  - Add a minimal ERT test that exercises the module’s main behavior.
+  - Prefer `apply_patch` diffs over ad-hoc string replacements for Elisp.
+  - Sanity-load changed files in batch: `devenv run load-check` or `scripts/elisp-parse`.
+  - Avoid handing off with parse errors; run `devenv run pre-commit:all` before pushing.
+- CI mirrors gates that matter:
+  - Loads full config in batch.
+  - Runs ERT tests for changed modules on PRs; all tests on pushes.
+  - Fails if core requires namespaced module features; enforces explicit `hub-utils` dependencies.

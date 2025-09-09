@@ -66,8 +66,9 @@ To keep CI fast and builds reproducible we pin package versions and cache
 straight.el artifacts in GitHub Actions.
 
 - Pin package versions
-  - Enter the dev shell: ~nix develop~
-  - Freeze versions: ~devenv run freeze~
+  - Enable direnv: ~direnv allow~ (once)
+  - Freeze versions:
+    ~devenv shell -- emacs --batch -l core/core-packages.el --eval '(core/packages-freeze)' --kill~
   - Commit the generated file: ~straight/versions/default.el~
 
 - CI cache
@@ -78,8 +79,8 @@ straight.el artifacts in GitHub Actions.
     to ensure stable reuse across runs, while refreshing on intentional updates.
 
 - Local tips
-  - Run ~devenv run pre-commit:all~ before pushing to catch issues early.
-  - Use ~devenv run load-check~ to batch-load ~init.el~ quickly.
+  - Run ~devenv shell -- pre-commit run -a~ before pushing to catch issues early.
+  - Load check: ~devenv shell -- env HOME=$PWD emacs --batch -l init.el --eval '(message "Loaded")' --kill~
 
 * Architecture
 We organize modules by runtime layers to load only what’s relevant in each
@@ -152,7 +153,6 @@ mu4e-attachments-dir "~/Downloads"
 Comment:
 has been really useful in setting up emails in my Emacs
 * Development
-This repository provides a Nix flake for a reproducible development environment.
-Run `nix develop` to enter a shell with Emacs and Git configured to use
-`.githooks`.  The post-commit hook formats changed Emacs Lisp files and
-reports style issues detected by `checkdoc`.
+This repository provides a devenv + direnv environment for reproducible development.
+Enable it with `direnv allow` and the environment will auto-activate when entering the repo.
+Pre-commit hooks will format and check Elisp and run parse/tests before commit.

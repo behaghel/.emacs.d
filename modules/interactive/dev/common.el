@@ -5,6 +5,8 @@
 
 ;;; Code:
 
+(require 'hub-utils)
+
 ;; Ediff
 (setq ediff-diff-options "-w")
 (setq ediff-split-window-function 'split-window-horizontally)
@@ -185,7 +187,6 @@
 
 ;; Eglot basics
 (use-package eglot
-  :ensure nil
   :config
   (add-to-list 'eglot-server-programs '(nix-mode . ("nil")))
   (add-to-list 'eglot-server-programs '(scala-ts-mode . ("metals")))

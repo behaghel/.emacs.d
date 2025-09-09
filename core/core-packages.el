@@ -18,6 +18,9 @@
   (load bootstrap-file nil 'nomessage))
 
 (setq straight-use-package-by-default t)
+;; Prefer SSH for GitHub and other Git hosts to avoid interactive
+;; username/password prompts. Requires your SSH keys to be available.
+(setq straight-vc-git-default-protocol 'ssh)
 
 (straight-use-package 'straight) ;; Manage straight.el with itself so it is pinned in versions
 

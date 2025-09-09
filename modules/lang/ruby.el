@@ -2,6 +2,8 @@
 
 ;;; Code:
 
+(require 'hub-utils)
+
 (use-package inf-ruby :commands (ruby-mode)
   :config
   (use-package robe

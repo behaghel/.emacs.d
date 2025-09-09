@@ -5,6 +5,8 @@
 
 ;;; Code:
 
+(require 'hub-utils)
+
 (setq mail-user-agent 'mu4e-user-agent)
 
 (require 'cl-lib)

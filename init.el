@@ -95,6 +95,8 @@
 	 (eval-print-last-sexp)))
      (load bootstrap-file nil 'nomessage))
    (setq straight-use-package-by-default t)
+   ;; Use SSH for cloning packages to avoid HTTPS auth prompts
+   (setq straight-vc-git-default-protocol 'ssh)
    (straight-use-package 'use-package)
    (require 'use-package)
    (require 'use-package-ensure)
@@ -117,6 +119,13 @@
 ;; Core paths and autoloads (under-the-hood only)
 ;; Standardize etc/ and var/ via no-littering (requires use-package)
 (ignore-errors (require 'core-paths))
+;; Keep variable state under var/: prefer explicit files for common state
+(setq
+ recentf-save-file (expand-file-name "var/recentf-save.el" user-emacs-directory)
+ savehist-file     (expand-file-name "var/savehist.el" user-emacs-directory)
+ save-place-file   (expand-file-name "var/save-place.el" user-emacs-directory)
+ project-list-file (expand-file-name "var/project-list.el" user-emacs-directory)
+ tramp-persistency-file-name (expand-file-name "var/tramp" user-emacs-directory))
 ;; Provide streamlined access to writing helpers without changing UX
 (autoload 'writing/enable-basics "modules/writing/writing" nil t)
 
@@ -212,6 +221,7 @@
 	 ("TAB" . nil))
   :config
   (yas-global-mode 1)
+  (add-to-list 'yas-snippet-dirs (expand-file-name "modules/interactive/editing/snippets" user-emacs-directory))
   (setq yas-prompt-functions '(yas/completing-prompt))
   )
 
@@ -283,7 +293,8 @@
   (add-hook 'gfm-mode-hook (lambda () (auto-fill-mode -1)))
   :commands (markdown-mode)
   :config
-  (setq markdown-command "pandoc -c file://${HOME}/.emacs.d/github-pandoc.css --from gfm -t html5 --mathjax --highlight-style pygments --standalone --quiet")
+  (setq markdown-command (format "pandoc -c file://%s --from gfm -t html5 --mathjax --highlight-style pygments --standalone --quiet"
+				 (expand-file-name "etc/github-pandoc.css" user-emacs-directory)))
 
   (evil-define-key 'normal markdown-mode-map (kbd ",il") 'markdown-insert-link)
   (evil-define-key 'normal markdown-mode-map (kbd ",iH") 'markdown-insert-header-dwim)
@@ -311,6 +322,7 @@
 (when (or hub/force-interactive (and (featurep 'core-predicates) (hub/interactive-p)))
   (require 'navigation/treemacs)
   (require 'navigation/perspective)
+  (require 'navigation/perspective-auto)
   (require 'vcs/git)
   (require 'navigation/dired)
   (require 'shell/eshell)
