@@ -37,7 +37,7 @@
 
 (use-package elfeed-org
   :after elfeed
-  :straight (:type git :repo "https://github.com/remyhonig/elfeed-org.git")
+  :straight (:host github :repo "remyhonig/elfeed-org" :protocol https)
   :config
   (setq rmh-elfeed-org-files (list (expand-file-name "modules/interactive/apps/elfeed.org" user-emacs-directory)))
   (elfeed-org))
