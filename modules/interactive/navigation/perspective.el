@@ -6,10 +6,10 @@
 
 ;;; Code:
 
-(require 'hub-utils)
-
-;; Org paths are computed at call time via lambdas to respect
-;; the current value of `org-directory' from org/core.
+(defvar org-directory (expand-file-name "org/" (or (getenv "HOME") "~"))
+  "Base directory for Org files.
+This is overridden by `org/core' during init. Consumers should not
+capture its value at load time; compute paths at call time instead.")
 
 (use-package perspective
   :defer t
@@ -45,9 +45,19 @@
 		 ,@ (when command `((,command))))))
       (define-key evil-normal-state-map (kbd (concat ",o" key)) (eval f))))
 
+  (defun hub/open-treemacs-sidebar ()
+    "Ensure Treemacs is open as a sidebar without stealing focus."
+    (let ((cur (current-buffer)))
+      (when (fboundp 'treemacs)
+	(treemacs))
+      (when (buffer-live-p cur)
+	(let ((win (get-buffer-window cur t)))
+	  (when (window-live-p win)
+	    (select-window win))))))
+
   (setq hub/speed-dial-items
 	`(("E" perspective ".emacs.d")
-	  ("e" file ,(expand-file-name "init.el" user-emacs-directory) ".emacs.d")
+	  ("e" file-with-tree ,(expand-file-name "init.el" user-emacs-directory) ".emacs.d")
 	  ("n" file "~/nixos-config/configurations/home/hubertbehaghel.nix" "nixos-config")
 	  ("O" perspective "org")
 	  ("i" file ,(lambda () (concat org-directory "inbox.org")) "org")
@@ -65,24 +75,44 @@
       (pcase binding
 	(`(,key perspective ,persp) (hub/speed-dial key persp))
 	(`(,key file ,path ,persp) (hub/speed-dial key persp path))
-	(`(,key command ,cmd ,persp) (hub/speed-dial key persp nil cmd))))
-    )
+	(`(,key file-with-tree ,path ,persp)
+	 (let ((fn `(lambda ()
+		      (interactive)
+		      (let ((exists (member ,persp (persp-names))))
+			(persp-switch ,persp)
+			(find-file ,path)
+			(unless exists (hub/open-treemacs-sidebar))))))
+	   (define-key evil-normal-state-map (kbd (concat ",o" key)) (eval fn))))
+	(`(,key command ,cmd ,persp) (hub/speed-dial key persp nil cmd)))))
   (hub/setup-speed-dial)
+
+  ;; Uppercase switch-only convenience bindings
+  (define-key evil-normal-state-map (kbd ",oM") (lambda () (interactive) (persp-switch "mails")))
+  (define-key evil-normal-state-map (kbd ",oE") (lambda () (interactive) (persp-switch ".emacs.d")))
+  (define-key evil-normal-state-map (kbd ",oN") (lambda () (interactive) (persp-switch "nixos-config")))
 
   (defun mu4e-sidebar ()
     (interactive)
-    ;; Show mu4e main in the current window
+    ;; Open mu4e as the main view
     (mu4e)
-    ;; Display the dashboard sidebar as a left side-window, keep focus on main
-    (let* ((path (expand-file-name "modules/interactive/email/mail-sidebar.org" user-emacs-directory))
-	   (buf  (find-file-noselect path)))
-      (display-buffer-in-side-window
-       buf '((side . left)
-	     (slot . -1)
-	     (window-width . 10)
-	     (window-parameters . ((no-delete-other-windows . t)
-				   (no-other-window . t)))))
-      (balance-windows)))
+    ;; Build dashboard buffer via mu4e-dashboard, but display it as a side window
+    (let* ((buf (save-window-excursion
+		  (let ((hub/persp--suppress t))
+		    (mu4e-dashboard))
+		  (current-buffer)))
+	   (params '((side . left)
+		     (slot . -1)
+		     (window-parameters . ((no-delete-other-windows . t)
+					   (no-other-window . t))))))
+      (when (buffer-live-p buf)
+	(let ((win (display-buffer-in-side-window buf params)))
+	  ;; Resize the sidebar explicitly in columns; default to 8 if unset
+	  (let* ((desired (or (and (boundp 'hub/mu4e-dashboard-sidebar-width)
+				   hub/mu4e-dashboard-sidebar-width)
+			      36))
+		 (cur (window-total-width win)))
+	    (when (and (integerp desired) (> desired 1))
+	      (window-resize win (- desired cur) t)))))))
 
   (add-hook 'kill-emacs-hook #'persp-state-save)
   (setq persp-sort 'access

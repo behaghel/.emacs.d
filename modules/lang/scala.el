@@ -6,7 +6,20 @@
 
 (use-package scala-ts-mode
   :straight '(scala-ts-mode :type git :host github :repo "KaranAhlawat/scala-ts-mode")
-  :bind (("C-c C-c" . save-buffer)))
+  :mode ("\\.scala\\'" "\\.sbt\\'")
+  :bind (("C-c C-c" . save-buffer))
+  :hook
+  ;; which-function-mode can be brittle in Scala TS buffers; disable for now.
+  (scala-ts-mode . (lambda () (which-function-mode -1))))
+
+;; Register Scala treesit grammar source and lazy-install on first use
+(with-eval-after-load 'treesit
+  (add-to-list 'treesit-language-source-alist '(scala "https://github.com/tree-sitter/tree-sitter-scala")))
+
+(with-eval-after-load 'eglot
+  (add-to-list 'eglot-server-programs '(scala-ts-mode . ("metals"))))
+
+(add-hook 'scala-ts-mode-hook #'eglot-ensure)
 
 (use-package sbt-mode
   :commands sbt-start sbt-command

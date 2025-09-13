@@ -69,6 +69,7 @@
 ;; Keep legacy modules/ on load-path for now (writing, etc.). Also add
 ;; interactive layer path so interactive-only modules are not visible in batch.
 (add-to-list 'load-path (expand-file-name "modules" user-emacs-directory))
+(add-to-list 'load-path (expand-file-name "modules/lang" user-emacs-directory))
 (when (or hub/force-interactive (and (featurep 'core-predicates) (hub/interactive-p)))
   (add-to-list 'load-path (expand-file-name "modules/interactive" user-emacs-directory)))
 
@@ -139,7 +140,23 @@
 (when (or hub/force-interactive (and (featurep 'core-predicates) (hub/interactive-p)))
   (require 'editing/general)
   (server-start)
-  (require 'editing/evil))
+  (require 'editing/evil)
+  ;; Global keymaps (leader/localleader + DWIM). Kept separate from Evil setup.
+  (ignore-errors (require 'editing/keys)))
+
+;; Load language configuration (autoloads, treesit sources/remaps, language servers)
+(ignore-errors (require 'lang/treesit-config))
+(ignore-errors (require 'lang/scala))
+(ignore-errors (require 'lang/nix))
+(ignore-errors (require 'lang/web))
+(ignore-errors (require 'lang/json-config))
+(ignore-errors (require 'lang/yaml))
+(ignore-errors (require 'lang/misc))
+
+;; Prefer built-in project.el to avoid double-provide with straight installs
+(ignore-errors
+  (eval-when-compile (require 'use-package))
+  (use-package project :straight (:type built-in)))
 
 (use-package smartparens
   :diminish smartparens-mode
@@ -167,30 +184,30 @@
     (defadvice evil-sp--add-bindings
 	(after evil-sp--add-bindings-after activate)
       (evil-define-key 'normal evil-smartparens-mode-map
-		       (kbd ",l") #'evil-sp-change
-		       (kbd ",L") #'evil-sp-change-line
-		       (kbd ",K") #'evil-sp-change-whole-line
-		       (kbd ",D") #'evil-sp-delete-line
+		       ;; (kbd ",l") #'evil-sp-change
+		       ;; (kbd ",L") #'evil-sp-change-line
+		       ;; (kbd ",K") #'evil-sp-change-whole-line
+		       ;; (kbd ",D") #'evil-sp-delete-line
 		       (kbd "D") nil
 		       (kbd "c") nil
 		       (kbd "s") nil
 		       (kbd "S") nil
-		       (kbd ",k") #'evil-sp-substitute
-		       (kbd ",K") #'sp-kill-sexp
+		       ;; (kbd ",k") #'evil-sp-substitute
+		       ;; (kbd ",K") #'sp-kill-sexp
 		       ;; Finds opening '(' of the current list.
 		       ;; (kbd ",{") #'sp-backward-up-sexp
 		       ;; Finds closing ')' of the current list.
 		       ;; (kbd ",}") #'sp-up-sexp
-		       (kbd ",s") #'sp-backward-up-sexp
-		       (kbd ",t") #'sp-down-sexp
-		       (kbd ",(") #'sp-backward-up-sexp
-		       (kbd ",)") #'sp-up-sexp
+		       ;; (kbd ",s") #'sp-backward-up-sexp
+		       ;; (kbd ",t") #'sp-down-sexp
+		       ;; (kbd ",(") #'sp-backward-up-sexp
+		       ;; (kbd ",)") #'sp-up-sexp
 		       ;; Go to the start of current/previous sexp
-		       (kbd "[[") #'sp-backward-sexp
+		       ;; (kbd "[[") #'sp-backward-sexp
 		       ;; Go to the start of next sexp.
-		       (kbd "]]") #'sp-forward-sexp
-		       (kbd ",r") #'sp-next-sexp
-		       (kbd ",c") #'sp-previous-sexp
+		       ;; (kbd "]]") #'sp-forward-sexp
+		       ;; (kbd ",r") #'sp-next-sexp
+		       ;; (kbd ",c") #'sp-previous-sexp
 		       ;; (define-key evil-motion-state-map "S" 'evil-window-top)
 		       ;; (define-key evil-motion-state-map "s" 'evil-previous-line)
 		       ))

@@ -17,18 +17,26 @@
   (require 'treemacs-icons)
   (require 'treemacs-follow-mode)
   (treemacs-follow-mode t)
+  (when (require 'treemacs-project-follow-mode nil 'noerror)
+    (treemacs-project-follow-mode t))
   (require 'treemacs-filewatch-mode)
   (treemacs-filewatch-mode t)
   (require 'treemacs-fringe-indicator)
   (treemacs-fringe-indicator-mode t)
-  (pcase (cons (not (null (executable-find "git")))
-	       (not (null treemacs-python-executable)))
-    (`(t . t) (treemacs-git-mode 'deferred))
-    (`(t . _) (treemacs-git-mode 'simple)))
+  ;; Prefer simple git mode to avoid deferred annotation timer issues
+  (when (executable-find "git")
+    (treemacs-git-mode 'simple))
+  ;; Disable annotations if available to reduce timer noise
+  (with-eval-after-load 'treemacs-annotations
+    (when (fboundp 'treemacs-annotations-mode)
+      (ignore-errors (treemacs-annotations-mode -1))))
 
   (require 'doom-themes-ext-treemacs)
   (setq doom-themes-treemacs-theme "doom-colors")
   (doom-themes-treemacs-config)
+
+  ;; Treemacs buffers don’t need which-function-mode; avoid mode-line hook errors
+  (add-hook 'treemacs-mode-hook (lambda () (setq-local which-function-mode nil)))
 
   (with-eval-after-load 'evil-collection
     (evil-collection-define-key 'normal 'global
