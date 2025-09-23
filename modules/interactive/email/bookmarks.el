@@ -6,29 +6,26 @@
 ;;; Code:
 
 (require 'hub-utils)
-
-(defvar hub/noise-predicates nil
-  "Plist list of (:name :query [:category]) entries considered noisy.")
-
-(defun hub/build-noise-query ()
-  "Build a disjunction query from `hub/noise-predicates'."
-  (when (and (listp hub/noise-predicates) hub/noise-predicates)
-    (let* ((getq (lambda (entry) (concat "(" (plist-get entry :query) ")")))
-	   (acc (funcall getq (car hub/noise-predicates))))
-      (dolist (entry (cdr hub/noise-predicates) acc)
-	(setq acc (concat (funcall getq entry) " OR " acc))))))
+(require 'email/noise)
 
 (with-eval-after-load 'mu4e
   (setq mu4e-bookmarks
-	'((:name "Inbox"        :query "maildir:/inbox/ AND NOT flag:trashed" :key ?i)
-	  (:name "behaghel.org" :query "maildir:/behaghel.org/inbox AND NOT flag:trashed" :key ?t)
+	'(
+	  (:name "Work"         :query "maildir:/work/inbox AND NOT flag:trashed" :key ?w)
 	  (:name "GMail"        :query "maildir:/gmail/inbox AND NOT flag:trashed" :key ?g)
-	  (:name "behaghel.fr"  :query "maildir:/behaghel.fr/inbox AND NOT flag:trashed" :key ?t)
-	  (:name "Important"    :query "flag:flagged AND NOT flag:trashed" :key ?f)
+	  (:name "behaghel.org" :query "maildir:/behaghel.org/inbox AND NOT flag:trashed" :key ?o)
+	  (:name "behaghel.fr"  :query "maildir:/behaghel.fr/inbox AND NOT flag:trashed" :key ?f)
+	  (:name "All inboxes"  :query "maildir:/inbox/ AND NOT flag:trashed" :key ?i)
+	  (:name "Work Archive" :query "maildir:/work/archive AND NOT maildir:/work/inbox AND NOT flag:trashed" :key ?W)
+	  (:name "GMail Archive":query "maildir:/gmail/archive AND NOT maildir:/gmail/inbox AND NOT flag:trashed" :key ?G)
+	  (:name "behaghel.org Archive" :query "maildir:/behaghel.org/archive AND NOT maildir:/behaghel.org/inbox AND NOT flag:trashed" :key ?O)
+	  (:name "behaghel.fr Archive"  :query "maildir:/behaghel.fr/archive AND NOT maildir:/behaghel.fr/inbox AND NOT flag:trashed" :key ?F)
+	  (:name "Important"    :query "flag:flagged AND NOT flag:trashed" :key ?!)
 	  (:name "Drafts"       :query "maildir:/drafts/ AND NOT flag:trashed" :key ?d)
 	  (:name "Today"        :query "date:today..now AND NOT maildir:/gmail/inbox AND NOT flag:trashed" :key ?h)
 	  (:name "Attachments"  :query "flag:attach" :key ?a)
-	  (:name "Invites"      :query "mime:text/calendar" :key ?c)))
+	  (:name "Invites"      :query "mime:text/calendar" :key ?c))
+	)
 
   (let ((noise (hub/build-noise-query)))
     (when noise

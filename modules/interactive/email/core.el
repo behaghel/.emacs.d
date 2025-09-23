@@ -11,6 +11,17 @@
 
 (require 'cl-lib)
 
+(use-package adaptive-wrap :commands adaptive-wrap-prefix-mode)
+
+(defun hub/email-enable-visual-wrap ()
+  "Enable non-destructive visual wrapping suitable for email buffers."
+  (setq-local truncate-lines nil
+	      word-wrap t)
+  (visual-line-mode 1)
+  (when (fboundp 'adaptive-wrap-prefix-mode)
+    (setq-local adaptive-wrap-extra-indent 0)
+    (adaptive-wrap-prefix-mode 1)))
+
 ;; Respect mu4e/mu provided by external environment (e.g., Nix home-manager extraConfig)
 ;; Prefer an existing mu4e on `load-path`; fall back to probing standard locations.
 
@@ -50,7 +61,10 @@ Returns the resolved mu binary path (or nil)."
   (evil-collection-define-key 'normal 'mu4e-main-mode-map
 			      "ê" 'mu4e-headers-search)
   (setq mu4e-context-policy 'pick-first
-	mu4e-compose-context-policy 'ask-if-none))
+	mu4e-compose-context-policy 'ask-if-none
+	mu4e-update-interval 200
+	mu4e-index-update-in-background t
+	mu4e-index-lazy-check t))
 
 ;; Tell straight.el not to try to install/compile mu4e — it is provided by the environment.
 (when (boundp 'straight-built-in-pseudo-packages)
@@ -59,10 +73,12 @@ Returns the resolved mu binary path (or nil)."
 ;; Pull in modularized pieces
 (require 'email/contexts)
 ;; Optional: uncomment as modules are migrated
+(ignore-errors (require 'email/noise))
 (ignore-errors (require 'email/bookmarks))
 (ignore-errors (require 'email/view))
 (ignore-errors (require 'email/compose))
 (ignore-errors (require 'email/dashboard))
+(ignore-errors (require 'email/actions))
 
 (provide 'email/core)
 ;;; core.el ends here
