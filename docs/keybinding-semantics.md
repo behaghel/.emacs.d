@@ -90,6 +90,23 @@ Structural navigation and editing should be consistent across languages and mode
 3) Smartparens pairs
 - Slurp/barf/unwrap consistently; available via a structural hydra and localleader `;` → `s` group to avoid clutter.
 
+### Insert-Mode Structural Editing
+
+Goal: structural edits without leaving insert state, across languages.
+
+- C-<right>: slurp forward (move next form inside current parens)
+- C-<left>: barf forward (push last element out of current parens)
+- M-<left>: slurp backward
+- M-<right>: barf backward
+- C-M-u: unwrap (remove surrounding pair)
+- C-M-s: splice (unwrap + join where appropriate)
+- C-M-t: transpose sexps
+- C-M-w: wrap round (surround with parens)
+
+Notes:
+- Backed by Smartparens when available; falls back gracefully otherwise.
+- The structural hydra remains under `,c s` and localleader `; s` for discovery and motions; these insert-mode keys focus on fast edit operations.
+
 Org‑mode mapping
 - Apply the same mental model to Org elements: headline/subtree, src block, list item, table. Reuse `g` motions and `i/a` objects accordingly.
 
@@ -105,53 +122,15 @@ Discovery hydra
 - Optional: embark integration for context‑aware actions.
 
 Must‑have packages
-- embark: action layer everywhere (minibuffer, buffers, lists). Bind under leader (`,e a`) and enable embark‑collect on common sources; wire embark‑consult.
-- marginalia: rich minibuffer annotations. Enabled by default; ensure which‑key labels match marginalia categories.
+- embark: action layer and minibuffer hints.
+- which‑key: prefix discovery.
+- general.el: declarative key definitions with leader/localleader definers.
 
-## Declaration Pattern (per module)
+## Policy
 
-- Use `general.el` definers to centralize leaders and apply to Evil states.
-- Each module declares all its bindings in a single `:general` block (or a dedicated “keybindings” section), not scattered `define-key` calls.
-- Global vs mode:
-  - Global: `:keymaps 'global` with the leader definer for universal actions.
-  - Mode: `:keymaps 'major-mode-map` with the localleader definer.
-
-Example (illustrative; actual API provided by our helper macros):
-
-```elisp
-;; Central (hub-keys.el)
-(general-create-definer hub/leader :states '(normal visual) :prefix ",")
-(general-create-definer hub/localleader :states '(normal visual) :prefix ".")
-
-;; Package module
-(use-package magit
-  :commands (magit-status)
-  :general
-  (hub/leader
-    ",g s"  #'magit-status
-    ",g b"  #'magit-branch-checkout
-    ",g /"  #'vc-git-grep)
-  :config
-  ;; Fine‑grained mode maps can still be added here if needed
-  )
-
-(use-package eglot
-  :commands (eglot)
-  :general
-  (hub/leader
-    ",c a"  #'eglot-code-actions
-    ",c r"  #'eglot-rename
-    ",c g d" #'eglot-find-declaration
-    ",c g r" #'xref-find-references
-    ",c f"  #'eglot-format)
-  (hub/localleader :keymaps 'eglot-mode-map
-    "k" #'eldoc))
-```
-
-Guidelines:
-- Prefer `:general` over `:config` keymap mutations. If a package needs a mode map, use `:keymaps` in `:general` with `:after` or the mode symbol.
-- Avoid global `define-key evil-normal-state-map` in package modules. Keep those centralized in editing/evil if truly global.
-- Don’t bind in insert state unless there is a strong precedent.
+- Avoid binding plain letters globally; use leader/localleader in normal state.
+- Keep insert‑state bindings minimal and mode‑specific.
+- Respect TTY constraints and non‑ASCII ergonomics; provide fallbacks where needed.
 
 Repository layout for keys
 - Keep global keymaps in a dedicated file (e.g., `modules/interactive/editing/keys.el`), separate from Evil setup (`editing/evil.el`).
@@ -170,7 +149,7 @@ Bindings should adapt to context while keeping the same chord:
 - `,g /` VCS grep DWIM: use `consult-git-grep` if in Git repo, else `consult-ripgrep`.
 
 Implementation approach
-- Provide a small library of `hub/dwim-*` helpers (in `hub-keys.el`) and use them throughout `:general` bindings.
+- Provide a small library of `hub/dwim-*` helpers and use them throughout `:general` bindings.
 - Make DWIM functions first‑class in the migration: replacing direct command bindings with DWIM wrappers.
 
 Open brainstorm for further DWIM dimensions
@@ -187,22 +166,74 @@ Open brainstorm for further DWIM dimensions
 ## Conflict & Mode Policy
 
 - Mode maps can shadow global leader keys for better UX, but must retain category semantics.
-- Packages integrate via mode‑local bindings under `, m …` unless they fit a global category.
+- Packages integrate via mode‑local bindings under localleader unless they fit a global category.
 - Never redefine a category prefix to mean a completely different domain within a mode.
 
 ## Migration Plan
 
-1. Core helpers: add `hub-keys.el` with leader/localleader definers and which‑key labels.
-2. Global keys: move truly global bindings into `editing/keys.el` (separate file) using `hub/leader`.
-3. Package pass 1: convert scattered `define-key` to `:general` in each module, aligning to categories.
+1. Core helpers: add leader/localleader definers and which‑key labels.
+2. Global keys: move truly global bindings into a central module using `hub/leader`.
+3. Package pass 1: convert scattered `define-key` to declarative bindings, aligning to categories.
 4. Language pass: ensure `,c`, `,t`, `,r`, `,d` actions are present and consistent for JS/TS, Python, Ruby, Scala, etc.
 5. Discovery: add `,?` global hydra; optional hydras for `,w`, `,g`, `,p`.
 6. Docs: keep this spec as the source of truth; update when categories evolve.
 
 ## Backwards Compatibility
 
-- Keep legacy aliases for most‑used chords (e.g., `,vs` → `,g s`) for one cycle with deprecation notices in which‑key labels.
+- Keep legacy aliases for most‑used chords for one cycle with deprecation notices in which‑key labels.
 - Respect TTY constraints: avoid sequences that render poorly; provide fallbacks.
+
+---
+
+## BÉPO Keyboard Adaptations
+
+These additions tailor the above semantics to the BÉPO layout while preserving categories and discoverability.
+
+### Home‑Row Navigation
+
+- c / t / s / r map to left / up / down / right in motion/normal states.
+- Implemented via Evil/Evil‑Collection translation (see `modules/interactive/editing/evil.el`). Most modes inherit this automatically (including Magit, Org, mu4e, Treemacs).
+
+### Operators & Motions
+
+- Change operator: prefer `l` instead of Vim’s `c` (not yet global; planned opt‑in layer).
+- Until motion: prefer `h` instead of Vim’s `t` (not yet global; planned opt‑in layer).
+
+### Selection Semantics
+
+- `à` = select/apply (contextual):
+  - Org: refile; Mail: archive/refile/mark; Magit: stage.
+- `À` = unselect/reverse:
+  - Magit: unstage. Org/mu4e: candidate for inverse/unselect where meaningful.
+
+### Prefixes
+
+- `z` or `,z`: toggles/flags (threading, include‑related, visibility, UI toggles).
+- `m` or `,m`: marks (pattern marks, bulk marks) when the mode supports it.
+
+### Current Usage Snapshot
+
+- mu4e
+  - Headers: `zê` full‑search; `zé` threading; `zÉ` include‑related; `à` refile; `À` archive; `%`/`,é` mark‑by‑pattern; `z!` read thread; `zD` delete thread; `zà` refile thread; `zS` Block+Spam.
+  - View: `zS` Block+Spam.
+- Org
+  - `à` refile; `,à` archive subtree. Movement via c/t/s/r.
+- Magit
+  - `à` stage; `À` unstage. Movement via c/t/s/r; `s` repurposed as previous line in status/hunk maps.
+
+### Inconsistencies Observed (not changed yet)
+
+- Evil change still on `c`; until still on `t/T`.
+- mu4e uses `À` for archive (action) rather than “unselect/reverse”.
+- Org has no explicit `À` inverse operation.
+
+### Recommendations
+
+- Provide an opt‑in global remap layer for `l`→change and `h`→until.
+- Consider aligning mu4e `À` to a reverse/unselect (or leave unbound if no good inverse).
+- Keep `z` for toggles and `m` for marks across modes.
+
+---
 
 ## Appendix: Suggested Default Global Map
 
@@ -215,7 +246,6 @@ Open brainstorm for further DWIM dimensions
 - `,s`: `consult-line`, `consult-ripgrep`, isearch→consult, xref.
 - `,e`: eval buffer/region/last, compile, `shell-command`.
 - `,c`: LSP/goto/format/rename/code action.
-  - Default to Eglot functions where applicable.
 - `,t`: tests (file/all/last), toggles (UI) under `,t u`.
 - `,d`: debugger controls.
 - `,r`: start REPL, send buffer/region.
@@ -224,29 +254,3 @@ Open brainstorm for further DWIM dimensions
 - `,x`: align, sort, narrow/widen.
 - `,y`: copy file path, URL at point, symbol.
 - `,q`: quit, save session, workspace state.
-
----
-
-This semantic aims to be both opinionated and pragmatic: the top‑level categories are fixed to build muscle memory, while mode‑local leaders offer flexibility. The migration will make bindings consistent and discoverable, and the declaration surface small and obvious in each module.
-### Speed Dial (`,o` …)
-
-Purpose: quick access to frequently used workspaces/files/apps with consistent perspective behavior.
-
-- Location: under the Open/Apps category (`,o`), single keys per destination (e.g., `,o m` for mail, `,o e` for Emacs config).
-- Behavior:
-  - Perspective: switches/creates the named perspective.
-  - File target: opens the file in that perspective.
-  - Command target: runs a command (e.g., `mu4e`, `elfeed`).
-  - Sidebar: entries can opt-in to ensuring Treemacs is open as a sidebar; focus remains on the primary buffer.
-- Configuration:
-  - Declared in `navigation/perspective.el` via `hub/speed-dial-items`.
-  - Supported forms:
-    - `(KEY perspective NAME)` → just switch perspective.
-    - `(KEY file PATH NAME)` → switch perspective and find file.
-    - `(KEY file-with-tree PATH NAME)` → switch, open file, ensure Treemacs sidebar.
-    - `(KEY command FN NAME)` → switch perspective and run command.
-  - Example bindings (MVP):
-    - `,o m`: Mail — switch to "mails" perspective, run `mu4e`, show mu4e-dashboard as a sidebar.
-    - `,o e`: Emacs config — switch to ".emacs.d", open `init.el`, ensure Treemacs sidebar.
-    - `,o t`: Treemacs, `,o f`: Elfeed, etc.
-- Rationale: keeps speed access under a single, memorable prefix while integrating with the structural sidebar (Treemacs) consistently.

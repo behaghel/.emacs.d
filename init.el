@@ -164,19 +164,6 @@
   ;; this works great for lisp languages
   ;; ("C-<right>" . sp-forward-slurp-sexp)
   ;; this works better for other languages
-  :bind (("C-<right>" . sp-slurp-hybrid-sexp)
-	 ("M-<left>" . sp-backward-slurp-sexp)
-	 ("C-<left>" . sp-forward-barf-sexp)
-	 ("M-<right>" . sp-backward-barf-sexp)
-	 ("M-(" . sp-backward-unwrap-sexp)
-	 ("M-)" . sp-unwrap-sexp)
-	 ("C-<down>" . sp-down-sexp)
-	 ("C-<down>" . sp-down-sexp)
-	 ("C-<up>" . sp-backward-up-sexp)
-	 ("M-<down>" . sp-backward-down-sexp)
-	 ("M-<up>" . sp-up-sexp)
-	 ("S-M-f" . sp-forward-sexp)
-	 ("S-M-b" . sp-backward-sexp))
   :init
   (use-package evil-smartparens
     :diminish evil-smartparens-mode
@@ -214,6 +201,21 @@
     (add-hook 'smartparens-enabled-hook #'evil-smartparens-mode))
   :config
   (require 'smartparens-config)
+  ;; Keep sexp structural editing bindings scoped to buffers where
+  ;; smartparens is active so they don't override Org's meta arrows.
+  (let ((map smartparens-mode-map))
+    (define-key map (kbd "C-<right>") #'sp-slurp-hybrid-sexp)
+    (define-key map (kbd "M-<left>")  #'sp-backward-slurp-sexp)
+    (define-key map (kbd "C-<left>")  #'sp-forward-barf-sexp)
+    (define-key map (kbd "M-<right>") #'sp-backward-barf-sexp)
+    (define-key map (kbd "M-(")       #'sp-backward-unwrap-sexp)
+    (define-key map (kbd "M-)")       #'sp-unwrap-sexp)
+    (define-key map (kbd "C-<down>")  #'sp-down-sexp)
+    (define-key map (kbd "C-<up>")    #'sp-backward-up-sexp)
+    (define-key map (kbd "M-<down>")  #'sp-backward-down-sexp)
+    (define-key map (kbd "M-<up>")    #'sp-up-sexp)
+    (define-key map (kbd "S-M-f")     #'sp-forward-sexp)
+    (define-key map (kbd "S-M-b")     #'sp-backward-sexp))
   (add-to-list 'sp-ignore-modes-list 'org-mode)
   (smartparens-global-mode t)
   (show-smartparens-global-mode)

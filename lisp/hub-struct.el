@@ -70,6 +70,9 @@
 (defun hub/struct-sp-barf-forward () (interactive) (when (fboundp 'sp-forward-barf-sexp) (sp-forward-barf-sexp)))
 (defun hub/struct-sp-barf-backward () (interactive) (when (fboundp 'sp-backward-barf-sexp) (sp-backward-barf-sexp)))
 (defun hub/struct-sp-unwrap () (interactive) (when (fboundp 'sp-unwrap-sexp) (sp-unwrap-sexp)))
+(defun hub/struct-sp-splice () (interactive) (when (fboundp 'sp-splice-sexp) (sp-splice-sexp)))
+(defun hub/struct-sp-transpose () (interactive) (when (fboundp 'sp-transpose-sexp) (sp-transpose-sexp)))
+(defun hub/struct-sp-wrap-round () (interactive) (when (fboundp 'sp-wrap-round) (sp-wrap-round 1)))
 
 (with-eval-after-load 'hydra
   (defhydra hub/hydra-struct (:hint nil)
@@ -90,6 +93,20 @@
 	    (">" hub/struct-sp-barf-forward)
 	    ("U" hub/struct-sp-unwrap)
 	    ("q" nil "quit" :color blue)))
+
+;; Insert-mode structural editing (SLIME/paredit-style) without leaving insert
+(with-eval-after-load 'evil
+  ;; Restrict structural editing bindings to programming buffers so text modes
+  ;; (Org, Markdown, etc.) keep their native Meta-based motions.
+  (require 'prog-mode)
+  (evil-define-key 'insert prog-mode-map (kbd "C-<right>") #'hub/struct-sp-slurp-forward)
+  (evil-define-key 'insert prog-mode-map (kbd "C-<left>")  #'hub/struct-sp-barf-forward)
+  (evil-define-key 'insert prog-mode-map (kbd "M-<left>")  #'hub/struct-sp-slurp-backward)
+  (evil-define-key 'insert prog-mode-map (kbd "M-<right>") #'hub/struct-sp-barf-backward)
+  (evil-define-key 'insert prog-mode-map (kbd "C-M-u")     #'hub/struct-sp-unwrap)
+  (evil-define-key 'insert prog-mode-map (kbd "C-M-s")     #'hub/struct-sp-splice)
+  (evil-define-key 'insert prog-mode-map (kbd "C-M-t")     #'hub/struct-sp-transpose)
+  (evil-define-key 'insert prog-mode-map (kbd "C-M-w")     #'hub/struct-sp-wrap-round))
 
 ;; ------------------------------
 ;; Evil text objects (MVP)
