@@ -137,9 +137,15 @@
 
 (require 'hub-utils)
 
+(defun hub/ensure-server-started ()
+  "Start the Emacs server unless it is already running."
+  (require 'server)
+  (unless (server-running-p)
+    (server-start)))
+
 (when (or hub/force-interactive (and (featurep 'core-predicates) (hub/interactive-p)))
   (require 'editing/general)
-  (server-start)
+  (hub/ensure-server-started)
   (require 'editing/evil)
   ;; Global keymaps (leader/localleader + DWIM). Kept separate from Evil setup.
   (ignore-errors (require 'editing/keys)))
@@ -374,7 +380,7 @@
   ;; :ensure t
   :defer 5
   :init
-  (add-hook 'after-init-hook 'server-start t)
+  (add-hook 'after-init-hook #'hub/ensure-server-started t)
   (add-hook 'after-init-hook 'edit-server-start t)
   :config
   (setq edit-server-default-major-mode 'markdown-mode))
