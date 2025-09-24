@@ -8,6 +8,7 @@
 
 ;;; Code:
 
+(require 'hub-utils)
 (require 'project)
 
 ;; Definers (require general at call sites)

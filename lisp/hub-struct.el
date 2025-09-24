@@ -6,6 +6,7 @@
 
 ;;; Code:
 
+(require 'hub-utils)
 (defun hub/treesit-available-p ()
   (and (fboundp 'treesit-node-at) (treesit-node-at (point))))
 

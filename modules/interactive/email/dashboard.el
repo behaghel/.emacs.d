@@ -5,6 +5,7 @@
 
 ;;; Code:
 
+(require 'hub-utils)
 (use-package mu4e-dashboard
   :if (locate-library "mu4e-headers")
   :after mu4e

@@ -8,6 +8,7 @@
 
 ;;; Code:
 
+(require 'hub-utils)
 (require 'hub-keys)
 
 ;; Ensure which-key labels are friendly if which-key is present

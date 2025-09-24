@@ -6,6 +6,7 @@
 
 ;;; Code:
 
+(require 'hub-utils)
 (defvar org-directory (expand-file-name "org/" (or (getenv "HOME") "~"))
   "Base directory for Org files.
 This is overridden by `org/core' during init. Consumers should not

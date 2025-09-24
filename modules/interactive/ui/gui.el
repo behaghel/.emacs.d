@@ -5,6 +5,7 @@
 
 ;;; Code:
 
+(require 'hub-utils)
 (use-package modus-themes
   :demand t
   :bind (:map evil-normal-state-map (",zk" . modus-themes-toggle))

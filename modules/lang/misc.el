@@ -2,6 +2,7 @@
 
 ;;; Code:
 
+(require 'hub-utils)
 (use-package gnuplot :commands (gnuplot-mode gnuplot-make-buffer))
 
 ;; Zsh files as shell-script-mode
