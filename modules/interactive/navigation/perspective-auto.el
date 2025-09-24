@@ -17,6 +17,9 @@
 
 (require 'project)
 (require 'hub-utils)
+
+(defvar hub/persp--suppress nil
+  "When non-nil, suppress hub/persp auto project handling for the current operation.")
 ;; Allow batch parse/tests to load this file even if perspective is not installed
 (unless (require 'perspective nil 'noerror)
   ;; Minimal fallbacks so this module can load without the package.
@@ -115,7 +118,8 @@
 
 (defun hub/persp--visit-file-handler ()
   "Hook to create/switch to project perspective when visiting files."
-  (when (and (not (minibufferp))
+  (when (and (not hub/persp--suppress)
+	     (not (minibufferp))
 	     (buffer-file-name (current-buffer)))
     (let* ((buf (current-buffer))
 	   (proj (hub/persp--project-for-current-buffer)))
@@ -136,12 +140,10 @@
 	    (dolist (b (project-buffers proj))
 	      (when (buffer-live-p b)
 		(ignore-errors (persp-add-buffer b)))))
-	  ;; Open Treemacs only on first create if configured, then align
+	  ;; Open Treemacs only on first create if configured; rely on project-follow mode
 	  (when (and hub/persp-auto-open-treemacs creating (fboundp 'treemacs))
 	    (ignore-errors (treemacs)))
-	  ;; Align Treemacs to project if it is visible (don’t pop it on switches)
-	  (when (hub/persp--treemacs-visible-p)
-	    (hub/persp--treemacs-align-to-project proj))
+	  ;; If Treemacs is visible, allow its follow/project-follow to do the right thing
 	  ;; After potentially popping Treemacs, return focus to requested file
 	  (when (buffer-live-p buf)
 	    (let ((win (get-buffer-window buf t)))

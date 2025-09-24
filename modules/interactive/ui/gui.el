@@ -5,6 +5,7 @@
 
 ;;; Code:
 
+(require 'hub-utils)
 (use-package modus-themes
   :demand t
   :bind (:map evil-normal-state-map (",zk" . modus-themes-toggle))
@@ -28,8 +29,31 @@
 
 (use-package all-the-icons :if (display-graphic-p))
 
+;; Emoji and symbol font fallback so headers/subjects render properly
+(when (display-graphic-p)
+  (setq use-default-font-for-symbols nil)
+  (let ((emoji-font
+	 (or (and (find-font (font-spec :family "Noto Color Emoji"))
+		  (font-spec :family "Noto Color Emoji"))
+	     (and (find-font (font-spec :family "Apple Color Emoji"))
+		  (font-spec :family "Apple Color Emoji"))
+	     (and (find-font (font-spec :family "Segoe UI Emoji"))
+		  (font-spec :family "Segoe UI Emoji")))))
+    (when emoji-font
+      ;; Prefer emoji font for emoji and general symbol ranges
+      (set-fontset-font t 'emoji emoji-font nil 'prepend)
+      (set-fontset-font t 'symbol emoji-font nil 'prepend)
+      ;; Ensure common emoji blocks have a fallback
+      (dolist (range '((#x1F300 . #x1FAFF) ; Misc Symbols and Pictographs .. Symbols and Pictographs Extended-A
+		       (#x2600  . #x27BF))) ; Misc symbols
+	(set-fontset-font t range emoji-font nil 'prepend)))))
+
 (use-package dashboard
   :config
+  ;; Ensure recentf is enabled so Recents has data
+  (require 'recentf)
+  (require 'seq)
+  (recentf-mode 1)
   (setq dashboard-set-heading-icons t
 	dashboard-set-file-icons t
 	dashboard-set-navigator t)
@@ -45,7 +69,24 @@
       (dashboard-insert-section "Recent Notes:" recent-notes list-size 'notes "n"
 				`(lambda (&rest ignore) (find-file-existing ,el))
 				(denote-retrieve-title-value el (denote-filetype-heuristics el)))))
-  (add-to-list 'dashboard-item-generators '(denote . dashboard-insert-denote)))
+  (add-to-list 'dashboard-item-generators '(denote . dashboard-insert-denote))
+
+  ;; Hide Maildir entries from the Recent Files section while keeping them in recentf.
+  (defun hub/dashboard--mail-path-p (path)
+    (when (stringp path)
+      (let ((mail-root (file-name-as-directory (expand-file-name "Mail" (or (getenv "HOME") "~")))))
+	(string-prefix-p mail-root (expand-file-name path)))))
+
+  (defun hub/dashboard--filter-recents (paths)
+    (seq-remove #'hub/dashboard--mail-path-p paths))
+
+  (defun hub/dashboard-filter-mail-recents (orig-fn &rest args)
+    (let* ((recentf-list (if (and (boundp 'recentf-list) (recentf-enabled-p))
+			     (hub/dashboard--filter-recents recentf-list)
+			   recentf-list)))
+      (apply orig-fn args)))
+
+  (advice-add 'dashboard-insert-startupify-lists :around #'hub/dashboard-filter-mail-recents))
 
 ;; Fonts (adjust per system)
 (set-face-attribute 'default nil :family "Ubuntu Mono" :height 180)

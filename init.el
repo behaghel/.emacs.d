@@ -69,6 +69,7 @@
 ;; Keep legacy modules/ on load-path for now (writing, etc.). Also add
 ;; interactive layer path so interactive-only modules are not visible in batch.
 (add-to-list 'load-path (expand-file-name "modules" user-emacs-directory))
+(add-to-list 'load-path (expand-file-name "modules/lang" user-emacs-directory))
 (when (or hub/force-interactive (and (featurep 'core-predicates) (hub/interactive-p)))
   (add-to-list 'load-path (expand-file-name "modules/interactive" user-emacs-directory)))
 
@@ -95,8 +96,8 @@
 	 (eval-print-last-sexp)))
      (load bootstrap-file nil 'nomessage))
    (setq straight-use-package-by-default t)
-   ;; Use SSH for cloning packages to avoid HTTPS auth prompts
-   (setq straight-vc-git-default-protocol 'ssh)
+   (require 'core-predicates)
+   (setq straight-vc-git-default-protocol (hub/preferred-straight-protocol))
    (straight-use-package 'use-package)
    (require 'use-package)
    (require 'use-package-ensure)
@@ -136,10 +137,32 @@
 
 (require 'hub-utils)
 
+(defun hub/ensure-server-started ()
+  "Start the Emacs server unless it is already running."
+  (require 'server)
+  (unless (server-running-p)
+    (server-start)))
+
 (when (or hub/force-interactive (and (featurep 'core-predicates) (hub/interactive-p)))
   (require 'editing/general)
-  (server-start)
-  (require 'editing/evil))
+  (hub/ensure-server-started)
+  (require 'editing/evil)
+  ;; Global keymaps (leader/localleader + DWIM). Kept separate from Evil setup.
+  (ignore-errors (require 'editing/keys)))
+
+;; Load language configuration (autoloads, treesit sources/remaps, language servers)
+(ignore-errors (require 'lang/treesit-config))
+(ignore-errors (require 'lang/scala))
+(ignore-errors (require 'lang/nix))
+(ignore-errors (require 'lang/web))
+(ignore-errors (require 'lang/json-config))
+(ignore-errors (require 'lang/yaml))
+(ignore-errors (require 'lang/misc))
+
+;; Prefer built-in project.el to avoid double-provide with straight installs
+(ignore-errors
+  (eval-when-compile (require 'use-package))
+  (use-package project :straight (:type built-in)))
 
 (use-package smartparens
   :diminish smartparens-mode
@@ -147,19 +170,6 @@
   ;; this works great for lisp languages
   ;; ("C-<right>" . sp-forward-slurp-sexp)
   ;; this works better for other languages
-  :bind (("C-<right>" . sp-slurp-hybrid-sexp)
-	 ("M-<left>" . sp-backward-slurp-sexp)
-	 ("C-<left>" . sp-forward-barf-sexp)
-	 ("M-<right>" . sp-backward-barf-sexp)
-	 ("M-(" . sp-backward-unwrap-sexp)
-	 ("M-)" . sp-unwrap-sexp)
-	 ("C-<down>" . sp-down-sexp)
-	 ("C-<down>" . sp-down-sexp)
-	 ("C-<up>" . sp-backward-up-sexp)
-	 ("M-<down>" . sp-backward-down-sexp)
-	 ("M-<up>" . sp-up-sexp)
-	 ("S-M-f" . sp-forward-sexp)
-	 ("S-M-b" . sp-backward-sexp))
   :init
   (use-package evil-smartparens
     :diminish evil-smartparens-mode
@@ -167,36 +177,51 @@
     (defadvice evil-sp--add-bindings
 	(after evil-sp--add-bindings-after activate)
       (evil-define-key 'normal evil-smartparens-mode-map
-		       (kbd ",l") #'evil-sp-change
-		       (kbd ",L") #'evil-sp-change-line
-		       (kbd ",K") #'evil-sp-change-whole-line
-		       (kbd ",D") #'evil-sp-delete-line
+		       ;; (kbd ",l") #'evil-sp-change
+		       ;; (kbd ",L") #'evil-sp-change-line
+		       ;; (kbd ",K") #'evil-sp-change-whole-line
+		       ;; (kbd ",D") #'evil-sp-delete-line
 		       (kbd "D") nil
 		       (kbd "c") nil
 		       (kbd "s") nil
 		       (kbd "S") nil
-		       (kbd ",k") #'evil-sp-substitute
-		       (kbd ",K") #'sp-kill-sexp
+		       ;; (kbd ",k") #'evil-sp-substitute
+		       ;; (kbd ",K") #'sp-kill-sexp
 		       ;; Finds opening '(' of the current list.
 		       ;; (kbd ",{") #'sp-backward-up-sexp
 		       ;; Finds closing ')' of the current list.
 		       ;; (kbd ",}") #'sp-up-sexp
-		       (kbd ",s") #'sp-backward-up-sexp
-		       (kbd ",t") #'sp-down-sexp
-		       (kbd ",(") #'sp-backward-up-sexp
-		       (kbd ",)") #'sp-up-sexp
+		       ;; (kbd ",s") #'sp-backward-up-sexp
+		       ;; (kbd ",t") #'sp-down-sexp
+		       ;; (kbd ",(") #'sp-backward-up-sexp
+		       ;; (kbd ",)") #'sp-up-sexp
 		       ;; Go to the start of current/previous sexp
-		       (kbd "[[") #'sp-backward-sexp
+		       ;; (kbd "[[") #'sp-backward-sexp
 		       ;; Go to the start of next sexp.
-		       (kbd "]]") #'sp-forward-sexp
-		       (kbd ",r") #'sp-next-sexp
-		       (kbd ",c") #'sp-previous-sexp
+		       ;; (kbd "]]") #'sp-forward-sexp
+		       ;; (kbd ",r") #'sp-next-sexp
+		       ;; (kbd ",c") #'sp-previous-sexp
 		       ;; (define-key evil-motion-state-map "S" 'evil-window-top)
 		       ;; (define-key evil-motion-state-map "s" 'evil-previous-line)
 		       ))
     (add-hook 'smartparens-enabled-hook #'evil-smartparens-mode))
   :config
   (require 'smartparens-config)
+  ;; Keep sexp structural editing bindings scoped to buffers where
+  ;; smartparens is active so they don't override Org's meta arrows.
+  (let ((map smartparens-mode-map))
+    (define-key map (kbd "C-<right>") #'sp-slurp-hybrid-sexp)
+    (define-key map (kbd "M-<left>")  #'sp-backward-slurp-sexp)
+    (define-key map (kbd "C-<left>")  #'sp-forward-barf-sexp)
+    (define-key map (kbd "M-<right>") #'sp-backward-barf-sexp)
+    (define-key map (kbd "M-(")       #'sp-backward-unwrap-sexp)
+    (define-key map (kbd "M-)")       #'sp-unwrap-sexp)
+    (define-key map (kbd "C-<down>")  #'sp-down-sexp)
+    (define-key map (kbd "C-<up>")    #'sp-backward-up-sexp)
+    (define-key map (kbd "M-<down>")  #'sp-backward-down-sexp)
+    (define-key map (kbd "M-<up>")    #'sp-up-sexp)
+    (define-key map (kbd "S-M-f")     #'sp-forward-sexp)
+    (define-key map (kbd "S-M-b")     #'sp-backward-sexp))
   (add-to-list 'sp-ignore-modes-list 'org-mode)
   (smartparens-global-mode t)
   (show-smartparens-global-mode)
@@ -355,7 +380,7 @@
   ;; :ensure t
   :defer 5
   :init
-  (add-hook 'after-init-hook 'server-start t)
+  (add-hook 'after-init-hook #'hub/ensure-server-started t)
   (add-hook 'after-init-hook 'edit-server-start t)
   :config
   (setq edit-server-default-major-mode 'markdown-mode))

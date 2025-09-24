@@ -88,7 +88,6 @@
 	    (flyspell-prog-mode)
 	    (turn-on-auto-fill)
 	    (electric-indent-local-mode)
-	    (define-key evil-normal-state-map (kbd ",bb") 'compile)
 	    (define-key evil-normal-state-map (kbd ",br") 'recompile)
 	    (define-key evil-normal-state-map (kbd ",bx") 'kill-compilation)
 	    (define-key evil-insert-state-map (kbd "M-RET") 'indent-new-comment-line)
@@ -99,7 +98,9 @@
 (use-package direnv :after (exec-path-from-shell) :config (direnv-mode))
 
 ;; Help/UI niceties
-(which-function-mode 1)
+;; Enable which-function only in programming buffers to avoid mode-line hook
+;; errors in special buffers (e.g., Treemacs, magit status, etc.).
+(add-hook 'prog-mode-hook (lambda () (which-function-mode 1)))
 (define-key evil-normal-state-map (kbd ",hI") 'info)
 (use-package whitespace
   :diminish global-whitespace-mode
@@ -112,46 +113,76 @@
   :defer t
   :init (global-whitespace-cleanup-mode))
 
-;; Treesit
-(use-package treesit
-  :straight (:type built-in)
+;; Treesit (generic setup only; language-specific sources and remaps live under modules/lang/*)
+(use-package treesit :straight (:type built-in)
   :config
-  (setq treesit-language-source-alist
-	'((bash "https://github.com/tree-sitter/tree-sitter-bash")
-	  (cmake "https://github.com/uyha/tree-sitter-cmake")
-	  (css "https://github.com/tree-sitter/tree-sitter-css")
-	  (elisp "https://github.com/Wilfred/tree-sitter-elisp")
-	  (go "https://github.com/tree-sitter/tree-sitter-go")
-	  (html "https://github.com/tree-sitter/tree-sitter-html")
-	  (javascript "https://github.com/tree-sitter/tree-sitter-javascript" "master" "src")
-	  (json "https://github.com/tree-sitter/tree-sitter-json")
-	  (make "https://github.com/alemuller/tree-sitter-make")
-	  (markdown "https://github.com/ikatyang/tree-sitter-markdown")
-	  (python "https://github.com/tree-sitter/tree-sitter-python")
-	  (toml "https://github.com/tree-sitter/tree-sitter-toml")
-	  (tsx "https://github.com/tree-sitter/tree-sitter-typescript" "master" "tsx/src")
-	  (typescript "https://github.com/tree-sitter/tree-sitter-typescript" "master" "typescript/src")
-	  (yaml "https://github.com/ikatyang/tree-sitter-yaml"))
-	treesit-font-lock-settings t
+  (setq treesit-font-lock-settings t
 	treesit-simple-indent-rules t
 	treesit-defun-type-regexp t
 	treesit-defun-name-function t)
-  (setq major-mode-remap-alist
-	'((yaml-mode . yaml-ts-mode)
-	  (bash-mode . bash-ts-mode)
-	  (js2-mode . js-ts-mode)
-	  (typescript-mode . typescript-ts-mode)
-	  (typescriptreact-mode . typescriptreact-ts-mode)
-	  (json-mode . json-ts-mode)
-	  (css-mode . css-ts-mode)
-	  (python-mode . python-ts-mode)))
   (run-with-idle-timer 0.1 nil #'treesit-major-mode-setup))
 
-;; Nix
-(use-package nix-mode :mode "\\.nix\\'"
-  :config (sp-local-pair 'nix-mode "{" nil :post-handlers '(("||\n[i]" "RET"))))
+;; Dev helpers for Tree-sitter setup
+(defun hub/treesit-install-missing (&optional langs)
+  "Install missing Tree-sitter grammars for LANGS or known sources."
+  (interactive)
+  (unless (featurep 'treesit)
+    (user-error "treesit not available in this Emacs"))
+  (let* ((known (mapcar #'car treesit-language-source-alist))
+	 (targets (or langs known))
+	 (missing (seq-filter (lambda (l) (not (treesit-language-available-p l))) targets)))
+    (if (null missing)
+	(message "All Tree-sitter grammars present: %s" targets)
+      (dolist (lang missing)
+	(condition-case err
+	    (progn (message "Installing grammar: %s" lang)
+		   (treesit-install-language-grammar lang))
+	  (error (message "Failed installing %s: %S" lang err)))))))
 
-;; Emacs Lisp conveniences
+(defun hub/treesit-report (&optional lang)
+  "Report Tree-sitter setup; optionally focus on LANG."
+  (interactive)
+  (let* ((lang (or lang 'scala)))
+    (message "treesit available: %s" (treesit-available-p))
+    (message "extra load path: %S" treesit-extra-load-path)
+    (message "source for %s: %S" lang (alist-get lang treesit-language-source-alist))
+    (message "grammar installed for %s: %s" lang (treesit-language-available-p lang))))
+
+;; Lazy auto-install of grammar on first use
+(defcustom hub/treesit-auto-install t
+  "When non-nil, automatically install missing Tree-sitter grammars on demand."
+  :type 'boolean)
+
+(defvar hub/treesit-mode-language-alist
+  '((js-ts-mode . javascript)
+    (typescriptreact-ts-mode . tsx))
+  "Mapping from ts major modes to Tree-sitter language symbols for special cases.")
+
+(defun hub/treesit-language-for-mode (mode)
+  "Best-effort mapping from MODE (a symbol) to a Tree-sitter language symbol."
+  (or (alist-get mode hub/treesit-mode-language-alist)
+      (let* ((name (symbol-name mode)))
+	(when (string-match "^\([^-]+\)-ts-mode$" name)
+	  (intern (match-string 1 name))))))
+
+(defun hub/treesit-ensure-for-current-mode ()
+  "Ensure Tree-sitter grammar for current ts-mode is installed, lazily."
+  (when (and hub/treesit-auto-install (not noninteractive) (featurep 'treesit))
+    (let* ((lang (hub/treesit-language-for-mode major-mode))
+	   (src (and lang (alist-get lang treesit-language-source-alist))))
+      (when (and lang src (not (treesit-language-available-p lang)))
+	(condition-case err
+	    (progn
+	      (message "Installing missing Tree-sitter grammar: %s" lang)
+	      (treesit-install-language-grammar lang)
+	      (message "Installed grammar: %s" lang))
+	  (error (message "Failed installing grammar %s: %S" lang err)))))))
+
+(add-hook 'after-change-major-mode-hook #'hub/treesit-ensure-for-current-mode)
+
+;; Nix configuration moved to modules/lang/nix.el
+
+;; Emacs Lisp conveniences (language-agnostic helpers)
 (require 'jka-compr)
 (evil-define-key 'normal lisp-mode-shared-map
 		 ",." 'find-function
@@ -162,37 +193,10 @@
 		 ",il" 'eval-print-last-sexp)
 (eval-after-load 'eldoc '(diminish 'eldoc-mode))
 
-;; Web basics
-(add-to-list 'auto-mode-alist '("\\.html$" . html-mode))
-(defadvice sgml-delete-tag (after reindent activate)
-  (indent-region (point-min) (point-max)))
-(use-package css-mode :commands css-mode
-  :config (sp-local-pair 'css-mode "{" nil :post-handlers '(("||\n[i]" "RET")))
-  (setq css-indent-offset 2)
-  (use-package css-eldoc))
-(use-package scss-mode :mode "\\.scss\\'")
+;; Language-specific modules now define their own modes and settings under modules/lang/*
 
-;; JSON/YAML
-(use-package json-mode :mode "\\.json$"
-  :config (setq js-indent-level 2)
-  (add-to-list 'auto-mode-alist '("\\.eslintrc\\'" . json-mode)))
-(use-package yaml-mode :mode (("\\.yml$" . yaml-mode) ("\\.yaml$" . yaml-mode)))
-
-;; Misc
-(use-package gnuplot :commands (gnuplot-mode gnuplot-make-buffer))
-(add-to-list 'auto-mode-alist '("\\.zsh$" . shell-script-mode))
-;; OSX launchd plist
-(define-auto-insert "\\.plist\\'" ["template.plist" hub/autoinsert-yas-expand])
-(add-to-list 'auto-mode-alist '("\\.plist$" . xml-mode))
-
-;; Eglot basics
-(use-package eglot
-  :config
-  (add-to-list 'eglot-server-programs '(nix-mode . ("nil")))
-  (add-to-list 'eglot-server-programs '(scala-ts-mode . ("metals")))
-  :hook
-  (nix-mode . eglot-ensure)
-  (scala-ts-mode . eglot-ensure))
+;; Eglot basics (language-specific servers/hooks are configured per language under modules/lang/*)
+(use-package eglot)
 
 ;; AWK
 (add-hook 'awk-mode-hook (lambda () (setq c-basic-offset 2)))

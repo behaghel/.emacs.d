@@ -29,5 +29,9 @@ In CI full-load mode, this can be forced via HUB_FORCE_FULL_LOAD."
   "Return non-nil when running under CI."
   (getenv "GITHUB_ACTIONS"))
 
+(defun hub/preferred-straight-protocol ()
+  "Return the preferred straight.el Git protocol for this environment."
+  (if (hub/ci-p) 'https 'ssh))
+
 (provide 'core-predicates)
 ;;; predicates.el ends here
