@@ -5,7 +5,6 @@
     pkgs.editorconfig-core-c
     pkgs.git
     pkgs.ripgrep
-    pkgs.emacs-nox
     pkgs.pre-commit
   ];
 
