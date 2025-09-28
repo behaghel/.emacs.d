@@ -107,6 +107,8 @@
 	(ignore-errors (treemacs-add-and-display-current-project)))
        ((fboundp 'treemacs-find-file)
 	(ignore-errors (treemacs-find-file))))
+      (when (fboundp 'treemacs-project-follow-mode)
+	(treemacs-project-follow-mode 1))
       (when (and hub/persp-treemacs-follow (fboundp 'treemacs-follow-mode))
 	(treemacs-follow-mode 1)))))
 
@@ -143,6 +145,10 @@
 	  ;; Open Treemacs only on first create if configured; rely on project-follow mode
 	  (when (and hub/persp-auto-open-treemacs creating (fboundp 'treemacs))
 	    (ignore-errors (treemacs)))
+	  ;; Ensure Treemacs tracks the current project right after we possibly opened it.
+	  (when (hub/persp--treemacs-visible-p)
+	    (save-selected-window
+	      (hub/persp--treemacs-align-to-project proj)))
 	  ;; If Treemacs is visible, allow its follow/project-follow to do the right thing
 	  ;; After potentially popping Treemacs, return focus to requested file
 	  (when (buffer-live-p buf)
