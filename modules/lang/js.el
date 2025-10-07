@@ -1,42 +1,43 @@
-;;; js.el --- JavaScript/TypeScript setup -*- lexical-binding: t; -*-
+;;; js.el --- Wrapper to avoid clobbering built-in js -*- lexical-binding: t; -*-
+
+;;; Commentary:
+;; This file delegates to the built-in `js.el` so callers such as Org export can
+;; rely on stock functionality.  Our richer JavaScript/TypeScript configuration
+;; lives in `js-config.el` and loads only once the package layer is ready.
 
 ;;; Code:
 
-(use-package typescript-mode
-  :after tree-sitter
-  :config
-  (require 'typescript-ts-mode)
-  (define-derived-mode typescriptreact-mode typescript-mode "TypeScript TSX")
-  (define-derived-mode typescriptreact-ts-mode typescript-ts-mode "TypeScript TSX")
-  (add-to-list 'auto-mode-alist '("\\.tsx?\\'" . typescriptreact-mode))
-  (add-to-list 'tree-sitter-major-mode-language-alist '(typescriptreact-mode . tsx)))
+(require 'cl-lib)
 
-(use-package tsi
-  :after tree-sitter
-  :straight (:type git :host github :repo "orzechowskid/tsi.el")
-  :commands (tsi-typescript-mode tsi-json-mode tsi-css-mode)
-  :init
-  (add-hook 'typescript-mode-hook (lambda () (tsi-typescript-mode 1)))
-  (add-hook 'json-mode-hook (lambda () (tsi-json-mode 1)))
-  (add-hook 'css-mode-hook (lambda () (tsi-css-mode 1)))
-  (add-hook 'scss-mode-hook (lambda () (tsi-scss-mode 1))))
+(defconst lang/js--module-dir (and load-file-name (file-name-directory load-file-name))
+  "Directory containing the lang/js module components.")
 
-(when (executable-find "eslint_d")
-  (setq flycheck-javascript-eslint-executable "eslint_d"))
+(defun lang/js--load-builtin ()
+  "Load the built-in js.el without recursing into this module."
+  (let* ((load-path (if lang/js--module-dir
+			(cl-remove lang/js--module-dir load-path :test #'string=)
+		      load-path))
+	 (builtin (locate-library "js" nil t)))
+    (when builtin
+      (load builtin nil t t))))
 
-(use-package nvm
-  :commands (nvm-use nvm-use-for nvm--installed-versions)
-  :config
-  (defvar mjs/previous-node-version nil)
-  (defun mjs/choose-node-version ()
-    (when mjs/previous-node-version
-      (setq exec-path (cl-remove mjs/previous-node-version exec-path :test #'string=)
-	    mjs/previous-node-version nil))
-    (if (file-exists-p ".nvmrc") (nvm-use-for ".") (nvm-use (caar (last (nvm--installed-versions)))))
-    (setq mjs/previous-node-version (getenv "NVM_BIN")
-	  exec-path (cl-pushnew mjs/previous-node-version exec-path :test #'string=)))
-  (with-eval-after-load 'projectile
-    (add-hook 'projectile-after-switch-project-hook 'mjs/choose-node-version)))
+(lang/js--load-builtin)
 
-(provide 'lang/js)
+(defvar lang/js--config-loaded nil
+  "Internal flag recording whether `js-config.el' has been loaded.")
+
+(defun lang/js--maybe-load-config (&rest _)
+  "Load the full JS configuration when straight/use-package are available."
+  (unless lang/js--config-loaded
+    (when (and lang/js--module-dir
+	       (fboundp 'use-package)
+	       (fboundp 'straight-use-package))
+      (load (expand-file-name "js-config" lang/js--module-dir) nil t t)
+      (setq lang/js--config-loaded t))))
+
+(lang/js--maybe-load-config)
+(add-hook 'after-init-hook #'lang/js--maybe-load-config)
+(with-eval-after-load 'straight (lang/js--maybe-load-config))
+
+(provide 'js)
 ;;; js.el ends here
