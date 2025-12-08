@@ -66,7 +66,8 @@
 			   editing/evil completion/core navigation/treemacs
 			   vcs/git navigation/dired shell/eshell
 			   org/core notes/brain tools/blog tools/ai
-			   apps/elfeed email/core email/contexts email/bookmarks email/view))
+			   apps/elfeed video/tjm
+			   email/core email/contexts email/bookmarks email/view))
        (present (seq-filter (lambda (f) (featurep f)) expected))
        (missing (seq-remove (lambda (f) (featurep f)) expected))
        (elapsed (float-time (time-subtract (current-time) hub/ci-start-time))))

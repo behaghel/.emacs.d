@@ -1,28 +1,28 @@
 #+TITLE: MU4E Dashboard
 #+AUTHOR: Hubert Behaghel
 
-* Mailboxes [[mu:flag:unread|%4d][5038]]
+* Mailboxes [[mu:flag:unread AND NOT flag:trashed|%4d][ 428]]
 
-📥 [[mu:m:/work/inbox or m:/gmail/inbox][Inbox]] ................ [[mu:m:/work/inbox or m:/gmail/inbox|%2d][83]]
-💼  ↳[[mu:m:/work/inbox][Veriff]] ......... [[mu:m:/work/inbox flag:unread|%2d][47]]/[[mu:m:/work/inbox|%2d][57]]
-📧  ↳[[mu:m:/gmail/inbox][Gmail]] .......... [[mu:m:/gmail/inbox flag:unread|%2d][14]]/[[mu:m:/gmail/inbox|%2d][26]]
-🏠  ↳[[mu:m:/behaghel.org/inbox][bhghl.org]] ...... [[mu:m:/behaghel.org/inbox flag:unread|%2d][ 2]]/[[mu:m:/behaghel.org/inbox|%2d][ 6]]
-🇫🇷  ↳[[mu:m:/behaghel.fr/inbox][bhghl.fr]] ....... [[mu:m:/behaghel.fr/inbox flag:unread|%2d][ 2]]/[[mu:m:/behaghel.fr/inbox|%2d][16]]
-❗ [[mu:flag:flagged][Important]] .......... [[mu:flag:flagged|%4d][ 226]]
-📝 [[mu:m:/work/drafts or m:/gmail/drafts][Drafts]] ............... [[mu:m:/work/drafts or m:/gmail/drafts|%2d][ 0]]
-📤 [[mu:m:/work/sent or m:/gmail/sent][Sent]] .............. [[mu:m:/work/sent or m:/gmail/sent|%5d][10161]]
-📦 [[mu:m:/work/archive or m:/gmail/archive][Archive]] .......... [[mu:m:/work/archive or m:/gmail/archive|%6d][109275]]
+📥 [[mu:(maildir:/work/inbox OR maildir:/gmail/inbox OR maildir:/behaghel.org/inbox OR maildir:/behaghel.fr/inbox) AND NOT flag:trashed][Inbox]] ............... [[mu:(maildir:/work/inbox OR maildir:/gmail/inbox OR maildir:/behaghel.org/inbox OR maildir:/behaghel.fr/inbox) AND NOT flag:trashed|%3d][651]]
+💼  ↳[[mu:maildir:/work/inbox AND NOT flag:trashed][Veriff]] ....... [[mu:(maildir:/work/inbox AND NOT flag:trashed AND flag:unread)|%3d][102]]/[[mu:(maildir:/work/inbox AND NOT flag:trashed)|%3d][157]]
+📧  ↳[[mu:maildir:/gmail/inbox AND NOT flag:trashed][Gmail]] ........ [[mu:(maildir:/gmail/inbox AND NOT flag:trashed AND flag:unread)|%3d][307]]/[[mu:(maildir:/gmail/inbox AND NOT flag:trashed)|%3d][494]]
+🏠  ↳[[mu:maildir:/behaghel.org/inbox AND NOT flag:trashed][bhghl.org]] ...... [[mu:(maildir:/behaghel.org/inbox AND NOT flag:trashed AND flag:unread)|%2d][11]]/[[mu:(maildir:/behaghel.org/inbox AND NOT flag:trashed)|%2d][26]]
+🇫🇷  ↳[[mu:maildir:/behaghel.fr/inbox AND NOT flag:trashed][bhghl.fr]] ....... [[mu:(maildir:/behaghel.fr/inbox AND NOT flag:trashed AND flag:unread)|%2d][ 4]]/[[mu:(maildir:/behaghel.fr/inbox AND NOT flag:trashed)|%2d][24]]
+❗ [[mu:flag:flagged][Important]] .......... [[mu:flag:flagged|%4d][ 328]]
+📝 [[mu:m:/work/drafts or m:/gmail/drafts][Drafts]] ............... [[mu:m:/work/drafts or m:/gmail/drafts|%2d][ 5]]
+📤 [[mu:m:/work/sent or m:/gmail/sent][Sent]] .............. [[mu:m:/work/sent or m:/gmail/sent|%5d][11163]]
+📦 [[mu:m:/work/archive or m:/gmail/archive][Archive]] .......... [[mu:m:/work/archive or m:/gmail/archive|%6d][236861]]
 
 * Recently
 
-⏰ [[mu:date:today..now][Today]] ............... [[mu:date:today..now|%3d][  1]]
-⏳ [[mu:date:2d..today and not date:today..now][Yesterday]] ........... [[mu:date:2d..today and not date:today..now|%3d][ 31]]
-📆 [[mu:date:1w..now][Last week]] .......... [[mu:date:7d..now|%4d][ 189]]
-📅 [[mu:date:4w..now][Last month]] ......... [[mu:date:4w..|%4d][ 701]]
+⏰ [[mu:date:today..now][Today]] ............... [[mu:date:today..now|%3d][ 18]]
+⏳ [[mu:date:2d..today and not date:today..now][Yesterday]] ........... [[mu:date:2d..today and not date:today..now|%3d][ 86]]
+📆 [[mu:date:1w..now][Last week]] .......... [[mu:date:7d..now|%4d][ 268]]
+📅 [[mu:date:4w..now][Last month]] ......... [[mu:date:4w..|%4d][ 928]]
 
-📅 [[mime:text/calendar][Invites]] ......... [[mu:mime:text/calendar flag:unread|%2d][10]]/[[mu:mime:text/calendar|%4d][1514]]
-📎 [[flag:attach][Attachments]] ....... [[mu:flag:attach|%5d][15476]]
-🔒 [[flag:encrypted][Encrypted]] ............ [[mu:flag:encrypted|%2d][ 3]]
+📅 [[mime:text/calendar][Invites]] ......... [[mu:mime:text/calendar flag:unread|%2d][ 2]]/[[mu:mime:text/calendar|%4d][2397]]
+📎 [[flag:attach][Attachments]] ....... [[mu:flag:attach|%5d][28023]]
+🔒 [[flag:encrypted][Encrypted]] ............ [[mu:flag:encrypted|%2d][ 6]]
 
 * Tags
 
@@ -31,22 +31,22 @@
 
 * People
 
-[[mu:from:pau.minoves@typeform.com][Pau Minoves]] ............ [[mu:from:pau.minoves@typeform.com|%3d][  0]]
-[[mu:from:ajh1954@googlemail.com][Andrew Hegarty]] ......... [[mu:from:ajh1954@googlemail.com|%3d][  1]]
+[[mu:from:pau.minoves@typeform.com][Pau Minoves]] ............ [[mu:from:pau.minoves@typeform.com|%3d][  1]]
+[[mu:from:ajh1954@googlemail.com][Andrew Hegarty]] ......... [[mu:from:ajh1954@googlemail.com|%3d][218]]
 
 * Mailing lists
 
-[[mu:list:mu-discuss.googlegroups.com][Mu4e discussions]] ..... [[mu:list:mu-discuss.googlegroups.com|%5d][  448]]
+[[mu:list:mu-discuss.googlegroups.com][Mu4e discussions]] ..... [[mu:list:mu-discuss.googlegroups.com|%5d][ 1819]]
 
 * Years
 
-[[mu:date:20250101..20251231][Year 2025]] ............ [[mu:date:20250101..20251231|%5d][ 6798]]
-[[mu:date:20240101..20241231][Year 2024]] ............ [[mu:date:20240101..20241231|%5d][ 9946]]
-[[mu:date:20230101..20231231][Year 2023]] ............ [[mu:date:20230101..20231231|%5d][ 7349]]
-[[mu:date:20220101..20221231][Year 2022]] ............ [[mu:date:20220101..20221231|%5d][ 1220]]
-[[mu:date:20210101..20211231][Year 2021]] ............ [[mu:date:20210101..20211231|%5d][  739]]
-[[mu:date:20200101..20201231][Year 2020]] ............ [[mu:date:20200101..20201231|%5d][ 6884]]
-[[mu:date:20190101..20191231][Year 2019]] ............ [[mu:date:20190101..20191231|%5d][ 8398]]
+[[mu:date:20250101..20251231][Year 2025]] ............ [[mu:date:20250101..20251231|%5d][13918]]
+[[mu:date:20240101..20241231][Year 2024]] ............ [[mu:date:20240101..20241231|%5d][16584]]
+[[mu:date:20230101..20231231][Year 2023]] ............ [[mu:date:20230101..20231231|%5d][15556]]
+[[mu:date:20220101..20221231][Year 2022]] ............ [[mu:date:20220101..20221231|%5d][10841]]
+[[mu:date:20210101..20211231][Year 2021]] ............ [[mu:date:20210101..20211231|%5d][ 9363]]
+[[mu:date:20200101..20201231][Year 2020]] ............ [[mu:date:20200101..20201231|%5d][15099]]
+[[mu:date:20190101..20191231][Year 2019]] ............ [[mu:date:20190101..20191231|%5d][16063]]
 
 *  /Configuration/
 :PROPERTIES:

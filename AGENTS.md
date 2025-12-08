@@ -152,3 +152,10 @@ Place overrides in `private/setup.el` (gitignored). Examples:
   - Loads full config in batch.
   - Runs ERT tests for changed modules on PRs; all tests on pushes.
   - Fails if core requires namespaced module features; enforces explicit `hub-utils` dependencies.
+
+## Keybinding Discipline
+- Keep keymaps consistent with `docs/keybinding-semantics.md`; prefer leader/localleader, `z` for toggles, and `g` for goto/jump.
+- Preserve `t`/`s` as next/previous line in Evil normal state across modes. If a package (e.g., `gnus-mime-button-map`) steals them, rebind to `evil-next-visual-line`/`evil-previous-visual-line` and move the package’s functionality elsewhere.
+- Do not regress core mail bindings (`ç` spam, `à` refile, `zh`/`zp` toggles, `gl` jump); when Evil or evil-collection rewrites maps, re-assert these via `evil-define-key` in the relevant mode hooks so they apply in normal state.
+- For mu4e, prefer idempotent binders that run on mode hooks and after evil-collection loads; this keeps single-key bindings (`à`, `ç`, `gl`) intact even if package init reorders keymap setup.
+- Avoid `ignore-errors` for required modules; silent failures hide missing functions and break keybindings. Use plain `require` so load issues surface immediately.

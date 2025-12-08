@@ -72,13 +72,12 @@ Returns the resolved mu binary path (or nil)."
 
 ;; Pull in modularized pieces
 (require 'email/contexts)
-;; Optional: uncomment as modules are migrated
-(ignore-errors (require 'email/noise))
-(ignore-errors (require 'email/bookmarks))
-(ignore-errors (require 'email/view))
-(ignore-errors (require 'email/compose))
-(ignore-errors (require 'email/dashboard))
-(ignore-errors (require 'email/actions))
+(require 'email/actions)
+(require 'email/view)
+(require 'email/noise)
+(require 'email/bookmarks)
+(require 'email/compose)
+(require 'email/dashboard)
 
 (provide 'email/core)
 ;;; core.el ends here

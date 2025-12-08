@@ -15,7 +15,7 @@
 	  (:name "GMail"        :query "maildir:/gmail/inbox AND NOT flag:trashed" :key ?g)
 	  (:name "behaghel.org" :query "maildir:/behaghel.org/inbox AND NOT flag:trashed" :key ?o)
 	  (:name "behaghel.fr"  :query "maildir:/behaghel.fr/inbox AND NOT flag:trashed" :key ?f)
-	  (:name "All inboxes"  :query "maildir:/inbox/ AND NOT flag:trashed" :key ?i)
+	  (:name "All inboxes"  :query "(maildir:/work/inbox OR maildir:/gmail/inbox OR maildir:/behaghel.org/inbox OR maildir:/behaghel.fr/inbox) AND NOT flag:trashed" :key ?i)
 	  (:name "Work Archive" :query "maildir:/work/archive AND NOT maildir:/work/inbox AND NOT flag:trashed" :key ?W)
 	  (:name "GMail Archive":query "maildir:/gmail/archive AND NOT maildir:/gmail/inbox AND NOT flag:trashed" :key ?G)
 	  (:name "behaghel.org Archive" :query "maildir:/behaghel.org/archive AND NOT maildir:/behaghel.org/inbox AND NOT flag:trashed" :key ?O)

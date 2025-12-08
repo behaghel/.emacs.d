@@ -10,6 +10,8 @@
 (require 'hub-utils)
 (require 'email/noise)
 
+(declare-function hub/mu4e-headers-mark-and-advance "email/view" (mark))
+
 (defgroup hub/mu4e-actions nil
   "Custom mu4e actions."
   :group 'mu4e)
@@ -95,7 +97,9 @@
     (defun mu4e-headers-mark-for-spam ()
       "Mark the current header for the custom Spam action."
       (interactive)
-      (mu4e-headers-mark-and-next 'spam))))
+      (if (fboundp 'hub/mu4e-headers-mark-and-advance)
+	  (hub/mu4e-headers-mark-and-advance 'spam)
+	(mu4e-headers-mark-and-next 'spam)))))
 
 ;;; Noise helpers -------------------------------------------------------------
 
