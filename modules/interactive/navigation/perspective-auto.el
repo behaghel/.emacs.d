@@ -96,21 +96,26 @@
 	    (unless (hub/persp--ignored-root-p root)
 	      proj)))))))
 
-(defun hub/persp--treemacs-align-to-project (proj)
-  "Ensure Treemacs shows PROJ's root. Fall back to find-file alignment."
-  (when (fboundp 'treemacs)
+(defun hub/persp--treemacs-align-to-project (proj &optional ensure-visible)
+  "Ensure Treemacs shows PROJ's root. When ENSURE-VISIBLE, open Treemacs first."
+  (when (and proj (fboundp 'treemacs))
     (let ((default-directory (car (project-roots proj))))
-      (cond
-       ((fboundp 'treemacs-display-current-project-exclusively)
-	(ignore-errors (treemacs-display-current-project-exclusively)))
-       ((fboundp 'treemacs-add-and-display-current-project)
-	(ignore-errors (treemacs-add-and-display-current-project)))
-       ((fboundp 'treemacs-find-file)
-	(ignore-errors (treemacs-find-file))))
-      (when (fboundp 'treemacs-project-follow-mode)
-	(treemacs-project-follow-mode 1))
-      (when (and hub/persp-treemacs-follow (fboundp 'treemacs-follow-mode))
-	(treemacs-follow-mode 1)))))
+      (when (or ensure-visible (hub/persp--treemacs-visible-p))
+	(cond
+	 ((fboundp 'treemacs-add-and-display-current-project-exclusively)
+	  (ignore-errors (treemacs-add-and-display-current-project-exclusively)))
+	 ((fboundp 'treemacs-display-current-project-exclusively)
+	  (ignore-errors (treemacs-display-current-project-exclusively)))
+	 ((fboundp 'treemacs-add-and-display-current-project)
+	  (ignore-errors (treemacs-add-and-display-current-project)))
+	 ((and (hub/persp--treemacs-visible-p) (fboundp 'treemacs-find-file))
+	  (ignore-errors (treemacs-find-file)))
+	 ((and ensure-visible (fboundp 'treemacs))
+	  (ignore-errors (treemacs))))
+	(when (fboundp 'treemacs-project-follow-mode)
+	  (treemacs-project-follow-mode 1))
+	(when (and hub/persp-treemacs-follow (fboundp 'treemacs-follow-mode))
+	  (treemacs-follow-mode 1))))))
 
 (defun hub/persp--treemacs-visible-p ()
   "Return non-nil when Treemacs has a visible window in this frame."
@@ -142,13 +147,11 @@
 	    (dolist (b (project-buffers proj))
 	      (when (buffer-live-p b)
 		(ignore-errors (persp-add-buffer b)))))
-	  ;; Open Treemacs only on first create if configured; rely on project-follow mode
-	  (when (and hub/persp-auto-open-treemacs creating (fboundp 'treemacs))
-	    (ignore-errors (treemacs)))
-	  ;; Ensure Treemacs tracks the current project right after we possibly opened it.
-	  (when (hub/persp--treemacs-visible-p)
-	    (save-selected-window
-	      (hub/persp--treemacs-align-to-project proj)))
+	  ;; Show Treemacs for the project when requested on creation, or just align if visible.
+	  (let ((ensure-visible (and hub/persp-auto-open-treemacs creating)))
+	    (when (or ensure-visible (hub/persp--treemacs-visible-p))
+	      (save-selected-window
+		(hub/persp--treemacs-align-to-project proj ensure-visible))))
 	  ;; If Treemacs is visible, allow its follow/project-follow to do the right thing
 	  ;; After potentially popping Treemacs, return focus to requested file
 	  (when (buffer-live-p buf)

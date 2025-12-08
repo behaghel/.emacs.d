@@ -9,15 +9,22 @@
 
 (require 'cl-lib)
 
-(defconst lang/js--module-dir (and load-file-name (file-name-directory load-file-name))
+(defconst lang/js--module-dir
+  (and load-file-name (file-name-directory (expand-file-name load-file-name)))
   "Directory containing the lang/js module components.")
 
 (defun lang/js--load-builtin ()
   "Load the built-in js.el without recursing into this module."
-  (let* ((load-path (if lang/js--module-dir
-			(cl-remove lang/js--module-dir load-path :test #'string=)
+  (let* ((module-dir (and lang/js--module-dir
+			  (directory-file-name lang/js--module-dir)))
+	 (load-path (if module-dir
+			(cl-remove-if (lambda (path)
+					(when path
+					  (string= (directory-file-name (expand-file-name path))
+						   module-dir)))
+				      load-path)
 		      load-path))
-	 (builtin (locate-library "js" nil t)))
+	 (builtin (locate-library "js" nil load-path)))
     (when builtin
       (load builtin nil t t))))
 
@@ -32,8 +39,12 @@
     (when (and lang/js--module-dir
 	       (fboundp 'use-package)
 	       (fboundp 'straight-use-package))
-      (load (expand-file-name "js-config" lang/js--module-dir) nil t t)
-      (setq lang/js--config-loaded t))))
+      (let* ((candidate (expand-file-name "js-config.el" lang/js--module-dir)))
+	(if (file-readable-p candidate)
+	    (progn
+	      (load candidate nil t t)
+	      (setq lang/js--config-loaded t))
+	  (message "[lang/js] Optional js-config.el not found at %s" candidate))))))
 
 (lang/js--maybe-load-config)
 (add-hook 'after-init-hook #'lang/js--maybe-load-config)
