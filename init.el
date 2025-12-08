@@ -150,6 +150,11 @@
   ;; Global keymaps (leader/localleader + DWIM). Kept separate from Evil setup.
   (ignore-errors (require 'editing/keys)))
 
+;; macOS-specific interactive tweaks (e.g., free M-SPC for Bépo underscore)
+(when (and (or hub/force-interactive (and (featurep 'core-predicates) (hub/interactive-p)))
+	   (eq system-type 'darwin))
+  (require 'os/darwin))
+
 ;; Load language configuration (autoloads, treesit sources/remaps, language servers)
 (ignore-errors (require 'lang/treesit-config))
 (ignore-errors (require 'lang/scala))
