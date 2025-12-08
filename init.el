@@ -359,6 +359,7 @@
   (unless (getenv "HUB_CI_SKIP_OPTIONALS")
     (require 'tools/ai))
   (require 'apps/elfeed)
+  (require 'video/tjm)
   (require 'email/core))
 ;; Load private, machine-specific settings if present (new path first, legacy second)
 (let ((private-new (expand-file-name "private/setup.el" user-emacs-directory))
