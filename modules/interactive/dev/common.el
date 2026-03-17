@@ -133,7 +133,8 @@
 ;; Help/UI niceties
 ;; Enable which-function only in programming buffers to avoid mode-line hook
 ;; errors in special buffers (e.g., Treemacs, magit status, etc.).
-(add-hook 'prog-mode-hook (lambda () (which-function-mode 1)))
+(setq which-func-modes '(prog-mode))
+(add-hook 'prog-mode-hook (lambda () (unless which-function-mode (which-function-mode 1))))
 (define-key evil-normal-state-map (kbd ",hI") 'info)
 (use-package whitespace
   :diminish global-whitespace-mode

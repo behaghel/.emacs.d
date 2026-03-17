@@ -7,10 +7,31 @@
 ;;; Code:
 
 (require 'hub-utils)
-(defvar org-directory (expand-file-name "org/" (or (getenv "HOME") "~"))
+(defvar org-directory (expand-file-name "Documents/org/" (or (getenv "HOME") "~"))
   "Base directory for Org files.
 This is overridden by `org/core' during init. Consumers should not
 capture its value at load time; compute paths at call time instead.")
+
+(defvar hub/speed-dial--registry nil
+  "Hash table mapping speed-dial keys to their open functions.")
+
+(defun hub/speed-dial--const-fn (value)
+  "Return a no-arg function that yields VALUE without needing lexical scope."
+  (eval `(lambda () ,value)))
+
+(defun hub/speed-dial--find-file-fn (path-fn)
+  "Return a function that visits the PATH-FN result without lexical scope."
+  (eval `(lambda () (find-file (funcall ,path-fn)))))
+
+(defun hub/speed-dial--file-with-tree-fn (persp path)
+  "Return a function that switches to PERSP and opens PATH, showing Treemacs."
+  (eval
+   `(lambda ()
+      (interactive)
+      (let ((exists (member ,persp (persp-names))))
+	(persp-switch ,persp)
+	(find-file ,path)
+	(unless exists (hub/open-treemacs-sidebar))))))
 
 (use-package perspective
   :defer t
@@ -33,18 +54,76 @@ capture its value at load time; compute paths at call time instead.")
   :init
   (persp-mode)
   :config
-  (defun hub/speed-dial (key persp &optional fpath command)
-    (let* ((path-form (cond
-		       ((and fpath (functionp fpath)) `(find-file (funcall ,fpath)))
-		       ((and fpath (listp fpath) (eq (car-safe fpath) 'lambda)) `(find-file (funcall ,fpath)))
-		       (fpath `(find-file ,fpath))
-		       (t nil)))
-	   (f `(lambda ()
-		 (interactive)
-		 (persp-switch ,persp)
-		 ,@ (when path-form (list path-form))
-		 ,@ (when command `((,command))))))
-      (define-key evil-normal-state-map (kbd (concat ",o" key)) (eval f))))
+  (defun hub/speed-dial--open-fn (persp &optional path-fn command)
+    "Return an interactive function to switch to PERSP and run helpers.
+PATH-FN, when non-nil, is called after the switch to open a file.
+COMMAND, when non-nil, is funcalled after the switch/path."
+    ;; Build with constants so it works even when lexical-binding is disabled.
+    (eval
+     `(lambda ()
+	(interactive)
+	(persp-switch ,persp)
+	,@(when path-fn
+	    `((when ,path-fn (funcall ,path-fn))))
+	,@(when command
+	    `((when ,command (funcall ,command)))))))
+
+  (defun hub/speed-dial--lookup (key)
+    "Return OPEN-FN for KEY from `hub/speed-dial--registry', or nil."
+    (when (hash-table-p hub/speed-dial--registry)
+      (gethash key hub/speed-dial--registry)))
+
+  (defun hub/speed-dial--lookup-or-error (key)
+    "Return OPEN-FN for KEY, raising if not registered."
+    (or (hub/speed-dial--lookup key)
+	(user-error "No speed-dial binding registered for %s" key)))
+
+  (defun hub/speed-dial--register (key open-fn)
+    "Store OPEN-FN under KEY for reuse."
+    (unless (hash-table-p hub/speed-dial--registry)
+      (setq hub/speed-dial--registry (make-hash-table :test #'equal)))
+    (puthash key open-fn hub/speed-dial--registry))
+
+  (defun hub/speed-dial--command (key)
+    "Return an interactive command that runs the speed-dial OPEN-FN for KEY."
+    (eval
+     `(lambda ()
+	(interactive)
+	(funcall (hub/speed-dial--lookup-or-error ,key)))))
+
+  (defun hub/speed-dial--resume (key persp)
+    "Return an interactive command that resumes PERSP or opens via KEY."
+    (eval
+     `(lambda ()
+	(interactive)
+	(if (member ,persp (persp-names))
+	    (persp-switch ,persp)
+	  (funcall (hub/speed-dial--lookup-or-error ,key))))))
+
+  (defun hub/speed-dial--binding-persp (binding)
+    "Return the perspective name for BINDING entry, or nil."
+    (pcase binding
+      (`(,_ perspective ,persp) persp)
+      (`(,_ file ,_ ,persp) persp)
+      (`(,_ file-with-tree ,_ ,persp) persp)
+      (`(,_ command ,_ ,persp) persp)))
+
+  (defun hub/speed-dial--define (key persp key-persps open-fn)
+    "Define ,oKEY to OPEN-FN and ,o(KEY uppercased) to resume PERSP.
+KEY-PERSPS is an alist of keys to their perspectives, used to avoid
+overwriting intentional uppercase bindings that target other spaces."
+    (hub/speed-dial--register key open-fn)
+    (define-key evil-normal-state-map (kbd (concat ",o" key))
+		(hub/speed-dial--command key))
+    (let* ((resume-key (upcase key))
+	   (existing (assoc-string resume-key key-persps))
+	   (same-persp (and existing (string= (cdr existing) persp))))
+      (when (and (not (equal resume-key key))
+		 (or (not existing) same-persp))
+	;; Resume-key shares OPEN-FN from KEY; stash for clarity.
+	(hub/speed-dial--register resume-key open-fn)
+	(define-key evil-normal-state-map (kbd (concat ",o" resume-key))
+		    (hub/speed-dial--resume key persp)))))
 
   (defun hub/open-treemacs-sidebar ()
     "Ensure Treemacs is open as a sidebar without stealing focus."
@@ -57,14 +136,12 @@ capture its value at load time; compute paths at call time instead.")
 	    (select-window win))))))
 
   (setq hub/speed-dial-items
-	`(("E" perspective ".emacs.d")
-	  ("e" file-with-tree ,(expand-file-name "init.el" user-emacs-directory) ".emacs.d")
+	`(("e" file-with-tree ,(expand-file-name "init.el" user-emacs-directory) ".emacs.d")
 	  ("n" file "~/nixos-config/configurations/home/hubertbehaghel.nix" "nixos-config")
 	  ("O" perspective "org")
 	  ("i" file ,(lambda () (concat org-directory "inbox.org")) "org")
 	  ("h" file ,(lambda () (concat org-directory "hubert.org")) "org")
 	  ("m" command mu4e-sidebar "mails")
-	  ("M" perspective "mails")
 	  ("d" perspective "main")
 	  ("f" command elfeed "feeds")
 	  ("t" command treemacs "Treemacs")
@@ -72,25 +149,33 @@ capture its value at load time; compute paths at call time instead.")
 
   (defun hub/setup-speed-dial ()
     "Install ',o' speed-dial bindings from `hub/speed-dial-items'."
-    (dolist (binding hub/speed-dial-items)
-      (pcase binding
-	(`(,key perspective ,persp) (hub/speed-dial key persp))
-	(`(,key file ,path ,persp) (hub/speed-dial key persp path))
-	(`(,key file-with-tree ,path ,persp)
-	 (let ((fn `(lambda ()
-		      (interactive)
-		      (let ((exists (member ,persp (persp-names))))
-			(persp-switch ,persp)
-			(find-file ,path)
-			(unless exists (hub/open-treemacs-sidebar))))))
-	   (define-key evil-normal-state-map (kbd (concat ",o" key)) (eval fn))))
-	(`(,key command ,cmd ,persp) (hub/speed-dial key persp nil cmd)))))
+    (setq hub/speed-dial--registry (make-hash-table :test #'equal))
+    (let ((key-persps (delq nil
+			    (mapcar (lambda (binding)
+				      (let ((persp (hub/speed-dial--binding-persp binding)))
+					(when persp (cons (car binding) persp))))
+				    hub/speed-dial-items))))
+      (dolist (binding hub/speed-dial-items)
+	(pcase binding
+	  (`(,key perspective ,persp)
+	   (hub/speed-dial--define key persp key-persps
+				   (hub/speed-dial--open-fn persp)))
+	  (`(,key file ,path ,persp)
+	   (let* ((path-fn (cond
+			    ((and path (functionp path)) path)
+			    ((and path (listp path) (eq (car-safe path) 'lambda)) path)
+			    (path (hub/speed-dial--const-fn path))))
+		  (open-fn (hub/speed-dial--open-fn
+			    persp
+			    (when path-fn (hub/speed-dial--find-file-fn path-fn)))))
+	     (hub/speed-dial--define key persp key-persps open-fn)))
+	  (`(,key file-with-tree ,path ,persp)
+	   (hub/speed-dial--define key persp key-persps
+				   (hub/speed-dial--file-with-tree-fn persp path)))
+	  (`(,key command ,cmd ,persp)
+	   (hub/speed-dial--define key persp key-persps
+				   (hub/speed-dial--open-fn persp nil cmd)))))))
   (hub/setup-speed-dial)
-
-  ;; Uppercase switch-only convenience bindings
-  (define-key evil-normal-state-map (kbd ",oM") (lambda () (interactive) (persp-switch "mails")))
-  (define-key evil-normal-state-map (kbd ",oE") (lambda () (interactive) (persp-switch ".emacs.d")))
-  (define-key evil-normal-state-map (kbd ",oN") (lambda () (interactive) (persp-switch "nixos-config")))
 
   (defun mu4e-sidebar ()
     (interactive)

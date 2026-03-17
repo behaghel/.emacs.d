@@ -39,6 +39,8 @@
 (ignore-errors (require 'core-predicates))
 ;; CI override: allow forcing interactive layer loading without predicates
 (defvar hub/force-interactive (getenv "HUB_FORCE_FULL_LOAD"))
+(defvar hub/skip-server (getenv "HUB_SKIP_SERVER")
+  "When set, skip starting the Emacs server (useful in sandboxed environments).")
 
 ;; CI optimizations for straight.el: avoid modification checks and use shallow clones.
 (when (getenv "GITHUB_ACTIONS")
@@ -72,6 +74,21 @@
 (add-to-list 'load-path (expand-file-name "modules/lang" user-emacs-directory))
 (when (or hub/force-interactive (and (featurep 'core-predicates) (hub/interactive-p)))
   (add-to-list 'load-path (expand-file-name "modules/interactive" user-emacs-directory)))
+
+(defvar hub/private-setup-loaded nil
+  "Non-nil once private setup has been loaded.")
+
+(defun hub/load-private-setup ()
+  "Load machine-specific setup once, preferring `private/setup.el'."
+  (unless hub/private-setup-loaded
+    (let ((private-new (expand-file-name "private/setup.el" user-emacs-directory))
+	  (private-legacy (expand-file-name "settings/setup-private.el" user-emacs-directory)))
+      (cond
+       ((file-exists-p private-new) (load private-new t) (setq hub/private-setup-loaded t))
+       ((file-exists-p private-legacy) (load private-legacy t) (setq hub/private-setup-loaded t))))))
+
+;; Load private overrides before modules consume path/account variables.
+(hub/load-private-setup)
 
 (setq user-mail-address "behaghel@gmail.com")
 (setq user-full-name "Hubert Behaghel")
@@ -140,7 +157,7 @@
 (defun hub/ensure-server-started ()
   "Start the Emacs server unless it is already running."
   (require 'server)
-  (unless (server-running-p)
+  (unless (or hub/skip-server (server-running-p))
     (server-start)))
 
 (when (or hub/force-interactive (and (featurep 'core-predicates) (hub/interactive-p)))
@@ -366,12 +383,6 @@
   (require 'apps/elfeed)
   (require 'video/tjm)
   (require 'email/core))
-;; Load private, machine-specific settings if present (new path first, legacy second)
-(let ((private-new (expand-file-name "private/setup.el" user-emacs-directory))
-      (private-legacy (expand-file-name "settings/setup-private.el" user-emacs-directory)))
-  (cond
-   ((file-exists-p private-new) (load private-new t))
-   ((file-exists-p private-legacy) (load private-legacy t))))
 
 ;; (use-package use-package-ensure-system-package
 ;;   :ensure t)

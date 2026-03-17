@@ -36,7 +36,9 @@
 (defun lang/js--maybe-load-config (&rest _)
   "Load the full JS configuration when straight/use-package are available."
   (unless lang/js--config-loaded
-    (when (and lang/js--module-dir
+    ;; Keep batch tasks (e.g., Org export) independent from optional JS packages.
+    (when (and (not noninteractive)
+	       lang/js--module-dir
 	       (fboundp 'use-package)
 	       (fboundp 'straight-use-package))
       (let* ((candidate (expand-file-name "js-config.el" lang/js--module-dir)))

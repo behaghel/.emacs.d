@@ -98,24 +98,30 @@
 
 (defun hub/persp--treemacs-align-to-project (proj &optional ensure-visible)
   "Ensure Treemacs shows PROJ's root. When ENSURE-VISIBLE, open Treemacs first."
-  (when (and proj (fboundp 'treemacs))
-    (let ((default-directory (car (project-roots proj))))
-      (when (or ensure-visible (hub/persp--treemacs-visible-p))
-	(cond
-	 ((fboundp 'treemacs-add-and-display-current-project-exclusively)
-	  (ignore-errors (treemacs-add-and-display-current-project-exclusively)))
-	 ((fboundp 'treemacs-display-current-project-exclusively)
-	  (ignore-errors (treemacs-display-current-project-exclusively)))
-	 ((fboundp 'treemacs-add-and-display-current-project)
-	  (ignore-errors (treemacs-add-and-display-current-project)))
-	 ((and (hub/persp--treemacs-visible-p) (fboundp 'treemacs-find-file))
-	  (ignore-errors (treemacs-find-file)))
-	 ((and ensure-visible (fboundp 'treemacs))
-	  (ignore-errors (treemacs))))
-	(when (fboundp 'treemacs-project-follow-mode)
-	  (treemacs-project-follow-mode 1))
-	(when (and hub/persp-treemacs-follow (fboundp 'treemacs-follow-mode))
-	  (treemacs-follow-mode 1))))))
+  (when proj
+    (require 'treemacs nil 'noerror)
+    (when (fboundp 'treemacs)
+      (let ((default-directory (car (project-roots proj))))
+	(when ensure-visible
+	  ;; Make sure Treemacs is displayed before aligning.
+	  (ignore-errors (treemacs)))
+	(when (or ensure-visible (hub/persp--treemacs-visible-p))
+	  (cond
+	   ((fboundp 'treemacs-add-and-display-current-project-exclusively)
+	    (ignore-errors (treemacs-add-and-display-current-project-exclusively)))
+	   ((fboundp 'treemacs-display-current-project-exclusively)
+	    (ignore-errors (treemacs-display-current-project-exclusively)))
+	   ((fboundp 'treemacs-add-and-display-current-project)
+	    (ignore-errors (treemacs-add-and-display-current-project)))
+	   ((and (hub/persp--treemacs-visible-p) (fboundp 'treemacs-find-file))
+	    (ignore-errors (treemacs-find-file)))
+	   ((and ensure-visible (fboundp 'treemacs))
+	    (ignore-errors (treemacs))))
+	  ;; Re-enable follow modes each time to recover if a buffer reset them.
+	  (when (fboundp 'treemacs-project-follow-mode)
+	    (treemacs-project-follow-mode 1))
+	  (when (and hub/persp-treemacs-follow (fboundp 'treemacs-follow-mode))
+	    (treemacs-follow-mode 1)))))))
 
 (defun hub/persp--treemacs-visible-p ()
   "Return non-nil when Treemacs has a visible window in this frame."

@@ -735,6 +735,33 @@ Actions   ;a a message  ;a m mime part  ;y u copy URL
   (define-key mu4e-search-minor-mode-map (kbd "à") #'hub/mu4e-search-mark-refile)
   (define-key mu4e-search-minor-mode-map (kbd "ç") #'hub/mu4e-search-mark-spam))
 
+(defun hub/mu4e-setup-evil-initial-states ()
+  "Set stable Evil initial states for mu4e modes.
+Keeps navigation modes in normal state while preserving insert state for
+`mu4e-compose-mode'."
+  (when (featurep 'evil)
+    (dolist (mode '(mu4e-main-mode
+		    mu4e-headers-mode
+		    mu4e-view-mode
+		    mu4e-org-mode
+		    mu4e-thread-mode))
+      (evil-set-initial-state mode 'normal))
+    (evil-set-initial-state 'mu4e-compose-mode 'insert)))
+
+(defun hub/mu4e-ensure-evil-normal-state ()
+  "Force Evil normal state in mu4e navigation buffers.
+This protects against package init ordering that can reopen mu4e buffers in
+Emacs state and break single-key bindings."
+  (when (and (featurep 'evil)
+	     (not (minibufferp))
+	     (derived-mode-p 'mu4e-main-mode
+			     'mu4e-headers-mode
+			     'mu4e-view-mode
+			     'mu4e-org-mode
+			     'mu4e-thread-mode)
+	     (not (evil-normal-state-p)))
+    (evil-normal-state)))
+
 (defun hub/mu4e-apply-evil-bindings ()
   "Ensure hub mu4e bindings are applied in Evil normal state."
   (when (and (boundp 'mu4e-headers-mode-map) (featurep 'evil))
@@ -761,9 +788,20 @@ Actions   ;a a message  ;a m mime part  ;y u copy URL
 
 (add-hook 'mu4e-headers-mode-hook #'hub/mu4e-apply-evil-bindings)
 (add-hook 'mu4e-view-mode-hook #'hub/mu4e-apply-evil-bindings)
-(with-eval-after-load 'mu4e (hub/mu4e-apply-evil-bindings))
-(with-eval-after-load 'evil-collection-mu4e (hub/mu4e-apply-evil-bindings))
-(with-eval-after-load 'evil (hub/mu4e-apply-evil-bindings))
+(add-hook 'mu4e-main-mode-hook #'hub/mu4e-ensure-evil-normal-state)
+(add-hook 'mu4e-headers-mode-hook #'hub/mu4e-ensure-evil-normal-state)
+(add-hook 'mu4e-view-mode-hook #'hub/mu4e-ensure-evil-normal-state)
+(add-hook 'mu4e-org-mode-hook #'hub/mu4e-ensure-evil-normal-state)
+(add-hook 'mu4e-thread-mode-hook #'hub/mu4e-ensure-evil-normal-state)
+(with-eval-after-load 'mu4e
+  (hub/mu4e-setup-evil-initial-states)
+  (hub/mu4e-apply-evil-bindings))
+(with-eval-after-load 'evil-collection-mu4e
+  (hub/mu4e-setup-evil-initial-states)
+  (hub/mu4e-apply-evil-bindings))
+(with-eval-after-load 'evil
+  (hub/mu4e-setup-evil-initial-states)
+  (hub/mu4e-apply-evil-bindings))
 
 (with-eval-after-load 'gnus-art
   ;; Keep `t`/`s` free for line motions; move part picker to `T`.

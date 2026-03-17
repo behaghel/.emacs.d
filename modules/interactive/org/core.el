@@ -6,12 +6,13 @@
 ;;; Code:
 
 (require 'hub-utils)
+(require 'seq)
 
 (defgroup hub/org nil
   "Customizations for Org paths."
   :group 'org)
 
-(defcustom hub/org-directory "~/Dropbox/Documents/org/"
+(defcustom hub/org-directory "~/Documents/org/"
   "Default Org directory. Set to nil to avoid overriding."
   :type '(choice (const :tag "Do not override" nil) directory)
   :group 'hub/org)
@@ -26,7 +27,54 @@
   :type 'file
   :group 'hub/org)
 
+(defcustom hub/org-agenda-file-names '("hubert.org" "inbox.org" "gcal-gmail.org")
+  "Agenda file names relative to `org-directory'."
+  :type '(repeat string)
+  :group 'hub/org)
+
+(defun hub/org--normalize-agenda-files (value)
+  "Return VALUE as a list of file paths, or nil.
+Accepts a single string or a list of strings."
+  (cond
+   ((null value) nil)
+   ((stringp value) (list value))
+   ((listp value) value)
+   (t nil)))
+
+(defun hub/org-existing-agenda-files ()
+  "Return agenda files that currently exist on disk.
+Uses `org-agenda-files' when set, otherwise `hub/org-agenda-file-names'."
+  (let* ((candidates (or (hub/org--normalize-agenda-files (bound-and-true-p org-agenda-files))
+			 (mapcar (lambda (file)
+				   (expand-file-name file org-directory))
+				 hub/org-agenda-file-names)))
+	 (expanded (mapcar #'expand-file-name candidates)))
+    (seq-filter #'file-exists-p expanded)))
+
+(defun hub/org-prune-missing-agenda-files (&optional quiet)
+  "Remove missing files from `org-agenda-files'.
+When QUIET is non-nil, do not emit informational messages."
+  (interactive)
+  (let* ((candidates (or (hub/org--normalize-agenda-files org-agenda-files)
+			 (mapcar (lambda (file)
+				   (expand-file-name file org-directory))
+				 hub/org-agenda-file-names)))
+	 (expanded (mapcar #'expand-file-name candidates))
+	 (existing (seq-filter #'file-exists-p expanded))
+	 (missing (seq-remove #'file-exists-p expanded)))
+    (setq org-agenda-files existing)
+    (unless (or quiet (null missing))
+      (message "[org] removed missing agenda files: %s"
+	       (mapconcat #'abbreviate-file-name missing ", ")))
+    existing))
+
 (when hub/org-directory (setq org-directory hub/org-directory))
+
+(defun hub/org-setup-wrapping ()
+  "Use soft wrapping in Org buffers and avoid hard line breaks."
+  (auto-fill-mode -1)
+  (visual-line-mode 1)
+  (setq-local comment-auto-fill-only-comments nil))
 
 (use-package org
   :straight (:depth full)
@@ -57,14 +105,15 @@
 	org-footnote-auto-adjust t
 	org-cycle-separator-lines 0
 	org-archive-location "archive/%s_archive::datetree/")
-  (add-hook 'org-mode-hook (lambda () (setq-local comment-auto-fill-only-comments nil)))
+  (add-hook 'org-mode-hook #'hub/org-setup-wrapping)
 
   ;; Agenda + capture
   (setq org-agenda-window-setup 'other-window
-	org-default-notes-file (concat org-directory "inbox.org")
-	org-agenda-files (list (concat org-directory "hubert.org")
-			       (concat org-directory "inbox.org")
-			       (concat org-directory "gcal-gmail.org")))
+	org-default-notes-file (expand-file-name "inbox.org" org-directory)
+	org-agenda-files (mapcar (lambda (file)
+				   (expand-file-name file org-directory))
+				 hub/org-agenda-file-names))
+  (hub/org-prune-missing-agenda-files t)
   (require 'org-protocol)
   (setq org-capture-templates
 	'(("i" "inbox" entry (file org-default-notes-file) "* TODO %?" :prepend t)
@@ -108,6 +157,12 @@
   (setq org-re-reveal-root hub/org-re-reveal-root)
   (setq org-plantuml-jar-path hub/org-plantuml-jar)
   (add-to-list 'org-src-lang-modes '("plantuml" . plantuml))
+  ;; Keep TS/TSX source blocks independent from external language packages.
+  ;; `js-mode' gives stable highlighting for export without requiring
+  ;; `typescript-mode' or Tree-sitter grammars.
+  (add-to-list 'org-src-lang-modes '("typescript" . js))
+  (add-to-list 'org-src-lang-modes '("ts" . js))
+  (add-to-list 'org-src-lang-modes '("tsx" . js))
   (setq org-html-htmlize-output-type 'css
 	org-html-head-include-default-style nil)
 

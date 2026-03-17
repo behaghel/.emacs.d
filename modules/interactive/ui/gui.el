@@ -6,6 +6,36 @@
 ;;; Code:
 
 (require 'hub-utils)
+
+(defgroup hub/dashboard nil
+  "Customizations for dashboard startup data."
+  :group 'convenience)
+
+(defcustom hub/dashboard-workspace-roots '("~/ws/")
+  "Directories containing project folders to seed `project.el'."
+  :type '(repeat directory)
+  :group 'hub/dashboard)
+
+(defun hub/dashboard--workspace-projects ()
+  "Return direct child directories from `hub/dashboard-workspace-roots'."
+  (let (result)
+    (dolist (root hub/dashboard-workspace-roots (nreverse result))
+      (let ((expanded-root (expand-file-name root)))
+	(when (file-directory-p expanded-root)
+	  (dolist (entry (directory-files expanded-root t directory-files-no-dot-files-regexp t))
+	    (when (file-directory-p entry)
+	      (push (file-name-as-directory entry) result))))))))
+
+(defun hub/dashboard-seed-project-list ()
+  "Ensure `project.el' knows workspace projects before dashboard renders."
+  (require 'project)
+  (condition-case err
+      (dolist (project-root (hub/dashboard--workspace-projects))
+	(when (file-directory-p (expand-file-name ".git" project-root))
+	  (project-remember-project project-root)))
+    (error
+     (message "[dashboard] failed to seed projects: %s"
+	      (error-message-string err)))))
 (use-package modus-themes
   :demand t
   :bind (:map evil-normal-state-map (",zk" . modus-themes-toggle))
@@ -53,22 +83,54 @@
   ;; Ensure recentf is enabled so Recents has data
   (require 'recentf)
   (require 'seq)
+  (require 'project)
   (recentf-mode 1)
+  (ignore-errors (recentf-load-list))
+  (hub/dashboard-seed-project-list)
+  (ignore-errors (project-known-project-roots))
   (setq dashboard-set-heading-icons t
 	dashboard-set-file-icons t
 	dashboard-set-navigator t)
   (dashboard-setup-startup-hook)
-  (setq dashboard-projects-switch-function 'project-switch-project
+  (setq dashboard-projects-backend 'project-el
+	dashboard-projects-switch-function 'project-switch-project
 	dashboard-filter-agenda-entry 'dashboard-filter-agenda-by-todo
-	dashboard-items '((agenda . 8) (denote . 5) (projects . 5) (recents . 5) (bookmarks . 5)))
+	dashboard-items '((recents . 8) (projects . 8) (bookmarks . 5) (denote . 5) (agenda . 5)))
+
+  (defun hub/dashboard-insert-agenda-safe (list-size)
+    "Insert Agenda section without breaking dashboard startup."
+    (condition-case err
+	(progn
+	  (when (fboundp 'hub/org-prune-missing-agenda-files)
+	    (hub/org-prune-missing-agenda-files t))
+	  (with-timeout (2.0 (error "Agenda generation timed out"))
+	    (dashboard-insert-agenda list-size)))
+      (error (message "[dashboard] skipping agenda section: %s" (error-message-string err)))))
+
+  (setf (alist-get 'agenda dashboard-item-generators) #'hub/dashboard-insert-agenda-safe)
+
+  (defun hub/dashboard--denote-dirs ()
+    "Return existing denote directories, or nil when unavailable."
+    (when (boundp 'denote-directory)
+      (let* ((dirs (if (listp denote-directory) denote-directory (list denote-directory))))
+	(seq-filter #'file-directory-p dirs))))
+
   (defun dashboard-insert-denote (list-size)
-    (let ((recent-notes (seq-sort-by #'file-name-nondirectory
-				     (lambda (x y) (string-lessp y x))
-				     (denote-directory-files))))
-      (insert (all-the-icons-octicon "repo" :height 1.2 :v-adjust 0.0 :face 'dashboard-heading))
-      (dashboard-insert-section "Recent Notes:" recent-notes list-size 'notes "n"
-				`(lambda (&rest ignore) (find-file-existing ,el))
-				(denote-retrieve-title-value el (denote-filetype-heuristics el)))))
+    (condition-case err
+	(with-timeout (1.5 (error "Denote scan timed out"))
+	  (let* ((dirs (hub/dashboard--denote-dirs))
+		 (denote-ok (and (require 'denote nil 'noerror) dirs)))
+	    (when denote-ok
+	      (let* ((denote-directory dirs)
+		     (recent-notes (seq-sort-by #'file-name-nondirectory
+						(lambda (x y) (string-lessp y x))
+						(denote-directory-files))))
+		(when recent-notes
+		  (insert (all-the-icons-octicon "repo" :height 1.2 :v-adjust 0.0 :face 'dashboard-heading))
+		  (dashboard-insert-section "Recent Notes:" recent-notes list-size 'notes "n"
+					    `(lambda (&rest ignore) (find-file-existing ,el))
+					    (denote-retrieve-title-value el (denote-filetype-heuristics el))))))))
+      (error (message "[dashboard] skipping denote section: %s" (error-message-string err)))))
   (add-to-list 'dashboard-item-generators '(denote . dashboard-insert-denote))
 
   ;; Hide Maildir entries from the Recent Files section while keeping them in recentf.

@@ -5,21 +5,25 @@
 (require 'js)
 (require 'cl-lib)
 
-(use-package typescript-mode
-  :after tree-sitter
+(use-package typescript-ts-mode
+  :straight (:type built-in)
+  :mode (("\\.ts\\'" . typescript-ts-mode)
+	 ("\\.tsx\\'" . tsx-ts-mode))
   :config
-  (require 'typescript-ts-mode)
-  (define-derived-mode typescriptreact-mode typescript-mode "TypeScript TSX")
-  (define-derived-mode typescriptreact-ts-mode typescript-ts-mode "TypeScript TSX")
-  (add-to-list 'auto-mode-alist '("\\.tsx?\\'" . typescriptreact-mode))
-  (add-to-list 'tree-sitter-major-mode-language-alist '(typescriptreact-mode . tsx)))
+  ;; Compatibility aliases used elsewhere in this config.
+  (define-derived-mode typescriptreact-mode tsx-ts-mode "TypeScript TSX")
+  (define-derived-mode typescriptreact-ts-mode tsx-ts-mode "TypeScript TSX")
+  (when (boundp 'tree-sitter-major-mode-language-alist)
+    (add-to-list 'tree-sitter-major-mode-language-alist '(typescriptreact-mode . tsx))
+    (add-to-list 'tree-sitter-major-mode-language-alist '(typescriptreact-ts-mode . tsx))))
 
 (use-package tsi
   :after tree-sitter
   :straight (:type git :host github :repo "orzechowskid/tsi.el")
   :commands (tsi-typescript-mode tsi-json-mode tsi-css-mode)
   :init
-  (add-hook 'typescript-mode-hook (lambda () (tsi-typescript-mode 1)))
+  (add-hook 'typescript-ts-mode-hook (lambda () (tsi-typescript-mode 1)))
+  (add-hook 'tsx-ts-mode-hook (lambda () (tsi-typescript-mode 1)))
   (add-hook 'json-mode-hook (lambda () (tsi-json-mode 1)))
   (add-hook 'css-mode-hook (lambda () (tsi-css-mode 1)))
   (add-hook 'scss-mode-hook (lambda () (tsi-scss-mode 1))))

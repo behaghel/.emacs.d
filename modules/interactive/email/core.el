@@ -25,29 +25,67 @@
 ;; Respect mu4e/mu provided by external environment (e.g., Nix home-manager extraConfig)
 ;; Prefer an existing mu4e on `load-path`; fall back to probing standard locations.
 
-(defun hub/add-mu4e-load-path ()
-  "Attempt to add mu4e elisp to `load-path` based on detected mu binary.
+(defun hub/mu--version-from-bin (mu-bin)
+  "Return MU binary version string for MU-BIN, or nil when unavailable."
+  (when mu-bin
+    (let* ((out (shell-command-to-string (format "\"%s\" --version" mu-bin)))
+	   (parts (split-string out "[ \n\r\t]+" t)))
+      (cl-find-if (lambda (part)
+		    (string-match-p "\\`[0-9]+\\.[0-9]+\\.[0-9]+\\'" part))
+		  parts))))
+
+(defun hub/mu4e--nix-candidates (mu-version)
+  "Return candidate mu4e load-paths for Nix installs matching MU-VERSION."
+  (let* ((version (and (stringp mu-version)
+		       (string-match "\\`[0-9]+\\.[0-9]+\\.[0-9]+\\'" mu-version)
+		       mu-version))
+	 (profiles (delete-dups
+		    (append (split-string (or (getenv "NIX_PROFILES") "") " " t)
+			    (list (expand-file-name "~/.nix-profile"))))))
+    (append
+     (when version
+       (file-expand-wildcards
+	(format "/nix/store/*mu4e-%s*/share/emacs/site-lisp/elpa/mu4e-%s" version version)))
+     (cl-loop for profile in profiles append
+	      (file-expand-wildcards
+	       (expand-file-name
+		(if version
+		    (format "share/emacs/site-lisp/elpa/mu4e-%s" version)
+		  "share/emacs/site-lisp/elpa/mu4e-*")
+		profile))))))
+
+(defun hub/add-mu4e-load-path (&optional mu-bin mu-version)
+  "Attempt to add mu4e elisp to `load-path` based on MU-BIN and MU-VERSION.
 Returns the resolved mu binary path (or nil)."
-  (let* ((mu-bin (executable-find "mu"))
+  (let* ((mu-bin (or mu-bin (executable-find "mu")))
+	 (mu-version (or mu-version (hub/mu--version-from-bin mu-bin)))
 	 (prefix (when mu-bin (expand-file-name ".." (file-name-directory mu-bin))))
-	 (candidates (list (when prefix (expand-file-name "share/emacs/site-lisp/mu/mu4e" prefix))
-			   (when prefix (expand-file-name "share/emacs/site-lisp/mu4e" prefix))
-			   "/usr/local/share/emacs/site-lisp/mu/mu4e"
-			   "/usr/local/share/emacs/site-lisp/mu4e"
-			   "/usr/share/emacs/site-lisp/mu/mu4e"
-			   "/usr/share/emacs/site-lisp/mu4e")))
+	 (candidates (append (hub/mu4e--nix-candidates mu-version)
+			     (list (when prefix (expand-file-name "share/emacs/site-lisp/mu/mu4e" prefix))
+				   (when prefix (expand-file-name "share/emacs/site-lisp/mu4e" prefix))
+				   "/usr/local/share/emacs/site-lisp/mu/mu4e"
+				   "/usr/local/share/emacs/site-lisp/mu4e"
+				   "/usr/share/emacs/site-lisp/mu/mu4e"
+				   "/usr/share/emacs/site-lisp/mu4e"))))
     (cl-loop for dir in candidates do
 	     (when (and dir (file-directory-p dir))
 	       (add-to-list 'load-path dir)
 	       (cl-return)))
     mu-bin))
 
+(defun hub/mu4e--lib-matches-version (lib mu-version)
+  "Return non-nil when mu4e LIB path matches MU-VERSION."
+  (and lib mu-version
+       (string-match-p (format "mu4e-%s" (regexp-quote mu-version)) lib)))
+
 (defun hub/ensure-mu4e-loaded ()
   "Load mu4e from environment if available; fallback to probing common paths."
   (unless (featurep 'mu4e)
-    (let ((lib (locate-library "mu4e")))
-      (unless lib
-	(hub/add-mu4e-load-path)
+    (let* ((mu-bin (executable-find "mu"))
+	   (mu-version (hub/mu--version-from-bin mu-bin))
+	   (lib (locate-library "mu4e")))
+      (unless (and lib (hub/mu4e--lib-matches-version lib mu-version))
+	(hub/add-mu4e-load-path mu-bin mu-version)
 	(setq lib (locate-library "mu4e")))
       (when lib (require 'mu4e)))))
 

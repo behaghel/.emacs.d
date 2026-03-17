@@ -5,6 +5,11 @@
 
 ;;; Code:
 
+;; Some older Custom snippets rely on a dynamically scoped `thisfile` during
+;; `after-load-functions`; define it to avoid void-variable errors when loading
+;; this module in isolated/batch setups.
+(defvar thisfile nil)
+
 (use-package treemacs
   :after (doom-themes evil)
   :bind (("M-0"       . treemacs-select-window)
@@ -36,7 +41,12 @@
   (doom-themes-treemacs-config)
 
   ;; Treemacs buffers don’t need which-function-mode; avoid mode-line hook errors
-  (add-hook 'treemacs-mode-hook (lambda () (setq-local which-function-mode nil)))
+  (add-hook 'treemacs-mode-hook
+	    (lambda ()
+	      ;; Disable which-function and its hooks to avoid nil buffer errors.
+	      (setq-local which-function-mode nil)
+	      (remove-hook 'find-file-hook #'which-function-ff-hook t)
+	      (remove-hook 'after-save-hook #'which-function-imenu-setup t)))
 
   (with-eval-after-load 'evil-collection
     (evil-collection-define-key 'normal 'global
