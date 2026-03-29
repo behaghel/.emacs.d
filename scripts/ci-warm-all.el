@@ -55,7 +55,7 @@
 			   editing/evil completion/core navigation/treemacs
 			   vcs/git navigation/dired shell/eshell
 			   org/core notes/brain tools/blog tools/ai
-			   apps/elfeed video/tjm
+			   apps/elfeed video/eve
 			   email/core email/contexts email/bookmarks email/view))
        (present (seq-filter (lambda (f) (featurep f)) expected))
        (missing (seq-remove (lambda (f) (featurep f)) expected))

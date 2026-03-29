@@ -11,13 +11,6 @@
 ;; In PR CI runs, skip optional/network-heavy modules (AI, notes) to avoid clones
 (setenv "HUB_CI_SKIP_OPTIONALS" "1")
 
-;; Disable straight network ops and stub use-package in CI.
-(setq straight-use-package-by-default nil)
-(defun straight-use-package (&rest _args) t)
-(unless (fboundp 'use-package)
-  (defmacro use-package (name &rest _args)
-    `(progn (provide ',name))))
-
 ;; Capture straight.el process output on failure so CI logs include details
 (defun hub/ci--setup-straight-logging ()
   (with-eval-after-load 'straight
@@ -66,7 +59,7 @@
 			   editing/evil completion/core navigation/treemacs
 			   vcs/git navigation/dired shell/eshell
 			   org/core notes/brain tools/blog tools/ai
-			   apps/elfeed video/tjm
+			   apps/elfeed video/eve
 			   email/core email/contexts email/bookmarks email/view))
        (present (seq-filter (lambda (f) (featurep f)) expected))
        (missing (seq-remove (lambda (f) (featurep f)) expected))

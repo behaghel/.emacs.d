@@ -381,7 +381,7 @@
   (unless (getenv "HUB_CI_SKIP_OPTIONALS")
     (require 'tools/ai))
   (require 'apps/elfeed)
-  (require 'video/tjm)
+  (require 'video/eve)
   (require 'email/core))
 
 ;; (use-package use-package-ensure-system-package

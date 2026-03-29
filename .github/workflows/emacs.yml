@@ -134,7 +134,7 @@ jobs:
             echo "Changed files:"
             echo "$CHANGED"
             # Run all tests for simplicity when modules/tests changed in PR
-            emacs --batch -l ert -l test/test-helpers.el -l test/perspective-auto-test.el -f ert-run-tests-batch-and-exit
+            ./scripts/elisp-ert
           else
             echo "No module/test changes detected; skipping module tests."
           fi
@@ -144,7 +144,7 @@ jobs:
         run: |
           export HOME=$GITHUB_WORKSPACE
           if ls test/*-test.el >/dev/null 2>&1; then
-            emacs --batch -l ert -l test/test-helpers.el -l test/perspective-auto-test.el -f ert-run-tests-batch-and-exit
+            ./scripts/elisp-ert
           else
             echo "No module tests present"
           fi
