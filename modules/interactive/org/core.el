@@ -98,6 +98,12 @@ When QUIET is non-nil, do not emit informational messages."
   (evil-define-key 'motion org-mode-map (kbd "RET") 'org-return)
   (evil-define-key 'motion calendar-mode-map (kbd "RET") 'org-calendar-select)
   (evil-define-key 'insert org-mode-map (kbd "M-RET") 'org-meta-return)
+  (evil-define-key 'insert org-mode-map (kbd "<escape>") 'evil-normal-state)
+  (evil-define-key 'insert org-mode-map (kbd "C-[") 'evil-normal-state)
+
+  (require 'org-tempo)
+  (setf (alist-get "c" org-structure-template-alist nil nil #'equal) "comment")
+  (setf (alist-get "C" org-structure-template-alist nil nil #'equal) "center")
 
   (setq org-return-follows-link t
 	org-hide-leading-stars t
