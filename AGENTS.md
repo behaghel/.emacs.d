@@ -1,161 +1,153 @@
 # Repository Guidelines
 
-## Project Structure & Module Organization
-- `init.el`: entry point; sets `user-emacs-directory` and loads modules.
-- `modules/`: layered modules by runtime context (see below).
-- `modules/lang/`: language tooling (Scala, JS/TS, Python, etc.).
-- `modules/interactive/dev/common.el`: shared development defaults.
-- `lisp/`: custom helpers (e.g., `eshell-autojump.el`, `hub-utils.el`).
-- `snippets/`, `insert/`: editor assets and templates.
-- `etc/`: static assets and configuration resources (e.g., CSS, templates).
-- `var/`: runtime state and caches (recentf, savehist, treemacs, project list, persp.state, etc.).
-- Eshell: aliases tracked at `modules/interactive/shell/alias.eshell`; state under `.cache/eshell/`.
-- `.githooks/post-commit`: formats changed `*.el` files and runs `checkdoc`.
+## Purpose
+- This repository is an Emacs configuration written mostly in Emacs Lisp.
+- Optimize for safe batch loading, predictable module boundaries, stable interactive UX, and small local changes over broad rewrites.
 
-### Environment Layers (Architecture)
-- Layers: structure modules by runtime context for predictability and speed.
-  - `core`: always-on, no UI side effects (e.g., paths, packages).
-  - `interactive`: loaded only when not batch (TTY or GUI) — DX features, keymaps.
-  - `gui`: GUI-only adornments (icons, fringes, fancy faces).
-  - `tty`: TTY-friendly alternatives and tweaks.
-  - `batch`: CI/batch-only optimizations (optional).
-- Paths and features:
-  - Modules live under `modules/<layer>/<category>/...` and provide category features like `editing/evil`, `navigation/treemacs`, `completion/core`.
-  - The legacy `settings/` folder is retired. No tracked files should remain there; CI fails if any do.
-  - Convention: keep non-versioned, variable files under `var/` and static assets under `etc/`. Avoid putting ephemeral state files at the repo root — route them to `var/` in code.
+## Agent Inputs
+- No Cursor rules were found in `.cursor/rules/`.
+- No `.cursorrules` file was found.
+- No Copilot instructions file was found at `.github/copilot-instructions.md`; treat this `AGENTS.md` as the canonical agent guidance.
 
-### Overriding Paths and Accounts
-Place overrides in `private/setup.el` (gitignored). Examples:
-- `(setq hub/org-directory "~/Dropbox/Documents/org/")`
-- `(setq hub/org-bibliography-file (expand-file-name "Dropbox/Documents/library.bib" (getenv "HOME")))`
-- `(setq hub/org-plantuml-jar "~/install/plantuml.jar")`
-- `(setq hub/org-re-reveal-root (expand-file-name "Apps/reveal.js" (getenv "HOME")))`
-- `(setq hub/denote-directory "~/notes/")`
-- `(setq hub/tmp-directory (expand-file-name "var/tmp/" user-emacs-directory))`
-- `(setq hub/blog-root "~/ws/blog.behaghel.org")`
-- `(setq hub/blog-posts-dir (expand-file-name "content-org" hub/blog-root))`
-- `(setq hub/blog-all-posts-file (expand-file-name "content-org/all-posts.org" hub/blog-root))`
-- `(setq hub/mu4e-contexts (list ...))` and `(setq hub/mu4e-maildir-shortcuts '(...))`
-- Enforcement:
-  - `init.el` filters `load-path` by layer: batch sessions do not see `modules/interactive`, so interactive-only modules cannot load in batch.
-  - GUI/TTY specializations can be added similarly (only one on `load-path`).
-- Predicates: `core/predicates.el` defines helpers used across modules:
-  - `hub/interactive-p`, `hub/batch-p`, `hub/gui-p`, `hub/tty-p`, `hub/ci-p`.
+## Project Layout
+- `init.el`: main entry point; sets `user-emacs-directory`, bootstraps packages, loads modules.
+- `early-init.el`: early startup tuning.
+- `core/`: always-on infrastructure such as paths, package bootstrap, predicates, startup, and keybind foundations.
+- `modules/lang/`: language-specific configuration; `modules/interactive/`: interactive-only modules grouped by category like `editing/`, `navigation/`, `email/`, `ui/`.
+- `modules/writing/`: writing helpers that are still loaded from the legacy path.
+- `lisp/`: shared local libraries such as `hub-utils.el`, `hub-keys.el`, `hub-struct.el`.
+- `test/`: ERT tests and test helpers.
+- `scripts/`: repo-local validation helpers used by hooks and CI; `etc/`: static assets; `var/`: runtime state files.
+- `private/setup.el`: gitignored machine-specific overrides.
 
-## Build, Test, and Development Commands
-- Enter the environment via direnv (devenv-managed):
-  - Ensure direnv is enabled for your shell, then run `direnv allow` at repo root.
-  - The environment auto-activates on `cd` into the repo (Emacs, EditorConfig, Git, pre-commit configured).
-  - Use `devenv shell -- <command>` to run one-off commands in the devenv shell.
-- Quick load check (mirrors CI):
-  - `devenv shell -- env HOME=$PWD emacs --batch -l init.el --eval '(message "Loaded")' --kill`.
-- Check a file with checkdoc:
-  - `emacs --batch path/to/file.el -l checkdoc --eval '(checkdoc-file "path/to/file.el" t)'`.
-  - Compatibility: if your Emacs only supports one-arg `checkdoc-file`, use `(checkdoc-file "path/to/file.el")`.
+## Architecture Rules
+- Keep runtime layers explicit: `core` is always available; `interactive` is loaded only outside batch unless forced.
+- Batch sessions must not expose `modules/interactive` on `load-path`; CI lint checks this.
+- Do not add new tracked files under the retired `settings/` directory.
+- Module feature names should be namespaced by category, not by `hub/`; examples: `navigation/perspective-auto`, `email/view`.
+- Repo-specific function and variable names should use the `hub/` prefix.
+- Put generic helpers in `lisp/` only when they are shared by multiple modules.
+- Keep interactive-only dependencies out of always-on code unless guarded.
 
-## Coding Style & Naming Conventions
-- Indentation: spaces, 2 spaces (see `.editorconfig`); no tabs in Lisp.
-- File naming: language modules in `modules/lang/*.el`; shared dev defaults in `modules/interactive/dev/common.el`.
-- Elisp identifiers: prefix repo-specific helper functions/commands with `hub/` (e.g., `hub/transpose-params`).
-- Module features and paths: do not use `hub/` in feature names or on-disk paths; use category namespaces like `editing/evil`, `navigation/treemacs`, `completion/core` under `modules/<layer>/<category>/...`.
-- Formatting: post-commit hook auto-indents and runs `whitespace-cleanup`; fix any `checkdoc` warnings reported.
+## Environment And Setup
+- Preferred workflow: enable `direnv` and run `direnv allow` at repo root.
+- Use `devenv shell -- <command>` for one-off commands to match local hooks and CI.
+- `devenv.nix` defines convenience scripts and pre-commit hooks; check it before inventing new commands.
+- CI and many local checks run with `HOME=$PWD` so state stays inside the repository.
+- Environment predicates live in `core/core-predicates.el`: `hub/interactive-p`, `hub/batch-p`, `hub/gui-p`, `hub/tty-p`, `hub/ci-p`.
 
-## Testing Guidelines
-- CI loads the config on push/PR (`.github/workflows/emacs.yml`). Keep it green.
-- Local smoke test before pushing: same command as above to batch-load `init.el`.
-- Optional ERT tests: place under `test/` as `*-test.el`. Run with:
-  - `emacs --batch -l ert -l test/your-test.el -f ert-run-tests-batch-and-exit`.
+## Build, Lint, And Test Commands
+- Full batch load smoke check: `devenv shell -- env HOME=$PWD emacs --batch -l init.el --eval '(message "Loaded")' --kill`
+- Equivalent devenv shortcut: `devenv run load-check`
+- Force a fuller CI-like load: `devenv shell -- ci:load-all`
+- Tangle literate config: `devenv shell -- tangle`
+- Format all tracked Elisp: `devenv shell -- elisp:format-all`
+- Checkdoc all tracked Elisp: `devenv shell -- elisp:checkdoc-all`
+- Run all configured pre-commit gates: `devenv shell -- pre-commit:all`
+- Run pre-commit directly: `devenv shell -- pre-commit run -a`
+- Parse changed or selected files: `devenv shell -- ./scripts/elisp-parse path/to/file.el`
+- Checkdoc selected files: `devenv shell -- ./scripts/elisp-checkdoc path/to/file.el`
+- Format selected files: `devenv shell -- ./scripts/elisp-format path/to/file.el`
+- Run all ERT tests under `test/`: `devenv shell -- ./scripts/elisp-ert`
+- Run smoke tests only: `devenv shell -- env HOME=$PWD emacs --batch -l ert -l test/smoke.el -f ert-run-tests-batch-and-exit`
+- Run one test file: `devenv shell -- env HOME=$PWD emacs --batch -Q -L . -l ert -l test/test-helpers.el -l test/perspective-auto-test.el -f ert-run-tests-batch-and-exit`
+- Run a single named ERT test: `devenv shell -- env HOME=$PWD emacs --batch -Q -L . -l ert -l test/test-helpers.el -l test/perspective-auto-test.el --eval '(ert-run-tests-batch-and-exit (quote hub/persp-auto-creates-and-switches))'`
+- Alternate single-test selector by regexp: `devenv shell -- env HOME=$PWD emacs --batch -Q -L . -l ert -l test/test-helpers.el -l test/eve-test.el --eval '(ert-run-tests-batch-and-exit "eve-delete-word-updates-segment")'`
 
-## Commit & Pull Request Guidelines
-- Commit messages: short, imperative subject; include scope when useful, e.g. `[init.el] Load without error`.
-- PRs: describe the change, affected modules (e.g., `modules/...`, `lisp/...`), and any user-visible behavior; link related issues.
-- Screenshots/gifs welcome for UI changes (themes, layouts), but not required.
+## What CI Enforces
+- `.github/workflows/emacs.yml` runs on pushes and pull requests.
+- CI sets up Emacs `30.2`.
+- CI performs architecture lint, full config load, formatting, checkdoc, tangling, init load, and ERT tests.
+- On PRs, CI may limit module-test execution based on changed files; on pushes it runs all module tests present.
+- Straight cache keys depend on Emacs version and `straight/versions/default.el`.
+- Architecture lint also rejects core files requiring namespaced module features and modules using `hub/*` helpers without `(require 'hub-utils)`.
 
-## Security & Configuration Tips
-- Secrets and machine-specific settings go in `private/setup.el` (gitignored) and are loaded optionally. For backward compatibility, `settings/setup-private.el` is loaded if present.
-- GPG/Pass: this config uses `auth-source-pass` and `pinentry`; ensure your keychain is set up.
-- Package management uses `straight.el` on demand; do not commit cache/vendor directories.
+## Pre-commit Hooks
+- Hooks are configured from `devenv.nix` and installed via `pre-commit`.
+- `elisp-format`: indents and runs `whitespace-cleanup`; if it modifies files, the commit fails and you must restage.
+- `elisp-checkdoc`: fails on remaining checkdoc warnings after filtering known structural exceptions.
+- `elisp-parse`: batch-reads forms to catch syntax and reader errors.
+- `elisp-ert`: runs all tests in `test/*-test.el`.
+- After editing hook configuration in `devenv.nix`, reload the environment and reinstall hooks.
 
-## Git Discipline & Branching Workflow
+## Elisp File Conventions
+- New `.el` files should start with a standard header line and `lexical-binding: t`.
+- Use the common section structure: header, `Commentary`, `Code`, `provide`, footer.
+- Keep filenames aligned with the provided feature and directory namespace.
+- Prefer one responsibility per module.
+- Use docstrings for functions, macros, variables, `defcustom`, and tests when appropriate.
 
-- Branching: start each task on a fresh branch from the current base (`main` or the agreed feature base). Use prefixes like `feat/…`, `fix/…`, `chore/…`, or `refactor/…`.
-- Commits: commit early and often with focused diffs; use short, imperative subjects and include scope when helpful, e.g., `[modules/lang/js.el] Describe change`.
-- Push & CI: push branches to `origin` regularly and verify GitHub Actions status. Fix CI breaks before continuing related work.
-- Remotes: use SSH remotes (e.g., `git@github.com:behaghel/.emacs.d.git`). Avoid interactive GitHub logins; no HTTPS remotes.
-- Flow for larger efforts: create a meta/setup branch first (e.g., `chore/git-discipline`), push it, then branch the long‑running migration work from it (e.g., `refactor/migration-base`).
-- WIP management: if needed, `git stash push -u` to move in‑progress changes between branches cleanly.
-- Agent etiquette: the agent announces new branches, commits frequently, and requests approval before network actions (e.g., `git push`).
+## Imports And Dependencies
+- Use `require` for hard dependencies that must exist.
+- Use `require ... nil 'noerror` only for genuinely optional packages.
+- Prefer `with-eval-after-load` when extending package maps or behavior after package init.
+- In tests, add minimal stubs for optional packages instead of requiring the full stack.
+- Keep local helper requires near the top of the file.
+- Existing files often put local `hub-*` requires first, then built-ins, then package-specific modules; preserve nearby style rather than reordering noisily.
+- If a module calls `hub/*` helpers, include `(require 'hub-utils)` explicitly; CI checks this convention.
+- Do not silently swallow required-module failures; avoid `ignore-errors` around required code paths unless the fallback is intentional and documented.
 
-## Pre-commit Enforcement (devenv)
+## Formatting And Whitespace
+- Use spaces, not tabs, in Elisp; `.editorconfig` sets `indent_size = 2`.
+- Keep lines and forms readable; prefer multi-line formatting over dense one-liners for complex logic.
+- Let Emacs indentation decide alignment.
+- Preserve final newlines and trim trailing whitespace.
+- Do not hand-format against the repo style; run the formatter when you touch `.el` files.
 
-- Hooks: formatting and `checkdoc` run as pre-commit hooks using devenv’s `pre-commit` integration.
-- What runs:
-  - `elisp-format`: formats changed `*.el` (indent + `whitespace-cleanup`). If it modifies files, the commit is blocked; re-stage and commit again.
-  - `elisp-checkdoc`: runs `checkdoc` on changed `*.el`. Any warnings fail the commit. We ignore purely structural header/footer warnings (e.g., package first-line, Commentary/Code headings, footer provide) to accommodate our module naming.
-- Usage:
-  - Enable the environment with `direnv allow`. It auto-installs the pre-commit hooks.
-  - Commit as usual; hooks will run on staged `*.el` files.
-  - To install manually: `pre-commit install --install-hooks`.
-  - To validate everything proactively before committing: `devenv shell -- pre-commit run -a`.
-  - Convenience (devenv):
-    - `devenv shell -- ./scripts/elisp-format $(git ls-files "*.el")` to format all tracked `.el` files.
-    - `devenv shell -- ./scripts/elisp-checkdoc $(git ls-files "*.el")` to run checkdoc on all tracked `.el` files.
-    - `devenv shell -- pre-commit run -a` to run all pre-commit checks on all files.
-- Requirements: `emacs` available in the shell (provided via devenv); `pre-commit` is included.
-- CI: mirror checks can be added later; for now local hooks enforce cleanliness before pushing.
+## Naming Conventions
+- Prefix repo-owned functions, variables, commands, macros, and groups with `hub/`.
+- Internal helpers should use `hub/name--private-helper` style.
+- Predicates should end in `-p`.
+- Buffer-local internals commonly use `defvar-local` and `--` private markers.
+- Constants in tests may use `*-test--sample-data` style.
+- Feature names should mirror paths, e.g. `modules/interactive/email/view.el` provides `email/view`.
 
-## Dependency Pinning (straight.el)
+## Types, Data, And State
+- Emacs Lisp is dynamically typed here; express invariants through naming, docstrings, `defcustom :type`, and careful helper boundaries.
+- Prefer `defcustom` for user-facing configuration and `defvar` or `defvar-local` for internal mutable state.
+- Use `setq-local` for buffer-local behavior.
+- Prefer alists and plists consistently within a given module; do not mix representations casually.
+- When persisting data, write into `var/` under `user-emacs-directory`.
 
-- Rationale: pinning produces a stable `straight/versions/default.el` so CI caches hit reliably and local installs are reproducible.
-- Pin versions:
-  - `devenv shell -- emacs --batch -l core/core-packages.el --eval '(core/packages-freeze)' --kill` (writes `straight/versions/default.el`).
-  - Commit the generated file as part of the change that introduced or updated packages.
-- CI cache keys: include Emacs version and the hash of `straight/versions/default.el` to avoid unnecessary rebuilds while allowing intentional updates to refresh caches.
-- Updating deps: rerun the freeze command after changes, review the diff in `straight/versions/default.el`, and commit it.
+## Error Handling
+- Use `user-error` for interactive misuse and invalid user actions.
+- Use `condition-case` around operations that can fail externally, such as optional packages, filesystem work, rendering, or parsing.
+- Use `ignore-errors` sparingly and only when failure is acceptable and non-fatal.
+- Prefer explicit fallbacks over silent suppression.
+- Avoid breaking batch load because an optional interactive package is absent.
 
-## CI Emacs Versions
+## Hooks, Keymaps, And UX
+- This repo cares about keybinding consistency; read `docs/keybinding-semantics.md` before changing keymaps.
+- Prefer leader/localleader semantics and preserve established Bepo-aware bindings.
+- Re-assert fragile bindings in mode hooks or `with-eval-after-load` when package init order can overwrite them.
+- For mode-specific setup, use hooks and idempotent setup functions.
+- Avoid global side effects in modules that should only affect one mode or one environment.
+- Keep discovery-friendly labels and DWIM bindings aligned with `modules/interactive/editing/keys.el` and `lisp/hub-keys.el`.
 
-- Runner setup: CI installs Emacs via `jcs090218/setup-emacs@v1` and pins a specific version (currently `30.2`). This uses GitHub’s toolcache to speed up runs and ensures parity across checks.
-- Why: consistent Emacs across CI runs keeps caches effective and avoids version‑specific regressions.
-- Bump policy: update the `version:` in `.github/workflows/emacs.yml` when adopting a new major/minor. If package changes are involved, rerun the freeze command and commit the updated `straight/versions/default.el`.
-- Test multiple versions (matrix):
-  - Example workflow fragment:
-    - `strategy.matrix.emacs: ["29.4", "30.2"]`
-    - Setup step:
-      - `uses: jcs090218/setup-emacs@v1`
-      - `with: version: ${{ matrix.emacs }}`
-  - Our cache key already includes the detected Emacs version, so caches stay distinct per version.
-- Local tip: develop with a matching Emacs when validating version bumps (the dev shell provides `emacs-nox`; you can pin nixpkgs if exact versions are needed).
+## Package Configuration Style
+- `use-package` is the standard package declaration pattern.
+- Prefer built-in packages with `:straight (:type built-in)` when that is already the repo pattern.
+- Use `:commands`, `:hook`, `:after`, and `:config` conservatively; keep startup implications clear.
+- If a package is interactive-only, keep it out of batch-only paths.
+- When changing dependencies, review whether `straight/versions/default.el` also needs updating.
 
-## Agent Devenv Discipline
+## Testing Style
+- Put ERT tests in `test/*-test.el`.
+- Load `test/test-helpers.el` when the test relies on repo helper macros or temp project setup.
+- Prefer focused unit tests over broad integration tests when validating a single module behavior.
+- Stub optional external packages with minimal APIs rather than making tests network- or package-install-dependent.
+- Name tests descriptively with the `hub/...` or module-specific prefix style already used in the file.
 
-- Prefer direnv-activated shells for all work; the environment is auto-loaded.
-- Keep a shell open in the repo so pre-commit hooks and tools stay available.
-- When automating from scripts, prefer `devenv shell -- <command>` to preserve environment parity with CI.
+## Change Discipline
+- Keep edits minimal and scoped to the task.
+- Do not rewrite unrelated formatting or move modules around unless required.
+- Never store secrets or machine-specific values in tracked files; use `private/setup.el`.
+- When introducing mutable paths, route them through `var/` or `etc/` according to whether they are runtime state or static assets.
+- Before handoff, run the most relevant load/test commands for the touched area and mention any checks you could not run.
 
-## Quality Gates & Handoff Discipline
-
-- Pre-commit must run all gates locally before any commit:
-  - Format: `elisp-format` on staged `*.el`.
-  - Doc: `elisp-checkdoc` on staged `*.el`.
-  - Parse: `elisp-parse` batch-loads staged `*.el` to catch syntax/load errors.
-  - Unit tests: `elisp-ert` runs ERT tests under `test/*-test.el`.
-- After editing `devenv.nix` pre-commit hooks, re-enter the shell and reinstall hooks:
-  - `nix develop` (or `direnv reload`), then `pre-commit install --install-hooks`.
-  - Verify: `cat .pre-commit-config.yaml` includes all hooks (not just format/checkdoc).
-- For new modules or larger refactors:
-  - Add a minimal ERT test that exercises the module’s main behavior.
-  - Prefer `apply_patch` diffs over ad-hoc string replacements for Elisp.
-  - Sanity-load changed files in batch: `devenv run load-check` or `scripts/elisp-parse`.
-  - Avoid handing off with parse errors; run `devenv run pre-commit:all` before pushing.
-- CI mirrors gates that matter:
-  - Loads full config in batch.
-  - Runs ERT tests for changed modules on PRs; all tests on pushes.
-  - Fails if core requires namespaced module features; enforces explicit `hub-utils` dependencies.
-
-## Keybinding Discipline
-- Keep keymaps consistent with `docs/keybinding-semantics.md`; prefer leader/localleader, `z` for toggles, and `g` for goto/jump.
-- Preserve `t`/`s` as next/previous line in Evil normal state across modes. If a package (e.g., `gnus-mime-button-map`) steals them, rebind to `evil-next-visual-line`/`evil-previous-visual-line` and move the package’s functionality elsewhere.
-- Do not regress core mail bindings (`ç` spam, `à` refile, `zh`/`zp` toggles, `gl` jump); when Evil or evil-collection rewrites maps, re-assert these via `evil-define-key` in the relevant mode hooks so they apply in normal state.
-- For mu4e, prefer idempotent binders that run on mode hooks and after evil-collection loads; this keeps single-key bindings (`à`, `ç`, `gl`) intact even if package init reorders keymap setup.
-- Avoid `ignore-errors` for required modules; silent failures hide missing functions and break keybindings. Use plain `require` so load issues surface immediately.
+## Common Pitfalls
+- Do not add interactive-only requires to always-on files unless they are guarded for batch safety.
+- Do not put new tracked content under `settings/`; use `modules/`, `lisp/`, `etc/`, `var/`, or `private/setup.el` as appropriate.
+- Do not use `ignore-errors` to hide required dependency failures; prefer explicit optional loading or `condition-case` with a real fallback.
+- Do not forget `test/test-helpers.el` or `-Q -L .` when running isolated ERT tests; many tests rely on that setup.
+- Do not handwave formatting/checkdoc; the pre-commit hooks will fail and require restaging if they modify files.
