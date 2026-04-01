@@ -19,6 +19,10 @@ capture its value at load time; compute paths at call time instead.")
   "Return a no-arg function that yields VALUE without needing lexical scope."
   (eval `(lambda () ,value)))
 
+(defun hub/speed-dial--command-fn (command)
+  "Return a no-arg function that funcalls COMMAND without lexical scope."
+  (eval `(lambda () (funcall #',command))))
+
 (defun hub/speed-dial--find-file-fn (path-fn)
   "Return a function that visits the PATH-FN result without lexical scope."
   (eval `(lambda () (find-file (funcall ,path-fn)))))
@@ -173,8 +177,11 @@ overwriting intentional uppercase bindings that target other spaces."
 	   (hub/speed-dial--define key persp key-persps
 				   (hub/speed-dial--file-with-tree-fn persp path)))
 	  (`(,key command ,cmd ,persp)
-	   (hub/speed-dial--define key persp key-persps
-				   (hub/speed-dial--open-fn persp nil cmd)))))))
+	   (let ((command-fn (if (symbolp cmd)
+				 (hub/speed-dial--command-fn cmd)
+			       cmd)))
+	     (hub/speed-dial--define key persp key-persps
+				     (hub/speed-dial--open-fn persp nil command-fn))))))))
   (hub/setup-speed-dial)
 
   (defun mu4e-sidebar ()

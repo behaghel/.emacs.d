@@ -177,13 +177,47 @@ If URL is non-nil (from `shr-url-at-point'), prefer it. Otherwise try
       (kill-new target)
       (message "Copied %s" target))))
 
+(defun hub/mu4e--define-keys (map bindings)
+  "Bind each key in BINDINGS directly on MAP.
+BINDINGS is an alist of (KEY . COMMAND) pairs accepted by `kbd' and
+`define-key'."
+  (dolist (binding bindings)
+    (define-key map (kbd (car binding)) (cdr binding))))
+
+(defun hub/mu4e--ensure-prefix-map (map key)
+  "Ensure KEY is a prefix map in MAP and return that prefix map.
+If KEY already has a direct binding, preserve it on KEY KEY."
+  (let* ((key-desc (kbd key))
+	 (existing (lookup-key map key-desc)))
+    (if (keymapp existing)
+	existing
+      (let ((prefix (make-sparse-keymap)))
+	(when (and existing (not (numberp existing)))
+	  (define-key prefix key-desc existing))
+	(define-key map key-desc prefix)
+	prefix))))
+
+(defun hub/mu4e--define-prefix-keys (map prefix bindings)
+  "Bind BINDINGS beneath PREFIX in MAP.
+PREFIX is preserved as a real prefix map via `hub/mu4e--ensure-prefix-map'."
+  (hub/mu4e--define-keys
+   (hub/mu4e--ensure-prefix-map map prefix)
+   bindings))
+
 (with-eval-after-load 'mu4e
   ;; mu4e main buffer
-  (evil-collection-define-key 'normal 'mu4e-main-mode-map
-			      "ê" 'mu4e-headers-search
-			      ",hh" 'mu4e-display-manual
-			      "zO" 'org-msg-mode
-			      "zê" 'mu4e-headers-toggle-full-search))
+  (hub/mu4e--define-keys
+   mu4e-main-mode-map
+   '(("b" . mu4e-search-bookmark)
+     ("ê" . mu4e-headers-search)))
+  (hub/mu4e--define-prefix-keys
+   mu4e-main-mode-map
+   "z"
+   '(("O" . org-msg-mode)
+     ("ê" . mu4e-headers-toggle-full-search)))
+  (let* ((comma-map (hub/mu4e--ensure-prefix-map mu4e-main-mode-map ","))
+	 (h-map (hub/mu4e--ensure-prefix-map comma-map "h")))
+    (define-key h-map (kbd "h") #'mu4e-display-manual)))
 
 (with-eval-after-load 'mu4e-headers
   (defun hub/mu4e--headers-related-p (&optional pos)
@@ -317,44 +351,45 @@ Other   O org-capture a actions     gL log
 (defun hub/mu4e-headers--apply-keys ()
   "Ensure custom header bindings are present."
   (when (boundp 'mu4e-headers-mode-map)
-    (define-key mu4e-headers-mode-map (kbd "à") #'hub/mu4e-headers-mark-refile)
-    (evil-collection-define-key 'normal 'mu4e-headers-mode-map
-				"à"  'hub/mu4e-headers-mark-refile)))
+    (hub/mu4e--define-keys
+     mu4e-headers-mode-map
+     '(("C" . mu4e-compose-new)
+       ("R" . mu4e-compose-reply)
+       ("A" . mu4e-compose-wide-reply)
+       ("F" . mu4e-compose-forward)
+       ("O" . mu4e-org-store-and-capture)
+       ("ê" . mu4e-headers-search)
+       ("Ê" . mu4e-headers-search-edit)
+       ("à" . hub/mu4e-headers-mark-refile)
+       ("À" . mu4e-headers-mark-for-archive)
+       ("C-t" . hub/mu4e-headers-next-primary)
+       ("C-s" . hub/mu4e-headers-prev-primary)
+       ("%" . mu4e-headers-mark-pattern)
+       ("É" . mu4e-headers-mark-thread)
+       ("'" . hub/mu4e-headers-help/body)
+       ("SPC" . nil)
+       ("ç" . mu4e-headers-mark-for-spam)
+       ))
+    (hub/mu4e--define-prefix-keys
+     mu4e-headers-mode-map
+     "z"
+     '(("O" . org-msg-mode)
+       ("É" . mu4e-headers-toggle-include-related)
+       ("é" . mu4e-headers-toggle-threading)
+       ("ê" . mu4e-headers-toggle-full-search)
+       ("!" . (lambda () (interactive) (mu4e-headers-mark-thread nil '(read))))
+       ("D" . (lambda () (interactive) (mu4e-headers-mark-thread nil '(delete))))
+       ("à" . (lambda () (interactive) (mu4e-headers-mark-thread nil '(refile))))
+       ("S" . hub/mu4e-headers-block-and-spam)))
+    (let ((g-map (hub/mu4e--ensure-prefix-map mu4e-headers-mode-map "g"))
+	  (comma-map (hub/mu4e--ensure-prefix-map mu4e-headers-mode-map ",")))
+      (define-key g-map (kbd "s") #'mu4e-headers-prev-unread)
+      (define-key g-map (kbd "t") #'mu4e-headers-next-unread)
+      (define-key g-map (kbd "L") #'mu4e-show-log)
+      (define-key comma-map (kbd "à") #'mu4e-org-store-and-capture)
+      (define-key comma-map (kbd "é") #'mu4e-headers-mark-pattern))))
 (hub/mu4e-headers--apply-keys)
 (add-hook 'mu4e-headers-mode-hook #'hub/mu4e-headers--apply-keys)
-
-(evil-collection-define-key 'normal 'mu4e-headers-mode-map
-			    ;; Compose actions (single-keystroke where possible)
-			    "C"  'mu4e-compose-new
-			    "R"  'mu4e-compose-reply
-			    "A"  'mu4e-compose-wide-reply
-			    "F"  'mu4e-compose-forward
-			    "O"  'mu4e-org-store-and-capture
-			    "zO" 'org-msg-mode
-			    ",à" 'mu4e-org-store-and-capture
-			    "ê"  'mu4e-headers-search
-			    "Ê"  'mu4e-headers-search-edit
-			    "à"  'hub/mu4e-headers-mark-refile
-			    "À"  'mu4e-headers-mark-for-archive
-			    "gs" 'mu4e-headers-prev-unread
-			    "gt" 'mu4e-headers-next-unread
-			    "\C-t" 'hub/mu4e-headers-next-primary
-			    "\C-s" 'hub/mu4e-headers-prev-primary
-			    "zÉ" 'mu4e-headers-toggle-include-related
-			    "zé" 'mu4e-headers-toggle-threading
-			    "zê" 'mu4e-headers-toggle-full-search
-			    "gL" 'mu4e-show-log
-			    "%"  'mu4e-headers-mark-pattern
-			    ",é"  'mu4e-headers-mark-pattern
-			    "É"   'mu4e-headers-mark-thread
-			    "'"   'hub/mu4e-headers-help/body
-			    "SPC" nil
-			    "z!" (lambda () (interactive) (mu4e-headers-mark-thread nil '(read)))
-			    "zD" (lambda () (interactive) (mu4e-headers-mark-thread nil '(delete)))
-			    "zà" (lambda () (interactive) (mu4e-headers-mark-thread nil '(refile)))
-			    ;; Spam: single current mark; zS keeps block+pattern helper
-			    "ç"  'mu4e-headers-mark-for-spam
-			    "zS" 'hub/mu4e-headers-block-and-spam)
 
 (advice-add 'mu4e-headers-mark-and-next :around #'hub/mu4e--headers-mark-and-next)
 
@@ -445,8 +480,6 @@ Other   O org-capture a actions     gL log
       (when (boundp 'mu4e-view-mode-map)
 	(dolist (binding bindings)
 	  (define-key mu4e-view-mode-map (kbd (car binding)) (cdr binding))))
-      (dolist (binding bindings)
-	(evil-local-set-key 'normal (kbd (car binding)) (cdr binding)))
       (when (boundp 'mu4e-search-minor-mode-map)
 	(let* ((existing (assoc 'mu4e-search-minor-mode minor-mode-overriding-map-alist))
 	       (map (or (cdr existing) (make-sparse-keymap))))
@@ -652,28 +685,35 @@ Actions   ;a a message  ;a m mime part  ;y u copy URL
 	  ("a" mu4e-view-action)
 	  ("gL" mu4e-show-log)
 	  ("q" nil))
-(define-key mu4e-view-mode-map (kbd "à") #'hub/mu4e-view-mark-refile-and-next)
-(evil-collection-define-key 'normal 'mu4e-view-mode-map
-			    ;; Compose convenience in view
-			    "C"  'mu4e-compose-new
-			    "R"  'mu4e-compose-reply
-			    "A"  'mu4e-compose-wide-reply
-			    "F"  'mu4e-compose-forward
-			    "'"  'hub/mu4e-view-help/body
-			    ;; Refile (BÉPO select/apply)
-			    "à"  'hub/mu4e-view-mark-refile-and-next
-			    ;; Flag/star current then load next
-			    "f"  'hub/mu4e-view-mark-flag-and-next
-			    ;; Next/prev message convenience
-			    "\C-t" 'hub/mu4e-view-headers-next-primary
-			    "\C-s" 'hub/mu4e-view-headers-prev-primary
-			    ;; Spam/Block single key
-			    "ç"  'hub/mu4e-view-mark-spam-and-next
-			    "zz" 'hub/mu4e-view-toggle-rendering
-			    "zC" 'hub/mu4e-view-toggle-readable-html
-			    "zp" 'hub/mu4e-view-add-plain-preference
-			    "zS" 'hub/mu4e-view-spam-current
-			    "gl" 'hub/mu4e-view-jump-to-main-link)
+
+(defun hub/mu4e-view--apply-keys ()
+  "Ensure custom view bindings are present."
+  (when (boundp 'mu4e-view-mode-map)
+    (hub/mu4e--define-keys
+     mu4e-view-mode-map
+     '(("C" . mu4e-compose-new)
+       ("R" . mu4e-compose-reply)
+       ("A" . mu4e-compose-wide-reply)
+       ("F" . mu4e-compose-forward)
+       ("'" . hub/mu4e-view-help/body)
+       ("à" . hub/mu4e-view-mark-refile-and-next)
+       ("f" . hub/mu4e-view-mark-flag-and-next)
+       ("C-t" . hub/mu4e-view-headers-next-primary)
+       ("C-s" . hub/mu4e-view-headers-prev-primary)
+       ("ç" . hub/mu4e-view-mark-spam-and-next)))
+    (hub/mu4e--define-prefix-keys
+     mu4e-view-mode-map
+     "z"
+     '(("z" . hub/mu4e-view-toggle-rendering)
+       ("C" . hub/mu4e-view-toggle-readable-html)
+       ("p" . hub/mu4e-view-add-plain-preference)
+       ("S" . hub/mu4e-view-spam-current)))
+    (let ((g-map (hub/mu4e--ensure-prefix-map mu4e-view-mode-map "g")))
+      (define-key g-map (kbd "l") #'hub/mu4e-view-jump-to-main-link)
+      (define-key g-map (kbd "L") #'mu4e-show-log))))
+
+(hub/mu4e-view--apply-keys)
+(add-hook 'mu4e-view-mode-hook #'hub/mu4e-view--apply-keys)
 
 (with-eval-after-load 'general
   (hub/define-leaders)
@@ -727,17 +767,9 @@ Actions   ;a a message  ;a m mime part  ;y u copy URL
   ;; This uses mu4e's built-in folding support (>= 1.10) for stability.
   (add-hook 'mu4e-thread-mode-hook #'mu4e-thread-fold-all))
 
-(when (boundp 'mu4e-search-minor-mode-map)
-  (define-key mu4e-search-minor-mode-map (kbd "à") #'hub/mu4e-search-mark-refile)
-  (define-key mu4e-search-minor-mode-map (kbd "ç") #'hub/mu4e-search-mark-spam))
-
-(with-eval-after-load 'mu4e-search
-  (define-key mu4e-search-minor-mode-map (kbd "à") #'hub/mu4e-search-mark-refile)
-  (define-key mu4e-search-minor-mode-map (kbd "ç") #'hub/mu4e-search-mark-spam))
-
 (defun hub/mu4e-setup-evil-initial-states ()
   "Set stable Evil initial states for mu4e modes.
-Keeps navigation modes in normal state while preserving insert state for
+Keeps navigation modes in emacs state while preserving insert state for
 `mu4e-compose-mode'."
   (when (featurep 'evil)
     (dolist (mode '(mu4e-main-mode
@@ -745,13 +777,13 @@ Keeps navigation modes in normal state while preserving insert state for
 		    mu4e-view-mode
 		    mu4e-org-mode
 		    mu4e-thread-mode))
-      (evil-set-initial-state mode 'normal))
+      (evil-set-initial-state mode 'emacs))
     (evil-set-initial-state 'mu4e-compose-mode 'insert)))
 
-(defun hub/mu4e-ensure-evil-normal-state ()
-  "Force Evil normal state in mu4e navigation buffers.
-This protects against package init ordering that can reopen mu4e buffers in
-Emacs state and break single-key bindings."
+(defun hub/mu4e-ensure-evil-emacs-state ()
+  "Force Evil emacs state in mu4e navigation buffers.
+This preserves mu4e's baseline keymaps when package init ordering reopens
+navigation buffers in a different Evil state."
   (when (and (featurep 'evil)
 	     (not (minibufferp))
 	     (derived-mode-p 'mu4e-main-mode
@@ -759,40 +791,23 @@ Emacs state and break single-key bindings."
 			     'mu4e-view-mode
 			     'mu4e-org-mode
 			     'mu4e-thread-mode)
-	     (not (evil-normal-state-p)))
-    (evil-normal-state)))
+	     (not (evil-emacs-state-p)))
+    (evil-emacs-state)))
 
 (defun hub/mu4e-apply-evil-bindings ()
-  "Ensure hub mu4e bindings are applied in Evil normal state."
-  (when (and (boundp 'mu4e-headers-mode-map) (featurep 'evil))
-    (let* ((map mu4e-headers-mode-map)
-	   (gmap (or (when (keymapp (lookup-key map (kbd "g")))
-		       (lookup-key map (kbd "g")))
-		     (make-sparse-keymap))))
-      (define-key map (kbd "g") gmap)
-      (define-key gmap (kbd "L") #'mu4e-show-log))
-    (evil-define-key 'normal mu4e-headers-mode-map
-		     (kbd "à") #'hub/mu4e-headers-mark-refile
-		     (kbd "ç") #'mu4e-headers-mark-for-spam))
-  (when (and (boundp 'mu4e-view-mode-map) (featurep 'evil))
-    (let* ((map mu4e-view-mode-map)
-	   (gmap (or (when (keymapp (lookup-key map (kbd "g")))
-		       (lookup-key map (kbd "g")))
-		     (make-sparse-keymap))))
-      (define-key map (kbd "g") gmap)
-      (define-key gmap (kbd "l") #'hub/mu4e-view-jump-to-main-link)
-      (define-key gmap (kbd "L") #'mu4e-show-log))
-    (evil-define-key 'normal mu4e-view-mode-map
-		     (kbd "à") #'hub/mu4e-view-mark-refile-and-next
-		     (kbd "ç") #'hub/mu4e-view-mark-spam-and-next)))
+  "Ensure mu4e mode maps keep hub direct bindings intact."
+  (when (boundp 'mu4e-headers-mode-map)
+    (hub/mu4e-headers--apply-keys))
+  (when (boundp 'mu4e-view-mode-map)
+    (hub/mu4e-view--apply-keys)))
 
 (add-hook 'mu4e-headers-mode-hook #'hub/mu4e-apply-evil-bindings)
 (add-hook 'mu4e-view-mode-hook #'hub/mu4e-apply-evil-bindings)
-(add-hook 'mu4e-main-mode-hook #'hub/mu4e-ensure-evil-normal-state)
-(add-hook 'mu4e-headers-mode-hook #'hub/mu4e-ensure-evil-normal-state)
-(add-hook 'mu4e-view-mode-hook #'hub/mu4e-ensure-evil-normal-state)
-(add-hook 'mu4e-org-mode-hook #'hub/mu4e-ensure-evil-normal-state)
-(add-hook 'mu4e-thread-mode-hook #'hub/mu4e-ensure-evil-normal-state)
+(add-hook 'mu4e-main-mode-hook #'hub/mu4e-ensure-evil-emacs-state)
+(add-hook 'mu4e-headers-mode-hook #'hub/mu4e-ensure-evil-emacs-state)
+(add-hook 'mu4e-view-mode-hook #'hub/mu4e-ensure-evil-emacs-state)
+(add-hook 'mu4e-org-mode-hook #'hub/mu4e-ensure-evil-emacs-state)
+(add-hook 'mu4e-thread-mode-hook #'hub/mu4e-ensure-evil-emacs-state)
 (with-eval-after-load 'mu4e
   (hub/mu4e-setup-evil-initial-states)
   (hub/mu4e-apply-evil-bindings))
