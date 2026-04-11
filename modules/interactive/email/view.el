@@ -26,8 +26,10 @@
 (defgroup hub/mu4e-view nil
   "Helpers and UX tweaks for mu4e view buffers."
   :group 'mu4e)
-(defvar-local hub/mu4e-view--last-plain-enforced nil
-  "Docid last forced into plain-text rendering to avoid recursion.")
+(defvar hub/mu4e-view--last-plain-enforced nil
+  "Docid last forced into plain-text rendering to avoid recursion.
+Global (not buffer-local) so the guard survives view buffer recreation
+by `mu4e-headers-view-message'.")
 (defvar hub/mu4e-prefer-plain-rules nil
   "Alist of identifiers that should default to plain-text rendering in mu4e.
 Each entry is a cons of the form (:list-id . \"list.id\") or
@@ -215,9 +217,8 @@ PREFIX is preserved as a real prefix map via `hub/mu4e--ensure-prefix-map'."
    "z"
    '(("O" . org-msg-mode)
      ("ê" . mu4e-headers-toggle-full-search)))
-  (let* ((comma-map (hub/mu4e--ensure-prefix-map mu4e-main-mode-map ","))
-	 (h-map (hub/mu4e--ensure-prefix-map comma-map "h")))
-    (define-key h-map (kbd "h") #'mu4e-display-manual)))
+  ;; Bind manual on a non-leader key; `,` must stay free for the global leader.
+  (define-key mu4e-main-mode-map (kbd "H") #'mu4e-display-manual))
 
 (with-eval-after-load 'mu4e-headers
   (defun hub/mu4e--headers-related-p (&optional pos)
@@ -369,6 +370,8 @@ Other   O org-capture a actions     gL log
        ("'" . hub/mu4e-headers-help/body)
        ("SPC" . nil)
        ("ç" . mu4e-headers-mark-for-spam)
+       ("b" . mu4e-search-bookmark)
+       ("," . nil)
        ))
     (hub/mu4e--define-prefix-keys
      mu4e-headers-mode-map
@@ -381,13 +384,10 @@ Other   O org-capture a actions     gL log
        ("D" . (lambda () (interactive) (mu4e-headers-mark-thread nil '(delete))))
        ("à" . (lambda () (interactive) (mu4e-headers-mark-thread nil '(refile))))
        ("S" . hub/mu4e-headers-block-and-spam)))
-    (let ((g-map (hub/mu4e--ensure-prefix-map mu4e-headers-mode-map "g"))
-	  (comma-map (hub/mu4e--ensure-prefix-map mu4e-headers-mode-map ",")))
+    (let ((g-map (hub/mu4e--ensure-prefix-map mu4e-headers-mode-map "g")))
       (define-key g-map (kbd "s") #'mu4e-headers-prev-unread)
       (define-key g-map (kbd "t") #'mu4e-headers-next-unread)
-      (define-key g-map (kbd "L") #'mu4e-show-log)
-      (define-key comma-map (kbd "à") #'mu4e-org-store-and-capture)
-      (define-key comma-map (kbd "é") #'mu4e-headers-mark-pattern))))
+      (define-key g-map (kbd "L") #'mu4e-show-log))))
 (hub/mu4e-headers--apply-keys)
 (add-hook 'mu4e-headers-mode-hook #'hub/mu4e-headers--apply-keys)
 
@@ -491,42 +491,68 @@ Other   O org-capture a actions     gL log
 
   (add-hook 'mu4e-view-mode-hook #'hub/mu4e--apply-view-navigation-keys)
 
+  (defun hub/mu4e-view--press-mime-button (mime-type)
+    "Simulate clicking the MIME button for MIME-TYPE.
+Walks the buffer for `gnus-data' text properties, finds the handle
+matching MIME-TYPE, and funcalls its `gnus-callback' — the same
+code path as `gnus-article-press-button' on user click."
+    (save-excursion
+      (goto-char (point-min))
+      (let (found)
+	(while (and (not found) (not (eobp)))
+	  (let ((data (get-text-property (point) 'gnus-data))
+		(callback (get-text-property (point) 'gnus-callback)))
+	    (when (and data callback
+		       (fboundp 'mm-handle-media-type)
+		       (equal (mm-handle-media-type data) mime-type))
+	      (funcall callback data)
+	      (setq found t)))
+	  (unless found
+	    (goto-char (or (next-single-property-change (point) 'gnus-data)
+			   (point-max)))))
+	found)))
+
   (defun hub/mu4e-view-toggle-rendering ()
     "Toggle between the HTML and plain-text rendition of the message."
     (interactive)
-    (if hub/mu4e-view--displaying-html
-	(hub/mu4e-view--show-plain-text)
-      (hub/mu4e-view--show-html)))
+    (let ((target (if hub/mu4e-view--displaying-html "text/plain" "text/html")))
+      (if (hub/mu4e-view--press-mime-button target)
+	  (progn
+	    (when (fboundp 'gnus-article-hide-headers)
+	      (gnus-article-hide-headers))
+	    (setq hub/mu4e-view--displaying-html
+		  (not hub/mu4e-view--displaying-html))
+	    (if hub/mu4e-view--displaying-html
+		(progn
+		  (setq-local shr-max-image-proportion
+			      hub/mu4e-view-max-image-proportion)
+		  (visual-line-mode 0)
+		  (when (fboundp 'adaptive-wrap-prefix-mode)
+		    (adaptive-wrap-prefix-mode 0))
+		  (message "Viewing HTML part"))
+	      (hub/email-enable-visual-wrap)
+	      (message "Viewing plain text part")))
+	(message "No %s part in this message" target))))
 
   (defun hub/mu4e-view--show-html ()
-    "Render the HTML part inline and suspend plain-text wrapping."
-    (let* ((shr-max-image-proportion hub/mu4e-view-max-image-proportion)
-	   (html-present (cl-some (lambda (handle)
-				    (and (fboundp 'mm-handle-media-type)
-					 (equal (mm-handle-media-type (cdr handle)) "text/html")))
-				  (and (boundp 'gnus-article-mime-handle-alist)
-				       gnus-article-mime-handle-alist))))
-      (if (not html-present)
-	  (progn
-	    (setq hub/mu4e-view--displaying-html nil)
-	    (message "No HTML part; staying in plain text"))
-	(setq-local shr-max-image-proportion shr-max-image-proportion)
-	(condition-case err
-	    (progn
-	      (mu4e-view-toggle-html)
-	      (setq hub/mu4e-view--displaying-html t)
-	      (visual-line-mode 0)
-	      (when (fboundp 'adaptive-wrap-prefix-mode)
-		(adaptive-wrap-prefix-mode 0))
-	      (message "Viewing HTML part (images scaled)"))
-	  (error
-	   (setq hub/mu4e-view--displaying-html nil)
-	   (message "%s" (or (cadr err) err)))))))
+    "Switch the current view to the HTML rendition."
+    (if (hub/mu4e-view--press-mime-button "text/html")
+	(progn
+	  (setq hub/mu4e-view--displaying-html t)
+	  (setq-local shr-max-image-proportion
+		      hub/mu4e-view-max-image-proportion)
+	  (visual-line-mode 0)
+	  (when (fboundp 'adaptive-wrap-prefix-mode)
+	    (adaptive-wrap-prefix-mode 0))
+	  (message "Viewing HTML part (images scaled)"))
+      (setq hub/mu4e-view--displaying-html nil)
+      (message "No HTML part; staying in plain text")))
 
   (defun hub/mu4e-view--show-plain-text ()
-    "Re-render the current message as plain text with visual wrapping."
-    (mu4e--view-in-headers-context
-     (mu4e-headers-view-message))
+    "Switch the current view to the plain-text rendition."
+    (hub/mu4e-view--press-mime-button "text/plain")
+    (when (fboundp 'gnus-article-hide-headers)
+      (gnus-article-hide-headers))
     (setq hub/mu4e-view--displaying-html nil)
     (hub/email-enable-visual-wrap)
     (message "Viewing plain text part"))
@@ -700,7 +726,8 @@ Actions   ;a a message  ;a m mime part  ;y u copy URL
        ("f" . hub/mu4e-view-mark-flag-and-next)
        ("C-t" . hub/mu4e-view-headers-next-primary)
        ("C-s" . hub/mu4e-view-headers-prev-primary)
-       ("ç" . hub/mu4e-view-mark-spam-and-next)))
+       ("ç" . hub/mu4e-view-mark-spam-and-next)
+       ("," . nil)))
     (hub/mu4e--define-prefix-keys
      mu4e-view-mode-map
      "z"
@@ -767,56 +794,6 @@ Actions   ;a a message  ;a m mime part  ;y u copy URL
   ;; This uses mu4e's built-in folding support (>= 1.10) for stability.
   (add-hook 'mu4e-thread-mode-hook #'mu4e-thread-fold-all))
 
-(defun hub/mu4e-setup-evil-initial-states ()
-  "Set stable Evil initial states for mu4e modes.
-Keeps navigation modes in emacs state while preserving insert state for
-`mu4e-compose-mode'."
-  (when (featurep 'evil)
-    (dolist (mode '(mu4e-main-mode
-		    mu4e-headers-mode
-		    mu4e-view-mode
-		    mu4e-org-mode
-		    mu4e-thread-mode))
-      (evil-set-initial-state mode 'emacs))
-    (evil-set-initial-state 'mu4e-compose-mode 'insert)))
-
-(defun hub/mu4e-ensure-evil-emacs-state ()
-  "Force Evil emacs state in mu4e navigation buffers.
-This preserves mu4e's baseline keymaps when package init ordering reopens
-navigation buffers in a different Evil state."
-  (when (and (featurep 'evil)
-	     (not (minibufferp))
-	     (derived-mode-p 'mu4e-main-mode
-			     'mu4e-headers-mode
-			     'mu4e-view-mode
-			     'mu4e-org-mode
-			     'mu4e-thread-mode)
-	     (not (evil-emacs-state-p)))
-    (evil-emacs-state)))
-
-(defun hub/mu4e-apply-evil-bindings ()
-  "Ensure mu4e mode maps keep hub direct bindings intact."
-  (when (boundp 'mu4e-headers-mode-map)
-    (hub/mu4e-headers--apply-keys))
-  (when (boundp 'mu4e-view-mode-map)
-    (hub/mu4e-view--apply-keys)))
-
-(add-hook 'mu4e-headers-mode-hook #'hub/mu4e-apply-evil-bindings)
-(add-hook 'mu4e-view-mode-hook #'hub/mu4e-apply-evil-bindings)
-(add-hook 'mu4e-main-mode-hook #'hub/mu4e-ensure-evil-emacs-state)
-(add-hook 'mu4e-headers-mode-hook #'hub/mu4e-ensure-evil-emacs-state)
-(add-hook 'mu4e-view-mode-hook #'hub/mu4e-ensure-evil-emacs-state)
-(add-hook 'mu4e-org-mode-hook #'hub/mu4e-ensure-evil-emacs-state)
-(add-hook 'mu4e-thread-mode-hook #'hub/mu4e-ensure-evil-emacs-state)
-(with-eval-after-load 'mu4e
-  (hub/mu4e-setup-evil-initial-states)
-  (hub/mu4e-apply-evil-bindings))
-(with-eval-after-load 'evil-collection-mu4e
-  (hub/mu4e-setup-evil-initial-states)
-  (hub/mu4e-apply-evil-bindings))
-(with-eval-after-load 'evil
-  (hub/mu4e-setup-evil-initial-states)
-  (hub/mu4e-apply-evil-bindings))
 
 (with-eval-after-load 'gnus-art
   ;; Keep `t`/`s` free for line motions; move part picker to `T`.

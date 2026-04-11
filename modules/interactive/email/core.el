@@ -96,6 +96,13 @@ Returns the resolved mu binary path (or nil)."
   ;; Do not override externally provided mu4e-mu-binary if already set
   (when (and (boundp 'mu4e-mu-binary) (string-empty-p (or mu4e-mu-binary "")))
     (setq mu4e-mu-binary (or (executable-find "mu") "mu")))
+  ;; evil-collection-mu4e may not have initialized if mu4e was absent from
+  ;; `load-path' at `evil-collection-init' time (common when the Nix-provided
+  ;; mu4e path differs between devenv shell and GUI Emacs).  Initialize it now
+  ;; so mu4e modes enter Evil normal state with bépo rotation.
+  (when (and (featurep 'evil-collection)
+	     (not (featurep 'evil-collection-mu4e)))
+    (evil-collection-init '(mu4e)))
   (evil-collection-define-key 'normal 'mu4e-main-mode-map
 			      "ê" 'mu4e-headers-search)
   (setq mu4e-context-policy 'pick-first

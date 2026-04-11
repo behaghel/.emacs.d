@@ -28,6 +28,7 @@
 - Repo-specific function and variable names should use the `hub/` prefix.
 - Put generic helpers in `lisp/` only when they are shared by multiple modules.
 - Keep interactive-only dependencies out of always-on code unless guarded.
+- Evil normal state is the default for all modes. Emacs state is exception-based; each exception is registered in `editing/evil.el` with a justifying comment. Bépo ctsr rotation requires normal or motion state and does not apply in emacs state.
 
 ## Environment And Setup
 - Preferred workflow: enable `direnv` and run `direnv allow` at repo root.

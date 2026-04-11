@@ -193,6 +193,7 @@ These additions tailor the above semantics to the BÉPO layout while preserving 
 
 - c / t / s / r map to left / up / down / right in motion/normal states.
 - Implemented via Evil/Evil‑Collection translation (see `modules/interactive/editing/evil.el`). Most modes inherit this automatically (including Magit, Org, mu4e, Treemacs).
+- **Policy**: Normal state is the canonical base state for all Evil‑integrated modes. The bépo ctsr rotation depends on normal/motion state keymaps and will not function in emacs state. Any mode forced into emacs state must be justified in `editing/evil.el`.
 
 ### Operators & Motions
 

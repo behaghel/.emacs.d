@@ -42,13 +42,17 @@
   (hub/mu4e--resolve-folder hub/mu4e-spam-suffix msg))
 
 (defun hub/mu4e--sender-email (msg)
-  "Extract sender email address from MSG."
+  "Extract sender email address from MSG.
+Handles both mu4e 1.12+ plists (:name N :email E) and legacy
+cons cells (NAME . EMAIL)."
   (let* ((from (and (fboundp 'mu4e-message-field)
 		    (mu4e-message-field msg :from)))
 	 (entry (car-safe from)))
     (cond
-     ((and (consp entry) (cdr entry)) (cdr entry))
+     ;; mu4e 1.12+: plist with :email key — check before the generic cons test
      ((and (listp entry) (plist-get entry :email)) (plist-get entry :email))
+     ;; Legacy: cons cell ("Name" . "email@example.com")
+     ((and (consp entry) (stringp (cdr entry))) (cdr entry))
      ((stringp entry) entry)
      (t nil))))
 
