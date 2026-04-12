@@ -76,6 +76,12 @@ When QUIET is non-nil, do not emit informational messages."
   (visual-line-mode 1)
   (setq-local comment-auto-fill-only-comments nil))
 
+(defun hub/org-set-structure-template (key value)
+  "Set Org structure template KEY to VALUE without duplicate entries."
+  (setq org-structure-template-alist
+	(cons (cons key value)
+	      (assoc-delete-all key org-structure-template-alist))))
+
 (use-package org
   :straight (:depth full)
   :commands (org-capture org-agenda)
@@ -101,9 +107,9 @@ When QUIET is non-nil, do not emit informational messages."
   (evil-define-key 'insert org-mode-map (kbd "<escape>") 'evil-normal-state)
   (evil-define-key 'insert org-mode-map (kbd "C-[") 'evil-normal-state)
 
+  (hub/org-set-structure-template "c" "comment")
+  (hub/org-set-structure-template "C" "center")
   (require 'org-tempo)
-  (setf (alist-get "c" org-structure-template-alist nil nil #'equal) "comment")
-  (setf (alist-get "C" org-structure-template-alist nil nil #'equal) "center")
 
   (setq org-return-follows-link t
 	org-hide-leading-stars t

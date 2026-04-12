@@ -6,6 +6,7 @@
 ;;; Code:
 
 (require 'ert)
+(require 'seq)
 
 (let ((user-emacs-directory (file-name-as-directory default-directory)))
   (add-to-list 'load-path (expand-file-name "core" user-emacs-directory))
@@ -27,6 +28,11 @@
 	(with-current-buffer (find-file-noselect path)
 	  (should (derived-mode-p 'org-mode))
 	  (should (featurep 'org-tempo))
+	  (should-not
+	   (let* ((keys (append (mapcar #'car org-structure-template-alist)
+				(mapcar #'car org-tempo-keywords-alist)))
+		  (unique-keys (seq-uniq keys #'equal)))
+	     (/= (length keys) (length unique-keys))))
 	  (should (equal (alist-get "c" org-structure-template-alist nil nil #'equal)
 			 "comment"))
 	  (evil-insert-state)

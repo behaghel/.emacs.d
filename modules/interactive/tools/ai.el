@@ -20,6 +20,10 @@
   :after (org)
   :custom (org-ai-default-chat-model "gpt-4")
   :config
+  ;; `org-ai' hardcodes <A for `ai', which collides with Org Tempo's
+  ;; built-in <A ASCII export keyword and emits a startup warning.
+  (setq org-structure-template-alist
+	(assoc-delete-all "A" org-structure-template-alist))
   (org-ai-install-yasnippets)
   (add-hook 'org-mode-hook #'org-ai-mode)
   (setq org-ai-openai-api-token nil
