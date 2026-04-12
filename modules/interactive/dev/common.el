@@ -140,7 +140,7 @@
   :diminish global-whitespace-mode
   :config
   (setq whitespace-style '(face tabs lines-tail empty trailing)
-	whitespace-global-modes '(not org-mode))
+	whitespace-global-modes '(not org-mode eve-mode))
   (global-whitespace-mode))
 (use-package whitespace-cleanup-mode
   :diminish whitespace-cleanup-mode
