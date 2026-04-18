@@ -192,7 +192,7 @@ These additions tailor the above semantics to the BÉPO layout while preserving 
 ### Home‑Row Navigation
 
 - c / t / s / r map to left / up / down / right in motion/normal states.
-- Implemented via Evil/Evil‑Collection translation (see `modules/interactive/editing/evil.el`). Most modes inherit this automatically (including Magit, Org, mu4e, Treemacs).
+- Implemented via Evil/Evil‑Collection translation (see `modules/interactive/editing/evil.el`). Most modes inherit this automatically (including Magit, Org, mu4e, Treemacs), while some modes also need explicit mode-local rebinding to preserve their intended semantics after package setup.
 - **Policy**: Normal state is the canonical base state for all Evil‑integrated modes. The bépo ctsr rotation depends on normal/motion state keymaps and will not function in emacs state. Any mode forced into emacs state must be justified in `editing/evil.el`.
 
 ### Operators & Motions
@@ -204,8 +204,10 @@ These additions tailor the above semantics to the BÉPO layout while preserving 
 
 - `à` = select/apply (contextual):
   - Org: refile; Mail: archive/refile/mark; Magit: stage.
-- `À` = unselect/reverse:
-  - Magit: unstage. Org/mu4e: candidate for inverse/unselect where meaningful.
+- `À` = reverse/inverse where that semantic exists.
+  - Magit: unstage.
+  - mu4e: archive in headers mode today; there is no current inverse/unselect semantic.
+  - Org: no explicit inverse operation today.
 
 ### Prefixes
 
@@ -214,9 +216,12 @@ These additions tailor the above semantics to the BÉPO layout while preserving 
 
 ### Current Usage Snapshot
 
+This section is descriptive, not normative. For the current implementation, see
+`modules/interactive/editing/evil.el` and `modules/interactive/email/view.el`.
+
 - mu4e
-  - Headers: `zê` full‑search; `zé` threading; `zÉ` include‑related; `à` refile; `À` archive; `%`/`,é` mark‑by‑pattern; `z!` read thread; `zD` delete thread; `zà` refile thread; `zS` Block+Spam.
-  - View: `zS` Block+Spam.
+- Headers: `T/J` next primary; `S/K` previous primary; `g t`/`g s` next/prev unread; `à` refile; `À` archive; `!` spam; `%` mark-by-pattern; `zê` full-search; `zé` threading; `zÉ` include-related; `z!` read thread; `zD` delete thread; `zà` refile thread; `zS` block sender → spam.
+- View: `T/J` next primary; `S/K` previous primary; `C-t`/`C-s` raw next/prev message; `g t`/`g s` next/prev unread; `!` spam-and-advance; `zS` move to spam.
 - Org
   - `à` refile; `,à` archive subtree. Movement via c/t/s/r.
 - Magit
@@ -225,13 +230,13 @@ These additions tailor the above semantics to the BÉPO layout while preserving 
 ### Inconsistencies Observed (not changed yet)
 
 - Evil change still on `c`; until still on `t/T`.
-- mu4e uses `À` for archive (action) rather than “unselect/reverse”.
+- mu4e uses `À` for archive (action) rather than “reverse/unselect”.
 - Org has no explicit `À` inverse operation.
 
 ### Recommendations
 
 - Provide an opt‑in global remap layer for `l`→change and `h`→until.
-- Consider aligning mu4e `À` to a reverse/unselect (or leave unbound if no good inverse).
+- If `À` is meant to stay semantically “reverse”, either leave it unbound in mu4e or define a real inverse operation; until then, treat mu4e archive on `À` as a documented exception.
 - Keep `z` for toggles and `m` for marks across modes.
 
 ---

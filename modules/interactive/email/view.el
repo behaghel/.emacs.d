@@ -64,6 +64,71 @@ Each entry is a cons of the form (:list-id . \"list.id\") or
     (call-interactively #'mu4e-headers-mark-for-spam))
    (t (user-error "Not in a mu4e buffer"))))
 
+(defun hub/mu4e-search-next-primary (&optional n)
+  "Dispatch primary next navigation to the active mu4e context."
+  (interactive "P")
+  (cond
+   ((derived-mode-p 'mu4e-view-mode)
+    (hub/mu4e-view-headers-next-primary n))
+   ((derived-mode-p 'mu4e-headers-mode)
+    (hub/mu4e-headers-next-primary n))
+   (t (user-error "Not in a mu4e buffer"))))
+
+(defun hub/mu4e-search-prev-primary (&optional n)
+  "Dispatch primary previous navigation to the active mu4e context."
+  (interactive "P")
+  (cond
+   ((derived-mode-p 'mu4e-view-mode)
+    (hub/mu4e-view-headers-prev-primary n))
+   ((derived-mode-p 'mu4e-headers-mode)
+    (hub/mu4e-headers-prev-primary n))
+   (t (user-error "Not in a mu4e buffer"))))
+
+(defun hub/mu4e-search-next-unread ()
+  "Dispatch unread-next navigation to the active mu4e context."
+  (interactive)
+  (cond
+   ((derived-mode-p 'mu4e-view-mode)
+    (call-interactively #'hub/mu4e-view-next-unread))
+   ((derived-mode-p 'mu4e-headers-mode)
+    (call-interactively #'mu4e-headers-next-unread))
+   (t (user-error "Not in a mu4e buffer"))))
+
+(defun hub/mu4e-search-prev-unread ()
+  "Dispatch unread-previous navigation to the active mu4e context."
+  (interactive)
+  (cond
+   ((derived-mode-p 'mu4e-view-mode)
+    (call-interactively #'hub/mu4e-view-prev-unread))
+   ((derived-mode-p 'mu4e-headers-mode)
+    (call-interactively #'mu4e-headers-prev-unread))
+   (t (user-error "Not in a mu4e buffer"))))
+
+(defconst hub/mu4e--shared-semantic-bindings
+  '(("C" . mu4e-compose-new)
+    ("R" . mu4e-compose-reply)
+    ("A" . mu4e-compose-wide-reply)
+    ("F" . mu4e-compose-forward)
+    ("à" . hub/mu4e-search-mark-refile)
+    ("T" . hub/mu4e-search-next-primary)
+    ("S" . hub/mu4e-search-prev-primary)
+    ("J" . hub/mu4e-search-next-primary)
+    ("K" . hub/mu4e-search-prev-primary)
+    ("!" . hub/mu4e-search-mark-spam))
+  "Direct mu4e bindings that should stay semantically aligned across views.")
+
+(defconst hub/mu4e--shared-unread-bindings
+  '(("t" . hub/mu4e-search-next-unread)
+    ("s" . hub/mu4e-search-prev-unread))
+  "Shared mu4e unread bindings used under the `g' prefix.")
+
+(defun hub/mu4e--apply-evil-normal-bindings (keymap bindings)
+  "Apply BINDINGS to KEYMAP in Evil normal state."
+  (when (featurep 'evil)
+    (dolist (binding bindings)
+      (evil-define-key 'normal keymap
+		       (kbd (car binding)) (cdr binding)))))
+
 (declare-function gnus-mime-view-part-as-type "gnus-mime")
 (declare-function hub/mu4e-headers-next-primary "email/view")
 (declare-function hub/mu4e-headers-prev-primary "email/view")
@@ -315,17 +380,21 @@ mu4e Headers
 
 Search  ê search      Ê edit
 Marks   à refile      À archive    d/D trash/delete   f flag   m move   % by-pattern   u/U unmark-all   x execute
-Jump    T next-unread S prev-unread
+Jump    T/J next-primary  S/K prev-primary  g t/g s unread
 Thread  z! read-thr   zD del-thr   zà refile-thr      É mark-thread
 Toggle  zé threading  zÉ include-related  zê full-search
-Spam    ç spam(mark)  zS spam-from-sender
+Spam    ! spam(mark)  zS spam-from-sender
 Noise   n add-noise-rule
 Other   O org-capture a actions     gL log
 "
 	  ("ê" mu4e-headers-search)
 	  ("Ê" mu4e-headers-search-edit)
-	  ("à" mu4e-headers-mark-for-refile)
+	  ("T" hub/mu4e-search-next-primary)
+	  ("S" hub/mu4e-search-prev-primary)
+	  ("à" hub/mu4e-search-mark-refile)
 	  ("À" mu4e-headers-mark-for-archive)
+	  ("J" hub/mu4e-search-next-primary)
+	  ("K" hub/mu4e-search-prev-primary)
 	  ("d" mu4e-headers-mark-for-trash)
 	  ("D" mu4e-headers-mark-for-delete)
 	  ("f" mu4e-headers-mark-for-flag)
@@ -341,12 +410,14 @@ Other   O org-capture a actions     gL log
 	  ("zé" mu4e-headers-toggle-threading)
 	  ("zÉ" mu4e-headers-toggle-include-related)
 	  ("zê" mu4e-headers-toggle-full-search)
-	  ("S"  mu4e-headers-mark-for-spam)
-	  ("zS" hub/mu4e-headers-block-and-spam)
+	  ("!"  hub/mu4e-search-mark-spam)
+	  ("zS" hub/mu4e-headers-block-sender-and-spam)
 	  ("n"  hub/mu4e-headers-add-noise-rule)
 	  ("O"  mu4e-org-store-and-capture)
 	  (",à" mu4e-org-store-and-capture)
 	  ("a"  mu4e-headers-action)
+	  ("g t" hub/mu4e-search-next-unread)
+	  ("g s" hub/mu4e-search-prev-unread)
 	  ("gL" mu4e-show-log)
 	  ("q" nil))
 (defun hub/mu4e-headers--apply-keys ()
@@ -354,30 +425,26 @@ Other   O org-capture a actions     gL log
   (when (boundp 'mu4e-headers-mode-map)
     (hub/mu4e--define-keys
      mu4e-headers-mode-map
-     '(("C" . mu4e-compose-new)
-       ("R" . mu4e-compose-reply)
-       ("A" . mu4e-compose-wide-reply)
-       ("F" . mu4e-compose-forward)
-       ("O" . mu4e-org-store-and-capture)
-       ("ê" . mu4e-headers-search)
-       ("Ê" . mu4e-headers-search-edit)
-       ("à" . hub/mu4e-headers-mark-refile)
-       ("À" . mu4e-headers-mark-for-archive)
-       ("C-t" . hub/mu4e-headers-next-primary)
-       ("C-s" . hub/mu4e-headers-prev-primary)
-       ("%" . mu4e-headers-mark-pattern)
-       ("É" . mu4e-headers-mark-thread)
-       ("'" . hub/mu4e-headers-help/body)
-       ("SPC" . nil)
-       ("ç" . mu4e-headers-mark-for-spam)
-       ("b" . mu4e-search-bookmark)
-       ("," . nil)
-       ))
-    (when (featurep 'evil)
-      ;; mu4e now runs in Evil normal state again, so keep this direct action
-      ;; on the state map instead of relying only on the base major-mode map.
-      (evil-define-key 'normal mu4e-headers-mode-map
-		       (kbd "ç") #'mu4e-headers-mark-for-spam))
+     (append hub/mu4e--shared-semantic-bindings
+	     '(("O" . mu4e-org-store-and-capture)
+	       ("ê" . mu4e-headers-search)
+	       ("Ê" . mu4e-headers-search-edit)
+	       ("À" . mu4e-headers-mark-for-archive)
+	       ("C-t" . hub/mu4e-headers-next-primary)
+	       ("C-s" . hub/mu4e-headers-prev-primary)
+	       ("%" . mu4e-headers-mark-pattern)
+	       ("É" . mu4e-headers-mark-thread)
+	       ("'" . hub/mu4e-headers-help/body)
+	       ("SPC" . nil)
+	       ("b" . mu4e-search-bookmark)
+	       ("," . nil))))
+    ;; mu4e now runs in Evil normal state again, so mirror the shared
+    ;; semantic bindings there as well instead of re-stating them per mode.
+    (hub/mu4e--apply-evil-normal-bindings
+     mu4e-headers-mode-map
+     (append hub/mu4e--shared-semantic-bindings
+	     '(("g t" . hub/mu4e-search-next-unread)
+	       ("g s" . hub/mu4e-search-prev-unread))))
     (hub/mu4e--define-prefix-keys
      mu4e-headers-mode-map
      "z"
@@ -388,10 +455,10 @@ Other   O org-capture a actions     gL log
        ("!" . (lambda () (interactive) (mu4e-headers-mark-thread nil '(read))))
        ("D" . (lambda () (interactive) (mu4e-headers-mark-thread nil '(delete))))
        ("à" . (lambda () (interactive) (mu4e-headers-mark-thread nil '(refile))))
-       ("S" . hub/mu4e-headers-block-and-spam)))
+       ("S" . hub/mu4e-headers-block-sender-and-spam)))
     (let ((g-map (hub/mu4e--ensure-prefix-map mu4e-headers-mode-map "g")))
-      (define-key g-map (kbd "s") #'mu4e-headers-prev-unread)
-      (define-key g-map (kbd "t") #'mu4e-headers-next-unread)
+      (dolist (binding hub/mu4e--shared-unread-bindings)
+	(define-key g-map (kbd (car binding)) (cdr binding)))
       (define-key g-map (kbd "L") #'mu4e-show-log))))
 (hub/mu4e-headers--apply-keys)
 (add-hook 'mu4e-headers-mode-hook #'hub/mu4e-headers--apply-keys)
@@ -399,8 +466,12 @@ Other   O org-capture a actions     gL log
 (advice-add 'mu4e-headers-mark-and-next :around #'hub/mu4e--headers-mark-and-next)
 
 (with-eval-after-load 'mu4e-view
-  ;; Free mu4e's default binding so capital T can be reused for unread navigation.
-  (define-key mu4e-view-mode-map (kbd "T") nil)
+  ;; Reclaim top-level primary navigation as soon as mu4e installs its view
+  ;; map; later helpers reassert the same semantics after live view updates.
+  (define-key mu4e-view-mode-map (kbd "T") #'hub/mu4e-search-next-primary)
+  (define-key mu4e-view-mode-map (kbd "S") #'hub/mu4e-search-prev-primary)
+  (define-key mu4e-view-mode-map (kbd "J") #'hub/mu4e-search-next-primary)
+  (define-key mu4e-view-mode-map (kbd "K") #'hub/mu4e-search-prev-primary)
 
   (defun hub/mu4e-view--reset-view-state (&rest _)
     "Ensure plain-text wrapping is active for freshly rendered messages."
@@ -437,8 +508,8 @@ Other   O org-capture a actions     gL log
     (interactive)
     (require 'mu4e-mark)
     (mu4e--view-in-headers-context
-     (when (fboundp 'mu4e-headers-mark-and-next)
-       (let ((docid (mu4e-headers-mark-and-next mark)))
+     (when (fboundp 'hub/mu4e-headers-mark-and-advance)
+       (let ((docid (hub/mu4e-headers-mark-and-advance mark)))
 	 (unless docid
 	   (setq docid (or (hub/mu4e-headers-next-primary 1)
 			   (hub/mu4e-headers-prev-primary 1))))
@@ -455,7 +526,9 @@ Other   O org-capture a actions     gL log
 
   (defun hub/mu4e-view-mark-spam-and-next ()
     (interactive)
-    (hub/mu4e-view--mark-and-next 'spam))
+    (let ((mu4e-view-advance-after-mark t)
+	  (mu4e-headers-advance-after-mark t))
+      (hub/mu4e-view--mark-and-next 'spam)))
 
   (defun hub/mu4e-view-mark-flag-and-next ()
     (interactive)
@@ -476,15 +549,26 @@ Other   O org-capture a actions     gL log
        docid)))
 
   (defun hub/mu4e--apply-view-navigation-keys ()
-    (let ((bindings '(("T"    . hub/mu4e-view-next-unread)
-		      ("S"    . hub/mu4e-view-prev-unread)
-		      ("J"    . hub/mu4e-view-next-unread)
-		      ("K"    . hub/mu4e-view-prev-unread)
-		      ("\C-t" . mu4e-view-headers-next)
-		      ("\C-s" . mu4e-view-headers-prev))))
+    (let ((bindings (append
+		     (cl-remove-if-not
+		      (lambda (binding)
+			(member (car binding) '("T" "S" "J" "K")))
+		      hub/mu4e--shared-semantic-bindings)
+		     '(("\C-t" . mu4e-view-headers-next)
+		       ("\C-s" . mu4e-view-headers-prev)))))
       (when (boundp 'mu4e-view-mode-map)
 	(dolist (binding bindings)
 	  (define-key mu4e-view-mode-map (kbd (car binding)) (cdr binding))))
+      (hub/mu4e--apply-evil-normal-bindings
+       mu4e-view-mode-map
+       (append (cl-remove-if-not
+		(lambda (binding)
+		  (member (car binding) '("T" "S" "J" "K")))
+		hub/mu4e--shared-semantic-bindings)
+	       '(("g t" . hub/mu4e-search-next-unread)
+		 ("g s" . hub/mu4e-search-prev-unread)
+		 ("C-t" . mu4e-view-headers-next)
+		 ("C-s" . mu4e-view-headers-prev))))
       (when (boundp 'mu4e-search-minor-mode-map)
 	(let* ((existing (assoc 'mu4e-search-minor-mode minor-mode-overriding-map-alist))
 	       (map (or (cdr existing) (make-sparse-keymap))))
@@ -494,7 +578,9 @@ Other   O org-capture a actions     gL log
 		(assq-delete-all 'mu4e-search-minor-mode minor-mode-overriding-map-alist))
 	  (push (cons 'mu4e-search-minor-mode map) minor-mode-overriding-map-alist)))))
 
+  (hub/mu4e--apply-view-navigation-keys)
   (add-hook 'mu4e-view-mode-hook #'hub/mu4e--apply-view-navigation-keys)
+  (add-hook 'mu4e-view-rendered-hook #'hub/mu4e--apply-view-navigation-keys)
 
   (defun hub/mu4e-view--press-mime-button (mime-type)
     "Simulate clicking the MIME button for MIME-TYPE.
@@ -691,9 +777,9 @@ code path as `gnus-article-press-button' on user click."
 
 Compose   ;c n new      ;c r reply      ;c a reply-all   ;c f forward
 Attach    ;f s save     ;f a part action
-Marks     ;m s spam     ;m r refile     ;m f flag        ;m d subthread
-Jump      T next-unread S prev-unread
-Noise     ;n n add rule ;n s move→spam
+Marks     ! spam        ;m s spam       ;m r refile      ;m f flag        ;m d subthread
+Jump      T/J next-primary  S/K prev-primary  C-t/C-s next/prev msg  g t/g s unread
+Noise     zS move→spam  ;n n add rule   ;n s move→spam
 Open      ;o b browser  ;o u visit URL  ;o f fetch URL   ;o s save URL
 Toggle    ;t t threads  ;t r related    ;t f full search ;t h html/text
 Plain     zp prefer txt ;t p prefer txt (persist)  zz toggle html/text  zC readable-html
@@ -704,14 +790,20 @@ Actions   ;a a message  ;a m mime part  ;y u copy URL
 	  ("R" mu4e-compose-reply)
 	  ("A" mu4e-compose-wide-reply)
 	  ("F" mu4e-compose-forward)
-	  ("ç" hub/mu4e-view-spam-current)
-	  ("S" hub/mu4e-view-prev-unread)
-	  ("T" hub/mu4e-view-next-unread)
+	  ("!" hub/mu4e-search-mark-spam)
+	  ("T" hub/mu4e-search-next-primary)
+	  ("S" hub/mu4e-search-prev-primary)
+	  ("J" hub/mu4e-search-next-primary)
+	  ("K" hub/mu4e-search-prev-primary)
+	  ("C-t" mu4e-view-headers-next)
+	  ("C-s" mu4e-view-headers-prev)
 	  ("n" hub/mu4e-view-add-noise-rule)
 	  ("zé" mu4e-headers-toggle-threading)
 	  ("zÉ" mu4e-headers-toggle-include-related)
 	  ("zê" mu4e-headers-toggle-full-search)
 	  ("zp" hub/mu4e-view-add-plain-preference)
+	  ("g t" hub/mu4e-search-next-unread)
+	  ("g s" hub/mu4e-search-prev-unread)
 	  ("g l" hub/mu4e-view-jump-to-main-link)
 	  ("a" mu4e-view-action)
 	  ("gL" mu4e-show-log)
@@ -722,30 +814,25 @@ Actions   ;a a message  ;a m mime part  ;y u copy URL
   (when (boundp 'mu4e-view-mode-map)
     (hub/mu4e--define-keys
      mu4e-view-mode-map
-     '(("C" . mu4e-compose-new)
-       ("R" . mu4e-compose-reply)
-       ("A" . mu4e-compose-wide-reply)
-       ("F" . mu4e-compose-forward)
-       ("'" . hub/mu4e-view-help/body)
-       ("à" . hub/mu4e-view-mark-refile-and-next)
-       ("f" . hub/mu4e-view-mark-flag-and-next)
-       ("C-t" . hub/mu4e-view-headers-next-primary)
-       ("C-s" . hub/mu4e-view-headers-prev-primary)
-       ("ç" . hub/mu4e-view-mark-spam-and-next)
-       ("," . nil)))
-    (when (featurep 'evil)
-      ;; mu4e now runs in Evil normal state again, so keep this direct action
-      ;; on the state map instead of relying only on the base major-mode map.
-      (evil-define-key 'normal mu4e-view-mode-map
-		       (kbd "ç") #'hub/mu4e-view-mark-spam-and-next))
+     (append hub/mu4e--shared-semantic-bindings
+	     '(("'" . hub/mu4e-view-help/body)
+	       ("f" . hub/mu4e-view-mark-flag-and-next)
+	       ("," . nil))))
+    (hub/mu4e--apply-evil-normal-bindings
+     mu4e-view-mode-map
+     (append hub/mu4e--shared-semantic-bindings
+	     '(("g t" . hub/mu4e-search-next-unread)
+	       ("g s" . hub/mu4e-search-prev-unread))))
     (hub/mu4e--define-prefix-keys
      mu4e-view-mode-map
      "z"
      '(("z" . hub/mu4e-view-toggle-rendering)
        ("C" . hub/mu4e-view-toggle-readable-html)
        ("p" . hub/mu4e-view-add-plain-preference)
-       ("S" . hub/mu4e-view-spam-current)))
+       ("S" . hub/mu4e-view-move-to-spam)))
     (let ((g-map (hub/mu4e--ensure-prefix-map mu4e-view-mode-map "g")))
+      (dolist (binding hub/mu4e--shared-unread-bindings)
+	(define-key g-map (kbd (car binding)) (cdr binding)))
       (define-key g-map (kbd "l") #'hub/mu4e-view-jump-to-main-link)
       (define-key g-map (kbd "L") #'mu4e-show-log))))
 
@@ -806,20 +893,22 @@ Actions   ;a a message  ;a m mime part  ;y u copy URL
 
 
 (with-eval-after-load 'gnus-art
-  ;; Keep `t`/`s` free for line motions; move part picker to `T`.
+  ;; Keep `t`/`s` for line motions and leave top-level `T` available for
+  ;; mu4e primary navigation even on MIME buttons.
   (when (boundp 'gnus-mime-button-map)
     (define-key gnus-mime-button-map (kbd "t") #'evil-next-visual-line)
     (define-key gnus-mime-button-map (kbd "s") #'evil-previous-visual-line)
-    (define-key gnus-mime-button-map (kbd "T") #'gnus-mime-view-part-as-type)))
+    (define-key gnus-mime-button-map (kbd "T") nil)
+    (define-key gnus-mime-button-map (kbd "V") #'gnus-mime-view-part-as-type)))
 
 
 (with-eval-after-load 'evil-collection-mu4e
-  (dolist (key '("T" "S" "J" "K"))
-    (define-key mu4e-view-mode-map (kbd key) nil))
-  (define-key mu4e-view-mode-map (kbd "T") #'hub/mu4e-view-next-unread)
-  (define-key mu4e-view-mode-map (kbd "S") #'hub/mu4e-view-prev-unread)
-  (define-key mu4e-view-mode-map (kbd "J") #'hub/mu4e-view-next-unread)
-  (define-key mu4e-view-mode-map (kbd "K") #'hub/mu4e-view-prev-unread))
+  (when (fboundp 'hub/mu4e-headers--apply-keys)
+    (hub/mu4e-headers--apply-keys))
+  (when (fboundp 'hub/mu4e-view--apply-keys)
+    (hub/mu4e-view--apply-keys))
+  (when (fboundp 'hub/mu4e--apply-view-navigation-keys)
+    (hub/mu4e--apply-view-navigation-keys)))
 ;; --- Deep-linking ------------------------------------------------------------
 
 (defun hub/mu4e-open-message-by-id (msgid)
