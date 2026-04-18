@@ -220,8 +220,8 @@ This section is descriptive, not normative. For the current implementation, see
 `modules/interactive/editing/evil.el` and `modules/interactive/email/view.el`.
 
 - mu4e
-- Headers: `T/J` next primary; `S/K` previous primary; `g t`/`g s` next/prev unread; `à` refile; `À` archive; `!` spam; `%` mark-by-pattern; `zê` full-search; `zé` threading; `zÉ` include-related; `z!` read thread; `zD` delete thread; `zà` refile thread; `zS` block sender → spam.
-- View: `T/J` next primary; `S/K` previous primary; `C-t`/`C-s` raw next/prev message; `g t`/`g s` next/prev unread; `!` spam-and-advance; `zS` move to spam.
+- Headers: `T` next primary; `S` previous primary; `C-t`/`C-s` raw next/prev message; `J` jump to maildir (Evil normal); `g t`/`g s` next/prev unread; `à` refile; `À` archive; `!` spam; `%` mark-by-pattern; `zê` full-search; `zé` threading; `zÉ` include-related; `z!` read thread; `zD` delete thread; `zà` refile thread; `zS` block sender → spam.
+- View: `T` next primary; `S` previous primary; `C-t`/`C-s` raw next/prev message; `J` jump to maildir (Evil normal); `g t`/`g s` next/prev unread; `!` spam-and-advance; `zS` move to spam.
 - Org
   - `à` refile; `,à` archive subtree. Movement via c/t/s/r.
 - Magit

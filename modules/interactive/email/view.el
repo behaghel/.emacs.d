@@ -112,8 +112,6 @@ Each entry is a cons of the form (:list-id . \"list.id\") or
     ("à" . hub/mu4e-search-mark-refile)
     ("T" . hub/mu4e-search-next-primary)
     ("S" . hub/mu4e-search-prev-primary)
-    ("J" . hub/mu4e-search-next-primary)
-    ("K" . hub/mu4e-search-prev-primary)
     ("!" . hub/mu4e-search-mark-spam))
   "Direct mu4e bindings that should stay semantically aligned across views.")
 
@@ -129,9 +127,16 @@ Each entry is a cons of the form (:list-id . \"list.id\") or
       (evil-define-key 'normal keymap
 		       (kbd (car binding)) (cdr binding)))))
 
+(defun hub/mu4e--apply-evil-local-normal-bindings (bindings)
+  "Apply BINDINGS to the current buffer's Evil normal-state map."
+  (when (featurep 'evil)
+    (dolist (binding bindings)
+      (evil-local-set-key 'normal (kbd (car binding)) (cdr binding)))))
+
 (declare-function gnus-mime-view-part-as-type "gnus-mime")
 (declare-function hub/mu4e-headers-next-primary "email/view")
 (declare-function hub/mu4e-headers-prev-primary "email/view")
+(declare-function mu4e~headers-jump-to-maildir "mu4e-headers")
 
 (defun hub/mu4e--headers-mark-and-next (orig mark)
   "Around advice so mark-and-next obeys smart jump rules."
@@ -380,7 +385,7 @@ mu4e Headers
 
 Search  ê search      Ê edit
 Marks   à refile      À archive    d/D trash/delete   f flag   m move   % by-pattern   u/U unmark-all   x execute
-Jump    T/J next-primary  S/K prev-primary  g t/g s unread
+Jump    T next-primary  S prev-primary  C-t/C-s next/prev msg  J maildir  g t/g s unread
 Thread  z! read-thr   zD del-thr   zà refile-thr      É mark-thread
 Toggle  zé threading  zÉ include-related  zê full-search
 Spam    ! spam(mark)  zS spam-from-sender
@@ -391,10 +396,11 @@ Other   O org-capture a actions     gL log
 	  ("Ê" mu4e-headers-search-edit)
 	  ("T" hub/mu4e-search-next-primary)
 	  ("S" hub/mu4e-search-prev-primary)
+	  ("J" mu4e~headers-jump-to-maildir)
 	  ("à" hub/mu4e-search-mark-refile)
 	  ("À" mu4e-headers-mark-for-archive)
-	  ("J" hub/mu4e-search-next-primary)
-	  ("K" hub/mu4e-search-prev-primary)
+	  ("C-t" mu4e-headers-next)
+	  ("C-s" mu4e-headers-prev)
 	  ("d" mu4e-headers-mark-for-trash)
 	  ("D" mu4e-headers-mark-for-delete)
 	  ("f" mu4e-headers-mark-for-flag)
@@ -430,8 +436,8 @@ Other   O org-capture a actions     gL log
 	       ("ê" . mu4e-headers-search)
 	       ("Ê" . mu4e-headers-search-edit)
 	       ("À" . mu4e-headers-mark-for-archive)
-	       ("C-t" . hub/mu4e-headers-next-primary)
-	       ("C-s" . hub/mu4e-headers-prev-primary)
+	       ("C-t" . mu4e-headers-next)
+	       ("C-s" . mu4e-headers-prev)
 	       ("%" . mu4e-headers-mark-pattern)
 	       ("É" . mu4e-headers-mark-thread)
 	       ("'" . hub/mu4e-headers-help/body)
@@ -443,7 +449,10 @@ Other   O org-capture a actions     gL log
     (hub/mu4e--apply-evil-normal-bindings
      mu4e-headers-mode-map
      (append hub/mu4e--shared-semantic-bindings
-	     '(("g t" . hub/mu4e-search-next-unread)
+	     '(("J" . mu4e~headers-jump-to-maildir)
+	       ("C-t" . mu4e-headers-next)
+	       ("C-s" . mu4e-headers-prev)
+	       ("g t" . hub/mu4e-search-next-unread)
 	       ("g s" . hub/mu4e-search-prev-unread))))
     (hub/mu4e--define-prefix-keys
      mu4e-headers-mode-map
@@ -460,8 +469,20 @@ Other   O org-capture a actions     gL log
       (dolist (binding hub/mu4e--shared-unread-bindings)
 	(define-key g-map (kbd (car binding)) (cdr binding)))
       (define-key g-map (kbd "L") #'mu4e-show-log))))
+
+(defun hub/mu4e-headers--apply-local-evil-keys ()
+  "Reassert mu4e headers bindings in the current Evil normal buffer."
+  (hub/mu4e--apply-evil-local-normal-bindings
+   (append hub/mu4e--shared-semantic-bindings
+	   '(("J" . mu4e~headers-jump-to-maildir)
+	     ("C-t" . mu4e-headers-next)
+	     ("C-s" . mu4e-headers-prev)
+	     ("g t" . hub/mu4e-search-next-unread)
+	     ("g s" . hub/mu4e-search-prev-unread)))))
+
 (hub/mu4e-headers--apply-keys)
 (add-hook 'mu4e-headers-mode-hook #'hub/mu4e-headers--apply-keys)
+(add-hook 'mu4e-headers-mode-hook #'hub/mu4e-headers--apply-local-evil-keys)
 
 (advice-add 'mu4e-headers-mark-and-next :around #'hub/mu4e--headers-mark-and-next)
 
@@ -470,8 +491,6 @@ Other   O org-capture a actions     gL log
   ;; map; later helpers reassert the same semantics after live view updates.
   (define-key mu4e-view-mode-map (kbd "T") #'hub/mu4e-search-next-primary)
   (define-key mu4e-view-mode-map (kbd "S") #'hub/mu4e-search-prev-primary)
-  (define-key mu4e-view-mode-map (kbd "J") #'hub/mu4e-search-next-primary)
-  (define-key mu4e-view-mode-map (kbd "K") #'hub/mu4e-search-prev-primary)
 
   (defun hub/mu4e-view--reset-view-state (&rest _)
     "Ensure plain-text wrapping is active for freshly rendered messages."
@@ -481,25 +500,36 @@ Other   O org-capture a actions     gL log
   (add-hook 'mu4e-view-rendered-hook #'hub/mu4e-view--reset-view-state)
   (add-hook 'mu4e-view-rendered-hook #'hub/mu4e--ensure-plain-for-preference)
 
+  (defun hub/mu4e-view--move-and-redisplay (move-fn n)
+    "Run MOVE-FN in headers context and redisplay the landed message.
+N is forwarded as the numeric prefix argument.  Return the resulting docid,
+or nil when no matching message was found."
+    (mu4e--view-in-headers-context
+     (when-let ((docid (funcall move-fn (prefix-numeric-value n))))
+       (mu4e-headers-view-message)
+       docid)))
+
   (defun hub/mu4e-view-headers-next-primary (&optional n)
     "In view buffers, jump to the next header matching the search."
     (interactive "P")
-    (mu4e--view-in-headers-context
-     (unless (fboundp 'hub/mu4e-headers-next-primary)
-       (require 'mu4e-headers nil t))
+    (unless (fboundp 'hub/mu4e-headers-next-primary)
+      (require 'mu4e-headers nil t))
+    (hub/mu4e-view--move-and-redisplay
      (if (fboundp 'hub/mu4e-headers-next-primary)
-	 (hub/mu4e-headers-next-primary (prefix-numeric-value n))
-       (mu4e-view-headers-next (prefix-numeric-value n)))))
+	 #'hub/mu4e-headers-next-primary
+       #'mu4e-view-headers-next)
+     n))
 
   (defun hub/mu4e-view-headers-prev-primary (&optional n)
     "In view buffers, jump to the previous header matching the search."
     (interactive "P")
-    (mu4e--view-in-headers-context
-     (unless (fboundp 'hub/mu4e-headers-prev-primary)
-       (require 'mu4e-headers nil t))
+    (unless (fboundp 'hub/mu4e-headers-prev-primary)
+      (require 'mu4e-headers nil t))
+    (hub/mu4e-view--move-and-redisplay
      (if (fboundp 'hub/mu4e-headers-prev-primary)
-	 (hub/mu4e-headers-prev-primary (prefix-numeric-value n))
-       (mu4e-view-headers-prev (prefix-numeric-value n)))))
+	 #'hub/mu4e-headers-prev-primary
+       #'mu4e-view-headers-prev)
+     n))
 
   (add-hook 'mu4e-view-mode-hook #'hub/email-enable-visual-wrap)
 
@@ -519,10 +549,7 @@ Other   O org-capture a actions     gL log
 
   (defun hub/mu4e-view-mark-refile-and-next ()
     (interactive)
-    ;; Use mu4e's view helper directly to avoid headers-mode assertions.
-    (let ((mu4e-view-advance-after-mark t)
-	  (mu4e-headers-advance-after-mark t))
-      (mu4e-view-mark-for-refile)))
+    (hub/mu4e-view--mark-and-next 'refile))
 
   (defun hub/mu4e-view-mark-spam-and-next ()
     (interactive)
@@ -552,7 +579,7 @@ Other   O org-capture a actions     gL log
     (let ((bindings (append
 		     (cl-remove-if-not
 		      (lambda (binding)
-			(member (car binding) '("T" "S" "J" "K")))
+			(member (car binding) '("T" "S")))
 		      hub/mu4e--shared-semantic-bindings)
 		     '(("\C-t" . mu4e-view-headers-next)
 		       ("\C-s" . mu4e-view-headers-prev)))))
@@ -563,9 +590,10 @@ Other   O org-capture a actions     gL log
        mu4e-view-mode-map
        (append (cl-remove-if-not
 		(lambda (binding)
-		  (member (car binding) '("T" "S" "J" "K")))
+		  (member (car binding) '("T" "S")))
 		hub/mu4e--shared-semantic-bindings)
-	       '(("g t" . hub/mu4e-search-next-unread)
+	       '(("J" . mu4e~headers-jump-to-maildir)
+		 ("g t" . hub/mu4e-search-next-unread)
 		 ("g s" . hub/mu4e-search-prev-unread)
 		 ("C-t" . mu4e-view-headers-next)
 		 ("C-s" . mu4e-view-headers-prev))))
@@ -578,9 +606,24 @@ Other   O org-capture a actions     gL log
 		(assq-delete-all 'mu4e-search-minor-mode minor-mode-overriding-map-alist))
 	  (push (cons 'mu4e-search-minor-mode map) minor-mode-overriding-map-alist)))))
 
+  (defun hub/mu4e-view--apply-local-evil-navigation-keys ()
+    "Reassert mu4e view navigation in the current Evil normal buffer."
+    (hub/mu4e--apply-evil-local-normal-bindings
+     (append (cl-remove-if-not
+	      (lambda (binding)
+		(member (car binding) '("F" "T" "S")))
+	      hub/mu4e--shared-semantic-bindings)
+	     '(("J" . mu4e~headers-jump-to-maildir)
+	       ("g t" . hub/mu4e-search-next-unread)
+	       ("g s" . hub/mu4e-search-prev-unread)
+	       ("C-t" . mu4e-view-headers-next)
+	       ("C-s" . mu4e-view-headers-prev)))))
+
   (hub/mu4e--apply-view-navigation-keys)
   (add-hook 'mu4e-view-mode-hook #'hub/mu4e--apply-view-navigation-keys)
+  (add-hook 'mu4e-view-mode-hook #'hub/mu4e-view--apply-local-evil-navigation-keys)
   (add-hook 'mu4e-view-rendered-hook #'hub/mu4e--apply-view-navigation-keys)
+  (add-hook 'mu4e-view-rendered-hook #'hub/mu4e-view--apply-local-evil-navigation-keys)
 
   (defun hub/mu4e-view--press-mime-button (mime-type)
     "Simulate clicking the MIME button for MIME-TYPE.
@@ -778,7 +821,7 @@ code path as `gnus-article-press-button' on user click."
 Compose   ;c n new      ;c r reply      ;c a reply-all   ;c f forward
 Attach    ;f s save     ;f a part action
 Marks     ! spam        ;m s spam       ;m r refile      ;m f flag        ;m d subthread
-Jump      T/J next-primary  S/K prev-primary  C-t/C-s next/prev msg  g t/g s unread
+Jump      T next-primary  S prev-primary  C-t/C-s next/prev msg  J maildir  g t/g s unread
 Noise     zS move→spam  ;n n add rule   ;n s move→spam
 Open      ;o b browser  ;o u visit URL  ;o f fetch URL   ;o s save URL
 Toggle    ;t t threads  ;t r related    ;t f full search ;t h html/text
@@ -793,8 +836,7 @@ Actions   ;a a message  ;a m mime part  ;y u copy URL
 	  ("!" hub/mu4e-search-mark-spam)
 	  ("T" hub/mu4e-search-next-primary)
 	  ("S" hub/mu4e-search-prev-primary)
-	  ("J" hub/mu4e-search-next-primary)
-	  ("K" hub/mu4e-search-prev-primary)
+	  ("J" mu4e~headers-jump-to-maildir)
 	  ("C-t" mu4e-view-headers-next)
 	  ("C-s" mu4e-view-headers-prev)
 	  ("n" hub/mu4e-view-add-noise-rule)
