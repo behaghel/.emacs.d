@@ -373,6 +373,11 @@ Other   O org-capture a actions     gL log
        ("b" . mu4e-search-bookmark)
        ("," . nil)
        ))
+    (when (featurep 'evil)
+      ;; mu4e now runs in Evil normal state again, so keep this direct action
+      ;; on the state map instead of relying only on the base major-mode map.
+      (evil-define-key 'normal mu4e-headers-mode-map
+		       (kbd "ç") #'mu4e-headers-mark-for-spam))
     (hub/mu4e--define-prefix-keys
      mu4e-headers-mode-map
      "z"
@@ -728,6 +733,11 @@ Actions   ;a a message  ;a m mime part  ;y u copy URL
        ("C-s" . hub/mu4e-view-headers-prev-primary)
        ("ç" . hub/mu4e-view-mark-spam-and-next)
        ("," . nil)))
+    (when (featurep 'evil)
+      ;; mu4e now runs in Evil normal state again, so keep this direct action
+      ;; on the state map instead of relying only on the base major-mode map.
+      (evil-define-key 'normal mu4e-view-mode-map
+		       (kbd "ç") #'hub/mu4e-view-mark-spam-and-next))
     (hub/mu4e--define-prefix-keys
      mu4e-view-mode-map
      "z"
