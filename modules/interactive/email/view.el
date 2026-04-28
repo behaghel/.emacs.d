@@ -21,6 +21,8 @@
 
 
 (defvar mu4e-headers-advance-after-mark)
+(defvar mu4e-headers-open-after-move)
+(defvar mu4e-view-advance-after-mark)
 (defvar-local hub/mu4e-view--displaying-html nil
   "Non-nil when the current mu4e view buffer shows the HTML rendition.")
 (defgroup hub/mu4e-view nil
@@ -61,7 +63,7 @@ Each entry is a cons of the form (:list-id . \"list.id\") or
    ((derived-mode-p 'mu4e-view-mode)
     (call-interactively #'hub/mu4e-view-mark-spam-and-next))
    ((derived-mode-p 'mu4e-headers-mode)
-    (call-interactively #'mu4e-headers-mark-for-spam))
+    (call-interactively #'hub/mu4e-headers-mark-spam))
    (t (user-error "Not in a mu4e buffer"))))
 
 (defun hub/mu4e-search-next-primary (&optional n)
@@ -136,6 +138,7 @@ Each entry is a cons of the form (:list-id . \"list.id\") or
 (declare-function gnus-mime-view-part-as-type "gnus-mime")
 (declare-function hub/mu4e-headers-next-primary "email/view")
 (declare-function hub/mu4e-headers-prev-primary "email/view")
+(declare-function mu4e-mark-docid-marked-p "mu4e-mark" (docid))
 (declare-function mu4e~headers-jump-to-maildir "mu4e-headers")
 
 (defun hub/mu4e--headers-mark-and-next (orig mark)
@@ -143,8 +146,7 @@ Each entry is a cons of the form (:list-id . \"list.id\") or
   (let ((docid (funcall orig mark)))
     (when (and mu4e-headers-advance-after-mark
 	       (fboundp 'hub/mu4e-headers-next-primary)
-	       (or (hub/mu4e--headers-related-p)
-		   (not (hub/mu4e--headers-matches-query-p))))
+	       (not (hub/mu4e--headers-primary-candidate-p)))
       (setq docid (hub/mu4e-headers-next-primary)))
     docid))
 
@@ -170,6 +172,13 @@ With prefix RAW, just mark without moving."
   (if raw
       (mu4e-headers-mark-for-refile)
     (hub/mu4e-headers-mark-and-advance 'refile)))
+
+(defun hub/mu4e-headers-mark-spam ()
+  "Mark the current message for spam, advancing intelligently."
+  (interactive)
+  (require 'mu4e-headers)
+  (require 'mu4e-mark)
+  (hub/mu4e-headers-mark-and-advance 'spam))
 
 (defun hub/mu4e--load-prefer-plain-rules ()
   "Load `hub/mu4e-prefer-plain-rules' from disk when available."
@@ -297,8 +306,9 @@ PREFIX is preserved as a real prefix map via `hub/mu4e--ensure-prefix-map'."
 		(meta (plist-get msg :meta)))
       (plist-get meta :related)))
 
-  (defvar hub/mu4e--search-maildirs nil
-    "Maildirs that must match for the current mu4e search (nil = no restriction).")
+  (defvar-local hub/mu4e--search-maildirs nil
+    "Maildirs that must match for the current mu4e headers buffer.
+Nil means either no restriction or that the restriction could not be inferred.")
 
   (defun hub/mu4e--extract-maildirs (expr)
     "Return list of positive maildirs referenced in query EXPR.
@@ -327,15 +337,65 @@ The parser intentionally keeps things simple: if EXPR contains
 		    (push match result)))))))
 	(delete-dups result))))
 
+  (defun hub/mu4e--query-from-help-echo (help)
+    "Extract a mu4e query string from HELP text when present."
+    (when (and (stringp help)
+	       (string-match "mu4e query:\n\t\\(.*\\)\\'" help))
+      (match-string 1 help)))
+
+  (defun hub/mu4e--query-from-propertized-string (str)
+    "Extract a mu4e query from any help-echo carried by STR."
+    (when (stringp str)
+      (or (cl-loop for idx from 0 below (length str)
+		   for help = (get-text-property idx 'help-echo str)
+		   for query = (hub/mu4e--query-from-help-echo help)
+		   when query return query)
+	  (hub/mu4e--query-from-help-echo str))))
+
+  (defun hub/mu4e--query-from-header-line-object (obj)
+    "Extract the mu4e query from header-line object OBJ when possible."
+    (cond
+     ((null obj) nil)
+     ((stringp obj)
+      (hub/mu4e--query-from-propertized-string obj))
+     ((and (consp obj) (eq (car obj) 'propertize))
+      (or (cl-loop for (prop value) on (cddr obj) by #'cddr
+		   when (eq prop 'help-echo)
+		   return (hub/mu4e--query-from-help-echo value))
+	  (hub/mu4e--query-from-header-line-object (cadr obj))))
+     ((consp obj)
+      (or (hub/mu4e--query-from-header-line-object (car obj))
+	  (hub/mu4e--query-from-header-line-object (cdr obj))))
+     (t nil)))
+
+  (defun hub/mu4e--query-from-header-line ()
+    "Extract the current mu4e search query from the headers header line."
+    (or (hub/mu4e--query-from-header-line-object header-line-format)
+	(hub/mu4e--query-from-propertized-string
+	 (when header-line-format
+	   (format-mode-line header-line-format)))))
+
+  (defun hub/mu4e--current-search-query (&optional expr)
+    "Return the best current mu4e search query, preferring EXPR.
+Falls back to the current headers header-line hint, then `mu4e--search-last-query'."
+    (or expr
+	(hub/mu4e--query-from-header-line)
+	(and (boundp 'mu4e--search-last-query)
+	     mu4e--search-last-query)
+	nil))
+
   (defun hub/mu4e--update-maildirs-cache (&optional expr)
-    "Update cached maildirs based on query EXPR.
-Falls back to `mu4e--search-last-query' when EXPR is nil."
-    (let ((query (or expr
-		     (and (boundp 'mu4e--search-last-query)
-			  mu4e--search-last-query))))
-      (setq hub/mu4e--search-maildirs
-	    (or (hub/mu4e--extract-maildirs query)
-		nil))))
+    "Update cached maildirs for the current headers buffer using EXPR.
+Falls back to the best current search query when EXPR is nil."
+    (let ((query (hub/mu4e--current-search-query expr)))
+      (setq-local hub/mu4e--search-maildirs
+		  (and query (hub/mu4e--extract-maildirs query)))))
+
+  (defun hub/mu4e--ensure-maildirs-cache (&optional expr)
+    "Ensure the current headers buffer has the best available maildir cache."
+    (unless hub/mu4e--search-maildirs
+      (hub/mu4e--update-maildirs-cache expr))
+    hub/mu4e--search-maildirs)
 
   (defvar mu4e-search-hook)
   (add-hook 'mu4e-search-hook #'hub/mu4e--update-maildirs-cache)
@@ -344,15 +404,29 @@ Falls back to `mu4e--search-last-query' when EXPR is nil."
 
   (defun hub/mu4e--headers-matches-query-p (&optional pos)
     "Return non-nil when message at POS belongs to the active maildir filter."
-    (let ((maildirs hub/mu4e--search-maildirs))
+    (let ((maildirs (hub/mu4e--ensure-maildirs-cache)))
       (if (null maildirs)
 	  t
 	(when-let* ((msg (get-text-property (or pos (point)) 'msg))
 		    (maildir (plist-get msg :maildir)))
 	  (member maildir maildirs)))))
 
+  (defun hub/mu4e--headers-marked-p (&optional pos)
+    "Return non-nil when message at POS has a pending mu4e mark."
+    (require 'mu4e-mark nil t)
+    (when-let* ((msg (get-text-property (or pos (point)) 'msg))
+		(docid (plist-get msg :docid)))
+      (and (fboundp 'mu4e-mark-docid-marked-p)
+	   (mu4e-mark-docid-marked-p docid))))
+
+  (defun hub/mu4e--headers-primary-candidate-p (&optional pos)
+    "Return non-nil when message at POS is eligible as a primary target."
+    (and (not (hub/mu4e--headers-related-p pos))
+	 (hub/mu4e--headers-matches-query-p pos)
+	 (not (hub/mu4e--headers-marked-p pos))))
+
   (defun hub/mu4e--headers-move-skip-related (steps)
-    "Move STEPS headers, skipping ones added via include-related."
+    "Move STEPS headers, skipping non-primary candidates."
     (let* ((direction (if (< steps 0) -1 1))
 	   (remaining (max 1 (abs steps)))
 	   docid)
@@ -362,8 +436,7 @@ Falls back to `mu4e--search-last-query' when EXPR is nil."
 	    (unless candidate
 	      (setq docid nil)
 	      (throw 'end nil))
-	    (unless (or (hub/mu4e--headers-related-p)
-			(not (hub/mu4e--headers-matches-query-p)))
+	    (when (hub/mu4e--headers-primary-candidate-p)
 	      (setq docid candidate)
 	      (setq remaining (1- remaining))))))
       docid))
@@ -500,14 +573,22 @@ Other   O org-capture a actions     gL log
   (add-hook 'mu4e-view-rendered-hook #'hub/mu4e-view--reset-view-state)
   (add-hook 'mu4e-view-rendered-hook #'hub/mu4e--ensure-plain-for-preference)
 
+  (defmacro hub/mu4e--with-stable-view-traversal (&rest body)
+    "Run BODY in headers context without auto-opening intermediate moves."
+    `(let ((mu4e-headers-open-after-move nil)
+	   (mu4e-view-advance-after-mark nil)
+	   (mu4e-headers-advance-after-mark t))
+       ,@body))
+
   (defun hub/mu4e-view--move-and-redisplay (move-fn n)
     "Run MOVE-FN in headers context and redisplay the landed message.
 N is forwarded as the numeric prefix argument.  Return the resulting docid,
 or nil when no matching message was found."
     (mu4e--view-in-headers-context
-     (when-let ((docid (funcall move-fn (prefix-numeric-value n))))
-       (mu4e-headers-view-message)
-       docid)))
+     (hub/mu4e--with-stable-view-traversal
+      (when-let ((docid (funcall move-fn (prefix-numeric-value n))))
+	(mu4e-headers-view-message)
+	docid))))
 
   (defun hub/mu4e-view-headers-next-primary (&optional n)
     "In view buffers, jump to the next header matching the search."
@@ -515,9 +596,9 @@ or nil when no matching message was found."
     (unless (fboundp 'hub/mu4e-headers-next-primary)
       (require 'mu4e-headers nil t))
     (hub/mu4e-view--move-and-redisplay
-     (if (fboundp 'hub/mu4e-headers-next-primary)
-	 #'hub/mu4e-headers-next-primary
-       #'mu4e-view-headers-next)
+     (or (and (fboundp 'hub/mu4e-headers-next-primary)
+	      #'hub/mu4e-headers-next-primary)
+	 (user-error "Primary navigation helper unavailable"))
      n))
 
   (defun hub/mu4e-view-headers-prev-primary (&optional n)
@@ -526,9 +607,9 @@ or nil when no matching message was found."
     (unless (fboundp 'hub/mu4e-headers-prev-primary)
       (require 'mu4e-headers nil t))
     (hub/mu4e-view--move-and-redisplay
-     (if (fboundp 'hub/mu4e-headers-prev-primary)
-	 #'hub/mu4e-headers-prev-primary
-       #'mu4e-view-headers-prev)
+     (or (and (fboundp 'hub/mu4e-headers-prev-primary)
+	      #'hub/mu4e-headers-prev-primary)
+	 (user-error "Primary navigation helper unavailable"))
      n))
 
   (add-hook 'mu4e-view-mode-hook #'hub/email-enable-visual-wrap)
@@ -538,14 +619,15 @@ or nil when no matching message was found."
     (interactive)
     (require 'mu4e-mark)
     (mu4e--view-in-headers-context
-     (when (fboundp 'hub/mu4e-headers-mark-and-advance)
-       (let ((docid (hub/mu4e-headers-mark-and-advance mark)))
-	 (unless docid
-	   (setq docid (or (hub/mu4e-headers-next-primary 1)
-			   (hub/mu4e-headers-prev-primary 1))))
-	 (when docid
-	   (mu4e-headers-view-message))
-	 docid))))
+     (hub/mu4e--with-stable-view-traversal
+      (when (fboundp 'hub/mu4e-headers-mark-and-advance)
+	(let ((docid (hub/mu4e-headers-mark-and-advance mark)))
+	  (unless docid
+	    (setq docid (or (hub/mu4e-headers-next-primary 1)
+			    (hub/mu4e-headers-prev-primary 1))))
+	  (when docid
+	    (mu4e-headers-view-message))
+	  docid)))))
 
   (defun hub/mu4e-view-mark-refile-and-next ()
     (interactive)
@@ -553,9 +635,7 @@ or nil when no matching message was found."
 
   (defun hub/mu4e-view-mark-spam-and-next ()
     (interactive)
-    (let ((mu4e-view-advance-after-mark t)
-	  (mu4e-headers-advance-after-mark t))
-      (hub/mu4e-view--mark-and-next 'spam)))
+    (hub/mu4e-view--mark-and-next 'spam))
 
   (defun hub/mu4e-view-mark-flag-and-next ()
     (interactive)
@@ -941,6 +1021,7 @@ Actions   ;a a message  ;a m mime part  ;y u copy URL
     (define-key gnus-mime-button-map (kbd "t") #'evil-next-visual-line)
     (define-key gnus-mime-button-map (kbd "s") #'evil-previous-visual-line)
     (define-key gnus-mime-button-map (kbd "T") nil)
+    (define-key gnus-mime-button-map (kbd "S") nil)
     (define-key gnus-mime-button-map (kbd "V") #'gnus-mime-view-part-as-type)))
 
 

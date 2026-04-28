@@ -99,10 +99,10 @@ cons cells (NAME . EMAIL)."
 			   (mu4e--server-move docid (mu4e--mark-check-target target) "-N"))))
   (with-eval-after-load 'mu4e-headers
     (defun mu4e-headers-mark-for-spam ()
-      "Mark the current header for the custom Spam action."
+      "Compatibility wrapper for the current header spam action."
       (interactive)
-      (if (fboundp 'hub/mu4e-headers-mark-and-advance)
-	  (hub/mu4e-headers-mark-and-advance 'spam)
+      (if (fboundp 'hub/mu4e-headers-mark-spam)
+	  (hub/mu4e-headers-mark-spam)
 	(mu4e-headers-mark-and-next 'spam)))))
 
 ;;; Noise helpers -------------------------------------------------------------
