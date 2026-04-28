@@ -72,3 +72,15 @@ devenv.local.nix
 
 # pre-commit
 .pre-commit-config.yaml
+
+# Local agent/browser/TeX scratch artifacts
+.playwright-mcp/
+.sisyphus/
+.texlive2025/
+texput.*
+blog-home*.md
+blog-home*.png
+efficiency-post*.md
+efficiency-post*.png
+veriff-home*.md
+veriff-home*.png
