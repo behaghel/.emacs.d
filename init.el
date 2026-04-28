@@ -375,6 +375,7 @@
   (require 'shell/eshell)
   ;; Knowledge & writing
   (require 'org/core)
+  (require 'org/export)
   (unless (getenv "HUB_CI_SKIP_OPTIONALS")
     (require 'notes/brain))
   (require 'tools/blog)

@@ -1,0 +1,89 @@
+#+TITLE: Make the refresh impossible to miss
+#+SUBTITLE: A temporary high-energy mode for launch-season communications that should feel branded, readable, and unmistakably refreshed.
+#+AUTHOR: Hubert Behaghel
+#+DATE: 2026-04-28
+#+LANGUAGE: en
+#+LATEX_CLASS: pro-refresh-overdrive
+#+EXPORT_EYEBROW: Refresh mode · louder on purpose
+#+EXPORT_FOOTER_NOTE: The overdrive question is simple: can the refresh be pushed this hard without undermining the sense of trust?
+
+#+begin_standfirst
+Trust is no longer a static promise. It is a system: observable, explainable, fast under pressure, and humane at the point of friction.
+#+end_standfirst
+
+* Trust without compromise
+
+The strongest identity products no longer sell a check. They sell a posture.
+
+** Operating principle
+
+The posture says: protect the business, preserve the customer moment, and make every decision legible enough to defend.
+
+#+begin_quote
+Trust has to feel engineered before it can feel effortless.
+#+end_quote
+
+#+ATTR_LATEX: :options [Prototype testimonial · Global platform operator]
+#+begin_pullquote
+What mattered was not only the fraud reduction. It was the sense that the platform could explain itself while still moving at business speed.
+#+end_pullquote
+
+* AI-powered architecture, built for trust
+
+Under the surface, a trustworthy platform blends signal density, model intelligence, policy control, and operational feedback.
+
+#+ATTR_LATEX: :options [Design signal]
+#+begin_callout
+In the overdrive mode, the article becomes a deliberate piece of comms theatre. It still needs discipline, but it is allowed to be more obviously branded than the calmer variants.
+#+end_callout
+
+* Performance at scale
+
+| Measure             | Signal        | Why it matters                   |
+|---------------------+---------------+----------------------------------|
+| Decision latency    | 6 seconds     | Keeps conversion momentum alive  |
+| Coverage            | 230+ regions  | Expands commercial reach         |
+| Verification fabric | 1,000+ signals | Increases confidence in decisions |
+
+#+begin_metrics
+#+ATTR_LATEX: :options [230+]
+#+begin_metric
+Countries and territories covered
+#+end_metric
+
+#+ATTR_LATEX: :options [6s]
+#+begin_metric
+Fast decision times
+#+end_metric
+
+#+ATTR_LATEX: :options [99.6%]
+#+begin_metric
+Illustrative accuracy figure for visual pacing
+#+end_metric
+
+#+ATTR_LATEX: :options [1,000+]
+#+begin_metric
+Signals analyzed per session
+#+end_metric
+#+end_metrics
+
+* Partnerships that protect
+
+#+begin_pillars
+#+ATTR_LATEX: :options [Trust engineered]
+#+begin_pillar
+Trust is not treated as a feature but as a coordinated operating system across product, policy, and support.
+#+end_pillar
+
+#+ATTR_LATEX: :options [Human at heart]
+#+begin_pillar
+Even automation-heavy experiences still need to feel respectful at the point where the user is asked to prove who they are.
+#+end_pillar
+#+end_pillars
+
+* Implementation note
+
+#+begin_src emacs-lisp
+(defun hub/demo-route ()
+  (message "approve"))
+#+end_src
