@@ -60,13 +60,6 @@
 (setq tramp-default-method "ssh")
 
 ;; General keybindings
-(global-set-key (kbd "M-©") 'evil-window-left)
-(global-set-key (kbd "M-®") 'evil-window-right)
-(global-set-key (kbd "M-þ") 'evil-window-down)
-(global-set-key (kbd "M-ß") 'evil-window-up)
-(global-set-key (kbd "M-¸") 'evil-window-left)
-(global-set-key (kbd "M-ᵉ") 'evil-window-down)
-(global-set-key (kbd "M-˘") 'evil-window-right)
 (global-set-key (kbd "C-=") 'align-current)
 (global-set-key (kbd "M-<DEL>") 'delete-indentation)
 (define-key key-translation-map (kbd "<f8> <right>") (kbd "→"))

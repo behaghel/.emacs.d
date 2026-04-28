@@ -67,6 +67,77 @@
   (interactive)
   (if (one-window-p t 'visible) (evil-buffer (other-buffer)) (evil-window-mru)))
 
+(defun hub/window--center-x (window)
+  "Return WINDOW horizontal center in frame coordinates."
+  (let ((edges (window-edges window)))
+    (/ (+ (nth 0 edges) (nth 2 edges)) 2.0)))
+
+(defun hub/window--center-y (window)
+  "Return WINDOW vertical center in frame coordinates."
+  (let ((edges (window-edges window)))
+    (/ (+ (nth 1 edges) (nth 3 edges)) 2.0)))
+
+(defun hub/window--candidate-windows (target-side)
+  "Return visible window candidates for moving toward TARGET-SIDE.
+If the current window is itself a side window, moving in any other direction
+prefers non-side windows so that directional focus can escape sidebars."
+  (let* ((windows (window-list nil 'no-minibuf))
+	 (current-side (window-parameter (selected-window) 'window-side))
+	 (prefer-main (and current-side (not (eq current-side target-side))))
+	 main-windows)
+    (dolist (window windows)
+      (unless (window-parameter window 'window-side)
+	(push window main-windows)))
+    (if (and prefer-main main-windows)
+	(nreverse main-windows)
+      windows)))
+
+(defun hub/window--select-extreme (edge-index direction secondary-fn target-side)
+  "Select the extreme visible window along EDGE-INDEX.
+DIRECTION is the symbol `<` or `>` to minimize or maximize the edge value.
+SECONDARY-FN computes the tie-break distance axis from a window.
+TARGET-SIDE is the semantic direction symbol: left, top, bottom, or right."
+  (let* ((current (selected-window))
+	 (current-secondary (funcall secondary-fn current))
+	 (windows (hub/window--candidate-windows target-side))
+	 best-window
+	 best-primary
+	 best-distance)
+    (dolist (window windows)
+      (let* ((edges (window-edges window))
+	     (primary (nth edge-index edges))
+	     (distance (abs (- (funcall secondary-fn window) current-secondary))))
+	(when (or (null best-window)
+		  (and (eq direction '<) (< primary best-primary))
+		  (and (eq direction '>) (> primary best-primary))
+		  (and (= primary best-primary)
+		       (< distance best-distance)))
+	  (setq best-window window
+		best-primary primary
+		best-distance distance))))
+    (when (window-live-p best-window)
+      (select-window best-window))))
+
+(defun hub/window-focus-far-left ()
+  "Focus the leftmost visible window."
+  (interactive)
+  (hub/window--select-extreme 0 '< #'hub/window--center-y 'left))
+
+(defun hub/window-focus-far-up ()
+  "Focus the topmost visible window."
+  (interactive)
+  (hub/window--select-extreme 1 '< #'hub/window--center-x 'top))
+
+(defun hub/window-focus-far-down ()
+  "Focus the bottommost visible window."
+  (interactive)
+  (hub/window--select-extreme 3 '> #'hub/window--center-x 'bottom))
+
+(defun hub/window-focus-far-right ()
+  "Focus the rightmost visible window."
+  (interactive)
+  (hub/window--select-extreme 2 '> #'hub/window--center-y 'right))
+
 (defun hub/copy-buffer-file-name ()
   "Copy the current file name to clipboard."
   (interactive)

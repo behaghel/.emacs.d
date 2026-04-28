@@ -16,12 +16,15 @@
   "Global leader prefix for Evil normal/visual states.")
 (defvar hub/localleader-prefix ";"
   "Local leader prefix for Evil normal/visual states.")
+(defvar hub/global-override-states '(normal visual motion emacs insert replace operator)
+  "States covered by `hub/global-override'.")
 
 (defun hub/define-leaders ()
-  "Define `hub/leader' and `hub/localleader' general definers."
+  "Define `hub/leader', `hub/localleader', and `hub/global-override'."
   (when (require 'general nil 'noerror)
     (general-create-definer hub/leader :states '(normal visual) :prefix hub/leader-prefix)
-    (general-create-definer hub/localleader :states '(normal visual) :prefix hub/localleader-prefix)))
+    (general-create-definer hub/localleader :states '(normal visual) :prefix hub/localleader-prefix)
+    (general-create-definer hub/global-override :states hub/global-override-states :keymaps 'override)))
 
 ;; DWIM helpers
 (defun hub/in-project-p ()

@@ -61,6 +61,11 @@
 ;; MVP global bindings
 (with-eval-after-load 'general
   (hub/define-leaders)
+  (hub/global-override
+   "M-c" #'hub/window-focus-far-left
+   "M-t" #'hub/window-focus-far-down
+   "M-s" #'hub/window-focus-far-up
+   "M-n" #'hub/window-focus-far-right)
   (hub/leader
    "f f" #'hub/dwim-find-file
    "b b" #'hub/dwim-switch-buffer
