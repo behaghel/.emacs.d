@@ -110,10 +110,10 @@
   (define-key evil-normal-state-map (kbd "M-B") 'eval-buffer)
 
   (global-unset-key (kbd "M-t"))
-  (define-key evil-normal-state-map (kbd "M-t l") 'transpose-lines)
-  (define-key evil-normal-state-map (kbd "M-t w") 'transpose-words)
-  (define-key evil-normal-state-map (kbd "M-t s") 'transpose-sexps)
-  (define-key evil-normal-state-map (kbd "M-t p") 'hub/transpose-params)
+  (define-key evil-normal-state-map (kbd "M-T l") 'transpose-lines)
+  (define-key evil-normal-state-map (kbd "M-T w") 'transpose-words)
+  (define-key evil-normal-state-map (kbd "M-T s") 'transpose-sexps)
+  (define-key evil-normal-state-map (kbd "M-T p") 'hub/transpose-params)
 
   (define-key evil-insert-state-map (kbd "C-e") 'end-of-line)
   (define-key evil-insert-state-map (kbd "C-y") 'yank)

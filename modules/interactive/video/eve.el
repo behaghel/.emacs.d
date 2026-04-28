@@ -36,8 +36,8 @@ Try ~/ws/eve.el first; if absent, use the straight.el GitHub recipe."
 		   ;; Segment nav
 		   (kbd "C-t") #'eve-next-segment
 		   (kbd "C-s") #'eve-previous-segment
-		   (kbd "M-t") #'eve-move-segment-down
-		   (kbd "M-s") #'eve-move-segment-up)
+		   (kbd "M-T") #'eve-move-segment-down
+		   (kbd "M-S") #'eve-move-segment-up)
   ;; Relocate the displaced eve commands
   (define-key eve-mode-map "T" #'eve-toggle-tag)     ; was t
   (define-key eve-mode-map "?" #'eve--show-help))

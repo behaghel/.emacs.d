@@ -262,7 +262,6 @@ overwriting intentional uppercase bindings that target other spaces."
 	    "C-x b"   #'consult-buffer)
   (:keymaps 'minibuffer-local-map
 	    :states '(normal insert)
-	    "M-s" #'consult-history
 	    "M-r" #'consult-history)
   :hook (completion-list-mode . consult-preview-at-point-mode)
   :init
