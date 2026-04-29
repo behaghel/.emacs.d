@@ -225,8 +225,8 @@
 							(should (string-match-p (regexp-quote (format "\\renewcommand{\\HubHeroLogoGraphic}{\\includegraphics[width=32mm]{%s}}" (expand-file-name "hero-logo.pdf" artifact-root))) tex-contents))
 							(should (string-match-p (regexp-quote "\\setmonofont{Menlo}") tex-contents))
 							(should (string-match-p (regexp-quote "\\newfontface\\HubDisplayFont{Inter ExtraBold}") tex-contents))
-							(should (string-match-p (regexp-quote "\\begin{minipage}[t][105mm][t]{118mm}") tex-contents))
-							(should (string-match-p (regexp-quote (concat "\\begin{minipage}[t][105mm][t]{118mm}\n"
+							(should (string-match-p (regexp-quote "\\begin{minipage}[t]{118mm}") tex-contents))
+							(should (string-match-p (regexp-quote (concat "\\begin{minipage}[t]{118mm}\n"
 												      "\\raggedright\n"
 												      "\\HubExportEyebrowBlock\n")) tex-contents))
 							(should-not (string-match-p (regexp-quote "\\parbox[t]{0.78\\linewidth}") tex-contents))

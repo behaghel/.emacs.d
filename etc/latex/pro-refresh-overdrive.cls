@@ -53,8 +53,11 @@
     \fill[HubPaper] (-15mm, 15mm + \topskip) rectangle (\paperwidth - 15mm, 15mm + \topskip - \paperheight);
     \coordinate (CardNW) at (-15mm, 15mm + \topskip);
     \coordinate (CardNE) at (\textwidth + 15mm, 15mm + \topskip);
-    \node[anchor=north west, opacity=0.18, inner sep=0pt] at (CardNW) {\HubHeroPatternGraphic};
-    \node[anchor=north east, inner sep=0pt] at (CardNE) [xshift=-15mm, yshift=-19mm] {\HubHeroLogoGraphic};
+    \begin{scope}
+      \clip (-15mm, 15mm + \topskip) rectangle (\paperwidth - 15mm, 15mm + \topskip - 90mm);
+      \node[anchor=north west, opacity=0.18, inner sep=0pt] at (CardNW) {\HubHeroPatternGraphic};
+    \end{scope}
+    \node[anchor=north east, inner sep=0pt] at (CardNE) [xshift=-15mm, yshift=-23mm] {\HubHeroLogoGraphic};
   \end{tikzpicture}%
   \par\noindent
 }{%

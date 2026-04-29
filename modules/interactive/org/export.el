@@ -82,7 +82,7 @@ environment provides the packages needed for that engine path, notably
 (defconst hub/org-export--pro-refresh-overdrive-title-command
   (string-join
    '("\\begin{hubhero}"
-     "\\noindent\\begin{minipage}[t][105mm][t]{118mm}"
+     "\\noindent\\begin{minipage}[t]{118mm}"
      "\\raggedright"
      "\\HubExportEyebrowBlock"
      "{\\fontsize{34}{33}\\selectfont\\bfseries %t\\par}"
@@ -100,7 +100,7 @@ environment provides the packages needed for that engine path, notably
 (defconst hub/org-export--pro-refresh-overdrive-fontspec-title-command
   (string-join
    '("\\begin{hubhero}"
-     "\\noindent\\begin{minipage}[t][105mm][t]{118mm}"
+     "\\noindent\\begin{minipage}[t]{118mm}"
      "\\raggedright"
      "\\HubExportEyebrowBlock"
      "{\\HubDisplayFont\\bfseries\\fontsize{34}{33}\\selectfont %t\\par}"
