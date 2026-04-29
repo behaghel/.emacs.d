@@ -27,6 +27,20 @@ Required checks:
 
 Pass condition: the generated `.tex` proves the semantic and class path was selected correctly.
 
+### Temporary Page-One Fidelity Slice
+
+Before broader snapshot or visual-diff automation is added, the first narrow fidelity pass may focus on the page-one approval surface only.
+
+For that temporary slice:
+
+- generated `.tex` should prove explicit font intent for body, display, and mono surfaces when the XeLaTeX path is active
+- generated `.tex` should prove the page-one hero uses one shared title/dek copy wrapper rather than separate sibling title and dek boxes
+- running header/footer chrome may be absent on purpose across temporary `pro-refresh-overdrive` outputs in this phase
+- manual comparison should confirm the dek sits directly beneath the title in the shared hero-copy column
+- manual comparison should confirm the metadata divider belongs to the hero-copy column instead of spanning the full text measure above and below the entire hero
+- manual comparison should confirm the presence of the branded hero container background, left-side pattern, and top-right logo
+- manual comparison should prioritize title hierarchy, hero readability, and overall type feel before broader multi-page parity
+
 ### 2. PDF Structural Checks
 
 Purpose: confirm the compiled PDF is structurally healthy.
@@ -71,7 +85,7 @@ Purpose: catch layout, spacing, and color regressions that structural checks wil
 
 Required focus areas:
 
-- page tone and chrome
+- page tone and chrome, with the understanding that running chrome may be intentionally absent during the temporary page-one fidelity slice
 - title hierarchy
 - callout and quote treatment
 - metrics or pillars once those semantics are in scope

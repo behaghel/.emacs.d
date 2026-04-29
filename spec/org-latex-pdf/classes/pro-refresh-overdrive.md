@@ -22,7 +22,9 @@ From those references, the non-negotiable signals for this class are:
 - strong orange-led accent system with grounded brown support
 - visible but restrained pattern use
 - clear title hierarchy
-- branded but still readable PDF page chrome
+- a single shared hero-copy column for eyebrow, title, and dek content, with the dek sitting directly beneath the title rather than drifting beside it
+- materially heavier display treatment for the title than for the dek during the current page-one fidelity phase
+- branded but still readable PDF page chrome when that chrome is present; the current font-fidelity phase may temporarily suppress running header/footer furniture across `pro-refresh-overdrive` exports while typography catches up
 - evidence-friendly content structures rather than a decorative marketing shell
 
 ## Class Intent
@@ -50,6 +52,8 @@ The class must consume the shared semantic layer from [`../semantic-layer.md`](.
 | code sample | source block | Required later in full semantic coverage. |
 | footer note | `#+EXPORT_FOOTER_NOTE:` | Optional but supported. |
 
+For the current page-one approval slice, the class-owned hero composition must keep eyebrow, title, and dek in one shared left-column text block. The dek must align under the title in that same block, while the title keeps a visibly stronger display treatment than the dek. Hero metadata should read as part of that same column, separated by an internal divider in the hero-copy block rather than by full-width rules framing the entire hero. The hero must also include a distinct branded container background, the left-side pattern treatment, and the top-right logo treatment to establish the card feel from the prototype.
+
 ## Phase Expectations
 
 ### Slice 1: Narrow English Flagship Slice
@@ -62,7 +66,8 @@ Required in slice 1:
 - English locale selection path
 - title, author, date
 - one heading and one paragraph
-- class-owned page tone, typography, and header or footer chrome sufficient to prove the class exists
+- class-owned page tone and typography sufficient to prove the class exists
+- running header/footer chrome may be temporarily suppressed during the current fidelity phase if that yields a closer match to the approved reference
 
 Not required yet in slice 1:
 
@@ -92,7 +97,8 @@ Before moving to other classes, this class must cover:
 
 - The default implementation path should use Org LaTeX class machinery, preamble hooks, and locale-layer configuration.
 - The class should be expressible through `org-latex-classes`, LaTeX preamble configuration, and related exporter hooks before any derived-backend escalation is considered.
-- Page header and footer behavior should remain consistent with the approved prototype cues, including branded but restrained running chrome.
+- Page header and footer behavior should remain consistent with the approved prototype cues once that running chrome is reintroduced.
+- During the current font-fidelity phase, the implementation may temporarily suppress running header/footer furniture across `pro-refresh-overdrive` outputs to keep comparisons focused on typography, hierarchy, and hero composition.
 
 ## Locale Interaction
 

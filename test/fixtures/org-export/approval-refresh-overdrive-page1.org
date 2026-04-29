@@ -1,0 +1,15 @@
+#+TITLE: Make the refresh impossible to miss
+#+SUBTITLE: A temporary high-energy mode for launch-season communications that should feel branded, readable, and unmistakably refreshed.
+#+AUTHOR: Hubert Behaghel
+#+DATE: 2026-04-28
+#+LANGUAGE: en
+#+LATEX_CLASS: pro-refresh-overdrive
+#+EXPORT_EYEBROW: Refresh mode · louder on purpose
+
+#+begin_standfirst
+Trust is no longer a static promise. It is a system: observable, explainable, fast under pressure, and humane at the point of friction.
+#+end_standfirst
+
+* Trust without compromise
+
+The strongest identity products no longer sell a check. They sell a posture.

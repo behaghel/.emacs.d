@@ -49,24 +49,71 @@ environment provides the packages needed for that engine path, notably
   :type 'string
   :group 'hub/org-export)
 
+(defcustom hub/org-export-pro-refresh-overdrive-display-font "Inter ExtraBold"
+  "Display font family for `pro-refresh-overdrive' hero typography."
+  :type 'string
+  :group 'hub/org-export)
+
+(defcustom hub/org-export-pro-refresh-overdrive-mono-font "Menlo"
+  "Monospace font family for `pro-refresh-overdrive' code samples."
+  :type 'string
+  :group 'hub/org-export)
+
 (defconst hub/org-export--babel-package '("AUTO" "babel" nil)
   "Package entry enabling locale-aware Babel wiring in Org LaTeX exports.")
+
+(defconst hub/org-export--pro-refresh-overdrive-class-file
+  (expand-file-name "etc/latex/pro-refresh-overdrive.cls" user-emacs-directory)
+  "Tracked LaTeX class asset for `pro-refresh-overdrive'.")
+
+(defconst hub/org-export--pro-refresh-overdrive-assets-directory
+  (expand-file-name "assets" (file-name-directory hub/org-export--pro-refresh-overdrive-class-file))
+  "Tracked helper asset directory for `pro-refresh-overdrive'.")
 
 (defvar hub/org-export--font-probe-cache (make-hash-table :test 'equal)
   "Cache of compiler and font probe results for Org export.")
 
+(defvar hub/org-export--compiler-probe-cache (make-hash-table :test 'equal)
+  "Cache of compiler capability probe results for Org export.")
+
+(defvar hub/org-export--active-output-dir nil
+  "Current export artifact directory for helper staging and header wiring.")
+
 (defconst hub/org-export--pro-refresh-overdrive-title-command
   (string-join
    '("\\begin{hubhero}"
+     "\\noindent\\begin{minipage}[t]{118mm}"
+     "\\raggedright"
      "\\HubExportEyebrowBlock"
-     "\\noindent\\parbox[t]{0.78\\linewidth}{{\\raggedright\\fontsize{34}{33}\\selectfont\\bfseries %t\\par}}"
+     "{\\fontsize{34}{33}\\selectfont\\bfseries %t\\par}"
      "\\vspace{0.45em}"
-     "{\\color{HubMuted}\\noindent\\parbox[t]{0.72\\linewidth}{\\raggedright\\normalsize %s\\par}}"
+     "{\\color{HubMuted}\\parbox[t]{112mm}{\\raggedright\\normalsize %s\\par}}"
      "\\vspace{0.9em}"
+     "{\\color{HubLine}\\rule{116mm}{0.8pt}\\par}"
+     "\\vspace{0.35em}"
      "{\\color{HubMuted}\\small %a\\HubMetaSeparator %D\\par}"
+     "\\end{minipage}"
      "\\end{hubhero}")
    "\n")
   "Title command used for the `pro-refresh-overdrive' LaTeX class.")
+
+(defconst hub/org-export--pro-refresh-overdrive-fontspec-title-command
+  (string-join
+   '("\\begin{hubhero}"
+     "\\noindent\\begin{minipage}[t]{118mm}"
+     "\\raggedright"
+     "\\HubExportEyebrowBlock"
+     "{\\HubDisplayFont\\bfseries\\fontsize{34}{33}\\selectfont %t\\par}"
+     "\\vspace{0.45em}"
+     "{\\color{HubMuted}\\parbox[t]{112mm}{\\raggedright\\normalsize %s\\par}}"
+     "\\vspace{0.9em}"
+     "{\\color{HubLine}\\rule{116mm}{0.8pt}\\par}"
+     "\\vspace{0.35em}"
+     "{\\color{HubMuted}\\small %a\\HubMetaSeparator %D\\par}"
+     "\\end{minipage}"
+     "\\end{hubhero}")
+   "\n")
+  "Fontspec-aware title command used for `pro-refresh-overdrive'.")
 
 (defun hub/org-export--locale-code (&optional backend)
   "Return the current export locale code for BACKEND.
@@ -83,6 +130,13 @@ Defaults to English when the Org buffer does not specify one."
   (when-let* ((entry (assoc-string keyword (org-collect-keywords (list keyword)) t))
 	      (values (cdr entry)))
     (car values)))
+
+(defun hub/org-export--class-asset-source (&optional class-name)
+  "Return the tracked class asset path for CLASS-NAME.
+Default to the current buffer's LaTeX class when CLASS-NAME is nil."
+  (pcase (or class-name (hub/org-export--class-name))
+    ("pro-refresh-overdrive" hub/org-export--pro-refresh-overdrive-class-file)
+    (_ nil)))
 
 (defun hub/org-export--latex-escape (text)
   "Return TEXT with a minimal LaTeX-safe escaping.
@@ -134,12 +188,69 @@ re-run the probe repeatedly."
 	(puthash cache-key result hub/org-export--font-probe-cache)
 	result))))
 
+(defun hub/org-export--fontspec-fonts-ready-p (compiler font-names)
+  "Return non-nil when COMPILER can use every font in FONT-NAMES."
+  (cl-every (lambda (font-name)
+	      (hub/org-export--fontspec-font-ready-p compiler font-name))
+	    font-names))
+
+(defun hub/org-export--compiler-supports-pro-refresh-overdrive-p (compiler)
+  "Return non-nil when COMPILER can build the flagship class preamble."
+  (let ((cache-key (list compiler 'pro-refresh-overdrive)))
+    (if-let* ((cached (gethash cache-key hub/org-export--compiler-probe-cache 'missing))
+	      ((not (eq cached 'missing))))
+	cached
+      (let ((result
+	     (when-let* ((compiler-bin (executable-find compiler))
+			 (class-source (hub/org-export--class-asset-source "pro-refresh-overdrive"))
+			 ((file-exists-p class-source))
+			 (tmpdir (make-temp-file "hub-org-compiler-probe-" t))
+			 (texfile (expand-file-name "probe.tex" tmpdir))
+			 (class-target (expand-file-name (file-name-nondirectory class-source) tmpdir)))
+	       (unwind-protect
+		   (progn
+		     (copy-file class-source class-target t)
+		     (with-temp-file texfile
+		       (insert "\\documentclass[11pt,a4paper]{pro-refresh-overdrive}\n"
+			       "\\usepackage{graphicx}\n"
+			       "\\usepackage{longtable}\n"
+			       "\\usepackage{wrapfig}\n"
+			       "\\usepackage{rotating}\n"
+			       "\\usepackage[normalem]{ulem}\n"
+			       "\\usepackage{capt-of}\n"
+			       "\\usepackage{hyperref}\n"
+			       "\\usepackage[english]{babel}\n"
+			       "\\usepackage{fontspec}\n"
+			       "\\defaultfontfeatures{Ligatures=TeX}\n"
+			       (format "\\setmainfont{%s}\n" hub/org-export-pro-refresh-overdrive-main-font)
+			       (format "\\setsansfont{%s}\n" hub/org-export-pro-refresh-overdrive-main-font)
+			       (format "\\setmonofont{%s}\n" hub/org-export-pro-refresh-overdrive-mono-font)
+			       (format "\\newfontface\\HubDisplayFont{%s}\n"
+				       hub/org-export-pro-refresh-overdrive-display-font)
+			       "\\begin{document}\n"
+			       "{\\HubDisplayFont Probe}\\par\n"
+			       "\\texttt{Probe}\\par\n"
+			       "\\end{document}\n"))
+		     (eq 0 (call-process compiler-bin nil nil nil
+					 "-interaction=nonstopmode"
+					 "-halt-on-error"
+					 (format "-output-directory=%s" tmpdir)
+					 texfile)))
+		 (when (file-directory-p tmpdir)
+		   (delete-directory tmpdir t))))))
+	(puthash cache-key result hub/org-export--compiler-probe-cache)
+	result))))
+
 (defun hub/org-export--compiler-ready-p (compiler)
   "Return non-nil when COMPILER is ready for use in this environment."
   (pcase compiler
     ((or "xelatex" "lualatex")
-     (hub/org-export--fontspec-font-ready-p
-      compiler hub/org-export-pro-refresh-overdrive-main-font))
+     (and (hub/org-export--fontspec-fonts-ready-p
+	   compiler
+	   (list hub/org-export-pro-refresh-overdrive-main-font
+		 hub/org-export-pro-refresh-overdrive-display-font
+		 hub/org-export-pro-refresh-overdrive-mono-font))
+	  (hub/org-export--compiler-supports-pro-refresh-overdrive-p compiler)))
     (_ t)))
 
 (defun hub/org-export--effective-compiler ()
@@ -189,7 +300,10 @@ otherwise fall back to `pdflatex' so the current pipeline keeps working."
     (setq-local org-latex-compiler (hub/org-export--effective-compiler))
     (setq-local org-latex-pdf-process
 		(hub/org-export--pdf-process-for-compiler org-latex-compiler))
-    (setq-local org-latex-title-command hub/org-export--pro-refresh-overdrive-title-command)
+    (setq-local org-latex-title-command
+		(if (string= org-latex-compiler "pdflatex")
+		    hub/org-export--pro-refresh-overdrive-title-command
+		  hub/org-export--pro-refresh-overdrive-fontspec-title-command))
     (setq-local org-latex-src-block-backend 'custom)
     (setq-local org-latex-custom-lang-environments
 		'((emacs-lisp "hubcode")
@@ -198,18 +312,39 @@ otherwise fall back to `pdflatex' so the current pipeline keeps working."
 		  (bash "hubcode")
 		  (sh "hubcode")
 		  (shell "hubcode")))
+    (when hub/org-export--active-output-dir
+      (hub/org-export--insert-header-extra
+       (format "\\renewcommand{\\HubHeroLogoGraphic}{\\includegraphics[width=32mm]{%s}}"
+	       (hub/org-export--latex-escape
+		(expand-file-name "hero-logo.pdf" hub/org-export--active-output-dir))))
+      (hub/org-export--insert-header-extra
+       (format "\\renewcommand{\\HubHeroPatternGraphic}{\\includegraphics[width=118mm]{%s}}"
+	       (hub/org-export--latex-escape
+		(expand-file-name "hero-pattern.png" hub/org-export--active-output-dir)))))
     (unless (string= org-latex-compiler "pdflatex")
-      (hub/org-export--insert-header-extra "\\defaultfontfeatures{Ligatures=TeX}")
+      (hub/org-export--insert-header-extra
+       (format "\\newfontface\\HubDisplayFont{%s}"
+	       (hub/org-export--latex-escape
+		hub/org-export-pro-refresh-overdrive-display-font)))
+      (hub/org-export--insert-header-extra
+       (format "\\setmonofont{%s}"
+	       (hub/org-export--latex-escape
+		hub/org-export-pro-refresh-overdrive-mono-font)))
       (hub/org-export--insert-header-extra
        (format "\\setmainfont{%s}"
 	       (hub/org-export--latex-escape hub/org-export-pro-refresh-overdrive-main-font)))
       (hub/org-export--insert-header-extra
        (format "\\setsansfont{%s}"
-	       (hub/org-export--latex-escape hub/org-export-pro-refresh-overdrive-main-font))))
+	       (hub/org-export--latex-escape hub/org-export-pro-refresh-overdrive-main-font)))
+      (hub/org-export--insert-header-extra "\\defaultfontfeatures{Ligatures=TeX}")
+      (hub/org-export--insert-header-extra "\\usepackage{fontspec}"))
     (hub/org-export--insert-header-extra
      (format "\\renewcommand{\\HubExportEyebrowBlock}{%s}"
 	     (if (and eyebrow (not (string-empty-p eyebrow)))
-		 (format "{\\color{HubAccent}\\small\\bfseries\\MakeUppercase{%s}\\par}\\vspace{0.6em}"
+		 (format "{\\color{HubAccent}\\small%s\\MakeUppercase{%s}\\par}\\vspace{0.6em}"
+			 (if (string= org-latex-compiler "pdflatex")
+			     "\\bfseries"
+			   "\\HubDisplayFont")
 			 (hub/org-export--latex-escape eyebrow))
 	       "")))))
 
@@ -252,58 +387,12 @@ This runs on the temporary export buffer only."
   (hub/org-export--register-latex-class
    "pro-refresh-overdrive"
    (string-join
-    '("\\documentclass[11pt,a4paper]{article}"
+    '("\\documentclass[11pt,a4paper]{pro-refresh-overdrive}"
       "% hub-pro-refresh-overdrive"
       "% hub-pro-refresh-overdrive-title"
       "% hub-pro-refresh-overdrive-headings"
       "[DEFAULT-PACKAGES]"
-      "[PACKAGES]"
-      "\\usepackage{geometry}"
-      "\\geometry{margin=25mm}"
-      "\\usepackage{xcolor}"
-      "\\usepackage{array}"
-      "\\usepackage{tabularx}"
-      "\\usepackage{colortbl}"
-      "\\usepackage{fancyhdr}"
-      "\\definecolor{HubPaper}{HTML}{FCF5EE}"
-      "\\definecolor{HubInk}{HTML}{0C3035}"
-      "\\definecolor{HubAccent}{HTML}{FF550F}"
-      "\\definecolor{HubMuted}{HTML}{543F21}"
-      "\\definecolor{HubLine}{HTML}{D8B5A4}"
-      "\\definecolor{HubSurface}{HTML}{FFF4EC}"
-      "\\AtBeginDocument{\\pagecolor{HubPaper}\\color{HubInk}}"
-      "\\renewcommand{\\familydefault}{\\sfdefault}"
-      "\\pagestyle{fancy}"
-      "\\fancyhf{}"
-      "\\renewcommand{\\headrulewidth}{0.4pt}"
-      "\\fancyhead[L]{\\color{HubMuted}\\footnotesize\\textsf{Veriff}}"
-      "\\fancyhead[R]{\\color{HubMuted}\\footnotesize\\textsf{\\nouppercase{\\rightmark}}}"
-      "\\fancyfoot[C]{\\color{HubMuted}\\footnotesize\\textsf{\\thepage}}"
-      "\\setlength{\\parindent}{0pt}"
-      "\\setlength{\\parskip}{0.6em}"
-      "\\setlength{\\tabcolsep}{5pt}"
-      "\\renewcommand{\\arraystretch}{1.2}"
-      "\\arrayrulecolor{HubLine}"
-      "\\makeatletter"
-      "\\newcommand{\\HubExportEyebrowBlock}{}"
-      "\\newcommand{\\HubMetaSeparator}{\\hspace{0.8em}{\\color{HubLine}\\textbullet}\\hspace{0.8em}}"
-      "\\renewcommand{\\sectionmark}[1]{\\markright{#1}}"
-      "\\def\\@seccntformat#1{{\\color{HubAccent}\\csname the#1\\endcsname}\\hspace{0.75em}}"
-      "\\renewcommand\\section{\\@startsection{section}{1}{\\z@}{2.8ex}{1.1ex}{\\normalfont\\Large\\bfseries\\raggedright\\color{HubInk}}}"
-      "\\renewcommand\\subsection{\\@startsection{subsection}{2}{\\z@}{2.2ex}{0.9ex}{\\normalfont\\large\\bfseries\\raggedright\\color{HubMuted}}}"
-      "\\makeatother"
-      "\\newenvironment{hubhero}{\\par\\noindent\\rule{\\linewidth}{0.8pt}\\par\\vspace{1.2em}\\noindent}{\\par\\vspace{1.0em}\\noindent\\color{HubLine}\\rule{\\linewidth}{0.8pt}\\par\\vspace{1.2em}}"
-      "\\renewenvironment{quote}{\\par\\medskip\\noindent\\color{HubInk}\\itshape\\large}{\\par\\medskip}"
-      "\\newenvironment{standfirst}{\\par\\medskip\\noindent\\color{HubMuted}\\large\\bfseries}{\\par\\medskip}"
-      "\\newenvironment{pullquote}[1][]{\\def\\HubPullquoteAttribution{#1}\\par\\medskip\\noindent\\itshape\\Large\\color{HubInk}}{\\par\\ifx\\HubPullquoteAttribution\\empty\\else{\\raggedleft\\normalfont\\small\\color{HubMuted}\\HubPullquoteAttribution\\par}\\fi\\medskip}"
-      "\\newenvironment{callout}[1][]{\\par\\medskip\\noindent\\setlength{\\fboxsep}{8pt}\\fcolorbox{HubLine}{HubSurface}{\\begin{minipage}{0.94\\linewidth}\\ifx\\relax#1\\relax\\else{\\color{HubMuted}\\bfseries\\small\\MakeUppercase{#1}\\par\\smallskip}\\fi\\small\\color{HubInk}\\ignorespaces}}{\\end{minipage}\\par\\medskip}"
-      "\\newenvironment{metrics}{\\par\\medskip\\noindent}{\\par\\medskip}"
-      "\\newenvironment{metric}[1][]{\\begin{minipage}[t]{0.235\\linewidth}\\raggedright\\textcolor{HubAccent}{\\bfseries\\Large #1}\\par\\small\\color{HubMuted}\\ignorespaces}{\\par\\end{minipage}\\hfill}"
-      "\\newenvironment{pillars}{\\par\\medskip\\noindent}{\\par\\medskip}"
-      "\\newenvironment{pillar}[1][]{\\begin{minipage}[t]{0.48\\linewidth}\\setlength{\\fboxsep}{6pt}\\fcolorbox{HubLine}{white}{\\begin{minipage}[t]{0.9\\linewidth}\\textbf{#1}\\par\\smallskip\\small\\color{HubInk}\\ignorespaces}}{\\end{minipage}\\end{minipage}\\hfill}"
-      "\\newenvironment{hubcode}{\\par\\medskip\\noindent{\\color{HubAccent}\\rule{\\linewidth}{0.8pt}}\\par\\smallskip\\ttfamily\\small\\color{HubInk}}{\\par\\smallskip\\noindent{\\color{HubAccent}\\rule{\\linewidth}{0.8pt}}\\par\\medskip}"
-      "\\newenvironment{hubfootnote}{\\par\\medskip\\footnotesize\\color{HubMuted}}{\\par}"
-      "\\hypersetup{colorlinks=true,linkcolor=HubAccent,urlcolor=HubAccent}")
+      "[PACKAGES]")
     "\n")))
 
 (defun hub/org-export--ensure-output-directory (&optional output-dir)
@@ -312,6 +401,23 @@ This runs on the temporary export buffer only."
     (unless (file-directory-p dir)
       (make-directory dir t))
     dir))
+
+(defun hub/org-export--stage-class-asset (output-dir &optional class-name)
+  "Copy the tracked class asset for CLASS-NAME into OUTPUT-DIR.
+Default to the current buffer's LaTeX class when CLASS-NAME is nil."
+  (let ((resolved-class (or class-name (hub/org-export--class-name))))
+    (when-let* ((source (hub/org-export--class-asset-source resolved-class)))
+      (unless (file-exists-p source)
+	(user-error "Missing Org export class asset: %s" source))
+      (copy-file source
+		 (expand-file-name (file-name-nondirectory source) output-dir)
+		 t)
+      (when (equal resolved-class "pro-refresh-overdrive")
+	(when (file-directory-p hub/org-export--pro-refresh-overdrive-assets-directory)
+	  (dolist (asset (directory-files hub/org-export--pro-refresh-overdrive-assets-directory t "\\.\\(png\\|pdf\\)\\'"))
+	    (copy-file asset
+		       (expand-file-name (file-name-nondirectory asset) output-dir)
+		       t)))))))
 
 (defun hub/org-export-buffer-to-latex (&optional output-dir)
   "Export the current Org buffer to LaTeX in OUTPUT-DIR.
@@ -322,16 +428,23 @@ Return the generated `.tex' path."
   (hub/org-export--validate-locale 'latex)
   (hub/org-export--ensure-babel-package)
   (let* ((outdir (hub/org-export--ensure-output-directory output-dir))
+	 (hub/org-export--active-output-dir outdir)
 	 (org-export-show-temporary-export-buffer nil)
 	 (base-name (file-name-base (or (buffer-file-name) (buffer-name))))
 	 (tex-path (expand-file-name (concat base-name ".tex") outdir)))
+    (hub/org-export--stage-class-asset outdir)
     (org-export-to-file 'latex tex-path nil nil nil nil nil)))
 
 (defun hub/org-export-buffer-to-pdf (&optional output-dir)
   "Export the current Org buffer to PDF in OUTPUT-DIR.
 Return the generated `.pdf' path."
   (interactive)
-  (let* ((org-latex-pdf-process hub/org-export-pdf-process)
+  (let* ((compiler (and (hub/org-export--pro-refresh-overdrive-p)
+			(hub/org-export--effective-compiler)))
+	 (org-latex-compiler (or compiler org-latex-compiler))
+	 (org-latex-pdf-process (if compiler
+				    (hub/org-export--pdf-process-for-compiler compiler)
+				  hub/org-export-pdf-process))
 	 (tex-path (hub/org-export-buffer-to-latex output-dir))
 	 (pdf-path (concat (file-name-sans-extension tex-path) ".pdf")))
     (org-latex-compile tex-path)
