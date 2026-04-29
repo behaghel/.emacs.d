@@ -82,15 +82,15 @@ environment provides the packages needed for that engine path, notably
 (defconst hub/org-export--pro-refresh-overdrive-title-command
   (string-join
    '("\\begin{hubhero}"
-     "\\noindent\\begin{minipage}[t]{118mm}"
+     "\\noindent\\begin{minipage}[t][105mm][t]{118mm}"
      "\\raggedright"
      "\\HubExportEyebrowBlock"
      "{\\fontsize{34}{33}\\selectfont\\bfseries %t\\par}"
-     "\\vspace{0.45em}"
+     "\\vspace*{5em}"
      "{\\color{HubMuted}\\parbox[t]{112mm}{\\raggedright\\normalsize %s\\par}}"
-     "\\vspace{0.9em}"
+     "\\vspace*{2.5em}"
      "{\\color{HubLine}\\rule{116mm}{0.8pt}\\par}"
-     "\\vspace{0.35em}"
+     "\\vspace*{0.1em}"
      "{\\color{HubMuted}\\small %a\\HubMetaSeparator %D\\par}"
      "\\end{minipage}"
      "\\end{hubhero}")
@@ -100,15 +100,15 @@ environment provides the packages needed for that engine path, notably
 (defconst hub/org-export--pro-refresh-overdrive-fontspec-title-command
   (string-join
    '("\\begin{hubhero}"
-     "\\noindent\\begin{minipage}[t]{118mm}"
+     "\\noindent\\begin{minipage}[t][105mm][t]{118mm}"
      "\\raggedright"
      "\\HubExportEyebrowBlock"
      "{\\HubDisplayFont\\bfseries\\fontsize{34}{33}\\selectfont %t\\par}"
-     "\\vspace{0.45em}"
+     "\\vspace*{5em}"
      "{\\color{HubMuted}\\parbox[t]{112mm}{\\raggedright\\normalsize %s\\par}}"
-     "\\vspace{0.9em}"
+     "\\vspace*{2.5em}"
      "{\\color{HubLine}\\rule{116mm}{0.8pt}\\par}"
-     "\\vspace{0.35em}"
+     "\\vspace*{0.1em}"
      "{\\color{HubMuted}\\small %a\\HubMetaSeparator %D\\par}"
      "\\end{minipage}"
      "\\end{hubhero}")
@@ -341,7 +341,7 @@ otherwise fall back to `pdflatex' so the current pipeline keeps working."
     (hub/org-export--insert-header-extra
      (format "\\renewcommand{\\HubExportEyebrowBlock}{%s}"
 	     (if (and eyebrow (not (string-empty-p eyebrow)))
-		 (format "{\\color{HubAccent}\\small%s\\MakeUppercase{%s}\\par}\\vspace{0.6em}"
+		 (format "{\\color{HubAccent}\\small%s\\MakeUppercase{%s}\\par}\\vspace*{3em}"
 			 (if (string= org-latex-compiler "pdflatex")
 			     "\\bfseries"
 			   "\\HubDisplayFont")

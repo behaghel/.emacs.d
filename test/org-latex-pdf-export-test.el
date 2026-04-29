@@ -225,8 +225,8 @@
 							(should (string-match-p (regexp-quote (format "\\renewcommand{\\HubHeroLogoGraphic}{\\includegraphics[width=32mm]{%s}}" (expand-file-name "hero-logo.pdf" artifact-root))) tex-contents))
 							(should (string-match-p (regexp-quote "\\setmonofont{Menlo}") tex-contents))
 							(should (string-match-p (regexp-quote "\\newfontface\\HubDisplayFont{Inter ExtraBold}") tex-contents))
-							(should (string-match-p (regexp-quote "\\begin{minipage}[t]{118mm}") tex-contents))
-							(should (string-match-p (regexp-quote (concat "\\begin{minipage}[t]{118mm}\n"
+							(should (string-match-p (regexp-quote "\\begin{minipage}[t][105mm][t]{118mm}") tex-contents))
+							(should (string-match-p (regexp-quote (concat "\\begin{minipage}[t][105mm][t]{118mm}\n"
 												      "\\raggedright\n"
 												      "\\HubExportEyebrowBlock\n")) tex-contents))
 							(should-not (string-match-p (regexp-quote "\\parbox[t]{0.78\\linewidth}") tex-contents))
@@ -241,7 +241,8 @@
 							(should-not (string-match-p (regexp-quote "\\fancyhead") class-contents))
 							(should-not (string-match-p (regexp-quote "\\fancyfoot") class-contents))
 							(should (string-match-p (regexp-quote "\\definecolor{HubPaper}{HTML}{FCF5EE}") class-contents))
-							(should (string-match-p (regexp-quote "\\pagecolor{white}") class-contents))
+							(should (string-match-p (regexp-quote "\\fill[HubPaper]") class-contents))
+							(should-not (string-match-p (regexp-quote "\\pagecolor{white}") class-contents))
 							(should (string-match-p (regexp-quote "\\newenvironment{hubhero}") class-contents))
 							(should (string-match-p (regexp-quote "\\begin{tikzpicture}[overlay]") class-contents))
 							(should (string-match-p (regexp-quote "hero-pattern.png") class-contents))
