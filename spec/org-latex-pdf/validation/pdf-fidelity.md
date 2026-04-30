@@ -33,7 +33,7 @@ Before broader snapshot or visual-diff automation is added, the first narrow fid
 
 For that temporary slice:
 
-- generated `.tex` should prove explicit font intent for body, display, and mono surfaces when the XeLaTeX path is active
+- generated `.tex` should prove the XeLaTeX path is active and that page-one hero metadata is handed off to class-owned rendering primitives instead of duplicated inline LaTeX branches
 - generated `.tex` should prove the page-one hero uses one shared title/dek copy wrapper rather than separate sibling title and dek boxes
 - running header/footer chrome may be absent on purpose across temporary `pro-refresh-overdrive` outputs in this phase
 - manual comparison should confirm the dek sits directly beneath the title in the shared hero-copy column

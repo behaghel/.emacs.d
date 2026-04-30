@@ -97,6 +97,8 @@ Before moving to other classes, this class must cover:
 
 - The default implementation path should use Org LaTeX class machinery, preamble hooks, and locale-layer configuration.
 - The class should be expressible through `org-latex-classes`, LaTeX preamble configuration, and related exporter hooks before any derived-backend escalation is considered.
+- `pro-refresh-overdrive` now assumes the high-fidelity XeLaTeX path as its only supported compiler path. If XeLaTeX or the required class assets are unavailable, export should fail loudly instead of degrading to a lower-fidelity fallback.
+- The `.cls` file should own as much stable visual rendering as possible, including the page-level font setup and hero/title formatting primitives. Export-time Elisp should stay focused on metadata wiring, asset staging, and compile orchestration.
 - Page header and footer behavior should remain consistent with the approved prototype cues once that running chrome is reintroduced.
 - During the current font-fidelity phase, the implementation may temporarily suppress running header/footer furniture across `pro-refresh-overdrive` outputs to keep comparisons focused on typography, hierarchy, and hero composition.
 
