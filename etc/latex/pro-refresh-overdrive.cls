@@ -10,6 +10,7 @@
 \RequirePackage{geometry}
 \geometry{margin=15mm}
 \RequirePackage{xcolor}
+\RequirePackage{fontspec}
 \RequirePackage{afterpage}
 \RequirePackage{array}
 \RequirePackage{tabularx}
@@ -26,6 +27,11 @@
 
 \AtBeginDocument{\color{HubInk}}
 \AtBeginDocument{\hypersetup{colorlinks=true,linkcolor=HubAccent,urlcolor=HubAccent}}
+\defaultfontfeatures{Ligatures=TeX}
+\setmainfont{Inter}
+\setsansfont{Inter}
+\setmonofont{Menlo}
+\newfontface\HubDisplayFont{Inter ExtraBold}
 
 \renewcommand{\familydefault}{\sfdefault}
 \pagestyle{empty}
@@ -37,34 +43,45 @@
 
 \makeatletter
 \newcommand{\HubExportEyebrowBlock}{}
+\newcommand{\HubHeroEyebrow}[1]{{\color{HubAccent}\small\HubDisplayFont\MakeUppercase{#1}\par}\vspace*{5em}}
+\newcommand{\HubHeroTitle}[1]{{\HubDisplayFont\bfseries\fontsize{34}{33}\selectfont #1\par}\vspace*{3.5em}}
+\newcommand{\HubHeroDek}[1]{{\color{HubMuted}\parbox[t]{112mm}{\raggedright\normalsize #1\par}}\vspace*{3em}}
+\newcommand{\HubHeroMeta}[2]{{\color{HubLine}\rule{116mm}{0.8pt}\par}\vspace*{0em}{\color{HubMuted}\small #1\HubMetaSeparator #2\par}}
 \providecommand{\HubHeroPatternGraphic}{\includegraphics[width=118mm]{hero-pattern.png}}
 \providecommand{\HubHeroLogoGraphic}{\includegraphics[width=32mm]{hero-logo.pdf}}
 \newcommand{\HubMetaSeparator}{\hspace{0.8em}{\color{HubLine}\textbullet}\hspace{0.8em}}
 \renewcommand{\thesection}{\ifnum\c@section<10 0\fi\arabic{section}}
 \def\@seccntformat#1{{\color{HubAccent}\csname the#1\endcsname}\hspace{0.75em}}
-\newcommand{\HubSectionFormat}[1]{#1\par\vspace{0.5ex}{\color{HubMuted}\rule{\linewidth}{0.8pt}}}
+\newcommand{\HubSectionFormat}[1]{#1\par\vspace{0.1ex}{\color{HubMuted}\rule{\linewidth}{1.5pt}}}
 \renewcommand\section{\@startsection{section}{1}{\z@}{2.8ex}{1.1ex}{\normalfont\Large\bfseries\raggedright\color{HubInk}\HubSectionFormat}}
 \renewcommand\subsection{\@startsection{subsection}{2}{\z@}{2.2ex}{0.9ex}{\normalfont\large\bfseries\raggedright\color{HubMuted}}}
 \makeatother
 
+\newlength{\HubHeroTopInset}
+\setlength{\HubHeroTopInset}{15mm}
+\newlength{\HubHeroSideInset}
+\setlength{\HubHeroSideInset}{15mm}
+\newlength{\HubHeroClipHeight}
+\setlength{\HubHeroClipHeight}{76mm}
+
 \newenvironment{hubhero}{%
   \par\noindent
   \begin{tikzpicture}[overlay]
-    \fill[HubPaper] (-15mm, 15mm + \topskip) rectangle (\paperwidth - 15mm, 15mm + \topskip - \paperheight);
-    \coordinate (CardNW) at (-15mm, 15mm + \topskip);
-    \coordinate (CardNE) at (\textwidth + 15mm, 15mm + \topskip);
+    \fill[HubPaper] (-\HubHeroSideInset, \HubHeroTopInset + \topskip) rectangle (\paperwidth - \HubHeroSideInset, \HubHeroTopInset + \topskip - \paperheight);
+    \coordinate (CardNW) at (-\HubHeroSideInset, \HubHeroTopInset + \topskip);
+    \coordinate (CardNE) at (\textwidth + \HubHeroSideInset, \HubHeroTopInset + \topskip);
     \begin{scope}
-      \clip (-15mm, 15mm + \topskip) rectangle (\paperwidth - 15mm, 15mm + \topskip - 90mm);
+      \clip (-\HubHeroSideInset, \HubHeroTopInset + \topskip) rectangle (\paperwidth - \HubHeroSideInset, \HubHeroTopInset + \topskip - \HubHeroClipHeight);
       \node[anchor=north west, opacity=0.18, inner sep=0pt] at (CardNW) {\HubHeroPatternGraphic};
     \end{scope}
-    \node[anchor=north east, inner sep=0pt] at (CardNE) [xshift=-15mm, yshift=-23mm] {\HubHeroLogoGraphic};
+    \node[anchor=north east, inner sep=0pt] at (CardNE) [xshift=-\HubHeroSideInset, yshift=-\HubHeroTopInset] {\HubHeroLogoGraphic};
   \end{tikzpicture}%
   \par\noindent
 }{%
-  \par\vspace{1.2em}
+  \par\vspace{0.25em}
 }
 \renewenvironment{quote}{\par\medskip\noindent\color{HubInk}\itshape\large}{\par\medskip}
-\newenvironment{standfirst}{\par\medskip\noindent\color{HubMuted}\large\bfseries\ignorespaces}{\par\medskip}
+\newenvironment{standfirst}{\par\smallskip\noindent\color{HubMuted}\large\bfseries\ignorespaces}{\par\medskip}
 \newenvironment{pullquote}[1][]{\def\HubPullquoteAttribution{#1}\par\medskip\noindent\itshape\Large\color{HubInk}}{\par\ifx\HubPullquoteAttribution\empty\else{\raggedleft\normalfont\small\color{HubMuted}\HubPullquoteAttribution\par}\fi\medskip}
 \newenvironment{callout}[1][]{\par\medskip\noindent\setlength{\fboxsep}{8pt}\fcolorbox{HubLine}{HubSurface}{\begin{minipage}{0.94\linewidth}\ifx\relax#1\relax\else{\color{HubMuted}\bfseries\small\MakeUppercase{#1}\par\smallskip}\fi\small\color{HubInk}\ignorespaces}}{\end{minipage}\par\medskip}
 \newenvironment{metrics}{\par\medskip\noindent}{\par\medskip}

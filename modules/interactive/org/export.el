@@ -26,38 +26,14 @@
   :group 'hub/org-export)
 
 (defcustom hub/org-export-pdf-process
-  '("pdflatex -interaction nonstopmode -output-directory %o %f"
-    "pdflatex -interaction nonstopmode -output-directory %o %f")
+  '("xelatex -interaction nonstopmode -output-directory %o %f"
+    "xelatex -interaction nonstopmode -output-directory %o %f")
   "Commands used to compile exported LaTeX files into PDFs."
   :type '(repeat string)
   :group 'hub/org-export)
 
-(defcustom hub/org-export-pro-refresh-overdrive-preferred-compiler "xelatex"
-  "Preferred LaTeX compiler for `pro-refresh-overdrive'.
-
-This is the fidelity-oriented engine path for brand-font work.  The
-implementation will automatically fall back to `pdflatex' until the TeX
-environment provides the packages needed for that engine path, notably
-`fontspec'."
-  :type '(choice (const "pdflatex")
-		 (const "xelatex")
-		 (const "lualatex"))
-  :group 'hub/org-export)
-
-(defcustom hub/org-export-pro-refresh-overdrive-main-font "Inter"
-  "Main text and sans-serif font family for `pro-refresh-overdrive'."
-  :type 'string
-  :group 'hub/org-export)
-
-(defcustom hub/org-export-pro-refresh-overdrive-display-font "Inter ExtraBold"
-  "Display font family for `pro-refresh-overdrive' hero typography."
-  :type 'string
-  :group 'hub/org-export)
-
-(defcustom hub/org-export-pro-refresh-overdrive-mono-font "Menlo"
-  "Monospace font family for `pro-refresh-overdrive' code samples."
-  :type 'string
-  :group 'hub/org-export)
+(defconst hub/org-export--pro-refresh-overdrive-compiler "xelatex"
+  "Required LaTeX compiler for `pro-refresh-overdrive'.")
 
 (defconst hub/org-export--babel-package '("AUTO" "babel" nil)
   "Package entry enabling locale-aware Babel wiring in Org LaTeX exports.")
@@ -70,12 +46,6 @@ environment provides the packages needed for that engine path, notably
   (expand-file-name "assets" (file-name-directory hub/org-export--pro-refresh-overdrive-class-file))
   "Tracked helper asset directory for `pro-refresh-overdrive'.")
 
-(defvar hub/org-export--font-probe-cache (make-hash-table :test 'equal)
-  "Cache of compiler and font probe results for Org export.")
-
-(defvar hub/org-export--compiler-probe-cache (make-hash-table :test 'equal)
-  "Cache of compiler capability probe results for Org export.")
-
 (defvar hub/org-export--active-output-dir nil
   "Current export artifact directory for helper staging and header wiring.")
 
@@ -85,35 +55,13 @@ environment provides the packages needed for that engine path, notably
      "\\noindent\\begin{minipage}[t]{118mm}"
      "\\raggedright"
      "\\HubExportEyebrowBlock"
-     "{\\fontsize{34}{33}\\selectfont\\bfseries %t\\par}"
-     "\\vspace*{5em}"
-     "{\\color{HubMuted}\\parbox[t]{112mm}{\\raggedright\\normalsize %s\\par}}"
-     "\\vspace*{2.5em}"
-     "{\\color{HubLine}\\rule{116mm}{0.8pt}\\par}"
-     "\\vspace*{0.1em}"
-     "{\\color{HubMuted}\\small %a\\HubMetaSeparator %D\\par}"
+     "\\HubHeroTitle{%t}"
+     "\\HubHeroDek{%s}"
+     "\\HubHeroMeta{%a}{%D}"
      "\\end{minipage}"
      "\\end{hubhero}")
    "\n")
   "Title command used for the `pro-refresh-overdrive' LaTeX class.")
-
-(defconst hub/org-export--pro-refresh-overdrive-fontspec-title-command
-  (string-join
-   '("\\begin{hubhero}"
-     "\\noindent\\begin{minipage}[t]{118mm}"
-     "\\raggedright"
-     "\\HubExportEyebrowBlock"
-     "{\\HubDisplayFont\\bfseries\\fontsize{34}{33}\\selectfont %t\\par}"
-     "\\vspace*{5em}"
-     "{\\color{HubMuted}\\parbox[t]{112mm}{\\raggedright\\normalsize %s\\par}}"
-     "\\vspace*{2.5em}"
-     "{\\color{HubLine}\\rule{116mm}{0.8pt}\\par}"
-     "\\vspace*{0.1em}"
-     "{\\color{HubMuted}\\small %a\\HubMetaSeparator %D\\par}"
-     "\\end{minipage}"
-     "\\end{hubhero}")
-   "\n")
-  "Fontspec-aware title command used for `pro-refresh-overdrive'.")
 
 (defun hub/org-export--locale-code (&optional backend)
   "Return the current export locale code for BACKEND.
@@ -156,112 +104,20 @@ This is intentionally narrow and targets metadata-like strings."
 	    (replace-regexp-in-string (regexp-quote (car pair)) (cdr pair) result t t)))
     result))
 
-(defun hub/org-export--fontspec-font-ready-p (compiler font-name)
-  "Return non-nil when COMPILER can use FONT-NAME through fontspec.
-
-The result is cached per compiler and font family so normal exports do not
-re-run the probe repeatedly."
-  (let ((cache-key (list compiler font-name)))
-    (if-let* ((cached (gethash cache-key hub/org-export--font-probe-cache 'missing))
-	      ((not (eq cached 'missing))))
-	cached
-      (let ((result
-	     (when-let* ((compiler-bin (executable-find compiler))
-			 (tmpdir (make-temp-file "hub-org-fontspec-" t))
-			 (texfile (expand-file-name "probe.tex" tmpdir)))
-	       (unwind-protect
-		   (progn
-		     (with-temp-file texfile
-		       (insert "\\documentclass{article}\n"
-			       "\\usepackage{fontspec}\n"
-			       (format "\\setmainfont{%s}\n" font-name)
-			       "\\begin{document}\n"
-			       "Probe\n"
-			       "\\end{document}\n"))
-		     (eq 0 (call-process compiler-bin nil nil nil
-					 "-interaction=nonstopmode"
-					 "-halt-on-error"
-					 (format "-output-directory=%s" tmpdir)
-					 texfile)))
-		 (when (file-directory-p tmpdir)
-		   (delete-directory tmpdir t))))))
-	(puthash cache-key result hub/org-export--font-probe-cache)
-	result))))
-
-(defun hub/org-export--fontspec-fonts-ready-p (compiler font-names)
-  "Return non-nil when COMPILER can use every font in FONT-NAMES."
-  (cl-every (lambda (font-name)
-	      (hub/org-export--fontspec-font-ready-p compiler font-name))
-	    font-names))
-
-(defun hub/org-export--compiler-supports-pro-refresh-overdrive-p (compiler)
-  "Return non-nil when COMPILER can build the flagship class preamble."
-  (let ((cache-key (list compiler 'pro-refresh-overdrive)))
-    (if-let* ((cached (gethash cache-key hub/org-export--compiler-probe-cache 'missing))
-	      ((not (eq cached 'missing))))
-	cached
-      (let ((result
-	     (when-let* ((compiler-bin (executable-find compiler))
-			 (class-source (hub/org-export--class-asset-source "pro-refresh-overdrive"))
-			 ((file-exists-p class-source))
-			 (tmpdir (make-temp-file "hub-org-compiler-probe-" t))
-			 (texfile (expand-file-name "probe.tex" tmpdir))
-			 (class-target (expand-file-name (file-name-nondirectory class-source) tmpdir)))
-	       (unwind-protect
-		   (progn
-		     (copy-file class-source class-target t)
-		     (with-temp-file texfile
-		       (insert "\\documentclass[11pt,a4paper]{pro-refresh-overdrive}\n"
-			       "\\usepackage{graphicx}\n"
-			       "\\usepackage{longtable}\n"
-			       "\\usepackage{wrapfig}\n"
-			       "\\usepackage{rotating}\n"
-			       "\\usepackage[normalem]{ulem}\n"
-			       "\\usepackage{capt-of}\n"
-			       "\\usepackage{hyperref}\n"
-			       "\\usepackage[english]{babel}\n"
-			       "\\usepackage{fontspec}\n"
-			       "\\defaultfontfeatures{Ligatures=TeX}\n"
-			       (format "\\setmainfont{%s}\n" hub/org-export-pro-refresh-overdrive-main-font)
-			       (format "\\setsansfont{%s}\n" hub/org-export-pro-refresh-overdrive-main-font)
-			       (format "\\setmonofont{%s}\n" hub/org-export-pro-refresh-overdrive-mono-font)
-			       (format "\\newfontface\\HubDisplayFont{%s}\n"
-				       hub/org-export-pro-refresh-overdrive-display-font)
-			       "\\begin{document}\n"
-			       "{\\HubDisplayFont Probe}\\par\n"
-			       "\\texttt{Probe}\\par\n"
-			       "\\end{document}\n"))
-		     (eq 0 (call-process compiler-bin nil nil nil
-					 "-interaction=nonstopmode"
-					 "-halt-on-error"
-					 (format "-output-directory=%s" tmpdir)
-					 texfile)))
-		 (when (file-directory-p tmpdir)
-		   (delete-directory tmpdir t))))))
-	(puthash cache-key result hub/org-export--compiler-probe-cache)
-	result))))
-
 (defun hub/org-export--compiler-ready-p (compiler)
   "Return non-nil when COMPILER is ready for use in this environment."
-  (pcase compiler
-    ((or "xelatex" "lualatex")
-     (and (hub/org-export--fontspec-fonts-ready-p
-	   compiler
-	   (list hub/org-export-pro-refresh-overdrive-main-font
-		 hub/org-export-pro-refresh-overdrive-display-font
-		 hub/org-export-pro-refresh-overdrive-mono-font))
-	  (hub/org-export--compiler-supports-pro-refresh-overdrive-p compiler)))
-    (_ t)))
+  (and (string= compiler "xelatex")
+       (executable-find compiler)
+       (file-exists-p hub/org-export--pro-refresh-overdrive-class-file)))
 
 (defun hub/org-export--effective-compiler ()
   "Return the compiler to use for the current export.
 
 Prefer the class-specific fidelity engine when the environment is ready;
 otherwise fall back to `pdflatex' so the current pipeline keeps working."
-  (let ((preferred hub/org-export-pro-refresh-overdrive-preferred-compiler))
-    (if (hub/org-export--compiler-ready-p preferred)
-	preferred
-      "pdflatex")))
+  (if (hub/org-export--compiler-ready-p "xelatex")
+      "xelatex"
+    (user-error "XeLaTeX and the pro-refresh-overdrive class asset are required for this export")))
 
 (defun hub/org-export--pdf-process-for-compiler (compiler)
   "Return a minimal two-pass PDF process for COMPILER."
@@ -300,10 +156,7 @@ otherwise fall back to `pdflatex' so the current pipeline keeps working."
     (setq-local org-latex-compiler (hub/org-export--effective-compiler))
     (setq-local org-latex-pdf-process
 		(hub/org-export--pdf-process-for-compiler org-latex-compiler))
-    (setq-local org-latex-title-command
-		(if (string= org-latex-compiler "pdflatex")
-		    hub/org-export--pro-refresh-overdrive-title-command
-		  hub/org-export--pro-refresh-overdrive-fontspec-title-command))
+    (setq-local org-latex-title-command hub/org-export--pro-refresh-overdrive-title-command)
     (setq-local org-latex-src-block-backend 'custom)
     (setq-local org-latex-custom-lang-environments
 		'((emacs-lisp "hubcode")
@@ -321,30 +174,10 @@ otherwise fall back to `pdflatex' so the current pipeline keeps working."
        (format "\\renewcommand{\\HubHeroPatternGraphic}{\\includegraphics[width=118mm]{%s}}"
 	       (hub/org-export--latex-escape
 		(expand-file-name "hero-pattern.png" hub/org-export--active-output-dir)))))
-    (unless (string= org-latex-compiler "pdflatex")
-      (hub/org-export--insert-header-extra
-       (format "\\newfontface\\HubDisplayFont{%s}"
-	       (hub/org-export--latex-escape
-		hub/org-export-pro-refresh-overdrive-display-font)))
-      (hub/org-export--insert-header-extra
-       (format "\\setmonofont{%s}"
-	       (hub/org-export--latex-escape
-		hub/org-export-pro-refresh-overdrive-mono-font)))
-      (hub/org-export--insert-header-extra
-       (format "\\setmainfont{%s}"
-	       (hub/org-export--latex-escape hub/org-export-pro-refresh-overdrive-main-font)))
-      (hub/org-export--insert-header-extra
-       (format "\\setsansfont{%s}"
-	       (hub/org-export--latex-escape hub/org-export-pro-refresh-overdrive-main-font)))
-      (hub/org-export--insert-header-extra "\\defaultfontfeatures{Ligatures=TeX}")
-      (hub/org-export--insert-header-extra "\\usepackage{fontspec}"))
     (hub/org-export--insert-header-extra
      (format "\\renewcommand{\\HubExportEyebrowBlock}{%s}"
 	     (if (and eyebrow (not (string-empty-p eyebrow)))
-		 (format "{\\color{HubAccent}\\small%s\\MakeUppercase{%s}\\par}\\vspace*{3em}"
-			 (if (string= org-latex-compiler "pdflatex")
-			     "\\bfseries"
-			   "\\HubDisplayFont")
+		 (format "\\HubHeroEyebrow{%s}"
 			 (hub/org-export--latex-escape eyebrow))
 	       "")))))
 
