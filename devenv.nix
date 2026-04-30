@@ -1,13 +1,30 @@
-{ pkgs, lib, ... }:
+{ pkgs, lib, config, ... }:
+let
+  texliveEnv = pkgs.texliveSmall.withPackages (ps: [
+    ps.collection-latexrecommended
+    ps.collection-fontsrecommended
+    ps.pgf
+    ps.geometry
+    ps.hyperref
+    ps.ulem
+    ps.fontspec
+    ps.wrapfig
+    ps."capt-of"
+  ]);
+in
 {
   # Developer shell packages
   packages = [
     pkgs.editorconfig-core-c
+    pkgs.fd
     pkgs.git
+    pkgs.pass
     pkgs.ripgrep
     pkgs.pre-commit
+    texliveEnv
   ];
 
+  env.DEEPSEEK_API_KEY = config.secretspec.secrets.DEEPSEEK_API_KEY or "";
   env.EDITOR = "emacs";
   env.FLOW = ''
   Project commands:
@@ -17,6 +34,7 @@
     - Tangle config      : devenv shell -- tangle
     - Load check         : devenv shell -- load-check
     - Freeze packages    : devenv shell -- freeze
+    - Pi (DeepSeek)      : pi [args...]   # defaults to --provider deepseek --model deepseek-v4-flash
     - Pre-commit (all)   : devenv shell -- pre-commit:all
     - devenv shell -- <command>     : Run one-off commands in the dev shell
   '';
@@ -38,6 +56,47 @@
       emacs --batch -l core/packages.el --eval '(core/packages-freeze)' --kill
     ''
     ;
+    pi.exec = ''
+      mapfile -t pi_candidates < <(which -a pi 2>/dev/null || true)
+      self_path="$(command -v pi || true)"
+      upstream_pi=""
+
+      for candidate in "''${pi_candidates[@]}"; do
+        if [ -n "$candidate" ] && [ "$candidate" != "$self_path" ]; then
+          upstream_pi="$candidate"
+          break
+        fi
+      done
+
+      if [ -z "$upstream_pi" ]; then
+        printf '%s\n' "Could not find an upstream 'pi' binary beyond the devenv wrapper. Install pi on your host or adjust the wrapper target." >&2
+        exit 1
+      fi
+
+      has_provider=0
+      has_model=0
+      for arg in "$@"; do
+        case "$arg" in
+          --provider|--provider=*)
+            has_provider=1
+            ;;
+          --model|--model=*)
+            has_model=1
+            ;;
+        esac
+      done
+
+      cmd=("$upstream_pi")
+      if [ "$has_provider" -eq 0 ]; then
+        cmd+=(--provider deepseek)
+      fi
+      if [ "$has_model" -eq 0 ]; then
+        cmd+=(--model deepseek-v4-flash)
+      fi
+      cmd+=("$@")
+
+      exec "''${cmd[@]}"
+    '';
     "ci:load-all".exec = ''
       HOME=$PWD HUB_FORCE_FULL_LOAD=1 emacs --batch -l scripts/ci-load-all.el
     '';
