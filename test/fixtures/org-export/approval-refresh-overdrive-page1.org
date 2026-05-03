@@ -1,15 +1,95 @@
 #+TITLE: Make the refresh impossible to miss
-#+SUBTITLE: A temporary high-energy mode for launch-season communications that should feel branded, readable, and unmistakably refreshed.
-#+AUTHOR: Hubert Behaghel
-#+DATE: 2026-04-28
+#+SUBTITLE: A temporary high-energy mode for launch-season communications: brighter wedges, louder accent choreography, and more obvious page-level motion while keeping the reading structure intact.
+#+AUTHOR: Prototype direction · refresh-overdrive
+#+DATE: April 2026 · Visual direction study
 #+LANGUAGE: en
 #+LATEX_CLASS: pro-refresh-overdrive
 #+EXPORT_EYEBROW: Refresh mode · louder on purpose
+#+EXPORT_FOOTER_NOTE: The overdrive question is simple: can the refresh be pushed this hard without undermining the sense of trust? Seeing it as a PDF will tell us much faster than debating it abstractly.
 
 #+begin_standfirst
-Trust is no longer a static promise. It is a system: observable, explainable, fast under pressure, and humane at the point of friction.
+Trust is no longer a static promise. It is a system: observable, explainable, fast under pressure, and humane at the point of friction. This variant asks what happens if the refresh is pushed noticeably harder for a season.
 #+end_standfirst
 
 * Trust without compromise
 
-The strongest identity products no longer sell a check. They sell a posture.
+The strongest identity products no longer sell a check. They sell a posture. The posture says: protect the business, preserve the customer moment, and make every decision legible enough to defend. That is why modern verification language keeps circling the same verbs: reduce fraud, ship faster, boost conversion, and stay compliant without turning compliance into drag.
+
+#+ATTR_LATEX: :options [Prototype testimonial · Global platform operator]
+#+begin_quote
+What mattered was not only the fraud reduction. It was the sense that the platform could explain itself while still moving at business speed.
+#+end_quote
+
+* AI-powered architecture, built for trust
+
+Under the surface, a trustworthy platform blends signal density, model intelligence, policy control, and operational feedback. The point is not to say AI more often. The point is to make decisions more consistent while leaving enough visibility for teams to understand why trust was granted, challenged, or blocked.
+
+#+ATTR_LATEX: :options [Design signal]
+#+begin_callout
+In the overdrive mode, the article becomes a deliberate piece of comms theatre. It still needs discipline, but it is allowed to be more obviously branded than the calmer variants.
+#+end_callout
+
+- Verified transparency :: explain the shape of the decision without drowning the reader in implementation detail.
+- Partnership that protects :: show that the product is not just software, but a system that teams can operationalize.
+- Global scale, local assurance :: keep the language expansive while grounding it in local compliance reality.
+
+* Performance at scale
+
+| @@latex:\textcolor{HubLabelBrown}{\textbf{Measure}}@@ | @@latex:\textcolor{HubLabelBrown}{\textbf{Signal}}@@ | @@latex:\textcolor{HubLabelBrown}{\textbf{Why it matters}}@@ | @@latex:\textcolor{HubLabelBrown}{\textbf{Prototype reading}}@@ |
+|---------+--------+----------------+-------------------|
+| Decision latency | 6 seconds | Keeps conversion momentum alive | Speed has to feel calm, not rushed |
+| Coverage | 230+ territories | Expands commercial reach | Global promise needs a believable frame |
+| Document support | 12.5K+ documents | Reduces operational fallback | Breadth should look systematic, not noisy |
+| Verification fabric | 1,000+ signals/session | Increases confidence in the decision | Architecture needs a visible point of view |
+
+#+begin_metrics
+#+ATTR_LATEX: :options [230+]
+#+begin_metric
+Countries and territories covered
+#+end_metric
+#+ATTR_LATEX: :options [6s]
+#+begin_metric
+Fast decision times
+#+end_metric
+#+ATTR_LATEX: :options [99.6\%]
+#+begin_metric
+Illustrative accuracy figure for visual pacing
+#+end_metric
+#+ATTR_LATEX: :options [1,000+]
+#+begin_metric
+Signals analyzed per session
+#+end_metric
+#+end_metrics
+
+* Partnerships that protect
+
+#+begin_pillars
+#+ATTR_LATEX: :options [Trust engineered]
+#+begin_pillar
+Trust is not treated as a feature but as a coordinated operating system across product, policy, and support.
+#+end_pillar
+#+ATTR_LATEX: :options [Human at heart]
+#+begin_pillar
+Even automation-heavy experiences still need to feel respectful at the point where the user is asked to prove who they are.
+#+end_pillar
+#+end_pillars
+
+* Implementation note
+
+#+begin_src python
+from dataclasses import dataclass
+
+@dataclass
+class VerificationSession:
+    country: str
+    risk_score: float
+    user_intent: str
+
+
+def route(session: VerificationSession) -> str:
+    if session.risk_score >= 0.92:
+        return "block"
+    if session.country in {"EE", "GB", "BR"} and session.user_intent == "high_value":
+        return "review"
+    return "approve"
+#+end_src
