@@ -21,11 +21,14 @@ in
     pkgs.pass
     pkgs.ripgrep
     pkgs.pre-commit
+    pkgs.ghostscript
+    pkgs.poppler-utils
     texliveEnv
   ];
 
   env.DEEPSEEK_API_KEY = config.secretspec.secrets.DEEPSEEK_API_KEY or "";
   env.EDITOR = "emacs";
+  env.OSFONTDIR = "/Library/Fonts:/Users/hubertbehaghel/Library/Fonts:/System/Library/Fonts";
   env.FLOW = ''
   Project commands:
     - CI full load       : devenv shell -- ci:load-all
