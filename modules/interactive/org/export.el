@@ -201,6 +201,93 @@ This runs on the temporary export buffer only."
   (unless (member hub/org-export--babel-package org-latex-packages-alist)
     (push hub/org-export--babel-package org-latex-packages-alist)))
 
+(defun hub/org-export--info-pro-refresh-overdrive-p (info)
+  "Return non-nil when INFO targets the `pro-refresh-overdrive' class."
+  (equal (plist-get info :latex-class) "pro-refresh-overdrive"))
+
+(defun hub/org-export--table-row-cells (row info)
+  "Return exported cell strings for table ROW using INFO."
+  (org-element-map row 'table-cell
+		   (lambda (cell)
+		     (org-trim (org-export-data (org-element-contents cell) info)))
+		   info))
+
+(defun hub/org-export--split-table-rows (table info)
+  "Return TABLE rows split into header and body lists using INFO.
+
+The return value is a cons cell of the form (HEADERS . BODY), where
+each row is a list of already-exported cell strings.  Rows before the
+first Org rule separator become header rows."
+  (let ((headers nil)
+	(body nil)
+	(seen-rule nil))
+    (dolist (row (org-element-map table 'table-row #'identity info))
+      (pcase (org-element-property :type row)
+	('rule (setq seen-rule t))
+	('standard
+	 (let ((cells (hub/org-export--table-row-cells row info)))
+	   (if seen-rule (push cells body) (push cells headers))))))
+    (cons (nreverse headers) (nreverse body))))
+
+(defun hub/org-export--table-row-string (cells &optional header-p)
+  "Return LaTeX for a table row made of CELLS.
+
+When HEADER-P is non-nil, render cells with the class-owned header macro."
+  (concat
+   (mapconcat
+    (lambda (cell)
+      (if header-p
+	  (format "\\HubTableHeaderCell{%s}" cell)
+	(format "\\HubTableBodyCell{%s}" cell)))
+    cells
+    " & ")
+   "\\\\"))
+
+(defun hub/org-export--format-branded-table (table info)
+  "Return class-owned LaTeX for plain Org TABLE using INFO."
+  (pcase-let* ((`(,headers . ,body) (hub/org-export--split-table-rows table info))
+	       (all-rows (append headers body))
+	       (column-count (length (car all-rows)))
+	       (column-spec (make-string column-count ?Y)))
+    (when (zerop column-count)
+      (user-error "Cannot export an empty Org table"))
+    (let* ((attr (copy-sequence (org-export-read-attribute :attr_latex table)))
+	   (caption (org-latex--caption/label-string table info))
+	   (above? (org-latex--caption-above-p table info))
+	   (body-rows (if body body (cdr headers)))
+	   (header-rows (if body headers (list (car headers))))
+	   (table-string
+	    (concat
+	     "\\begin{hubtable}\n"
+	     (format "\\begin{tabularx}{\\linewidth}{%s}\n" column-spec)
+	     (mapconcat (lambda (row)
+			  (hub/org-export--table-row-string row t))
+			header-rows
+			"\n")
+	     "\n\\HubTableHeadRule\n"
+	     (mapconcat
+	      (lambda (row)
+		(hub/org-export--table-row-string row nil))
+	      body-rows
+	      "\n\\HubTableBodyRule\n")
+	     "\n\\end{tabularx}\n"
+	     "\\end{hubtable}")))
+      (unless (plist-member attr :center)
+	(setq attr (plist-put attr :center nil)))
+      (org-latex--decorate-table table-string attr caption above? info))))
+
+(defun hub/org-export--advice-org-latex-org-table (orig table contents info)
+  "Render TABLE through ORIG, with branded defaults for the flagship class."
+  (let ((attr (org-export-read-attribute :attr_latex table)))
+    (if (and (hub/org-export--info-pro-refresh-overdrive-p info)
+	     (not (plist-get attr :environment))
+	     (not (plist-get attr :mode))
+	     (not (plist-get attr :align))
+	     (not (plist-get attr :width))
+	     (not (plist-get attr :options)))
+	(hub/org-export--format-branded-table table info)
+      (funcall orig table contents info))))
+
 (defun hub/org-export--register-latex-class (name header)
   "Register LaTeX class NAME with HEADER and standard sectioning mappings."
   (setq org-latex-classes
@@ -285,6 +372,7 @@ Return the generated `.pdf' path."
 
 (hub/org-export-register-pro-refresh-overdrive)
 (hub/org-export--ensure-babel-package)
+(advice-add 'org-latex--org-table :around #'hub/org-export--advice-org-latex-org-table)
 (add-hook 'org-export-before-processing-functions #'hub/org-export--validate-locale)
 (add-hook 'org-export-before-processing-functions #'hub/org-export--configure-class-buffer)
 

@@ -35,7 +35,7 @@ In the overdrive mode, the article becomes a deliberate piece of comms theatre. 
 
 * Performance at scale
 
-| @@latex:\textcolor{HubLabelBrown}{\textbf{Measure}}@@ | @@latex:\textcolor{HubLabelBrown}{\textbf{Signal}}@@ | @@latex:\textcolor{HubLabelBrown}{\textbf{Why it matters}}@@ | @@latex:\textcolor{HubLabelBrown}{\textbf{Prototype reading}}@@ |
+| Measure | Signal | Why it matters | Prototype reading |
 |---------+--------+----------------+-------------------|
 | Decision latency | 6 seconds | Keeps conversion momentum alive | Speed has to feel calm, not rushed |
 | Coverage | 230+ territories | Expands commercial reach | Global promise needs a believable frame |

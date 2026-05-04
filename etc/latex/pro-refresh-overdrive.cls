@@ -15,6 +15,7 @@
 \RequirePackage{etoolbox}
 \RequirePackage{afterpage}
 \RequirePackage{array}
+\RequirePackage{booktabs}
 \RequirePackage{tabularx}
 \RequirePackage{colortbl}
 \RequirePackage{tikz}
@@ -29,6 +30,7 @@
 \definecolor{HubStandfirst}{HTML}{7A603D}
 \definecolor{HubLabelBrown}{HTML}{7A3119}
 \definecolor{HubLine}{HTML}{D8B5A4}
+\definecolor{HubTableRule}{HTML}{FF9A52}
 \definecolor{HubSurface}{HTML}{FFF4EC}
 \definecolor{HubSurfaceSoft}{HTML}{FFFBF7}
 \definecolor{HubMetricSurface}{HTML}{F3FBF7}
@@ -44,6 +46,21 @@
 \newfontface\HubQuoteFont{TeX Gyre Termes}
 
 \newsavebox{\HubCalloutBox}
+\newcolumntype{Y}{>{\raggedright\arraybackslash\hspace{0pt}}X}
+\newcommand{\HubTableHeaderCell}[1]{{\color{HubLabelBrown}\bfseries\fontsize{8.5}{10}\selectfont\MakeUppercase{#1}\strut}}
+\newcommand{\HubTableBodyCell}[1]{{\fontsize{8.4}{10.6}\selectfont\color{HubInk}#1\strut}}
+\newcommand{\HubTableHeadRule}{\noalign{\vskip 1.8mm\color{HubTableRule}\hrule height 0.95pt\vskip 1.8mm}}
+\newcommand{\HubTableBodyRule}{\noalign{\vskip 1.8mm\color{HubTableRule}\hrule height 0.55pt\vskip 1.8mm}}
+\newenvironment{hubtable}{%
+  \par\medskip\noindent
+  \begingroup
+  \setlength{\tabcolsep}{4.5pt}%
+  \renewcommand{\arraystretch}{1.18}%
+  \fontsize{8.4}{10.6}\selectfont\color{HubInk}%
+}{%
+  \endgroup
+  \par\medskip
+}
 
 \renewcommand{\familydefault}{\sfdefault}
 \pagestyle{empty}
