@@ -11,6 +11,7 @@ let
     ps.fontspec
     ps.wrapfig
     ps."capt-of"
+    ps.tcolorbox
   ]);
 in
 {
