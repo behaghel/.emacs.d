@@ -1,0 +1,88 @@
+#+title: Adaptive Cards Demo
+#+author: Hubert Behaghel
+#+date: 2026-05-04
+#+latex_class: pro-refresh-overdrive
+
+* 2 Metrics
+#+begin_metrics
+#+ATTR_LATEX: :options [50\%]
+#+begin_metric
+Half of the things.
+#+end_metric
+#+ATTR_LATEX: :options [2x]
+#+begin_metric
+Twice as fast.
+#+end_metric
+#+end_metrics
+
+* 3 Metrics
+#+begin_metrics
+#+ATTR_LATEX: :options [1]
+#+begin_metric
+First metric.
+#+end_metric
+#+ATTR_LATEX: :options [2]
+#+begin_metric
+Second metric.
+#+end_metric
+#+ATTR_LATEX: :options [3]
+#+begin_metric
+Third metric.
+#+end_metric
+#+end_metrics
+
+* 4 Metrics
+#+begin_metrics
+#+ATTR_LATEX: :options [A]
+#+begin_metric
+Alpha
+#+end_metric
+#+ATTR_LATEX: :options [B]
+#+begin_metric
+Beta
+#+end_metric
+#+ATTR_LATEX: :options [C]
+#+begin_metric
+Gamma
+#+end_metric
+#+ATTR_LATEX: :options [D]
+#+begin_metric
+Delta
+#+end_metric
+#+end_metrics
+
+* 3 Pillars
+#+begin_pillars
+#+ATTR_LATEX: :options [First]
+#+begin_pillar
+This is the first pillar.
+#+end_pillar
+#+ATTR_LATEX: :options [Second]
+#+begin_pillar
+This is the second pillar.
+#+end_pillar
+#+ATTR_LATEX: :options [Third]
+#+begin_pillar
+This is the third pillar.
+#+end_pillar
+#+end_pillars
+
+* 4 Pillars
+#+begin_pillars
+#+ATTR_LATEX: :options [One]
+#+begin_pillar
+Pillar one.
+#+end_pillar
+#+ATTR_LATEX: :options [Two]
+#+begin_pillar
+Pillar two.
+#+end_pillar
+#+ATTR_LATEX: :options [Three]
+#+begin_pillar
+Pillar three.
+#+end_pillar
+#+ATTR_LATEX: :options [Four]
+#+begin_pillar
+Pillar four.
+#+end_pillar
+#+end_pillars
