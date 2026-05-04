@@ -35,12 +35,25 @@ In the overdrive mode, the article becomes a deliberate piece of comms theatre. 
 
 * Performance at scale
 
-| @@latex:\textcolor{HubLabelBrown}{\textbf{Measure}}@@ | @@latex:\textcolor{HubLabelBrown}{\textbf{Signal}}@@ | @@latex:\textcolor{HubLabelBrown}{\textbf{Why it matters}}@@ | @@latex:\textcolor{HubLabelBrown}{\textbf{Prototype reading}}@@ |
-|---------+--------+----------------+-------------------|
-| Decision latency | 6 seconds | Keeps conversion momentum alive | Speed has to feel calm, not rushed |
-| Coverage | 230+ territories | Expands commercial reach | Global promise needs a believable frame |
-| Document support | 12.5K+ documents | Reduces operational fallback | Breadth should look systematic, not noisy |
-| Verification fabric | 1,000+ signals/session | Increases confidence in the decision | Architecture needs a visible point of view |
+#+begin_export latex
+{\small
+\setlength{\tabcolsep}{4.5pt}
+\renewcommand{\arraystretch}{1.18}
+\begin{tabularx}{\linewidth}{>{\raggedright\arraybackslash\color{HubLabelBrown}\bfseries}p{0.18\linewidth}>{\raggedright\arraybackslash\color{HubLabelBrown}\bfseries}p{0.15\linewidth}>{\raggedright\arraybackslash}X>{\raggedright\arraybackslash}X}
+MEASURE & SIGNAL & WHY IT MATTERS & PROTOTYPE READING\\
+\arrayrulecolor{HubLabelBrown}\hline
+\arrayrulecolor{HubAccent!35!HubLine}
+Decision latency & 6 seconds & Keeps conversion momentum alive & Speed has to feel calm, not rushed\\
+\hline
+Coverage & 230+ territories & Expands commercial reach & Global promise needs a believable frame\\
+\hline
+Document support & 12.5K+ documents & Reduces operational fallback & Breadth should look systematic, not noisy\\
+\hline
+Verification fabric & 1,000+ signals/session & Increases confidence in the decision & Architecture needs a visible point of view\\
+\hline
+\end{tabularx}
+}
+#+end_export
 
 #+begin_metrics
 #+ATTR_LATEX: :options [230+]
