@@ -6,6 +6,7 @@ let
     ps.pgf
     ps.geometry
     ps.hyperref
+    ps.needspace
     ps.ulem
     ps.fontspec
     ps.wrapfig

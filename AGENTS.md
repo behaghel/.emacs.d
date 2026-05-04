@@ -34,6 +34,7 @@
 - Preferred workflow: enable `direnv` and run `direnv allow` at repo root.
 - Use `devenv shell -- <command>` for one-off commands to match local hooks and CI.
 - `devenv.nix` defines convenience scripts and pre-commit hooks; check it before inventing new commands.
+- When a tool or LaTeX/package dependency is missing from the development environment, install it through `devenv.nix` instead of reimplementing that capability inside repo code.
 - CI and many local checks run with `HOME=$PWD` so state stays inside the repository.
 - Environment predicates live in `core/core-predicates.el`: `hub/interactive-p`, `hub/batch-p`, `hub/gui-p`, `hub/tty-p`, `hub/ci-p`.
 

@@ -11,6 +11,7 @@
 \geometry{top=12mm,bottom=12mm,left=16mm,right=16mm}
 \RequirePackage{xcolor}
 \RequirePackage{fontspec}
+\RequirePackage{needspace}
 \RequirePackage{etoolbox}
 \RequirePackage{afterpage}
 \RequirePackage{array}
@@ -67,14 +68,6 @@
 }{\endlist}
 
 \makeatletter
-\newcommand{\HubNeedSpace}[1]{%
-  \par
-  \ifdim\pagegoal<\maxdimen
-    \ifdim\dimexpr\pagegoal-\pagetotal\relax<#1\relax
-      \newpage
-    \fi
-  \fi
-}
 \newcommand{\HubExportEyebrowBlock}{}
 \newcommand{\HubHeroEyebrow}[1]{\vspace*{-0.8em}{\addfontfeature{Renderer=ICU,LetterSpace=16.0}\color{HubAccent}\small\HubDisplayFont\MakeUppercase{#1}\par}\vspace*{2em}}
 \newcommand{\HubHeroTitle}[1]{{\HubDisplayFont\fontsize{34}{33}\selectfont #1\par}\vspace*{2.75em}}
@@ -87,9 +80,9 @@
 \setcounter{secnumdepth}{1}
 \def\@seccntformat#1{{\color{HubAccent}\csname the#1\endcsname}\hspace{0.75em}}
 \newcommand{\HubSectionFormat}[1]{#1\par\vspace*{-0.6\baselineskip}{\color{HubLine}\rule{\linewidth}{1.5pt}}}
-\renewcommand\section{\HubNeedSpace{9\baselineskip}\@startsection{section}{1}{\z@}{2.8ex}{1.1ex}{\normalfont\Large\bfseries\raggedright\color{HubInk}\HubSectionFormat}}
-\renewcommand\subsection{\HubNeedSpace{7\baselineskip}\@startsection{subsection}{2}{\z@}{2.2ex}{0.9ex}{\normalfont\large\bfseries\raggedright\color{HubMuted}}}
-\renewcommand\subsubsection{\HubNeedSpace{6\baselineskip}\@startsection{subsubsection}{3}{\z@}{2.0ex}{0.8ex}{\normalfont\normalsize\bfseries\raggedright\color{HubMuted}}}
+\renewcommand\section{\Needspace{9\baselineskip}\@startsection{section}{1}{\z@}{2.8ex}{1.1ex}{\normalfont\Large\bfseries\raggedright\color{HubInk}\HubSectionFormat}}
+\renewcommand\subsection{\Needspace{7\baselineskip}\@startsection{subsection}{2}{\z@}{2.2ex}{0.9ex}{\normalfont\large\bfseries\raggedright\color{HubMuted}}}
+\renewcommand\subsubsection{\Needspace{6\baselineskip}\@startsection{subsubsection}{3}{\z@}{2.0ex}{0.8ex}{\normalfont\normalsize\bfseries\raggedright\color{HubMuted}}}
 \makeatother
 
 \newlength{\HubHeroTopInset}
