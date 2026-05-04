@@ -288,6 +288,25 @@ When HEADER-P is non-nil, render cells with the class-owned header macro."
 	(hub/org-export--format-branded-table table info)
       (funcall orig table contents info))))
 
+(defun hub/org-export--advice-org-latex-special-block (orig special-block contents info)
+  "Escape LaTeX special characters in the `:options' attribute of SPECIAL-BLOCK.
+This is narrowly scoped to `metric' blocks in the `pro-refresh-overdrive' class."
+  (let* ((attr-latex (org-element-property :attr_latex special-block)))
+    (when (and attr-latex
+	       (hub/org-export--info-pro-refresh-overdrive-p info)
+	       (equal (org-element-property :type special-block) "metric"))
+      (let ((new-attr (mapcar (lambda (s)
+				(if (string-match ":options\\s-+\\(.+\\)" s)
+				    (let* ((opt-val (match-string 1 s))
+					   (unescaped opt-val))
+				      (dolist (char '("{" "}" "%" "&" "$" "#" "_" "^" "~"))
+					(setq unescaped (replace-regexp-in-string (concat "\\\\" (regexp-quote char)) char unescaped t t)))
+				      (replace-match (hub/org-export--latex-escape unescaped) t t s 1))
+				  s))
+			      attr-latex)))
+	(org-element-put-property special-block :attr_latex new-attr))))
+  (funcall orig special-block contents info))
+
 (defun hub/org-export--register-latex-class (name header)
   "Register LaTeX class NAME with HEADER and standard sectioning mappings."
   (setq org-latex-classes
@@ -373,6 +392,7 @@ Return the generated `.pdf' path."
 (hub/org-export-register-pro-refresh-overdrive)
 (hub/org-export--ensure-babel-package)
 (advice-add 'org-latex--org-table :around #'hub/org-export--advice-org-latex-org-table)
+(advice-add 'org-latex-special-block :around #'hub/org-export--advice-org-latex-special-block)
 (add-hook 'org-export-before-processing-functions #'hub/org-export--validate-locale)
 (add-hook 'org-export-before-processing-functions #'hub/org-export--configure-class-buffer)
 

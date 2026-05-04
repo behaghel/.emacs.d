@@ -22,6 +22,22 @@
 \usetikzlibrary{backgrounds}
 \RequirePackage{graphicx}
 \RequirePackage{fancyvrb}
+\RequirePackage{tcolorbox}
+\tcbuselibrary{raster}
+
+\tcbset{
+  hubcard/.style={
+    colframe=HubLine,
+    boxrule=0.8pt,
+    arc=0pt,
+    outer arc=0pt,
+    boxsep=0pt,
+    left=12pt,
+    right=12pt,
+    top=12pt,
+    bottom=12pt
+  }
+}
 
 \definecolor{HubPaper}{HTML}{FCF5EE}
 \definecolor{HubInk}{HTML}{0C3035}
@@ -45,7 +61,6 @@
 \newfontface\HubDisplayFont{Inter ExtraBold}
 \newfontface\HubQuoteFont{TeX Gyre Termes}
 
-\newsavebox{\HubCalloutBox}
 \newcolumntype{Y}{>{\raggedright\arraybackslash\hspace{0pt}}X}
 \newcommand{\HubTableHeaderCell}[1]{{\color{HubLabelBrown}\bfseries\fontsize{8.5}{10}\selectfont\MakeUppercase{#1}\strut}}
 \newcommand{\HubTableBodyCell}[1]{{\fontsize{8.4}{10.6}\selectfont\color{HubInk}#1\strut}}
@@ -96,7 +111,7 @@
 \renewcommand{\thesection}{\ifnum\c@section<10 0\fi\arabic{section}}
 \setcounter{secnumdepth}{1}
 \def\@seccntformat#1{{\color{HubAccent}\csname the#1\endcsname}\hspace{0.75em}}
-\newcommand{\HubSectionFormat}[1]{#1\par\vspace*{-0.6\baselineskip}{\color{HubLine}\rule{\linewidth}{1.5pt}}}
+\newcommand{\HubSectionFormat}[1]{\parbox{\linewidth}{#1\par\vspace*{-0.6\baselineskip}{\color{HubLine}\rule{\linewidth}{1.5pt}}}}
 \renewcommand\section{\Needspace{9\baselineskip}\@startsection{section}{1}{\z@}{2.8ex}{1.1ex}{\normalfont\Large\bfseries\raggedright\color{HubInk}\HubSectionFormat}}
 \renewcommand\subsection{\Needspace{7\baselineskip}\@startsection{subsection}{2}{\z@}{2.2ex}{0.9ex}{\normalfont\large\bfseries\raggedright\color{HubMuted}}}
 \renewcommand\subsubsection{\Needspace{6\baselineskip}\@startsection{subsubsection}{3}{\z@}{2.0ex}{0.8ex}{\normalfont\normalsize\bfseries\raggedright\color{HubMuted}}}
@@ -166,49 +181,89 @@
 }
 \newenvironment{callout}[1][]{%
   \par\medskip\noindent
-  \setlength{\fboxsep}{13pt}%
-  \def\HubTempArg{#1}%
-  \begin{lrbox}{\HubCalloutBox}%
-  \begin{minipage}{\dimexpr\linewidth-2\fboxsep\relax}%
-    \ifx\HubTempArg\relax\else{\color{HubStandfirst}\bfseries\small\MakeUppercase{\HubTempArg}\par\smallskip}\fi
+  \begin{tcolorbox}[hubcard, colback=HubSurface]
+    \def\HubTempArg{#1}%
+    \ifx\HubTempArg\empty\else{\raggedright\textbf{#1}\par}\vspace{1em}\fi
     \small\color{HubInk}\ignorespaces
 }{%
-    \end{minipage}%
-  \end{lrbox}%
-  \fcolorbox{HubLine}{HubSurface}{\usebox{\HubCalloutBox}}%
+  \end{tcolorbox}%
   \par\medskip
 }
-\newenvironment{metrics}{\par\medskip\noindent}{\par\medskip}
-\newsavebox{\HubMetricBox}
-\newenvironment{metric}[1][]{%
-  \begin{minipage}[t]{0.235\linewidth}%
-    \setlength{\fboxsep}{0pt}%
-    \setlength{\fboxrule}{0.8pt}%
-    \begin{lrbox}{\HubMetricBox}%
-    \begin{minipage}[t][33mm][t]{\dimexpr\linewidth-30pt-2\fboxrule\relax}%
-      \vspace{12pt}%
-      \raggedright\textcolor{HubAccent}{\bfseries\Large #1}\par
-      \vspace{0.55em}%
-      \raggedright\small\color{HubMuted}\ignorespaces
+\makeatletter
+\newcounter{hubmetricenv}
+\newcounter{hubmetricitem}
+\newenvironment{metrics}{%
+  \stepcounter{hubmetricenv}%
+  \par\medskip\noindent%
+  \ifcsname hub@metric@count@\thehubmetricenv\endcsname
+    \ifnum\csname hub@metric@count@\thehubmetricenv\endcsname>4
+      \def\hub@cols{4}%
+    \else
+      \edef\hub@cols{\csname hub@metric@count@\thehubmetricenv\endcsname}%
+    \fi
+  \else
+    \def\hub@cols{4}% fallback
+  \fi
+  \setcounter{hubmetricitem}{0}%
+  \begin{tcbraster}[raster columns=\hub@cols, raster equal height=rows, raster column skip=0.02\linewidth]%
 }{%
-      \par\vfill
-      \vspace{12pt}%
-    \end{minipage}%
-    \end{lrbox}%
-    \fcolorbox{HubLine}{HubMetricSurface}{\hspace{15pt}\usebox{\HubMetricBox}\hspace{15pt}}%
-  \end{minipage}\hfill
+  \end{tcbraster}%
+  \immediate\write\@auxout{\string\expandafter\string\gdef\string\csname\space hub@metric@count@\thehubmetricenv\string\endcsname{\thehubmetricitem}}%
+  \par\medskip
 }
-\newenvironment{pillars}{\par\medskip\noindent}{\par\medskip}
+\newenvironment{metric}[1][]{%
+  \stepcounter{hubmetricitem}%
+  \begin{tcolorbox}[
+    colback=HubMetricSurface,
+    colframe=HubLine,
+    boxrule=0.8pt,
+    arc=0pt,
+    outer arc=0pt,
+    boxsep=0pt,
+    left=15pt,
+    right=15pt,
+    top=12pt,
+    bottom=12pt
+  ]
+    {\centering\textcolor{HubAccent}{\bfseries\Large #1}\par}
+    \vspace{1.2em}%
+    \raggedright\small\color{HubMuted}\ignorespaces
+}{%
+  \end{tcolorbox}%
+}
+\makeatother
+\makeatletter
+\newcounter{hubpillarenv}
+\newcounter{hubpillaritem}
+\newenvironment{pillars}{%
+  \stepcounter{hubpillarenv}%
+  \par\medskip\noindent%
+  \ifcsname hub@pillar@count@\thehubpillarenv\endcsname
+    \ifnum\csname hub@pillar@count@\thehubpillarenv\endcsname>4
+      \def\hub@cols{4}%
+    \else
+      \edef\hub@cols{\csname hub@pillar@count@\thehubpillarenv\endcsname}%
+    \fi
+  \else
+    \def\hub@cols{4}% fallback
+  \fi
+  \setcounter{hubpillaritem}{0}%
+  \begin{tcbraster}[raster columns=\hub@cols, raster equal height=rows, raster column skip=0.02\linewidth]%
+}{%
+  \end{tcbraster}%
+  \immediate\write\@auxout{\string\expandafter\string\gdef\string\csname\space hub@pillar@count@\thehubpillarenv\string\endcsname{\thehubpillaritem}}%
+  \par\medskip
+}
 \newenvironment{pillar}[1][]{%
-  \begin{minipage}[t]{0.48\linewidth}%
-    \setlength{\fboxsep}{6pt}%
-    \fcolorbox{HubLine}{white}{\parbox{\dimexpr\linewidth-2\fboxsep\relax}{\raggedright\textbf{#1}}}%
-    \par\smallskip
+  \stepcounter{hubpillaritem}%
+  \begin{tcolorbox}[hubcard, colback=white]
+    \def\HubTempArg{#1}%
+    \ifx\HubTempArg\empty\else{\raggedright\textbf{#1}\par}\vspace{1em}\fi
     \small\color{HubInk}\ignorespaces
 }{%
-  \end{minipage}%
-  \hfill
+  \end{tcolorbox}%
 }
+\makeatother
 \newenvironment{hubcode}{%
   \VerbatimEnvironment
   \par\medskip\noindent{\color{HubAccent}\rule{\linewidth}{0.8pt}}\par\smallskip
