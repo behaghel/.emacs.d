@@ -146,7 +146,11 @@
 							(should (string-match-p (regexp-quote "\\setmonofont{Menlo}") class-contents))
 							(should (string-match-p (regexp-quote "\\newfontface\\HubDisplayFont{Inter ExtraBold}") class-contents))
 							(should (string-match-p (regexp-quote "\\RequirePackage{tcolorbox}") class-contents))
-							(should (string-match-p (regexp-quote "\\tcbuselibrary{raster}") class-contents))
+							(should (string-match-p (regexp-quote "\\tcbuselibrary{raster,minted}") class-contents))
+							(should-not (string-match-p (regexp-quote "\\usepackage[minted]{tcolorbox}") class-contents))
+							(should (string-match-p (regexp-quote "\\AtBeginEnvironment{MintedVerbatim}") class-contents))
+							(should (string-match-p (regexp-quote "\\@namedef{PYG@tok@k}") class-contents))
+							(should (string-match-p (regexp-quote "\\renewcommand{\\theFancyVerbLine}") class-contents))
 							(should (string-match-p (regexp-quote "\\newcounter{hubmetricenv}") class-contents))
 							(should (string-match-p (regexp-quote "\\newcounter{hubmetricitem}") class-contents))
 							(should (string-match-p (regexp-quote "hub@metric@count@") class-contents))
@@ -229,7 +233,11 @@
 							(should (string-match-p (regexp-quote "\\begin{metric}[230+]") tex-contents))
 							(should (string-match-p (regexp-quote "\\begin{metric}[99.6\\%]") tex-contents))
 							(should (string-match-p (regexp-quote "\\RequirePackage{tcolorbox}") class-contents))
-							(should (string-match-p (regexp-quote "\\tcbuselibrary{raster}") class-contents))
+							(should (string-match-p (regexp-quote "\\tcbuselibrary{raster,minted}") class-contents))
+							(should-not (string-match-p (regexp-quote "\\usepackage[minted]{tcolorbox}") class-contents))
+							(should (string-match-p (regexp-quote "\\AtBeginEnvironment{MintedVerbatim}") class-contents))
+							(should (string-match-p (regexp-quote "\\@namedef{PYG@tok@k}") class-contents))
+							(should (string-match-p (regexp-quote "\\renewcommand{\\theFancyVerbLine}") class-contents))
 							(should (string-match-p (regexp-quote "\\newcounter{hubmetricenv}") class-contents))
 							(should (string-match-p (regexp-quote "\\newcounter{hubmetricitem}") class-contents))
 							(should (string-match-p (regexp-quote "hub@metric@count@") class-contents))
@@ -247,7 +255,7 @@
 							(should-not (string-match-p (regexp-quote "\\fcolorbox{HubLine}{HubSurface}") class-contents))
 							(should (string-match-p (regexp-quote "\\begin{pillars}") tex-contents))
 							(should (string-match-p (regexp-quote "\\begin{pillar}[Trust engineered]") tex-contents))
-							(should (string-match-p (regexp-quote "\\begin{hubcode}") tex-contents))
+							(should (string-match-p (regexp-quote "\\begin{minted}") tex-contents))
 							(should (string-match-p (regexp-quote "\\begin{hubfootnote}") tex-contents))
 							(should (string-match-p "Operating principle" tex-contents))
 							(should (file-exists-p pdf-path)))))))
@@ -325,7 +333,11 @@
 							(should (string-match-p (regexp-quote "\\begin{metric}[230+]") tex-contents))
 							(should (string-match-p (regexp-quote "\\begin{metric}[99.6\\%]") tex-contents))
 							(should (string-match-p (regexp-quote "\\RequirePackage{tcolorbox}") class-contents))
-							(should (string-match-p (regexp-quote "\\tcbuselibrary{raster}") class-contents))
+							(should (string-match-p (regexp-quote "\\tcbuselibrary{raster,minted}") class-contents))
+							(should-not (string-match-p (regexp-quote "\\usepackage[minted]{tcolorbox}") class-contents))
+							(should (string-match-p (regexp-quote "\\AtBeginEnvironment{MintedVerbatim}") class-contents))
+							(should (string-match-p (regexp-quote "\\@namedef{PYG@tok@k}") class-contents))
+							(should (string-match-p (regexp-quote "\\renewcommand{\\theFancyVerbLine}") class-contents))
 							(should (string-match-p (regexp-quote "\\newcounter{hubmetricenv}") class-contents))
 							(should (string-match-p (regexp-quote "\\newcounter{hubmetricitem}") class-contents))
 							(should (string-match-p (regexp-quote "hub@metric@count@") class-contents))
@@ -347,6 +359,117 @@
 							(should (file-exists-p pdf-path))
 							(should (file-exists-p (expand-file-name "hero-pattern.png" artifact-root)))
 							(should (file-exists-p (expand-file-name "hero-logo.pdf" artifact-root))))))))
+      (when (buffer-live-p specimen-buffer)
+	(kill-buffer specimen-buffer))
+      (when (file-directory-p artifact-root)
+	(delete-directory artifact-root t)))))
+
+(ert-deftest hub/org-export-source-blocks-minted-formatting ()
+  "Source blocks export to minted environments with and without line numbers."
+  (let* ((specimen (expand-file-name "test/fixtures/org-export/source-blocks.org"
+				     hub/test-repo-root))
+	 (artifact-root (hub/test-make-export-artifact-root))
+	 (specimen-buffer nil))
+    (unwind-protect
+	(progn
+	  (setq specimen-buffer (find-file-noselect specimen))
+	  (with-current-buffer specimen-buffer
+	    (hub/test-with-export-compiler-readiness t
+						     (hub/test-with-stubbed-latex-compile
+						      (let* ((hub/org-export-output-root artifact-root)
+							     (tex-path (hub/org-export-buffer-to-latex artifact-root))
+							     (tex-contents (hub/test-read-file-as-string tex-path)))
+							(should (string-match-p (regexp-quote "\\begin{minted}[fontsize=\\footnotesize,breaklines=true,autogobble=true,xleftmargin=14pt,numbersep=8pt]{python}") tex-contents))
+							(should (string-match-p (regexp-quote "\\begin{minted}[linenos,firstnumber=1,fontsize=\\footnotesize,breaklines=true,autogobble=true,xleftmargin=14pt,numbersep=8pt]{python}") tex-contents))
+							(should-not (string-match-p (regexp-quote "\\HubCodeThemeDark") tex-contents))
+							(should-not (string-match-p (regexp-quote "\\HubCodeThemeLight") tex-contents)))))))
+      (when (buffer-live-p specimen-buffer)
+	(kill-buffer specimen-buffer))
+      (when (file-directory-p artifact-root)
+	(delete-directory artifact-root t)))))
+
+(ert-deftest hub/org-export-source-blocks-theme-dark ()
+  "Source blocks export with dark theme when requested."
+  (let* ((specimen (expand-file-name "test/fixtures/org-export/source-blocks-dark.org"
+				     hub/test-repo-root))
+	 (artifact-root (hub/test-make-export-artifact-root))
+	 (specimen-buffer nil))
+    (unwind-protect
+	(progn
+	  (setq specimen-buffer (find-file-noselect specimen))
+	  (with-current-buffer specimen-buffer
+	    (hub/test-with-export-compiler-readiness t
+						     (hub/test-with-stubbed-latex-compile
+						      (let* ((hub/org-export-output-root artifact-root)
+							     (tex-path (hub/org-export-buffer-to-latex artifact-root))
+							     (tex-contents (hub/test-read-file-as-string tex-path)))
+							(should (string-match-p (regexp-quote "\\HubCodeThemeDark") tex-contents))
+							(should-not (string-match-p (regexp-quote "\\HubCodeThemeLight") tex-contents)))))))
+      (when (buffer-live-p specimen-buffer)
+	(kill-buffer specimen-buffer))
+      (when (file-directory-p artifact-root)
+	(delete-directory artifact-root t)))))
+
+(ert-deftest hub/org-export-source-blocks-theme-light ()
+  "Source blocks export with explicit light theme when requested."
+  (let* ((specimen (expand-file-name "test/fixtures/org-export/source-blocks-light.org"
+				     hub/test-repo-root))
+	 (artifact-root (hub/test-make-export-artifact-root))
+	 (specimen-buffer nil))
+    (unwind-protect
+	(progn
+	  (setq specimen-buffer (find-file-noselect specimen))
+	  (with-current-buffer specimen-buffer
+	    (hub/test-with-export-compiler-readiness t
+						     (hub/test-with-stubbed-latex-compile
+						      (let* ((hub/org-export-output-root artifact-root)
+							     (tex-path (hub/org-export-buffer-to-latex artifact-root))
+							     (tex-contents (hub/test-read-file-as-string tex-path)))
+							(should (string-match-p (regexp-quote "\\HubCodeThemeLight") tex-contents))
+							(should-not (string-match-p (regexp-quote "\\HubCodeThemeDark") tex-contents)))))))
+      (when (buffer-live-p specimen-buffer)
+	(kill-buffer specimen-buffer))
+      (when (file-directory-p artifact-root)
+	(delete-directory artifact-root t)))))
+
+(ert-deftest hub/org-export-source-blocks-theme-invalid ()
+  "Source blocks export fails with invalid theme."
+  (let* ((specimen (expand-file-name "test/fixtures/org-export/source-blocks-invalid.org"
+				     hub/test-repo-root))
+	 (artifact-root (hub/test-make-export-artifact-root))
+	 (specimen-buffer nil))
+    (unwind-protect
+	(progn
+	  (setq specimen-buffer (find-file-noselect specimen))
+	  (with-current-buffer specimen-buffer
+	    (hub/test-with-export-compiler-readiness t
+						     (hub/test-with-stubbed-latex-compile
+						      (let ((hub/org-export-output-root artifact-root))
+							(should-error (hub/org-export-buffer-to-latex artifact-root) :type 'user-error))))))
+      (when (buffer-live-p specimen-buffer)
+	(kill-buffer specimen-buffer))
+      (when (file-directory-p artifact-root)
+	(delete-directory artifact-root t)))))
+
+(ert-deftest hub/org-export-source-blocks-theme-matrix ()
+  "Source blocks export matrix with light/dark and numbered/unnumbered."
+  (let* ((specimen (expand-file-name "test/fixtures/org-export/source-blocks-theme-matrix.org"
+				     hub/test-repo-root))
+	 (artifact-root (hub/test-make-export-artifact-root))
+	 (specimen-buffer nil))
+    (unwind-protect
+	(progn
+	  (setq specimen-buffer (find-file-noselect specimen))
+	  (with-current-buffer specimen-buffer
+	    (hub/test-with-export-compiler-readiness t
+						     (hub/test-with-stubbed-latex-compile
+						      (let* ((hub/org-export-output-root artifact-root)
+							     (tex-path (hub/org-export-buffer-to-latex artifact-root))
+							     (tex-contents (hub/test-read-file-as-string tex-path)))
+							(should (string-match-p (regexp-quote "\\HubCodeThemeLight") tex-contents))
+							(should (string-match-p (regexp-quote "\\HubCodeThemeDark") tex-contents))
+							(should (string-match-p (regexp-quote "\\begin{minted}[fontsize=\\footnotesize,breaklines=true,autogobble=true,xleftmargin=14pt,numbersep=8pt]{python}") tex-contents))
+							(should (string-match-p (regexp-quote "\\begin{minted}[linenos,firstnumber=1,fontsize=\\footnotesize,breaklines=true,autogobble=true,xleftmargin=14pt,numbersep=8pt]{python}") tex-contents)))))))
       (when (buffer-live-p specimen-buffer)
 	(kill-buffer specimen-buffer))
       (when (file-directory-p artifact-root)

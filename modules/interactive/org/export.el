@@ -121,7 +121,7 @@ otherwise fall back to `pdflatex' so the current pipeline keeps working."
 
 (defun hub/org-export--pdf-process-for-compiler (compiler)
   "Return a minimal two-pass PDF process for COMPILER."
-  (let ((command (format "%s -interaction nonstopmode -output-directory %%o %%f"
+  (let ((command (format "%s -interaction nonstopmode -shell-escape -output-directory %%o %%f"
 			 compiler)))
     (list command command)))
 
@@ -151,20 +151,22 @@ otherwise fall back to `pdflatex' so the current pipeline keeps working."
 
 (defun hub/org-export--configure-pro-refresh-overdrive-title ()
   "Configure title and chrome variables for the flagship class."
-  (let ((eyebrow (hub/org-export--keyword-string "EXPORT_EYEBROW")))
+  (let ((eyebrow (hub/org-export--keyword-string "EXPORT_EYEBROW"))
+	(code-theme (hub/org-export--keyword-string "EXPORT_CODE_THEME")))
+    (when (and code-theme (not (string-empty-p code-theme)) (not (member code-theme '("light" "dark"))))
+      (user-error "Invalid EXPORT_CODE_THEME: %s. Must be 'light' or 'dark'." code-theme))
     (setq-local org-export-with-toc nil)
     (setq-local org-latex-compiler (hub/org-export--effective-compiler))
     (setq-local org-latex-pdf-process
 		(hub/org-export--pdf-process-for-compiler org-latex-compiler))
     (setq-local org-latex-title-command hub/org-export--pro-refresh-overdrive-title-command)
-    (setq-local org-latex-src-block-backend 'custom)
-    (setq-local org-latex-custom-lang-environments
-		'((emacs-lisp "hubcode")
-		  (elisp "hubcode")
-		  (python "hubcode")
-		  (bash "hubcode")
-		  (sh "hubcode")
-		  (shell "hubcode")))
+    (setq-local org-latex-src-block-backend 'minted)
+    (setq-local org-latex-minted-options
+		'(("fontsize" "\\footnotesize")
+		  ("breaklines" "true")
+		  ("autogobble" "true")
+		  ("xleftmargin" "14pt")
+		  ("numbersep" "8pt")))
     (when hub/org-export--active-output-dir
       (hub/org-export--insert-header-extra
        (format "\\renewcommand{\\HubHeroLogoGraphic}{\\includegraphics[width=32mm]{%s}}"
@@ -179,7 +181,11 @@ otherwise fall back to `pdflatex' so the current pipeline keeps working."
 	     (if (and eyebrow (not (string-empty-p eyebrow)))
 		 (format "\\HubHeroEyebrow{%s}"
 			 (hub/org-export--latex-escape eyebrow))
-	       "")))))
+	       "")))
+    (when (equal code-theme "dark")
+      (hub/org-export--insert-header-extra "\\HubCodeThemeDark"))
+    (when (equal code-theme "light")
+      (hub/org-export--insert-header-extra "\\HubCodeThemeLight"))))
 
 (defun hub/org-export--configure-class-buffer (backend)
   "Configure export-time buffer state for BACKEND.

@@ -23,7 +23,7 @@
 \RequirePackage{graphicx}
 \RequirePackage{fancyvrb}
 \RequirePackage{tcolorbox}
-\tcbuselibrary{raster}
+\tcbuselibrary{raster,minted}
 
 \tcbset{
   hubcard/.style={
@@ -264,14 +264,114 @@
   \end{tcolorbox}%
 }
 \makeatother
-\newenvironment{hubcode}{%
-  \VerbatimEnvironment
-  \par\medskip\noindent{\color{HubAccent}\rule{\linewidth}{0.8pt}}\par\smallskip
-  \begin{Verbatim}[fontsize=\footnotesize,formatcom=\color{HubInk}]%
-}{%
-  \end{Verbatim}
-  \smallskip\noindent{\color{HubAccent}\rule{\linewidth}{0.8pt}}\par\medskip
+\colorlet{HubCodeLineNumberLight}{HubMuted!60!HubSurfaceSoft}
+\colorlet{HubCodeLineNumberDark}{HubStandfirst!50!HubSurfaceSoft}
+
+\newcommand{\HubCodeThemeLight}{%
+  \tcbset{
+    hubcode/.style={
+      colback=HubSurfaceSoft,
+      colframe=HubLine,
+      boxrule=0.5pt,
+      arc=4pt,
+      left=4pt, right=4pt, top=4pt, bottom=4pt,
+      fontupper=\color{HubInk},
+    }
+  }%
+  \def\HubCodeLineNumColor{HubCodeLineNumberLight}%
+  \def\HubCodeKeywordColor{HubAccent}%
+  \def\HubCodeStringColor{HubLabelBrown}%
+  \def\HubCodeCommentColor{HubMuted}%
+  \def\HubCodeNameColor{HubStandfirst}%
+  \def\HubCodeTextColor{HubInk}%
+  \def\HubCodeOperatorColor{HubMuted}%
 }
+
+\newcommand{\HubCodeThemeDark}{%
+  \tcbset{
+    hubcode/.style={
+      colback=HubInk,
+      colframe=HubStandfirst,
+      boxrule=0.5pt,
+      arc=4pt,
+      left=4pt, right=4pt, top=4pt, bottom=4pt,
+      fontupper=\color{HubSurfaceSoft},
+    }
+  }%
+  \def\HubCodeLineNumColor{HubCodeLineNumberDark}%
+  \def\HubCodeKeywordColor{HubAccent}%
+  \def\HubCodeStringColor{HubTableRule}%
+  \def\HubCodeCommentColor{HubMuted}%
+  \def\HubCodeNameColor{HubLine}%
+  \def\HubCodeTextColor{HubSurfaceSoft}%
+  \def\HubCodeOperatorColor{HubStandfirst}%
+}
+
+\HubCodeThemeLight
+
+\makeatletter
+\AtBeginEnvironment{MintedVerbatim}{%
+  \renewcommand{\theFancyVerbLine}{\textcolor{\HubCodeLineNumColor}{\ttfamily\arabic{FancyVerbLine}}}%
+  \@namedef{PYG@tok@k}{\let\PYG@bf=\textbf\def\PYG@tc##1{\textcolor{\HubCodeKeywordColor}{##1}}}%
+  \@namedef{PYG@tok@kc}{\let\PYG@bf=\textbf\def\PYG@tc##1{\textcolor{\HubCodeKeywordColor}{##1}}}%
+  \@namedef{PYG@tok@kd}{\let\PYG@bf=\textbf\def\PYG@tc##1{\textcolor{\HubCodeKeywordColor}{##1}}}%
+  \@namedef{PYG@tok@kn}{\let\PYG@bf=\textbf\def\PYG@tc##1{\textcolor{\HubCodeKeywordColor}{##1}}}%
+  \@namedef{PYG@tok@kp}{\def\PYG@tc##1{\textcolor{\HubCodeKeywordColor}{##1}}}%
+  \@namedef{PYG@tok@kr}{\let\PYG@bf=\textbf\def\PYG@tc##1{\textcolor{\HubCodeKeywordColor}{##1}}}%
+  \@namedef{PYG@tok@kt}{\def\PYG@tc##1{\textcolor{\HubCodeKeywordColor}{##1}}}%
+  \@namedef{PYG@tok@ow}{\let\PYG@bf=\textbf\def\PYG@tc##1{\textcolor{\HubCodeKeywordColor}{##1}}}%
+  \@namedef{PYG@tok@s}{\def\PYG@tc##1{\textcolor{\HubCodeStringColor}{##1}}}%
+  \@namedef{PYG@tok@sa}{\def\PYG@tc##1{\textcolor{\HubCodeStringColor}{##1}}}%
+  \@namedef{PYG@tok@sb}{\def\PYG@tc##1{\textcolor{\HubCodeStringColor}{##1}}}%
+  \@namedef{PYG@tok@sc}{\def\PYG@tc##1{\textcolor{\HubCodeStringColor}{##1}}}%
+  \@namedef{PYG@tok@dl}{\def\PYG@tc##1{\textcolor{\HubCodeStringColor}{##1}}}%
+  \@namedef{PYG@tok@sd}{\let\PYG@it=\textit\def\PYG@tc##1{\textcolor{\HubCodeStringColor}{##1}}}%
+  \@namedef{PYG@tok@s2}{\def\PYG@tc##1{\textcolor{\HubCodeStringColor}{##1}}}%
+  \@namedef{PYG@tok@se}{\let\PYG@bf=\textbf\def\PYG@tc##1{\textcolor{\HubCodeStringColor}{##1}}}%
+  \@namedef{PYG@tok@sh}{\def\PYG@tc##1{\textcolor{\HubCodeStringColor}{##1}}}%
+  \@namedef{PYG@tok@si}{\let\PYG@bf=\textbf\def\PYG@tc##1{\textcolor{\HubCodeStringColor}{##1}}}%
+  \@namedef{PYG@tok@sx}{\def\PYG@tc##1{\textcolor{\HubCodeStringColor}{##1}}}%
+  \@namedef{PYG@tok@sr}{\def\PYG@tc##1{\textcolor{\HubCodeStringColor}{##1}}}%
+  \@namedef{PYG@tok@s1}{\def\PYG@tc##1{\textcolor{\HubCodeStringColor}{##1}}}%
+  \@namedef{PYG@tok@ss}{\def\PYG@tc##1{\textcolor{\HubCodeStringColor}{##1}}}%
+  \@namedef{PYG@tok@c}{\let\PYG@it=\textit\def\PYG@tc##1{\textcolor{\HubCodeCommentColor}{##1}}}%
+  \@namedef{PYG@tok@ch}{\let\PYG@it=\textit\def\PYG@tc##1{\textcolor{\HubCodeCommentColor}{##1}}}%
+  \@namedef{PYG@tok@cm}{\let\PYG@it=\textit\def\PYG@tc##1{\textcolor{\HubCodeCommentColor}{##1}}}%
+  \@namedef{PYG@tok@cpf}{\let\PYG@it=\textit\def\PYG@tc##1{\textcolor{\HubCodeCommentColor}{##1}}}%
+  \@namedef{PYG@tok@c1}{\let\PYG@it=\textit\def\PYG@tc##1{\textcolor{\HubCodeCommentColor}{##1}}}%
+  \@namedef{PYG@tok@cs}{\let\PYG@it=\textit\def\PYG@tc##1{\textcolor{\HubCodeCommentColor}{##1}}}%
+  \@namedef{PYG@tok@nb}{\def\PYG@tc##1{\textcolor{\HubCodeNameColor}{##1}}}%
+  \@namedef{PYG@tok@bp}{\def\PYG@tc##1{\textcolor{\HubCodeNameColor}{##1}}}%
+  \@namedef{PYG@tok@fm}{\def\PYG@tc##1{\textcolor{\HubCodeNameColor}{##1}}}%
+  \@namedef{PYG@tok@vc}{\def\PYG@tc##1{\textcolor{\HubCodeNameColor}{##1}}}%
+  \@namedef{PYG@tok@vg}{\def\PYG@tc##1{\textcolor{\HubCodeNameColor}{##1}}}%
+  \@namedef{PYG@tok@vi}{\def\PYG@tc##1{\textcolor{\HubCodeNameColor}{##1}}}%
+  \@namedef{PYG@tok@vm}{\def\PYG@tc##1{\textcolor{\HubCodeNameColor}{##1}}}%
+  \@namedef{PYG@tok@no}{\def\PYG@tc##1{\textcolor{\HubCodeNameColor}{##1}}}%
+  \@namedef{PYG@tok@nl}{\def\PYG@tc##1{\textcolor{\HubCodeNameColor}{##1}}}%
+  \@namedef{PYG@tok@na}{\def\PYG@tc##1{\textcolor{\HubCodeNameColor}{##1}}}%
+  \@namedef{PYG@tok@n}{\def\PYG@tc##1{\textcolor{\HubCodeTextColor}{##1}}}%
+  \@namedef{PYG@tok@nf}{\def\PYG@tc##1{\textcolor{\HubCodeNameColor}{##1}}}%
+  \@namedef{PYG@tok@nc}{\let\PYG@bf=\textbf\def\PYG@tc##1{\textcolor{\HubCodeNameColor}{##1}}}%
+  \@namedef{PYG@tok@nd}{\def\PYG@tc##1{\textcolor{\HubCodeNameColor}{##1}}}%
+  \@namedef{PYG@tok@ne}{\let\PYG@bf=\textbf\def\PYG@tc##1{\textcolor{\HubCodeNameColor}{##1}}}%
+  \@namedef{PYG@tok@ni}{\let\PYG@bf=\textbf\def\PYG@tc##1{\textcolor{\HubCodeNameColor}{##1}}}%
+  \@namedef{PYG@tok@nn}{\let\PYG@bf=\textbf\def\PYG@tc##1{\textcolor{\HubCodeNameColor}{##1}}}%
+  \@namedef{PYG@tok@nt}{\let\PYG@bf=\textbf\def\PYG@tc##1{\textcolor{\HubCodeNameColor}{##1}}}%
+  \@namedef{PYG@tok@nv}{\def\PYG@tc##1{\textcolor{\HubCodeNameColor}{##1}}}%
+  \@namedef{PYG@tok@o}{\def\PYG@tc##1{\textcolor{\HubCodeOperatorColor}{##1}}}%
+  \@namedef{PYG@tok@m}{\def\PYG@tc##1{\textcolor{\HubCodeNameColor}{##1}}}%
+  \@namedef{PYG@tok@mb}{\def\PYG@tc##1{\textcolor{\HubCodeNameColor}{##1}}}%
+  \@namedef{PYG@tok@mf}{\def\PYG@tc##1{\textcolor{\HubCodeNameColor}{##1}}}%
+  \@namedef{PYG@tok@mh}{\def\PYG@tc##1{\textcolor{\HubCodeNameColor}{##1}}}%
+  \@namedef{PYG@tok@mi}{\def\PYG@tc##1{\textcolor{\HubCodeNameColor}{##1}}}%
+  \@namedef{PYG@tok@il}{\def\PYG@tc##1{\textcolor{\HubCodeNameColor}{##1}}}%
+  \@namedef{PYG@tok@mo}{\def\PYG@tc##1{\textcolor{\HubCodeNameColor}{##1}}}%
+}
+\makeatother
+\BeforeBeginEnvironment{minted}{\begin{tcolorbox}[hubcode]}
+\AfterEndEnvironment{minted}{\end{tcolorbox}}
+
 \newenvironment{hubfootnote}{\par\medskip\footnotesize\color{HubMuted}}{\par}
 
 \endinput
