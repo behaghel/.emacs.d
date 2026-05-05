@@ -34,7 +34,7 @@ The shared authoring surface starts with standard Org metadata and class selecti
 | paragraphs | Org paragraphs | Native body prose. |
 | lists | Org ordered or unordered lists | Native list semantics. |
 | tables | Org tables | Native tabular data. |
-| code sample | source block | Native code-block semantics with later class styling. |
+| code sample | source block | Native code-block semantics. Exported via minted for high-fidelity syntax highlighting. |
 | quotation | quote block | Native quotation semantics. |
 | emphasis | Org emphasis markers | Native inline semantics. |
 

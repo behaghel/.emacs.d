@@ -49,7 +49,8 @@ The class must consume the shared semantic layer from [`../semantic-layer.md`](.
 | metrics | `#+begin_metrics` | Required later in full semantic coverage. |
 | table | native Org table | Required later in full semantic coverage. |
 | pillars or cards | `#+begin_pillars` | Required later in full semantic coverage. |
-| code sample | source block | Required later in full semantic coverage. |
+| code sample | source block | High-fidelity syntax highlighting via minted and tcolorbox. Supports line numbers via `-n`. |
+| code theme | `#+EXPORT_CODE_THEME:` | Optional. Accepts `light` or `dark`. Defaults to `light`. |
 | footer note | `#+EXPORT_FOOTER_NOTE:` | Optional but supported. |
 
 For the current page-one approval slice, the class-owned hero composition must keep eyebrow, title, and dek in one shared left-column text block. The dek must align under the title in that same block, while the title keeps a visibly stronger display treatment than the dek. Hero metadata should read as part of that same column, separated by an internal divider in the hero-copy block rather than by full-width rules framing the entire hero. The hero must also include a distinct branded container background, the left-side pattern treatment, and the top-right logo treatment to establish the card feel from the prototype.
@@ -74,7 +75,6 @@ Not required yet in slice 1:
 - metrics cluster
 - pillars cluster
 - callout panels
-- code styling parity
 - full hero choreography from the prototype
 - French rendering
 
