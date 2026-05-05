@@ -12,6 +12,8 @@ let
     ps.wrapfig
     ps."capt-of"
     ps.tcolorbox
+    ps.minted
+    ps.fvextra
   ]);
 in
 {
