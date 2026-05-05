@@ -1,0 +1,15 @@
+#+LATEX_CLASS: pro-refresh-overdrive
+#+TITLE: Source Blocks Dark Test
+#+EXPORT_CODE_THEME: dark
+
+* Code without line numbers
+#+BEGIN_SRC python
+def hello():
+    print("world")
+#+END_SRC
+
+* Code with line numbers
+#+BEGIN_SRC python -n
+def hello_lines():
+    print("world with lines")
+#+END_SRC

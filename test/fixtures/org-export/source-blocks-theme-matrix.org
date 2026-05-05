@@ -1,0 +1,34 @@
+#+TITLE: Source Blocks Theme Matrix
+#+LATEX_CLASS: pro-refresh-overdrive
+#+EXPORT_EYEBROW: Theme Matrix
+#+EXPORT_CODE_THEME: light
+
+* Light Theme (No Line Numbers)
+
+#+BEGIN_SRC python
+def hello_light():
+    print("Hello from light theme!")
+#+END_SRC
+
+* Light Theme (With Line Numbers)
+
+#+BEGIN_SRC python -n
+def hello_light_numbered():
+    print("Hello from light theme with numbers!")
+#+END_SRC
+
+* Dark Theme (No Line Numbers)
+
+#+LATEX: \HubCodeThemeDark
+
+#+BEGIN_SRC python
+def hello_dark():
+    print("Hello from dark theme!")
+#+END_SRC
+
+* Dark Theme (With Line Numbers)
+
+#+BEGIN_SRC python -n
+def hello_dark_numbered():
+    print("Hello from dark theme with numbers!")
+#+END_SRC

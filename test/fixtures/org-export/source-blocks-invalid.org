@@ -1,0 +1,9 @@
+#+LATEX_CLASS: pro-refresh-overdrive
+#+TITLE: Source Blocks Invalid Theme Test
+#+EXPORT_CODE_THEME: invalid
+
+* Code without line numbers
+#+BEGIN_SRC python
+def hello():
+    print("world")
+#+END_SRC
