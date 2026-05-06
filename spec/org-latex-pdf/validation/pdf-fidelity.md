@@ -85,9 +85,10 @@ Purpose: catch layout, spacing, and color regressions that structural checks wil
 
 Required focus areas:
 
-- page tone and chrome, with the understanding that running chrome may be intentionally absent during the temporary page-one fidelity slice
+- page tone and chrome, with the understanding that running chrome may be intentionally absent during the temporary page-one fidelity slice, but a professional footer with a full horizontal rule, title recall, and logo should be present on subsequent pages
 - title hierarchy
 - callout and quote treatment
+- brown/orange dominant source-code token colors with a restrained touch of mint
 - metrics or pillars once those semantics are in scope
 
 Pass condition: differences outside approved tolerance are visible and attributable, not silent.

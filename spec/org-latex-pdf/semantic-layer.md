@@ -50,6 +50,7 @@ These custom constructs are allowed because they carry meaning that the native s
 | standfirst | `#+begin_standfirst` | Distinct introductory summary paragraph, especially useful for article classes. |
 | metrics cluster | `#+begin_metrics` | A grid or grouped KPI presentation is not an ordinary list or table. |
 | pillars cluster | `#+begin_pillars` | Side-by-side cards need an explicit grouped semantic wrapper. |
+| graph/chart | `#+begin_graph` | A branded data visualization or chart, distinct from a generic image or table. |
 
 ## Class-Owned Composition Rules
 

@@ -46,6 +46,7 @@ Generated `.tex`, `.pdf`, extracted text, snapshots, and visual diff results bel
 | metrics | no | yes | yes | optional |
 | tables | no | yes | yes | optional |
 | pillars | no | yes | yes | optional |
+| graph/chart | no | yes | yes | optional |
 | code sample | no | yes | yes | optional |
 | footer note | no | yes | yes | optional |
 

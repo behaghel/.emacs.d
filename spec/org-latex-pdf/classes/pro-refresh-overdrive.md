@@ -49,6 +49,7 @@ The class must consume the shared semantic layer from [`../semantic-layer.md`](.
 | metrics | `#+begin_metrics` | Required later in full semantic coverage. |
 | table | native Org table | Required later in full semantic coverage. |
 | pillars or cards | `#+begin_pillars` | Required later in full semantic coverage. |
+| graph/chart | `#+begin_graph` | Required later in full semantic coverage. |
 | code sample | source block | High-fidelity syntax highlighting via minted and tcolorbox. Supports line numbers via `-n`. |
 | code theme | `#+EXPORT_CODE_THEME:` | Optional. Accepts `light` or `dark`. Defaults to `light`. |
 | footer note | `#+EXPORT_FOOTER_NOTE:` | Optional but supported. |
@@ -68,6 +69,8 @@ Required in slice 1:
 - title, author, date
 - one heading and one paragraph
 - class-owned page tone and typography sufficient to prove the class exists
+- subtle footer/page accent via class-owned page style with a full horizontal rule, document title recall, and logo
+- brown/orange dominant source-code token colors under existing theme contract, with a restrained touch of mint
 - running header/footer chrome may be temporarily suppressed during the current fidelity phase if that yields a closer match to the approved reference
 
 Not required yet in slice 1:
@@ -90,6 +93,7 @@ Before moving to other classes, this class must cover:
 - metrics cluster
 - native tables
 - pillars cluster
+- graph/chart
 - code sample styling
 - footer note
 
