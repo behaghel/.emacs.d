@@ -173,6 +173,10 @@ otherwise fall back to `pdflatex' so the current pipeline keeps working."
 	       (hub/org-export--latex-escape
 		(expand-file-name "hero-logo.pdf" hub/org-export--active-output-dir))))
       (hub/org-export--insert-header-extra
+       (format "\\renewcommand{\\HubFooterLogoGraphic}{\\includegraphics[width=16mm]{%s}}"
+	       (hub/org-export--latex-escape
+		(expand-file-name "hero-logo.pdf" hub/org-export--active-output-dir))))
+      (hub/org-export--insert-header-extra
        (format "\\renewcommand{\\HubHeroPatternGraphic}{\\includegraphics[width=118mm]{%s}}"
 	       (hub/org-export--latex-escape
 		(expand-file-name "hero-pattern.png" hub/org-export--active-output-dir)))))

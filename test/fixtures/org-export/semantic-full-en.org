@@ -19,11 +19,11 @@ The strongest identity products no longer sell a check. They sell a posture.
 
 The posture says: protect the business, preserve the customer moment, and make every decision legible enough to defend.
 
+#+ATTR_LATEX: :options [Prototype testimonial · Global platform operator]
 #+begin_quote
 Trust has to feel engineered before it can feel effortless.
 #+end_quote
 
-#+ATTR_LATEX: :options [Prototype testimonial · Global platform operator]
 #+begin_pullquote
 What mattered was not only the fraud reduction. It was the sense that the platform could explain itself while still moving at business speed.
 #+end_pullquote
@@ -44,6 +44,30 @@ In the overdrive mode, the article becomes a deliberate piece of comms theatre. 
 | Decision latency    | 6 seconds     | Keeps conversion momentum alive  |
 | Coverage            | 230+ regions  | Expands commercial reach         |
 | Verification fabric | 1,000+ signals | Increases confidence in decisions |
+
+* Evidence curve
+
+#+ATTR_LATEX: :options [Signal convergence]
+#+begin_graph
+#+begin_export latex
+\begin{tikzpicture}
+  \begin{axis}[
+    hubgraphaxis,
+    width=\linewidth,
+    height=6cm,
+    xlabel={Stages},
+    ylabel={Confidence},
+    xtick={1,2,3,4,5},
+    xticklabels={Intake, Signals, Model, Policy, Decision},
+    ymin=0, ymax=100,
+    grid=major
+  ]
+    \addplot coordinates {(1, 20) (2, 45) (3, 75) (4, 90) (5, 98)};
+    \addlegendentry{Platform}
+  \end{axis}
+\end{tikzpicture}
+#+end_export
+#+end_graph
 
 #+begin_metrics
 #+ATTR_LATEX: :options [230+]

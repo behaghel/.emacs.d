@@ -20,6 +20,8 @@
 \RequirePackage{colortbl}
 \RequirePackage{tikz}
 \usetikzlibrary{backgrounds}
+\RequirePackage{pgfplots}
+\pgfplotsset{compat=1.18}
 \RequirePackage{graphicx}
 \RequirePackage{fancyvrb}
 \RequirePackage{tcolorbox}
@@ -50,6 +52,8 @@
 \definecolor{HubSurface}{HTML}{FFF4EC}
 \definecolor{HubSurfaceSoft}{HTML}{FFFBF7}
 \definecolor{HubMetricSurface}{HTML}{F3FBF7}
+\definecolor{HubMint}{HTML}{20C997}
+\definecolor{HubMintSoft}{HTML}{E6FAF4}
 
 \AtBeginDocument{\color{HubInk}}
 \AtBeginDocument{\pagecolor{HubPaper}}
@@ -78,7 +82,49 @@
 }
 
 \renewcommand{\familydefault}{\sfdefault}
-\pagestyle{empty}
+\makeatletter
+\newcommand{\HubDocumentTitle}{}
+\newlength{\HubFooterLift}
+\setlength{\HubFooterLift}{4mm}
+\newlength{\HubFooterBleed}
+\setlength{\HubFooterBleed}{7mm}
+\newlength{\HubFooterLogoGap}
+\setlength{\HubFooterLogoGap}{3cm}
+\newlength{\HubFooterRuleOffset}
+\setlength{\HubFooterRuleOffset}{-1mm}
+\newlength{\HubFooterContentOffset}
+\setlength{\HubFooterContentOffset}{2mm}
+
+\def\ps@hubpage{%
+  \def\@oddhead{}%
+  \def\@evenhead{}%
+  \def\@oddfoot{%
+    \ifnum\value{page}>1\relax
+      \raisebox{\HubFooterLift}[0pt][0pt]{%
+        \makebox[\textwidth][c]{%
+          \parbox{\dimexpr\textwidth+2\HubFooterBleed\relax}{%
+            {\color{HubLine}\raisebox{\HubFooterRuleOffset}[\height][\depth]{\rule{\linewidth}{0.5pt}}}\vspace{12pt}\par
+            \raisebox{\HubFooterContentOffset}[\height][\depth]{%
+              \parbox{\linewidth}{%
+                \color{HubMuted}\footnotesize\sffamily
+                \makebox[0pt][l]{%
+                  \raisebox{-0.2\height}{\HubFooterLogoGraphic}\hspace{\HubFooterLogoGap}%
+                }%
+                \hfill
+                \makebox[0pt][c]{\textit{\HubDocumentTitle}}%
+                \hfill
+                \makebox[0pt][r]{\thepage}%
+              }%
+            }%
+          }%
+        }%
+      }%
+    \fi
+  }%
+  \def\@evenfoot{\@oddfoot}%
+}
+\makeatother
+\pagestyle{hubpage}
 \setlength{\parindent}{0pt}
 \setlength{\parskip}{0.6em}
 \setlength{\tabcolsep}{5pt}
@@ -102,11 +148,15 @@
 \makeatletter
 \newcommand{\HubExportEyebrowBlock}{}
 \newcommand{\HubHeroEyebrow}[1]{\vspace*{-0.8em}{\addfontfeature{Renderer=ICU,LetterSpace=16.0}\color{HubAccent}\small\HubDisplayFont\MakeUppercase{#1}\par}\vspace*{2em}}
-\newcommand{\HubHeroTitle}[1]{{\HubDisplayFont\fontsize{34}{33}\selectfont #1\par}\vspace*{2.75em}}
+\newcommand{\HubHeroTitle}[1]{%
+  \gdef\HubDocumentTitle{#1}%
+  {\HubDisplayFont\fontsize{34}{33}\selectfont #1\par}\vspace*{2.75em}%
+}
 \newcommand{\HubHeroDek}[1]{{\color{HubMuted}\parbox[t]{112mm}{\raggedright\normalsize #1\par}}\vspace*{4.5em}}
 \newcommand{\HubHeroMeta}[2]{{\vspace*{0.75em}\color{HubLine}\rule{116mm}{0.8pt}\par}\vspace*{-0.3em}{\color{HubMuted}\fontsize{8}{9}\selectfont\makebox[116mm][r]{#1\HubMetaSeparator #2}\par}}
 \providecommand{\HubHeroPatternGraphic}{\includegraphics[width=0.88\paperwidth]{hero-pattern.png}}
 \providecommand{\HubHeroLogoGraphic}{\includegraphics[width=28mm]{hero-logo.pdf}}
+\providecommand{\HubFooterLogoGraphic}{\includegraphics[width=16mm]{hero-logo.pdf}}
 \newcommand{\HubMetaSeparator}{\hspace{0.8em}{\color{HubLine}\textbullet}\hspace{0.8em}}
 \renewcommand{\thesection}{\ifnum\c@section<10 0\fi\arabic{section}}
 \setcounter{secnumdepth}{1}
@@ -153,7 +203,7 @@
   \begin{lrbox}{\HubQuoteBox}%
   \begin{minipage}{\dimexpr\linewidth-48pt\relax}%
     \setlength{\parskip}{0.6em}%
-    \fontsize{12.5}{16}\selectfont\color{HubInk}\ignorespaces
+    \fontsize{12.5}{16}\selectfont\bfseries\color{HubInk}\ignorespaces
     \HubQuoteOpenMark
 }{%
     \HubQuoteCloseMark
@@ -167,15 +217,11 @@
 }
 \newenvironment{standfirst}{\par\smallskip\noindent\color{HubStandfirst}\large\bfseries\ignorespaces}{\par\medskip}
 \newenvironment{pullquote}[1][]{%
-  \def\HubPullquoteAttribution{#1}%
   \par\medskip\noindent
   \begingroup
-  \raggedright\fontsize{16.5}{21}\selectfont\color{HubInk}\ignorespaces
+  \raggedright\fontsize{15.5}{21}\selectfont\color{HubInk}\ignorespaces
 }{%
   \par
-  \ifx\HubPullquoteAttribution\empty\else
-    \par\vspace{10pt}{\raggedleft\normalfont\small\color{HubMuted}\HubPullquoteAttribution\par}%
-  \fi
   \endgroup
   \par\medskip
 }
@@ -190,29 +236,18 @@
   \par\medskip
 }
 \makeatletter
-\newcounter{hubmetricenv}
-\newcounter{hubmetricitem}
 \newenvironment{metrics}{%
-  \stepcounter{hubmetricenv}%
   \par\medskip\noindent%
-  \ifcsname hub@metric@count@\thehubmetricenv\endcsname
-    \ifnum\csname hub@metric@count@\thehubmetricenv\endcsname>4
-      \def\hub@cols{4}%
-    \else
-      \edef\hub@cols{\csname hub@metric@count@\thehubmetricenv\endcsname}%
-    \fi
-  \else
-    \def\hub@cols{4}% fallback
-  \fi
-  \setcounter{hubmetricitem}{0}%
-  \begin{tcbraster}[raster columns=\hub@cols, raster equal height=rows, raster column skip=0.02\linewidth]%
+  \begin{tcbraster}[raster columns=4, raster equal height=rows, raster column skip=0.02\linewidth]%
+  \let\hub@oldpar\par
+  \let\par\relax
 }{%
+  \let\par\hub@oldpar
   \end{tcbraster}%
-  \immediate\write\@auxout{\string\expandafter\string\gdef\string\csname\space hub@metric@count@\thehubmetricenv\string\endcsname{\thehubmetricitem}}%
   \par\medskip
 }
 \newenvironment{metric}[1][]{%
-  \stepcounter{hubmetricitem}%
+  \let\par\hub@oldpar
   \begin{tcolorbox}[
     colback=HubMetricSurface,
     colframe=HubLine,
@@ -230,38 +265,29 @@
     \raggedright\small\color{HubMuted}\ignorespaces
 }{%
   \end{tcolorbox}%
+  \let\par\relax
 }
 \makeatother
 \makeatletter
-\newcounter{hubpillarenv}
-\newcounter{hubpillaritem}
 \newenvironment{pillars}{%
-  \stepcounter{hubpillarenv}%
   \par\medskip\noindent%
-  \ifcsname hub@pillar@count@\thehubpillarenv\endcsname
-    \ifnum\csname hub@pillar@count@\thehubpillarenv\endcsname>4
-      \def\hub@cols{4}%
-    \else
-      \edef\hub@cols{\csname hub@pillar@count@\thehubpillarenv\endcsname}%
-    \fi
-  \else
-    \def\hub@cols{4}% fallback
-  \fi
-  \setcounter{hubpillaritem}{0}%
-  \begin{tcbraster}[raster columns=\hub@cols, raster equal height=rows, raster column skip=0.02\linewidth]%
+  \begin{tcbraster}[raster columns=2, raster equal height=rows, raster column skip=0.02\linewidth]%
+  \let\hub@oldpar\par
+  \let\par\relax
 }{%
+  \let\par\hub@oldpar
   \end{tcbraster}%
-  \immediate\write\@auxout{\string\expandafter\string\gdef\string\csname\space hub@pillar@count@\thehubpillarenv\string\endcsname{\thehubpillaritem}}%
   \par\medskip
 }
 \newenvironment{pillar}[1][]{%
-  \stepcounter{hubpillaritem}%
+  \let\par\hub@oldpar
   \begin{tcolorbox}[hubcard, colback=white]
     \def\HubTempArg{#1}%
     \ifx\HubTempArg\empty\else{\raggedright\textbf{#1}\par}\vspace{1em}\fi
     \small\color{HubInk}\ignorespaces
 }{%
   \end{tcolorbox}%
+  \let\par\relax
 }
 \makeatother
 \colorlet{HubCodeLineNumberLight}{HubMuted!60!HubSurfaceSoft}
@@ -283,6 +309,7 @@
   \def\HubCodeStringColor{HubLabelBrown}%
   \def\HubCodeCommentColor{HubMuted}%
   \def\HubCodeNameColor{HubStandfirst}%
+  \def\HubCodeMintColor{HubMint}%
   \def\HubCodeTextColor{HubInk}%
   \def\HubCodeOperatorColor{HubMuted}%
 }
@@ -302,7 +329,8 @@
   \def\HubCodeKeywordColor{HubAccent}%
   \def\HubCodeStringColor{HubTableRule}%
   \def\HubCodeCommentColor{HubMuted}%
-  \def\HubCodeNameColor{HubLine}%
+  \def\HubCodeNameColor{HubSurfaceSoft}%
+  \def\HubCodeMintColor{HubMint}%
   \def\HubCodeTextColor{HubSurfaceSoft}%
   \def\HubCodeOperatorColor{HubStandfirst}%
 }
@@ -340,8 +368,8 @@
   \@namedef{PYG@tok@cpf}{\let\PYG@it=\textit\def\PYG@tc##1{\textcolor{\HubCodeCommentColor}{##1}}}%
   \@namedef{PYG@tok@c1}{\let\PYG@it=\textit\def\PYG@tc##1{\textcolor{\HubCodeCommentColor}{##1}}}%
   \@namedef{PYG@tok@cs}{\let\PYG@it=\textit\def\PYG@tc##1{\textcolor{\HubCodeCommentColor}{##1}}}%
-  \@namedef{PYG@tok@nb}{\def\PYG@tc##1{\textcolor{\HubCodeNameColor}{##1}}}%
-  \@namedef{PYG@tok@bp}{\def\PYG@tc##1{\textcolor{\HubCodeNameColor}{##1}}}%
+  \@namedef{PYG@tok@nb}{\def\PYG@tc##1{\textcolor{\HubCodeMintColor}{##1}}}%
+  \@namedef{PYG@tok@bp}{\def\PYG@tc##1{\textcolor{\HubCodeMintColor}{##1}}}%
   \@namedef{PYG@tok@fm}{\def\PYG@tc##1{\textcolor{\HubCodeNameColor}{##1}}}%
   \@namedef{PYG@tok@vc}{\def\PYG@tc##1{\textcolor{\HubCodeNameColor}{##1}}}%
   \@namedef{PYG@tok@vg}{\def\PYG@tc##1{\textcolor{\HubCodeNameColor}{##1}}}%
@@ -352,12 +380,12 @@
   \@namedef{PYG@tok@na}{\def\PYG@tc##1{\textcolor{\HubCodeNameColor}{##1}}}%
   \@namedef{PYG@tok@n}{\def\PYG@tc##1{\textcolor{\HubCodeTextColor}{##1}}}%
   \@namedef{PYG@tok@nf}{\def\PYG@tc##1{\textcolor{\HubCodeNameColor}{##1}}}%
-  \@namedef{PYG@tok@nc}{\let\PYG@bf=\textbf\def\PYG@tc##1{\textcolor{\HubCodeNameColor}{##1}}}%
-  \@namedef{PYG@tok@nd}{\def\PYG@tc##1{\textcolor{\HubCodeNameColor}{##1}}}%
+  \@namedef{PYG@tok@nc}{\let\PYG@bf=\textbf\def\PYG@tc##1{\textcolor{\HubCodeMintColor}{##1}}}%
+  \@namedef{PYG@tok@nd}{\def\PYG@tc##1{\textcolor{\HubCodeMintColor}{##1}}}%
   \@namedef{PYG@tok@ne}{\let\PYG@bf=\textbf\def\PYG@tc##1{\textcolor{\HubCodeNameColor}{##1}}}%
   \@namedef{PYG@tok@ni}{\let\PYG@bf=\textbf\def\PYG@tc##1{\textcolor{\HubCodeNameColor}{##1}}}%
   \@namedef{PYG@tok@nn}{\let\PYG@bf=\textbf\def\PYG@tc##1{\textcolor{\HubCodeNameColor}{##1}}}%
-  \@namedef{PYG@tok@nt}{\let\PYG@bf=\textbf\def\PYG@tc##1{\textcolor{\HubCodeNameColor}{##1}}}%
+  \@namedef{PYG@tok@nt}{\let\PYG@bf=\textbf\def\PYG@tc##1{\textcolor{\HubCodeMintColor}{##1}}}%
   \@namedef{PYG@tok@nv}{\def\PYG@tc##1{\textcolor{\HubCodeNameColor}{##1}}}%
   \@namedef{PYG@tok@o}{\def\PYG@tc##1{\textcolor{\HubCodeOperatorColor}{##1}}}%
   \@namedef{PYG@tok@m}{\def\PYG@tc##1{\textcolor{\HubCodeNameColor}{##1}}}%
@@ -371,6 +399,43 @@
 \makeatother
 \BeforeBeginEnvironment{minted}{\begin{tcolorbox}[hubcode]}
 \AfterEndEnvironment{minted}{\end{tcolorbox}}
+
+\pgfplotsset{
+  hubgraphaxis/.style={
+    axis lines=left,
+    axis line style={HubLine, thick},
+    tick style={HubLine, thick},
+    grid style={HubLine!50, dashed},
+    label style={font=\sffamily\small\color{HubMuted}},
+    tick label style={font=\sffamily\footnotesize\color{HubMuted}, /pgf/number format/assume math mode=true},
+    legend style={
+      draw=none,
+      fill=none,
+      font=\sffamily\footnotesize\color{HubInk},
+      cells={anchor=west},
+      at={(0.98,0.05)},
+      anchor=south east
+    },
+    every axis plot/.append style={very thick},
+    cycle list={
+      {HubAccent, solid},
+      {HubStandfirst, dashed},
+      {HubLabelBrown, dotted}
+    }
+  }
+}
+
+\newenvironment{graph}[1][]{%
+  \par\medskip\noindent
+  \begingroup
+    \def\HubTempArg{#1}%
+    \ifx\HubTempArg\empty\else{\raggedright\textbf{#1}\par}\vspace{1em}\fi
+    \centering
+}{%
+  \par
+  \endgroup
+  \par\medskip
+}
 
 \newenvironment{hubfootnote}{\par\medskip\footnotesize\color{HubMuted}}{\par}
 
