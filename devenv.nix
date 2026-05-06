@@ -4,6 +4,7 @@ let
     ps.collection-latexrecommended
     ps.collection-fontsrecommended
     ps.pgf
+    ps.pgfplots
     ps.geometry
     ps.hyperref
     ps.needspace
