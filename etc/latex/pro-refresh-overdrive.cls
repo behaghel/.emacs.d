@@ -269,17 +269,32 @@
 }
 \makeatother
 \makeatletter
+\newcounter{hubpillarenv}
+\newcounter{hubpillaritem}
 \newenvironment{pillars}{%
+  \stepcounter{hubpillarenv}%
   \par\medskip\noindent%
-  \begin{tcbraster}[raster columns=2, raster equal height=rows, raster column skip=0.02\linewidth]%
+  \ifcsname hub@pillar@count@\thehubpillarenv\endcsname
+    \ifnum\csname hub@pillar@count@\thehubpillarenv\endcsname>4
+      \def\hub@cols{4}%
+    \else
+      \edef\hub@cols{\csname hub@pillar@count@\thehubpillarenv\endcsname}%
+    \fi
+  \else
+    \def\hub@cols{4}% fallback
+  \fi
+  \setcounter{hubpillaritem}{0}%
+  \begin{tcbraster}[raster columns=\hub@cols, raster equal height=rows, raster column skip=0.02\linewidth]%
   \let\hub@oldpar\par
   \let\par\relax
 }{%
   \let\par\hub@oldpar
   \end{tcbraster}%
+  \immediate\write\@auxout{\string\expandafter\string\gdef\string\csname\space hub@pillar@count@\thehubpillarenv\string\endcsname{\thehubpillaritem}}%
   \par\medskip
 }
 \newenvironment{pillar}[1][]{%
+  \stepcounter{hubpillaritem}%
   \let\par\hub@oldpar
   \begin{tcolorbox}[hubcard, colback=white]
     \def\HubTempArg{#1}%
@@ -306,7 +321,7 @@
   }%
   \def\HubCodeLineNumColor{HubCodeLineNumberLight}%
   \def\HubCodeKeywordColor{HubAccent}%
-  \def\HubCodeStringColor{HubLabelBrown}%
+  \def\HubCodeStringColor{HubTableRule}%
   \def\HubCodeCommentColor{HubMuted}%
   \def\HubCodeNameColor{HubStandfirst}%
   \def\HubCodeMintColor{HubMint}%
