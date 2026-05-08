@@ -1,0 +1,9 @@
+#+TITLE: Refresh overdrive slice
+#+AUTHOR: Hubert Behaghel
+#+DATE: 2026-04-27
+#+LANGUAGE: en
+#+LATEX_CLASS: veriff
+
+* Minimal heading
+
+Minimal slice paragraph that proves the default variant export path.

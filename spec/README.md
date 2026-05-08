@@ -24,11 +24,11 @@ This spec set exists to answer four questions before implementation starts:
 
 ## Authoritative Decisions Captured Here
 
-- Professional family: `pro-refresh-overdrive`, `pro-whitepaper`, `pro-announcement`.
+- Professional family: `veriff` (variants: `refresh-overdrive`, `dark-campaign`), `pro-whitepaper`, `pro-announcement`.
 - Personal family: `essay`, `journal-entry`, `article`.
 - The personal `article` class should stay close to the professional article direction without inventing a separate `article-pro` implementation contract in v1.
 - English and French are the only v1 locales.
-- The first real implementation target is `pro-refresh-overdrive`.
+- The first real implementation target is `veriff`.
 - The first shipped locale is English.
 - Locale separation still exists from day one so French can be added without refactoring the architecture.
 - Rollout order is fixed: one narrow vertical slice on one class, then full semantic coverage for that class, then variants for that class, then the remaining classes and locales.
@@ -42,7 +42,7 @@ This spec set exists to answer four questions before implementation starts:
   - Shared authoring contract between Org and export output.
 - [`org-latex-pdf/locale-layer.md`](org-latex-pdf/locale-layer.md)
   - Locale separation, keyword handling, and localized output surfaces.
-- [`org-latex-pdf/classes/pro-refresh-overdrive.md`](org-latex-pdf/classes/pro-refresh-overdrive.md)
+- [`org-latex-pdf/classes/veriff.md`](org-latex-pdf/classes/veriff.md)
   - First fully specified class and first implementation target.
 - [`org-latex-pdf/classes/article.md`](org-latex-pdf/classes/article.md)
   - Deferred but constrained personal-class spec aligned with the professional article direction.
@@ -58,7 +58,7 @@ This spec set exists to answer four questions before implementation starts:
 1. Class family matrix
 2. Semantic layer
 3. Locale layer
-4. `pro-refresh-overdrive`
+4. `veriff`
 5. `article`
 6. Specimens
 7. PDF fidelity

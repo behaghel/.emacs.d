@@ -1,7 +1,7 @@
-;;; approval-refresh-overdrive-page1.el --- Export approval PDF with log -*- lexical-binding: t; -*-
+;;; approval-refresh-overdrive-page1.el --- Export Veriff approval PDF with log -*- lexical-binding: t; -*-
 
 ;;; Commentary:
-;; Batch helper to regenerate the approval refresh-overdrive PDF and print the
+;; Batch helper to regenerate the Veriff refresh-overdrive approval PDF and print the
 ;; upstream `*Org PDF LaTeX Output*' buffer to stdout.
 
 ;;; Code:
@@ -47,7 +47,7 @@ When THIS-FILE is nil, use the current script file."
 	(princ "[Org PDF LaTeX Output] END\n")))))
 
 (defun hub/script-export-approval-refresh-overdrive-page1 (&optional repo-root)
-  "Export the approval refresh-overdrive page-one PDF from REPO-ROOT.
+  "Export the Veriff refresh-overdrive page-one PDF from REPO-ROOT.
 Print the LaTeX output buffer contents and the generated PDF path to stdout."
   (let* ((repo-root (file-name-as-directory
 		     (or repo-root
@@ -58,7 +58,7 @@ Print the LaTeX output buffer contents and the generated PDF path to stdout."
 		    "test/fixtures/org-export/approval-refresh-overdrive-page1.org"
 		    repo-root))
 	 (artifact-root (expand-file-name
-			 "var/org-latex-pdf/approval-refresh-overdrive-page1"
+			 "var/org-latex-pdf/veriff-refresh-overdrive-page1"
 			 repo-root))
 	 (specimen-buffer nil)
 	 pdf-path)

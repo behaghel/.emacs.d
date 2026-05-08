@@ -6,4 +6,4 @@
 
 * Minimal heading
 
-Minimal slice paragraph that proves the first English flagship export path.
+Minimal slice paragraph that should fail on the legacy class name.

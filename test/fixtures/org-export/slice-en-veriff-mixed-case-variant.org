@@ -1,0 +1,10 @@
+#+TITLE: Refresh overdrive slice
+#+AUTHOR: Hubert Behaghel
+#+DATE: 2026-04-27
+#+LANGUAGE: en
+#+LATEX_CLASS: veriff
+#+LATEX_VARIANT: Refresh-Overdrive
+
+* Minimal heading
+
+Minimal slice paragraph that should fail on mixed-case variant input.

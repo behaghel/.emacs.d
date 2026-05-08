@@ -37,6 +37,37 @@
   "Return the staged class path for CLASS-NAME in ARTIFACT-ROOT."
   (expand-file-name (format "%s.cls" class-name) artifact-root))
 
+(defun hub/test-veriff-slice-specimen (variant)
+  "Return the slice specimen path for Veriff VARIANT."
+  (expand-file-name
+   (format "test/fixtures/org-export/slice-en-veriff-%s.org" variant)
+   hub/test-repo-root))
+
+(defun hub/test-veriff-slice-artifact-root (variant)
+  "Return the stable real-smoke artifact root for Veriff VARIANT."
+  (expand-file-name
+   (format "var/org-latex-pdf/veriff-%s-slice" variant)
+   hub/test-repo-root))
+
+(defun hub/test-veriff-real-export-readiness-reason ()
+  "Return nil when the real Veriff PDF smoke can run, else a reason."
+  (cond
+   ((not (executable-find "xelatex"))
+    "XeLaTeX executable is not available")
+   ((not (file-exists-p (expand-file-name "etc/latex/veriff.cls" hub/test-repo-root)))
+    "tracked veriff.cls asset is not available")
+   ((not (file-exists-p (expand-file-name "etc/latex/assets/hero-pattern.png" hub/test-repo-root)))
+    "hero-pattern.png asset is not available")
+   ((not (file-exists-p (expand-file-name "etc/latex/assets/hero-logo.pdf" hub/test-repo-root)))
+    "hero-logo.pdf asset is not available")
+   ((not (file-exists-p (expand-file-name "etc/latex/assets/hero-logo-dark.pdf" hub/test-repo-root)))
+    "hero-logo-dark.pdf asset is not available")))
+
+(defun hub/test-skip-unless-veriff-real-export-ready ()
+  "Skip the current ERT test unless real Veriff PDF export is ready."
+  (when-let* ((reason (hub/test-veriff-real-export-readiness-reason)))
+    (ert-skip (format "Real Veriff PDF smoke unavailable: %s" reason))))
+
 (defun hub/test-make-export-artifact-root ()
   "Create a temporary artifact root under `var/'."
   (make-temp-file (expand-file-name "var/org-latex-pdf-test-" hub/test-repo-root) t))
@@ -57,10 +88,180 @@
 		  (insert "stub")))))
      ,@body))
 
+(defmacro hub/test-should-user-error-message (message-regexp &rest body)
+  "Expect BODY to signal `user-error' whose message matches MESSAGE-REGEXP."
+  (declare (indent 1))
+  `(condition-case err
+       (progn
+	 ,@body
+	 (ert-fail "Expected user-error"))
+     (user-error
+      (should (string-match-p ,message-regexp (error-message-string err))))))
+
+(defmacro hub/test-with-org-buffer (contents &rest body)
+  "Run BODY in a temporary Org buffer initialised with CONTENTS."
+  (declare (indent 1))
+  `(with-temp-buffer
+     (insert ,contents)
+     (org-mode)
+     ,@body))
+
+(defun hub/test-export-veriff-slice-with-stubbed-pdf (variant)
+  "Assert VARIANT exports to a generated `.tex' file and stubbed PDF."
+  (let* ((specimen (hub/test-veriff-slice-specimen variant))
+	 (artifact-root (hub/test-make-export-artifact-root))
+	 (specimen-buffer nil))
+    (unwind-protect
+	(progn
+	  (setq specimen-buffer (find-file-noselect specimen))
+	  (with-current-buffer specimen-buffer
+	    (hub/test-with-export-compiler-readiness t
+						     (hub/test-with-stubbed-latex-compile
+						      (let* ((hub/org-export-output-root artifact-root)
+							     (tex-path (hub/org-export-buffer-to-latex artifact-root))
+							     (tex-contents (hub/test-read-file-as-string tex-path))
+							     (pdf-path (hub/org-export-buffer-to-pdf artifact-root)))
+							(should (file-exists-p tex-path))
+							(should (file-exists-p pdf-path))
+							(should (string-suffix-p ".tex" tex-path))
+							(should (string-suffix-p ".pdf" pdf-path))
+							(should (string-match-p (regexp-quote "\\documentclass[11pt,a4paper]{veriff}") tex-contents))
+							(should (string-match-p (regexp-quote (format "\\HubVeriffVariant{%s}" variant)) tex-contents)))))))
+      (when (buffer-live-p specimen-buffer)
+	(kill-buffer specimen-buffer))
+      (when (file-directory-p artifact-root)
+	(delete-directory artifact-root t)))))
+
+(defun hub/test-export-veriff-slice-with-real-pdf (variant)
+  "Assert VARIANT exports to a real PDF under its stable artifact root."
+  (let* ((specimen (hub/test-veriff-slice-specimen variant))
+	 (artifact-root (hub/test-veriff-slice-artifact-root variant))
+	 (specimen-buffer nil))
+    (when (file-directory-p artifact-root)
+      (delete-directory artifact-root t))
+    (unwind-protect
+	(progn
+	  (setq specimen-buffer (find-file-noselect specimen))
+	  (with-current-buffer specimen-buffer
+	    (let* ((hub/org-export-output-root artifact-root)
+		   (tex-path (hub/org-export-buffer-to-latex artifact-root))
+		   (tex-contents (hub/test-read-file-as-string tex-path))
+		   (pdf-path (hub/org-export-buffer-to-pdf artifact-root)))
+	      (should (string-prefix-p artifact-root tex-path))
+	      (should (string-prefix-p artifact-root pdf-path))
+	      (should (file-exists-p tex-path))
+	      (should (file-exists-p pdf-path))
+	      (should (string-match-p (regexp-quote "\\documentclass[11pt,a4paper]{veriff}") tex-contents))
+	      (should (string-match-p (regexp-quote (format "\\HubVeriffVariant{%s}" variant)) tex-contents)))))
+      (when (buffer-live-p specimen-buffer)
+	(kill-buffer specimen-buffer)))))
+
+(ert-deftest hub/org-export-veriff-variant-defaults-to-refresh-overdrive ()
+  "The Veriff variant defaults to refresh-overdrive when omitted."
+  (hub/test-with-org-buffer "#+LATEX_CLASS: veriff\n"
+			    (should (equal (hub/org-export--effective-veriff-variant)
+					   "refresh-overdrive"))))
+
+(ert-deftest hub/org-export-veriff-variant-trims-surrounding-whitespace ()
+  "Variant parsing trims surrounding whitespace before validation."
+  (hub/test-with-org-buffer "#+LATEX_CLASS: veriff\n#+LATEX_VARIANT:   dark-campaign  \n"
+			    (should (equal (hub/org-export--effective-veriff-variant)
+					   "dark-campaign"))))
+
+(ert-deftest hub/org-export-veriff-variant-rejects-duplicates ()
+  "Duplicate variant keywords fail with a user error."
+  (hub/test-with-org-buffer "#+LATEX_CLASS: veriff\n#+LATEX_VARIANT: refresh-overdrive\n#+LATEX_VARIANT: dark-campaign\n"
+			    (hub/test-should-user-error-message "LATEX_VARIANT"
+								(hub/org-export--validate-veriff-metadata 'latex))))
+
+(ert-deftest hub/org-export-veriff-variant-rejects-mixed-case-values ()
+  "Mixed-case variants fail with a deterministic error."
+  (hub/test-with-org-buffer "#+LATEX_CLASS: veriff\n#+LATEX_VARIANT: Refresh-Overdrive\n"
+			    (hub/test-should-user-error-message (regexp-quote "refresh-overdrive, dark-campaign")
+								(hub/org-export--validate-veriff-metadata 'latex))))
+
+(ert-deftest hub/org-export-veriff-variant-rejects-non-veriff-class ()
+  "Variants are only valid when the document targets veriff."
+  (hub/test-with-org-buffer "#+LATEX_CLASS: article\n#+LATEX_VARIANT: refresh-overdrive\n"
+			    (hub/test-should-user-error-message (regexp-quote "LATEX_VARIANT requires LATEX_CLASS: veriff")
+								(hub/org-export--validate-veriff-metadata 'latex))))
+
+(ert-deftest hub/org-export-veriff-variant-rejects-legacy-class ()
+  "Legacy pro-refresh-overdrive authoring fails with migration guidance."
+  (hub/test-with-org-buffer "#+LATEX_CLASS: pro-refresh-overdrive\n#+LATEX_VARIANT: refresh-overdrive\n"
+			    (hub/test-should-user-error-message (regexp-quote "LATEX_CLASS: veriff")
+								(hub/org-export--validate-veriff-metadata 'latex))
+			    (hub/test-should-user-error-message (regexp-quote "LATEX_VARIANT: refresh-overdrive")
+								(hub/org-export--validate-veriff-metadata 'latex))))
+
+(ert-deftest hub/org-export-veriff-refresh-overdrive-stubbed-pdf-end-to-end ()
+  "Refresh-overdrive exports to `.tex' and a stubbed PDF path."
+  (hub/test-export-veriff-slice-with-stubbed-pdf "refresh-overdrive"))
+
+(ert-deftest hub/org-export-veriff-dark-campaign-stubbed-pdf-end-to-end ()
+  "Dark-campaign exports to `.tex' and a stubbed PDF path."
+  (hub/test-export-veriff-slice-with-stubbed-pdf "dark-campaign"))
+
+(ert-deftest hub/org-export-veriff-dark-campaign-visual-tokens-and-spec-exclusion ()
+  "Dark-campaign has named contrast tokens and excludes the white artefact."
+  (let ((class-contents (hub/test-read-file-as-string
+			 (expand-file-name "etc/latex/veriff.cls" hub/test-repo-root)))
+	(spec-contents (hub/test-read-file-as-string
+			(expand-file-name "spec/org-latex-pdf/validation/pdf-fidelity.md" hub/test-repo-root))))
+    (should (string-match-p (regexp-quote "\\definecolor{HubPaper}{HTML}{0C3035}") class-contents))
+    (should (string-match-p (regexp-quote "\\definecolor{HubPaleBlue}{HTML}{F0FFFD}") class-contents))
+    (should (string-match-p (regexp-quote "\\colorlet{HubInk}{HubPaleBlue}") class-contents))
+    (should (string-match-p (regexp-quote "\\colorlet{HubStandfirst}{HubPaleBlue}") class-contents))
+    (should (string-match-p (regexp-quote "\\definecolor{HubSurface}{HTML}{163637}") class-contents))
+    (should (string-match-p (regexp-quote "\\definecolor{HubSurfaceSoft}{HTML}{122D2E}") class-contents))
+    (should (string-match-p (regexp-quote "\\definecolor{HubMetricSurface}{HTML}{1E4A4B}") class-contents))
+    (should (string-match-p (regexp-quote "\\definecolor{HubTeal}{HTML}{14E5C5}") class-contents))
+    (should (string-match-p (regexp-quote "\\definecolor{HubLightTeal}{HTML}{A0FFF0}") class-contents))
+    (should (string-match-p (regexp-quote "\\colorlet{HubEyebrowColor}{HubTeal}") class-contents))
+    (should (string-match-p (regexp-quote "\\colorlet{HubSectionNumColor}{HubTeal}") class-contents))
+    (should (string-match-p (regexp-quote "\\colorlet{HubGraphPrimaryColor}{HubTeal}") class-contents))
+    (should (string-match-p (regexp-quote "\\colorlet{HubDekColor}{HubLightTeal}") class-contents))
+    (should (string-match-p (regexp-quote "\\colorlet{HubTableHeaderColor}{HubLightTeal}") class-contents))
+    (should (string-match-p (regexp-quote "\\colorlet{HubTermColor}{HubLightTeal}") class-contents))
+    (should (string-match-p (regexp-quote "\\definecolor{HubMetricValueColor}{HTML}{FFFFFF}") class-contents))
+    (should (string-match-p (regexp-quote "\\definecolor{HubCardTitleColor}{HTML}{FFFFFF}") class-contents))
+    (should (string-match-p (regexp-quote "\\colorlet{HubCalloutTitleColor}{HubTeal}") class-contents))
+    (should (string-match-p (regexp-quote "\\colorlet{HubStringColor}{HubLightTeal}") class-contents))
+    (should (string-match-p (regexp-quote "\\definecolor{HubSubsectionColor}{HTML}{FFFFFF}") class-contents))
+    (should (string-match-p (regexp-quote "\\definecolor{HubWhite}{HTML}{FFFFFF}") class-contents))
+    (should (string-match-p (regexp-quote "\\colorlet{HubTitleColor}{HubWhite}") class-contents))
+    (should (string-match-p (regexp-quote "\\colorlet{HubSectionTitleColor}{HubWhite}") class-contents))
+    (should (string-match-p (regexp-quote "\\colorlet{HubQuoteTextColor}{HubWhite}") class-contents))
+    (should (string-match-p (regexp-quote "\\colorlet{HubCalloutTextColor}{HubWhite}") class-contents))
+    (should-not (string-match-p (regexp-quote "\\colorlet{HubSubsectionColor}{HubTeal}") class-contents))
+    (should (string-match-p (regexp-quote "\\color{HubEyebrowColor}") class-contents))
+    (should (string-match-p (regexp-quote "\\color{HubSectionNumColor}") class-contents))
+    (should (string-match-p (regexp-quote "\\color{HubTableHeaderColor}") class-contents))
+    (should (string-match-p (regexp-quote "\\color{HubTermColor}") class-contents))
+    (should (string-match-p (regexp-quote "\\textcolor{HubMetricValueColor}") class-contents))
+    (should (string-match-p (regexp-quote "\\textcolor{HubCardTitleColor}") class-contents))
+    (should (string-match-p (regexp-quote "\\textcolor{HubCalloutTitleColor}") class-contents))
+    (should (string-match-p (regexp-quote "\\color{HubTitleColor}") class-contents))
+    (should (string-match-p (regexp-quote "\\color{HubSectionTitleColor}") class-contents))
+    (should (string-match-p (regexp-quote "\\color{HubQuoteTextColor}") class-contents))
+    (should (string-match-p (regexp-quote "\\color{HubCalloutTextColor}") class-contents))
+    (should (string-match-p (regexp-quote "{HubGraphPrimaryColor, solid}") class-contents))
+    (should (string-match-p (regexp-quote "\\def\\HubCodeStringColor{HubStringColor}") class-contents))
+    (should (string-match-p (regexp-quote "/Users/hubertbehaghel/tmp/veriff-article-prototypes/out/01-dark-campaign.pdf") spec-contents))
+    (should (string-match-p (regexp-quote "white-background webpage-print artefact/region") spec-contents))
+    (should (string-match-p (regexp-quote "must be ignored") spec-contents))))
+
+(ert-deftest hub/org-export-veriff-real-xelatex-smoke-readiness-gated ()
+  "Real XeLaTeX smoke exports both variants or reports readiness clearly."
+  (hub/test-skip-unless-veriff-real-export-ready)
+  (hub/test-export-veriff-slice-with-real-pdf "refresh-overdrive")
+  (hub/test-export-veriff-slice-with-real-pdf "dark-campaign"))
+
 (ert-deftest hub/script-export-approval-refresh-overdrive-page1-prints-buffer-and-path ()
-  "The approval export helper prints LaTeX output and the PDF path."
+  "The approval export helper prints LaTeX output and uses the variant-aware artifact root."
   (let ((log-buffer (get-buffer-create hub/script-org-pdf-output-buffer-name))
 	(specimen-buffer (generate-new-buffer " *approval-specimen*"))
+	captured-artifact-root
 	output)
     (unwind-protect
 	(progn
@@ -75,19 +276,22 @@
 			      ((symbol-function 'find-file-noselect)
 			       (lambda (_path) specimen-buffer))
 			      ((symbol-function 'hub/org-export-buffer-to-pdf)
-			       (lambda (_artifact-root) "/tmp/approval.pdf")))
+			       (lambda (artifact-root)
+				 (setq captured-artifact-root artifact-root)
+				 (expand-file-name "page1.pdf" artifact-root))))
 		      (hub/script-export-approval-refresh-overdrive-page1 hub/test-repo-root))
 		    (buffer-string))))
 	  (should (string-match-p (regexp-quote "[Org PDF LaTeX Output] BEGIN") output))
 	  (should (string-match-p (regexp-quote "latex output") output))
-	  (should (string-match-p (regexp-quote "/tmp/approval.pdf") output)))
+	  (should (string-match-p (regexp-quote (expand-file-name "page1.pdf" (expand-file-name "var/org-latex-pdf/veriff-refresh-overdrive-page1" hub/test-repo-root))) output))
+	  (should (equal captured-artifact-root (expand-file-name "var/org-latex-pdf/veriff-refresh-overdrive-page1" hub/test-repo-root))))
       (when (buffer-live-p log-buffer)
 	(kill-buffer log-buffer))
       (when (buffer-live-p specimen-buffer)
 	(kill-buffer specimen-buffer)))))
 
-(ert-deftest hub/org-export-pro-refresh-overdrive-uses-xelatex-only ()
-  "`pro-refresh-overdrive' always selects the XeLaTeX compiler path."
+(ert-deftest hub/org-export-veriff-uses-xelatex-only ()
+  "`veriff' always selects the XeLaTeX compiler path."
   (should (equal (hub/org-export--effective-compiler) "xelatex")))
 
 (ert-deftest hub/org-export-buffer-to-pdf-uses-selected-compiler-process ()
@@ -119,9 +323,9 @@
       (when (file-directory-p artifact-root)
 	(delete-directory artifact-root t)))))
 
-(ert-deftest hub/org-export-slice-en-pro-refresh-overdrive-produces-latex-and-pdf ()
+(ert-deftest hub/org-export-slice-en-veriff-refresh-overdrive-produces-latex-and-pdf ()
   "The first English flagship slice exports to LaTeX and PDF with the XeLaTeX path."
-  (let* ((specimen (expand-file-name "test/fixtures/org-export/slice-en-pro-refresh-overdrive.org"
+  (let* ((specimen (expand-file-name "test/fixtures/org-export/slice-en-veriff-refresh-overdrive.org"
 				     hub/test-repo-root))
 	 (artifact-root (hub/test-make-export-artifact-root))
 	 (specimen-buffer nil))
@@ -134,12 +338,14 @@
 						      (let* ((hub/org-export-output-root artifact-root)
 							     (tex-path (hub/org-export-buffer-to-latex artifact-root))
 							     (tex-contents (hub/test-read-file-as-string tex-path))
-							     (class-path (hub/test-exported-class-path artifact-root "pro-refresh-overdrive"))
+							     (class-path (hub/test-exported-class-path artifact-root "veriff"))
 							     (class-contents (hub/test-read-file-as-string class-path))
 							     (pdf-path (hub/org-export-buffer-to-pdf artifact-root)))
 							(should (string-match-p (regexp-quote "% Intended LaTeX compiler: xelatex") tex-contents))
-							(should (string-match-p (regexp-quote "% hub-pro-refresh-overdrive") tex-contents))
-							(should (string-match-p (regexp-quote "\\documentclass[11pt,a4paper]{pro-refresh-overdrive}") tex-contents))
+							(should (string-match-p (regexp-quote "% hub-veriff-refresh-overdrive") tex-contents))
+							(should (string-match-p (regexp-quote "\\HubVeriffVariant{refresh-overdrive}") tex-contents))
+							(should-not (string-match-p (regexp-quote "% hub-veriff-dark-campaign") tex-contents))
+							(should (string-match-p (regexp-quote "\\documentclass[11pt,a4paper]{veriff}") tex-contents))
 							(should (string-match-p (regexp-quote "\\RequirePackage{fontspec}") class-contents))
 							(should (string-match-p (regexp-quote "\\setmainfont{Inter}") class-contents))
 							(should (string-match-p (regexp-quote "\\setsansfont{Inter}") class-contents))
@@ -178,6 +384,180 @@
       (when (file-directory-p artifact-root)
 	(delete-directory artifact-root t)))))
 
+(ert-deftest hub/org-export-slice-en-veriff-default-variant-produces-latex-and-pdf ()
+  "The omitted variant defaults to refresh-overdrive and stages veriff.cls."
+  (let* ((specimen (expand-file-name "test/fixtures/org-export/slice-en-veriff-default-variant.org"
+				     hub/test-repo-root))
+	 (artifact-root (hub/test-make-export-artifact-root))
+	 (specimen-buffer nil))
+    (unwind-protect
+	(progn
+	  (setq specimen-buffer (find-file-noselect specimen))
+	  (with-current-buffer specimen-buffer
+	    (hub/test-with-export-compiler-readiness t
+						     (hub/test-with-stubbed-latex-compile
+						      (let* ((hub/org-export-output-root artifact-root)
+							     (tex-path (hub/org-export-buffer-to-latex artifact-root))
+							     (tex-contents (hub/test-read-file-as-string tex-path))
+							     (class-path (hub/test-exported-class-path artifact-root "veriff"))
+							     (class-contents (hub/test-read-file-as-string class-path))
+							     (pdf-path (hub/org-export-buffer-to-pdf artifact-root)))
+							(should (string-match-p (regexp-quote "\\documentclass[11pt,a4paper]{veriff}") tex-contents))
+							(should (string-match-p (regexp-quote "% hub-veriff-default-variant") tex-contents))
+							(should (string-match-p (regexp-quote "\\HubVeriffVariant{refresh-overdrive}") tex-contents))
+							(should (string-match-p (regexp-quote "% hub-veriff-refresh-overdrive") tex-contents))
+							(should-not (string-match-p (regexp-quote "% hub-veriff-dark-campaign") tex-contents))
+							(should (string-match-p (regexp-quote "\\RequirePackage{fontspec}") class-contents))
+							(should (file-exists-p class-path))
+							(should (file-exists-p pdf-path)))))))
+      (when (buffer-live-p specimen-buffer)
+	(kill-buffer specimen-buffer))
+      (when (file-directory-p artifact-root)
+	(delete-directory artifact-root t)))))
+
+(ert-deftest hub/org-export-slice-en-veriff-dark-campaign-produces-latex-and-pdf ()
+  "The dark campaign variant stages veriff.cls and the dark marker."
+  (let* ((specimen (expand-file-name "test/fixtures/org-export/slice-en-veriff-dark-campaign.org"
+				     hub/test-repo-root))
+	 (artifact-root (hub/test-make-export-artifact-root))
+	 (specimen-buffer nil))
+    (unwind-protect
+	(progn
+	  (setq specimen-buffer (find-file-noselect specimen))
+	  (with-current-buffer specimen-buffer
+	    (hub/test-with-export-compiler-readiness t
+						     (hub/test-with-stubbed-latex-compile
+						      (let* ((hub/org-export-output-root artifact-root)
+							     (tex-path (hub/org-export-buffer-to-latex artifact-root))
+							     (tex-contents (hub/test-read-file-as-string tex-path))
+							     (class-path (hub/test-exported-class-path artifact-root "veriff"))
+							     (class-contents (hub/test-read-file-as-string class-path))
+							     (pdf-path (hub/org-export-buffer-to-pdf artifact-root)))
+							(should (string-match-p (regexp-quote "\\documentclass[11pt,a4paper]{veriff}") tex-contents))
+							(should (string-match-p (regexp-quote "% hub-veriff-dark-campaign") tex-contents))
+							(should (string-match-p (regexp-quote "\\HubVeriffVariant{dark-campaign}") tex-contents))
+							(should (string-match-p (regexp-quote "\\definecolor{HubPaper}{HTML}{0C3035}") class-contents))
+							(should-not (string-match-p (regexp-quote "% hub-veriff-default-variant") tex-contents))
+							(should (string-match-p (regexp-quote "\\RequirePackage{fontspec}") class-contents))
+							(should (string-match-p (regexp-quote "hero-logo-dark.pdf") tex-contents))
+							(should (string-match-p (regexp-quote "hero-pattern-dark.pdf") tex-contents))
+							(should-not (string-match-p (regexp-quote "\\renewcommand{\\HubHeroPatternGraphic}{}") tex-contents))
+							(should-not (string-match-p (regexp-quote "hero-pattern.png") tex-contents))
+							(should (file-exists-p class-path))
+							(should (file-exists-p pdf-path)))))))
+      (when (buffer-live-p specimen-buffer)
+	(kill-buffer specimen-buffer))
+      (when (file-directory-p artifact-root)
+	(delete-directory artifact-root t)))))
+
+(ert-deftest hub/org-export-slice-en-veriff-invalid-variant-fails ()
+  "Unknown variants fail with a user error."
+  (let* ((specimen (expand-file-name "test/fixtures/org-export/slice-en-veriff-invalid-variant.org"
+				     hub/test-repo-root))
+	 (artifact-root (hub/test-make-export-artifact-root))
+	 (specimen-buffer nil))
+    (unwind-protect
+	(progn
+	  (setq specimen-buffer (find-file-noselect specimen))
+	  (with-current-buffer specimen-buffer
+	    (hub/test-with-export-compiler-readiness t
+						     (hub/test-with-stubbed-latex-compile
+						      (let ((hub/org-export-output-root artifact-root))
+							(hub/test-should-user-error-message
+							 (regexp-quote "refresh-overdrive, dark-campaign")
+							 (hub/org-export-buffer-to-latex artifact-root)))))))
+      (when (buffer-live-p specimen-buffer)
+	(kill-buffer specimen-buffer))
+      (when (file-directory-p artifact-root)
+	(delete-directory artifact-root t)))))
+
+(ert-deftest hub/org-export-slice-en-veriff-duplicate-variant-fails ()
+  "Duplicate variant keywords fail with a user error."
+  (let* ((specimen (expand-file-name "test/fixtures/org-export/slice-en-veriff-duplicate-variant.org"
+				     hub/test-repo-root))
+	 (artifact-root (hub/test-make-export-artifact-root))
+	 (specimen-buffer nil))
+    (unwind-protect
+	(progn
+	  (setq specimen-buffer (find-file-noselect specimen))
+	  (with-current-buffer specimen-buffer
+	    (hub/test-with-export-compiler-readiness t
+						     (hub/test-with-stubbed-latex-compile
+						      (let ((hub/org-export-output-root artifact-root))
+							(hub/test-should-user-error-message
+							 "LATEX_VARIANT"
+							 (hub/org-export-buffer-to-latex artifact-root)))))))
+      (when (buffer-live-p specimen-buffer)
+	(kill-buffer specimen-buffer))
+      (when (file-directory-p artifact-root)
+	(delete-directory artifact-root t)))))
+
+(ert-deftest hub/org-export-slice-en-veriff-mixed-case-variant-fails ()
+  "Mixed-case variant keywords fail with a user error."
+  (let* ((specimen (expand-file-name "test/fixtures/org-export/slice-en-veriff-mixed-case-variant.org"
+				     hub/test-repo-root))
+	 (artifact-root (hub/test-make-export-artifact-root))
+	 (specimen-buffer nil))
+    (unwind-protect
+	(progn
+	  (setq specimen-buffer (find-file-noselect specimen))
+	  (with-current-buffer specimen-buffer
+	    (hub/test-with-export-compiler-readiness t
+						     (hub/test-with-stubbed-latex-compile
+						      (let ((hub/org-export-output-root artifact-root))
+							(hub/test-should-user-error-message
+							 "Refresh-Overdrive"
+							 (hub/org-export-buffer-to-latex artifact-root)))))))
+      (when (buffer-live-p specimen-buffer)
+	(kill-buffer specimen-buffer))
+      (when (file-directory-p artifact-root)
+	(delete-directory artifact-root t)))))
+
+(ert-deftest hub/org-export-slice-en-legacy-pro-refresh-overdrive-fails ()
+  "The legacy class fails with migration guidance."
+  (let* ((specimen (expand-file-name "test/fixtures/org-export/slice-en-legacy-pro-refresh-overdrive.org"
+				     hub/test-repo-root))
+	 (artifact-root (hub/test-make-export-artifact-root))
+	 (specimen-buffer nil))
+    (unwind-protect
+	(progn
+	  (setq specimen-buffer (find-file-noselect specimen))
+	  (with-current-buffer specimen-buffer
+	    (hub/test-with-export-compiler-readiness t
+						     (hub/test-with-stubbed-latex-compile
+						      (let ((hub/org-export-output-root artifact-root))
+							(hub/test-should-user-error-message
+							 (regexp-quote "#+LATEX_CLASS: veriff")
+							 (hub/org-export-buffer-to-latex artifact-root))
+							(hub/test-should-user-error-message
+							 (regexp-quote "#+LATEX_VARIANT: refresh-overdrive")
+							 (hub/org-export-buffer-to-latex artifact-root)))))))
+      (when (buffer-live-p specimen-buffer)
+	(kill-buffer specimen-buffer))
+      (when (file-directory-p artifact-root)
+	(delete-directory artifact-root t)))))
+
+(ert-deftest hub/org-export-slice-en-non-veriff-with-variant-fails ()
+  "A non-veriff class with a variant fails with a user error."
+  (let* ((specimen (expand-file-name "test/fixtures/org-export/slice-en-non-veriff-with-variant.org"
+				     hub/test-repo-root))
+	 (artifact-root (hub/test-make-export-artifact-root))
+	 (specimen-buffer nil))
+    (unwind-protect
+	(progn
+	  (setq specimen-buffer (find-file-noselect specimen))
+	  (with-current-buffer specimen-buffer
+	    (hub/test-with-export-compiler-readiness t
+						     (hub/test-with-stubbed-latex-compile
+						      (let ((hub/org-export-output-root artifact-root))
+							(hub/test-should-user-error-message
+							 "LATEX_VARIANT"
+							 (hub/org-export-buffer-to-latex artifact-root)))))))
+      (when (buffer-live-p specimen-buffer)
+	(kill-buffer specimen-buffer))
+      (when (file-directory-p artifact-root)
+	(delete-directory artifact-root t)))))
+
 (ert-deftest hub/org-export-semantic-full-en-uses-class-owned-latex-and-pdf ()
   "The semantic specimen exports with class-owned layout markers and PDF output on the XeLaTeX path."
   (let* ((specimen (expand-file-name "test/fixtures/org-export/semantic-full-en.org"
@@ -193,15 +573,15 @@
 						      (let* ((hub/org-export-output-root artifact-root)
 							     (tex-path (hub/org-export-buffer-to-latex artifact-root))
 							     (tex-contents (hub/test-read-file-as-string tex-path))
-							     (class-path (hub/test-exported-class-path artifact-root "pro-refresh-overdrive"))
+							     (class-path (hub/test-exported-class-path artifact-root "veriff"))
 							     (class-contents (hub/test-read-file-as-string class-path))
 							     (pdf-path (hub/org-export-buffer-to-pdf artifact-root)))
 							(should (string-match-p (regexp-quote "% Intended LaTeX compiler: xelatex") tex-contents))
-							(should (string-match-p (regexp-quote "\\documentclass[11pt,a4paper]{pro-refresh-overdrive}") tex-contents))
+							(should (string-match-p (regexp-quote "\\documentclass[11pt,a4paper]{veriff}") tex-contents))
 							(should-not (string-match-p "\\maketitle" tex-contents))
 							(should-not (string-match-p "\\tableofcontents" tex-contents))
-							(should (string-match-p (regexp-quote "% hub-pro-refresh-overdrive-title") tex-contents))
-							(should (string-match-p (regexp-quote "% hub-pro-refresh-overdrive-headings") tex-contents))
+							(should (string-match-p (regexp-quote "% hub-veriff-refresh-overdrive-title") tex-contents))
+							(should (string-match-p (regexp-quote "% hub-veriff-refresh-overdrive-headings") tex-contents))
 							(should (string-match-p (regexp-quote "\\pagestyle{hubpage}") class-contents))
 							(should (string-match-p (regexp-quote "\\newlength{\\HubFooterLift}") class-contents))
 							(should (string-match-p (regexp-quote "\\setlength{\\HubFooterLift}{4mm}") class-contents))
@@ -231,7 +611,7 @@
 							(should (string-match-p "A temporary high-energy mode" tex-contents))
 							(should (string-match-p (regexp-quote "\\begin{standfirst}") tex-contents))
 							(should (string-match-p (regexp-quote "\\begin{quote}[Prototype testimonial · Global platform operator]") tex-contents))
-							(should (string-match-p (regexp-quote "\\fontsize{12.5}{16}\\selectfont\\bfseries\\color{HubInk}\\ignorespaces") class-contents))
+							(should (string-match-p (regexp-quote "\\fontsize{12.5}{16}\\selectfont\\bfseries\\color{HubQuoteTextColor}\\ignorespaces") class-contents))
 							(should (string-match-p (regexp-quote "\\begin{pullquote}") tex-contents))
 							(should (string-match-p (regexp-quote "\\begin{callout}[Design signal]") tex-contents))
 							(should (string-match-p (regexp-quote "\\begin{hubtable}") tex-contents))
@@ -293,7 +673,7 @@
 						      (let* ((hub/org-export-output-root artifact-root)
 							     (tex-path (hub/org-export-buffer-to-latex artifact-root))
 							     (tex-contents (hub/test-read-file-as-string tex-path))
-							     (class-path (hub/test-exported-class-path artifact-root "pro-refresh-overdrive"))
+							     (class-path (hub/test-exported-class-path artifact-root "veriff"))
 							     (class-contents (hub/test-read-file-as-string class-path))
 							     (pdf-path (hub/org-export-buffer-to-pdf artifact-root)))
 							(should (string-match-p (regexp-quote "% Intended LaTeX compiler: xelatex") tex-contents))
@@ -350,9 +730,11 @@
 							(should (string-match-p "Make the refresh impossible to miss" tex-contents))
 							(should (string-match-p (regexp-quote "\\begin{callout}[Design signal]") tex-contents))
 							(should (string-match-p (regexp-quote "\\begin{quote}[Prototype testimonial · Global platform operator]") tex-contents))
-							(should (string-match-p (regexp-quote "\\fontsize{12.5}{16}\\selectfont\\bfseries\\color{HubInk}\\ignorespaces") class-contents))
+							(should (string-match-p (regexp-quote "\\fontsize{12.5}{16}\\selectfont\\bfseries\\color{HubQuoteTextColor}\\ignorespaces") class-contents))
 							(should-not (string-match-p (regexp-quote "\\begin{pullquote}[Prototype testimonial · Global platform operator]") tex-contents))
 							(should (string-match-p (regexp-quote "\\begin{description}") tex-contents))
+							(should-not (string-match-p (regexp-quote "\\labelwidth\\z@") class-contents))
+							(should (string-match-p (regexp-quote "\\labelwidth0pt") class-contents))
 							(should (string-match-p (regexp-quote "\\item[{Verified transparency}]") tex-contents))
 							(should (string-match-p (regexp-quote "\\begin{hubtable}") tex-contents))
 							(should (string-match-p (regexp-quote "\\begin{tabularx}{\\linewidth}{YYYY}") tex-contents))
@@ -498,9 +880,9 @@
       (when (file-directory-p artifact-root)
 	(delete-directory artifact-root t)))))
 
-(ert-deftest hub/org-export-pro-refresh-overdrive-mint-accents ()
+(ert-deftest hub/org-export-veriff-refresh-overdrive-mint-accents ()
   "The class defines brand palette colors, a custom page style, and uses them for code themes."
-  (let* ((specimen (expand-file-name "test/fixtures/org-export/slice-en-pro-refresh-overdrive.org"
+  (let* ((specimen (expand-file-name "test/fixtures/org-export/slice-en-veriff-refresh-overdrive.org"
 				     hub/test-repo-root))
 	 (artifact-root (hub/test-make-export-artifact-root))
 	 (specimen-buffer nil))
@@ -512,7 +894,7 @@
 						     (hub/test-with-stubbed-latex-compile
 						      (let* ((hub/org-export-output-root artifact-root)
 							     (tex-path (hub/org-export-buffer-to-latex artifact-root))
-							     (class-path (hub/test-exported-class-path artifact-root "pro-refresh-overdrive"))
+							     (class-path (hub/test-exported-class-path artifact-root "veriff"))
 							     (class-contents (hub/test-read-file-as-string class-path)))
 							(should (string-match-p (regexp-quote "\\definecolor{HubMint}{HTML}{20C997}") class-contents))
 							(should-not (string-match-p (regexp-quote (concat "\\definecolor{Hub" "Emerald}")) class-contents))
@@ -520,7 +902,7 @@
 							(should (string-match-p (regexp-quote "\\HubDocumentTitle") class-contents))
 							(should (string-match-p (regexp-quote "\\HubFooterLogoGraphic") class-contents))
 							(should (string-match-p (regexp-quote "\\def\\HubCodeNameColor{HubStandfirst}") class-contents))
-							(should (string-match-p (regexp-quote "\\def\\HubCodeStringColor{HubTableRule}") class-contents))
+							(should (string-match-p (regexp-quote "\\def\\HubCodeStringColor{HubStringColor}") class-contents))
 							(should (string-match-p (regexp-quote "\\def\\HubCodeMintColor{HubMint}") class-contents))
 							(should (string-match-p (regexp-quote "\\@namedef{PYG@tok@nb}{\\def\\PYG@tc##1{\\textcolor{\\HubCodeMintColor}{##1}}}") class-contents)))))))
       (when (buffer-live-p specimen-buffer)
@@ -543,7 +925,7 @@
 						      (let* ((hub/org-export-output-root artifact-root)
 							     (tex-path (hub/org-export-buffer-to-latex artifact-root))
 							     (tex-contents (hub/test-read-file-as-string tex-path))
-							     (class-path (hub/test-exported-class-path artifact-root "pro-refresh-overdrive"))
+							     (class-path (hub/test-exported-class-path artifact-root "veriff"))
 							     (class-contents (hub/test-read-file-as-string class-path)))
 							(should (string-match-p (regexp-quote "\\begin{pillars}") tex-contents))
 							(should (string-match-p (regexp-quote "\\begin{pillar}[First]") tex-contents))
@@ -554,6 +936,8 @@
 							(should (string-match-p (regexp-quote "hub@pillar@count@") class-contents))
 							(should (string-match-p (regexp-quote "raster columns=\\hub@cols") class-contents))
 							(should-not (string-match-p (regexp-quote "raster columns=2") class-contents))
+							(should-not (string-match-p (regexp-quote "colback=white") class-contents))
+							(should (string-match-p (regexp-quote "colback=HubSurface") class-contents))
 							(should (string-match-p (regexp-quote "\\immediate\\write\\@auxout{\\string\\expandafter\\string\\gdef\\string\\csname\\space hub@pillar@count@\\thehubpillarenv\\string\\endcsname{\\thehubpillaritem}}") class-contents)))))))
       (when (buffer-live-p specimen-buffer)
 	(kill-buffer specimen-buffer))

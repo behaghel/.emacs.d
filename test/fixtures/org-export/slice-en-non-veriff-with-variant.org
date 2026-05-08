@@ -1,0 +1,10 @@
+#+TITLE: Refresh overdrive slice
+#+AUTHOR: Hubert Behaghel
+#+DATE: 2026-04-27
+#+LANGUAGE: en
+#+LATEX_CLASS: article
+#+LATEX_VARIANT: refresh-overdrive
+
+* Minimal heading
+
+Minimal slice paragraph that should fail when a variant is set on a non-veriff class.

@@ -1,4 +1,5 @@
-#+LATEX_CLASS: pro-refresh-overdrive
+#+LATEX_CLASS: veriff
+#+LATEX_VARIANT: refresh-overdrive
 #+TITLE: Source Blocks Light Test
 #+EXPORT_CODE_THEME: light
 

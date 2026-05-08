@@ -1,5 +1,6 @@
 #+TITLE: Source Blocks Theme Matrix
-#+LATEX_CLASS: pro-refresh-overdrive
+#+LATEX_CLASS: veriff
+#+LATEX_VARIANT: refresh-overdrive
 #+EXPORT_EYEBROW: Theme Matrix
 #+EXPORT_CODE_THEME: light
 

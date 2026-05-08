@@ -1,0 +1,10 @@
+#+TITLE: Refresh overdrive slice
+#+AUTHOR: Hubert Behaghel
+#+DATE: 2026-04-27
+#+LANGUAGE: en
+#+LATEX_CLASS: veriff
+#+LATEX_VARIANT: refresh-overdrive
+
+* Minimal heading
+
+Minimal slice paragraph that proves the first English flagship export path.

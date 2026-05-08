@@ -3,7 +3,8 @@
 #+AUTHOR: Prototype direction · refresh-overdrive
 #+DATE: April 2026 · Visual direction study
 #+LANGUAGE: en
-#+LATEX_CLASS: pro-refresh-overdrive
+#+LATEX_CLASS: veriff
+#+LATEX_VARIANT: refresh-overdrive
 #+EXPORT_EYEBROW: Refresh mode · louder on purpose
 #+EXPORT_FOOTER_NOTE: The overdrive question is simple: can the refresh be pushed this hard without undermining the sense of trust? Seeing it as a PDF will tell us much faster than debating it abstractly.
 

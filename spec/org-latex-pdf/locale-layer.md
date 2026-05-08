@@ -58,7 +58,7 @@ The locale layer does not own authored prose, brand tone, or class-specific emph
 
 - Shared semantics: [`semantic-layer.md`](semantic-layer.md)
 - Family inventory: [`class-family-matrix.md`](class-family-matrix.md)
-- First real class: [`classes/pro-refresh-overdrive.md`](classes/pro-refresh-overdrive.md)
+- First real class: [`classes/veriff.md`](classes/veriff.md)
 - Personal article relationship: [`classes/article.md`](classes/article.md)
 - Coverage corpus: [`validation/specimens.md`](validation/specimens.md)
 - Rollout plan: [`plans/iterative-test-plan.md`](plans/iterative-test-plan.md)

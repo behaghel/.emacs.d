@@ -1,7 +1,7 @@
-%%% pro-refresh-overdrive.cls --- Org export flagship class
+%%% veriff.cls --- Org export flagship class
 
 \NeedsTeXFormat{LaTeX2e}
-\ProvidesClass{pro-refresh-overdrive}[2026/04/29 Flagship Org export class]
+\ProvidesClass{veriff}[2026/04/29 Flagship Org export class]
 
 \DeclareOption*{\PassOptionsToClass{\CurrentOption}{article}}
 \ProcessOptions\relax
@@ -55,6 +55,60 @@
 \definecolor{HubMint}{HTML}{20C997}
 \definecolor{HubMintSoft}{HTML}{E6FAF4}
 
+\colorlet{HubEyebrowColor}{HubAccent}
+\colorlet{HubSectionNumColor}{HubAccent}
+\colorlet{HubGraphPrimaryColor}{HubAccent}
+\colorlet{HubDekColor}{HubMuted}
+\colorlet{HubTableHeaderColor}{HubLabelBrown}
+\colorlet{HubTermColor}{HubLabelBrown}
+\colorlet{HubMetricValueColor}{HubAccent}
+\colorlet{HubCardTitleColor}{HubInk}
+\colorlet{HubCalloutTitleColor}{HubCardTitleColor}
+\colorlet{HubStringColor}{HubTableRule}
+\colorlet{HubSubsectionColor}{HubMuted}
+\colorlet{HubTitleColor}{HubInk}
+\colorlet{HubSectionTitleColor}{HubInk}
+\colorlet{HubQuoteTextColor}{HubInk}
+\colorlet{HubCalloutTextColor}{HubInk}
+
+\newcommand{\HubVeriffVariant}[1]{%
+  \def\hub@variant{#1}%
+  \ifdefstring{\hub@variant}{dark-campaign}{%
+    \definecolor{HubPaper}{HTML}{0C3035}%
+    \definecolor{HubPaleBlue}{HTML}{F0FFFD}%
+    \colorlet{HubInk}{HubPaleBlue}%
+    \definecolor{HubAccent}{HTML}{FF550F}%
+    \definecolor{HubMuted}{HTML}{8CA3A3}%
+    \colorlet{HubStandfirst}{HubPaleBlue}%
+    \definecolor{HubLabelBrown}{HTML}{FF9A52}%
+    \definecolor{HubLine}{HTML}{244344}%
+    \definecolor{HubTableRule}{HTML}{244344}%
+    \definecolor{HubSurface}{HTML}{163637}%
+    \definecolor{HubSurfaceSoft}{HTML}{122D2E}%
+    \definecolor{HubMetricSurface}{HTML}{1E4A4B}%
+    \definecolor{HubMint}{HTML}{20C997}%
+    \definecolor{HubMintSoft}{HTML}{163637}%
+    \definecolor{HubTeal}{HTML}{14E5C5}%
+    \definecolor{HubLightTeal}{HTML}{A0FFF0}%
+    \colorlet{HubEyebrowColor}{HubTeal}%
+    \colorlet{HubSectionNumColor}{HubTeal}%
+    \colorlet{HubGraphPrimaryColor}{HubTeal}%
+    \colorlet{HubDekColor}{HubLightTeal}%
+    \colorlet{HubTableHeaderColor}{HubLightTeal}%
+    \colorlet{HubTermColor}{HubLightTeal}%
+    \definecolor{HubMetricValueColor}{HTML}{FFFFFF}%
+    \definecolor{HubCardTitleColor}{HTML}{FFFFFF}%
+    \colorlet{HubCalloutTitleColor}{HubTeal}%
+    \colorlet{HubStringColor}{HubLightTeal}%
+    \definecolor{HubSubsectionColor}{HTML}{FFFFFF}%
+    \definecolor{HubWhite}{HTML}{FFFFFF}%
+    \colorlet{HubTitleColor}{HubWhite}%
+    \colorlet{HubSectionTitleColor}{HubWhite}%
+    \colorlet{HubQuoteTextColor}{HubWhite}%
+    \colorlet{HubCalloutTextColor}{HubWhite}%
+  }{}%
+}
+
 \AtBeginDocument{\color{HubInk}}
 \AtBeginDocument{\pagecolor{HubPaper}}
 \AtBeginDocument{\hypersetup{colorlinks=true,linkcolor=HubAccent,urlcolor=HubAccent}}
@@ -66,7 +120,7 @@
 \newfontface\HubQuoteFont{TeX Gyre Termes}
 
 \newcolumntype{Y}{>{\raggedright\arraybackslash\hspace{0pt}}X}
-\newcommand{\HubTableHeaderCell}[1]{{\color{HubLabelBrown}\bfseries\fontsize{8.5}{10}\selectfont\MakeUppercase{#1}\strut}}
+\newcommand{\HubTableHeaderCell}[1]{{\color{HubTableHeaderColor}\bfseries\fontsize{8.5}{10}\selectfont\MakeUppercase{#1}\strut}}
 \newcommand{\HubTableBodyCell}[1]{{\fontsize{8.4}{10.6}\selectfont\color{HubInk}#1\strut}}
 \newcommand{\HubTableHeadRule}{\noalign{\vskip 1.8mm\color{HubTableRule}\hrule height 0.95pt\vskip 1.8mm}}
 \newcommand{\HubTableBodyRule}{\noalign{\vskip 1.8mm\color{HubTableRule}\hrule height 0.55pt\vskip 1.8mm}}
@@ -130,29 +184,29 @@
 \setlength{\tabcolsep}{5pt}
 \renewcommand{\arraystretch}{1.2}
 \arrayrulecolor{HubLine}
-\renewcommand*\descriptionlabel[1]{\normalfont\color{HubLabelBrown}{\textbullet}\hspace{0.55em}\bfseries #1:\hspace{0.35em}}
+\renewcommand*\descriptionlabel[1]{\normalfont\color{HubTermColor}{\textbullet}\hspace{0.55em}\bfseries #1:\hspace{0.35em}}
 \renewenvironment{description}{%
   \list{}{%
-    \labelwidth\z@
+    \labelwidth0pt
     \leftmargin1.05em
     \itemindent-1.05em
-    \labelsep\z@
+    \labelsep0pt
     \itemsep0.45em
     \topsep0.65em
-    \parsep\z@
-    \listparindent\z@
+    \parsep0pt
+    \listparindent0pt
     \let\makelabel\descriptionlabel
   }%
 }{\endlist}
 
 \makeatletter
 \newcommand{\HubExportEyebrowBlock}{}
-\newcommand{\HubHeroEyebrow}[1]{\vspace*{-0.8em}{\addfontfeature{Renderer=ICU,LetterSpace=16.0}\color{HubAccent}\small\HubDisplayFont\MakeUppercase{#1}\par}\vspace*{2em}}
+\newcommand{\HubHeroEyebrow}[1]{\vspace*{-0.8em}{\addfontfeature{Renderer=ICU,LetterSpace=16.0}\color{HubEyebrowColor}\small\HubDisplayFont\MakeUppercase{#1}\par}\vspace*{2em}}
 \newcommand{\HubHeroTitle}[1]{%
   \gdef\HubDocumentTitle{#1}%
-  {\HubDisplayFont\fontsize{34}{33}\selectfont #1\par}\vspace*{2.75em}%
+  {\color{HubTitleColor}\HubDisplayFont\fontsize{34}{33}\selectfont #1\par}\vspace*{2.75em}%
 }
-\newcommand{\HubHeroDek}[1]{{\color{HubMuted}\parbox[t]{112mm}{\raggedright\normalsize #1\par}}\vspace*{4.5em}}
+\newcommand{\HubHeroDek}[1]{{\color{HubDekColor}\parbox[t]{112mm}{\raggedright\normalsize #1\par}}\vspace*{4.5em}}
 \newcommand{\HubHeroMeta}[2]{{\vspace*{0.75em}\color{HubLine}\rule{116mm}{0.8pt}\par}\vspace*{-0.3em}{\color{HubMuted}\fontsize{8}{9}\selectfont\makebox[116mm][r]{#1\HubMetaSeparator #2}\par}}
 \providecommand{\HubHeroPatternGraphic}{\includegraphics[width=0.88\paperwidth]{hero-pattern.png}}
 \providecommand{\HubHeroLogoGraphic}{\includegraphics[width=28mm]{hero-logo.pdf}}
@@ -160,11 +214,11 @@
 \newcommand{\HubMetaSeparator}{\hspace{0.8em}{\color{HubLine}\textbullet}\hspace{0.8em}}
 \renewcommand{\thesection}{\ifnum\c@section<10 0\fi\arabic{section}}
 \setcounter{secnumdepth}{1}
-\def\@seccntformat#1{{\color{HubAccent}\csname the#1\endcsname}\hspace{0.75em}}
+\def\@seccntformat#1{{\color{HubSectionNumColor}\csname the#1\endcsname}\hspace{0.75em}}
 \newcommand{\HubSectionFormat}[1]{\parbox{\linewidth}{#1\par\vspace*{-0.6\baselineskip}{\color{HubLine}\rule{\linewidth}{1.5pt}}}}
-\renewcommand\section{\Needspace{9\baselineskip}\@startsection{section}{1}{\z@}{2.8ex}{1.1ex}{\normalfont\Large\bfseries\raggedright\color{HubInk}\HubSectionFormat}}
-\renewcommand\subsection{\Needspace{7\baselineskip}\@startsection{subsection}{2}{\z@}{2.2ex}{0.9ex}{\normalfont\large\bfseries\raggedright\color{HubMuted}}}
-\renewcommand\subsubsection{\Needspace{6\baselineskip}\@startsection{subsubsection}{3}{\z@}{2.0ex}{0.8ex}{\normalfont\normalsize\bfseries\raggedright\color{HubMuted}}}
+\renewcommand\section{\Needspace{9\baselineskip}\@startsection{section}{1}{\z@}{2.8ex}{1.1ex}{\normalfont\Large\bfseries\raggedright\color{HubSectionTitleColor}\HubSectionFormat}}
+\renewcommand\subsection{\Needspace{7\baselineskip}\@startsection{subsection}{2}{\z@}{2.2ex}{0.9ex}{\normalfont\large\bfseries\raggedright\color{HubSubsectionColor}}}
+\renewcommand\subsubsection{\Needspace{6\baselineskip}\@startsection{subsubsection}{3}{\z@}{2.0ex}{0.8ex}{\normalfont\normalsize\bfseries\raggedright\color{HubSubsectionColor}}}
 \makeatother
 
 \newlength{\HubHeroTopInset}
@@ -203,7 +257,7 @@
   \begin{lrbox}{\HubQuoteBox}%
   \begin{minipage}{\dimexpr\linewidth-48pt\relax}%
     \setlength{\parskip}{0.6em}%
-    \fontsize{12.5}{16}\selectfont\bfseries\color{HubInk}\ignorespaces
+    \fontsize{12.5}{16}\selectfont\bfseries\color{HubQuoteTextColor}\ignorespaces
     \HubQuoteOpenMark
 }{%
     \HubQuoteCloseMark
@@ -219,7 +273,7 @@
 \newenvironment{pullquote}[1][]{%
   \par\medskip\noindent
   \begingroup
-  \raggedright\fontsize{15.5}{21}\selectfont\color{HubInk}\ignorespaces
+  \raggedright\fontsize{15.5}{21}\selectfont\color{HubQuoteTextColor}\ignorespaces
 }{%
   \par
   \endgroup
@@ -229,8 +283,8 @@
   \par\medskip\noindent
   \begin{tcolorbox}[hubcard, colback=HubSurface]
     \def\HubTempArg{#1}%
-    \ifx\HubTempArg\empty\else{\raggedright\textbf{#1}\par}\vspace{1em}\fi
-    \small\color{HubInk}\ignorespaces
+    \ifx\HubTempArg\empty\else{\raggedright\textcolor{HubCalloutTitleColor}{\textbf{#1}}\par}\vspace{1em}\fi
+    \small\color{HubCalloutTextColor}\ignorespaces
 }{%
   \end{tcolorbox}%
   \par\medskip
@@ -260,7 +314,7 @@
     top=12pt,
     bottom=12pt
   ]
-    {\centering\textcolor{HubAccent}{\bfseries\Large #1}\par}
+    {\centering\textcolor{HubMetricValueColor}{\bfseries\Large #1}\par}
     \vspace{1.2em}%
     \raggedright\small\color{HubMuted}\ignorespaces
 }{%
@@ -296,9 +350,9 @@
 \newenvironment{pillar}[1][]{%
   \stepcounter{hubpillaritem}%
   \let\par\hub@oldpar
-  \begin{tcolorbox}[hubcard, colback=white]
+  \begin{tcolorbox}[hubcard, colback=HubSurface]
     \def\HubTempArg{#1}%
-    \ifx\HubTempArg\empty\else{\raggedright\textbf{#1}\par}\vspace{1em}\fi
+    \ifx\HubTempArg\empty\else{\raggedright\textcolor{HubCardTitleColor}{\textbf{#1}}\par}\vspace{1em}\fi
     \small\color{HubInk}\ignorespaces
 }{%
   \end{tcolorbox}%
@@ -321,7 +375,7 @@
   }%
   \def\HubCodeLineNumColor{HubCodeLineNumberLight}%
   \def\HubCodeKeywordColor{HubAccent}%
-  \def\HubCodeStringColor{HubTableRule}%
+  \def\HubCodeStringColor{HubStringColor}%
   \def\HubCodeCommentColor{HubMuted}%
   \def\HubCodeNameColor{HubStandfirst}%
   \def\HubCodeMintColor{HubMint}%
@@ -342,7 +396,7 @@
   }%
   \def\HubCodeLineNumColor{HubCodeLineNumberDark}%
   \def\HubCodeKeywordColor{HubAccent}%
-  \def\HubCodeStringColor{HubTableRule}%
+  \def\HubCodeStringColor{HubStringColor}%
   \def\HubCodeCommentColor{HubMuted}%
   \def\HubCodeNameColor{HubSurfaceSoft}%
   \def\HubCodeMintColor{HubMint}%
@@ -433,7 +487,7 @@
     },
     every axis plot/.append style={very thick},
     cycle list={
-      {HubAccent, solid},
+      {HubGraphPrimaryColor, solid},
       {HubStandfirst, dashed},
       {HubLabelBrown, dotted}
     }
@@ -444,7 +498,7 @@
   \par\medskip\noindent
   \begingroup
     \def\HubTempArg{#1}%
-    \ifx\HubTempArg\empty\else{\raggedright\textbf{#1}\par}\vspace{1em}\fi
+    \ifx\HubTempArg\empty\else{\raggedright\textcolor{HubCardTitleColor}{\textbf{#1}}\par}\vspace{1em}\fi
     \centering
 }{%
   \par

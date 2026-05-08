@@ -18,6 +18,7 @@ The shared authoring surface starts with standard Org metadata and class selecti
 | Semantic role | Preferred Org form | Notes |
 | --- | --- | --- |
 | export class selection | `#+LATEX_CLASS:` | Class-owned behavior starts here. |
+| variant selection | `#+LATEX_VARIANT:` | Variant selection within a class family (e.g. `veriff`). |
 | locale selection | `#+LANGUAGE:` | Locale remains orthogonal to class. |
 | title | `#+TITLE:` | Native Org. |
 | subtitle or hero dek | `#+SUBTITLE:` | Native Org, reused by classes that surface a dek. |
@@ -57,7 +58,7 @@ These custom constructs are allowed because they carry meaning that the native s
 Some visible structures are compositions of multiple semantic inputs rather than their own authoring primitives.
 
 - A hero section is class-owned composition, not a custom block in the shared layer.
-- `pro-refresh-overdrive` builds its hero from title, subtitle, author, date, optional eyebrow, locale-aware chrome, and class-owned visual treatment.
+- `veriff` builds its hero from title, subtitle, author, date, optional eyebrow, locale-aware chrome, and class-owned visual treatment.
 - A calmer class may reuse the same inputs without reusing the same hero composition.
 
 ## Unsupported or Deferred Shared Semantics
@@ -74,7 +75,7 @@ Every semantic role listed above must later be exercised by at least one tracked
 
 - Class inventory: [`class-family-matrix.md`](class-family-matrix.md)
 - Locale separation: [`locale-layer.md`](locale-layer.md)
-- First real class mapping: [`classes/pro-refresh-overdrive.md`](classes/pro-refresh-overdrive.md)
+- First real class mapping: [`classes/veriff.md`](classes/veriff.md)
 - Personal article relationship: [`classes/article.md`](classes/article.md)
 - Coverage corpus: [`validation/specimens.md`](validation/specimens.md)
 - Rollout plan: [`plans/iterative-test-plan.md`](plans/iterative-test-plan.md)

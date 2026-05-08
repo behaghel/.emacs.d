@@ -1,7 +1,8 @@
 #+title: Adaptive Cards Demo
 #+author: Hubert Behaghel
 #+date: 2026-05-04
-#+latex_class: pro-refresh-overdrive
+#+LATEX_CLASS: veriff
+#+LATEX_VARIANT: refresh-overdrive
 
 * 2 Metrics
 #+begin_metrics

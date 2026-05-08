@@ -12,23 +12,31 @@ Generated `.tex`, `.pdf`, extracted text, snapshots, and visual diff results bel
 
 ### Tier 1: Narrow Slice Specimen
 
-- `slice-en-pro-refresh-overdrive.org`
-  - purpose: first end-to-end English flagship slice
-  - minimum content: class selection, language selection, title, author, date, one heading, one paragraph
+- `slice-en-veriff-refresh-overdrive.org`
+  - purpose: first end-to-end English flagship slice using `veriff` class and explicit `refresh-overdrive` variant
+  - minimum content: `#+LATEX_CLASS: veriff`, `#+LATEX_VARIANT: refresh-overdrive`, title, author, date, one heading, one paragraph
+
+- `slice-en-veriff-default-variant.org`
+  - purpose: verify that omitted variant defaults to `refresh-overdrive`
+  - minimum content: `#+LATEX_CLASS: veriff`, title, author, date, one heading, one paragraph
+
+- `slice-en-veriff-dark-campaign.org`
+  - purpose: verify `dark-campaign` variant selection and visual surface
+  - minimum content: `#+LATEX_CLASS: veriff`, `#+LATEX_VARIANT: dark-campaign`, title, author, date, one heading, one paragraph
 
 ### Tier 2: Full Semantic Coverage Specimens
 
 - `semantic-full-en.org`
-  - purpose: full semantic coverage for the first flagship class in English
+  - purpose: full semantic coverage for the `veriff` class in English
 - `semantic-full-fr.org`
   - purpose: full semantic coverage for the shared semantic and locale layers in French once the rollout reaches that stage
 
 ### Tier 3: Optional Approval Specimens
 
 - `approval-refresh-overdrive-page1.org`
-  - purpose: short approval-focused page-one review specimen for visual sign-off
-- `approval-refresh-overdrive-content-page.org`
-  - purpose: short approval-focused specimen for an interior content page
+  - purpose: short approval-focused page-one review specimen for visual sign-off using the `veriff` class and `refresh-overdrive` variant
+
+Future dark-campaign approval specimens may be added later under a separate tracked filename, but they are not part of the current inventory.
 
 ## Coverage Matrix
 
@@ -62,6 +70,8 @@ Generated artifacts should be written under a stable subtree in `var/`, for exam
 
 The exact filenames may evolve, but the class of artifact and its placement in `var/` are part of the contract.
 
+Approval roots should be class+variant aware, for example `var/org-latex-pdf/veriff-refresh-overdrive-page1/` for the page-one approval slice.
+
 ## Manual Review Expectations
 
 - Approval specimens exist to accelerate design review without requiring the full semantic corpus every time.
@@ -72,7 +82,7 @@ The exact filenames may evolve, but the class of artifact and its placement in `
 
 - Shared semantics: [`../semantic-layer.md`](../semantic-layer.md)
 - Locale separation: [`../locale-layer.md`](../locale-layer.md)
-- First real class: [`../classes/pro-refresh-overdrive.md`](../classes/pro-refresh-overdrive.md)
+- First real class: [`../classes/veriff.md`](../classes/veriff.md)
 - Personal article relationship: [`../classes/article.md`](../classes/article.md)
 - Fidelity ladder: [`pdf-fidelity.md`](pdf-fidelity.md)
 - Rollout plan: [`../plans/iterative-test-plan.md`](../plans/iterative-test-plan.md)

@@ -12,10 +12,10 @@ It should feel related to the professional article shape, not like an unrelated 
 
 ## Relationship to the Professional Direction
 
-- It shares the semantic layer with `pro-refresh-overdrive`.
-- It shares the locale layer with `pro-refresh-overdrive`.
+- It shares the semantic layer with `veriff`.
+- It shares the locale layer with `veriff`.
 - It should preserve article-like information flow: title, optional dek, lead paragraph, quotations, evidence blocks, tables, and code samples where needed.
-- It should reduce brand intensity, page chrome, and visual aggression relative to `pro-refresh-overdrive`.
+- It should reduce brand intensity, page chrome, and visual aggression relative to `veriff`.
 - It should not require a separate `article-pro` class contract in this v1 spec tree.
 
 ## Shared Semantic Expectations
@@ -31,7 +31,7 @@ At minimum, `article` is expected to consume:
 
 The exact visual treatment is intentionally deferred until after the first flagship class reaches full semantic coverage.
 
-## Deliberate Divergences from `pro-refresh-overdrive`
+## Deliberate Divergences from `veriff`
 
 - calmer accent and chrome treatment
 - less dependence on page-one branded theatre
@@ -49,7 +49,7 @@ This is a constrained deferred spec, not a full implementation-ready class contr
 
 That means:
 
-- it is intentionally less detailed than `pro-refresh-overdrive`
+- it is intentionally less detailed than `veriff`
 - it should not block the first flagship slice
 - it already defines enough boundary conditions to prevent a later rewrite from drifting away from the approved family relationship
 
@@ -58,7 +58,7 @@ That means:
 - Family inventory: [`../class-family-matrix.md`](../class-family-matrix.md)
 - Shared semantics: [`../semantic-layer.md`](../semantic-layer.md)
 - Shared locale behavior: [`../locale-layer.md`](../locale-layer.md)
-- First flagship class: [`pro-refresh-overdrive.md`](pro-refresh-overdrive.md)
+- First flagship class: [`veriff.md`](veriff.md)
 - Coverage and rollout: [`../validation/specimens.md`](../validation/specimens.md), [`../plans/iterative-test-plan.md`](../plans/iterative-test-plan.md)
 
 ## Non-Goals

@@ -10,7 +10,7 @@ The export system is organized around class families, not ad hoc templates. This
 
 | Class | Intent | v1 Status | Dedicated Spec |
 | --- | --- | --- | --- |
-| `pro-refresh-overdrive` | Chosen flagship branded article/report direction for the first real implementation | active first target | [`classes/pro-refresh-overdrive.md`](classes/pro-refresh-overdrive.md) |
+| `veriff` | Flagship professional class family with `refresh-overdrive` and `dark-campaign` variants | active first target | [`classes/veriff.md`](classes/veriff.md) |
 | `pro-whitepaper` | Later calmer professional variant for white-paper and scientific-document territory | deferred | none yet |
 | `pro-announcement` | Later punchier campaign or official-announcement variant | deferred | none yet |
 
@@ -41,9 +41,9 @@ No additional locales are in scope for v1.
 
 ## Rollout Order
 
-1. Narrow vertical slice for `pro-refresh-overdrive` in English.
-2. Full semantic coverage for `pro-refresh-overdrive`.
-3. Additional variants within the same professional class family direction.
+1. Narrow vertical slice for `veriff` (default variant) in English.
+2. Full semantic coverage for `veriff`.
+3. Additional variants (`dark-campaign`) within the same professional class family direction.
 4. Remaining classes and French coverage.
 
 This order is normative. Later files in this tree should not contradict it.
@@ -52,7 +52,7 @@ This order is normative. Later files in this tree should not contradict it.
 
 - Shared authoring contract: [`semantic-layer.md`](semantic-layer.md)
 - Locale separation: [`locale-layer.md`](locale-layer.md)
-- First real class: [`classes/pro-refresh-overdrive.md`](classes/pro-refresh-overdrive.md)
+- First real class: [`classes/veriff.md`](classes/veriff.md)
 - Personal article constraint: [`classes/article.md`](classes/article.md)
 - Execution order: [`plans/iterative-test-plan.md`](plans/iterative-test-plan.md)
 
@@ -66,5 +66,5 @@ This order is normative. Later files in this tree should not contradict it.
 
 - All six approved class names appear exactly once in the inventory.
 - English and French are the only v1 locales listed.
-- `pro-refresh-overdrive` is clearly marked as the first real implementation target.
+- `veriff` is clearly marked as the first real implementation target.
 - Deferred classes are labeled as deferred instead of receiving speculative invented feature lists.

@@ -1,0 +1,11 @@
+#+TITLE: Refresh overdrive slice
+#+AUTHOR: Hubert Behaghel
+#+DATE: 2026-04-27
+#+LANGUAGE: en
+#+LATEX_CLASS: veriff
+#+LATEX_VARIANT: refresh-overdrive
+#+LATEX_VARIANT: dark-campaign
+
+* Minimal heading
+
+Minimal slice paragraph that should fail on duplicate variant keywords.

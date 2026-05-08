@@ -3,7 +3,8 @@
 #+AUTHOR: Hubert Behaghel
 #+DATE: 2026-04-28
 #+LANGUAGE: en
-#+LATEX_CLASS: pro-refresh-overdrive
+#+LATEX_CLASS: veriff
+#+LATEX_VARIANT: refresh-overdrive
 #+EXPORT_EYEBROW: Refresh mode · louder on purpose
 #+EXPORT_FOOTER_NOTE: The overdrive question is simple: can the refresh be pushed this hard without undermining the sense of trust?
 
@@ -108,6 +109,17 @@ Even automation-heavy experiences still need to feel respectful at the point whe
 * Implementation note
 
 #+begin_src emacs-lisp
-(defun hub/demo-route ()
-  (message "approve"))
+(defun hub/demo-route (session-id)
+  "Approve the session if the risk score is acceptable."
+  (let ((score (hub/risk-score session-id))
+        (threshold 85))
+    (if (>= score threshold)
+        (message "Session %s approved with score %d" session-id score)
+      (message "Session %s requires manual review" session-id))))
 #+end_src
+
+* Core concepts
+
+- Risk engine :: The central system that evaluates signals and assigns a confidence score.
+- Signal density :: The volume and quality of data points collected during a session.
+- Policy control :: The ruleset that determines the threshold for automatic approval or manual review.

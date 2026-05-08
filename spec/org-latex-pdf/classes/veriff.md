@@ -1,37 +1,65 @@
-# Pro Refresh Overdrive
+# Veriff
 
 ## Context
 
-`pro-refresh-overdrive` is the first real implementation target. It is the flagship professional article direction chosen after the prototype review.
+`veriff` is the flagship professional class family. It replaces the legacy `pro-refresh-overdrive` class with a variant-based system.
 
-This file is the authoritative contract for the first shipped class. If another file disagrees with it on first-class scope, this file wins.
+This file is the authoritative contract for the `veriff` class and its variants. If another file disagrees with it on flagship scope, this file wins.
+
+## Class and Variant Identity
+
+The `veriff` class supports multiple visual directions through the `#+LATEX_VARIANT:` keyword.
+
+| Variant | Intent | Status |
+| --- | --- | --- |
+| `refresh-overdrive` | Flagship branded article direction; warm paper, orange accents. | active (default) |
+| `dark-campaign` | Derived dark variant; shared typography and semantics; high-contrast dark surface. | active |
+
+### Variant Selection Rules
+
+- Selected via `#+LATEX_VARIANT:`.
+- Values are exact lowercase (e.g., `refresh-overdrive`, `dark-campaign`).
+- Surrounding whitespace is trimmed.
+- Mixed-case values (e.g., `Refresh-Overdrive`) must cause an export error.
+- If `#+LATEX_VARIANT:` is omitted, it defaults to `refresh-overdrive`.
+- Duplicate `#+LATEX_VARIANT:` keywords must cause an export error.
+- Unknown variant values must cause an export error.
+- The error message for an unknown variant must explicitly list the valid variants: `refresh-overdrive`, `dark-campaign`.
+- Usage of `#+LATEX_VARIANT:` with a non-`veriff` class must cause an export error.
+
+### Legacy Migration
+
+- `#+LATEX_CLASS: pro-refresh-overdrive` is no longer a valid class.
+- It is NOT a successful alias for `veriff`.
+- It must fail deterministically during export with migration guidance.
+- The guidance must explicitly instruct the author to use `#+LATEX_CLASS: veriff` and, if they want the original look, `#+LATEX_VARIANT: refresh-overdrive`.
 
 ## Visual Authority
 
-The approved visual references currently live outside the repo in the prototype workspace at:
-
+### refresh-overdrive
+The approved visual references live at:
 - `/Users/hubertbehaghel/tmp/veriff-article-prototypes/04-refresh-overdrive.html`
 - `/Users/hubertbehaghel/tmp/veriff-article-prototypes/prototypes.css`
 - `/Users/hubertbehaghel/tmp/veriff-article-prototypes/render-pdfs.js`
 
-The implementation should treat these as design oracles, not as source templates to be copied.
-
-From those references, the non-negotiable signals for this class are:
-
+Non-negotiable signals:
 - warm paper tone rather than stark white or black
 - strong orange-led accent system with grounded brown support
 - visible but restrained pattern use
 - clear title hierarchy
 - a single shared hero-copy column for eyebrow, title, and dek content, with the dek sitting directly beneath the title rather than drifting beside it
 - materially heavier display treatment for the title than for the dek during the current page-one fidelity phase
-- branded but still readable PDF page chrome when that chrome is present; the current font-fidelity phase may temporarily suppress running header/footer furniture across `pro-refresh-overdrive` exports while typography catches up
+- branded but still readable PDF page chrome when that chrome is present; the current font-fidelity phase may temporarily suppress running header/footer furniture across `veriff` exports while typography catches up
 - evidence-friendly content structures rather than a decorative marketing shell
 
-## Class Intent
+### dark-campaign
+The approved visual reference lives at:
+- `/Users/hubertbehaghel/tmp/veriff-article-prototypes/out/01-dark-campaign.pdf`
 
-This class is for branded professional article and report output that should feel clearly refreshed, visibly Veriff-aligned, and still trustworthy over multiple pages.
-
-It is not a general campaign poster class and it is not the calmer white-paper direction.
+Non-negotiable signals:
+- Derived from `refresh-overdrive`; shares typography and semantic layout.
+- Visual differences are limited to palette, chrome, surface, and contrast.
+- **CRITICAL:** The white-background webpage-print artefact/region sometimes found in prototypes is non-representative and must be ignored; the dark surface is the goal.
 
 ## Required Semantic Affordances
 
@@ -58,13 +86,14 @@ For the current page-one approval slice, the class-owned hero composition must k
 
 ## Phase Expectations
 
-### Slice 1: Narrow English Flagship Slice
+### Slice 1: Veriff Class and Variant Foundation
 
 Slice 1 is intentionally small.
 
 Required in slice 1:
-
-- class selection via `#+LATEX_CLASS: pro-refresh-overdrive`
+- class selection via `#+LATEX_CLASS: veriff`
+- variant selection via `#+LATEX_VARIANT:` with default behavior (omitted variant defaults to `refresh-overdrive`)
+- migration failure for `pro-refresh-overdrive` with guidance
 - English locale selection path
 - title, author, date
 - one heading and one paragraph
@@ -74,7 +103,6 @@ Required in slice 1:
 - running header/footer chrome may be temporarily suppressed during the current fidelity phase if that yields a closer match to the approved reference
 
 Not required yet in slice 1:
-
 - metrics cluster
 - pillars cluster
 - callout panels
@@ -84,7 +112,6 @@ Not required yet in slice 1:
 ### Full Semantic Coverage for This Class
 
 Before moving to other classes, this class must cover:
-
 - eyebrow
 - dek
 - standfirst
@@ -101,10 +128,10 @@ Before moving to other classes, this class must cover:
 
 - The default implementation path should use Org LaTeX class machinery, preamble hooks, and locale-layer configuration.
 - The class should be expressible through `org-latex-classes`, LaTeX preamble configuration, and related exporter hooks before any derived-backend escalation is considered.
-- `pro-refresh-overdrive` now assumes the high-fidelity XeLaTeX path as its only supported compiler path. If XeLaTeX or the required class assets are unavailable, export should fail loudly instead of degrading to a lower-fidelity fallback.
-- The `.cls` file should own as much stable visual rendering as possible, including the page-level font setup and hero/title formatting primitives. Export-time Elisp should stay focused on metadata wiring, asset staging, and compile orchestration.
+- `veriff` now assumes the high-fidelity XeLaTeX path as its only supported compiler path. If XeLaTeX or the required class assets are unavailable, export should fail loudly instead of degrading to a lower-fidelity fallback.
+- The `.cls` file should own as much stable visual rendering as possible, including the page-level font setup and hero/title formatting primitives. Export-time Elisp should stay focused on metadata wiring, asset staging, and variant orchestration.
 - Page header and footer behavior should remain consistent with the approved prototype cues once that running chrome is reintroduced.
-- During the current font-fidelity phase, the implementation may temporarily suppress running header/footer furniture across `pro-refresh-overdrive` outputs to keep comparisons focused on typography, hierarchy, and hero composition.
+- During the current font-fidelity phase, the implementation may temporarily suppress running header/footer furniture across `veriff` outputs to keep comparisons focused on typography, hierarchy, and hero composition.
 
 ## Locale Interaction
 
@@ -115,7 +142,6 @@ Before moving to other classes, this class must cover:
 ## Validation Hooks
 
 This class is the first target for:
-
 - slice specimen validation in [`../validation/specimens.md`](../validation/specimens.md)
 - PDF fidelity review in [`../validation/pdf-fidelity.md`](../validation/pdf-fidelity.md)
 - iterative delivery in [`../plans/iterative-test-plan.md`](../plans/iterative-test-plan.md)
@@ -128,6 +154,9 @@ This class is the first target for:
 
 ## Acceptance Signals
 
+- `veriff` class and its variants are clearly defined.
+- Variant selection rules and default behavior are unambiguous.
+- Legacy migration path is explicit and provides actionable guidance.
 - A future implementer can tell exactly what belongs in slice 1 and what belongs in later semantic expansion.
 - Every required visible structure has an identified authoring source or explicit phase deferral.
 - The class reads as the chosen flagship direction, not as a generic academic or marketing template.

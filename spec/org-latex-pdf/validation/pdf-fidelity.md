@@ -4,13 +4,14 @@
 
 PDF fidelity is a ladder, not a single check. The goal is to catch different kinds of regressions at the cheapest stage that can detect them.
 
-The first fidelity target is English `pro-refresh-overdrive`.
+The first fidelity target is English `veriff` (both variants), with approval artifacts rooted at class+variant paths like `var/org-latex-pdf/veriff-refresh-overdrive-page1/`.
 
 ## Authoritative References
 
-- class contract: [`../classes/pro-refresh-overdrive.md`](../classes/pro-refresh-overdrive.md)
+- class contract: [`../classes/veriff.md`](../classes/veriff.md)
 - specimen corpus: [`specimens.md`](specimens.md)
-- external visual oracle: `/Users/hubertbehaghel/tmp/veriff-article-prototypes/04-refresh-overdrive.html`, `prototypes.css`, and `render-pdfs.js`
+- external visual oracle (refresh-overdrive): `/Users/hubertbehaghel/tmp/veriff-article-prototypes/04-refresh-overdrive.html`, `prototypes.css`, and `render-pdfs.js`
+- external visual oracle (dark-campaign): `/Users/hubertbehaghel/tmp/veriff-article-prototypes/out/01-dark-campaign.pdf`. **Note:** The white-background webpage-print artefact/region sometimes found in prototypes is non-representative and must be ignored; the dark surface is the goal.
 
 ## Fidelity Ladder
 
@@ -35,7 +36,7 @@ For that temporary slice:
 
 - generated `.tex` should prove the XeLaTeX path is active and that page-one hero metadata is handed off to class-owned rendering primitives instead of duplicated inline LaTeX branches
 - generated `.tex` should prove the page-one hero uses one shared title/dek copy wrapper rather than separate sibling title and dek boxes
-- running header/footer chrome may be absent on purpose across temporary `pro-refresh-overdrive` outputs in this phase
+- running header/footer chrome may be absent on purpose across temporary `veriff` outputs in this phase
 - manual comparison should confirm the dek sits directly beneath the title in the shared hero-copy column
 - manual comparison should confirm the metadata divider belongs to the hero-copy column instead of spanning the full text measure above and below the entire hero
 - manual comparison should confirm the presence of the branded hero container background, left-side pattern, and top-right logo
@@ -72,12 +73,10 @@ Pass condition: meaningful content and generated locale surfaces survive extract
 
 Purpose: capture page-level render output for quick review.
 
-Required pages for `pro-refresh-overdrive`:
+Required pages for `veriff`:
 
-- first page or hero page
+- first page or hero page (both variants)
 - one interior content page once semantic coverage expands
-
-Pass condition: snapshots are produced into `var/` and are stable enough for review.
 
 ### 5. Visual Diffs on Canonical Pages
 
@@ -89,6 +88,7 @@ Required focus areas:
 - title hierarchy
 - callout and quote treatment
 - brown/orange dominant source-code token colors with a restrained touch of mint
+- dark surface and high-contrast text for `dark-campaign`
 - metrics or pillars once those semantics are in scope
 
 Pass condition: differences outside approved tolerance are visible and attributable, not silent.
@@ -102,6 +102,7 @@ All fidelity artifacts belong under `var/`, for example:
 - `var/org-latex-pdf/<specimen>/text.txt`
 - `var/org-latex-pdf/<specimen>/snapshots/page-1.png`
 - `var/org-latex-pdf/<specimen>/diffs/page-1.png`
+- approval example: `var/org-latex-pdf/veriff-refresh-overdrive-page1/output.pdf`
 
 ## Escalation Rule
 
@@ -117,7 +118,7 @@ The default implementation path is still class wiring plus preamble control. A d
 ## Cross-Links
 
 - Specimen corpus: [`specimens.md`](specimens.md)
-- First real class: [`../classes/pro-refresh-overdrive.md`](../classes/pro-refresh-overdrive.md)
+- First real class: [`../classes/veriff.md`](../classes/veriff.md)
 - Rollout plan: [`../plans/iterative-test-plan.md`](../plans/iterative-test-plan.md)
 
 ## Non-Goals
