@@ -201,6 +201,14 @@ buffer metadata.  Missing variants default to
 		  ("autogobble" "true")
 		  ("xleftmargin" "14pt")
 		  ("numbersep" "8pt")))
+    (setq-local org-latex-text-markup-alist
+		'((bold . "\\HubInlineBold{%s}")
+		  (italic . "\\HubInlineItalic{%s}")
+		  (underline . "\\HubInlineUnderline{%s}")
+		  (strike-through . "\\HubInlineStrike{%s}")
+		  (code . hub-protected-code)
+		  (verbatim . hub-protected-code)))
+    (setq-local org-latex-default-footnote-command "\\footnote{\\HubFootnoteText{%s}%s}")
     (when hub/org-export--active-output-dir
       (let ((logo-asset (if (equal variant "dark-campaign") "hero-logo-dark.pdf" "hero-logo.pdf")))
 	(hub/org-export--insert-header-extra
@@ -377,6 +385,56 @@ This is narrowly scoped to `metric' blocks in the `veriff' class."
 	(org-element-put-property special-block :attr_latex new-attr))))
   (funcall orig special-block contents info))
 
+(defun hub/org-export--advice-org-latex--text-markup (orig text markup info)
+  "Render `hub-protected-code' using `\\HubInlineCode' while escaping special characters."
+  (let ((fmt (cdr (assq markup (plist-get info :latex-text-markup-alist)))))
+    (if (eq fmt 'hub-protected-code)
+	(format "\\HubInlineCode{%s}"
+		(replace-regexp-in-string
+		 "--\\|<<\\|>>\\|[\\{}$%&_#~^]"
+		 (lambda (m)
+		   (cond ((equal m "--") "-{}-{}")
+			 ((equal m "<<") "<{}<{}")
+			 ((equal m ">>") ">{}>{}")
+			 ((equal m "\\") "\\textbackslash{}")
+			 ((equal m "~") "\\textasciitilde{}")
+			 ((equal m "^") "\\textasciicircum{}")
+			 (t (org-latex--protect-text m))))
+		 text nil t))
+      (funcall orig text markup info))))
+
+(defun hub/org-export--advice-org-latex--inline-image (orig link info)
+  "Render Org image LINK through a Veriff-owned figure image wrapper using INFO."
+  (let ((image-latex (funcall orig link info)))
+    (if (and (hub/org-export--info-veriff-p info)
+	     (string-match "\\\\includegraphics\\(\\[[^]]*\\]\\)?{\\([^}]+\\)}" image-latex))
+	(let* ((includegraphics (match-string 0 image-latex))
+	       (path (match-string 2 image-latex))
+	       (staged-path (and hub/org-export--active-output-dir
+				 (expand-file-name path hub/org-export--active-output-dir))))
+	  (when (and staged-path
+		     (not (file-name-absolute-p path))
+		     (file-exists-p staged-path))
+	    (setq includegraphics
+		  (replace-regexp-in-string
+		   (format "{%s}\\'" (regexp-quote path))
+		   (format "{%s}" (hub/org-export--latex-escape staged-path))
+		   includegraphics t t)))
+	  (replace-match (format "\\HubFigureImage{%s}" includegraphics) t t image-latex))
+      image-latex)))
+
+(defun hub/org-export--advice-org-latex-item (orig item contents info)
+  "Render Org checkbox ITEM markers through Veriff-owned macros using CONTENTS and INFO."
+  (let ((item-latex (funcall orig item contents info)))
+    (if (hub/org-export--info-veriff-p info)
+	(let ((result item-latex))
+	  (dolist (pair '(("$\\boxtimes$" . "\\HubCheckboxChecked{}")
+			  ("$\\square$" . "\\HubCheckboxUnchecked{}")
+			  ("$\\boxminus$" . "\\HubCheckboxPartial{}")))
+	    (setq result (string-replace (car pair) (cdr pair) result)))
+	  result)
+      item-latex)))
+
 (defun hub/org-export--register-latex-class (name header)
   "Register LaTeX class NAME with HEADER and standard sectioning mappings."
   (setq org-latex-classes
@@ -465,6 +523,9 @@ Return the generated `.pdf' path."
 (hub/org-export--ensure-babel-package)
 (advice-add 'org-latex--org-table :around #'hub/org-export--advice-org-latex-org-table)
 (advice-add 'org-latex-special-block :around #'hub/org-export--advice-org-latex-special-block)
+(advice-add 'org-latex--text-markup :around #'hub/org-export--advice-org-latex--text-markup)
+(advice-add 'org-latex--inline-image :around #'hub/org-export--advice-org-latex--inline-image)
+(advice-add 'org-latex-item :around #'hub/org-export--advice-org-latex-item)
 (add-hook 'org-export-before-processing-functions #'hub/org-export--validate-locale)
 (add-hook 'org-export-before-processing-functions #'hub/org-export--validate-veriff-metadata)
 (add-hook 'org-export-before-processing-functions #'hub/org-export--configure-class-buffer)

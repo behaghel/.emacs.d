@@ -14,7 +14,7 @@ Trust is no longer a static promise. It is a system: observable, explainable, fa
 
 * Trust without compromise
 
-The strongest identity products no longer sell a check. They sell a posture.
+The strongest identity products no longer sell a check. They sell a posture. This means *bold* decisions, /italic/ emphasis, _underline_ for focus, and +strike-through+ for deprecated ideas. We evaluate the ~risk_score~ and set the =verbatim_flag= accordingly.
 
 ** Operating principle
 
@@ -33,10 +33,31 @@ What mattered was not only the fraud reduction. It was the sense that the platfo
 
 Under the surface, a trustworthy platform blends signal density, model intelligence, policy control, and operational feedback.
 
+For external proof, teams can review the [[https://www.veriff.com/][Veriff trust platform]] and compare operational notes.[fn:trust-note]
+
+- Confirm the user, document, and device story in one pass.
+- Resolve the session using transparent policy guardrails.
+
+The operating sequence stays simple:
+
+1. Collect identity evidence.
+2. Score signals against policy.
+3. Explain the decision to operators.
+
+The review checklist stays visible:
+
+- [X] Link evidence to the decision record.
+- [ ] Escalate ambiguous sessions for review.
+
 #+ATTR_LATEX: :options [Design signal]
 #+begin_callout
 In the overdrive mode, the article becomes a deliberate piece of comms theatre. It still needs discipline, but it is allowed to be more obviously branded than the calmer variants.
 #+end_callout
+
+#+NAME: fig:brand-marker
+#+CAPTION: A compact brand marker used as a native Org figure.
+#+ATTR_LATEX: :width 0.38\linewidth
+[[file:hero-logo.pdf]]
 
 * Performance at scale
 
@@ -117,6 +138,8 @@ Even automation-heavy experiences still need to feel respectful at the point whe
         (message "Session %s approved with score %d" session-id score)
       (message "Session %s requires manual review" session-id))))
 #+end_src
+
+[fn:trust-note] Native Org footnotes should read as supporting notes, not as page chrome.
 
 * Core concepts
 

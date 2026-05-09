@@ -23,9 +23,11 @@
 \RequirePackage{pgfplots}
 \pgfplotsset{compat=1.18}
 \RequirePackage{graphicx}
+\RequirePackage{caption}
 \RequirePackage{fancyvrb}
 \RequirePackage{tcolorbox}
 \tcbuselibrary{raster,minted}
+\RequirePackage[normalem]{ulem}
 
 \tcbset{
   hubcard/.style={
@@ -41,6 +43,21 @@
   }
 }
 
+\tcbset{
+  hubfigureimage/.style={
+    colback=HubSurfaceSoft,
+    colframe=HubLine,
+    boxrule=0.8pt,
+    arc=3pt,
+    boxsep=0pt,
+    left=6pt,
+    right=6pt,
+    top=6pt,
+    bottom=6pt,
+    center upper
+  }
+}
+
 \definecolor{HubPaper}{HTML}{FCF5EE}
 \definecolor{HubInk}{HTML}{0C3035}
 \definecolor{HubAccent}{HTML}{FF550F}
@@ -53,7 +70,11 @@
 \definecolor{HubSurfaceSoft}{HTML}{FFFBF7}
 \definecolor{HubMetricSurface}{HTML}{F3FBF7}
 \definecolor{HubMint}{HTML}{20C997}
+\definecolor{HubPatternMintVivid}{HTML}{95FAEE}
 \definecolor{HubMintSoft}{HTML}{E6FAF4}
+\definecolor{HubTeal}{HTML}{14E5C5}
+\definecolor{HubLightTeal}{HTML}{A0FFF0}
+\definecolor{HubDekWarm}{HTML}{7D1F1F}
 
 \colorlet{HubEyebrowColor}{HubAccent}
 \colorlet{HubSectionNumColor}{HubAccent}
@@ -63,13 +84,45 @@
 \colorlet{HubTermColor}{HubLabelBrown}
 \colorlet{HubMetricValueColor}{HubAccent}
 \colorlet{HubCardTitleColor}{HubInk}
-\colorlet{HubCalloutTitleColor}{HubCardTitleColor}
 \colorlet{HubStringColor}{HubTableRule}
 \colorlet{HubSubsectionColor}{HubMuted}
 \colorlet{HubTitleColor}{HubInk}
 \colorlet{HubSectionTitleColor}{HubInk}
 \colorlet{HubQuoteTextColor}{HubInk}
 \colorlet{HubCalloutTextColor}{HubInk}
+\colorlet{HubFigureCaptionTextColor}{HubStandfirst}
+\colorlet{HubEmphasisColor}{HubDekWarm}
+\colorlet{HubCalloutEdgeColor}{HubDekWarm}
+\colorlet{HubCalloutTitleColor}{HubCalloutEdgeColor}
+\colorlet{HubLinkColor}{HubEmphasisColor}
+\colorlet{HubUrlColor}{HubEmphasisColor}
+\colorlet{HubListMarkerColor}{HubAccent}
+\colorlet{HubFootnoteTextColor}{HubMuted}
+\colorlet{HubFootnoteMarkerColor}{HubAccent}
+
+\definecolor{HubInlineCodeBrown}{HTML}{543F21}
+\definecolor{HubInlineCodeBrownLifted}{HTML}{76512B}
+\definecolor{HubInlineCodeOrange}{HTML}{FF9A52}
+\definecolor{HubInlineCodeOrangeSoft}{HTML}{FFE0CC}
+\colorlet{HubInlineCodeBg}{HubInlineCodeOrangeSoft}
+\colorlet{HubInlineCodeText}{HubInlineCodeBrownLifted}
+\colorlet{HubInlineCodeFrame}{HubAccent}
+
+\newcommand{\HubInlineBold}[1]{{\color{HubEmphasisColor}\textbf{#1}}}
+\newcommand{\HubInlineItalic}[1]{\textit{#1}}
+\newcommand{\HubInlineUnderline}[1]{\uline{#1}}
+\newcommand{\HubInlineStrike}[1]{\sout{#1}}
+
+\newtcbox{\HubInlineCode}{on line,
+  colback=HubInlineCodeBg,
+  colframe=HubInlineCodeFrame,
+  coltext=HubInlineCodeText,
+  boxrule=0.5pt,
+  arc=2pt,
+  boxsep=0pt,
+  left=2pt, right=2pt, top=1pt, bottom=1pt,
+  fontupper=\ttfamily\bfseries\fontsize{7.5pt}{9pt}\selectfont
+}
 
 \newcommand{\HubVeriffVariant}[1]{%
   \def\hub@variant{#1}%
@@ -81,15 +134,13 @@
     \definecolor{HubMuted}{HTML}{8CA3A3}%
     \colorlet{HubStandfirst}{HubPaleBlue}%
     \definecolor{HubLabelBrown}{HTML}{FF9A52}%
-    \definecolor{HubLine}{HTML}{244344}%
-    \definecolor{HubTableRule}{HTML}{244344}%
+    \definecolor{HubLine}{HTML}{2F5556}%
+    \definecolor{HubTableRule}{HTML}{2F5556}%
     \definecolor{HubSurface}{HTML}{163637}%
     \definecolor{HubSurfaceSoft}{HTML}{122D2E}%
     \definecolor{HubMetricSurface}{HTML}{1E4A4B}%
     \definecolor{HubMint}{HTML}{20C997}%
     \definecolor{HubMintSoft}{HTML}{163637}%
-    \definecolor{HubTeal}{HTML}{14E5C5}%
-    \definecolor{HubLightTeal}{HTML}{A0FFF0}%
     \colorlet{HubEyebrowColor}{HubTeal}%
     \colorlet{HubSectionNumColor}{HubTeal}%
     \colorlet{HubGraphPrimaryColor}{HubTeal}%
@@ -98,7 +149,6 @@
     \colorlet{HubTermColor}{HubLightTeal}%
     \definecolor{HubMetricValueColor}{HTML}{FFFFFF}%
     \definecolor{HubCardTitleColor}{HTML}{FFFFFF}%
-    \colorlet{HubCalloutTitleColor}{HubTeal}%
     \colorlet{HubStringColor}{HubLightTeal}%
     \definecolor{HubSubsectionColor}{HTML}{FFFFFF}%
     \definecolor{HubWhite}{HTML}{FFFFFF}%
@@ -106,12 +156,24 @@
     \colorlet{HubSectionTitleColor}{HubWhite}%
     \colorlet{HubQuoteTextColor}{HubWhite}%
     \colorlet{HubCalloutTextColor}{HubWhite}%
+    \colorlet{HubFigureCaptionTextColor}{HubMuted}%
+    \colorlet{HubEmphasisColor}{HubTeal}%
+    \colorlet{HubCalloutEdgeColor}{HubPatternMintVivid}%
+    \colorlet{HubCalloutTitleColor}{HubCalloutEdgeColor}%
+    \colorlet{HubLinkColor}{HubTeal}%
+    \colorlet{HubUrlColor}{HubTeal}%
+    \colorlet{HubListMarkerColor}{HubTeal}%
+    \colorlet{HubFootnoteTextColor}{HubMuted}%
+    \colorlet{HubFootnoteMarkerColor}{HubAccent}%
+    \colorlet{HubInlineCodeBg}{HubInlineCodeBrown}%
+    \colorlet{HubInlineCodeText}{HubInlineCodeOrange}%
+    \colorlet{HubInlineCodeFrame}{HubAccent}%
   }{}%
 }
 
 \AtBeginDocument{\color{HubInk}}
 \AtBeginDocument{\pagecolor{HubPaper}}
-\AtBeginDocument{\hypersetup{colorlinks=true,linkcolor=HubAccent,urlcolor=HubAccent}}
+\AtBeginDocument{\hypersetup{colorlinks=true,linkcolor=HubLinkColor,urlcolor=HubUrlColor,citecolor=HubLinkColor}}
 \defaultfontfeatures{Ligatures=TeX}
 \setmainfont{Inter}
 \setsansfont{Inter}
@@ -124,6 +186,30 @@
 \newcommand{\HubTableBodyCell}[1]{{\fontsize{8.4}{10.6}\selectfont\color{HubInk}#1\strut}}
 \newcommand{\HubTableHeadRule}{\noalign{\vskip 1.8mm\color{HubTableRule}\hrule height 0.95pt\vskip 1.8mm}}
 \newcommand{\HubTableBodyRule}{\noalign{\vskip 1.8mm\color{HubTableRule}\hrule height 0.55pt\vskip 1.8mm}}
+\newcommand{\HubListBullet}{{\textcolor{HubListMarkerColor}{\raisebox{-0.9mm}{\scalebox{1.5}{\textbullet}}}}}
+\newcommand{\HubListNumber}[1]{{\textcolor{HubListMarkerColor}{#1.}}}
+\newcommand{\HubCheckboxBase}{%
+  \tikz[baseline=0.16em]{\draw[HubListMarkerColor,line width=0.45pt,rounded corners=0.55pt] (0,0) rectangle (0.95em,0.95em);}%
+}
+\newcommand{\HubCheckboxChecked}{%
+  \tikz[baseline=0.16em]{%
+    \draw[HubListMarkerColor,line width=0.45pt,rounded corners=0.55pt] (0,0) rectangle (0.95em,0.95em);
+    \draw[HubListMarkerColor,line width=0.8pt,line cap=round,line join=round] (0.2em,0.48em) -- (0.4em,0.25em) -- (0.75em,0.72em);}%
+}
+\newcommand{\HubCheckboxUnchecked}{\HubCheckboxBase}
+\newcommand{\HubCheckboxPartial}{%
+  \tikz[baseline=0.16em]{%
+    \draw[HubListMarkerColor,line width=0.45pt,rounded corners=0.55pt] (0,0) rectangle (0.95em,0.95em);
+    \draw[HubListMarkerColor,line width=0.8pt,line cap=round] (0.22em,0.48em) -- (0.73em,0.48em);}%
+}
+\newcommand{\HubFootnoteText}[1]{{\color{HubFootnoteTextColor}\footnotesize #1}}
+\newcommand{\HubFigureImage}[1]{\begin{tcolorbox}[hubfigureimage]#1\end{tcolorbox}}
+\DeclareCaptionFont{hubfigurecaption}{\fontsize{8.5}{10.2}\selectfont}
+\captionsetup[figure]{font=hubfigurecaption,labelfont={color=HubAccent},textfont={it,color=HubFigureCaptionTextColor},labelsep=period,justification=centering,singlelinecheck=false,skip=4.5pt}
+\renewcommand{\labelitemi}{\HubListBullet}
+\renewcommand{\labelenumi}{\HubListNumber{\arabic{enumi}}}
+\AtBeginEnvironment{itemize}{\setlength{\itemsep}{0.25em}\setlength{\topsep}{0.45em}\setlength{\parsep}{0pt}}
+\AtBeginEnvironment{enumerate}{\setlength{\itemsep}{0.25em}\setlength{\topsep}{0.45em}\setlength{\parsep}{0pt}}
 \newenvironment{hubtable}{%
   \par\medskip\noindent
   \begingroup
@@ -137,6 +223,7 @@
 
 \renewcommand{\familydefault}{\sfdefault}
 \makeatletter
+\renewcommand{\@makefnmark}{\hbox{\@textsuperscript{\normalfont\textcolor{HubFootnoteMarkerColor}{\@thefnmark}}}}
 \newcommand{\HubDocumentTitle}{}
 \newlength{\HubFooterLift}
 \setlength{\HubFooterLift}{4mm}
@@ -228,12 +315,10 @@
 
 \newcommand{\HubQuoteOpenMark}{{\color{HubMuted}\bfseries``}}
 \newcommand{\HubQuoteCloseMark}{{\color{HubMuted}\bfseries''}}
-\newcommand{\HubDecorativeQuoteMark}{{\HubQuoteFont\fontsize{112}{112}\selectfont\rlap{”}\hspace{0.35pt}\rlap{”}\hspace{0.35pt}”}}
 \newcommand{\HubQuoteFrame}[1]{%
   \begin{tikzpicture}
-    \node[draw=HubLine,line width=0.8pt,fill=HubSurface,inner xsep=32pt,inner ysep=29pt,outer sep=0pt,
-          path picture={\node[anchor=south east,inner sep=0pt,text=HubAccent!14!HubLine,text opacity=0.18] at ([xshift=-8pt,yshift=-10pt]path picture bounding box.south east) {\HubDecorativeQuoteMark};}] (hubquote) {#1};
-    \fill[HubAccent] ([xshift=-0.4pt,yshift=0.4pt]hubquote.north west) rectangle ([xshift=8.4pt,yshift=-0.4pt]hubquote.south west);
+    \node[draw=HubLine,line width=0.8pt,fill=HubSurface,inner xsep=32pt,inner ysep=29pt,outer sep=0pt] (hubquote) {#1};
+        \fill[HubAccent] ([xshift=-0.4pt,yshift=0.4pt]hubquote.north west) rectangle ([xshift=10.2pt,yshift=-0.4pt]hubquote.south west);
   \end{tikzpicture}%
 }
 
@@ -262,7 +347,7 @@
 }{%
     \HubQuoteCloseMark
     \ifx\HubQuoteAttribution\empty\else
-      \par\vspace{45.14pt}{\raggedleft\normalfont\small\color{HubMuted}\HubQuoteAttribution\par}\vspace{-14pt}%
+      \par\vspace{18pt}{\raggedleft\normalfont\small\color{HubMuted}\HubQuoteAttribution\par}\vspace{-10pt}%
     \fi
   \end{minipage}%
   \end{lrbox}%
@@ -279,14 +364,25 @@
   \endgroup
   \par\medskip
 }
+\newsavebox{\HubCalloutBox}
+\newcommand{\HubCalloutFrame}[1]{%
+  \begin{tikzpicture}
+    \node[draw=HubLine,line width=0.8pt,fill=HubSurface,inner xsep=18pt,inner ysep=12pt,outer sep=0pt] (hubcallout) {#1};
+    \fill[HubCalloutEdgeColor] ([xshift=-0.4pt,yshift=0.4pt]hubcallout.north west) rectangle ([xshift=10.2pt,yshift=-0.4pt]hubcallout.south west);
+  \end{tikzpicture}%
+}
 \newenvironment{callout}[1][]{%
   \par\medskip\noindent
-  \begin{tcolorbox}[hubcard, colback=HubSurface]
+  \begin{lrbox}{\HubCalloutBox}%
+  \begin{minipage}{\dimexpr\linewidth-48pt\relax}%
+    \setlength{\parskip}{0.6em}%
     \def\HubTempArg{#1}%
     \ifx\HubTempArg\empty\else{\raggedright\textcolor{HubCalloutTitleColor}{\textbf{#1}}\par}\vspace{1em}\fi
     \small\color{HubCalloutTextColor}\ignorespaces
 }{%
-  \end{tcolorbox}%
+  \end{minipage}%
+  \end{lrbox}%
+  \HubCalloutFrame{\usebox{\HubCalloutBox}}%
   \par\medskip
 }
 \makeatletter
