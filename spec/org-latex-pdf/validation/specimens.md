@@ -24,6 +24,10 @@ Generated `.tex`, `.pdf`, extracted text, snapshots, and visual diff results bel
   - purpose: verify `dark-campaign` variant selection and visual surface
   - minimum content: `#+LATEX_CLASS: veriff`, `#+LATEX_VARIANT: dark-campaign`, title, author, date, one heading, one paragraph
 
+- `slice-en-veriff-gallery-white.org`
+  - purpose: verify `gallery-white` variant selection and white-paper visual surface
+  - minimum content: `#+LATEX_CLASS: veriff`, `#+LATEX_VARIANT: gallery-white`, title, author, date, standfirst, one heading, two paragraphs, one pullquote, and at least one width-controlled media/table specimen
+
 ### Tier 2: Full Semantic Coverage Specimens
 
 - `semantic-full-en.org`

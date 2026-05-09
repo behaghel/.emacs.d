@@ -10,7 +10,7 @@ The export system is organized around class families, not ad hoc templates. This
 
 | Class | Intent | v1 Status | Dedicated Spec |
 | --- | --- | --- | --- |
-| `veriff` | Flagship professional class family with `refresh-overdrive` and `dark-campaign` variants | active first target | [`classes/veriff.md`](classes/veriff.md) |
+| `veriff` | Flagship professional class family with `refresh-overdrive`, `dark-campaign`, and `gallery-white` variants | active first target | [`classes/veriff.md`](classes/veriff.md) |
 | `pro-whitepaper` | Later calmer professional variant for white-paper and scientific-document territory | deferred | none yet |
 | `pro-announcement` | Later punchier campaign or official-announcement variant | deferred | none yet |
 
@@ -43,7 +43,7 @@ No additional locales are in scope for v1.
 
 1. Narrow vertical slice for `veriff` (default variant) in English.
 2. Full semantic coverage for `veriff`.
-3. Additional variants (`dark-campaign`) within the same professional class family direction.
+3. Additional variants (`dark-campaign`, `gallery-white`) within the same professional class family direction.
 4. Remaining classes and French coverage.
 
 This order is normative. Later files in this tree should not contradict it.

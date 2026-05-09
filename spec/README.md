@@ -24,7 +24,7 @@ This spec set exists to answer four questions before implementation starts:
 
 ## Authoritative Decisions Captured Here
 
-- Professional family: `veriff` (variants: `refresh-overdrive`, `dark-campaign`), `pro-whitepaper`, `pro-announcement`.
+- Professional family: `veriff` (variants: `refresh-overdrive`, `dark-campaign`, `gallery-white`), `pro-whitepaper`, `pro-announcement`.
 - Personal family: `essay`, `journal-entry`, `article`.
 - The personal `article` class should stay close to the professional article direction without inventing a separate `article-pro` implementation contract in v1.
 - English and French are the only v1 locales.
