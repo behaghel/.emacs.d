@@ -58,22 +58,22 @@
   }
 }
 
-\definecolor{HubPaper}{HTML}{FCF5EE}
+\definecolor{HubPaper}{HTML}{FBEDE8}
 \definecolor{HubInk}{HTML}{0C3035}
 \definecolor{HubAccent}{HTML}{FF550F}
 \definecolor{HubMuted}{HTML}{543F21}
-\definecolor{HubStandfirst}{HTML}{7A603D}
-\definecolor{HubLabelBrown}{HTML}{7A3119}
-\definecolor{HubLine}{HTML}{D8B5A4}
+\definecolor{HubStandfirst}{HTML}{845D33}
+\definecolor{HubLabelBrown}{HTML}{7D1F1F}
+\definecolor{HubLine}{HTML}{C8B59A}
 \definecolor{HubTableRule}{HTML}{FF9A52}
-\definecolor{HubSurface}{HTML}{FFF4EC}
-\definecolor{HubSurfaceSoft}{HTML}{FFFBF7}
-\definecolor{HubMetricSurface}{HTML}{F3FBF7}
-\definecolor{HubMint}{HTML}{20C997}
-\definecolor{HubPatternMintVivid}{HTML}{95FAEE}
-\definecolor{HubMintSoft}{HTML}{E6FAF4}
+\definecolor{HubSurface}{HTML}{FBEDE8}
+\definecolor{HubSurfaceSoft}{HTML}{F6FDFC}
+\definecolor{HubMetricSurface}{HTML}{F6FDFC}
+\definecolor{HubMint}{HTML}{14E5C5}
+\definecolor{HubPatternMintVivid}{HTML}{9DF5EA}
+\definecolor{HubMintSoft}{HTML}{E0FCF8}
 \definecolor{HubTeal}{HTML}{14E5C5}
-\definecolor{HubLightTeal}{HTML}{A0FFF0}
+\definecolor{HubLightTeal}{HTML}{9DF5EA}
 \definecolor{HubDekWarm}{HTML}{7D1F1F}
 
 \colorlet{HubEyebrowColor}{HubAccent}
@@ -91,19 +91,19 @@
 \colorlet{HubQuoteTextColor}{HubInk}
 \colorlet{HubCalloutTextColor}{HubInk}
 \colorlet{HubFigureCaptionTextColor}{HubStandfirst}
-\colorlet{HubEmphasisColor}{HubDekWarm}
+\colorlet{HubEmphasisColor}{HubAccent}
 \colorlet{HubCalloutEdgeColor}{HubDekWarm}
 \colorlet{HubCalloutTitleColor}{HubCalloutEdgeColor}
-\colorlet{HubLinkColor}{HubEmphasisColor}
-\colorlet{HubUrlColor}{HubEmphasisColor}
+\colorlet{HubLinkColor}{HubAccent}
+\colorlet{HubUrlColor}{HubAccent}
 \colorlet{HubListMarkerColor}{HubAccent}
 \colorlet{HubFootnoteTextColor}{HubMuted}
 \colorlet{HubFootnoteMarkerColor}{HubAccent}
 
 \definecolor{HubInlineCodeBrown}{HTML}{543F21}
-\definecolor{HubInlineCodeBrownLifted}{HTML}{76512B}
+\definecolor{HubInlineCodeBrownLifted}{HTML}{845D33}
 \definecolor{HubInlineCodeOrange}{HTML}{FF9A52}
-\definecolor{HubInlineCodeOrangeSoft}{HTML}{FFE0CC}
+\definecolor{HubInlineCodeOrangeSoft}{HTML}{FBEDE8}
 \colorlet{HubInlineCodeBg}{HubInlineCodeOrangeSoft}
 \colorlet{HubInlineCodeText}{HubInlineCodeBrownLifted}
 \colorlet{HubInlineCodeFrame}{HubAccent}
@@ -128,30 +128,30 @@
   \def\hub@variant{#1}%
   \ifdefstring{\hub@variant}{dark-campaign}{%
     \definecolor{HubPaper}{HTML}{0C3035}%
-    \definecolor{HubPaleBlue}{HTML}{F0FFFD}%
+    \definecolor{HubPaleBlue}{HTML}{F6FDFC}%
     \colorlet{HubInk}{HubPaleBlue}%
     \definecolor{HubAccent}{HTML}{FF550F}%
-    \definecolor{HubMuted}{HTML}{8CA3A3}%
+    \definecolor{HubMuted}{HTML}{97A19E}%
     \colorlet{HubStandfirst}{HubPaleBlue}%
     \definecolor{HubLabelBrown}{HTML}{FF9A52}%
-    \definecolor{HubLine}{HTML}{2F5556}%
-    \definecolor{HubTableRule}{HTML}{2F5556}%
-    \definecolor{HubSurface}{HTML}{163637}%
-    \definecolor{HubSurfaceSoft}{HTML}{122D2E}%
-    \definecolor{HubMetricSurface}{HTML}{1E4A4B}%
-    \definecolor{HubMint}{HTML}{20C997}%
-    \definecolor{HubMintSoft}{HTML}{163637}%
+    \definecolor{HubLine}{HTML}{4B5F5A}%
+    \definecolor{HubTableRule}{HTML}{4B5F5A}%
+    \definecolor{HubSurface}{HTML}{0C3035}%
+    \definecolor{HubSurfaceSoft}{HTML}{0C3035}%
+    \definecolor{HubMetricSurface}{HTML}{085559}%
+    \definecolor{HubMint}{HTML}{14E5C5}%
+    \definecolor{HubMintSoft}{HTML}{0C3035}%
+    \definecolor{HubWhite}{HTML}{F6FDFC}%
     \colorlet{HubEyebrowColor}{HubTeal}%
     \colorlet{HubSectionNumColor}{HubTeal}%
     \colorlet{HubGraphPrimaryColor}{HubTeal}%
     \colorlet{HubDekColor}{HubLightTeal}%
     \colorlet{HubTableHeaderColor}{HubLightTeal}%
     \colorlet{HubTermColor}{HubLightTeal}%
-    \definecolor{HubMetricValueColor}{HTML}{FFFFFF}%
-    \definecolor{HubCardTitleColor}{HTML}{FFFFFF}%
+    \colorlet{HubMetricValueColor}{HubWhite}%
+    \colorlet{HubCardTitleColor}{HubWhite}%
     \colorlet{HubStringColor}{HubLightTeal}%
-    \definecolor{HubSubsectionColor}{HTML}{FFFFFF}%
-    \definecolor{HubWhite}{HTML}{FFFFFF}%
+    \colorlet{HubSubsectionColor}{HubWhite}%
     \colorlet{HubTitleColor}{HubWhite}%
     \colorlet{HubSectionTitleColor}{HubWhite}%
     \colorlet{HubQuoteTextColor}{HubWhite}%
@@ -186,7 +186,7 @@
 \newcommand{\HubTableBodyCell}[1]{{\fontsize{8.4}{10.6}\selectfont\color{HubInk}#1\strut}}
 \newcommand{\HubTableHeadRule}{\noalign{\vskip 1.8mm\color{HubTableRule}\hrule height 0.95pt\vskip 1.8mm}}
 \newcommand{\HubTableBodyRule}{\noalign{\vskip 1.8mm\color{HubTableRule}\hrule height 0.55pt\vskip 1.8mm}}
-\newcommand{\HubListBullet}{{\textcolor{HubListMarkerColor}{\raisebox{-0.9mm}{\scalebox{1.5}{\textbullet}}}}}
+\newcommand{\HubListBullet}{{\textcolor{HubListMarkerColor}{\raisebox{-0.3mm}{\scalebox{1.5}{\textbullet}}}}}
 \newcommand{\HubListNumber}[1]{{\textcolor{HubListMarkerColor}{#1.}}}
 \newcommand{\HubCheckboxBase}{%
   \tikz[baseline=0.16em]{\draw[HubListMarkerColor,line width=0.45pt,rounded corners=0.55pt] (0,0) rectangle (0.95em,0.95em);}%
@@ -271,7 +271,7 @@
 \setlength{\tabcolsep}{5pt}
 \renewcommand{\arraystretch}{1.2}
 \arrayrulecolor{HubLine}
-\renewcommand*\descriptionlabel[1]{\normalfont\color{HubTermColor}{\textbullet}\hspace{0.55em}\bfseries #1:\hspace{0.35em}}
+\renewcommand*\descriptionlabel[1]{\normalfont\HubListBullet\hspace{0.55em}{\color{HubTermColor}\bfseries #1:}\hspace{0.35em}}
 \renewenvironment{description}{%
   \list{}{%
     \labelwidth0pt
@@ -340,7 +340,7 @@
   \def\HubQuoteAttribution{#1}%
   \par\medskip\noindent
   \begin{lrbox}{\HubQuoteBox}%
-  \begin{minipage}{\dimexpr\linewidth-48pt\relax}%
+  \begin{minipage}{\dimexpr\linewidth-64pt\relax}%
     \setlength{\parskip}{0.6em}%
     \fontsize{12.5}{16}\selectfont\bfseries\color{HubQuoteTextColor}\ignorespaces
     \HubQuoteOpenMark
@@ -374,7 +374,7 @@
 \newenvironment{callout}[1][]{%
   \par\medskip\noindent
   \begin{lrbox}{\HubCalloutBox}%
-  \begin{minipage}{\dimexpr\linewidth-48pt\relax}%
+  \begin{minipage}{\dimexpr\linewidth-36pt\relax}%
     \setlength{\parskip}{0.6em}%
     \def\HubTempArg{#1}%
     \ifx\HubTempArg\empty\else{\raggedright\textcolor{HubCalloutTitleColor}{\textbf{#1}}\par}\vspace{1em}\fi
