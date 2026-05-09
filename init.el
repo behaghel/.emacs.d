@@ -286,6 +286,7 @@
   "Replace text in yasnippet template optionally passing EXPAND-ENV (let-style)."
   (yas-expand-snippet (buffer-string) (point-min) (point-max) expand-env))
 (define-auto-insert "\.org\'" ["template.org" hub/autoinsert-yas-expand])
+(define-auto-insert "\.veriff\.org\'" ["template.veriff.org" hub/autoinsert-yas-expand])
 ;; orj is an extension I invented: org-revealJS
 (define-auto-insert "\.orj\'" ["template.orj" hub/autoinsert-yas-expand])
 

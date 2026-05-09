@@ -1,0 +1,20 @@
+#+TITLE: $1
+#+SUBTITLE: $2
+#+AUTHOR: `(progn user-full-name)`
+#+DATE: `(format-time-string "%Y-%m-%d")`
+#+LANGUAGE: en
+#+LATEX_CLASS: veriff
+#+LATEX_VARIANT: ${3:refresh-overdrive}
+#+EXPORT_EYEBROW: $4
+#+EXPORT_FOOTER_NOTE: $5
+
+#+begin_standfirst
+$6
+#+end_standfirst
+
+#+ATTR_LATEX: :options [$7]
+#+begin_epigraph
+$8
+#+end_epigraph
+
+* $0
