@@ -1,0 +1,179 @@
+#+TITLE: Gallery white slice
+#+SUBTITLE: A compact white-paper direction for evidence-led Veriff articles, built for quiet proof, dense reading, and enough measured structure to make operational trust feel inspectable rather than advertised.
+#+AUTHOR: Hubert Behaghel
+#+DATE: 2026-05-09
+#+LANGUAGE: en
+#+LATEX_CLASS: veriff
+#+LATEX_VARIANT: gallery-white
+#+EXPORT_EYEBROW: Evidence memo
+
+#+begin_standfirst
+Trust should read as a calm, inspectable system rather than a campaign claim. This specimen uses a longer abstract to test the one-column opening measure before the body turns into a tighter two-column white-paper flow.
+#+end_standfirst
+
+* Compact evidence flow
+
+The gallery white article body is intentionally quieter than the default article direction. It should support dense reading, academic pacing, and smaller text without inventing a separate authoring dialect. The point is not to remove brand; it is to lower the temperature so the evidence can carry authority on its own.[fn:scope]
+
+An evidence-led article needs more than a handsome opening page. It needs enough paragraphs to prove that typography, columns, rules, footnotes, figures, and tables can coexist without turning the page into a poster. The reader should feel that the document has a disciplined research spine even when the subject is commercial verification infrastructure.
+
+The first design pressure is density. Two columns are only useful when there is enough prose to let the eye settle into a rhythm. Short specimens exaggerate float behavior because LaTeX has too little ordinary text to wrap around figures, tables, and spanning interruptions. This fixture is deliberately longer so the layout can be judged in the conditions it is meant to serve.
+
+The second pressure is hierarchy. The hero still needs to introduce a document, but the abstract should do more of the explanatory work than a campaign dek. In this mode, the standfirst behaves like an abstract: wide, italic, and calm enough to describe the argument rather than sell it.
+
+#+begin_pullquote
+Evidence keeps its shape when readers can inspect it.
+#+end_pullquote
+
+After the opening interruption, the article should return to a normal academic cadence. The pullquote should sit inside the column, slightly narrower than the text around it, so the surrounding two-column flow keeps moving instead of stranding content on mostly empty pages.
+
+This is also where footnotes become important. A white-paper variant should support supporting remarks without making them feel like marketing disclaimers. Native Org footnotes give authors a familiar way to add source notes, interpretation caveats, and methodology reminders while keeping the main paragraph readable.[fn:method]
+
+** Reading density
+
+Dense pages are not the same as crowded pages. The specimen should show narrow columns, generous but not theatrical spacing, and enough repetition to expose whether section headings create too much vertical interruption. A good white-paper page lets a reader skim by headings, then slow down into evidence blocks without losing the thread.
+
+| Signal family       | Reader question              | Layout response          |
+|---------------------+------------------------------+--------------------------|
+| Identity evidence   | What did the system inspect? | Short rows, quiet rules  |
+| Policy thresholds   | Who decides the boundary?    | Compact supporting notes |
+| Operational outcome | What changed downstream?     | Nearby graph or table    |
+
+The in-column table above is intentionally modest. It should stay inside the column, not span the page, because it is supporting evidence rather than a central exhibit. The full-width table later in the specimen covers a broader comparison and therefore deserves more horizontal room.
+
+#+begin_graph
+#+begin_export latex
+\resizebox{\linewidth}{!}{%
+\begin{tikzpicture}[x=1.35cm,y=0.032cm]
+  \draw[HubLine, line width=0.5pt] (0,0) -- (4.4,0);
+  \draw[HubLine, line width=0.5pt] (0,0) -- (0,100);
+  \foreach \y in {25,50,75,100} {
+    \draw[HubLine!55, line width=0.35pt] (0,\y) -- (4.4,\y);
+    \node[anchor=east, font=\scriptsize, text=HubMuted] at (-0.12,\y) {\y};
+  }
+  \foreach \x/\label in {1/Intake,2/Signals,3/Policy,4/Outcome} {
+    \node[anchor=north, font=\scriptsize, text=HubMuted] at (\x,-5) {\label};
+  }
+  \draw[HubTeal700, line width=1.2pt] (1,34) -- (2,58) -- (3,76) -- (4,88);
+  \foreach \x/\y in {1/34,2/58,3/76,4/88} {
+    \fill[HubTeal700] (\x,\y) circle (1.8pt);
+  }
+\end{tikzpicture}
+}
+#+end_export
+#+end_graph
+
+The in-column graph should read as a local exhibit. It does not need a full page width because the point is directional: clarity rises as raw signals become explainable decisions. If this graph overpowers the column, the variant is not doing enough to distinguish small evidence from primary exhibits.
+
+** Evidence texture
+
+The white-paper mode should make verification feel observable. That means the prose can be more patient than the default article variant. Instead of compressing every claim into a slogan, it can describe how signals are gathered, how policy is applied, and how a human reviewer can inspect the final decision.
+
+One useful pattern is to pair a claim with a nearby constraint. For example: fast automation only creates trust when the decision remains explainable. Global coverage only creates confidence when local rules are visible. Model intelligence only helps teams when review paths remain legible. This format benefits from columns because each paragraph becomes a compact argument rather than a wide web-page block.
+
+The document also needs enough ordinary text after every visual element. When exhibits appear without a surrounding argument, they behave like decorations. When they sit inside a sequence of claims, the visuals become evidence and the reader has a reason to keep moving.
+
+* Operating model
+
+An academic-inspired article should be comfortable with method. The reader should understand how the system thinks without needing implementation detail at every turn. The goal is not to expose the entire internal architecture; it is to make the shape of the decision auditable.
+
+The operating model starts with intake. Documents, devices, user behavior, and session context arrive as separate fragments. A trustworthy system turns those fragments into a coherent review object without hiding the uncertainty that remains. The writing should mirror that process by moving from evidence to interpretation to decision.
+
+The next layer is policy. Policy is where commercial goals meet risk appetite. A white-paper layout gives policy room to be described carefully: thresholds, escalation paths, regional differences, and confidence bands can be explained in short paragraphs supported by compact tables.
+
+| Decision band | Typical action | Reviewer burden |
+|---------------+----------------+-----------------|
+| Low risk      | Auto-approve   | Sample audit    |
+| Ambiguous     | Queue review   | Explain factors |
+| High risk     | Block or hold  | Preserve record |
+
+Policy writing should avoid both extremes: it should not sound like legal boilerplate, and it should not sound like a product banner. The tone should make it easy for a risk leader, product owner, or operations manager to understand what the system can defend.
+
+#+CAPTION: Full-width brand marker used only when a central exhibit needs the full measure.
+#+ATTR_LATEX: :width 0.55\textwidth :float multicolumn
+[[file:hero-logo.pdf]]
+
+The full-width image remains in the specimen because the variant must support page-spanning media. It should no longer dominate the sample by appearing before enough body text exists. In a realistic white paper, a full-width object should punctuate a mature argument rather than compensate for missing content.
+
+** Human review
+
+Human review is not an exception to automation; it is part of the operating model. The article should be able to describe escalation with respect. Reviewers need clear reasons, stable records, and enough context to explain a decision without reconstructing the entire session from scratch.[fn:review]
+
+This is where the gallery-white palette earns its restraint. Pale mint surfaces and fine rules can mark supporting structures without making them feel like alerts. Dark teal text keeps the page authoritative, while the reduced accent system avoids the impression that every fact is competing for attention.
+
+#+begin_callout
+In the gallery-white variant, callouts should feel like precise placards in a gallery: useful, contained, and subordinate to the main argument.
+#+end_callout
+
+The surrounding paragraphs need to keep moving after the callout. If a callout creates an isolated island, the page loses its white-paper rhythm. The fixture therefore keeps adding prose after the block so spacing regressions become visible during review.
+
+Review work also benefits from footnotes that do not shout. A note can clarify that a metric is illustrative, define a term, or remind the reader that operational thresholds vary by region. The body text stays focused while the footnote carries the caveat.
+
+* Measurement and confidence
+
+Measurement is the part of the article where a two-column design can become especially useful. Short paragraphs can explain the meaning of each metric, while tables and graphs sit near the claims they support. The reader does not need to jump between a dense appendix and a narrative summary.
+
+#+ATTR_LATEX: :float multicolumn
+| Measure              | Signal             | Why it matters                              | Reading note                         |
+|----------------------+--------------------+---------------------------------------------+--------------------------------------|
+| Decision latency     | 6 seconds          | Keeps conversion momentum alive             | Speed must still feel calm           |
+| Coverage             | 230+ territories   | Expands commercial reach                    | Breadth needs local assurance        |
+| Document support     | 12.5K+ documents   | Reduces operational fallback                | Scale should look systematic         |
+| Verification fabric  | 1,000+ signals     | Increases confidence in a decision          | Architecture needs a visible view    |
+
+The full-width table above is a primary exhibit. It compares several measures at once, so a single column would either crush the text or force the reader through awkward line breaks. This is the kind of object that deserves the full width option.
+
+The narrative should then return to columns. A good specimen needs to prove that full-width exhibits do not permanently disrupt the reading mode. After a wide table, paragraphs should resume as compact evidence blocks with stable spacing and predictable footnotes.[fn:metrics]
+
+#+ATTR_LATEX: :float multicolumn
+#+begin_graph
+#+begin_export latex
+\resizebox{0.86\linewidth}{!}{%
+\begin{tikzpicture}[x=2.15cm,y=0.04cm]
+  \draw[HubLine, line width=0.5pt] (0,0) -- (4.7,0);
+  \draw[HubLine, line width=0.5pt] (0,0) -- (0,100);
+  \foreach \y in {25,50,75,100} {
+    \draw[HubLine!55, line width=0.35pt] (0,\y) -- (4.7,\y);
+    \node[anchor=east, font=\scriptsize, text=HubMuted] at (-0.12,\y) {\y};
+  }
+  \foreach \x/\label in {1/Q1,2/Q2,3/Q3,4/Q4} {
+    \node[anchor=north, font=\scriptsize, text=HubMuted] at (\x,-5) {\label};
+  }
+  \draw[HubTeal700, line width=1.3pt] (1,52) -- (2,63) -- (3,78) -- (4,91);
+  \draw[HubGalleryMuted, dashed, line width=1.3pt] (1,48) -- (2,59) -- (3,70) -- (4,84);
+  \foreach \x/\y in {1/52,2/63,3/78,4/91} {\fill[HubTeal700] (\x,\y) circle (1.8pt);}
+  \foreach \x/\y in {1/48,2/59,3/70,4/84} {\fill[HubGalleryMuted] (\x,\y) circle (1.8pt);}
+  \draw[HubTeal700, line width=1.3pt] (4.95,84) -- (5.35,84);
+  \node[anchor=west, font=\scriptsize, text=HubMuted] at (5.42,84) {Explainability};
+  \draw[HubGalleryMuted, dashed, line width=1.3pt] (4.95,72) -- (5.35,72);
+  \node[anchor=west, font=\scriptsize, text=HubMuted] at (5.42,72) {Coverage};
+\end{tikzpicture}
+}
+#+end_export
+#+end_graph
+
+The full-width graph is deliberately broader than the local graph. It compares two trajectories, uses a legend, and benefits from the page measure. The variant should support this without turning every graph into a poster; authors decide by choosing the standard Org LaTeX float attribute.
+
+** Interpreting change
+
+Trends are persuasive only when the reader can understand what changed. A rising confidence index may reflect better models, clearer policy, cleaner evidence capture, or improved reviewer tooling. The text should separate those possibilities instead of letting a single upward line carry the whole argument.
+
+This section also tests paragraph continuity. When several exhibits appear in a row, the page can develop large gaps if the fixture is too short or every object is forced to span columns. Additional prose restores the intended reading pressure: the floats become interruptions in a longer stream rather than the stream itself.
+
+* Implementation note
+
+The final section verifies that the article can still carry technical material without losing the white-paper tone. Code, lists, and definitions may appear in later specimens, but this slice focuses on text, footnotes, tables, figures, and graphs because those are the structures most likely to expose column-flow problems.
+
+The authoring contract remains simple. Writers use `#+LATEX_VARIANT: gallery-white`, normal Org paragraphs, native footnotes, native tables, image links with `#+ATTR_LATEX:`, and `#+begin_graph` blocks. The same semantic source should continue to work across other Veriff variants, even when the visual treatment changes.
+
+The most important practical rule is restraint. Use full-width media when a comparison needs the full measure. Use in-column tables and graphs when the evidence supports a local paragraph. Use pullquotes sparingly, because in a two-column document they are structural interruptions rather than decoration.
+
+This longer sample is intentionally repetitive in its evidence language. The repetition gives reviewers several pages of real text rhythm, enough footnotes to inspect note behavior, and a mix of local and spanning exhibits that should reveal whether the gallery-white variant is ready for actual authoring.
+
+[fn:scope] The specimen is not a factual claim about production metrics; it is a layout exercise using plausible evidence language.
+
+[fn:method] Method notes should remain quiet enough to support the argument without becoming a second article in the footer.
+
+[fn:review] Human review language matters because the system is judged not only by automatic outcomes but by whether exceptions can be explained.
+
+[fn:metrics] The numbers in this fixture are illustrative and exist to test table and graph rendering, not to report operational performance.

@@ -177,7 +177,7 @@
 (ert-deftest hub/org-export-veriff-variant-rejects-mixed-case-values ()
   "Mixed-case variants fail with a deterministic error."
   (hub/test-with-org-buffer "#+LATEX_CLASS: veriff\n#+LATEX_VARIANT: Refresh-Overdrive\n"
-			    (hub/test-should-user-error-message (regexp-quote "refresh-overdrive, dark-campaign")
+			    (hub/test-should-user-error-message (regexp-quote "refresh-overdrive, dark-campaign, gallery-white")
 								(hub/org-export--validate-veriff-metadata 'latex))))
 
 (ert-deftest hub/org-export-veriff-variant-rejects-non-veriff-class ()
@@ -194,6 +194,29 @@
 			    (hub/test-should-user-error-message (regexp-quote "LATEX_VARIANT: refresh-overdrive")
 								(hub/org-export--validate-veriff-metadata 'latex))))
 
+(ert-deftest hub/org-export-veriff-gallery-white-requires-leading-standfirst ()
+  "Gallery-white requires exactly one standfirst as its first content block."
+  (dolist (fixture '("#+TITLE: Missing standfirst\n#+LATEX_CLASS: veriff\n#+LATEX_VARIANT: gallery-white\n\n* Body\nText.\n"
+		     "#+TITLE: Late standfirst\n#+LATEX_CLASS: veriff\n#+LATEX_VARIANT: gallery-white\n\nIntro first.\n\n#+begin_standfirst\nLate abstract.\n#+end_standfirst\n\n* Body\nText.\n"
+		     "#+TITLE: Duplicate standfirst\n#+LATEX_CLASS: veriff\n#+LATEX_VARIANT: gallery-white\n\n#+begin_standfirst\nFirst abstract.\n#+end_standfirst\n\n#+begin_standfirst\nSecond abstract.\n#+end_standfirst\n\n* Body\nText.\n"))
+    (hub/test-with-org-buffer fixture
+			      (hub/test-should-user-error-message (regexp-quote "gallery-white")
+								  (hub/org-export--validate-veriff-metadata 'latex)))))
+
+(ert-deftest hub/org-export-veriff-gallery-white-protects-standfirst-brackets ()
+  "Gallery-white wraps the full-width opener so standfirst brackets are safe."
+  (let ((artifact-root (hub/test-make-export-artifact-root)))
+    (unwind-protect
+	(hub/test-with-org-buffer "#+TITLE: Bracket standfirst\n#+LATEX_CLASS: veriff\n#+LATEX_VARIANT: gallery-white\n\n#+begin_standfirst\nThis abstract contains a literal ] bracket.\n#+end_standfirst\n\n* Body\nText.\n"
+				  (let* ((hub/org-export-output-root artifact-root)
+					 (tex-path (hub/org-export-buffer-to-latex artifact-root))
+					 (tex-contents (hub/test-read-file-as-string tex-path)))
+				    (should (string-match-p (regexp-quote "\\twocolumn[{") tex-contents))
+				    (should (string-match-p (regexp-quote "literal ] bracket") tex-contents))
+				    (should (string-match-p (regexp-quote "\\end{standfirst}\n}]\n\\section") tex-contents))))
+      (when (file-directory-p artifact-root)
+	(delete-directory artifact-root t)))))
+
 (ert-deftest hub/org-export-veriff-refresh-overdrive-stubbed-pdf-end-to-end ()
   "Refresh-overdrive exports to `.tex' and a stubbed PDF path."
   (hub/test-export-veriff-slice-with-stubbed-pdf "refresh-overdrive"))
@@ -201,6 +224,10 @@
 (ert-deftest hub/org-export-veriff-dark-campaign-stubbed-pdf-end-to-end ()
   "Dark-campaign exports to `.tex' and a stubbed PDF path."
   (hub/test-export-veriff-slice-with-stubbed-pdf "dark-campaign"))
+
+(ert-deftest hub/org-export-veriff-gallery-white-stubbed-pdf-end-to-end ()
+  "Gallery-white exports to `.tex' and a stubbed PDF path."
+  (hub/test-export-veriff-slice-with-stubbed-pdf "gallery-white"))
 
 (ert-deftest hub/org-export-veriff-dark-campaign-visual-tokens-and-spec-exclusion ()
   "Dark-campaign has named contrast tokens and excludes the white artefact."
@@ -255,7 +282,8 @@
   "Real XeLaTeX smoke exports both variants or reports readiness clearly."
   (hub/test-skip-unless-veriff-real-export-ready)
   (hub/test-export-veriff-slice-with-real-pdf "refresh-overdrive")
-  (hub/test-export-veriff-slice-with-real-pdf "dark-campaign"))
+  (hub/test-export-veriff-slice-with-real-pdf "dark-campaign")
+  (hub/test-export-veriff-slice-with-real-pdf "gallery-white"))
 
 (ert-deftest hub/script-export-approval-refresh-overdrive-page1-prints-buffer-and-path ()
   "The approval export helper prints LaTeX output and uses the variant-aware artifact root."
@@ -452,6 +480,49 @@
       (when (file-directory-p artifact-root)
 	(delete-directory artifact-root t)))))
 
+(ert-deftest hub/org-export-slice-en-veriff-gallery-white-produces-latex-and-pdf ()
+  "The gallery white variant stages veriff.cls and white-paper layout markers."
+  (let* ((specimen (expand-file-name "test/fixtures/org-export/slice-en-veriff-gallery-white.org"
+				     hub/test-repo-root))
+	 (artifact-root (hub/test-make-export-artifact-root))
+	 (specimen-buffer nil))
+    (unwind-protect
+	(progn
+	  (setq specimen-buffer (find-file-noselect specimen))
+	  (with-current-buffer specimen-buffer
+	    (hub/test-with-export-compiler-readiness t
+						     (hub/test-with-stubbed-latex-compile
+						      (let* ((hub/org-export-output-root artifact-root)
+							     (tex-path (hub/org-export-buffer-to-latex artifact-root))
+							     (tex-contents (hub/test-read-file-as-string tex-path))
+							     (class-path (hub/test-exported-class-path artifact-root "veriff"))
+							     (class-contents (hub/test-read-file-as-string class-path))
+							     (pdf-path (hub/org-export-buffer-to-pdf artifact-root)))
+							(should (string-match-p (regexp-quote "\\documentclass[11pt,a4paper]{veriff}") tex-contents))
+							(should (string-match-p (regexp-quote "% hub-veriff-gallery-white") tex-contents))
+							(should (string-match-p (regexp-quote "\\HubVeriffVariant{gallery-white}") tex-contents))
+							(should (string-match-p (regexp-quote "\\twocolumn[{") tex-contents))
+							(should (string-match-p (regexp-quote "\\end{standfirst}\n}]\n\\section") tex-contents))
+							(should (string-match-p (regexp-quote "\\newif\\ifhubgallerywhite") class-contents))
+							(should (string-match-p (regexp-quote "\\definecolor{HubGalleryPaper}{HTML}{F6FDFC}") class-contents))
+							(should (string-match-p (regexp-quote "\\newcommand{\\HubGalleryWhiteBodyFont}") class-contents))
+							(should (string-match-p (regexp-quote "\\AtBeginDocument{\\ifhubgallerywhite\\HubGalleryWhiteBodyFont\\fi}") class-contents))
+							(should (string-match-p (regexp-quote "\\begin{minipage}{0.86\\textwidth}") class-contents))
+							(should (string-match-p (regexp-quote "\\color{HubStandfirst}\\itshape\\fontsize{12.6}{16.2}\\selectfont") class-contents))
+							(should (string-match-p (regexp-quote "\\begin{minipage}{0.88\\linewidth}") class-contents))
+							(should (string-match-p (regexp-quote "\\fontsize{10.8}{14}\\selectfont") class-contents))
+							(should (string-match-p (regexp-quote "\\begin{figure*}") tex-contents))
+							(should (string-match-p (regexp-quote "\\begin{table*}") tex-contents))
+							(should (string-match-p (regexp-quote "\\begin{graph*}") tex-contents))
+							(should-not (string-match-p (regexp-quote "fullwidth") tex-contents))
+							(should (string-match-p (regexp-quote "Gallery white slice") tex-contents))
+							(should (file-exists-p class-path))
+							(should (file-exists-p pdf-path)))))))
+      (when (buffer-live-p specimen-buffer)
+	(kill-buffer specimen-buffer))
+      (when (file-directory-p artifact-root)
+	(delete-directory artifact-root t)))))
+
 (ert-deftest hub/org-export-slice-en-veriff-invalid-variant-fails ()
   "Unknown variants fail with a user error."
   (let* ((specimen (expand-file-name "test/fixtures/org-export/slice-en-veriff-invalid-variant.org"
@@ -466,7 +537,7 @@
 						     (hub/test-with-stubbed-latex-compile
 						      (let ((hub/org-export-output-root artifact-root))
 							(hub/test-should-user-error-message
-							 (regexp-quote "refresh-overdrive, dark-campaign")
+							 (regexp-quote "refresh-overdrive, dark-campaign, gallery-white")
 							 (hub/org-export-buffer-to-latex artifact-root)))))))
       (when (buffer-live-p specimen-buffer)
 	(kill-buffer specimen-buffer))
@@ -613,7 +684,7 @@
 							(should (string-match-p (regexp-quote "% hub-veriff-refresh-overdrive-headings") tex-contents))
 							(should (string-match-p (regexp-quote "\\pagestyle{hubpage}") class-contents))
 							(should (string-match-p (regexp-quote "\\newlength{\\HubFooterLift}") class-contents))
-							(should (string-match-p (regexp-quote "\\setlength{\\HubFooterLift}{4mm}") class-contents))
+							(should (string-match-p (regexp-quote "\\setlength{\\HubFooterLift}{-0.5mm}") class-contents))
 							(should (string-match-p (regexp-quote "\\newlength{\\HubFooterBleed}") class-contents))
 							(should (string-match-p (regexp-quote "\\setlength{\\HubFooterBleed}{7mm}") class-contents))
 							(should (string-match-p (regexp-quote "\\newlength{\\HubFooterLogoGap}") class-contents))
@@ -817,7 +888,7 @@
 							(should (string-match-p (regexp-quote "\\color{HubLine}\\rule{116mm}{0.8pt}") class-contents))
 							(should (string-match-p (regexp-quote "\\pagestyle{hubpage}") class-contents))
 							(should (string-match-p (regexp-quote "\\newlength{\\HubFooterLift}") class-contents))
-							(should (string-match-p (regexp-quote "\\setlength{\\HubFooterLift}{4mm}") class-contents))
+							(should (string-match-p (regexp-quote "\\setlength{\\HubFooterLift}{-0.5mm}") class-contents))
 							(should (string-match-p (regexp-quote "\\newlength{\\HubFooterBleed}") class-contents))
 							(should (string-match-p (regexp-quote "\\setlength{\\HubFooterBleed}{7mm}") class-contents))
 							(should (string-match-p (regexp-quote "\\newlength{\\HubFooterLogoGap}") class-contents))

@@ -75,6 +75,14 @@
 \definecolor{HubTeal}{HTML}{14E5C5}
 \definecolor{HubLightTeal}{HTML}{9DF5EA}
 \definecolor{HubDekWarm}{HTML}{7D1F1F}
+\definecolor{HubTeal500}{HTML}{14E5C5}
+\definecolor{HubTeal700}{HTML}{085559}
+\definecolor{HubTeal900}{HTML}{0C3035}
+\definecolor{HubGalleryPaper}{HTML}{F6FDFC}
+\definecolor{HubGallerySurface}{HTML}{F6FDFC}
+\definecolor{HubGallerySurfaceSoft}{HTML}{E0FCF8}
+\definecolor{HubGalleryLine}{HTML}{CBD7D4}
+\definecolor{HubGalleryMuted}{HTML}{4B5F5A}
 
 \colorlet{HubEyebrowColor}{HubAccent}
 \colorlet{HubSectionNumColor}{HubAccent}
@@ -124,8 +132,50 @@
   fontupper=\ttfamily\bfseries\fontsize{7.5pt}{9pt}\selectfont
 }
 
+\newif\ifhubgallerywhite
+\newcommand{\HubGalleryWhiteBodyFont}{\fontsize{8.9}{11.2}\selectfont}
+\AtBeginDocument{\ifhubgallerywhite\HubGalleryWhiteBodyFont\fi}
+
 \newcommand{\HubVeriffVariant}[1]{%
   \def\hub@variant{#1}%
+  \ifdefstring{\hub@variant}{gallery-white}{%
+    \hubgallerywhitetrue%
+    \geometry{top=14mm,bottom=16mm,left=13mm,right=13mm,columnsep=7mm}%
+    \colorlet{HubPaper}{HubGalleryPaper}%
+    \colorlet{HubInk}{HubTeal900}%
+    \colorlet{HubAccent}{HubTeal500}%
+    \colorlet{HubMuted}{HubGalleryMuted}%
+    \colorlet{HubStandfirst}{HubGalleryMuted}%
+    \colorlet{HubLabelBrown}{HubTeal700}%
+    \colorlet{HubLine}{HubGalleryLine}%
+    \colorlet{HubTableRule}{HubGalleryLine}%
+    \colorlet{HubSurface}{HubGallerySurface}%
+    \colorlet{HubSurfaceSoft}{HubGallerySurfaceSoft}%
+    \colorlet{HubMetricSurface}{HubGallerySurface}%
+    \colorlet{HubEyebrowColor}{HubTeal700}%
+    \colorlet{HubSectionNumColor}{HubGalleryMuted}%
+    \colorlet{HubGraphPrimaryColor}{HubTeal700}%
+    \colorlet{HubDekColor}{HubGalleryMuted}%
+    \colorlet{HubTableHeaderColor}{HubTeal700}%
+    \colorlet{HubTermColor}{HubTeal700}%
+    \colorlet{HubMetricValueColor}{HubTeal900}%
+    \colorlet{HubCardTitleColor}{HubTeal900}%
+    \colorlet{HubStringColor}{HubTeal700}%
+    \colorlet{HubSubsectionColor}{HubTeal900}%
+    \colorlet{HubTitleColor}{HubTeal900}%
+    \colorlet{HubSectionTitleColor}{HubTeal900}%
+    \colorlet{HubQuoteTextColor}{HubTeal900}%
+    \colorlet{HubCalloutTextColor}{HubTeal900}%
+    \colorlet{HubFigureCaptionTextColor}{HubGalleryMuted}%
+    \colorlet{HubEmphasisColor}{HubTeal700}%
+    \colorlet{HubCalloutEdgeColor}{HubTeal700}%
+    \colorlet{HubCalloutTitleColor}{HubCalloutEdgeColor}%
+    \colorlet{HubLinkColor}{HubTeal700}%
+    \colorlet{HubUrlColor}{HubTeal700}%
+    \colorlet{HubListMarkerColor}{HubTeal700}%
+    \colorlet{HubFootnoteTextColor}{HubGalleryMuted}%
+    \colorlet{HubFootnoteMarkerColor}{HubTeal700}%
+  }{}%
   \ifdefstring{\hub@variant}{dark-campaign}{%
     \definecolor{HubPaper}{HTML}{0C3035}%
     \definecolor{HubPaleBlue}{HTML}{F6FDFC}%
@@ -226,7 +276,7 @@
 \renewcommand{\@makefnmark}{\hbox{\@textsuperscript{\normalfont\textcolor{HubFootnoteMarkerColor}{\@thefnmark}}}}
 \newcommand{\HubDocumentTitle}{}
 \newlength{\HubFooterLift}
-\setlength{\HubFooterLift}{4mm}
+\setlength{\HubFooterLift}{-0.5mm}
 \newlength{\HubFooterBleed}
 \setlength{\HubFooterBleed}{7mm}
 \newlength{\HubFooterLogoGap}
@@ -293,7 +343,13 @@
   \gdef\HubDocumentTitle{#1}%
   {\color{HubTitleColor}\HubDisplayFont\fontsize{34}{33}\selectfont #1\par}\vspace*{2.75em}%
 }
-\newcommand{\HubHeroDek}[1]{{\color{HubDekColor}\parbox[t]{112mm}{\raggedright\normalsize #1\par}}\vspace*{4.5em}}
+\newcommand{\HubHeroDek}[1]{%
+  \ifhubgallerywhite
+    {\color{HubDekColor}\parbox[t]{134mm}{\raggedright\fontsize{15}{18}\selectfont #1\par}}\vspace*{2.6em}%
+  \else
+    {\color{HubDekColor}\parbox[t]{112mm}{\raggedright\normalsize #1\par}}\vspace*{4.5em}%
+  \fi
+}
 \newcommand{\HubHeroMeta}[2]{{\vspace*{0.75em}\color{HubLine}\rule{116mm}{0.8pt}\par}\vspace*{-0.3em}{\color{HubMuted}\fontsize{8}{9}\selectfont\makebox[116mm][r]{#1\HubMetaSeparator #2}\par}}
 \providecommand{\HubHeroPatternGraphic}{\includegraphics[width=0.88\paperwidth]{hero-pattern.png}}
 \providecommand{\HubHeroLogoGraphic}{\includegraphics[width=28mm]{hero-logo.pdf}}
@@ -357,7 +413,11 @@
   \end{tikzpicture}%
   \par\noindent
 }{%
-  \par\vspace{35mm}
+  \ifhubgallerywhite
+    \par\vspace{8mm}%
+  \else
+    \par\vspace{35mm}%
+  \fi
 }
 \newsavebox{\HubQuoteBox}
 \renewenvironment{quote}[1][]{%
@@ -378,16 +438,44 @@
   \HubQuoteFrame{\usebox{\HubQuoteBox}}%
   \par\medskip
 }
-\newenvironment{standfirst}{\par\smallskip\noindent\color{HubStandfirst}\large\bfseries\ignorespaces}{\par\medskip}
+\makeatletter
+\newenvironment{standfirst}{%
+  \ifhubgallerywhite
+    \par\medskip\noindent
+    \begin{minipage}{0.86\textwidth}%
+      \color{HubStandfirst}\itshape\fontsize{12.6}{16.2}\selectfont\ignorespaces
+  \else
+    \par\smallskip\noindent\color{HubStandfirst}\large\bfseries\ignorespaces
+  \fi
+}{%
+  \ifhubgallerywhite
+      \par
+    \end{minipage}%
+    \par\vspace{8mm}%
+  \else
+    \par\medskip
+  \fi
+}
 \newenvironment{pullquote}[1][]{%
   \par\medskip\noindent
   \begingroup
-  \raggedright\fontsize{15.5}{21}\selectfont\color{HubQuoteTextColor}\ignorespaces
+  \ifhubgallerywhite
+    \begin{center}%
+    \begin{minipage}{0.88\linewidth}%
+      \raggedright\itshape\fontsize{10.8}{14}\selectfont\color{HubQuoteTextColor}\ignorespaces
+  \else
+    \raggedright\fontsize{15.5}{21}\selectfont\color{HubQuoteTextColor}\ignorespaces
+  \fi
 }{%
   \par
+  \ifhubgallerywhite
+    \end{minipage}%
+    \end{center}%
+  \fi
   \endgroup
   \par\medskip
 }
+\makeatother
 \newsavebox{\HubCalloutBox}
 \newcommand{\HubCalloutFrame}[1]{%
   \begin{tikzpicture}
@@ -624,6 +712,15 @@
   \par
   \endgroup
   \par\medskip
+}
+
+\newenvironment{graph*}[1][]{%
+  \begin{figure*}[t]
+  \centering
+  \begin{graph}[#1]%
+}{%
+  \end{graph}%
+  \end{figure*}%
 }
 
 \newenvironment{hubfootnote}{\par\medskip\footnotesize\color{HubMuted}}{\par}

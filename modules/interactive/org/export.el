@@ -41,7 +41,7 @@
   "Default variant for the Veriff export family.")
 
 (defconst hub/org-export--veriff-variants
-  '("refresh-overdrive" "dark-campaign")
+  '("refresh-overdrive" "dark-campaign" "gallery-white")
   "Valid variants for the Veriff export family.")
 
 (defconst hub/org-export--babel-package '("AUTO" "babel" nil)
@@ -71,6 +71,24 @@
      "\\end{hubhero}")
    "\n")
   "Title command used for the `veriff' LaTeX class.")
+
+(defconst hub/org-export--veriff-gallery-white-title-command
+  (string-join
+   '("\\twocolumn[{"
+     "\\begin{hubhero}"
+     "\\noindent\\begin{minipage}{118mm}"
+     "\\raggedright"
+     "\\HubExportEyebrowBlock"
+     "\\HubHeroTitle{%t}"
+     "\\HubHeroDek{%s}"
+     "\\HubHeroMeta{%a}{%D}"
+     "\\end{minipage}"
+     "\\end{hubhero}")
+   "\n")
+  "Title command used for the `gallery-white' Veriff variant.
+The gallery-white `standfirst' special-block export closes the full-width
+two-column opener with a braced literal optional argument in the generated
+LaTeX.")
 
 (defun hub/org-export--locale-code (&optional backend)
   "Return the current export locale code for BACKEND.
@@ -165,6 +183,37 @@ buffer metadata.  Missing variants default to
 			(string-join hub/org-export--veriff-variants ", ")))
 	  variant))))))
 
+(defun hub/org-export--gallery-white-standfirst-lines ()
+  "Return line numbers for gallery-white standfirst block starts."
+  (let (lines)
+    (save-excursion
+      (goto-char (point-min))
+      (while (re-search-forward "^[[:space:]]*#\\+begin_standfirst\\_>" nil t)
+	(push (line-number-at-pos) lines)))
+    (nreverse lines)))
+
+(defun hub/org-export--gallery-white-leading-standfirst-p ()
+  "Return non-nil when the first content block is a standfirst."
+  (save-excursion
+    (goto-char (point-min))
+    (while (and (not (eobp))
+		(or (looking-at-p "[[:space:]]*$")
+		    (looking-at-p "[[:space:]]*#\\(?:[[:space:]].*\\)?$")
+		    (looking-at-p "[[:space:]]*#\\+\\(?:TITLE\\|SUBTITLE\\|AUTHOR\\|DATE\\|LANGUAGE\\|LATEX_CLASS\\|LATEX_VARIANT\\|EXPORT_[^:]+\\|OPTIONS\\|STARTUP\\|LATEX_HEADER\\|LATEX_HEADER_EXTRA\\):")))
+      (forward-line 1))
+    (looking-at-p "[[:space:]]*#\\+begin_standfirst\\_>")))
+
+(defun hub/org-export--validate-gallery-white-standfirst ()
+  "Validate gallery-white standfirst placement for full-width opening flow."
+  (let ((standfirst-lines (hub/org-export--gallery-white-standfirst-lines)))
+    (cond
+     ((null standfirst-lines)
+      (user-error "gallery-white requires one leading standfirst block"))
+     ((cdr standfirst-lines)
+      (user-error "gallery-white requires exactly one standfirst block"))
+     ((not (hub/org-export--gallery-white-leading-standfirst-p))
+      (user-error "gallery-white standfirst must be the first content block")))))
+
 (defun hub/org-export--insert-header-extra (latex-line)
   "Insert LATEX-LINE as a `LATEX_HEADER_EXTRA' keyword in the current buffer."
   (goto-char (point-min))
@@ -193,7 +242,10 @@ buffer metadata.  Missing variants default to
     (setq-local org-latex-compiler (hub/org-export--effective-compiler))
     (setq-local org-latex-pdf-process
 		(hub/org-export--pdf-process-for-compiler org-latex-compiler))
-    (setq-local org-latex-title-command hub/org-export--veriff-title-command)
+    (setq-local org-latex-title-command
+		(if (equal variant "gallery-white")
+		    hub/org-export--veriff-gallery-white-title-command
+		  hub/org-export--veriff-title-command))
     (setq-local org-latex-src-block-backend 'minted)
     (setq-local org-latex-minted-options
 		'(("fontsize" "\\footnotesize")
@@ -219,15 +271,20 @@ buffer metadata.  Missing variants default to
 	 (format "\\renewcommand{\\HubFooterLogoGraphic}{\\includegraphics[width=16mm]{%s}}"
 		 (hub/org-export--latex-escape
 		  (expand-file-name logo-asset hub/org-export--active-output-dir)))))
-      (if (equal variant "dark-campaign")
-	  (hub/org-export--insert-header-extra
-	   (format "\\renewcommand{\\HubHeroPatternGraphic}{\\includegraphics[width=118mm]{%s}}"
-		   (hub/org-export--latex-escape
-		    (expand-file-name "hero-pattern-dark.pdf" hub/org-export--active-output-dir))))
+      (cond
+       ((equal variant "dark-campaign")
 	(hub/org-export--insert-header-extra
 	 (format "\\renewcommand{\\HubHeroPatternGraphic}{\\includegraphics[width=118mm]{%s}}"
 		 (hub/org-export--latex-escape
-		  (expand-file-name "hero-pattern.png" hub/org-export--active-output-dir))))))
+		  (expand-file-name "hero-pattern-dark.pdf" hub/org-export--active-output-dir)))))
+       ((equal variant "gallery-white")
+	(hub/org-export--insert-header-extra
+	 "\\renewcommand{\\HubHeroPatternGraphic}{\\relax}"))
+       (t
+	(hub/org-export--insert-header-extra
+	 (format "\\renewcommand{\\HubHeroPatternGraphic}{\\includegraphics[width=118mm]{%s}}"
+		 (hub/org-export--latex-escape
+		  (expand-file-name "hero-pattern.png" hub/org-export--active-output-dir)))))))
     (hub/org-export--insert-header-extra
      (format "\\renewcommand{\\HubExportEyebrowBlock}{%s}"
 	     (if (and eyebrow (not (string-empty-p eyebrow)))
@@ -240,6 +297,9 @@ buffer metadata.  Missing variants default to
     (when (equal variant "dark-campaign")
       (hub/org-export--insert-header-extra "% hub-veriff-dark-campaign")
       (hub/org-export--insert-header-extra "\\HubVeriffVariant{dark-campaign}"))
+    (when (equal variant "gallery-white")
+      (hub/org-export--insert-header-extra "% hub-veriff-gallery-white")
+      (hub/org-export--insert-header-extra "\\HubVeriffVariant{gallery-white}"))
     (when (equal code-theme "dark")
       (hub/org-export--insert-header-extra "\\HubCodeThemeDark"))
     (when (equal code-theme "light")
@@ -256,7 +316,8 @@ buffer metadata.  Missing variants default to
        ((and variants (not (equal class hub/org-export--veriff-class-name)))
 	(user-error "LATEX_VARIANT requires LATEX_CLASS: veriff"))
        ((equal class hub/org-export--veriff-class-name)
-	(hub/org-export--effective-veriff-variant variants))))))
+	(when (equal (hub/org-export--effective-veriff-variant variants) "gallery-white")
+	  (hub/org-export--validate-gallery-white-standfirst)))))))
 
 (defun hub/org-export--configure-class-buffer (backend)
   "Configure export-time buffer state for BACKEND.
@@ -281,6 +342,12 @@ This runs on the temporary export buffer only."
 (defun hub/org-export--info-veriff-p (info)
   "Return non-nil when INFO targets the `veriff' class."
   (equal (plist-get info :latex-class) hub/org-export--veriff-class-name))
+
+
+(defun hub/org-export--gallery-white-info-p (info)
+  "Return non-nil when INFO targets the `gallery-white' Veriff variant."
+  (and (hub/org-export--info-veriff-p info)
+       (equal (hub/org-export--effective-veriff-variant) "gallery-white")))
 
 
 (defun hub/org-export--table-row-cells (row info)
@@ -367,23 +434,32 @@ When HEADER-P is non-nil, render cells with the class-owned header macro."
       (funcall orig table contents info))))
 
 (defun hub/org-export--advice-org-latex-special-block (orig special-block contents info)
-  "Escape LaTeX special characters in the `:options' attribute of SPECIAL-BLOCK.
-This is narrowly scoped to `metric' blocks in the `veriff' class."
-  (let* ((attr-latex (org-element-property :attr_latex special-block)))
-    (when (and attr-latex
-	       (hub/org-export--info-veriff-p info)
-	       (equal (org-element-property :type special-block) "metric"))
-      (let ((new-attr (mapcar (lambda (s)
-				(if (string-match ":options\\s-+\\(.+\\)" s)
-				    (let* ((opt-val (match-string 1 s))
-					   (unescaped opt-val))
-				      (dolist (char '("{" "}" "%" "&" "$" "#" "_" "^" "~"))
-					(setq unescaped (replace-regexp-in-string (concat "\\\\" (regexp-quote char)) char unescaped t t)))
-				      (replace-match (hub/org-export--latex-escape unescaped) t t s 1))
-				  s))
-			      attr-latex)))
-	(org-element-put-property special-block :attr_latex new-attr))))
-  (funcall orig special-block contents info))
+  "Apply Veriff-specific LaTeX handling to SPECIAL-BLOCK before ORIG.
+Escape metric `:options' values and allow graph blocks to opt into full-width
+two-column rendering with `:float multicolumn'."
+  (let* ((attr-latex (org-element-property :attr_latex special-block))
+	 (attr (org-export-read-attribute :attr_latex special-block)))
+    (if (and (hub/org-export--gallery-white-info-p info)
+	     (equal (org-element-property :type special-block) "standfirst"))
+	(format "\\begin{standfirst}\n%s\n\\end{standfirst}\n}]\n" contents)
+      (when (and attr-latex
+		 (hub/org-export--info-veriff-p info)
+		 (equal (org-element-property :type special-block) "metric"))
+	(let ((new-attr (mapcar (lambda (s)
+				  (if (string-match ":options\\s-+\\(.+\\)" s)
+				      (let* ((opt-val (match-string 1 s))
+					     (unescaped opt-val))
+					(dolist (char '("{" "}" "%" "&" "$" "#" "_" "^" "~"))
+					  (setq unescaped (replace-regexp-in-string (concat "\\\\" (regexp-quote char)) char unescaped t t)))
+					(replace-match (hub/org-export--latex-escape unescaped) t t s 1))
+				    s))
+				attr-latex)))
+	  (org-element-put-property special-block :attr_latex new-attr)))
+      (when (and (hub/org-export--info-veriff-p info)
+		 (equal (org-element-property :type special-block) "graph")
+		 (equal (plist-get attr :float) "multicolumn"))
+	(org-element-put-property special-block :type "graph*"))
+      (funcall orig special-block contents info))))
 
 (defun hub/org-export--advice-org-latex--text-markup (orig text markup info)
   "Render `hub-protected-code' using `\\HubInlineCode' while escaping special characters."
