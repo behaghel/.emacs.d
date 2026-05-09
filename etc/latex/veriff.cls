@@ -315,11 +315,35 @@
 
 \newcommand{\HubQuoteOpenMark}{{\color{HubMuted}\bfseries``}}
 \newcommand{\HubQuoteCloseMark}{{\color{HubMuted}\bfseries''}}
+\newsavebox{\HubEpigraphBox}
+\newcommand{\HubEpigraphFrame}[1]{%
+  \begin{flushright}%
+    \begin{tikzpicture}
+      \node[inner xsep=18pt,inner ysep=14pt,outer sep=0pt] (hubepigraph) {#1};
+      \draw[HubAccent,line width=0.8pt] ([xshift=18pt]hubepigraph.south west) -- ([xshift=-18pt]hubepigraph.south east);
+    \end{tikzpicture}%
+  \end{flushright}%
+}
 \newcommand{\HubQuoteFrame}[1]{%
   \begin{tikzpicture}
     \node[draw=HubLine,line width=0.8pt,fill=HubSurface,inner xsep=32pt,inner ysep=29pt,outer sep=0pt] (hubquote) {#1};
         \fill[HubAccent] ([xshift=-0.4pt,yshift=0.4pt]hubquote.north west) rectangle ([xshift=10.2pt,yshift=-0.4pt]hubquote.south west);
   \end{tikzpicture}%
+}
+
+\newenvironment{epigraph}[1][]{%
+  \par\medskip\noindent
+  \begin{lrbox}{\HubEpigraphBox}%
+  \begin{minipage}{0.62\linewidth}%
+    \setlength{\parskip}{0.4em}%
+    \def\HubTempArg{#1}%
+    \ifx\HubTempArg\empty\else{\raggedleft\textcolor{HubAccent}{\footnotesize\bfseries #1}\par}\vspace{0.7em}\fi
+    \raggedleft\itshape\small\color{HubStandfirst}\ignorespaces
+}{%
+  \end{minipage}%
+  \end{lrbox}%
+  \HubEpigraphFrame{\usebox{\HubEpigraphBox}}%
+  \par\medskip
 }
 
 \newenvironment{hubhero}{%

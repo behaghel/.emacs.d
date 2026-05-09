@@ -12,6 +12,11 @@
 Trust is no longer a static promise. It is a system: observable, explainable, fast under pressure, and humane at the point of friction.
 #+end_standfirst
 
+#+ATTR_LATEX: :options [Operational proverb]
+#+begin_epigraph
+Proof is strongest when every decision can explain itself.
+#+end_epigraph
+
 * Trust without compromise
 
 The strongest identity products no longer sell a check. They sell a posture. This means *bold* decisions, /italic/ emphasis, _underline_ for focus, and +strike-through+ for deprecated ideas. We evaluate the ~risk_score~ and set the =verbatim_flag= accordingly.
