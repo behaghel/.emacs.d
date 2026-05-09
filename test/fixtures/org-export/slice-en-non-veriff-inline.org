@@ -1,0 +1,5 @@
+#+TITLE: Non-Veriff Inline Test
+#+LATEX_CLASS: article
+#+LANGUAGE: en
+
+This is a test of *bold*, /italic/, _underline_, +strike-through+, ~code~, and =verbatim= in a non-Veriff class.
