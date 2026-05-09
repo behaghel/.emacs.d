@@ -32,6 +32,12 @@
   :type '(repeat string)
   :group 'hub/org)
 
+(defcustom hub/org-veriff-template-file
+  (expand-file-name "insert/template.veriff.org" user-emacs-directory)
+  "Yasnippet-compatible template used for new Veriff Org articles."
+  :type 'file
+  :group 'hub/org)
+
 (defun hub/org--normalize-agenda-files (value)
   "Return VALUE as a list of file paths, or nil.
 Accepts a single string or a list of strings."
@@ -82,6 +88,17 @@ When QUIET is non-nil, do not emit informational messages."
 	(cons (cons key value)
 	      (assoc-delete-all key org-structure-template-alist))))
 
+(defun hub/org-insert-veriff-template ()
+  "Insert the Veriff article template at point.
+When Yasnippet is available, expand fields in the inserted template."
+  (interactive)
+  (let ((template (with-temp-buffer
+		    (insert-file-contents hub/org-veriff-template-file)
+		    (buffer-string))))
+    (if (fboundp 'yas-expand-snippet)
+	(yas-expand-snippet template)
+      (insert template))))
+
 (use-package org
   :straight (:depth full)
   :commands (org-capture org-agenda)
@@ -100,7 +117,8 @@ When QUIET is non-nil, do not emit informational messages."
 			      (kbd ", SPC") 'hub/outline-focus-next-section
 			      (kbd "<next>")  'org-move-subtree-down
 			      (kbd "<prior>") 'org-move-subtree-up
-			      ",fn" 'org-footnote-new)
+			      ",fn" 'org-footnote-new
+			      ",ov" 'hub/org-insert-veriff-template)
   (evil-define-key 'motion org-mode-map (kbd "RET") 'org-return)
   (evil-define-key 'motion calendar-mode-map (kbd "RET") 'org-calendar-select)
   (evil-define-key 'insert org-mode-map (kbd "M-RET") 'org-meta-return)
@@ -109,6 +127,15 @@ When QUIET is non-nil, do not emit informational messages."
 
   (hub/org-set-structure-template "c" "comment")
   (hub/org-set-structure-template "C" "center")
+  (hub/org-set-structure-template "sf" "standfirst")
+  (hub/org-set-structure-template "ep" "epigraph")
+  (hub/org-set-structure-template "pq" "pullquote")
+  (hub/org-set-structure-template "co" "callout")
+  (hub/org-set-structure-template "me" "metrics")
+  (hub/org-set-structure-template "mi" "metric")
+  (hub/org-set-structure-template "pi" "pillars")
+  (hub/org-set-structure-template "pa" "pillar")
+  (hub/org-set-structure-template "gr" "graph")
   (require 'org-tempo)
 
   (setq org-return-follows-link t
