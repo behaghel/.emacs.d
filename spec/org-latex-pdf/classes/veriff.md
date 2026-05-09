@@ -110,6 +110,7 @@ The class must consume the shared semantic layer from [`../semantic-layer.md`](.
 | dek | `#+SUBTITLE:` | Optional in general, but expected for flagship review specimens. |
 | body standfirst | `#+begin_standfirst` | Preferred for explicit lead paragraph styling. |
 | links | native Org links | Required later in full semantic coverage; class owns link colors and PDF link treatment. |
+| epigraph | `#+begin_epigraph` | Opening quotation with attribution, intended near the start of an article. |
 | quote | native quote block or `pullquote` where larger treatment is intended | Native first, custom only when emphasis requires it. |
 | callout | `#+begin_callout` | Required later in full semantic coverage. |
 | metrics | `#+begin_metrics` | Required later in full semantic coverage. |
@@ -156,6 +157,7 @@ Before moving to other classes, this class must cover:
 - dek
 - standfirst
 - native links
+- epigraph behavior
 - quote and pullquote behavior
 - callout behavior
 - metrics cluster
@@ -182,6 +184,40 @@ Before moving to other classes, this class must cover:
 - English is the first shipped locale for this class.
 - The class must consume locale-owned labels and package behavior through the locale layer instead of embedding English strings directly in class logic where generated text is involved.
 - A later French run for the same class should not require redesigning the class contract.
+
+## Authoring Experience
+
+Veriff articles should be fast to start and fast to enrich from inside Emacs.
+
+Whole-document scaffolding is provided by the Yasnippet-compatible template at `insert/template.veriff.org`. Authors can use either of these paths:
+
+- create a file ending in `.veriff.org` and run `auto-insert` to expand the Veriff article scaffold
+- invoke `hub/org-insert-veriff-template` in an Org buffer; the command is bound in Org normal state as `,ov`
+
+The scaffold should include the class metadata required for a reviewable Veriff article:
+
+- `#+LATEX_CLASS: veriff`
+- `#+LATEX_VARIANT:` with `refresh-overdrive` as the default field value
+- `#+LANGUAGE: en`
+- `#+EXPORT_EYEBROW:`
+- `#+EXPORT_FOOTER_NOTE:`
+- starter `standfirst` and `epigraph` blocks
+
+Small semantic blocks should be inserted with Org Tempo so authors can stay in the document flow. The supported Veriff-oriented shortcuts are:
+
+| Shortcut | Expands to |
+| --- | --- |
+| `<sf` | `#+begin_standfirst` |
+| `<ep` | `#+begin_epigraph` |
+| `<pq` | `#+begin_pullquote` |
+| `<co` | `#+begin_callout` |
+| `<me` | `#+begin_metrics` |
+| `<mi` | `#+begin_metric` |
+| `<pi` | `#+begin_pillars` |
+| `<pa` | `#+begin_pillar` |
+| `<gr` | `#+begin_graph` |
+
+Shortcut keys must remain unique across `org-structure-template-alist` and `org-tempo-keywords-alist`; tests should guard this because other Org packages may add their own Tempo keys.
 
 ## Validation Hooks
 

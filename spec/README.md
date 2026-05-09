@@ -28,7 +28,7 @@ This spec set exists to answer four questions before implementation starts:
 - Personal family: `essay`, `journal-entry`, `article`.
 - The personal `article` class should stay close to the professional article direction without inventing a separate `article-pro` implementation contract in v1.
 - English and French are the only v1 locales.
-- The first real implementation target is `veriff`.
+- The first real implementation target is [`veriff`](org-latex-pdf/classes/veriff.md).
 - The first shipped locale is English.
 - Locale separation still exists from day one so French can be added without refactoring the architecture.
 - Rollout order is fixed: one narrow vertical slice on one class, then full semantic coverage for that class, then variants for that class, then the remaining classes and locales.

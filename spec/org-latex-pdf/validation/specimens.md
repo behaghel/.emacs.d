@@ -49,6 +49,7 @@ Future dark-campaign approval specimens may be added later under a separate trac
 | standfirst | no | yes | yes | optional |
 | eyebrow | no | yes | yes | optional |
 | links | no | yes | yes | optional |
+| epigraph | no | yes | yes | optional |
 | quote | no | yes | yes | optional |
 | pullquote | no | yes | yes | no |
 | callout | no | yes | yes | optional |
