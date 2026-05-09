@@ -82,6 +82,8 @@ Required pages for `veriff`:
 
 Purpose: catch layout, spacing, and color regressions that structural checks will miss.
 
+For `veriff`, color-regression review must validate against the official brand palette recorded in [`../classes/veriff.md`](../classes/veriff.md), not against prototype-only or transitional colors unless those colors are explicitly documented as temporary fidelity bridges.
+
 Required focus areas:
 
 - page tone and chrome, with the understanding that running chrome may be intentionally absent during the temporary page-one fidelity slice, but a professional footer with a full horizontal rule, title recall, and logo should be present on subsequent pages
