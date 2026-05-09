@@ -14,17 +14,18 @@ The `veriff` class supports multiple visual directions through the `#+LATEX_VARI
 | --- | --- | --- |
 | `refresh-overdrive` | Flagship branded article direction; warm paper, orange accents. | active (default) |
 | `dark-campaign` | Derived dark variant; shared typography and semantics; high-contrast dark surface. | active |
+| `gallery-white` | Academic white-paper-inspired article direction; restrained white/mint surface, compact two-column reading flow. | active |
 
 ### Variant Selection Rules
 
 - Selected via `#+LATEX_VARIANT:`.
-- Values are exact lowercase (e.g., `refresh-overdrive`, `dark-campaign`).
+- Values are exact lowercase (e.g., `refresh-overdrive`, `dark-campaign`, `gallery-white`).
 - Surrounding whitespace is trimmed.
 - Mixed-case values (e.g., `Refresh-Overdrive`) must cause an export error.
 - If `#+LATEX_VARIANT:` is omitted, it defaults to `refresh-overdrive`.
 - Duplicate `#+LATEX_VARIANT:` keywords must cause an export error.
 - Unknown variant values must cause an export error.
-- The error message for an unknown variant must explicitly list the valid variants: `refresh-overdrive`, `dark-campaign`.
+- The error message for an unknown variant must explicitly list the valid variants: `refresh-overdrive`, `dark-campaign`, `gallery-white`.
 - Usage of `#+LATEX_VARIANT:` with a non-`veriff` class must cause an export error.
 
 ### Legacy Migration
@@ -98,6 +99,21 @@ Non-negotiable signals:
 - Visual differences are limited to palette, chrome, surface, and contrast.
 - **CRITICAL:** The white-background webpage-print artefact/region sometimes found in prototypes is non-representative and must be ignored; the dark surface is the goal.
 
+### gallery-white
+The palette reference lives at:
+- `/Users/hubertbehaghel/tmp/veriff-article-prototypes/out/02-gallery-white.png`
+
+This reference is color inspiration only. It is not a layout authority for the shipped Org export variant.
+
+Non-negotiable signals:
+- The layout must be inspired by academic white papers rather than marketing one-column articles.
+- The page surface should stay quiet and premium-white, with restrained mint/teal accents and fine rules.
+- Body content should use a two-column reading flow with a significantly smaller body font than `refresh-overdrive`.
+- The standfirst should be italic, not bold.
+- Pullquotes should be treated like compact newspaper interruptions within the column flow: slightly narrower than column width, shorter than campaign pullquotes, and followed by normal two-column text flow.
+- Images, graph blocks, and native tables must have an author-controlled choice between column width and full text width.
+- The variant must reuse the existing Veriff semantic authoring dialect; authors should not need a `gallery-white`-specific block vocabulary.
+
 ## Required Semantic Affordances
 
 The class must consume the shared semantic layer from [`../semantic-layer.md`](../semantic-layer.md) and must not invent a separate authoring dialect.
@@ -116,9 +132,9 @@ The class must consume the shared semantic layer from [`../semantic-layer.md`](.
 | metrics | `#+begin_metrics` | Required later in full semantic coverage. |
 | plain lists and checklists | native ordered/unordered Org lists, including checkbox items | Required later in full semantic coverage; class owns list spacing and marker treatment. |
 | table | native Org table | Required later in full semantic coverage. |
-| figure/image | native Org image link with `#+CAPTION:`, `#+NAME:`, optional `#+ATTR_LATEX:` | Required later in full semantic coverage; class owns image frame and caption treatment. |
+| figure/image | native Org image link with `#+CAPTION:`, `#+NAME:`, optional `#+ATTR_LATEX:` | Required later in full semantic coverage; class owns image frame and caption treatment. `gallery-white` must allow both column-width and full-width rendering. |
 | pillars or cards | `#+begin_pillars` | Required later in full semantic coverage. |
-| graph/chart | `#+begin_graph` | Required later in full semantic coverage. |
+| graph/chart | `#+begin_graph` | Required later in full semantic coverage. `gallery-white` must allow both column-width and full-width rendering. |
 | code sample | source block | High-fidelity syntax highlighting via minted and tcolorbox. Supports line numbers via `-n`. |
 | code theme | `#+EXPORT_CODE_THEME:` | Optional. Accepts `light` or `dark`. Defaults to `light`. |
 | footer note | `#+EXPORT_FOOTER_NOTE:` | Optional but supported. |
@@ -162,8 +178,8 @@ Before moving to other classes, this class must cover:
 - callout behavior
 - metrics cluster
 - native ordered/unordered lists and checklist items
-- native tables
-- native figures/images with captions, labels, and attribute-controlled sizing
+- native tables, including column-width and full-width behavior in two-column variants
+- native figures/images with captions, labels, and attribute-controlled sizing, including column-width and full-width behavior in two-column variants
 - pillars cluster
 - graph/chart
 - code sample styling
