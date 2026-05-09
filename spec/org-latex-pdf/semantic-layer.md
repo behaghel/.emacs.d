@@ -34,7 +34,11 @@ The shared authoring surface starts with standard Org metadata and class selecti
 | headings | Org headings | Native section structure is already correct. |
 | paragraphs | Org paragraphs | Native body prose. |
 | lists | Org ordered or unordered lists | Native list semantics. |
+| checklist items | Org checkbox list items | Native task-status markers inside list semantics. |
+| links | Org links | Native references to external or internal targets. |
+| footnotes | Org footnotes | Native supporting-note semantics distinct from class chrome/footer notes. |
 | tables | Org tables | Native tabular data. |
+| figures and images | Org file image link with `#+CAPTION:`, `#+NAME:`, and optional `#+ATTR_LATEX:` | Native figure semantics; classes may own frame and caption treatment. |
 | code sample | source block | Native code-block semantics. Exported via minted for high-fidelity syntax highlighting. |
 | quotation | quote block | Native quotation semantics. |
 | emphasis | Org emphasis markers | Native inline semantics. |
@@ -64,7 +68,7 @@ Some visible structures are compositions of multiple semantic inputs rather than
 ## Unsupported or Deferred Shared Semantics
 
 - No separate semantic primitive is defined yet for sidebars, appendices, or multi-page cover sheets.
-- No shared semantic primitive is defined yet for figure-caption systems beyond what native Org and LaTeX already provide.
+- No separate custom semantic primitive is defined for figures beyond native Org image links, captions, names, and LaTeX attributes.
 - Variant-specific toggles are not part of the shared semantic layer.
 
 ## Coverage Hooks for Validation

@@ -48,14 +48,19 @@ Future dark-campaign approval specimens may be added later under a separate trac
 | headings and paragraphs | yes | yes | yes | yes |
 | standfirst | no | yes | yes | optional |
 | eyebrow | no | yes | yes | optional |
+| links | no | yes | yes | optional |
 | quote | no | yes | yes | optional |
 | pullquote | no | yes | yes | no |
 | callout | no | yes | yes | optional |
 | metrics | no | yes | yes | optional |
+| ordered/unordered lists | no | yes | yes | optional |
+| checklist items | no | yes | yes | optional |
 | tables | no | yes | yes | optional |
+| figures/images | no | yes | yes | optional |
 | pillars | no | yes | yes | optional |
 | graph/chart | no | yes | yes | optional |
 | code sample | no | yes | yes | optional |
+| native footnotes | no | yes | yes | optional |
 | footer note | no | yes | yes | optional |
 
 ## Artifact Policy
