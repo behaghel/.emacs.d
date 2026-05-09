@@ -36,6 +36,43 @@ The `veriff` class supports multiple visual directions through the `#+LATEX_VARI
 
 ## Visual Authority
 
+### Official Brand Palette
+
+The `veriff` class should prefer the official Veriff palette below for new color tokens. Prototype-derived or transitional colors may exist during fidelity work, but they should be documented and mapped back to the nearest official token when reviewed.
+
+| Family | Token | Hex |
+| --- | --- | --- |
+| Teal | Teal 100 | `#E0FCF8` |
+| Teal | Teal 300 | `#9DF5EA` |
+| Teal | Teal 500 | `#14E5C5` |
+| Teal | Teal 700 | `#085559` |
+| Teal | Teal 900 | `#0C3035` |
+| Orange | Orange 100 | `#FBEDE8` |
+| Orange | Orange 300 | `#FFAF97` |
+| Orange | Orange 500 | `#FF550F` |
+| Orange | Orange 700 | `#7D1F1F` |
+| Orange | Orange 900 | `#42081D` |
+| Neutral | Neutral 100 | `#F6FDFC` |
+| Neutral | Neutral 300 | `#CBD7D4` |
+| Neutral | Neutral 500 | `#97A19E` |
+| Neutral | Neutral 700 | `#4B5F5A` |
+| Neutral | Neutral 900 | `#03140F` |
+| Tan | Tan 100 | `#EBECDC` |
+| Tan | Tan 300 | `#C8B59A` |
+| Tan | Tan 500 | `#845D33` |
+| Tan | Tan 700 | `#543F21` |
+| Tan | Tan 900 | `#241F0D` |
+| Magenta | Magenta 100 | `#F9E9F9` |
+| Magenta | Magenta 300 | `#F0A2EC` |
+| Magenta | Magenta 500 | `#F451EE` |
+| Magenta | Magenta 700 | `#90238A` |
+| Magenta | Magenta 900 | `#2F062D` |
+| Yellow | Yellow 100 | `#FAFEEA` |
+| Yellow | Yellow 300 | `#F7FF9E` |
+| Yellow | Yellow 500 | `#EEF51F` |
+| Yellow | Yellow 700 | `#73761E` |
+| Yellow | Yellow 900 | `#262B06` |
+
 ### refresh-overdrive
 The approved visual references live at:
 - `/Users/hubertbehaghel/tmp/veriff-article-prototypes/04-refresh-overdrive.html`
@@ -72,10 +109,13 @@ The class must consume the shared semantic layer from [`../semantic-layer.md`](.
 | title | `#+TITLE:` | Required. |
 | dek | `#+SUBTITLE:` | Optional in general, but expected for flagship review specimens. |
 | body standfirst | `#+begin_standfirst` | Preferred for explicit lead paragraph styling. |
+| links | native Org links | Required later in full semantic coverage; class owns link colors and PDF link treatment. |
 | quote | native quote block or `pullquote` where larger treatment is intended | Native first, custom only when emphasis requires it. |
 | callout | `#+begin_callout` | Required later in full semantic coverage. |
 | metrics | `#+begin_metrics` | Required later in full semantic coverage. |
+| plain lists and checklists | native ordered/unordered Org lists, including checkbox items | Required later in full semantic coverage; class owns list spacing and marker treatment. |
 | table | native Org table | Required later in full semantic coverage. |
+| figure/image | native Org image link with `#+CAPTION:`, `#+NAME:`, optional `#+ATTR_LATEX:` | Required later in full semantic coverage; class owns image frame and caption treatment. |
 | pillars or cards | `#+begin_pillars` | Required later in full semantic coverage. |
 | graph/chart | `#+begin_graph` | Required later in full semantic coverage. |
 | code sample | source block | High-fidelity syntax highlighting via minted and tcolorbox. Supports line numbers via `-n`. |
@@ -115,13 +155,17 @@ Before moving to other classes, this class must cover:
 - eyebrow
 - dek
 - standfirst
+- native links
 - quote and pullquote behavior
 - callout behavior
 - metrics cluster
+- native ordered/unordered lists and checklist items
 - native tables
+- native figures/images with captions, labels, and attribute-controlled sizing
 - pillars cluster
 - graph/chart
 - code sample styling
+- native Org footnotes
 - footer note
 
 ## Preamble and Export Expectations
