@@ -9,6 +9,7 @@ var/
 /etc/*
 !/etc/latex/
 /etc/latex/*
+!/etc/latex/hub-article.cls
 !/etc/latex/veriff.cls
 !/etc/latex/assets/
 /etc/latex/assets/*
