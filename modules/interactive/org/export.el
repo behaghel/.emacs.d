@@ -101,6 +101,17 @@ The gallery-white `standfirst' special-block export closes the full-width
 two-column opener with a braced literal optional argument in the generated
 LaTeX.")
 
+(defconst hub/org-export--hub-article-title-command
+  (string-join
+   '("\\begin{hubarticleopener}"
+     "\\HubArticleEyebrowBlock"
+     "\\HubArticleTitle{%t}"
+     "\\HubArticleDek{%s}"
+     "\\HubArticleMeta{%a}{%D}"
+     "\\end{hubarticleopener}")
+   "\n")
+  "Title command used for the `hub-article' LaTeX class.")
+
 (defun hub/org-export--locale-code (&optional backend)
   "Return the current export locale code for BACKEND.
 Defaults to English when the Org buffer does not specify one."
@@ -178,6 +189,10 @@ class when CLASS-NAME is nil; signals `user-error' when unavailable."
 (defun hub/org-export--veriff-p ()
   "Return non-nil when the current buffer targets `veriff'."
   (equal (hub/org-export--class-name) hub/org-export--veriff-class-name))
+
+(defun hub/org-export--hub-article-p ()
+  "Return non-nil when the current buffer targets `hub-article'."
+  (equal (hub/org-export--class-name) hub/org-export--hub-article-class-name))
 
 (defun hub/org-export--xelatex-class-p (&optional class-name)
   "Return non-nil when CLASS-NAME, or the current buffer class, uses XeLaTeX."
@@ -326,6 +341,21 @@ buffer metadata.  Missing variants default to
     (when (equal code-theme "light")
       (hub/org-export--insert-header-extra "\\HubCodeThemeLight"))))
 
+(defun hub/org-export--configure-hub-article-title ()
+  "Configure title variables for the personal article class."
+  (let ((eyebrow (hub/org-export--keyword-string "EXPORT_EYEBROW")))
+    (setq-local org-export-with-toc nil)
+    (setq-local org-latex-compiler (hub/org-export--effective-compiler))
+    (setq-local org-latex-pdf-process
+		(hub/org-export--pdf-process-for-compiler org-latex-compiler))
+    (setq-local org-latex-title-command hub/org-export--hub-article-title-command)
+    (hub/org-export--insert-header-extra
+     (format "\\renewcommand{\\HubArticleEyebrowBlock}{%s}"
+	     (if (and eyebrow (not (string-empty-p eyebrow)))
+		 (format "\\HubArticleEyebrow{%s}"
+			 (hub/org-export--latex-escape eyebrow))
+	       "")))))
+
 (defun hub/org-export--validate-veriff-metadata (backend)
   "Reject invalid Veriff class and variant metadata for BACKEND."
   (when (org-export-derived-backend-p backend 'latex)
@@ -348,6 +378,8 @@ This runs on the temporary export buffer only."
      ((hub/org-export--veriff-p)
       (hub/org-export--configure-veriff-title)
       (hub/org-export--append-footer-note))
+     ((hub/org-export--hub-article-p)
+      (hub/org-export--configure-hub-article-title))
      ((hub/org-export--xelatex-class-p)
       (setq-local org-latex-compiler (hub/org-export--effective-compiler))
       (setq-local org-latex-pdf-process
