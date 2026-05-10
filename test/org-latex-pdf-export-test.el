@@ -444,6 +444,52 @@
       (when (file-directory-p artifact-root)
 	(delete-directory artifact-root t)))))
 
+(ert-deftest hub/org-export-hub-article-opener ()
+  "The hub article opener is class-owned and avoids Veriff hero leakage."
+  (let* ((specimen (expand-file-name "test/fixtures/org-export/slice-en-hub-article-opener.org"
+				     hub/test-repo-root))
+	 (artifact-root (hub/test-make-export-artifact-root))
+	 (specimen-buffer nil))
+    (unwind-protect
+	(progn
+	  (setq specimen-buffer (find-file-noselect specimen))
+	  (with-current-buffer specimen-buffer
+	    (hub/test-with-export-compiler-readiness t
+						     (hub/test-with-stubbed-latex-compile
+						      (let* ((hub/org-export-output-root artifact-root)
+							     (tex-path (hub/org-export-buffer-to-latex artifact-root))
+							     (tex-contents (hub/test-read-file-as-string tex-path))
+							     (class-path (hub/test-exported-class-path artifact-root "hub-article"))
+							     (class-contents (hub/test-read-file-as-string class-path))
+							     (pdf-path (hub/org-export-buffer-to-pdf artifact-root)))
+							(should (string-match-p (regexp-quote "\\documentclass[11pt,a4paper]{hub-article}") tex-contents))
+							(should (string-match-p (regexp-quote "\\HubArticleEyebrow{Personal systems}") tex-contents))
+							(should (string-match-p (regexp-quote "\\HubArticleTitle{A quiet article opener}") tex-contents))
+							(should (string-match-p (regexp-quote "\\HubArticleDek{Notes toward calmer technical authority}") tex-contents))
+							(should (string-match-p (regexp-quote "\\HubArticleMeta{Hubert Behaghel}{2026-05-10}") tex-contents))
+							(should (string-match-p (regexp-quote "\\begin{standfirst}") tex-contents))
+							(should (string-match-p "Reading the surface" tex-contents))
+							(should (string-match-p "The opener should feel personal" tex-contents))
+							(should-not (string-match-p (regexp-quote "\\maketitle") tex-contents))
+							(should-not (string-match-p (regexp-quote "\\HubHeroTitle") tex-contents))
+							(should-not (string-match-p (regexp-quote "\\HubVeriffVariant") tex-contents))
+							(should-not (string-match-p (regexp-quote "HubHeroLogoGraphic") tex-contents))
+							(should-not (string-match-p (regexp-quote "HubHeroPatternGraphic") tex-contents))
+							(should (string-match-p (regexp-quote "\\RequirePackage{fontspec}") class-contents))
+							(should (string-match-p (regexp-quote "\\setmainfont") class-contents))
+							(should (string-match-p (regexp-quote "\\setsansfont") class-contents))
+							(should (string-match-p (regexp-quote "\\setmonofont") class-contents))
+							(should (string-match-p (regexp-quote "HubArticleSerif") class-contents))
+							(should (string-match-p (regexp-quote "HubArticleSans") class-contents))
+							(should (string-match-p (regexp-quote "HubArticleMono") class-contents))
+							(should (string-match-p (regexp-quote "HubArticleAccentMuted") class-contents))
+							(should (string-match-p (regexp-quote "\\newcommand{\\HubArticleTitle}") class-contents))
+							(should (file-exists-p pdf-path)))))))
+      (when (buffer-live-p specimen-buffer)
+	(kill-buffer specimen-buffer))
+      (when (file-directory-p artifact-root)
+	(delete-directory artifact-root t)))))
+
 (ert-deftest hub/org-export-slice-en-veriff-default-variant-produces-latex-and-pdf ()
   "The omitted variant defaults to refresh-overdrive and stages veriff.cls."
   (let* ((specimen (expand-file-name "test/fixtures/org-export/slice-en-veriff-default-variant.org"

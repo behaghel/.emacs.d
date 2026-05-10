@@ -1,0 +1,15 @@
+#+TITLE: A quiet article opener
+#+SUBTITLE: Notes toward calmer technical authority
+#+AUTHOR: Hubert Behaghel
+#+DATE: 2026-05-10
+#+LANGUAGE: en
+#+LATEX_CLASS: hub-article
+#+EXPORT_EYEBROW: Personal systems
+
+#+begin_standfirst
+A measured lead paragraph should introduce the essay with editorial calm before the first section begins.
+#+end_standfirst
+
+* Reading the surface
+
+The opener should feel personal, serif-led, and technical without borrowing the Veriff hero stage.
