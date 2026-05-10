@@ -1,0 +1,10 @@
+#+TITLE: Hub article minimal slice
+#+SUBTITLE: A compact personal article fixture
+#+AUTHOR: Hubert Behaghel
+#+DATE: 2026-05-10
+#+LANGUAGE: en
+#+LATEX_CLASS: hub-article
+
+* Minimal article heading
+
+Minimal hub article paragraph that proves the personal article export path.

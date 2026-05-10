@@ -412,6 +412,38 @@
       (when (file-directory-p artifact-root)
 	(delete-directory artifact-root t)))))
 
+(ert-deftest hub/org-export-hub-article-minimal ()
+  "The minimal hub article slice exports with the personal article class."
+  (let* ((specimen (expand-file-name "test/fixtures/org-export/slice-en-hub-article-minimal.org"
+				     hub/test-repo-root))
+	 (artifact-root (hub/test-make-export-artifact-root))
+	 (specimen-buffer nil))
+    (unwind-protect
+	(progn
+	  (setq specimen-buffer (find-file-noselect specimen))
+	  (with-current-buffer specimen-buffer
+	    (hub/test-with-export-compiler-readiness t
+						     (hub/test-with-stubbed-latex-compile
+						      (let* ((hub/org-export-output-root artifact-root)
+							     (tex-path (hub/org-export-buffer-to-latex artifact-root))
+							     (tex-contents (hub/test-read-file-as-string tex-path))
+							     (class-path (hub/test-exported-class-path artifact-root "hub-article"))
+							     (pdf-path (hub/org-export-buffer-to-pdf artifact-root)))
+							(should (string-match-p (regexp-quote "\\documentclass[11pt,a4paper]{hub-article}") tex-contents))
+							(should-not (string-match-p (regexp-quote "\\documentclass[11pt,a4paper]{veriff}") tex-contents))
+							(should (string-match-p (regexp-quote "\\title{Hub article minimal slice") tex-contents))
+							(should (string-match-p "\\author{Hubert Behaghel}" tex-contents))
+							(should (string-match-p "\\date{" tex-contents))
+							(should (string-match-p "Minimal article heading" tex-contents))
+							(should (string-match-p "Minimal hub article paragraph" tex-contents))
+							(should (file-exists-p class-path))
+							(should-not (file-exists-p (hub/test-exported-class-path artifact-root "veriff")))
+							(should (file-exists-p pdf-path)))))))
+      (when (buffer-live-p specimen-buffer)
+	(kill-buffer specimen-buffer))
+      (when (file-directory-p artifact-root)
+	(delete-directory artifact-root t)))))
+
 (ert-deftest hub/org-export-slice-en-veriff-default-variant-produces-latex-and-pdf ()
   "The omitted variant defaults to refresh-overdrive and stages veriff.cls."
   (let* ((specimen (expand-file-name "test/fixtures/org-export/slice-en-veriff-default-variant.org"

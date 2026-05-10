@@ -1,7 +1,7 @@
 ;;; export.el --- Org LaTeX export classes and helpers -*- lexical-binding: t; -*-
 
 ;;; Commentary:
-;; Minimal Org -> LaTeX -> PDF export support for the Veriff class family.
+;; Minimal Org -> LaTeX -> PDF export support for local LaTeX classes.
 
 ;;; Code:
 
@@ -37,6 +37,9 @@
 (defconst hub/org-export--veriff-class-name "veriff"
   "Public LaTeX class name for the Veriff export family.")
 
+(defconst hub/org-export--hub-article-class-name "hub-article"
+  "Public LaTeX class name for the personal article export family.")
+
 (defconst hub/org-export--veriff-default-variant "refresh-overdrive"
   "Default variant for the Veriff export family.")
 
@@ -50,6 +53,14 @@
 (defconst hub/org-export--veriff-class-file
   (expand-file-name "etc/latex/veriff.cls" user-emacs-directory)
   "Tracked LaTeX class asset for `veriff'.")
+
+(defconst hub/org-export--hub-article-class-file
+  (expand-file-name "etc/latex/hub-article.cls" user-emacs-directory)
+  "Tracked LaTeX class asset for `hub-article'.")
+
+(defconst hub/org-export--xelatex-class-names
+  (list hub/org-export--veriff-class-name hub/org-export--hub-article-class-name)
+  "Local LaTeX class names that require the XeLaTeX compiler path.")
 
 (defconst hub/org-export--veriff-assets-directory
   (expand-file-name "assets" (file-name-directory hub/org-export--veriff-class-file))
@@ -114,6 +125,7 @@ Defaults to English when the Org buffer does not specify one."
 Default to the current buffer's LaTeX class when CLASS-NAME is nil."
   (pcase (or class-name (hub/org-export--class-name))
     ("veriff" hub/org-export--veriff-class-file)
+    ("hub-article" hub/org-export--hub-article-class-file)
     (_ nil)))
 
 (defun hub/org-export--latex-escape (text)
@@ -137,16 +149,21 @@ This is intentionally narrow and targets metadata-like strings."
 (defun hub/org-export--compiler-ready-p (compiler)
   "Return non-nil when COMPILER is ready for use in this environment."
   (and (string= compiler "xelatex")
-       (executable-find compiler)
-       (file-exists-p hub/org-export--veriff-class-file)))
+       (executable-find compiler)))
 
-(defun hub/org-export--effective-compiler ()
+(defun hub/org-export--effective-compiler (&optional class-name)
   "Return the compiler to use for the current export.
 
-Requires XeLaTeX and the veriff class asset; signals `user-error' when unavailable."
-  (if (hub/org-export--compiler-ready-p "xelatex")
-      "xelatex"
-    (user-error "XeLaTeX and the veriff class asset are required for this export")))
+Requires XeLaTeX and the tracked asset for CLASS-NAME, or the current buffer's
+class when CLASS-NAME is nil; signals `user-error' when unavailable."
+  (let* ((resolved-class (or class-name (hub/org-export--class-name)))
+	 (class-asset (hub/org-export--class-asset-source resolved-class)))
+    (cond
+     ((not (hub/org-export--compiler-ready-p "xelatex"))
+      (user-error "XeLaTeX is required for this export"))
+     ((and class-asset (not (file-exists-p class-asset)))
+      (user-error "Missing Org export class asset: %s" class-asset))
+     (t "xelatex"))))
 
 (defun hub/org-export--pdf-process-for-compiler (compiler)
   "Return a minimal two-pass PDF process for COMPILER."
@@ -161,6 +178,10 @@ Requires XeLaTeX and the veriff class asset; signals `user-error' when unavailab
 (defun hub/org-export--veriff-p ()
   "Return non-nil when the current buffer targets `veriff'."
   (equal (hub/org-export--class-name) hub/org-export--veriff-class-name))
+
+(defun hub/org-export--xelatex-class-p (&optional class-name)
+  "Return non-nil when CLASS-NAME, or the current buffer class, uses XeLaTeX."
+  (member (or class-name (hub/org-export--class-name)) hub/org-export--xelatex-class-names))
 
 (defun hub/org-export--effective-veriff-variant (&optional variants)
   "Return the effective Veriff variant for the current buffer.
@@ -322,10 +343,15 @@ buffer metadata.  Missing variants default to
 (defun hub/org-export--configure-class-buffer (backend)
   "Configure export-time buffer state for BACKEND.
 This runs on the temporary export buffer only."
-  (when (and (org-export-derived-backend-p backend 'latex)
-	     (hub/org-export--veriff-p))
-    (hub/org-export--configure-veriff-title)
-    (hub/org-export--append-footer-note)))
+  (when (org-export-derived-backend-p backend 'latex)
+    (cond
+     ((hub/org-export--veriff-p)
+      (hub/org-export--configure-veriff-title)
+      (hub/org-export--append-footer-note))
+     ((hub/org-export--xelatex-class-p)
+      (setq-local org-latex-compiler (hub/org-export--effective-compiler))
+      (setq-local org-latex-pdf-process
+		  (hub/org-export--pdf-process-for-compiler org-latex-compiler))))))
 
 (defun hub/org-export--validate-locale (backend)
   "Reject unsupported locale selections for Org export BACKEND."
@@ -539,6 +565,16 @@ two-column rendering with `:float multicolumn'."
       "[PACKAGES]")
     "\n")))
 
+(defun hub/org-export-register-hub-article ()
+  "Register the public personal article Org LaTeX export class."
+  (hub/org-export--register-latex-class
+   hub/org-export--hub-article-class-name
+   (string-join
+    '("\\documentclass[11pt,a4paper]{hub-article}"
+      "[DEFAULT-PACKAGES]"
+      "[PACKAGES]")
+    "\n")))
+
 (defun hub/org-export--ensure-output-directory (&optional output-dir)
   "Return OUTPUT-DIR with directories created, or the default export root."
   (let ((dir (file-name-as-directory (or output-dir hub/org-export-output-root))))
@@ -584,7 +620,7 @@ Return the generated `.tex' path."
   "Export the current Org buffer to PDF in OUTPUT-DIR.
 Return the generated `.pdf' path."
   (interactive)
-  (let* ((compiler (and (hub/org-export--veriff-p)
+  (let* ((compiler (and (hub/org-export--xelatex-class-p)
 			(hub/org-export--effective-compiler)))
 	 (org-latex-compiler (or compiler org-latex-compiler))
 	 (org-latex-pdf-process (if compiler
@@ -596,6 +632,7 @@ Return the generated `.pdf' path."
     pdf-path))
 
 (hub/org-export-register-veriff)
+(hub/org-export-register-hub-article)
 (hub/org-export--ensure-babel-package)
 (advice-add 'org-latex--org-table :around #'hub/org-export--advice-org-latex-org-table)
 (advice-add 'org-latex-special-block :around #'hub/org-export--advice-org-latex-special-block)
