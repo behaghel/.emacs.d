@@ -27,7 +27,8 @@ Generated outputs belong under `var/`.
 | 1 | Narrow English `veriff` slice | Export minimal Org specimens with `#+LATEX_CLASS: veriff` (both explicit and default `refresh-overdrive` behavior) to `.tex` then PDF | class selection assertion, variant default assertion, locale selection assertion, PDF exists assertion, extracted-text sanity assertion | export does not recognize the class, variant default fails, locale path is missing, or PDF cannot be produced | English flagship specimens export end to end and produce reviewable PDFs in `var/` | confirm the class and variant foundation feels real before adding richer semantics |
 | 2 | Full semantic coverage for `veriff` | Export the full English semantic specimen and inspect both `.tex` structure and rendered PDF | assertions for standfirst, eyebrow, links, epigraph, lists, checklists, native footnotes, quote, callout, metrics, tables, figures/images, pillars, code, footer note | one or more semantic constructs disappear, collapse to plain prose, or compile incorrectly | the flagship class supports the full approved semantic set in English | confirm the class can carry real article content, not just a smoke page |
 | 3 | Variants within the same professional direction | Export approval specimens and any variant-bearing specimens through the same class family path | assertions that variant selection changes only the intended preamble or style surfaces; snapshot checks for canonical pages; `dark-campaign` surface check; `gallery-white` two-column white-paper surface check | variant wiring leaks into semantics, or visual changes break approved layout cues | additional class variants (`dark-campaign`, `gallery-white`) are exercised without a semantic-model rewrite | confirm the class family can branch without breaking the authoring contract |
-| 4 | Remaining classes and French coverage | Add personal and remaining professional classes plus French specimen runs through the same architecture | class-selection assertions for new classes, French locale assertions, text extraction checks for accented content, class-specific smoke PDFs | new classes require semantic rewrites, or French cannot be added through the existing locale layer | the architecture expands to remaining classes and French without backtracking on the first-class design | confirm the architecture generalizes beyond the flagship slice |
+| 4 | Personal `hub-article` slice | Export the planned personal article specimens with `#+LATEX_CLASS: hub-article` through the same Org to LaTeX to PDF path | class selection assertion for `hub-article`, opener assertion, long-form assertion, code assertion, French readiness assertion, PDF exists assertion | the exporter still treats the personal article family as an unnamed remainder, or the class needs a variant to work | the personal article contract is user-exercisable end to end in English, with French-aware readiness documented | confirm the personal family is a first-class slice, not a leftover bucket |
+| 5 | Remaining classes and French coverage | Add the deferred classes plus French specimen runs through the same architecture | class-selection assertions for new classes, French locale assertions, text extraction checks for accented content, class-specific smoke PDFs | new classes require semantic rewrites, or French cannot be added through the existing locale layer | the architecture expands to remaining classes and French without backtracking on the first-class design | confirm the architecture generalizes beyond the flagship and personal slices |
 
 ## Per-Iteration Outputs
 
@@ -37,6 +38,8 @@ Each iteration should leave behind:
 - targeted tests under `test/*-test.el`
 - generated `.tex`, `.pdf`, extracted text, and snapshot artifacts under `var/`
 - updated spec wording if implementation evidence changes the contract
+
+The personal `hub-article` slice should follow the same output discipline, with generated artifacts staying under `var/` and no tracked golden outputs added to git.
 
 ## Test Value Review Guidance
 
@@ -59,9 +62,11 @@ Each iteration should leave behind:
 - This file does not commit to exact implementation commands before the code exists.
 - This file does not require French to be green in iteration 1.
 - This file does not let work skip from the narrow slice directly to all-class rollout.
+- This file does not make `hub-article` a `veriff` variant.
 
 ## Acceptance Signals
 
 - The rollout order matches the approved handoff sequence exactly.
 - Every iteration is end to end and user-exercisable.
 - The plan identifies what should fail first and what counts as the smallest acceptable green state.
+- The personal `hub-article` slice is separated from the remaining deferred classes without breaking the vertical-slice rule.
