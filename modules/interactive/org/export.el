@@ -349,6 +349,16 @@ buffer metadata.  Missing variants default to
     (setq-local org-latex-pdf-process
 		(hub/org-export--pdf-process-for-compiler org-latex-compiler))
     (setq-local org-latex-title-command hub/org-export--hub-article-title-command)
+    (setq-local org-latex-src-block-backend 'minted)
+    (setq-local org-latex-minted-options
+		'(("fontsize" "\\footnotesize")
+		  ("breaklines" "true")
+		  ("autogobble" "true")
+		  ("xleftmargin" "14pt")
+		  ("numbersep" "8pt")))
+    (setq-local org-latex-text-markup-alist
+		(cons '(bold . "\\HubArticleBold{%s}")
+		      (assq-delete-all 'bold (copy-tree org-latex-text-markup-alist))))
     (hub/org-export--insert-header-extra
      (format "\\renewcommand{\\HubArticleEyebrowBlock}{%s}"
 	     (if (and eyebrow (not (string-empty-p eyebrow)))
