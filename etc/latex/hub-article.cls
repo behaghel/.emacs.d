@@ -15,14 +15,73 @@
   \ClassError{hub-article}{hub-article requires XeLaTeX}{Compile this class with XeLaTeX.}
 \fi
 
-\RequirePackage{xcolor}
+\RequirePackage[table]{xcolor}
 \RequirePackage{microtype}
+\RequirePackage{geometry}
+\RequirePackage{fancyvrb}
+\RequirePackage{etoolbox}
+\RequirePackage{minted}
 
-\definecolor{HubArticleInk}{HTML}{18312D}
-\definecolor{HubArticleMuted}{HTML}{64756F}
-\definecolor{HubArticleAccentMuted}{HTML}{3D7A70}
-\definecolor{HubArticleRule}{HTML}{CBD8D2}
-\definecolor{HubArticleStandfirst}{HTML}{2E514B}
+\definecolor{HubArticleLightInk}{HTML}{18312D}
+\definecolor{HubArticleLightMuted}{HTML}{64756F}
+\definecolor{HubArticleLightAccentMuted}{HTML}{3D7A70}
+\definecolor{HubArticleLightRule}{HTML}{CBD8D2}
+\definecolor{HubArticleLightStandfirst}{HTML}{2E514B}
+\definecolor{HubArticleLightTableRule}{HTML}{CAD8D1}
+\definecolor{HubArticleLightCalloutRule}{HTML}{AFCBC3}
+\definecolor{HubArticleLightQuoteRule}{HTML}{9EBDB4}
+
+\definecolor{HubArticleCodeBaseInk}{HTML}{1B2421}
+\definecolor{HubArticleCodeKeywordInk}{HTML}{164F82}
+\definecolor{HubArticleCodeCommentInk}{HTML}{5F6C65}
+\definecolor{HubArticleCodeStringInk}{HTML}{1F6E3F}
+\definecolor{HubArticleCodeConstantInk}{HTML}{8F3F16}
+\definecolor{HubArticleCodeDefinitionInk}{HTML}{66325F}
+\definecolor{HubArticleCodeOperatorInk}{HTML}{444D56}
+\definecolor{HubArticleCodeLineNumberInk}{HTML}{7A857F}
+
+\colorlet{HubArticleInk}{HubArticleLightInk}
+\colorlet{HubArticleMuted}{HubArticleLightMuted}
+\colorlet{HubArticleAccentMuted}{HubArticleLightAccentMuted}
+\colorlet{HubArticleBoldColor}{HubArticleLightAccentMuted}
+\colorlet{HubArticleRule}{HubArticleLightRule}
+\colorlet{HubArticleStandfirst}{HubArticleLightStandfirst}
+\colorlet{HubArticleCodeInk}{HubArticleCodeBaseInk}
+\colorlet{HubArticleCodeKeyword}{HubArticleCodeKeywordInk}
+\colorlet{HubArticleCodeComment}{HubArticleCodeCommentInk}
+\colorlet{HubArticleCodeString}{HubArticleCodeStringInk}
+\colorlet{HubArticleCodeConstant}{HubArticleCodeConstantInk}
+\colorlet{HubArticleCodeDefinition}{HubArticleCodeDefinitionInk}
+\colorlet{HubArticleCodeOperator}{HubArticleCodeOperatorInk}
+\colorlet{HubArticleCodeLineNumber}{HubArticleCodeLineNumberInk}
+\colorlet{HubArticleTableRule}{HubArticleLightTableRule}
+\colorlet{HubArticleCalloutRule}{HubArticleLightCalloutRule}
+\colorlet{HubArticleQuoteRule}{HubArticleLightQuoteRule}
+
+\def\HubArticleCodeKeywordColor{HubArticleCodeKeyword}%
+\def\HubArticleCodeStringColor{HubArticleCodeString}%
+\def\HubArticleCodeCommentColor{HubArticleCodeComment}%
+\def\HubArticleCodeConstantColor{HubArticleCodeConstant}%
+\def\HubArticleCodeDefinitionColor{HubArticleCodeDefinition}%
+\def\HubArticleCodeTextColor{HubArticleCodeInk}%
+\def\HubArticleCodeOperatorColor{HubArticleCodeOperator}%
+\def\HubArticleCodeLineNumberColor{HubArticleCodeLineNumber}%
+
+\newlength{\HubArticleReadingMeasure}
+\setlength{\HubArticleReadingMeasure}{122mm}
+\newlength{\HubArticleMarginZoneWidth}
+\setlength{\HubArticleMarginZoneWidth}{38mm}
+
+\geometry{
+  a4paper,
+  top=28mm,
+  bottom=31mm,
+  inner=28mm,
+  outer=60mm,
+  marginparsep=8mm,
+  marginparwidth=\HubArticleMarginZoneWidth,
+  textwidth=\HubArticleReadingMeasure,
+  heightrounded}
 
 \setmainfont{TeX Gyre Pagella}[
   Ligatures=TeX,
@@ -42,8 +101,104 @@
   Scale=MatchLowercase]
 
 \AtBeginDocument{\color{HubArticleInk}}
+\makeatletter
+\AtBeginDocument{%
+  \@ifpackageloaded{hyperref}{%
+    \hypersetup{%
+      colorlinks=true,
+      linkcolor=HubArticleAccentMuted,
+      urlcolor=HubArticleAccentMuted,
+      citecolor=HubArticleAccentMuted}%
+  }{}%
+}
+\AtBeginDocument{%
+  \@ifpackageloaded{minted}{%
+    \setminted{fontsize=\footnotesize,breaklines,autogobble}%
+  }{}%
+}
+\AtBeginEnvironment{MintedVerbatim}{%
+  \renewcommand{\theFancyVerbLine}{\textcolor{\HubArticleCodeLineNumberColor}{\ttfamily\arabic{FancyVerbLine}}}%
+  \@namedef{PYG@tok@k}{\def\PYG@tc##1{\textcolor{\HubArticleCodeKeywordColor}{##1}}}%
+  \@namedef{PYG@tok@kc}{\def\PYG@tc##1{\textcolor{\HubArticleCodeConstantColor}{##1}}}%
+  \@namedef{PYG@tok@kd}{\def\PYG@tc##1{\textcolor{\HubArticleCodeKeywordColor}{##1}}}%
+  \@namedef{PYG@tok@kn}{\def\PYG@tc##1{\textcolor{\HubArticleCodeKeywordColor}{##1}}}%
+  \@namedef{PYG@tok@kp}{\def\PYG@tc##1{\textcolor{\HubArticleCodeKeywordColor}{##1}}}%
+  \@namedef{PYG@tok@kr}{\def\PYG@tc##1{\textcolor{\HubArticleCodeKeywordColor}{##1}}}%
+  \@namedef{PYG@tok@kt}{\def\PYG@tc##1{\textcolor{\HubArticleCodeKeywordColor}{##1}}}%
+  \@namedef{PYG@tok@ow}{\def\PYG@tc##1{\textcolor{\HubArticleCodeOperatorColor}{##1}}}%
+  \@namedef{PYG@tok@s}{\def\PYG@tc##1{\textcolor{\HubArticleCodeStringColor}{##1}}}%
+  \@namedef{PYG@tok@sa}{\def\PYG@tc##1{\textcolor{\HubArticleCodeStringColor}{##1}}}%
+  \@namedef{PYG@tok@sb}{\def\PYG@tc##1{\textcolor{\HubArticleCodeStringColor}{##1}}}%
+  \@namedef{PYG@tok@sc}{\def\PYG@tc##1{\textcolor{\HubArticleCodeStringColor}{##1}}}%
+  \@namedef{PYG@tok@dl}{\def\PYG@tc##1{\textcolor{\HubArticleCodeStringColor}{##1}}}%
+  \@namedef{PYG@tok@sd}{\let\PYG@it=\textit\def\PYG@tc##1{\textcolor{\HubArticleCodeStringColor}{##1}}}%
+  \@namedef{PYG@tok@s2}{\def\PYG@tc##1{\textcolor{\HubArticleCodeStringColor}{##1}}}%
+  \@namedef{PYG@tok@se}{\def\PYG@tc##1{\textcolor{\HubArticleCodeStringColor}{##1}}}%
+  \@namedef{PYG@tok@sh}{\def\PYG@tc##1{\textcolor{\HubArticleCodeStringColor}{##1}}}%
+  \@namedef{PYG@tok@si}{\def\PYG@tc##1{\textcolor{\HubArticleCodeStringColor}{##1}}}%
+  \@namedef{PYG@tok@sx}{\def\PYG@tc##1{\textcolor{\HubArticleCodeStringColor}{##1}}}%
+  \@namedef{PYG@tok@sr}{\def\PYG@tc##1{\textcolor{\HubArticleCodeStringColor}{##1}}}%
+  \@namedef{PYG@tok@s1}{\def\PYG@tc##1{\textcolor{\HubArticleCodeStringColor}{##1}}}%
+  \@namedef{PYG@tok@ss}{\def\PYG@tc##1{\textcolor{\HubArticleCodeStringColor}{##1}}}%
+  \@namedef{PYG@tok@c}{\let\PYG@it=\textit\def\PYG@tc##1{\textcolor{\HubArticleCodeCommentColor}{##1}}}%
+  \@namedef{PYG@tok@ch}{\let\PYG@it=\textit\def\PYG@tc##1{\textcolor{\HubArticleCodeCommentColor}{##1}}}%
+  \@namedef{PYG@tok@cm}{\let\PYG@it=\textit\def\PYG@tc##1{\textcolor{\HubArticleCodeCommentColor}{##1}}}%
+  \@namedef{PYG@tok@cpf}{\let\PYG@it=\textit\def\PYG@tc##1{\textcolor{\HubArticleCodeCommentColor}{##1}}}%
+  \@namedef{PYG@tok@c1}{\let\PYG@it=\textit\def\PYG@tc##1{\textcolor{\HubArticleCodeCommentColor}{##1}}}%
+  \@namedef{PYG@tok@cs}{\let\PYG@it=\textit\def\PYG@tc##1{\textcolor{\HubArticleCodeCommentColor}{##1}}}%
+  \@namedef{PYG@tok@nb}{\def\PYG@tc##1{\textcolor{\HubArticleCodeKeywordColor}{##1}}}%
+  \@namedef{PYG@tok@bp}{\def\PYG@tc##1{\textcolor{\HubArticleCodeKeywordColor}{##1}}}%
+  \@namedef{PYG@tok@fm}{\let\PYG@bf=\textbf\def\PYG@tc##1{\textcolor{\HubArticleCodeDefinitionColor}{##1}}}%
+  \@namedef{PYG@tok@vc}{\def\PYG@tc##1{\textcolor{\HubArticleCodeTextColor}{##1}}}%
+  \@namedef{PYG@tok@vg}{\def\PYG@tc##1{\textcolor{\HubArticleCodeTextColor}{##1}}}%
+  \@namedef{PYG@tok@vi}{\def\PYG@tc##1{\textcolor{\HubArticleCodeTextColor}{##1}}}%
+  \@namedef{PYG@tok@vm}{\def\PYG@tc##1{\textcolor{\HubArticleCodeTextColor}{##1}}}%
+  \@namedef{PYG@tok@no}{\def\PYG@tc##1{\textcolor{\HubArticleCodeConstantColor}{##1}}}%
+  \@namedef{PYG@tok@nl}{\def\PYG@tc##1{\textcolor{\HubArticleCodeTextColor}{##1}}}%
+  \@namedef{PYG@tok@na}{\def\PYG@tc##1{\textcolor{\HubArticleCodeTextColor}{##1}}}%
+  \@namedef{PYG@tok@n}{\def\PYG@tc##1{\textcolor{\HubArticleCodeTextColor}{##1}}}%
+  \@namedef{PYG@tok@nf}{\let\PYG@bf=\textbf\def\PYG@tc##1{\textcolor{\HubArticleCodeDefinitionColor}{##1}}}%
+  \@namedef{PYG@tok@nc}{\let\PYG@bf=\textbf\def\PYG@tc##1{\textcolor{\HubArticleCodeDefinitionColor}{##1}}}%
+  \@namedef{PYG@tok@nd}{\def\PYG@tc##1{\textcolor{\HubArticleCodeKeywordColor}{##1}}}%
+  \@namedef{PYG@tok@ne}{\let\PYG@bf=\textbf\def\PYG@tc##1{\textcolor{\HubArticleCodeDefinitionColor}{##1}}}%
+  \@namedef{PYG@tok@ni}{\def\PYG@tc##1{\textcolor{\HubArticleCodeTextColor}{##1}}}%
+  \@namedef{PYG@tok@nn}{\def\PYG@tc##1{\textcolor{\HubArticleCodeTextColor}{##1}}}%
+  \@namedef{PYG@tok@nt}{\def\PYG@tc##1{\textcolor{\HubArticleCodeKeywordColor}{##1}}}%
+  \@namedef{PYG@tok@nv}{\def\PYG@tc##1{\textcolor{\HubArticleCodeTextColor}{##1}}}%
+  \@namedef{PYG@tok@o}{\def\PYG@tc##1{\textcolor{\HubArticleCodeOperatorColor}{##1}}}%
+  \@namedef{PYG@tok@p}{\def\PYG@tc##1{\textcolor{\HubArticleCodeOperatorColor}{##1}}}%
+  \@namedef{PYG@tok@m}{\def\PYG@tc##1{\textcolor{\HubArticleCodeConstantColor}{##1}}}%
+  \@namedef{PYG@tok@mb}{\def\PYG@tc##1{\textcolor{\HubArticleCodeConstantColor}{##1}}}%
+  \@namedef{PYG@tok@mf}{\def\PYG@tc##1{\textcolor{\HubArticleCodeConstantColor}{##1}}}%
+  \@namedef{PYG@tok@mh}{\def\PYG@tc##1{\textcolor{\HubArticleCodeConstantColor}{##1}}}%
+  \@namedef{PYG@tok@mi}{\def\PYG@tc##1{\textcolor{\HubArticleCodeConstantColor}{##1}}}%
+  \@namedef{PYG@tok@il}{\def\PYG@tc##1{\textcolor{\HubArticleCodeConstantColor}{##1}}}%
+  \@namedef{PYG@tok@mo}{\def\PYG@tc##1{\textcolor{\HubArticleCodeConstantColor}{##1}}}%
+}
+\makeatother
 \setlength{\parindent}{0pt}
 \setlength{\parskip}{0.62em}
+\setlength{\arrayrulewidth}{0.35pt}
+\renewcommand{\arraystretch}{1.18}
+\setcounter{secnumdepth}{0}
+\AtBeginDocument{\arrayrulecolor{HubArticleTableRule}}
+\makeatletter
+\def\ps@plain{%
+  \let\@mkboth\@gobbletwo
+  \let\@oddhead\@empty
+  \let\@evenhead\@empty
+  \def\@oddfoot{\reset@font\hfil\textcolor{HubArticleMuted}{\thepage}\hfil}%
+  \let\@evenfoot\@oddfoot}
+\makeatother
+\pagestyle{plain}
+\let\HubArticleOriginalTable\table
+\let\HubArticleOriginalEndTable\endtable
+\renewenvironment{table}[1][]{%
+  \HubArticleOriginalTable[#1]%
+  \color{HubArticleInk}%
+}{%
+  \HubArticleOriginalEndTable
+}
 
 \newcommand{\HubArticleDocumentTitle}{}
 \newcommand{\HubArticleEyebrowBlock}{}
@@ -68,6 +223,22 @@
 \newcommand{\HubArticleMeta}[2]{%
   {\HubArticleSans\footnotesize\textcolor{HubArticleMuted}{#1\HubArticleMetaSeparator #2}\par}%
 }
+\newcommand{\HubArticleMarginMarker}[1]{%
+  \marginpar{%
+    \raggedright
+    \HubArticleSans\scriptsize\textcolor{HubArticleAccentMuted}{#1}}%
+}
+\newcommand{\HubArticleMarginZone}[1]{%
+  \HubArticleMarginMarker{#1}%
+}
+\newcommand{\HubArticleBold}[1]{{\color{HubArticleBoldColor}\textbf{#1}}}
+\newcommand{\HubArticleInlineCode}[1]{%
+  \begingroup
+  \HubArticleMono\footnotesize\textcolor{HubArticleCodeInk}{#1}%
+  \endgroup
+}
+\let\HubArticleOriginalTexttt\texttt
+\renewcommand{\texttt}[1]{\HubArticleInlineCode{#1}}
 
 \newenvironment{hubarticleopener}{%
   \par\vspace*{1.1em}\noindent
@@ -87,4 +258,44 @@
   \par
   \endgroup
   \medskip
+}
+
+\newenvironment{HubArticleCallout}{%
+  \par\medskip\noindent
+  \begingroup
+  \HubArticleSans\small\color{HubArticleInk}%
+  \setlength{\leftskip}{1.2em}%
+  \setlength{\rightskip}{1em}%
+  \noindent\textcolor{HubArticleCalloutRule}{\rule{19mm}{0.45pt}}\par\nobreak
+  \ignorespaces
+}{%
+  \par\nobreak\noindent\textcolor{HubArticleRule}{\rule{19mm}{0.35pt}}%
+  \endgroup
+  \medskip
+}
+\newenvironment{callout}{%
+  \begin{HubArticleCallout}%
+}{%
+  \end{HubArticleCallout}%
+}
+
+\newenvironment{HubArticleQuote}{%
+  \par\medskip\noindent
+  \begingroup
+  \HubArticleSerif\itshape\color{HubArticleStandfirst}%
+  \setlength{\rightskip}{1.1em}%
+  \setlength{\tabcolsep}{0pt}%
+  \begin{tabular}{@{}!{\textcolor{HubArticleQuoteRule}{\vrule width 0.55pt}\hspace{0.85em}}p{\dimexpr\linewidth-0.85em-0.55pt\relax}@{}}%
+  \ignorespaces
+}{%
+  \unskip
+  \end{tabular}%
+  \par
+  \endgroup
+  \medskip
+}
+\renewenvironment{quote}{%
+  \begin{HubArticleQuote}%
+}{%
+  \end{HubArticleQuote}%
 }
