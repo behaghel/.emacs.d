@@ -41,6 +41,8 @@ The concrete export class should be implementation-ready now, even if the final 
 - greater tolerance for long-form reading without heavy hero composition
 - reduced emphasis on campaign-like pattern use
 - a quieter opening page that still reads as an editorial essay, not a generic report
+- source blocks stay at the same visual level as the prose, with no dark-mode treatment and no background surface
+- code presentation should stay high-elegance and supportive, with restrained quasi-monochrome syntax highlighting for legibility, not IDE-like saturation
 
 ## Locale Interaction
 

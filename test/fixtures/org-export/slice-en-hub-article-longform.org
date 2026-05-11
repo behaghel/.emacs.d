@@ -1,0 +1,141 @@
+#+TITLE: Long-form personal systems as a reading surface
+#+SUBTITLE: Testing the calm measure that should carry several pages
+#+AUTHOR: Hubert Behaghel
+#+DATE: 2026-05-10
+#+LANGUAGE: en
+#+LATEX_CLASS: hub-article
+#+EXPORT_EYEBROW: Personal systems
+
+#+begin_standfirst
+A long personal article needs enough room for an argument to breathe, enough
+structure for the reader to stay oriented, and enough restraint that the margin
+remains useful rather than decorative.
+#+end_standfirst
+
+* Opening the long measure
+
+The first obligation of the long-form article is not to look impressive at a
+glance.  It is to keep a reader with the argument after the first screen of
+interest has disappeared.  The page should therefore choose a comfortable line,
+leave visible room for peripheral structure, and refuse the temptation to turn a
+personal essay into a campaign artefact.
+
+This fixture deliberately repeats prose in ordinary paragraphs so the generated
+document has to carry sustained text rather than only a title treatment.  The
+export path should preserve that sustained text while the class owns the reading
+measure, the page geometry, and the reserved margin zone.[fn:measure]
+
+* The quiet margin
+
+The margin is planned as a sparse zone: a place for restrained markers and future
+safe surfaces, not a second column competing with the body.  A calm article can
+benefit from peripheral wayfinding, but only when the body remains clearly in
+charge of the page.
+
+#+begin_quote
+The margin should behave like a promise of structure, not like a loud sidebar.
+#+end_quote
+
+Several authoring constraints follow from that promise:
+
+- keep the prose in one column;
+- reserve space beside the body without filling every page edge;
+- use margin treatment only when it clarifies orientation;
+- avoid inheriting gallery-white two-column campaign flow.
+
+The body continues with enough paragraphs to force the layout question.  A short
+fixture would let default LaTeX geometry pass unnoticed, while this text makes
+the eventual PDF inspection meaningful.  The article is still modest, but it is
+long enough to ask whether the reading surface is generous and deliberate.
+
+* Evidence as furniture
+
+Tables and captions should remain calm editorial furniture.  They are present
+here to prove that ordinary technical material survives the personal class path
+without requiring the later code-heavy slice.
+
+#+CAPTION: A compact table that should stay within the article reading measure.
+| Signal | Desired behavior |
+|--------+------------------|
+| Body   | single-column prose |
+| Margin | sparse reserved markers |
+| Rhythm | comfortable reading measure |
+
+The table is intentionally small because Slice 3 is about geometry and measure,
+not a complete table design system.  It still gives the exporter a caption and
+structured content that future layout work must not break.
+
+Source examples need the same editorial restraint.  Code should sit at the same
+level as the prose while preserving syntax highlighting for code-heavy arguments
+that still belong inside the essay.
+
+#+begin_src emacs-lisp
+(defun hub/article-reading-path (slug locale)
+  "Return the review path for SLUG in LOCALE."
+  (format "%s/%s" locale slug))
+#+end_src
+
+The second example proves that repeated source blocks stay on the same quiet
+surface.  The class, not per-block Org options, should own the restrained minted
+token palette.
+
+#+begin_src emacs-lisp
+(defun hub/article-review-note (title tags)
+  "Compose a compact review note for TITLE and TAGS."
+  (list :title title :tags tags :reviewed t))
+#+end_src
+
+* Later reading section
+
+Later sections should feel like continuations of the same essay, not like a new
+layout mode.  The line length, margin reservation, headings, and captions should
+cooperate so that a reader can move through several pages without visual churn.
+
+The final paragraphs keep the fixture long enough for smoke testing while
+remaining plain Org.  The exact words matter less than the contract they expose:
+Hub Article long-form output should remain single-column, reserve a sparse
+margin zone, and define class-owned markers for the comfortable measure that the
+next implementation slice will provide.
+
+* Sustaining the argument
+
+A later page should not suddenly become denser because the opener has passed.
+The same measured rhythm should continue through ordinary explanatory prose,
+with each paragraph short enough to invite reading and long enough to reveal
+whether the line length is humane.  The reader should feel that the page has a
+spine, not that the text has merely been poured into whatever area LaTeX offered
+by default.
+
+This section adds repeated but meaningful editorial material so the fixture can
+exercise the eventual page geometry across more than an isolated first page.
+When Slice 4 arrives, code and richer technical artefacts can add their own
+requirements.  Slice 3 only needs prose, structure, and modest supporting
+evidence to prove that the reading surface itself is intentional.
+
+The reserved margin remains mostly quiet in this fixture.  That quietness is the
+point: a future marker may live there, but no paragraph should depend on the
+margin being full.  The body must work as a complete essay if every peripheral
+surface is empty, because the margin is a secondary promise rather than the main
+argument.
+
+Another paragraph keeps the eventual smoke PDF honest.  Comfortable measure is
+not visible in a sentence fragment; it appears when the eye has crossed the same
+width many times and still trusts the page.  The personal article class should
+make that trust easy by limiting the body width and leaving the surrounding
+space calm.
+
+* Closing with restraint
+
+The closing section repeats the anti-goal in plain language.  This document
+should never activate the gallery-white two-column flow, figure-star furniture,
+or campaign layout switches.  It should remain a personal article: single
+column, serif-led, sparse in the margin, and designed for sustained reading.
+
+If the future class implementation satisfies the markers asserted by the test,
+this fixture will give reviewers enough exported material to open the PDF and
+judge the experience across several pages.  Until then, the failing selector is
+a precise reminder that opener typography alone is not yet a long-form article
+system.
+
+[fn:measure] Footnote text should export as supporting evidence for the reading
+measure rather than as a layout driver.

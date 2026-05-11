@@ -1,0 +1,18 @@
+#+TITLE: Précision française
+#+SUBTITLE: Typographie calme pour un article technique
+#+AUTHOR: Hubert Behaghel
+#+DATE: 2026-05-10
+#+LANGUAGE: fr
+#+LATEX_CLASS: hub-article
+#+EXPORT_EYEBROW: Système personnel
+
+* Pourquoi ça compte ?
+
+Un « système » bien composé respecte les accents, les guillemets et les espaces
+autour de la ponctuation française. Attention : le détail compte ; la nuance
+aussi ! Même une petite ~clé-technique~ doit rester lisible dans le fil du texte.
+
+| Élément | État |
+|---------+------|
+| Accents | préservés |
+| Rythme | calme |

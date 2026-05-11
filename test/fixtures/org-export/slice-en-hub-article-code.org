@@ -1,0 +1,62 @@
+#+TITLE: Quiet code as personal craft
+#+SUBTITLE: Technical artifacts that stay subordinate to the essay
+#+AUTHOR: Hubert Behaghel
+#+DATE: 2026-05-10
+#+LANGUAGE: en
+#+LATEX_CLASS: hub-article
+#+EXPORT_EYEBROW: Personal systems
+
+#+begin_standfirst
+Technical material should feel composed and precise without pulling the page away
+from the essay voice.
+#+end_standfirst
+
+* Reading a small artifact
+
+The article should be able to mention a ~cache-key~ inline, make *bold
+emphasis*, add an /italic aside/, retire a +struck-through draft+, and point to
+a [[https://example.com/personal-systems][related note]] without leaving the essay
+voice. It should keep the reader in prose before the technical surface appears.
+
+The ordinary reading list stays native:
+
+- Unordered reader note with a quiet rhythm.
+- Another bullet that checks vertical spacing against the prose.
+
+The operating sequence stays native too:
+
+1. First numbered checkpoint.
+2. Second numbered checkpoint.
+
+The terms should remain useful without becoming a glossary panel:
+
+- Term marker :: Definition list copy that explains one compact idea.
+- Quiet artifact :: A technical detail presented as part of the essay.
+
+#+begin_src emacs-lisp
+(defun hub/article-cache-key (slug locale)
+  "Return a stable cache key for SLUG and LOCALE."
+  (format "%s:%s" locale slug))
+#+end_src
+
+#+begin_callout
+The callout-like prose should behave as a quiet aside: useful enough to notice,
+but visually below the argument and far away from campaign chrome.
+#+end_callout
+
+#+begin_quote
+Technical artifacts are furniture for thought, not a second interface competing
+with the essay. A longer quoted thought should keep its left rule for every
+line it occupies, including the line that only appears after wrapping.
+#+end_quote
+
+#+CAPTION: Small technical decisions should stay legible inside the article measure.
+| Artifact | Personal treatment |
+|----------+--------------------|
+| Inline code | restrained mono phrase |
+| Source block | quiet prose-level sample |
+| Table | calm evidence rhythm |
+
+The closing prose confirms that source blocks, inline code, tables, quotes, and
+callouts survive the personal article export path without inheriting Veriff or
+campaign-style layout behavior.
