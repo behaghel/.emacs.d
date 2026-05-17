@@ -21,6 +21,9 @@
 \RequirePackage{fancyvrb}
 \RequirePackage{etoolbox}
 \RequirePackage{minted}
+\RequirePackage{array}
+\RequirePackage{tabularx}
+\RequirePackage{caption}
 
 \definecolor{HubArticleLightInk}{HTML}{18312D}
 \definecolor{HubArticleLightMuted}{HTML}{64756F}
@@ -55,6 +58,8 @@
 \colorlet{HubArticleCodeOperator}{HubArticleCodeOperatorInk}
 \colorlet{HubArticleCodeLineNumber}{HubArticleCodeLineNumberInk}
 \colorlet{HubArticleTableRule}{HubArticleLightTableRule}
+\colorlet{HubArticleTableHeaderColor}{HubArticleAccentMuted}
+\colorlet{HubArticleTableCaptionText}{HubArticleMuted}
 \colorlet{HubArticleCalloutRule}{HubArticleLightCalloutRule}
 \colorlet{HubArticleQuoteRule}{HubArticleLightQuoteRule}
 
@@ -71,6 +76,10 @@
 \setlength{\HubArticleReadingMeasure}{122mm}
 \newlength{\HubArticleMarginZoneWidth}
 \setlength{\HubArticleMarginZoneWidth}{38mm}
+\newlength{\HubArticleTableWidth}
+\setlength{\HubArticleTableWidth}{92mm}
+\newlength{\HubArticleFigureAlignCorrection}
+\setlength{\HubArticleFigureAlignCorrection}{-32mm}
 
 \geometry{
   a4paper,
@@ -182,6 +191,9 @@
 \renewcommand{\arraystretch}{1.18}
 \setcounter{secnumdepth}{0}
 \AtBeginDocument{\arrayrulecolor{HubArticleTableRule}}
+\DeclareCaptionFont{hubarticletablecaption}{\HubArticleSans\footnotesize}
+\captionsetup[table]{font=hubarticletablecaption,labelfont={bf,color=HubArticleAccentMuted},textfont={color=HubArticleTableCaptionText},labelsep=period,justification=centering,singlelinecheck=false,skip=0.55em}
+\captionsetup[figure]{font=hubarticletablecaption,labelfont={bf,color=HubArticleAccentMuted},textfont={color=HubArticleTableCaptionText},labelsep=period,justification=centering,singlelinecheck=false,skip=0.55em}
 \makeatletter
 \def\ps@plain{%
   \let\@mkboth\@gobbletwo
@@ -239,6 +251,25 @@
 }
 \let\HubArticleOriginalTexttt\texttt
 \renewcommand{\texttt}[1]{\HubArticleInlineCode{#1}}
+\newcolumntype{H}{>{\raggedright\arraybackslash\hspace{0pt}}X}
+\newcommand{\HubArticleTableHeaderCell}[1]{{\HubArticleSans\footnotesize\addfontfeature{LetterSpace=4.0}\textcolor{HubArticleTableHeaderColor}{\MakeUppercase{#1}}\strut}}
+\newcommand{\HubArticleTableBodyCell}[1]{{\textcolor{HubArticleInk}{#1}\strut}}
+\newcommand{\HubArticleTableHeadRule}{\noalign{\vskip 0.35em\color{HubArticleTableRule}\hrule height 0.35pt\vskip 0.35em}}
+\newcommand{\HubArticleCenteredBlock}[1]{\makebox[\linewidth][c]{\makebox[\HubArticleTableWidth][c]{#1}}}
+\newcommand{\HubArticleFigureImage}[1]{\makebox[\linewidth][c]{\hspace*{\HubArticleFigureAlignCorrection}\makebox[\HubArticleTableWidth][c]{#1}}}
+\newenvironment{HubArticleTable}{%
+  \par\medskip\noindent\begin{center}\begin{minipage}{\HubArticleTableWidth}\centering
+  \begingroup
+  \setlength{\tabcolsep}{4.5pt}%
+  \renewcommand{\arraystretch}{1.16}%
+  \color{HubArticleInk}%
+}{%
+  \endgroup
+  \end{minipage}\end{center}%
+  \par\medskip
+}
+\newcommand{\HubArticleDefinitionTerm}[1]{{\HubArticleSans\normalsize\textcolor{HubArticleAccentMuted}{\textbf{#1:}}}}
+\AtBeginEnvironment{description}{\setlength{\itemsep}{0.22em}\setlength{\topsep}{0.45em}\setlength{\parsep}{0pt}\setlength{\labelsep}{0.45em}}
 
 \newenvironment{hubarticleopener}{%
   \par\vspace*{1.1em}\noindent
@@ -261,17 +292,18 @@
 }
 
 \newenvironment{HubArticleCallout}{%
-  \par\medskip\noindent
+  \par\addvspace{0.95em}\noindent
   \begingroup
   \HubArticleSans\small\color{HubArticleInk}%
   \setlength{\leftskip}{1.2em}%
   \setlength{\rightskip}{1em}%
-  \noindent\textcolor{HubArticleCalloutRule}{\rule{19mm}{0.45pt}}\par\nobreak
+  \noindent\textcolor{HubArticleCalloutRule}{\rule{24mm}{0.4pt}}\par\nobreak
+  \vspace{0.2em}%
   \ignorespaces
 }{%
-  \par\nobreak\noindent\textcolor{HubArticleRule}{\rule{19mm}{0.35pt}}%
+  \par
   \endgroup
-  \medskip
+  \addvspace{0.95em}%
 }
 \newenvironment{callout}{%
   \begin{HubArticleCallout}%

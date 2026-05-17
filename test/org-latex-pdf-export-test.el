@@ -37,6 +37,96 @@
   "Return the staged class path for CLASS-NAME in ARTIFACT-ROOT."
   (expand-file-name (format "%s.cls" class-name) artifact-root))
 
+(ert-deftest hub/org-discovers-local-latex-classes ()
+  "Local Org LaTeX template choices come from tracked .cls assets."
+  (let* ((class-directory (expand-file-name "etc/latex" hub/test-repo-root))
+	 (expected (sort (mapcar #'file-name-base
+				 (directory-files class-directory t "\\.cls\\'" 'nosort))
+			 #'string<)))
+    (let ((hub/org-latex-class-directory class-directory))
+      (should (equal (hub/org-discover-local-latex-classes) expected))
+      (dolist (class expected)
+	(should (member class (hub/org-latex-class-candidates)))))))
+
+(ert-deftest hub/org-reads-latex-class-from-discovered-candidates ()
+  "Org LaTeX template selector prompts from discovered candidates."
+  (let ((hub/org-latex-class-directory (expand-file-name "etc/latex" hub/test-repo-root))
+	captured-candidates)
+    (cl-letf (((symbol-function 'completing-read)
+	       (lambda (_prompt candidates &rest _args)
+		 (setq captured-candidates candidates)
+		 (car candidates))))
+      (should (member (hub/org-read-latex-class) captured-candidates))
+      (should (member "hub-article" captured-candidates))
+      (should (member "veriff" captured-candidates)))))
+
+(ert-deftest hub/org-export-resolves-local-class-assets-by-convention ()
+  "Export staging resolves local classes from tracked .cls asset names."
+  (let ((hub/org-export--latex-class-directory (expand-file-name "etc/latex" hub/test-repo-root)))
+    (dolist (asset (hub/org-export--local-class-assets))
+      (should (equal (hub/org-export--class-asset-source (car asset))
+		     (cdr asset))))))
+
+(ert-deftest hub/org-export-texinputs-includes-local-latex-assets ()
+  "TeX subprocesses can resolve repo-local classes outside devenv shells."
+  (let* ((class-directory (expand-file-name "etc/latex" hub/test-repo-root))
+	 (recursive-entry (concat (file-name-as-directory class-directory) "//")))
+    (should (member recursive-entry
+		    (split-string (hub/org-export--merge-texinputs (list class-directory))
+				  path-separator t)))
+    (should (string-suffix-p path-separator
+			     (hub/org-export--merge-texinputs (list class-directory))))))
+
+(ert-deftest hub/org-export-wraps-xelatex-with-devenv-when-available ()
+  "GUI-launched Emacs uses the project TeX Live closure for local exports."
+  (let ((hub/org-export-use-devenv-compiler t)
+	(hub/org-export-devenv-executable "/tmp/devenv")
+	(user-emacs-directory hub/test-repo-root))
+    (cl-letf (((symbol-function 'file-executable-p)
+	       (lambda (path) (string= path "/tmp/devenv"))))
+      (should (equal (hub/org-export--compiler-command "xelatex")
+		     (format "cd %s && TEXINPUTS=%s %s shell --from %s -- xelatex"
+			     (shell-quote-argument
+			      (directory-file-name hub/test-repo-root))
+			     (shell-quote-argument
+			      (hub/org-export--merge-texinputs hub/org-export-texinputs-directories
+							       (getenv "TEXINPUTS")))
+			     (shell-quote-argument "/tmp/devenv")
+			     (shell-quote-argument
+			      (concat "path:" (directory-file-name hub/test-repo-root)))))))))
+
+(ert-deftest hub/org-export-falls-back-to-plain-xelatex-without-devenv ()
+  "Compiler process remains usable when devenv is absent."
+  (let ((hub/org-export-use-devenv-compiler t)
+	(hub/org-export-devenv-executable nil))
+    (cl-letf (((symbol-function 'executable-find) (lambda (_name) nil))
+	      ((symbol-function 'file-executable-p) (lambda (_path) nil)))
+      (should (equal (hub/org-export--compiler-command "xelatex")
+		     (format "TEXINPUTS=%s xelatex"
+			     (shell-quote-argument
+			      (hub/org-export--merge-texinputs hub/org-export-texinputs-directories
+							       (getenv "TEXINPUTS")))))))))
+
+(ert-deftest hub/org-export-registers-discovered-local-latex-classes ()
+  "Discovered .cls files become generic Org LaTeX class registrations."
+  (let* ((class-directory (make-temp-file "hub-org-latex-classes-" t))
+	 (class-path (expand-file-name "sample-local.cls" class-directory))
+	 (hub/org-export--latex-class-directory class-directory)
+	 (org-latex-classes nil))
+    (unwind-protect
+	(progn
+	  (with-temp-file class-path
+	    (insert "\\NeedsTeXFormat{LaTeX2e}\n"
+		    "\\ProvidesClass{sample-local}\n"
+		    "\\LoadClass{article}\n"))
+	  (hub/org-export--register-local-latex-classes)
+	  (let ((entry (assoc "sample-local" org-latex-classes)))
+	    (should entry)
+	    (should (string-match-p
+		     (regexp-quote "\\documentclass[11pt,a4paper]{sample-local}")
+		     (cadr entry)))))
+      (delete-directory class-directory t))))
+
 (defun hub/test-assert-hub-article-code-syntax-contract (tex-contents class-contents)
   "Assert hub article code is no-background minted with class-owned tokens."
   (dolist (forbidden '("HubArticleCodeLightBackground"
@@ -404,6 +494,28 @@
       (when (file-directory-p artifact-root)
 	(delete-directory artifact-root t)))))
 
+(ert-deftest hub/org-export-standard-pdf-compile-uses-generated-compiler-marker ()
+  "Standard Org PDF export compilation uses the repo-aware process for local classes."
+  (let* ((tex-path (make-temp-file "hub-org-standard-export-" nil ".tex"))
+	 (captured-process nil))
+    (unwind-protect
+	(progn
+	  (with-temp-file tex-path
+	    (insert "% Intended LaTeX compiler: xelatex\n"
+		    "\\documentclass{hub-article}\n"
+		    "\\begin{document}\nBody\\end{document}\n"))
+	  (cl-letf (((symbol-function 'org-compile-file)
+		     (lambda (_source process _ext &rest _args)
+		       (setq captured-process process)
+		       (concat (file-name-sans-extension tex-path) ".pdf")))
+		    ((symbol-function 'org-latex-compile--postprocess)
+		     (lambda (outfile _log-buf &optional _snippet) outfile)))
+	    (org-latex-compile tex-path))
+	  (should (equal captured-process
+			 (hub/org-export--pdf-process-for-compiler "xelatex"))))
+      (when (file-exists-p tex-path)
+	(delete-file tex-path)))))
+
 (ert-deftest hub/org-export-slice-en-veriff-refresh-overdrive-produces-latex-and-pdf ()
   "The first English flagship slice exports to LaTeX and PDF with the XeLaTeX path."
   (let* ((specimen (expand-file-name "test/fixtures/org-export/slice-en-veriff-refresh-overdrive.org"
@@ -622,10 +734,13 @@
 							(should (string-match-p "First numbered checkpoint" tex-contents))
 							(should (string-match-p "Term marker" tex-contents))
 							(should (string-match-p "Definition list copy" tex-contents))
+							(should (string-match-p (regexp-quote "\\HubArticleDefinitionTerm{Term marker}") tex-contents))
+							(should (string-match-p (regexp-quote "\\HubArticleDefinitionTerm{Quiet artifact}") tex-contents))
 							(should (string-match-p "quiet prose-level sample" tex-contents))
 							(should (string-match-p "Technical artifacts are furniture for thought" tex-contents))
 							(should (string-match-p "after wrapping" tex-contents))
 							(should (string-match-p "Small technical decisions" tex-contents))
+							(should (string-match-p "A small image should share the same quiet caption hierarchy" tex-contents))
 							(should (string-match-p "Source block" tex-contents))
 							(should (string-match-p "callout-like prose" tex-contents))
 							(should (file-exists-p class-path))
@@ -656,6 +771,25 @@
 							(should (string-match-p (regexp-quote "\\begin{minted}") tex-contents))
 							(should (string-match-p (regexp-quote "breaklines=true") tex-contents))
 							(hub/test-assert-hub-article-code-syntax-contract tex-contents class-contents)
+							(should (string-match-p (regexp-quote "\\RequirePackage{tabularx}") class-contents))
+							(should (string-match-p (regexp-quote "\\RequirePackage{caption}") class-contents))
+							(should (string-match-p (regexp-quote "\\captionsetup[table]") class-contents))
+							(should (string-match-p (regexp-quote "\\captionsetup[figure]") class-contents))
+							(should (string-match-p (regexp-quote "justification=centering") class-contents))
+							(should (string-match-p (regexp-quote "\\HubArticleSans\\normalsize") class-contents))
+							(should (string-match-p (regexp-quote "\\newlength{\\HubArticleTableWidth}") class-contents))
+							(should (string-match-p (regexp-quote "\\newlength{\\HubArticleFigureAlignCorrection}") class-contents))
+							(should (string-match-p (regexp-quote "\\newcommand{\\HubArticleCenteredBlock}") class-contents))
+							(should (string-match-p (regexp-quote "\\newcommand{\\HubArticleFigureImage}") class-contents))
+							(should (string-match-p (regexp-quote "\\newcommand{\\HubArticleTableHeaderCell}") class-contents))
+							(should (string-match-p (regexp-quote "\\newcommand{\\HubArticleDefinitionTerm}") class-contents))
+							(should (string-match-p (regexp-quote "\\begin{HubArticleTable}") tex-contents))
+							(should (string-match-p (regexp-quote "\\begin{tabularx}{\\HubArticleTableWidth}") tex-contents))
+							(should (string-match-p (regexp-quote "\\begin{tabularx}{\\HubArticleTableWidth}{lH}") tex-contents))
+							(should (string-match-p (regexp-quote "\\HubArticleTableHeaderCell{Artifact}") tex-contents))
+							(should (string-match-p (regexp-quote "\\HubArticleTableHeaderCell{Personal treatment}") tex-contents))
+							(should (string-match-p (regexp-quote "\\HubArticleTableHeadRule") tex-contents))
+							(should (string-match-p (regexp-quote "\\HubArticleFigureImage{\\includegraphics") tex-contents))
 							(should-not (string-match-p (regexp-quote "\\RecustomVerbatimEnvironment{verbatim}{Verbatim}") class-contents))
 							(should-not (string-match-p (regexp-quote "fillcolor=\\color{HubArticleCodeBackground}") class-contents))
 							(should-not (string-match-p (regexp-quote "fillcolor=HubArticleCodeBackground") class-contents))

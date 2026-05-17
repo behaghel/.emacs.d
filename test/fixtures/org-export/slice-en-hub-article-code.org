@@ -57,6 +57,10 @@ line it occupies, including the line that only appears after wrapping.
 | Source block | quiet prose-level sample |
 | Table | calm evidence rhythm |
 
+#+CAPTION: A small image should share the same quiet caption hierarchy.
+#+ATTR_LATEX: :width 0.36\linewidth
+[[file:../../../etc/latex/assets/hero-logo-dark.pdf]]
+
 The closing prose confirms that source blocks, inline code, tables, quotes, and
 callouts survive the personal article export path without inheriting Veriff or
 campaign-style layout behavior.

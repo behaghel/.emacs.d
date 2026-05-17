@@ -9,6 +9,7 @@
 (require 'org)
 (require 'ox)
 (require 'ox-latex)
+(require 'seq)
 
 (defgroup hub/org-export nil
   "Customizations for Org LaTeX export classes."
@@ -31,6 +32,19 @@
   :type '(repeat string)
   :group 'hub/org-export)
 
+(defcustom hub/org-export-use-devenv-compiler t
+  "When non-nil, run local LaTeX exports through `devenv shell' when available.
+This makes GUI-launched Emacs use the same TeX Live package set as the
+project shell, including packages such as minted."
+  :type 'boolean
+  :group 'hub/org-export)
+
+(defcustom hub/org-export-devenv-executable nil
+  "Optional absolute path to the devenv executable used for LaTeX exports.
+When nil, discover devenv from `exec-path' and common Nix profile locations."
+  :type '(choice (const :tag "Discover automatically" nil) file)
+  :group 'hub/org-export)
+
 (defconst hub/org-export--veriff-compiler "xelatex"
   "Required LaTeX compiler for `veriff'.")
 
@@ -50,24 +64,59 @@
 (defconst hub/org-export--babel-package '("AUTO" "babel" nil)
   "Package entry enabling locale-aware Babel wiring in Org LaTeX exports.")
 
-(defconst hub/org-export--veriff-class-file
-  (expand-file-name "etc/latex/veriff.cls" user-emacs-directory)
-  "Tracked LaTeX class asset for `veriff'.")
-
-(defconst hub/org-export--hub-article-class-file
-  (expand-file-name "etc/latex/hub-article.cls" user-emacs-directory)
-  "Tracked LaTeX class asset for `hub-article'.")
+(defconst hub/org-export--latex-class-directory
+  (expand-file-name "etc/latex" user-emacs-directory)
+  "Directory containing repo-local LaTeX class assets.")
 
 (defconst hub/org-export--xelatex-class-names
   (list hub/org-export--veriff-class-name hub/org-export--hub-article-class-name)
   "Local LaTeX class names that require the XeLaTeX compiler path.")
 
 (defconst hub/org-export--veriff-assets-directory
-  (expand-file-name "assets" (file-name-directory hub/org-export--veriff-class-file))
+  (expand-file-name "assets" hub/org-export--latex-class-directory)
   "Tracked helper asset directory for `veriff'.")
+
+(defcustom hub/org-export-texinputs-directories
+  (list hub/org-export--latex-class-directory)
+  "Directories made visible to TeX subprocesses through TEXINPUTS.
+Each directory is added recursively so GUI-launched Emacs can find
+repo-local classes and assets without inheriting a devenv shell."
+  :type '(repeat directory)
+  :group 'hub/org-export)
+
+(defun hub/org-export--texinputs-entry (directory)
+  "Return DIRECTORY as a recursive Kpathsea TEXINPUTS entry."
+  (concat (file-name-as-directory (expand-file-name directory)) "//"))
+
+(defun hub/org-export--merge-texinputs (directories &optional current)
+  "Return TEXINPUTS with DIRECTORIES prepended before CURRENT.
+The trailing path separator keeps Kpathsea's default search path enabled."
+  (let* ((entries (delete-dups
+		   (mapcar #'hub/org-export--texinputs-entry
+			   (seq-filter #'file-directory-p directories))))
+	 (existing (split-string (or current "") path-separator t))
+	 (merged (delete-dups (append entries existing))))
+    (concat (mapconcat #'identity merged path-separator) path-separator)))
+
+(defun hub/org-export--ensure-texinputs ()
+  "Expose repo-local LaTeX assets to TeX subprocesses."
+  (setenv "TEXINPUTS"
+	  (hub/org-export--merge-texinputs hub/org-export-texinputs-directories
+					   (getenv "TEXINPUTS"))))
 
 (defvar hub/org-export--active-output-dir nil
   "Current export artifact directory for helper staging and header wiring.")
+
+(defconst hub/org-export--standard-sectioning
+  '("\\section{%s}" . "\\section*{%s}")
+  "Top-level sectioning mapping for local Org LaTeX classes.")
+
+(defconst hub/org-export--standard-subsectioning
+  '(("\\subsection{%s}" . "\\subsection*{%s}")
+    ("\\subsubsection{%s}" . "\\subsubsection*{%s}")
+    ("\\paragraph{%s}" . "\\paragraph*{%s}")
+    ("\\subparagraph{%s}" . "\\subparagraph*{%s}"))
+  "Nested sectioning mappings for local Org LaTeX classes.")
 
 (defconst hub/org-export--veriff-title-command
   (string-join
@@ -131,13 +180,28 @@ Defaults to English when the Org buffer does not specify one."
   (when-let* ((entry (assoc-string keyword (org-collect-keywords (list keyword)) t)))
     (mapcar #'string-trim (cdr entry))))
 
+(defun hub/org-export--local-class-assets (&optional directory)
+  "Return (CLASS-NAME . FILE) pairs for local .cls assets in DIRECTORY.
+When DIRECTORY is nil, use `hub/org-export--latex-class-directory'."
+  (let ((class-directory (or directory hub/org-export--latex-class-directory)))
+    (when (file-directory-p class-directory)
+      (sort
+       (mapcar (lambda (file)
+		 (cons (file-name-base file) file))
+	       (directory-files class-directory t "\\.cls\\'" 'nosort))
+       (lambda (left right)
+	 (string< (car left) (car right)))))))
+
+(defun hub/org-export--local-class-names (&optional directory)
+  "Return local LaTeX class names discovered from DIRECTORY."
+  (mapcar #'car (hub/org-export--local-class-assets directory)))
+
 (defun hub/org-export--class-asset-source (&optional class-name)
   "Return the tracked class asset path for CLASS-NAME.
 Default to the current buffer's LaTeX class when CLASS-NAME is nil."
-  (pcase (or class-name (hub/org-export--class-name))
-    ("veriff" hub/org-export--veriff-class-file)
-    ("hub-article" hub/org-export--hub-article-class-file)
-    (_ nil)))
+  (alist-get (or class-name (hub/org-export--class-name))
+	     (hub/org-export--local-class-assets)
+	     nil nil #'string=))
 
 (defun hub/org-export--latex-escape (text)
   "Return TEXT with a minimal LaTeX-safe escaping.
@@ -160,7 +224,8 @@ This is intentionally narrow and targets metadata-like strings."
 (defun hub/org-export--compiler-ready-p (compiler)
   "Return non-nil when COMPILER is ready for use in this environment."
   (and (string= compiler "xelatex")
-       (executable-find compiler)))
+       (or (executable-find compiler)
+	   (hub/org-export--devenv-compiler-command compiler))))
 
 (defun hub/org-export--effective-compiler (&optional class-name)
   "Return the compiler to use for the current export.
@@ -176,10 +241,69 @@ class when CLASS-NAME is nil; signals `user-error' when unavailable."
       (user-error "Missing Org export class asset: %s" class-asset))
      (t "xelatex"))))
 
+(defun hub/org-export--candidate-devenv-executables ()
+  "Return possible devenv executable paths for GUI-launched Emacs."
+  (delete-dups
+   (seq-filter
+    #'identity
+    (list hub/org-export-devenv-executable
+	  (executable-find "devenv")
+	  (expand-file-name "bin/devenv"
+			    (expand-file-name (user-login-name)
+					      "/etc/profiles/per-user"))))))
+
+(defun hub/org-export--devenv-executable ()
+  "Return a usable devenv executable path, or nil."
+  (seq-find #'file-executable-p (hub/org-export--candidate-devenv-executables)))
+
+(defun hub/org-export--devenv-compiler-command (compiler)
+  "Return COMPILER command wrapped in the project devenv shell when possible."
+  (when-let* (((and hub/org-export-use-devenv-compiler
+		    (file-exists-p (expand-file-name "devenv.nix" user-emacs-directory))))
+	      (devenv (hub/org-export--devenv-executable))
+	      (project-root (directory-file-name (expand-file-name user-emacs-directory))))
+    (format "cd %s && TEXINPUTS=%s %s shell --from %s -- %s"
+	    (shell-quote-argument project-root)
+	    (shell-quote-argument
+	     (hub/org-export--merge-texinputs hub/org-export-texinputs-directories
+					      (getenv "TEXINPUTS")))
+	    (shell-quote-argument devenv)
+	    (shell-quote-argument (concat "path:" project-root))
+	    (shell-quote-argument compiler))))
+
+(defun hub/org-export--compiler-command (compiler)
+  "Return the shell command prefix used to invoke COMPILER."
+  (or (hub/org-export--devenv-compiler-command compiler)
+      (format "TEXINPUTS=%s %s"
+	      (shell-quote-argument
+	       (hub/org-export--merge-texinputs hub/org-export-texinputs-directories
+						(getenv "TEXINPUTS")))
+	      (shell-quote-argument compiler))))
+
+(defun hub/org-export--pdf-process-for-texfile (texfile)
+  "Return local PDF process for TEXFILE, or nil for Org defaults."
+  (let ((compiler (with-temp-buffer
+		    (insert-file-contents texfile nil 0 512)
+		    (when (re-search-forward
+			   (format "^%% Intended LaTeX compiler: \\(%s\\)"
+				   (regexp-opt '("xelatex")))
+			   nil t)
+		      "xelatex"))))
+    (when compiler
+      (hub/org-export--pdf-process-for-compiler compiler))))
+
+(defun hub/org-export--advice-org-latex-compile (orig texfile &optional snippet)
+  "Compile local class TEXFILE with the repo-aware PDF process.
+ORIG and SNIPPET are the original `org-latex-compile' function and snippet flag."
+  (let ((org-latex-pdf-process (or (and (not snippet)
+					(hub/org-export--pdf-process-for-texfile texfile))
+				   org-latex-pdf-process)))
+    (funcall orig texfile snippet)))
+
 (defun hub/org-export--pdf-process-for-compiler (compiler)
   "Return a minimal two-pass PDF process for COMPILER."
-  (let ((command (format "%s -interaction nonstopmode -shell-escape -output-directory %%o %%f"
-			 compiler)))
+  (let ((command (format "%s -interaction nonstopmode -shell-escape -output-directory \"$(dirname %%O)\" %%F"
+			 (hub/org-export--compiler-command compiler))))
     (list command command)))
 
 (defun hub/org-export--class-name ()
@@ -196,7 +320,9 @@ class when CLASS-NAME is nil; signals `user-error' when unavailable."
 
 (defun hub/org-export--xelatex-class-p (&optional class-name)
   "Return non-nil when CLASS-NAME, or the current buffer class, uses XeLaTeX."
-  (member (or class-name (hub/org-export--class-name)) hub/org-export--xelatex-class-names))
+  (let ((resolved-class (or class-name (hub/org-export--class-name))))
+    (or (member resolved-class hub/org-export--xelatex-class-names)
+	(hub/org-export--class-asset-source resolved-class))))
 
 (defun hub/org-export--effective-veriff-variant (&optional variants)
   "Return the effective Veriff variant for the current buffer.
@@ -349,6 +475,7 @@ buffer metadata.  Missing variants default to
     (setq-local org-latex-pdf-process
 		(hub/org-export--pdf-process-for-compiler org-latex-compiler))
     (setq-local org-latex-title-command hub/org-export--hub-article-title-command)
+    (setq-local org-latex-caption-above nil)
     (setq-local org-latex-src-block-backend 'minted)
     (setq-local org-latex-minted-options
 		'(("fontsize" "\\footnotesize")
@@ -442,19 +569,30 @@ first Org rule separator become header rows."
 	   (if seen-rule (push cells body) (push cells headers))))))
     (cons (nreverse headers) (nreverse body))))
 
-(defun hub/org-export--table-row-string (cells &optional header-p)
+(defun hub/org-export--table-row-string (cells &optional header-p header-macro body-macro)
   "Return LaTeX for a table row made of CELLS.
 
 When HEADER-P is non-nil, render cells with the class-owned header macro."
-  (concat
-   (mapconcat
-    (lambda (cell)
-      (if header-p
-	  (format "\\HubTableHeaderCell{%s}" cell)
-	(format "\\HubTableBodyCell{%s}" cell)))
-    cells
-    " & ")
-   "\\\\"))
+  (let ((header-macro (or header-macro "HubTableHeaderCell"))
+	(body-macro (or body-macro "HubTableBodyCell")))
+    (concat
+     (mapconcat
+      (lambda (cell)
+	(if header-p
+	    (format "\\%s{%s}" header-macro cell)
+	  (format "\\%s{%s}" body-macro cell)))
+      cells
+      " & ")
+     "\\\\")))
+
+(defun hub/org-export--hub-article-column-spec (column-count)
+  "Return an adaptive hub-article table column spec for COLUMN-COUNT.
+
+Leading columns keep natural width; the final column receives the flexible
+remaining width so compact labels do not force prose cells to wrap early."
+  (if (= column-count 1)
+      "H"
+    (concat (make-string (1- column-count) ?l) "H")))
 
 (defun hub/org-export--format-branded-table (table info)
   "Return class-owned LaTeX for plain Org TABLE using INFO."
@@ -489,16 +627,55 @@ When HEADER-P is non-nil, render cells with the class-owned header macro."
 	(setq attr (plist-put attr :center nil)))
       (org-latex--decorate-table table-string attr caption above? info))))
 
+(defun hub/org-export--format-hub-article-table (table info)
+  "Return hub-article-owned LaTeX for plain Org TABLE using INFO."
+  (pcase-let* ((`(,headers . ,body) (hub/org-export--split-table-rows table info))
+	       (all-rows (append headers body))
+	       (column-count (length (car all-rows)))
+	       (column-spec (hub/org-export--hub-article-column-spec column-count)))
+    (when (zerop column-count)
+      (user-error "Cannot export an empty Org table"))
+    (let* ((attr (copy-sequence (org-export-read-attribute :attr_latex table)))
+	   (caption (org-latex--caption/label-string table info))
+	   (above? (org-latex--caption-above-p table info))
+	   (body-rows (if body body (cdr headers)))
+	   (header-rows (if body headers (list (car headers))))
+	   (table-string
+	    (concat
+	     "\\begin{HubArticleTable}\n"
+	     (format "\\begin{tabularx}{\\HubArticleTableWidth}{%s}\n" column-spec)
+	     (mapconcat (lambda (row)
+			  (hub/org-export--table-row-string
+			   row t "HubArticleTableHeaderCell" "HubArticleTableBodyCell"))
+			header-rows
+			"\n")
+	     "\n\\HubArticleTableHeadRule\n"
+	     (mapconcat
+	      (lambda (row)
+		(hub/org-export--table-row-string
+		 row nil "HubArticleTableHeaderCell" "HubArticleTableBodyCell"))
+	      body-rows
+	      "\n")
+	     "\n\\end{tabularx}\n"
+	     "\\end{HubArticleTable}")))
+      (unless (plist-member attr :center)
+	(setq attr (plist-put attr :center nil)))
+      (org-latex--decorate-table table-string attr caption above? info))))
+
 (defun hub/org-export--advice-org-latex-org-table (orig table contents info)
   "Render TABLE through ORIG, with branded defaults for the flagship class."
   (let ((attr (org-export-read-attribute :attr_latex table)))
-    (if (and (hub/org-export--info-veriff-p info)
-	     (not (plist-get attr :environment))
+    (if (and (not (plist-get attr :environment))
 	     (not (plist-get attr :mode))
 	     (not (plist-get attr :align))
 	     (not (plist-get attr :width))
 	     (not (plist-get attr :options)))
-	(hub/org-export--format-branded-table table info)
+	(cond
+	 ((hub/org-export--info-veriff-p info)
+	  (hub/org-export--format-branded-table table info))
+	 ((equal (plist-get info :latex-class) hub/org-export--hub-article-class-name)
+	  (hub/org-export--format-hub-article-table table info))
+	 (t (funcall orig table contents info)))
       (funcall orig table contents info))))
 
 (defun hub/org-export--advice-org-latex-special-block (orig special-block contents info)
@@ -548,50 +725,75 @@ two-column rendering with `:float multicolumn'."
       (funcall orig text markup info))))
 
 (defun hub/org-export--advice-org-latex--inline-image (orig link info)
-  "Render Org image LINK through a Veriff-owned figure image wrapper using INFO."
+  "Render Org image LINK through class-owned figure image wrappers using INFO."
   (let ((image-latex (funcall orig link info)))
-    (if (and (hub/org-export--info-veriff-p info)
-	     (string-match "\\\\includegraphics\\(\\[[^]]*\\]\\)?{\\([^}]+\\)}" image-latex))
-	(let* ((includegraphics (match-string 0 image-latex))
-	       (path (match-string 2 image-latex))
-	       (staged-path (and hub/org-export--active-output-dir
-				 (expand-file-name path hub/org-export--active-output-dir))))
-	  (when (and staged-path
-		     (not (file-name-absolute-p path))
-		     (file-exists-p staged-path))
-	    (setq includegraphics
-		  (replace-regexp-in-string
-		   (format "{%s}\\'" (regexp-quote path))
-		   (format "{%s}" (hub/org-export--latex-escape staged-path))
-		   includegraphics t t)))
-	  (replace-match (format "\\HubFigureImage{%s}" includegraphics) t t image-latex))
+    (if (string-match "\\\\includegraphics\\(\\[[^]]*\\]\\)?{\\([^}]+\\)}" image-latex)
+	(let ((includegraphics (match-string 0 image-latex)))
+	  (cond
+	   ((hub/org-export--info-veriff-p info)
+	    (let* ((path (match-string 2 image-latex))
+		   (staged-path (and hub/org-export--active-output-dir
+				     (expand-file-name path hub/org-export--active-output-dir))))
+	      (when (and staged-path
+			 (not (file-name-absolute-p path))
+			 (file-exists-p staged-path))
+		(setq includegraphics
+		      (replace-regexp-in-string
+		       (format "{%s}\\'" (regexp-quote path))
+		       (format "{%s}" (hub/org-export--latex-escape staged-path))
+		       includegraphics t t)))
+	      (replace-match (format "\\HubFigureImage{%s}" includegraphics) t t image-latex)))
+	   ((equal (plist-get info :latex-class) hub/org-export--hub-article-class-name)
+	    (replace-match (format "\\HubArticleFigureImage{%s}" includegraphics) t t image-latex))
+	   (t image-latex)))
       image-latex)))
 
 (defun hub/org-export--advice-org-latex-item (orig item contents info)
   "Render Org checkbox ITEM markers through Veriff-owned macros using CONTENTS and INFO."
   (let ((item-latex (funcall orig item contents info)))
-    (if (hub/org-export--info-veriff-p info)
-	(let ((result item-latex))
-	  (dolist (pair '(("$\\boxtimes$" . "\\HubCheckboxChecked{}")
-			  ("$\\square$" . "\\HubCheckboxUnchecked{}")
-			  ("$\\boxminus$" . "\\HubCheckboxPartial{}")))
-	    (setq result (string-replace (car pair) (cdr pair) result)))
-	  result)
-      item-latex)))
+    (cond
+     ((and (equal (plist-get info :latex-class) hub/org-export--hub-article-class-name)
+	   (org-element-property :tag item)
+	   (not (org-element-property :checkbox item)))
+      (let* ((tag (org-export-data (org-element-property :tag item) info))
+	     (tag-footnotes
+	      (or (org-latex--delayed-footnotes-definitions
+		   (org-element-property :tag item) info)
+		  "")))
+	(format "\\item[{\\HubArticleDefinitionTerm{%s}}] %s%s"
+		tag
+		tag-footnotes
+		(or (and contents (org-trim contents)) ""))))
+     ((hub/org-export--info-veriff-p info)
+      (let ((result item-latex))
+	(dolist (pair '(("$\\boxtimes$" . "\\HubCheckboxChecked{}")
+			("$\\square$" . "\\HubCheckboxUnchecked{}")
+			("$\\boxminus$" . "\\HubCheckboxPartial{}")))
+	  (setq result (string-replace (car pair) (cdr pair) result)))
+	result))
+     (t item-latex))))
 
 (defun hub/org-export--register-latex-class (name header)
   "Register LaTeX class NAME with HEADER and standard sectioning mappings."
   (setq org-latex-classes
 	(cons
-	 (list name header
-	       '("\\section{%s}" . "\\section*{%s}")
-	       '("\\subsection{%s}" . "\\subsection*{%s}")
-	       '("\\subsubsection{%s}" . "\\subsubsection*{%s}")
-	       '("\\paragraph{%s}" . "\\paragraph*{%s}")
-	       '("\\subparagraph{%s}" . "\\subparagraph*{%s}"))
+	 (append (list name header hub/org-export--standard-sectioning)
+		 hub/org-export--standard-subsectioning)
 	 (cl-remove-if (lambda (entry)
 			 (equal (car entry) name))
 		       org-latex-classes))))
+
+(defun hub/org-export--register-local-latex-classes ()
+  "Register discovered local .cls assets not already registered specially."
+  (dolist (class (hub/org-export--local-class-names))
+    (unless (assoc-string class org-latex-classes t)
+      (hub/org-export--register-latex-class
+       class
+       (string-join
+	(list (format "\\documentclass[11pt,a4paper]{%s}" class)
+	      "[DEFAULT-PACKAGES]"
+	      "[PACKAGES]")
+	"\n")))))
 
 (defun hub/org-export-register-veriff ()
   "Register the public Veriff Org LaTeX export class."
@@ -675,12 +877,15 @@ Return the generated `.pdf' path."
 
 (hub/org-export-register-veriff)
 (hub/org-export-register-hub-article)
+(hub/org-export--register-local-latex-classes)
 (hub/org-export--ensure-babel-package)
+(hub/org-export--ensure-texinputs)
 (advice-add 'org-latex--org-table :around #'hub/org-export--advice-org-latex-org-table)
 (advice-add 'org-latex-special-block :around #'hub/org-export--advice-org-latex-special-block)
 (advice-add 'org-latex--text-markup :around #'hub/org-export--advice-org-latex--text-markup)
 (advice-add 'org-latex--inline-image :around #'hub/org-export--advice-org-latex--inline-image)
 (advice-add 'org-latex-item :around #'hub/org-export--advice-org-latex-item)
+(advice-add 'org-latex-compile :around #'hub/org-export--advice-org-latex-compile)
 (add-hook 'org-export-before-processing-functions #'hub/org-export--validate-locale)
 (add-hook 'org-export-before-processing-functions #'hub/org-export--validate-veriff-metadata)
 (add-hook 'org-export-before-processing-functions #'hub/org-export--configure-class-buffer)
