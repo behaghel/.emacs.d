@@ -38,6 +38,12 @@
   :type 'file
   :group 'hub/org)
 
+(defcustom hub/org-latex-class-directory
+  (expand-file-name "etc/latex" user-emacs-directory)
+  "Directory containing repo-local LaTeX class assets for Org templates."
+  :type 'directory
+  :group 'hub/org)
+
 (defun hub/org--normalize-agenda-files (value)
   "Return VALUE as a list of file paths, or nil.
 Accepts a single string or a list of strings."
@@ -88,6 +94,52 @@ When QUIET is non-nil, do not emit informational messages."
 	(cons (cons key value)
 	      (assoc-delete-all key org-structure-template-alist))))
 
+(defun hub/org-tab-dwim (arg)
+  "Move through active Yasnippet fields, otherwise run `org-cycle'.
+Forward prefix ARG to `org-cycle' so prefixed Org cycling keeps its
+native behavior."
+  (interactive "P")
+  (if (and (null arg)
+	   (fboundp 'yas-active-snippets)
+	   (yas-active-snippets)
+	   (fboundp 'yas-next-field-or-maybe-expand))
+      (yas-next-field-or-maybe-expand)
+    (org-cycle arg)))
+
+(defun hub/org-discover-local-latex-classes (&optional directory)
+  "Return class names discovered from .cls files under DIRECTORY.
+When DIRECTORY is nil, use `hub/org-latex-class-directory'."
+  (let ((class-directory (or directory hub/org-latex-class-directory)))
+    (when (file-directory-p class-directory)
+      (sort
+       (mapcar #'file-name-base
+	       (directory-files class-directory t "\\.cls\\'" 'nosort))
+       #'string<))))
+
+(defun hub/org-registered-latex-classes ()
+  "Return class names currently registered in `org-latex-classes'."
+  (when (boundp 'org-latex-classes)
+    (sort (mapcar #'car org-latex-classes) #'string<)))
+
+(defun hub/org-latex-class-candidates ()
+  "Return available Org LaTeX class names for template selection.
+Repo-local .cls files are listed before classes already registered with Org."
+  (delete-dups
+   (append (hub/org-discover-local-latex-classes)
+	   (hub/org-registered-latex-classes))))
+
+(defun hub/org-read-latex-class ()
+  "Prompt for an Org LaTeX class discovered from local and registered classes."
+  (let* ((candidates (hub/org-latex-class-candidates))
+	 (default (car candidates)))
+    (unless candidates
+      (user-error "No Org LaTeX classes are available"))
+    (completing-read
+     (if default
+	 (format "LaTeX class (default %s): " default)
+       "LaTeX class: ")
+     candidates nil t nil nil default)))
+
 (defun hub/org-insert-veriff-template ()
   "Insert the Veriff article template at point.
 When Yasnippet is available, expand fields in the inserted template."
@@ -121,6 +173,10 @@ When Yasnippet is available, expand fields in the inserted template."
 			      ",ov" 'hub/org-insert-veriff-template)
   (evil-define-key 'motion org-mode-map (kbd "RET") 'org-return)
   (evil-define-key 'motion calendar-mode-map (kbd "RET") 'org-calendar-select)
+  (define-key org-mode-map (kbd "<tab>") #'hub/org-tab-dwim)
+  (define-key org-mode-map (kbd "TAB") #'hub/org-tab-dwim)
+  (evil-define-key 'insert org-mode-map (kbd "<tab>") #'hub/org-tab-dwim)
+  (evil-define-key 'insert org-mode-map (kbd "TAB") #'hub/org-tab-dwim)
   (evil-define-key 'insert org-mode-map (kbd "M-RET") 'org-meta-return)
   (evil-define-key 'insert org-mode-map (kbd "<escape>") 'evil-normal-state)
   (evil-define-key 'insert org-mode-map (kbd "C-[") 'evil-normal-state)

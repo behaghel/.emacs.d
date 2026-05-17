@@ -21,6 +21,7 @@
 
 (ert-deftest hub/denote-note-keeps-org-editing-experience ()
   "A new Denote note opens as Org and preserves key editing behaviors."
+  (require 'denote)
   (let* ((tmp-dir (make-temp-file "hub-denote-test-" t))
 	 (denote-directory tmp-dir)
 	 (path (denote "ERT denote note" '("emacs") nil denote-directory nil nil nil nil)))
@@ -66,6 +67,24 @@
 	(when (file-directory-p tmp-dir)
 	  (delete-directory tmp-dir t))))))
 
+(ert-deftest hub/denote-brain-configures-note-directory ()
+  "Loading the notes module configures the Denote note directory."
+  (load (expand-file-name "modules/interactive/notes/brain.el" default-directory) nil t)
+  (should (fboundp 'denote))
+  (should (equal denote-directory hub/denote-directory)))
+
+(ert-deftest hub/org-tab-advances-active-yasnippet-field ()
+  "Org TAB should move through Yasnippet fields before cycling headings."
+  (unless (require 'yasnippet nil 'noerror)
+    (ert-skip "Yasnippet is unavailable in this isolated test environment"))
+  (with-temp-buffer
+    (org-mode)
+    (yas-minor-mode 1)
+    (yas-expand-snippet "${1:first} ${2:second} $0")
+    (let ((before (point)))
+      (hub/org-tab-dwim)
+      (should (> (point) before)))))
+
 (ert-deftest hub/org-veriff-template-inserts-authoring-scaffold ()
   "The Veriff authoring template inserts required export metadata."
   (with-temp-buffer
@@ -78,6 +97,20 @@
     (should (search-forward "#+EXPORT_FOOTER_NOTE:" nil t))
     (should (search-forward "#+begin_standfirst" nil t))
     (should (search-forward "#+begin_epigraph" nil t))))
+
+(ert-deftest hub/org-generic-template-keeps-metadata-fields ()
+  "The generic Org template keeps metadata in Yasnippet field order."
+  (let ((template (with-temp-buffer
+		    (insert-file-contents
+		     (expand-file-name "insert/template.org" default-directory))
+		    (buffer-string))))
+    (dolist (fragment '("#+TITLE: $1"
+			"#+SUBTITLE: ${2:}"
+			"#+DATE: ${3:`(format-time-string \"%Y-%m-%d\")`}"
+			"#+EXPORT_EYEBROW: ${4:}"
+			"#+EXPORT_FOOTER_NOTE: ${5:}"
+			"$0"))
+      (should (string-match-p (regexp-quote fragment) template)))))
 
 (provide 'denote-note-test)
 ;;; denote-note-test.el ends here
