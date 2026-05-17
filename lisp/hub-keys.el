@@ -16,7 +16,7 @@
   "Global leader prefix for Evil normal/visual states.")
 (defvar hub/localleader-prefix ";"
   "Local leader prefix for Evil normal/visual states.")
-(defvar hub/global-override-states '(normal visual motion emacs insert replace operator)
+(defvar hub/global-override-states '(normal visual motion replace operator)
   "States covered by `hub/global-override'.")
 
 (defun hub/define-leaders ()

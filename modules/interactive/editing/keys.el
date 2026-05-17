@@ -59,6 +59,50 @@
     (hub/leader "?" #'hub/hydra-cheatsheet/body)))
 
 ;; MVP global bindings
+(defvar hub/meta-window-override-mode-map
+  (let ((map (make-sparse-keymap))
+	(meta-map (make-sparse-keymap)))
+    (set-keymap-parent meta-map (lookup-key global-map (kbd "ESC")))
+    (define-key meta-map (kbd "c") #'hub/window-focus-far-left)
+    (define-key meta-map (kbd "t") #'hub/window-focus-far-down)
+    (define-key meta-map (kbd "s") #'hub/window-focus-far-up)
+    (define-key meta-map (kbd "n") #'hub/window-focus-far-right)
+    (define-key map (kbd "ESC") meta-map)
+    map)
+  "Global minor-mode map for exact Meta window-focus overrides.")
+
+(define-minor-mode hub/meta-window-override-mode
+  "Keep window-focus Meta keys without shadowing unrelated Meta keys."
+  :global t
+  :keymap hub/meta-window-override-mode-map)
+
+(hub/meta-window-override-mode 1)
+
+(defun hub/install-evil-insert-meta-fallback--in-map (map)
+  "Install Evil insert Meta fallback in MAP."
+  (let ((meta-map (lookup-key map (kbd "ESC")))
+	(fallback (make-sparse-keymap)))
+    (set-keymap-parent fallback (lookup-key global-map (kbd "ESC")))
+    (define-key fallback (kbd "c") #'hub/window-focus-far-left)
+    (define-key fallback (kbd "t") #'hub/window-focus-far-down)
+    (define-key fallback (kbd "s") #'hub/window-focus-far-up)
+    (define-key fallback (kbd "n") #'hub/window-focus-far-right)
+    (if (keymapp meta-map)
+	(set-keymap-parent meta-map fallback)
+      (define-key map (kbd "ESC") fallback))))
+
+(defun hub/install-evil-insert-meta-fallback ()
+  "Let Evil insert-state Meta keys fall back after window overrides."
+  (when (boundp 'evil-insert-state-map)
+    (hub/install-evil-insert-meta-fallback--in-map evil-insert-state-map)
+    (when (fboundp 'evil-state-auxiliary-keymaps)
+      (dolist (entry (evil-state-auxiliary-keymaps 'insert))
+	(hub/install-evil-insert-meta-fallback--in-map (cdr entry))))))
+
+(with-eval-after-load 'evil
+  (hub/install-evil-insert-meta-fallback)
+  (add-hook 'evil-insert-state-entry-hook #'hub/install-evil-insert-meta-fallback))
+
 (with-eval-after-load 'general
   (hub/define-leaders)
   (hub/global-override
