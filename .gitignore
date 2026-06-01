@@ -102,3 +102,8 @@ efficiency-post*.md
 efficiency-post*.png
 veriff-home*.md
 veriff-home*.png
+
+# Local devenv environment overrides
+.env
+.env.local
+.env.production

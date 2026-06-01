@@ -406,5 +406,8 @@
   :config
   (setq edit-server-default-major-mode 'markdown-mode))
 
+(add-to-list 'load-path "/Users/hubertbehaghel/ws/veriff/herbert/elisp")
+(add-to-list 'exec-path "/Users/hubertbehaghel/ws/veriff/herbert")
+(require 'herbert-org-mode)
 (provide 'init)
 ;;; init.el ends here

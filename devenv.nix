@@ -15,6 +15,7 @@ let
     ps.tcolorbox
     ps.minted
     ps.fvextra
+    ps.lettrine
   ]);
 in
 {
@@ -31,7 +32,7 @@ in
     texliveEnv
   ];
 
-  env.DEEPSEEK_API_KEY = config.secretspec.secrets.DEEPSEEK_API_KEY or "";
+  env.DEEPSEEK_API_KEY = "";
   env.EDITOR = "emacs";
   env.OSFONTDIR = "/Library/Fonts:/Users/hubertbehaghel/Library/Fonts:/System/Library/Fonts";
   env.FLOW = ''
@@ -46,6 +47,8 @@ in
     - Pre-commit (all)   : devenv shell -- pre-commit:all
     - devenv shell -- <command>     : Run one-off commands in the dev shell
   '';
+
+  dotenv.enable = true;
 
   # Install pre-commit hooks on shell entry
   enterShell = ''

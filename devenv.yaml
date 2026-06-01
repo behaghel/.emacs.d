@@ -6,7 +6,4 @@ inputs:
         follows: nixpkgs
   nixpkgs:
     url: github:NixOS/nixpkgs/nixos-25.11
-secretspec:
-  enable: true
-  provider: pass://dev/deepseek-api-key
-  profile: default
+

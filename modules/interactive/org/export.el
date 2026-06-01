@@ -121,7 +121,7 @@ The trailing path separator keeps Kpathsea's default search path enabled."
 (defconst hub/org-export--veriff-title-command
   (string-join
    '("\\begin{hubhero}"
-     "\\noindent\\begin{minipage}[t]{118mm}"
+     "\noindent\\begin{minipage}[t]{118mm}"
      "\\raggedright"
      "\\HubExportEyebrowBlock"
      "\\HubHeroTitle{%t}"
@@ -136,7 +136,7 @@ The trailing path separator keeps Kpathsea's default search path enabled."
   (string-join
    '("\\twocolumn[{"
      "\\begin{hubhero}"
-     "\\noindent\\begin{minipage}{118mm}"
+     "\noindent\\begin{minipage}{118mm}"
      "\\raggedright"
      "\\HubExportEyebrowBlock"
      "\\HubHeroTitle{%t}"
@@ -172,8 +172,16 @@ Defaults to English when the Org buffer does not specify one."
   (member locale hub/org-export-supported-locales))
 
 (defun hub/org-export--keyword-string (keyword)
-  "Return the first string value for Org KEYWORD in the current buffer."
-  (car (hub/org-export--keyword-values keyword)))
+  "Return the string value for Org KEYWORD, with local priority.
+Per Org semantics, a headline property drawer (:EXPORT_EYEBROW: value)
+takes precedence over a file-level #+KEYWORD: line."
+  (or
+   ;; 1. Per-headline property drawer (higher priority)
+   (when (derived-mode-p 'org-mode)
+     (let ((v (org-entry-get (point) keyword 'selective)))
+       (and (stringp v) (string-trim v))))
+   ;; 2. File-level #+KEYWORD: line (lower priority)
+   (car (hub/org-export--keyword-values keyword))))
 
 (defun hub/org-export--keyword-values (keyword)
   "Return all trimmed string values for Org KEYWORD in the current buffer."
@@ -257,19 +265,27 @@ class when CLASS-NAME is nil; signals `user-error' when unavailable."
   (seq-find #'file-executable-p (hub/org-export--candidate-devenv-executables)))
 
 (defun hub/org-export--devenv-compiler-command (compiler)
-  "Return COMPILER command wrapped in the project devenv shell when possible."
-  (when-let* (((and hub/org-export-use-devenv-compiler
-		    (file-exists-p (expand-file-name "devenv.nix" user-emacs-directory))))
-	      (devenv (hub/org-export--devenv-executable))
-	      (project-root (directory-file-name (expand-file-name user-emacs-directory))))
-    (format "cd %s && TEXINPUTS=%s %s shell --from %s -- %s"
-	    (shell-quote-argument project-root)
-	    (shell-quote-argument
-	     (hub/org-export--merge-texinputs hub/org-export-texinputs-directories
-					      (getenv "TEXINPUTS")))
-	    (shell-quote-argument devenv)
-	    (shell-quote-argument (concat "path:" project-root))
-	    (shell-quote-argument compiler))))
+  "Return COMPILER command wrapped in the project devenv shell when possible.
+When already inside a devenv shell (detected by IN_NIX_SHELL), skip the
+wrapper and run COMPILER directly — the Nix-provided TeX Live is already
+on PATH, so wrapping would only add ~15s of devenv init per pass."
+  (if (and hub/org-export-use-devenv-compiler
+	   (file-exists-p (expand-file-name "devenv.nix" user-emacs-directory))
+	   ;; Skip wrapping when already inside a devenv shell:
+	   ;; xelatex and all TeX Live packages are on PATH already.
+	   (not (getenv "IN_NIX_SHELL")))
+      (when-let* ((devenv (hub/org-export--devenv-executable))
+		  (project-root (directory-file-name
+				 (expand-file-name user-emacs-directory))))
+	(format "cd %s && TEXINPUTS=%s %s shell --from %s -- %s"
+		(shell-quote-argument project-root)
+		(shell-quote-argument
+		 (hub/org-export--merge-texinputs hub/org-export-texinputs-directories
+						  (getenv "TEXINPUTS")))
+		(shell-quote-argument devenv)
+		(shell-quote-argument (concat "path:" project-root))
+		(shell-quote-argument compiler)))
+    nil))
 
 (defun hub/org-export--compiler-command (compiler)
   "Return the shell command prefix used to invoke COMPILER."
@@ -317,6 +333,10 @@ ORIG and SNIPPET are the original `org-latex-compile' function and snippet flag.
 (defun hub/org-export--hub-article-p ()
   "Return non-nil when the current buffer targets `hub-article'."
   (equal (hub/org-export--class-name) hub/org-export--hub-article-class-name))
+
+(defun hub/org-export--info-hub-article-p (info)
+  "Return non-nil when INFO targets the `hub-article' class."
+  (equal (plist-get info :latex-class) hub/org-export--hub-article-class-name))
 
 (defun hub/org-export--xelatex-class-p (&optional class-name)
   "Return non-nil when CLASS-NAME, or the current buffer class, uses XeLaTeX."
@@ -377,8 +397,19 @@ buffer metadata.  Missing variants default to
       (user-error "gallery-white standfirst must be the first content block")))))
 
 (defun hub/org-export--insert-header-extra (latex-line)
-  "Insert LATEX-LINE as a `LATEX_HEADER_EXTRA' keyword in the current buffer."
+  "Insert LATEX-LINE as a `LATEX_HEADER_EXTRA' keyword at the end of the header.
+Insertion happens after `#+COLUMNS:' and similar buffer-wide settings,
+not at `point-min', to avoid interfering with `#+TITLE:' keyword parsing."
   (goto-char (point-min))
+  ;; Find the last keyword line (e.g. #+COLUMNS) by skipping past
+  ;; all contiguous keyword lines starting from point-min.
+  (while (and (not (eobp))
+	      (looking-at "^[ \t]*#\\+"))
+    (forward-line 1))
+  ;; If we moved past any keyword lines, insert before the blank
+  ;; line separator, which is right before the first heading.
+  (skip-chars-forward "\n")
+  (beginning-of-line)
   (insert "#+LATEX_HEADER_EXTRA: " latex-line "\n"))
 
 (defun hub/org-export--append-footer-note ()
@@ -471,6 +502,16 @@ buffer metadata.  Missing variants default to
   "Configure title variables for the personal article class."
   (let ((eyebrow (hub/org-export--keyword-string "EXPORT_EYEBROW")))
     (setq-local org-export-with-toc nil)
+    ;; Strip any toc: setting from #+OPTIONS in the buffer copy,
+    ;; so the `setq-local' above is the single authority for TOC.
+    (save-excursion
+      (goto-char (point-min))
+      (when (re-search-forward "^[ \t]*#\\+OPTIONS:" nil t)
+	(save-restriction
+	  (narrow-to-region (line-beginning-position) (line-end-position))
+	  (goto-char (point-min))
+	  (while (re-search-forward "\\btoc:[^ \t]*[ \t]*" nil t)
+	    (replace-match "")))))
     (setq-local org-latex-compiler (hub/org-export--effective-compiler))
     (setq-local org-latex-pdf-process
 		(hub/org-export--pdf-process-for-compiler org-latex-compiler))
@@ -885,7 +926,21 @@ Return the generated `.pdf' path."
 (advice-add 'org-latex--text-markup :around #'hub/org-export--advice-org-latex--text-markup)
 (advice-add 'org-latex--inline-image :around #'hub/org-export--advice-org-latex--inline-image)
 (advice-add 'org-latex-item :around #'hub/org-export--advice-org-latex-item)
+(defun hub/org-export--advice-org-latex-template (orig contents info)
+  "Remove TOC boilerplate from hub-article LaTeX template.
+This is a belt-and-suspenders guard: the class config already sets
+`org-export-with-toc' to nil, but subtree export and export-order
+timing can let `:with-toc' slip through.  Stripping at the output
+level is the definitive fix."
+  (let ((result (funcall orig contents info)))
+    (if (hub/org-export--info-hub-article-p info)
+	(replace-regexp-in-string
+	 "\\\\setcounter{tocdepth}{[0-9]+}\n\\\\tableofcontents\n"
+	 "" result)
+      result)))
+
 (advice-add 'org-latex-compile :around #'hub/org-export--advice-org-latex-compile)
+(advice-add 'org-latex-template :around #'hub/org-export--advice-org-latex-template)
 (add-hook 'org-export-before-processing-functions #'hub/org-export--validate-locale)
 (add-hook 'org-export-before-processing-functions #'hub/org-export--validate-veriff-metadata)
 (add-hook 'org-export-before-processing-functions #'hub/org-export--configure-class-buffer)

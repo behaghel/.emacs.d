@@ -24,6 +24,7 @@
 \RequirePackage{array}
 \RequirePackage{tabularx}
 \RequirePackage{caption}
+\RequirePackage{lettrine}
 
 \definecolor{HubArticleLightInk}{HTML}{18312D}
 \definecolor{HubArticleLightMuted}{HTML}{64756F}
@@ -85,6 +86,7 @@
   a4paper,
   top=28mm,
   bottom=31mm,
+  footskip=25mm,
   inner=28mm,
   outer=60mm,
   marginparsep=8mm,
@@ -190,6 +192,11 @@
 \setlength{\arrayrulewidth}{0.35pt}
 \renewcommand{\arraystretch}{1.18}
 \setcounter{secnumdepth}{0}
+\newcommand{\HubArticleDropCap}[2]{%
+  \lettrine[lines=2,findent=0em,nindent=0em,slope=0pt,loversize=0,lhang=0.3]%
+    {\HubArticleSerif\bfseries\color{HubArticleInk}#1}{\textsc{#2}}%
+}
+
 \AtBeginDocument{\arrayrulecolor{HubArticleTableRule}}
 \DeclareCaptionFont{hubarticletablecaption}{\HubArticleSans\footnotesize}
 \captionsetup[table]{font=hubarticletablecaption,labelfont={bf,color=HubArticleAccentMuted},textfont={color=HubArticleTableCaptionText},labelsep=period,justification=centering,singlelinecheck=false,skip=0.55em}
@@ -199,7 +206,15 @@
   \let\@mkboth\@gobbletwo
   \let\@oddhead\@empty
   \let\@evenhead\@empty
-  \def\@oddfoot{\reset@font\hfil\textcolor{HubArticleMuted}{\thepage}\hfil}%
+  \def\@oddfoot{%
+    \hb@xt@\textwidth{%
+      \hfill
+      \makebox[0pt][l]{%
+        \hspace{27mm}%
+        \large\textcolor{HubArticleRule}{\thepage}%
+      }%
+    }%
+  }%
   \let\@evenfoot\@oddfoot}
 \makeatother
 \pagestyle{plain}
@@ -233,7 +248,7 @@
   \fi
 }
 \newcommand{\HubArticleMeta}[2]{%
-  {\HubArticleSans\footnotesize\textcolor{HubArticleMuted}{#1\HubArticleMetaSeparator #2}\par}%
+  {\HubArticleSans\footnotesize\raggedleft\textcolor{HubArticleMuted}{#1\HubArticleMetaSeparator #2}\par}%
 }
 \newcommand{\HubArticleMarginMarker}[1]{%
   \marginpar{%
@@ -274,6 +289,7 @@
 \newenvironment{hubarticleopener}{%
   \par\vspace*{1.1em}\noindent
   \begingroup
+  \thispagestyle{empty}%
   \HubArticleAccentMarker\par
   \vspace{1.35em}%
 }{%
@@ -284,7 +300,7 @@
 \newenvironment{standfirst}{%
   \par\medskip\noindent
   \begingroup
-  \HubArticleSerif\large\itshape\color{HubArticleStandfirst}\ignorespaces
+  \HubArticleSerif\large\color{HubArticleStandfirst}\ignorespaces
 }{%
   \par
   \endgroup

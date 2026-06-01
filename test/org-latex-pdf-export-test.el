@@ -84,6 +84,7 @@
 	(user-emacs-directory hub/test-repo-root))
     (cl-letf (((symbol-function 'file-executable-p)
 	       (lambda (path) (string= path "/tmp/devenv"))))
+      (setenv "IN_NIX_SHELL" nil)
       (should (equal (hub/org-export--compiler-command "xelatex")
 		     (format "cd %s && TEXINPUTS=%s %s shell --from %s -- xelatex"
 			     (shell-quote-argument
@@ -803,7 +804,7 @@
 							(should-not (string-match-p (regexp-quote "\\llap{\\textcolor{HubArticleQuoteRule}") class-contents))
 							(should (string-match-p (regexp-quote "\\colorlet{HubArticleTableRule}{HubArticleLightTableRule}") class-contents))
 							(should-not (string-match-p (regexp-quote "\\colorlet{HubArticleTableRule}{HubArticleDarkTableRule}") class-contents))
-							(should (string-match-p (regexp-quote "\\textcolor{HubArticleMuted}{\\thepage}") class-contents))
+							(should (string-match-p (regexp-quote "\\textcolor{HubArticleRule}{\\thepage}") class-contents))
 							(should (string-match-p (regexp-quote "\\renewenvironment{table}[1][]") class-contents))
 							(should (string-match-p (regexp-quote "\\color{HubArticleInk}") class-contents))
 							(should (file-exists-p pdf-path)))))))
