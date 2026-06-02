@@ -26,6 +26,41 @@
     (general-create-definer hub/localleader :states '(normal visual) :prefix hub/localleader-prefix)
     (general-create-definer hub/global-override :states hub/global-override-states :keymaps 'override)))
 
+(defmacro hub/leader-bind (&rest args)
+  "Bind keys under the leader prefix, deferred until general loads.
+Keyword options before key-command pairs:
+  :keymap MAP  (default: global)  :states S  (default: \\='(normal))
+  :label STR   which-key label for the first binding
+  :file FILE   autoload for the first command"
+  (declare (indent defun))
+  (let* ((keymap ''global) (states ''(normal)) (file nil) (label nil)
+	 (bindings '()) (rest args))
+    (while (keywordp (car-safe rest))
+      (pcase (pop rest)
+	(:keymap (setq keymap (pop rest)))
+	(:states (setq states (pop rest)))
+	(:label (setq label (pop rest)))
+	(:file (setq file (pop rest)))
+	(_ (pop rest))))
+    (while rest
+      (let ((key (pop rest)) (cmd (pop rest)))
+	(push (list key (if (eq (car-safe cmd) 'function) (cadr cmd) cmd))
+	      bindings)))
+    (setq bindings (nreverse bindings))
+    (let ((fc (cadr (car bindings))) (fk (car (car bindings))))
+      `(eval-after-load 'general
+	 '(progn
+	    (hub/define-leaders)
+	    ,@(when (and file fc) `((autoload ',fc ,file nil t)))
+	    (hub/leader :keymaps ,keymap :states ,states
+			,@(mapcan
+			   (lambda (b) (list (car b) `',(cadr b)))
+			   bindings))
+	    ,@(when (and label fk)
+		`((with-eval-after-load 'which-key
+		    (which-key-add-key-based-replacements
+		     ,(concat hub/leader-prefix fk) ,label)))))))))
+
 ;; DWIM helpers
 (defun hub/in-project-p ()
   "Return non-nil if current buffer is part of a project."

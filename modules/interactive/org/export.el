@@ -8,6 +8,7 @@
 (require 'cl-lib)
 (require 'org)
 (require 'ox)
+(require 'hub-keys)
 (require 'ox-latex)
 (require 'seq)
 
@@ -944,6 +945,30 @@ level is the definitive fix."
 (add-hook 'org-export-before-processing-functions #'hub/org-export--validate-locale)
 (add-hook 'org-export-before-processing-functions #'hub/org-export--validate-veriff-metadata)
 (add-hook 'org-export-before-processing-functions #'hub/org-export--configure-class-buffer)
+
+
+;; ── Drop cap insertion ────────────────────────────────────────────────
+
+(defun hub/org-insert-dropcap (beg end)
+  "Wrap region from BEG to END with \\HubArticleDropCap.
+The first character becomes the drop cap letter (dropping 2 lines),
+the rest becomes the small-caps lead words.
+
+Example: selecting [Hello] produces:
+  \\HubArticleDropCap{H}{ello}"
+  (interactive "r")
+  (if (use-region-p)
+      (let* ((text (buffer-substring-no-properties beg end))
+	     (clean (string-trim text))
+	     (first (substring clean 0 1))
+	     (rest (substring clean 1)))
+	(delete-region beg end)
+	(insert (format "\\HubArticleDropCap{%s}{%s}" first rest)))
+    (user-error "Select the word(s) to transform into a drop cap")))
+
+(hub/leader-bind :states '(normal visual) :keymap 'org-mode-map
+		 :label "Drop cap"
+		 "x d" #'hub/org-insert-dropcap)
 
 (provide 'org/export)
 ;;; export.el ends here

@@ -54,9 +54,7 @@
 	    ("o" (message "See ,o prefix") :exit t)
 	    ("q" (message "See ,q prefix") :exit t)
 	    ("?" nil "exit"))
-  (with-eval-after-load 'general
-    (hub/define-leaders)
-    (hub/leader "?" #'hub/hydra-cheatsheet/body)))
+  (hub/leader-bind "?" #'hub/hydra-cheatsheet/body))
 
 ;; MVP global bindings
 (defvar hub/meta-window-override-mode-map
