@@ -19,11 +19,12 @@
   (add-to-list 'load-path (expand-file-name "lisp" user-emacs-directory))
   (add-to-list 'load-path (expand-file-name "modules" user-emacs-directory))
   (add-to-list 'load-path (expand-file-name "modules/lang" user-emacs-directory))
+  (add-to-list 'load-path (expand-file-name "modules/org" user-emacs-directory))
   (add-to-list 'load-path (expand-file-name "modules/interactive" user-emacs-directory))
   (require 'core-packages)
   (require 'editing/evil)
   (require 'org/core)
-  (require 'org/export))
+  (require 'org/export-latex))
 
 (load-file (expand-file-name "scripts/approval-refresh-overdrive-page1.el" hub/test-repo-root))
 

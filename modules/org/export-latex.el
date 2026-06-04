@@ -887,6 +887,11 @@ Default to the current buffer's LaTeX class when CLASS-NAME is nil."
 
 (defun hub/org-export-buffer-to-latex (&optional output-dir)
   "Export the current Org buffer to LaTeX in OUTPUT-DIR.
+
+When OUTPUT-DIR is nil, export into the same directory as the Org file,
+so that relative references (images, includes) resolve naturally.
+Falls back to `hub/org-export-output-root' for buffers without a file.
+
 Return the generated `.tex' path."
   (interactive)
   (unless (derived-mode-p 'org-mode)
@@ -894,7 +899,10 @@ Return the generated `.tex' path."
   (hub/org-export--validate-locale 'latex)
   (hub/org-export--validate-veriff-metadata 'latex)
   (hub/org-export--ensure-babel-package)
-  (let* ((outdir (hub/org-export--ensure-output-directory output-dir))
+  (let* ((default-dir (and (buffer-file-name)
+			   (file-name-directory (buffer-file-name))))
+	 (outdir (hub/org-export--ensure-output-directory
+		  (or output-dir default-dir)))
 	 (hub/org-export--active-output-dir outdir)
 	 (org-export-show-temporary-export-buffer nil)
 	 (base-name (file-name-base (or (buffer-file-name) (buffer-name))))
@@ -904,7 +912,9 @@ Return the generated `.tex' path."
 
 (defun hub/org-export-buffer-to-pdf (&optional output-dir)
   "Export the current Org buffer to PDF in OUTPUT-DIR.
-Return the generated `.pdf' path."
+
+When OUTPUT-DIR is nil, export into the same directory as the Org file
+(see `hub/org-export-buffer-to-latex').  Return the generated `.pdf' path."
   (interactive)
   (let* ((compiler (and (hub/org-export--xelatex-class-p)
 			(hub/org-export--effective-compiler)))
@@ -986,5 +996,5 @@ Returns both class and variant header lines as a string."
 		 :label "Drop cap"
 		 "x d" #'hub/org-insert-dropcap)
 
-(provide 'org/export)
-;;; export.el ends here
+(provide 'org/export-latex)
+;;; export-latex.el ends here

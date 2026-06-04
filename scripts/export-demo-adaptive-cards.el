@@ -14,10 +14,11 @@
   (add-to-list 'load-path (expand-file-name "lisp" user-emacs-directory))
   (add-to-list 'load-path (expand-file-name "modules" user-emacs-directory))
   (add-to-list 'load-path (expand-file-name "modules/lang" user-emacs-directory))
+  (add-to-list 'load-path (expand-file-name "modules/org" user-emacs-directory))
   (add-to-list 'load-path (expand-file-name "modules/interactive" user-emacs-directory))
   (require 'core-packages)
   (require 'org/core)
-  (require 'org/export))
+  (require 'org/export-latex))
 
 (defun hub/export-demo-adaptive-cards ()
   "Export the adaptive cards demo fixture to PDF."

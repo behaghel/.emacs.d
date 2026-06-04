@@ -72,6 +72,7 @@
 ;; interactive layer path so interactive-only modules are not visible in batch.
 (add-to-list 'load-path (expand-file-name "modules" user-emacs-directory))
 (add-to-list 'load-path (expand-file-name "modules/lang" user-emacs-directory))
+(add-to-list 'load-path (expand-file-name "modules/org" user-emacs-directory))
 (when (or hub/force-interactive (and (featurep 'core-predicates) (hub/interactive-p)))
   (add-to-list 'load-path (expand-file-name "modules/interactive" user-emacs-directory)))
 
@@ -378,7 +379,7 @@
   (require 'shell/eshell)
   ;; Knowledge & writing
   (require 'org/core)
-  (require 'org/export)
+  (require 'org/export-latex)
   (unless (getenv "HUB_CI_SKIP_OPTIONALS")
     (require 'notes/brain))
   (require 'tools/blog)

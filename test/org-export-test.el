@@ -5,7 +5,14 @@
 (require 'ox)
 (require 'ox-latex)
 
-(require 'org/export)
+;; Ensure modules under modules/org/ are reachable for batch test runners.
+(let ((root (expand-file-name ".." (file-name-directory (or load-file-name buffer-file-name)))))
+  (add-to-list 'load-path (expand-file-name "modules" root))
+  (add-to-list 'load-path (expand-file-name "modules/org" root))
+  (add-to-list 'load-path (expand-file-name "lisp" root))
+  (add-to-list 'load-path (expand-file-name "core" root)))
+
+(require 'org/export-latex)
 
 (ert-deftest hub/org-export-no-toc-in-hub-article ()
   "Export a minimal hub-article Org buffer to LaTeX and verify no TOC."

@@ -27,12 +27,12 @@ When THIS-FILE is nil, use the current script file."
 
 (defun hub/script--setup-load-paths (repo-root)
   "Load the Org export stack from REPO-ROOT."
-  (dolist (path '("core" "lisp" "modules" "modules/lang" "modules/interactive"))
+  (dolist (path '("core" "lisp" "modules" "modules/lang" "modules/org" "modules/interactive"))
     (add-to-list 'load-path (expand-file-name path repo-root)))
   (require 'core-packages)
   (require 'editing/evil)
   (require 'org/core)
-  (require 'org/export))
+  (require 'org/export-latex))
 
 (defun hub/script--print-latex-output-buffer ()
   "Print the `*Org PDF LaTeX Output*' buffer to standard output when present."
