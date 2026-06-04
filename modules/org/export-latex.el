@@ -278,8 +278,7 @@ on PATH, so wrapping would only add ~15s of devenv init per pass."
       (when-let* ((devenv (hub/org-export--devenv-executable))
 		  (project-root (directory-file-name
 				 (expand-file-name user-emacs-directory))))
-	(format "cd %s && TEXINPUTS=%s %s shell --from %s -- %s"
-		(shell-quote-argument project-root)
+	(format "TEXINPUTS=%s %s shell --from %s -- %s"
 		(shell-quote-argument
 		 (hub/org-export--merge-texinputs hub/org-export-texinputs-directories
 						  (getenv "TEXINPUTS")))
@@ -766,6 +765,17 @@ two-column rendering with `:float multicolumn'."
 		 text nil t))
       (funcall orig text markup info))))
 
+(defun hub/org-export--image-source-path (path info)
+  "Return an absolute source path for relative image PATH using INFO."
+  (unless (file-name-absolute-p path)
+    (seq-find #'file-exists-p
+	      (delq nil
+		    (list
+		     (and hub/org-export--active-output-dir
+			  (expand-file-name path hub/org-export--active-output-dir))
+		     (when-let* ((input-file (plist-get info :input-file)))
+		       (expand-file-name path (file-name-directory input-file))))))))
+
 (defun hub/org-export--advice-org-latex--inline-image (orig link info)
   "Render Org image LINK through class-owned figure image wrappers using INFO."
   (let ((image-latex (funcall orig link info)))
@@ -774,15 +784,12 @@ two-column rendering with `:float multicolumn'."
 	  (cond
 	   ((hub/org-export--info-veriff-p info)
 	    (let* ((path (match-string 2 image-latex))
-		   (staged-path (and hub/org-export--active-output-dir
-				     (expand-file-name path hub/org-export--active-output-dir))))
-	      (when (and staged-path
-			 (not (file-name-absolute-p path))
-			 (file-exists-p staged-path))
+		   (source-path (hub/org-export--image-source-path path info)))
+	      (when source-path
 		(setq includegraphics
 		      (replace-regexp-in-string
 		       (format "{%s}\\'" (regexp-quote path))
-		       (format "{%s}" (hub/org-export--latex-escape staged-path))
+		       (format "{%s}" (hub/org-export--latex-escape source-path))
 		       includegraphics t t)))
 	      (replace-match (format "\\HubFigureImage{%s}" includegraphics) t t image-latex)))
 	   ((equal (plist-get info :latex-class) hub/org-export--hub-article-class-name)
@@ -924,7 +931,8 @@ When OUTPUT-DIR is nil, export into the same directory as the Org file
 				  hub/org-export-pdf-process))
 	 (tex-path (hub/org-export-buffer-to-latex output-dir))
 	 (pdf-path (concat (file-name-sans-extension tex-path) ".pdf")))
-    (org-latex-compile tex-path)
+    (let ((default-directory (file-name-directory tex-path)))
+      (org-latex-compile tex-path))
     pdf-path))
 
 (hub/org-export-register-veriff)

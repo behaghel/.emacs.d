@@ -87,9 +87,7 @@
 	       (lambda (path) (string= path "/tmp/devenv"))))
       (setenv "IN_NIX_SHELL" nil)
       (should (equal (hub/org-export--compiler-command "xelatex")
-		     (format "cd %s && TEXINPUTS=%s %s shell --from %s -- xelatex"
-			     (shell-quote-argument
-			      (directory-file-name hub/test-repo-root))
+		     (format "TEXINPUTS=%s %s shell --from %s -- xelatex"
 			     (shell-quote-argument
 			      (hub/org-export--merge-texinputs hub/org-export-texinputs-directories
 							       (getenv "TEXINPUTS")))
@@ -108,6 +106,36 @@
 			     (shell-quote-argument
 			      (hub/org-export--merge-texinputs hub/org-export-texinputs-directories
 							       (getenv "TEXINPUTS")))))))))
+
+(ert-deftest hub/org-export-veriff-inline-images-use-source-absolute-paths ()
+  "Relative Veriff images resolve when TeX compiles from another directory."
+  (let* ((source-root (make-temp-file "hub-org-image-source-" t))
+	 (output-root (make-temp-file "hub-org-image-output-" t))
+	 (image-directory (expand-file-name "img" source-root))
+	 (image-path (expand-file-name "sample.png" image-directory))
+	 (org-path (expand-file-name "source.org" source-root))
+	 (tex-path (expand-file-name "source.tex" output-root)))
+    (unwind-protect
+	(progn
+	  (make-directory image-directory t)
+	  (with-temp-file image-path
+	    (insert "not-a-real-png"))
+	  (with-temp-file org-path
+	    (insert "#+TITLE: Image source\n#+LATEX_CLASS: veriff\n\n[[./img/sample.png]]\n"))
+	  (with-current-buffer (find-file-noselect org-path)
+	    (unwind-protect
+		(progn
+		  (org-mode)
+		  (let ((hub/org-export--active-output-dir nil))
+		    (org-export-to-file 'latex tex-path nil nil nil nil nil)))
+	      (kill-buffer)))
+	  (should (string-match-p
+		   (regexp-quote
+		    (format "\\HubFigureImage{\\includegraphics[width=.9\\linewidth]{%s}}"
+			    (hub/org-export--latex-escape image-path)))
+		   (hub/test-read-file-as-string tex-path))))
+      (delete-directory source-root t)
+      (delete-directory output-root t))))
 
 (ert-deftest hub/org-export-registers-discovered-local-latex-classes ()
   "Discovered .cls files become generic Org LaTeX class registrations."
