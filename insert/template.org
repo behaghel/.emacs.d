@@ -4,12 +4,11 @@
 #+EMAIL: `(progn user-mail-address)`
 #+DATE: ${3:`(format-time-string "%Y-%m-%d")`}
 #+LANGUAGE: en
-#+LATEX_CLASS: `(progn (require 'org/core) (hub/org-read-latex-class))`
+`(hub/org-read-latex-class-and-variant)`
 #+EXPORT_EYEBROW: ${4:}
 #+EXPORT_FOOTER_NOTE: ${5:}
 #+OPTIONS: H:4 toc:3 ^:{}
 #+COLUMNS: %25ITEM %TAGS %PRIORITY %TODO
-#+LATEX_HEADER: \usepackage[usenames,hyperref]{xcolor}
-#+LATEX_CLASS_OPTIONS: [colorlinks, linkcolor=red, urlcolor=blue]
+#+LATEX_CLASS_OPTIONS: [11pt,a4paper]
 
 $0

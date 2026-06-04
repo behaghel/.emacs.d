@@ -794,7 +794,7 @@
 							(should-not (string-match-p (regexp-quote "\\RecustomVerbatimEnvironment{verbatim}{Verbatim}") class-contents))
 							(should-not (string-match-p (regexp-quote "fillcolor=\\color{HubArticleCodeBackground}") class-contents))
 							(should-not (string-match-p (regexp-quote "fillcolor=HubArticleCodeBackground") class-contents))
-							(should (string-match-p (regexp-quote "\\newenvironment{HubArticleCallout}") class-contents))
+							(should (string-match-p (regexp-quote "\\renewenvironment{HubArticleCallout}") class-contents))
 							(should (string-match-p (regexp-quote "\\newenvironment{callout}") class-contents))
 							(should (string-match-p (regexp-quote "\\newenvironment{HubArticleQuote}") class-contents))
 							(should (string-match-p (regexp-quote "\\renewenvironment{quote}") class-contents))

@@ -187,6 +187,9 @@ When Yasnippet is available, expand fields in the inserted template."
   (hub/org-set-structure-template "ep" "epigraph")
   (hub/org-set-structure-template "pq" "pullquote")
   (hub/org-set-structure-template "co" "callout")
+  (hub/org-set-structure-template "ci" "info")
+  (hub/org-set-structure-template "cw" "warning")
+  (hub/org-set-structure-template "ca" "authorsnote")
   (hub/org-set-structure-template "me" "metrics")
   (hub/org-set-structure-template "mi" "metric")
   (hub/org-set-structure-template "pi" "pillars")
@@ -201,6 +204,9 @@ When Yasnippet is available, expand fields in the inserted template."
 	org-cycle-separator-lines 0
 	org-archive-location "archive/%s_archive::datetree/")
   (add-hook 'org-mode-hook #'hub/org-setup-wrapping)
+  (add-hook 'org-mode-hook
+	    (lambda ()
+	      (evil-define-key 'insert org-mode-map (kbd "M-RET") 'org-meta-return)))
 
   ;; Agenda + capture
   (setq org-agenda-window-setup 'other-window

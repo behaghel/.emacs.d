@@ -307,13 +307,18 @@
   \medskip
 }
 
-\newenvironment{HubArticleCallout}{%
+\newcommand{\HubArticleCalloutRuleColor}{HubArticleCalloutRule}
+\newcommand{\HubArticleCalloutTitle}[1]{%
+  \vspace{0.2em}{\HubArticleSans\footnotesize\bfseries\textcolor{HubArticleAccentMuted}{#1}}\par\vspace{0.1em}%
+}
+
+\renewenvironment{HubArticleCallout}{%
   \par\addvspace{0.95em}\noindent
   \begingroup
   \HubArticleSans\small\color{HubArticleInk}%
   \setlength{\leftskip}{1.2em}%
   \setlength{\rightskip}{1em}%
-  \noindent\textcolor{HubArticleCalloutRule}{\rule{24mm}{0.4pt}}\par\nobreak
+  \noindent\textcolor{\HubArticleCalloutRuleColor}{\rule{24mm}{0.4pt}}\par\nobreak
   \vspace{0.2em}%
   \ignorespaces
 }{%
@@ -322,6 +327,28 @@
   \addvspace{0.95em}%
 }
 \newenvironment{callout}{%
+  \begin{HubArticleCallout}%
+}{%
+  \end{HubArticleCallout}%
+}
+
+\colorlet{HubArticleCalloutInfoRule}{HubArticleLightAccentMuted}
+\newenvironment{info}{%
+  \renewcommand{\HubArticleCalloutRuleColor}{HubArticleCalloutInfoRule}%
+  \begin{HubArticleCallout}%
+}{%
+  \end{HubArticleCallout}%
+}
+
+\colorlet{HubArticleCalloutWarningRule}{HubArticleCodeConstantInk}
+\newenvironment{warning}{%
+  \renewcommand{\HubArticleCalloutRuleColor}{HubArticleCalloutWarningRule}%
+  \begin{HubArticleCallout}%
+}{%
+  \end{HubArticleCallout}%
+}
+
+\newenvironment{authorsnote}{%
   \begin{HubArticleCallout}%
 }{%
   \end{HubArticleCallout}%

@@ -966,6 +966,22 @@ Example: selecting [Hello] produces:
 	(insert (format "\\HubArticleDropCap{%s}{%s}" first rest)))
     (user-error "Select the word(s) to transform into a drop cap")))
 
+(defun hub/org-read-latex-class-and-variant ()
+  "Prompt for LaTeX class and optionally its variant.
+Returns both class and variant header lines as a string."
+  (let* ((class (hub/org-read-latex-class))
+	 (variant
+	  (and (equal class hub/org-export--veriff-class-name)
+	       (let ((v (completing-read
+			 "Variant (default refresh-overdrive): "
+			 hub/org-export--veriff-variants
+			 nil t nil nil "refresh-overdrive")))
+		 (and (not (string-empty-p v)) v))))
+	 (class-line (format "#+LATEX_CLASS: %s" class)))
+    (if variant
+	(format "%s\n#+LATEX_VARIANT: %s" class-line variant)
+      class-line)))
+
 (hub/leader-bind :states '(normal visual) :keymap 'org-mode-map
 		 :label "Drop cap"
 		 "x d" #'hub/org-insert-dropcap)
