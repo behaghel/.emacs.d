@@ -28,27 +28,27 @@ Type `<` followed by the shortcut, then `TAB` to expand:
 
 | Shortcut | Expands to | Description |
 |----------|-----------|-------------|
-| `<co` | `#+begin_callout` / `#+end_callout` | Callout block (green rule) |
+| `<co` | `#+ATTR_CALLOUT` + `#+begin_callout` / `#+end_callout` | Semantic callout block with prompted type/title |
 | `<ci` | `#+begin_info` / `#+end_info` | Info callout (teal rule) |
 | `<cw` | `#+begin_warning` / `#+end_warning` | Warning callout (rust rule) |
 | `<ca` | `#+begin_authorsnote` / `#+end_authorsnote` | Author's note (green rule) |
 | `<sf` | `#+begin_standfirst` / `#+end_standfirst` | Standfirst (large upright) |
-| `<co` | `#+begin_comment` / `#+end_comment` | Comment block |
+| `<c` | `#+begin_comment` / `#+end_comment` | Comment block |
 | `<C` | `#+begin_center` / `#+end_center` | Centered block |
 | `<gr` | `#+begin_graph` / `#+end_graph` | Graph/metrics block |
 
 ### Callout titles
 
-Add a title inside any callout block:
+Use one semantic callout attribute for every exporter:
 
 ```org
-#+begin_warning
-\HubArticleCalloutTitle{Review before deploying}
+#+ATTR_CALLOUT: :type warning :title "Review before deploying"
+#+begin_callout
 This step requires a second pair of eyes.
-#+end_warning
+#+end_callout
 ```
 
-Renders as a small bold label in the accent color above the callout content.
+Confluence exports `:type` to the corresponding panel macro and `:title` to the panel title. XeLaTeX exports `:title` to the callout environment title.
 
 ### Standfirst
 

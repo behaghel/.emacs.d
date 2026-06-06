@@ -54,7 +54,7 @@ The review checklist stays visible:
 - [X] Link evidence to the decision record.
 - [ ] Escalate ambiguous sessions for review.
 
-#+ATTR_LATEX: :options [Design signal]
+#+ATTR_CALLOUT: :type info :title "Design signal"
 #+begin_callout
 In the overdrive mode, the article becomes a deliberate piece of comms theatre. It still needs discipline, but it is allowed to be more obviously branded than the calmer variants.
 #+end_callout

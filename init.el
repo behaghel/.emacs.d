@@ -73,6 +73,9 @@
 (add-to-list 'load-path (expand-file-name "modules" user-emacs-directory))
 (add-to-list 'load-path (expand-file-name "modules/lang" user-emacs-directory))
 (add-to-list 'load-path (expand-file-name "modules/org" user-emacs-directory))
+(add-to-list 'load-path (expand-file-name "modules/org/export-confluence" user-emacs-directory))
+(autoload 'hub/confluence-publish "commands" nil t)
+(autoload 'hub/confluence-publish-dwim "commands" nil t)
 (when (or hub/force-interactive (and (featurep 'core-predicates) (hub/interactive-p)))
   (add-to-list 'load-path (expand-file-name "modules/interactive" user-emacs-directory)))
 

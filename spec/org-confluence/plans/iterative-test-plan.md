@@ -81,7 +81,7 @@ All new files are under these directories, which are on `load-path` unconditiona
   - `hub/confluence-api--page-create-command` — returns correct shell command with `--space`, `--title`, `--storage`
   - `hub/confluence-api--page-id-from-buffer` — reads `#+CONFLUENCE_PAGE_ID` from buffer
   - `hub/confluence-api--space-from-buffer` — reads `#+CONFLUENCE_SPACE` from buffer
-  - `hub/confluence-api--page-update-command-with-xhtml` — pipes XHTML via stdin
+  - `hub/confluence-api--page-update-command-with-file` — reads XHTML from a temporary `.xhtml` file via `--file`
   - `hub/confluence-api--page-create-command-with-parent` — includes `--parent`
   - `hub/confluence-api--page-create-missing-space` — signals error when no space
   - `hub/confluence-api--page-update-missing-id` — signals error when no page ID
@@ -101,12 +101,12 @@ All new files are under these directories, which are on `load-path` unconditiona
 
 | Iteration | Status |
 |-----------|--------|
-| 1a — Export core | Not started |
-| 1b — Inline formatting | Not started |
-| 1c — Lists | Not started |
-| 1d — API wrappers | Not started |
-| 1e — Publish command | Not started |
-| 2 — Rich content | Not started |
+| 1a — Export core | Complete |
+| 1b — Inline formatting | Complete |
+| 1c — Lists | Complete |
+| 1d — API wrappers | Complete |
+| 1e — Publish command | Complete |
+| 2 — Rich content | Complete |
 | 3 — Images | Not started |
 | 4 — Polish & pull | Not started |
 

@@ -5,6 +5,7 @@
 
 ;;; Code:
 
+(require 'cl-lib)
 (require 'ert)
 (require 'seq)
 
@@ -39,7 +40,6 @@
 	  (dolist (template '(("sf" . "standfirst")
 			      ("ep" . "epigraph")
 			      ("pq" . "pullquote")
-			      ("co" . "callout")
 			      ("me" . "metrics")
 			      ("mi" . "metric")
 			      ("pi" . "pillars")
@@ -58,7 +58,15 @@
 	  (insert "<ep")
 	  (org-cycle)
 	  (goto-char (point-min))
-	  (should (search-forward "#+begin_epigraph" nil t)))
+	  (should (search-forward "#+begin_epigraph" nil t))
+	  (erase-buffer)
+	  (cl-letf (((symbol-function 'completing-read) (lambda (&rest _) "warning"))
+		    ((symbol-function 'read-string) (lambda (&rest _) "Heads up")))
+	    (insert "<co")
+	    (org-cycle))
+	  (goto-char (point-min))
+	  (should (search-forward "#+ATTR_CALLOUT: :type warning :title \"Heads up\"" nil t))
+	  (should (search-forward "#+begin_callout" nil t)))
       (ignore-errors
 	(when-let* ((buf (find-buffer-visiting path)))
 	  (kill-buffer buf))

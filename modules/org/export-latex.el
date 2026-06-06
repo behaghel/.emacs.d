@@ -6,6 +6,7 @@
 ;;; Code:
 
 (require 'cl-lib)
+(require 'hub-org-callout)
 (require 'org)
 (require 'ox)
 (require 'hub-keys)
@@ -728,6 +729,12 @@ two-column rendering with `:float multicolumn'."
     (if (and (hub/org-export--gallery-white-info-p info)
 	     (equal (org-element-property :type special-block) "standfirst"))
 	(format "\\begin{standfirst}\n%s\n\\end{standfirst}\n}]\n" contents)
+      (when (equal (org-element-property :type special-block) "callout")
+	(if-let* ((title (hub/org-callout-title special-block)))
+	    (org-element-put-property special-block :attr_latex
+				      (list (format ":options [%s]"
+						    (hub/org-export--latex-escape title))))
+	  (org-element-put-property special-block :attr_latex nil)))
       (when (and attr-latex
 		 (hub/org-export--info-veriff-p info)
 		 (equal (org-element-property :type special-block) "metric"))

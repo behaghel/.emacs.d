@@ -25,7 +25,7 @@ What mattered was not only the fraud reduction. It was the sense that the platfo
 
 Under the surface, a trustworthy platform blends signal density, model intelligence, policy control, and operational feedback. The point is not to say AI more often. The point is to make decisions more consistent while leaving enough visibility for teams to understand why trust was granted, challenged, or blocked.
 
-#+ATTR_LATEX: :options [Design signal]
+#+ATTR_CALLOUT: :type info :title "Design signal"
 #+begin_callout
 In the overdrive mode, the article becomes a deliberate piece of comms theatre. It still needs discipline, but it is allowed to be more obviously branded than the calmer variants.
 #+end_callout

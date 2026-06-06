@@ -524,6 +524,13 @@
       (when (file-directory-p artifact-root)
 	(delete-directory artifact-root t)))))
 
+(ert-deftest hub/org-export-callout-title-uses-semantic-attribute ()
+  "LaTeX callout titles come from `#+ATTR_CALLOUT:'."
+  (let ((tex (org-export-string-as "#+ATTR_CALLOUT: :type warning :title \"Heads up\"\n#+begin_callout\nCareful\n#+end_callout"
+				   'latex t)))
+    (should (string-match-p (regexp-quote "\\begin{callout}[Heads up]") tex))
+    (should (string-match-p "Careful" tex))))
+
 (ert-deftest hub/org-export-standard-pdf-compile-uses-generated-compiler-marker ()
   "Standard Org PDF export compilation uses the repo-aware process for local classes."
   (let* ((tex-path (make-temp-file "hub-org-standard-export-" nil ".tex"))

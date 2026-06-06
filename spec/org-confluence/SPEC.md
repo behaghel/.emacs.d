@@ -30,7 +30,7 @@ Three files, each with a distinct responsibility:
 ### Scope
 
 - **Primary direction:** Org → Confluence (push). Confluence → Org (pull) is deferred to a future iteration.
-- **Content format:** Confluence Storage Format (XHTML), sent via `cfl page edit --storage` or `cfl page create --storage`.
+- **Content format:** Confluence Storage Format (XHTML), written to a temporary `.xhtml` file and sent via `cfl page edit --file <file> --storage` or `cfl page create --file <file> --storage`.
 - **Page identity:** Document-level `#+CONFLUENCE_PAGE_ID: <id>` keyword for existing pages. Optional `#+CONFLUENCE_SPACE: <key>` for new page creation.
 - **Update semantics:** Full replacement. Confluence versions the page automatically on each update. No append/prepend mode.
 - **Table mapping:** Simple `<table>` with `<th>` for header rows, `<td>` for body rows. No branded Confluence styling or custom column widths.
@@ -38,8 +38,8 @@ Three files, each with a distinct responsibility:
 ### Callout Mapping
 
 - `#+begin_callout` / `#+end_callout` → Confluence panel macros.
-- Optional type via `#+begin_callout info|note|warning|tip|important`. Default: `info`.
-- Panel title via `#+ATTR_CONFLUENCE: :panel-title "Title"` (or fallback to `#+ATTR_LATEX: :options [Title]` for backward compatibility with existing documents).
+- Optional type via `#+ATTR_CALLOUT: :type info|note|warning|tip|important`. Default: `info`.
+- Panel title via `#+ATTR_CALLOUT: :title "Title"`.
 
 ### `cfl` Integration
 
@@ -96,7 +96,7 @@ Three files, each with a distinct responsibility:
 **Tests:**
 - Export one Org buffer with tables, blockquotes, callouts, code blocks → assert XHTML
 - Verify callout type dispatch (info default, explicit types respected)
-- Verify callout title extraction from `#+ATTR_CONFLUENCE` and `#+ATTR_LATEX`
+- Verify callout title extraction from `#+ATTR_CALLOUT`
 
 ### Iteration 3 — Images and Attachments
 

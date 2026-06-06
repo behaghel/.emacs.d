@@ -129,7 +129,8 @@
 		  (insert (all-the-icons-octicon "repo" :height 1.2 :v-adjust 0.0 :face 'dashboard-heading))
 		  (dashboard-insert-section "Recent Notes:" recent-notes list-size 'notes "n"
 					    `(lambda (&rest ignore) (find-file-existing ,el))
-					    (denote-retrieve-title-value el (denote-filetype-heuristics el))))))))
+					    (or (denote-retrieve-title-value el (denote-filetype-heuristics el))
+						(file-name-base el))))))))
       (error (message "[dashboard] skipping denote section: %s" (error-message-string err)))))
   (add-to-list 'dashboard-item-generators '(denote . dashboard-insert-denote))
 

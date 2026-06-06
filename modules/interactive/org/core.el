@@ -5,8 +5,10 @@
 
 ;;; Code:
 
+(require 'hub-org-callout)
 (require 'hub-utils)
 (require 'seq)
+(require 'subr-x)
 
 (defgroup hub/org nil
   "Customizations for Org paths."
@@ -151,6 +153,31 @@ When Yasnippet is available, expand fields in the inserted template."
 	(yas-expand-snippet template)
       (insert template))))
 
+(defun hub/org-callout-template-snippet ()
+  "Return a Yasnippet-compatible semantic callout template."
+  (format "#+ATTR_CALLOUT: :type ${1|%s|} :title \"${2:Title}\"\n#+begin_callout\n$0\n#+end_callout"
+	  (string-join hub/org-callout-types ",")))
+
+(defun hub/org-insert-callout-template ()
+  "Insert a semantic Org callout template at point."
+  (interactive)
+  (if (fboundp 'yas-expand-snippet)
+      (yas-expand-snippet (hub/org-callout-template-snippet))
+    (let* ((type (completing-read "Callout type: " hub/org-callout-types nil t nil nil "info"))
+	   (title (read-string "Callout title: ")))
+      (insert (format "#+ATTR_CALLOUT: :type %s" type))
+      (unless (string-empty-p title)
+	(insert (format " :title %S" title)))
+      (insert "\n#+begin_callout\n\n#+end_callout")
+      (forward-line -1))))
+
+(defun hub/org-tempo-complete-callout ()
+  "Expand the `<co' Org Tempo shortcut as a semantic callout."
+  (when (looking-back "^ *\\(<co\\)" (line-beginning-position))
+    (replace-match "" t t nil 1)
+    (hub/org-insert-callout-template)
+    t))
+
 (use-package org
   :straight (:depth full)
   :commands (org-capture org-agenda)
@@ -177,7 +204,11 @@ When Yasnippet is available, expand fields in the inserted template."
   (define-key org-mode-map (kbd "TAB") #'hub/org-tab-dwim)
   (evil-define-key 'insert org-mode-map (kbd "<tab>") #'hub/org-tab-dwim)
   (evil-define-key 'insert org-mode-map (kbd "TAB") #'hub/org-tab-dwim)
-  (evil-define-key 'insert org-mode-map (kbd "M-RET") 'org-meta-return)
+  ;; Do not bind M-RET through `evil-define-key' in insert state: in
+  ;; terminals it may be represented as ESC RET, while ESC is deliberately a
+  ;; non-prefix key for leaving insert state.
+  (define-key org-mode-map [M-return] #'org-meta-return)
+  (define-key org-mode-map (kbd "M-RET") #'org-meta-return)
   (evil-define-key 'insert org-mode-map (kbd "<escape>") 'evil-normal-state)
   (evil-define-key 'insert org-mode-map (kbd "C-[") 'evil-normal-state)
 
@@ -186,7 +217,6 @@ When Yasnippet is available, expand fields in the inserted template."
   (hub/org-set-structure-template "sf" "standfirst")
   (hub/org-set-structure-template "ep" "epigraph")
   (hub/org-set-structure-template "pq" "pullquote")
-  (hub/org-set-structure-template "co" "callout")
   (hub/org-set-structure-template "ci" "info")
   (hub/org-set-structure-template "cw" "warning")
   (hub/org-set-structure-template "ca" "authorsnote")
@@ -196,6 +226,7 @@ When Yasnippet is available, expand fields in the inserted template."
   (hub/org-set-structure-template "pa" "pillar")
   (hub/org-set-structure-template "gr" "graph")
   (require 'org-tempo)
+  (add-hook 'org-tab-before-tab-emulation-hook #'hub/org-tempo-complete-callout -90)
 
   (setq org-return-follows-link t
 	org-hide-leading-stars t
@@ -204,9 +235,6 @@ When Yasnippet is available, expand fields in the inserted template."
 	org-cycle-separator-lines 0
 	org-archive-location "archive/%s_archive::datetree/")
   (add-hook 'org-mode-hook #'hub/org-setup-wrapping)
-  (add-hook 'org-mode-hook
-	    (lambda ()
-	      (evil-define-key 'insert org-mode-map (kbd "M-RET") 'org-meta-return)))
 
   ;; Agenda + capture
   (setq org-agenda-window-setup 'other-window
