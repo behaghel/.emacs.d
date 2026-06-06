@@ -52,6 +52,25 @@
   "Transcode underline CONTENTS to XHTML."
   (org-confluence--format-inline "u" contents))
 
+(defcustom org-confluence-image-max-width 760
+  "Maximum Confluence image width in pixels.
+This is emitted as `ac:width' because Confluence may ignore CSS max-width on
+storage-format images."
+  :type 'integer
+  :group 'org-export)
+
+(defconst org-confluence--image-extensions '("png" "jpg" "jpeg" "gif" "webp" "svg")
+  "File extensions exported as Confluence attachment images.")
+
+(defun org-confluence--local-image-link-p (link)
+  "Return non-nil when LINK is a plain local image link."
+  (let ((path (org-element-property :path link)))
+    (and (string= (or (org-element-property :type link) "") "file")
+	 (not (org-element-contents link))
+	 (stringp path)
+	 (member (downcase (or (file-name-extension path) ""))
+		 org-confluence--image-extensions))))
+
 (defun org-confluence--link (link contents _info)
   "Transcode LINK with CONTENTS to XHTML."
   (let* ((href (or (org-element-property :raw-link link)
@@ -59,6 +78,92 @@
 		   ""))
 	 (label (org-confluence--trim (or contents href))))
     (format "<a href=\"%s\">%s</a>" (xml-escape-string href) label)))
+
+(defun org-confluence--image-filename (link info)
+  "Return Confluence attachment filename for image LINK using INFO."
+  (let* ((path (org-element-property :path link))
+	 (filenames (plist-get info :confluence-image-filenames)))
+    (or (cdr (assoc path filenames))
+	(file-name-nondirectory path))))
+
+(defun org-confluence--image (link info &optional caption)
+  "Return Confluence storage XHTML for image LINK using INFO and CAPTION."
+  (let* ((filename (org-confluence--image-filename link info))
+	 (alt (org-confluence--trim caption))
+	 (attributes (format " ac:width=\"%s\" ac:style=\"max-width: 100%%; height: auto;\""
+			     org-confluence-image-max-width)))
+    (unless (string-empty-p alt)
+      (setq attributes (concat attributes
+			       (format " ac:alt=\"%s\"" (xml-escape-string alt)))))
+    (concat (format "<ac:image%s><ri:attachment ri:filename=\"%s\"/></ac:image>"
+		    attributes
+		    (xml-escape-string filename))
+	    (unless (string-empty-p alt)
+	      (format "\n<p><em>%s</em></p>" (xml-escape-string alt))))))
+
+(defun org-confluence--standalone-image-link (paragraph)
+  "Return PARAGRAPH's standalone local image link, or nil."
+  (let ((contents (seq-remove (lambda (element)
+				(when (stringp element)
+				  (string-empty-p (string-trim element))))
+			      (org-element-contents paragraph))))
+    (when (and (= (length contents) 1)
+	       (eq (org-element-type (car contents)) 'link)
+	       (org-confluence--local-image-link-p (car contents)))
+      (car contents))))
+
+(defun org-confluence--caption (element info)
+  "Return ELEMENT caption text using INFO, or nil."
+  (when-let* ((caption (org-element-property :caption element)))
+    (org-confluence--trim (org-export-data caption info))))
+
+(defun org-confluence--resolve-image-path (path)
+  "Resolve local image PATH for the current Org buffer."
+  (let ((absolute-path
+	 (if (file-name-absolute-p path)
+	     (expand-file-name path)
+	   (unless buffer-file-name
+	     (user-error "Cannot resolve relative Confluence image path in unsaved Org buffer: %s" path))
+	   (expand-file-name path (file-name-directory buffer-file-name)))))
+    (unless (file-exists-p absolute-path)
+      (user-error "Missing Confluence image file: %s" absolute-path))
+    absolute-path))
+
+(defun org-confluence--hashed-image-filename (path)
+  "Return a content-hashed Confluence attachment filename for PATH."
+  (let* ((extension (file-name-extension path t))
+	 (stem (file-name-sans-extension (file-name-nondirectory path)))
+	 (hash (substring (secure-hash 'sha256 path) 0 12)))
+    (format "%s-%s%s" stem hash extension)))
+
+(defun org-confluence--image-asset (link)
+  "Return an upload asset plist for image LINK."
+  (let* ((source-path (org-confluence--resolve-image-path (org-element-property :path link)))
+	 (filename (org-confluence--hashed-image-filename source-path)))
+    (list :path source-path
+	  :source-path source-path
+	  :source-link (org-element-property :path link)
+	  :filename filename)))
+
+(defun org-confluence--validate-image-assets (assets)
+  "Validate Confluence image ASSETS and return them."
+  (let ((seen nil))
+    (dolist (asset assets)
+      (let ((filename (plist-get asset :filename)))
+	(when (member filename seen)
+	  (user-error "Duplicate Confluence attachment filename after hashing: %s" filename))
+	(push filename seen))))
+  assets)
+
+(defun org-confluence-image-assets ()
+  "Return local image assets referenced by the current Org buffer.
+Each asset is a plist with `:path' as an absolute source file and `:filename'
+as the Confluence attachment basename."
+  (org-confluence--validate-image-assets
+   (org-element-map (org-element-parse-buffer) 'paragraph
+		    (lambda (paragraph)
+		      (when-let* ((link (org-confluence--standalone-image-link paragraph)))
+			(org-confluence--image-asset link))))))
 
 (defun org-confluence--compact-list-contents (contents)
   "Return CONTENTS formatted for inclusion in an XHTML list item."
@@ -165,10 +270,12 @@ output whenever an item's bullet type changes so Confluence receives separate
 		"</ac:structured-macro>"))
     (org-confluence--trim contents)))
 
-(defun org-confluence--paragraph (_paragraph contents _info)
-  "Transcode a paragraph with CONTENTS to XHTML."
-  (let ((body (org-confluence--trim contents)))
-    (if (string-empty-p body) "" (format "<p>%s</p>" body))))
+(defun org-confluence--paragraph (paragraph contents info)
+  "Transcode PARAGRAPH with CONTENTS to XHTML using INFO."
+  (if-let* ((image-link (org-confluence--standalone-image-link paragraph)))
+      (org-confluence--image image-link info (org-confluence--caption paragraph info))
+    (let ((body (org-confluence--trim contents)))
+      (if (string-empty-p body) "" (format "<p>%s</p>" body)))))
 
 (defun org-confluence--section (_section contents _info)
   "Transcode a section with CONTENTS to XHTML."

@@ -158,6 +158,39 @@ When Yasnippet is available, expand fields in the inserted template."
   (format "#+ATTR_CALLOUT: :type ${1|%s|} :title \"${2:Title}\"\n#+begin_callout\n$0\n#+end_callout"
 	  (string-join hub/org-callout-types ",")))
 
+(defun hub/org-image-template-snippet ()
+  "Return a Yasnippet-compatible Org image template."
+  "#+CAPTION: ${1:Caption}\n[[${2:./img/image.png}]]")
+
+(defun hub/org-image-template-path (path)
+  "Return image PATH for insertion in the current Org buffer."
+  (let ((expanded (expand-file-name path)))
+    (if buffer-file-name
+	(let ((relative (file-relative-name expanded (file-name-directory buffer-file-name))))
+	  (if (or (string-prefix-p "../" relative)
+		  (string-prefix-p "/" relative))
+	      expanded
+	    (concat "./" relative)))
+      expanded)))
+
+(defun hub/org-insert-image-template ()
+  "Insert an Org image template at point."
+  (interactive)
+  (if (fboundp 'yas-expand-snippet)
+      (yas-expand-snippet (hub/org-image-template-snippet))
+    (let ((caption (read-string "Image caption: "))
+	  (path (hub/org-image-template-path (read-file-name "Image file: "))))
+      (unless (string-empty-p caption)
+	(insert (format "#+CAPTION: %s\n" caption)))
+      (insert (format "[[%s]]" path)))))
+
+(defun hub/org-tempo-complete-image ()
+  "Expand the `<im' Org Tempo shortcut as an image template."
+  (when (looking-back "^ *\\(<im\\)" (line-beginning-position))
+    (replace-match "" t t nil 1)
+    (hub/org-insert-image-template)
+    t))
+
 (defun hub/org-insert-callout-template ()
   "Insert a semantic Org callout template at point."
   (interactive)
@@ -227,6 +260,7 @@ When Yasnippet is available, expand fields in the inserted template."
   (hub/org-set-structure-template "gr" "graph")
   (require 'org-tempo)
   (add-hook 'org-tab-before-tab-emulation-hook #'hub/org-tempo-complete-callout -90)
+  (add-hook 'org-tab-before-tab-emulation-hook #'hub/org-tempo-complete-image -90)
 
   (setq org-return-follows-link t
 	org-hide-leading-stars t

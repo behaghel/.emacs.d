@@ -47,11 +47,38 @@ Three files, each with a distinct responsibility:
 - Reuses `cfl`'s auth config (`~/.config/cfl/config.yml`) — the user runs `cfl init` independently.
 - For future comment API access, read the cfl config file to extract the API token and cloud ID, then call the Confluence REST API directly via `url-retrieve` or `curl`.
 
-### Image Handling (deferred to Iteration 3)
+### Image Handling (Iteration 3)
 
-- Images uploaded as Confluence page attachments via `cfl attachment upload`.
-- Image references rewritten from local paths to `ri:attachment` storage format.
-- Not yet implemented in iterations 1–2.
+Canonical image authoring uses native Org image links and standard Org captions:
+
+```org
+#+CAPTION: Architecture overview
+#+NAME: fig:architecture-overview
+[[./img/architecture-overview.png]]
+```
+
+Decisions:
+
+- Plain standalone local image links (`[[./img/foo.png]]`) are embedded as Confluence images.
+- Described local image links (`[[./img/foo.png][text]]`) remain normal links.
+- Remote image URLs remain normal links; the exporter does not fetch or embed remote assets.
+- Non-image local file links remain normal links; generic attachments are out of scope for Iteration 3.
+- Supported image extensions: `.png`, `.jpg`, `.jpeg`, `.gif`, `.webp`, `.svg`.
+- Relative paths resolve from the Org buffer file directory; unsaved buffers with relative image paths are hard errors.
+- Absolute local paths are allowed for upload, but Confluence output does not expose the local path.
+- Missing image files are hard errors before upload or page edit.
+- Attachment filenames are content-hashed (`stem-<sha256-prefix>.ext`) during publish so existing Confluence attachments with the same source basename do not block re-publish.
+- Duplicate source basenames are allowed when file contents differ because the hashed attachment filenames differ.
+- `#+CAPTION` is rendered visibly as a simple italic paragraph after the image and also populates `ac:alt`.
+- Images include numeric `ac:width` from `org-confluence-image-max-width` plus `ac:style="max-width: 100%; height: auto;"` so large images do not exceed the Confluence page width even when Confluence ignores CSS style.
+- `#+NAME` is accepted for source-document identity but is not exported visibly.
+- Width/alignment metadata is out of scope for Iteration 3; introduce a shared semantic `#+ATTR_IMAGE` only when needed.
+- Documents with embedded images require `#+CONFLUENCE_PAGE_ID` in Iteration 3. Create-flow image support is deferred.
+- Every publish uploads every referenced local image under its content-hashed attachment filename before editing the page.
+- If a content-hashed attachment already exists, the duplicate-upload error is treated as already uploaded and publishing continues.
+- Any attachment upload failure aborts before page edit.
+- Temporary XHTML files are cleaned up on success and failure.
+- Authoring UX includes `<im` / `M-x hub/org-insert-image-template`, inserting a caption plus image link template without `#+NAME`.
 
 ## Implementation Iterations
 
@@ -101,17 +128,36 @@ Three files, each with a distinct responsibility:
 ### Iteration 3 — Images and Attachments
 
 **Elements added:**
-- Image links (`[[./img/foo.png]]`): upload as attachment then reference via `<ri:attachment ri:filename="foo.png">`
-- `cfl attachment upload <page-id> <file>` dispatch
+- Standalone plain local image links (`[[./img/foo.png]]`): upload as attachment then reference via Confluence image storage XHTML.
+- Captions (`#+CAPTION`) rendered visibly and used as image alt text.
+- `cfl attachment upload <page-id> <file>` dispatch before page edit.
+- `<im` and `M-x hub/org-insert-image-template` authoring helper.
 
-**API layer additions:**
-- `hub/confluence--attachment-upload (page-id filepath)` — calls `cfl attachment upload`
-- `hub/confluence--attachment-url (page-id filename)` — constructs the public attachment URL
-- Image path resolution (local path relative to `.org` file → absolute path)
+**Storage mapping:**
+
+```xml
+<ac:image ac:alt="Architecture overview"><ri:attachment ri:filename="architecture-overview.png"/></ac:image>
+<p><em>Architecture overview</em></p>
+```
+
+Without a caption, omit `ac:alt` and the caption paragraph.
+
+**API/publish layer additions:**
+- `hub/confluence-api--attachment-upload-command (page-id filepath)` — builds `cfl attachment upload` command.
+- Image asset collection from the Org AST for exported standalone local image links.
+- Image path resolution: relative paths from `.org` file directory, absolute paths allowed.
+- Preflight validation for missing files and duplicate basenames.
+- Existing-page image publishing only; image documents without `#+CONFLUENCE_PAGE_ID` fail before create flow.
 
 **Tests:**
-- Attachment upload command construction
-- Image path resolution: relative paths, absolute paths, missing files
+- Attachment upload command construction.
+- Image path resolution: relative paths, absolute paths, missing files, unsaved relative buffer.
+- Duplicate basename detection.
+- Plain standalone local image link exports to Confluence attachment image markup.
+- Caption exports as `ac:alt` plus visible italic caption.
+- Described local image links, remote image URLs, and non-image file links remain normal links.
+- Publish command uploads all referenced images before page edit and cleans temporary XHTML on errors.
+- `<im` authoring shortcut and `hub/org-insert-image-template` insertion behavior.
 
 ### Iteration 4 — Polish & Pull
 

@@ -49,6 +49,13 @@
 	     (hub/confluence-api--file-flag file-path)
 	     (list "--storage")))))
 
+(defun hub/confluence-api--attachment-upload-command (page-id file-path)
+  "Build a cfl command to upload FILE-PATH as an attachment to PAGE-ID."
+  (let ((id (hub/confluence-api--require-string page-id "page ID"))
+	(file (hub/confluence-api--require-string file-path "attachment file")))
+    (hub/confluence-api--shell-join
+     (list hub/confluence-api-cfl-command "attachment" "upload" "--page" id "--file" file))))
+
 (defun hub/confluence-api--page-create-command (space title &optional file-path parent-id)
   "Build a cfl command to create TITLE in SPACE from optional XHTML FILE-PATH.
 

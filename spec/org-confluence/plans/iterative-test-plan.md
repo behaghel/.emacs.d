@@ -97,6 +97,75 @@ All new files are under these directories, which are on `load-path` unconditiona
   3. Verify page content appears on Confluence
   4. Run again — verify content updates (new version)
 
+## Iteration 3 — Images and Attachments
+
+**Slice goal:** A human can write a saved Org buffer with native standalone image links, run `M-x hub/confluence-publish`, and see images plus captions rendered on an existing Confluence page.
+
+**Canonical authoring syntax:**
+
+```org
+#+CAPTION: Architecture overview
+[[./img/architecture-overview.png]]
+```
+
+**Authoring UX:**
+
+- `<im TAB` and `M-x hub/org-insert-image-template` insert:
+
+```org
+#+CAPTION: Caption
+[[./img/image.png]]
+```
+
+- With Yasnippet, caption/path are editable fields.
+- Without Yasnippet, prompt for caption and existing file; omit `#+CAPTION` when empty; prefer paths relative to the saved Org buffer file.
+
+### 3a — Image storage export
+
+- **Test file:** `test/org-confluence-export-test.el`
+- **Tests to write first:**
+  - `hub/org-confluence-export-standalone-image` — `[[./img/foo.png]]` → `<ac:image ac:style="max-width: 100%; height: auto;"><ri:attachment ri:filename="foo.png"/></ac:image>`
+  - `hub/org-confluence-export-captioned-image` — `#+CAPTION` adds `ac:alt` and visible italic caption paragraph
+  - `hub/org-confluence-export-image-max-width` — image storage includes max-width styling so large images do not exceed page width
+  - `hub/org-confluence-export-described-image-link` — `[[./img/foo.png][text]]` remains a normal link
+  - `hub/org-confluence-export-remote-image-url` — remote `.png` URL remains a normal link
+  - `hub/org-confluence-export-non-image-file-link` — local non-image file remains a normal link
+- **Red signal:** image tests fail because current link translator always emits `<a>`.
+- **Green target:** standalone plain local image links in exported paragraphs emit Confluence image XHTML and captions; other links stay unchanged.
+
+### 3b — Image asset discovery and validation
+
+- **Test files:** `test/org-confluence-export-test.el`, `test/org-confluence-api-test.el`
+- **Tests to write first:**
+  - `hub/org-confluence-image-resolves-relative-path` — relative image resolves from `buffer-file-name` directory
+  - `hub/org-confluence-image-resolves-absolute-path` — absolute image path is accepted
+  - `hub/org-confluence-image-missing-file-errors` — missing image hard-errors
+  - `hub/org-confluence-image-unsaved-relative-buffer-errors` — relative image in unsaved buffer hard-errors
+  - `hub/org-confluence-image-duplicate-basenames-use-hashed-filenames` — duplicate source basenames get distinct hashed attachment filenames
+  - `hub/org-confluence-image-collects-only-exported-standalone-images` — described/remote/non-image links are excluded
+- **Red signal:** asset discovery helpers are undefined.
+- **Green target:** AST-based exported-image collector returns validated absolute source paths and content-hashed attachment filenames.
+
+### 3c — Attachment upload publish flow
+
+- **Test file:** `test/org-confluence-api-test.el`
+- **Tests to write first:**
+  - `hub/confluence-api--attachment-upload-command` — builds `cfl attachment upload <page-id> <file>`
+  - `hub/confluence-publish-uploads-images-before-page-edit` — shell commands run upload(s), then page edit
+  - `hub/confluence-publish-images-require-page-id` — image documents without `#+CONFLUENCE_PAGE_ID` hard-error before create flow
+  - `hub/confluence-publish-cleans-temp-xhtml-on-upload-failure` — temp XHTML removed with `unwind-protect`
+  - `hub/confluence-publish-continues-when-hashed-attachment-exists` — duplicate hashed attachment upload is treated as already uploaded
+- **Red signal:** command builder/upload orchestration absent.
+- **Green target:** publish validates and uploads all referenced local images before page edit; any upload failure aborts page edit; temp XHTML cleanup happens on success/failure.
+
+### 3d — Manual acceptance
+
+1. Save an Org buffer containing `#+CONFLUENCE_PAGE_ID`, one local image, and one caption.
+2. Run `M-x hub/confluence-publish`.
+3. Verify Confluence renders the image and visible caption.
+4. Change the local image, publish again, and verify the attachment updates.
+5. Verify duplicate basenames and missing files fail before changing the page.
+
 ## Executed Status
 
 | Iteration | Status |
@@ -107,7 +176,7 @@ All new files are under these directories, which are on `load-path` unconditiona
 | 1d — API wrappers | Complete |
 | 1e — Publish command | Complete |
 | 2 — Rich content | Complete |
-| 3 — Images | Not started |
+| 3 — Images | Implemented; manual verification pending |
 | 4 — Polish & pull | Not started |
 
 ## Running Tests

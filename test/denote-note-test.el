@@ -93,6 +93,68 @@
       (hub/org-tab-dwim)
       (should (> (point) before)))))
 
+(ert-deftest hub/org-image-template-prompts-and-prefers-relative-path ()
+  "The Org image template inserts a caption and relative image link."
+  (let* ((root (make-temp-file "hub-org-image-template-" t))
+	 (org-file (expand-file-name "page.org" root))
+	 (image-dir (expand-file-name "img" root))
+	 (image-file (expand-file-name "diagram.png" image-dir)))
+    (unwind-protect
+	(progn
+	  (make-directory image-dir)
+	  (with-temp-file image-file (insert "png"))
+	  (with-current-buffer (find-file-noselect org-file)
+	    (unwind-protect
+		(cl-letf (((symbol-function 'read-string) (lambda (&rest _) "Architecture"))
+			  ((symbol-function 'read-file-name) (lambda (&rest _) image-file)))
+		  (org-mode)
+		  (hub/org-insert-image-template)
+		  (should (equal (buffer-string)
+				 "#+CAPTION: Architecture\n[[./img/diagram.png]]")))
+	      (set-buffer-modified-p nil)
+	      (kill-buffer))))
+      (delete-directory root t))))
+
+(ert-deftest hub/org-image-template-omits-empty-caption ()
+  "The Org image template omits #+CAPTION when caption input is empty."
+  (let* ((root (make-temp-file "hub-org-image-template-" t))
+	 (org-file (expand-file-name "page.org" root))
+	 (image-file (expand-file-name "diagram.png" root)))
+    (unwind-protect
+	(progn
+	  (with-temp-file image-file (insert "png"))
+	  (with-current-buffer (find-file-noselect org-file)
+	    (unwind-protect
+		(cl-letf (((symbol-function 'read-string) (lambda (&rest _) ""))
+			  ((symbol-function 'read-file-name) (lambda (&rest _) image-file)))
+		  (org-mode)
+		  (hub/org-insert-image-template)
+		  (should (equal (buffer-string) "[[./diagram.png]]")))
+	      (set-buffer-modified-p nil)
+	      (kill-buffer))))
+      (delete-directory root t))))
+
+(ert-deftest hub/org-image-tempo-shortcut-expands-template ()
+  "The `<im' Org shortcut expands to the semantic image template."
+  (let* ((root (make-temp-file "hub-org-image-template-" t))
+	 (org-file (expand-file-name "page.org" root))
+	 (image-file (expand-file-name "diagram.png" root)))
+    (unwind-protect
+	(progn
+	  (with-temp-file image-file (insert "png"))
+	  (with-current-buffer (find-file-noselect org-file)
+	    (unwind-protect
+		(cl-letf (((symbol-function 'read-string) (lambda (&rest _) "Diagram"))
+			  ((symbol-function 'read-file-name) (lambda (&rest _) image-file)))
+		  (org-mode)
+		  (insert "<im")
+		  (org-cycle)
+		  (should (search-backward "#+CAPTION: Diagram" nil t))
+		  (should (search-forward "[[./diagram.png]]" nil t)))
+	      (set-buffer-modified-p nil)
+	      (kill-buffer))))
+      (delete-directory root t))))
+
 (ert-deftest hub/org-veriff-template-inserts-authoring-scaffold ()
   "The Veriff authoring template inserts required export metadata."
   (with-temp-buffer

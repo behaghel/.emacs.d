@@ -5,6 +5,7 @@
 
 ;;; Code:
 
+(require 'cl-lib)
 (require 'ert)
 (require 'org)
 
@@ -17,6 +18,7 @@
   (add-to-list 'load-path (expand-file-name "core" root)))
 
 (load "api" nil 'nomessage)
+(load "commands" nil 'nomessage)
 
 (defun hub/confluence-api-test--with-org-buffer (contents thunk)
   "Run THUNK in a temporary Org buffer containing CONTENTS."
@@ -66,6 +68,135 @@
 (ert-deftest hub/confluence-api--page-update-missing-id ()
   "Signal an error when updating a page without a page ID."
   (should-error (hub/confluence-api--page-update-command nil) :type 'user-error))
+
+(ert-deftest hub/confluence-api--attachment-upload-command ()
+  "Build a cfl attachment upload command string."
+  (should (equal (hub/confluence-api--attachment-upload-command "123" "/tmp/foo bar.png")
+		 "cfl attachment upload --page 123 --file /tmp/foo\\ bar.png")))
+
+(ert-deftest hub/confluence-publish-uploads-images-before-page-edit ()
+  "Upload all referenced images before editing the Confluence page."
+  (hub/confluence-api-test--with-org-buffer
+   "#+CONFLUENCE_PAGE_ID: 123\n[[./foo.png]]"
+   (lambda ()
+     (let ((commands nil)
+	   (source-file (make-temp-file "org-confluence-source-" nil ".png"))
+	   (xhtml-file (make-temp-file "org-confluence-test-" nil ".xhtml")))
+       (unwind-protect
+	   (progn
+	     (with-temp-file source-file (insert "png"))
+	     (cl-letf (((symbol-function 'org-confluence-export) (lambda (&rest _) "<p>x</p>"))
+		       ((symbol-function 'org-confluence-image-assets)
+			(lambda ()
+			  (list (list :path source-file
+				      :source-path source-file
+				      :source-link "./foo.png"
+				      :filename "foo-hash.png"))))
+		       ((symbol-function 'hub/confluence-commands--write-temp-xhtml)
+			(lambda (_xhtml) xhtml-file))
+		       ((symbol-function 'hub/confluence-api--attachment-upload-command)
+			(lambda (page-id file-path)
+			  (format "upload:%s:%s" page-id (file-name-nondirectory file-path))))
+		       ((symbol-function 'hub/confluence-commands--run)
+			(lambda (command) (push command commands) 0)))
+	       (hub/confluence-publish)
+	       (should (equal (nreverse commands)
+			      (list "upload:123:foo-hash.png"
+				    (format "cfl page edit 123 --file %s --storage" xhtml-file))))))
+	 (when (file-exists-p source-file)
+	   (delete-file source-file))
+	 (when (file-exists-p xhtml-file)
+	   (delete-file xhtml-file)))))))
+
+(ert-deftest hub/confluence-publish-images-require-page-id ()
+  "Reject image documents in create flow for this iteration."
+  (hub/confluence-api-test--with-org-buffer
+   "#+CONFLUENCE_SPACE: ENG\n[[./foo.png]]"
+   (lambda ()
+     (cl-letf (((symbol-function 'org-confluence-image-assets)
+		(lambda () (list (list :path "/tmp/foo.png" :source-path "/tmp/foo.png" :source-link "./foo.png" :filename "foo-hash.png")))))
+       (should-error (hub/confluence-publish-dwim "Page") :type 'user-error)))))
+
+(ert-deftest hub/confluence-commands--run-reports-command-output ()
+  "Report command output explicitly when a cfl command fails."
+  (cl-letf (((symbol-function 'hub/confluence-api--cfl-available-p) (lambda () t))
+	    ((symbol-function 'process-file)
+	     (lambda (_program _infile buffer _display &rest _args)
+	       (with-current-buffer buffer
+		 (insert "explicit failure"))
+	       1)))
+    (should-error (hub/confluence-commands--run "cfl fail") :type 'user-error)))
+
+(ert-deftest hub/confluence-publish-continues-when-hashed-attachment-exists ()
+  "Continue publishing when uploading an already-present hashed attachment."
+  (hub/confluence-api-test--with-org-buffer
+   "#+CONFLUENCE_PAGE_ID: 123\n[[./foo.png]]"
+   (lambda ()
+     (let ((commands nil)
+	   (source-file (make-temp-file "org-confluence-source-" nil ".png"))
+	   (xhtml-file (make-temp-file "org-confluence-test-" nil ".xhtml")))
+       (unwind-protect
+	   (progn
+	     (with-temp-file source-file (insert "png"))
+	     (cl-letf (((symbol-function 'org-confluence-export) (lambda (&rest _) "<p>x</p>"))
+		       ((symbol-function 'org-confluence-image-assets)
+			(lambda ()
+			  (list (list :path source-file
+				      :source-path source-file
+				      :source-link "./foo.png"
+				      :filename "foo-hash.png"))))
+		       ((symbol-function 'hub/confluence-commands--write-temp-xhtml)
+			(lambda (_xhtml) xhtml-file))
+		       ((symbol-function 'hub/confluence-api--attachment-upload-command)
+			(lambda (page-id file-path)
+			  (format "upload:%s:%s" page-id (file-name-nondirectory file-path))))
+		       ((symbol-function 'hub/confluence-commands--run)
+			(lambda (command)
+			  (push command commands)
+			  (when (string-prefix-p "upload:" command)
+			    (user-error "Cannot add a new attachment with same file name as an existing attachment: foo-hash.png"))
+			  0)))
+	       (hub/confluence-publish)
+	       (should (equal (nreverse commands)
+			      (list "upload:123:foo-hash.png"
+				    (format "cfl page edit 123 --file %s --storage" xhtml-file))))))
+	 (when (file-exists-p source-file)
+	   (delete-file source-file))
+	 (when (file-exists-p xhtml-file)
+	   (delete-file xhtml-file)))))))
+
+(ert-deftest hub/confluence-publish-cleans-temp-xhtml-on-upload-failure ()
+  "Delete temporary XHTML when an image upload fails."
+  (hub/confluence-api-test--with-org-buffer
+   "#+CONFLUENCE_PAGE_ID: 123\n[[./foo.png]]"
+   (lambda ()
+     (let ((commands nil)
+	   (source-file (make-temp-file "org-confluence-source-" nil ".png"))
+	   (xhtml-file (make-temp-file "org-confluence-test-" nil ".xhtml")))
+       (unwind-protect
+	   (progn
+	     (with-temp-file source-file (insert "png"))
+	     (cl-letf (((symbol-function 'org-confluence-export) (lambda (&rest _) "<p>x</p>"))
+		       ((symbol-function 'org-confluence-image-assets)
+			(lambda ()
+			  (list (list :path source-file
+				      :source-path source-file
+				      :source-link "./foo.png"
+				      :filename "foo-hash.png"))))
+		       ((symbol-function 'hub/confluence-commands--write-temp-xhtml)
+			(lambda (_xhtml) xhtml-file))
+		       ((symbol-function 'hub/confluence-api--attachment-upload-command)
+			(lambda (page-id file-path)
+			  (format "upload:%s:%s" page-id (file-name-nondirectory file-path))))
+		       ((symbol-function 'hub/confluence-commands--run)
+			(lambda (command)
+			  (push command commands)
+			  (user-error "upload failed"))))
+	       (should-error (hub/confluence-publish) :type 'user-error)
+	       (should-not (file-exists-p xhtml-file))
+	       (should (equal commands (list "upload:123:foo-hash.png")))))
+	 (when (file-exists-p source-file)
+	   (delete-file source-file)))))))
 
 (provide 'org-confluence-api-test)
 ;;; org-confluence-api-test.el ends here
