@@ -169,6 +169,24 @@
 		  "<p><ac:structured-macro ac:name=\"status\"><ac:parameter ac:name=\"title\">Medium</ac:parameter><ac:parameter ac:name=\"colour\">Purple</ac:parameter></ac:structured-macro></p>")
 		 "[[confluence-status:Purple][Medium]]")))
 
+(ert-deftest hub/confluence-import-storage-to-org-emoji-fallback ()
+  "Import Confluence emoticons as their Unicode fallback."
+  (should (equal (hub/confluence-import-storage-to-org
+		  "<p><ac:emoticon ac:name=\"blue-star\" ac:emoji-shortname=\":calendar:\" ac:emoji-id=\"1f4c6\" ac:emoji-fallback=\"📆\" /> Plan</p>")
+		 "📆 Plan")))
+
+(ert-deftest hub/confluence-import-storage-to-org-emoji-shortname-fallback ()
+  "Fallback to emoji shortname when Unicode fallback is absent."
+  (should (equal (hub/confluence-import-storage-to-org
+		  "<p><ac:emoticon ac:name=\"unknown\" ac:emoji-shortname=\":unknown:\" /> Info</p>")
+		 ":unknown: Info")))
+
+(ert-deftest hub/confluence-import-storage-to-org-atlassian-info-emoji ()
+  "Map Atlassian info emoticon metadata to a Unicode emoji."
+  (should (equal (hub/confluence-import-storage-to-org
+		  "<h2><ac:emoticon ac:name=\"information\" ac:emoji-shortname=\":info:\" ac:emoji-id=\"atlassian-info\" ac:emoji-fallback=\":info:\" /> Context</h2>")
+		 "** ℹ️ Context")))
+
 (ert-deftest hub/confluence-pull-opens-import-buffer ()
   "Fetch raw storage XHTML and open a converted Org buffer."
   (let ((opened nil))

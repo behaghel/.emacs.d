@@ -122,6 +122,25 @@
 	    (string-trim colour)
 	    (string-trim title))))
 
+(defun hub/confluence-import--emoticon-unicode-fallback (node)
+  "Return known Unicode fallback for Confluence emoticon NODE."
+  (let ((id (hub/confluence-import--attribute node 'ac:emoji-id))
+	(name (hub/confluence-import--attribute node 'ac:name))
+	(shortname (hub/confluence-import--attribute node 'ac:emoji-shortname)))
+    (cond
+     ((or (string= (or id "") "atlassian-info")
+	  (string= (or name "") "information")
+	  (string= (or shortname "") ":info:"))
+      "ℹ️"))))
+
+(defun hub/confluence-import--emoticon (node)
+  "Convert Confluence emoticon NODE to readable Org text."
+  (or (hub/confluence-import--emoticon-unicode-fallback node)
+      (hub/confluence-import--attribute node 'ac:emoji-fallback)
+      (hub/confluence-import--attribute node 'ac:emoji-shortname)
+      (hub/confluence-import--attribute node 'ac:name)
+      ""))
+
 (defun hub/confluence-import--inline (node)
   "Convert XHTML NODE to inline Org text."
   (cond
@@ -131,6 +150,7 @@
     (let ((contents (mapconcat #'hub/confluence-import--inline
 			       (hub/confluence-import--node-children node) "")))
       (pcase (hub/confluence-import--node-tag node)
+	('ac:emoticon (hub/confluence-import--emoticon node))
 	('ac:structured-macro
 	 (if (string= (or (hub/confluence-import--macro-name node) "") "status")
 	     (hub/confluence-import--status node)
