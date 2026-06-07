@@ -151,6 +151,12 @@
 		  "<table><tbody><tr><th>Item</th></tr><tr><td><strong>Bold</strong> and <a href=\"https://example.com\">link</a></td></tr></tbody></table>")
 		 "| Item |\n|------|\n| *Bold* and [[https://example.com][link]] |")))
 
+(ert-deftest hub/confluence-import-storage-to-org-table-emoji-bold-spacing ()
+  "Add Org emphasis boundary spacing after emoji in table cells."
+  (should (equal (hub/confluence-import-storage-to-org
+		  "<table><tbody><tr><th><p>📆<strong>T ime</strong></p></th></tr></tbody></table>")
+		 "| 📆 *T ime* |\n|-----------|")))
+
 (ert-deftest hub/confluence-import-storage-to-org-table-trims-bold-cell-text ()
   "Trim storage whitespace inside bold table cell text."
   (should (equal (hub/confluence-import-storage-to-org
@@ -158,10 +164,22 @@
 		 "| *T ime* |\n|---------|")))
 
 (ert-deftest hub/confluence-import-storage-to-org-structured-macro-body ()
-  "Import structured macro rich text body without macro parameters."
+  "Import unknown structured macro rich text body without macro parameters."
   (should (equal (hub/confluence-import-storage-to-org
-		  "<ac:structured-macro ac:name=\"panel\"><ac:parameter ac:name=\"bgColor\">#fff</ac:parameter><ac:rich-text-body><p>Body</p><ul><li><p>Point</p></li></ul></ac:rich-text-body></ac:structured-macro><table><tbody><tr><th>H</th></tr></tbody></table>")
+		  "<ac:structured-macro ac:name=\"custom\"><ac:parameter ac:name=\"bgColor\">#fff</ac:parameter><ac:rich-text-body><p>Body</p><ul><li><p>Point</p></li></ul></ac:rich-text-body></ac:structured-macro><table><tbody><tr><th>H</th></tr></tbody></table>")
 		 "Body\n- Point\n| H |\n|---|")))
+
+(ert-deftest hub/confluence-import-storage-to-org-callout-macro ()
+  "Import Confluence panel-like macros as semantic Org callouts."
+  (should (equal (hub/confluence-import-storage-to-org
+		  "<ac:structured-macro ac:name=\"warning\"><ac:parameter ac:name=\"title\">Heads up</ac:parameter><ac:rich-text-body><p>Body</p></ac:rich-text-body></ac:structured-macro>")
+		 "#+ATTR_CALLOUT: :type warning :title \"Heads up\"\n#+begin_callout\nBody\n#+end_callout")))
+
+(ert-deftest hub/confluence-import-storage-to-org-panel-macro-preserves-type ()
+  "Import generic Confluence panels as callouts with panel type preserved."
+  (should (equal (hub/confluence-import-storage-to-org
+		  "<ac:structured-macro ac:name=\"panel\"><ac:rich-text-body><p>Panel body</p></ac:rich-text-body></ac:structured-macro>")
+		 "#+ATTR_CALLOUT: :type panel\n#+begin_callout\nPanel body\n#+end_callout")))
 
 (ert-deftest hub/confluence-import-storage-to-org-status-macro ()
   "Import a Confluence status macro as a status Org link."
@@ -186,6 +204,12 @@
   (should (equal (hub/confluence-import-storage-to-org
 		  "<h2><ac:emoticon ac:name=\"information\" ac:emoji-shortname=\":info:\" ac:emoji-id=\"atlassian-info\" ac:emoji-fallback=\":info:\" /> Context</h2>")
 		 "** ℹ️ Context")))
+
+(ert-deftest hub/confluence-import-storage-to-org-document-emoji ()
+  "Map Atlassian document emoticon metadata to a Unicode emoji."
+  (should (equal (hub/confluence-import-storage-to-org
+		  "<h2><ac:emoticon ac:name=\"blue-star\" ac:emoji-shortname=\":document:\" ac:emoji-fallback=\":document:\" /> Related Material</h2>")
+		 "** 📄 Related Material")))
 
 (ert-deftest hub/confluence-pull-opens-import-buffer ()
   "Fetch raw storage XHTML and open a converted Org buffer."

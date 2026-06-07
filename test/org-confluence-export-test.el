@@ -185,6 +185,16 @@
   (should (equal (hub/org-confluence-test--export "| Name | Score |\n|------+-------|\n| Ada  | 10    |")
 		 "<table><tbody><tr><th><p>Name</p></th><th><p>Score</p></th></tr><tr><td><p>Ada</p></td><td><p>10</p></td></tr></tbody></table>")))
 
+(ert-deftest hub/org-confluence-export-table-inline-bold ()
+  "Export bold Org markup inside table cells as XHTML strong tags."
+  (should (equal (hub/org-confluence-test--export "| *T ime* | Detail |\n|---------+--------|\n| *R esults* | x |")
+		 "<table><tbody><tr><th><p><strong>T ime</strong></p></th><th><p>Detail</p></th></tr><tr><td><p><strong>R esults</strong></p></td><td><p>x</p></td></tr></tbody></table>")))
+
+(ert-deftest hub/org-confluence-export-table-repairs-emoji-adjacent-bold ()
+  "Repair literal bold markers after emoji in imported table cells."
+  (should (equal (hub/org-confluence-test--export "| 📆*T ime* |\n|---|")
+		 "<table><tbody><tr><th><p>📆<strong>T ime</strong></p></th></tr></tbody></table>")))
+
 (ert-deftest hub/org-confluence-export-blockquote ()
   "Export a quote block as XHTML."
   (should (equal (hub/org-confluence-test--export "#+begin_quote\nQuoted text\n#+end_quote")

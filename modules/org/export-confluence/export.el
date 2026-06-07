@@ -274,9 +274,26 @@ output whenever an item's bullet type changes so Confluence receives separate
   "Transcode a quote block with CONTENTS to XHTML."
   (format "<blockquote>%s</blockquote>" (org-confluence--trim contents)))
 
+(defun org-confluence--table-cell-repair-literal-bold (text)
+  "Repair literal Org bold markup in table cell TEXT.
+
+Org does not parse emphasis when a marker immediately follows emoji or other
+non-whitespace text.  Pulled Confluence tables can contain cells such as an
+emoji immediately followed by literal bold markup; repair those before pushing
+back to Confluence."
+  (let ((start 0))
+    (while (string-match "\\(^\\|[^[:alnum:]<]\\)\\*\\([^*\n]+?\\)\\*" text start)
+      (let ((replacement (format "%s<strong>%s</strong>"
+				 (match-string 1 text)
+				 (string-trim (match-string 2 text)))))
+	(setq text (replace-match replacement t t text))
+	(setq start (+ (match-beginning 0) (length replacement)))))
+    text))
+
 (defun org-confluence--table-cell-text (cell info)
   "Return XHTML-safe text for table CELL using INFO."
-  (org-confluence--trim (org-export-data (org-element-contents cell) info)))
+  (org-confluence--table-cell-repair-literal-bold
+   (org-confluence--trim (org-export-data (org-element-contents cell) info))))
 
 (defun org-confluence--table-row-cells (row tag info)
   "Return table ROW cells wrapped with TAG using INFO."

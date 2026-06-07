@@ -131,7 +131,9 @@
      ((or (string= (or id "") "atlassian-info")
 	  (string= (or name "") "information")
 	  (string= (or shortname "") ":info:"))
-      "ℹ️"))))
+      "ℹ️")
+     ((string= (or shortname "") ":document:")
+      "📄"))))
 
 (defun hub/confluence-import--emoticon (node)
   "Convert Confluence emoticon NODE to readable Org text."
@@ -140,6 +142,39 @@
       (hub/confluence-import--attribute node 'ac:emoji-shortname)
       (hub/confluence-import--attribute node 'ac:name)
       ""))
+
+(defun hub/confluence-import--callout-macro-p (node)
+  "Return non-nil when NODE is a panel-like Confluence macro."
+  (member (hub/confluence-import--macro-name node)
+	  '("info" "note" "warning" "tip" "panel")))
+
+(defun hub/confluence-import--rich-text-body (node)
+  "Return Org text converted from NODE's rich text body."
+  (hub/confluence-import--join-blocks
+   (mapcar (lambda (child)
+	     (when (eq (hub/confluence-import--node-tag child) 'ac:rich-text-body)
+	       (hub/confluence-import--block child)))
+	   (hub/confluence-import--node-children node))))
+
+(defun hub/confluence-import--callout (node)
+  "Convert Confluence panel-like macro NODE to semantic Org callout."
+  (let* ((type (hub/confluence-import--macro-name node))
+	 (title (hub/confluence-import--macro-parameter node "title"))
+	 (attributes (format "#+ATTR_CALLOUT: :type %s" type))
+	 (body (hub/confluence-import--rich-text-body node)))
+    (when (and title (not (string-empty-p (string-trim title))))
+      (setq attributes (format "%s :title %S" attributes (string-trim title))))
+    (format "%s\n#+begin_callout\n%s\n#+end_callout" attributes body)))
+
+(defun hub/confluence-import--clean-inline-spacing (text)
+  "Clean Org inline TEXT spacing introduced for markup boundaries."
+  (let ((cleaned (replace-regexp-in-string "[[:space:]]+" " " text)))
+    (setq cleaned (replace-regexp-in-string "[[:space:]]+\\([.,;:!?)]\\)" "\\1" cleaned))
+    (string-trim cleaned)))
+
+(defun hub/confluence-import--markup (marker contents)
+  "Return Org inline markup using MARKER around CONTENTS."
+  (format " %s%s%s " marker (string-trim contents) marker))
 
 (defun hub/confluence-import--inline (node)
   "Convert XHTML NODE to inline Org text."
@@ -154,15 +189,16 @@
 	('ac:structured-macro
 	 (if (string= (or (hub/confluence-import--macro-name node) "") "status")
 	     (hub/confluence-import--status node)
-	   contents))
-	((or 'strong 'b) (format "*%s*" (string-trim contents)))
-	((or 'em 'i) (format "/%s/" (string-trim contents)))
-	('u (format "_%s_" (string-trim contents)))
-	('strike (format "+%s+" (string-trim contents)))
-	('code (format "~%s~" (string-trim contents)))
+	   (hub/confluence-import--clean-inline-spacing contents)))
+	((or 'strong 'b) (hub/confluence-import--markup "*" contents))
+	((or 'em 'i) (hub/confluence-import--markup "/" contents))
+	('u (hub/confluence-import--markup "_" contents))
+	('strike (hub/confluence-import--markup "+" contents))
+	('code (hub/confluence-import--markup "~" contents))
 	('a (let ((href (hub/confluence-import--attribute node 'href)))
-	      (if href (format "[[%s][%s]]" href contents) contents)))
-	(_ contents))))))
+	      (if href (format "[[%s][%s]]" href (hub/confluence-import--clean-inline-spacing contents))
+		(hub/confluence-import--clean-inline-spacing contents))))
+	(_ (hub/confluence-import--clean-inline-spacing contents)))))))
 
 (defun hub/confluence-import--join-blocks (blocks)
   "Join non-empty Org BLOCKS with newlines."
@@ -271,13 +307,12 @@
       (mapcar #'hub/confluence-import--block
 	      (hub/confluence-import--node-children node))))
     ('ac:structured-macro
-     (if (string= (or (hub/confluence-import--macro-name node) "") "status")
-	 (hub/confluence-import--status node)
-       (hub/confluence-import--join-blocks
-	(mapcar (lambda (child)
-		  (when (eq (hub/confluence-import--node-tag child) 'ac:rich-text-body)
-		    (hub/confluence-import--block child)))
-		(hub/confluence-import--node-children node)))))
+     (cond
+      ((string= (or (hub/confluence-import--macro-name node) "") "status")
+       (hub/confluence-import--status node))
+      ((hub/confluence-import--callout-macro-p node)
+       (hub/confluence-import--callout node))
+      (t (hub/confluence-import--rich-text-body node))))
     ('h1 (format "* %s" (hub/confluence-import--inline node)))
     ('h2 (format "** %s" (hub/confluence-import--inline node)))
     ('h3 (format "*** %s" (hub/confluence-import--inline node)))
