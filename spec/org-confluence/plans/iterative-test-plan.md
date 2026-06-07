@@ -185,7 +185,7 @@ All new files are under these directories, which are on `load-path` unconditiona
 ### 4c — Pull/import
 
 - **Test file:** `test/org-confluence-api-test.el`
-- **Tests written first:** raw storage view command construction, basic storage XHTML to Org conversion, and `hub/confluence-pull` opening an imported Org buffer.
+- **Tests written first:** raw storage view command construction, basic storage XHTML to Org conversion, nested lists, tables, and `hub/confluence-pull` opening an imported Org buffer.
 - **Red signal:** no pull command or storage-to-Org conversion path.
 - **Green target:** users can fetch an existing Confluence page into a new Org buffer for review/editing.
 

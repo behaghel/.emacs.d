@@ -38,6 +38,7 @@ Type `<` followed by the shortcut, then `TAB` to expand:
 | `<gr` | `#+begin_graph` / `#+end_graph` | Graph/metrics block |
 | `<im` | optional `#+CAPTION` + image link | Shared-exporter image link; leave caption empty to remove the caption line |
 | `<fn` | footnote reference + bottom definition | Inline shortcut; works anywhere in text, jumps to the footnote body, then returns after the body is filled |
+| `<st` | `[[confluence-status:Colour][TEXT]]` | Inline Confluence status chip with prompted colour/text; Org displays it with a chip-like coloured face |
 
 ### Callout titles
 
@@ -64,7 +65,7 @@ Use the normal Org export dispatcher with `C-c C-e C`:
 
 For whole-buffer updates, set `#+CONFLUENCE_PAGE_ID:`. For subtree updates, put `CONFLUENCE_PAGE_ID` in the subtree property drawer and use Org's subtree export option from the dispatcher.
 
-Use `M-x hub/confluence-pull` to fetch a Confluence page by ID into a new Org buffer. Pull currently performs a conservative import of common storage XHTML: headings, paragraphs, inline emphasis/code/links, and simple ordered/unordered lists.
+Use `M-x hub/confluence-pull` to fetch a Confluence page by ID into a new Org buffer. Pull currently performs a conservative import of common storage XHTML: headings, paragraphs, inline emphasis/code/links, ordered/unordered lists including sublists, tables, and Confluence status chips as `[[confluence-status:Colour][Text]]` links.
 
 ### Standfirst
 

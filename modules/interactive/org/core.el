@@ -97,16 +97,23 @@ When QUIET is non-nil, do not emit informational messages."
 	      (assoc-delete-all key org-structure-template-alist))))
 
 (defun hub/org-tab-dwim (arg)
-  "Move through active Yasnippet fields, otherwise run `org-cycle'.
+  "Move through snippets or inline templates, otherwise run `org-cycle'.
 Forward prefix ARG to `org-cycle' so prefixed Org cycling keeps its
 native behavior."
   (interactive "P")
-  (if (and (null arg)
-	   (fboundp 'yas-active-snippets)
-	   (yas-active-snippets)
-	   (fboundp 'yas-next-field-or-maybe-expand))
-      (yas-next-field-or-maybe-expand)
-    (org-cycle arg)))
+  (cond
+   ((and (null arg)
+	 (fboundp 'yas-active-snippets)
+	 (yas-active-snippets)
+	 (fboundp 'yas-next-field-or-maybe-expand))
+    (yas-next-field-or-maybe-expand))
+   ((and (null arg)
+	 (fboundp 'hub/org-tempo-complete-status)
+	 (hub/org-tempo-complete-status)))
+   ((and (null arg)
+	 (fboundp 'hub/org-tempo-complete-footnote)
+	 (hub/org-tempo-complete-footnote)))
+   (t (org-cycle arg))))
 
 (defun hub/org-discover-local-latex-classes (&optional directory)
   "Return class names discovered from .cls files under DIRECTORY.
@@ -152,6 +159,71 @@ When Yasnippet is available, expand fields in the inserted template."
     (if (fboundp 'yas-expand-snippet)
 	(yas-expand-snippet template)
       (insert template))))
+
+(defconst hub/org-confluence-status-colours
+  '("Grey" "Red" "Yellow" "Green" "Blue" "Purple")
+  "Confluence status colours offered by Org authoring shortcuts.")
+
+(defface hub/org-confluence-status-grey
+  '((t :inherit default :foreground "#172B4D" :background "#DFE1E6" :box (:line-width (1 . -1) :color "#DFE1E6")))
+  "Face for grey Confluence status links."
+  :group 'hub/org)
+
+(defface hub/org-confluence-status-red
+  '((t :inherit default :foreground "#FFFFFF" :background "#DE350B" :box (:line-width (1 . -1) :color "#DE350B")))
+  "Face for red Confluence status links."
+  :group 'hub/org)
+
+(defface hub/org-confluence-status-yellow
+  '((t :inherit default :foreground "#172B4D" :background "#FFAB00" :box (:line-width (1 . -1) :color "#FFAB00")))
+  "Face for yellow Confluence status links."
+  :group 'hub/org)
+
+(defface hub/org-confluence-status-green
+  '((t :inherit default :foreground "#FFFFFF" :background "#00875A" :box (:line-width (1 . -1) :color "#00875A")))
+  "Face for green Confluence status links."
+  :group 'hub/org)
+
+(defface hub/org-confluence-status-blue
+  '((t :inherit default :foreground "#FFFFFF" :background "#0052CC" :box (:line-width (1 . -1) :color "#0052CC")))
+  "Face for blue Confluence status links."
+  :group 'hub/org)
+
+(defface hub/org-confluence-status-purple
+  '((t :inherit default :foreground "#FFFFFF" :background "#6554C0" :box (:line-width (1 . -1) :color "#6554C0")))
+  "Face for purple Confluence status links."
+  :group 'hub/org)
+
+(defun hub/org-confluence-status-face (colour)
+  "Return a status chip face for COLOUR."
+  (pcase (downcase (or colour ""))
+    ("red" 'hub/org-confluence-status-red)
+    ("yellow" 'hub/org-confluence-status-yellow)
+    ("green" 'hub/org-confluence-status-green)
+    ("blue" 'hub/org-confluence-status-blue)
+    ("purple" 'hub/org-confluence-status-purple)
+    (_ 'hub/org-confluence-status-grey)))
+
+(defun hub/org-confluence-status-activate (start end _path bracketp)
+  "Add chip-like display properties to a Confluence status link.
+
+START and END delimit the link.  BRACKETP is non-nil for bracket links with an
+optional description."
+  (when bracketp
+    (save-excursion
+      (goto-char start)
+      (when (re-search-forward "\\[\\[confluence-status:[^]]+\\]\\[\\([^]]+\\)\\]\\]" end t)
+	(let* ((description-start (match-beginning 1))
+	       (description-end (match-end 1))
+	       (display-title (upcase (match-string-no-properties 1))))
+	  (add-text-properties description-start description-end
+			       `(display ,display-title)))))))
+
+(with-eval-after-load 'ol
+  (org-link-set-parameters
+   "confluence-status"
+   :face #'hub/org-confluence-status-face
+   :activate-func #'hub/org-confluence-status-activate))
 
 (defun hub/org-yas-ready-p ()
   "Return non-nil when Yasnippet can expand snippets in this buffer."
@@ -294,6 +366,20 @@ this shortcut is intentionally accepted anywhere on the current line."
     (hub/org-insert-footnote-template)
     t))
 
+(defun hub/org-insert-confluence-status ()
+  "Insert an Org link representing a Confluence status macro."
+  (interactive)
+  (let* ((colour (completing-read "Status colour: " hub/org-confluence-status-colours nil t nil nil "Grey"))
+	 (title (upcase (read-string "Status text: " colour))))
+    (insert (format "[[confluence-status:%s][%s]]" colour title))))
+
+(defun hub/org-tempo-complete-status ()
+  "Expand the `<st' Org Tempo shortcut as a Confluence status link."
+  (when (looking-back "\\(<st\\)" (line-beginning-position))
+    (replace-match "" t t nil 1)
+    (hub/org-insert-confluence-status)
+    t))
+
 (use-package org
   :straight (:depth full)
   :commands (org-capture org-agenda)
@@ -345,6 +431,7 @@ this shortcut is intentionally accepted anywhere on the current line."
   (add-hook 'org-tab-before-tab-emulation-hook #'hub/org-tempo-complete-callout -90)
   (add-hook 'org-tab-before-tab-emulation-hook #'hub/org-tempo-complete-image -90)
   (add-hook 'org-tab-before-tab-emulation-hook #'hub/org-tempo-complete-footnote -90)
+  (add-hook 'org-tab-before-tab-emulation-hook #'hub/org-tempo-complete-status -90)
 
   (setq org-return-follows-link t
 	org-hide-leading-stars t

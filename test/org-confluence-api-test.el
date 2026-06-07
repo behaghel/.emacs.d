@@ -139,6 +139,36 @@
 		  "<ol><li><p>Parent</p><ol><li><p>Child</p></li></ol></li><li><p>Second</p></li></ol>")
 		 "1. Parent\n  1. Child\n2. Second")))
 
+(ert-deftest hub/confluence-import-storage-to-org-table ()
+  "Convert Confluence storage tables to Org tables."
+  (should (equal (hub/confluence-import-storage-to-org
+		  "<table><tbody><tr><th><p>Name</p></th><th><p>Score</p></th></tr><tr><td><p>Ada</p></td><td><p>10</p></td></tr><tr><td><p>Bo</p></td><td><p>8</p></td></tr></tbody></table>")
+		 "| Name | Score |\n|------+-------|\n| Ada | 10 |\n| Bo | 8 |")))
+
+(ert-deftest hub/confluence-import-storage-to-org-table-inline-markup ()
+  "Preserve inline markup inside imported Org table cells."
+  (should (equal (hub/confluence-import-storage-to-org
+		  "<table><tbody><tr><th>Item</th></tr><tr><td><strong>Bold</strong> and <a href=\"https://example.com\">link</a></td></tr></tbody></table>")
+		 "| Item |\n|------|\n| *Bold* and [[https://example.com][link]] |")))
+
+(ert-deftest hub/confluence-import-storage-to-org-table-trims-bold-cell-text ()
+  "Trim storage whitespace inside bold table cell text."
+  (should (equal (hub/confluence-import-storage-to-org
+		  "<table><tbody><tr><th><p><strong> T ime</strong></p></th></tr></tbody></table>")
+		 "| *T ime* |\n|---------|")))
+
+(ert-deftest hub/confluence-import-storage-to-org-structured-macro-body ()
+  "Import structured macro rich text body without macro parameters."
+  (should (equal (hub/confluence-import-storage-to-org
+		  "<ac:structured-macro ac:name=\"panel\"><ac:parameter ac:name=\"bgColor\">#fff</ac:parameter><ac:rich-text-body><p>Body</p><ul><li><p>Point</p></li></ul></ac:rich-text-body></ac:structured-macro><table><tbody><tr><th>H</th></tr></tbody></table>")
+		 "Body\n- Point\n| H |\n|---|")))
+
+(ert-deftest hub/confluence-import-storage-to-org-status-macro ()
+  "Import a Confluence status macro as a status Org link."
+  (should (equal (hub/confluence-import-storage-to-org
+		  "<p><ac:structured-macro ac:name=\"status\"><ac:parameter ac:name=\"title\">Medium</ac:parameter><ac:parameter ac:name=\"colour\">Purple</ac:parameter></ac:structured-macro></p>")
+		 "[[confluence-status:Purple][Medium]]")))
+
 (ert-deftest hub/confluence-pull-opens-import-buffer ()
   "Fetch raw storage XHTML and open a converted Org buffer."
   (let ((opened nil))

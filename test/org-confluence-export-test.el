@@ -125,6 +125,11 @@
   (should (equal (hub/org-confluence-test--export "[[https://x.com]]")
 		 "<p><a href=\"https://x.com\">https://x.com</a></p>")))
 
+(ert-deftest hub/org-confluence-export-status-link ()
+  "Export a Confluence status Org link as a status macro."
+  (should (equal (hub/org-confluence-test--export "[[confluence-status:Purple][Medium]]")
+		 "<p><ac:structured-macro ac:name=\"status\" ac:schema-version=\"1\"><ac:parameter ac:name=\"title\">Medium</ac:parameter><ac:parameter ac:name=\"colour\">Purple</ac:parameter></ac:structured-macro></p>")))
+
 (ert-deftest hub/org-confluence-export-mixed-inline ()
   "Export nested and adjacent inline markup as XHTML."
   (should (equal (hub/org-confluence-test--export "A /lean/ and *bold* [[https://x.com][*link*]].")

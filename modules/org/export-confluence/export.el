@@ -7,6 +7,7 @@
 
 (require 'hub-org-callout)
 (require 'org)
+(require 'ol)
 (require 'ox)
 (require 'seq)
 (require 'subr-x)
@@ -62,6 +63,8 @@ storage-format images."
 (defconst org-confluence--image-extensions '("png" "jpg" "jpeg" "gif" "webp" "svg")
   "File extensions exported as Confluence attachment images.")
 
+(org-link-set-parameters "confluence-status")
+
 (defun org-confluence--local-image-link-p (link)
   "Return non-nil when LINK is a plain local image link."
   (let ((path (org-element-property :path link)))
@@ -71,13 +74,21 @@ storage-format images."
 	 (member (downcase (or (file-name-extension path) ""))
 		 org-confluence--image-extensions))))
 
+(defun org-confluence--status (colour title)
+  "Return Confluence storage XHTML for a status macro with COLOUR and TITLE."
+  (format "<ac:structured-macro ac:name=\"status\" ac:schema-version=\"1\"><ac:parameter ac:name=\"title\">%s</ac:parameter><ac:parameter ac:name=\"colour\">%s</ac:parameter></ac:structured-macro>"
+	  (xml-escape-string (org-confluence--trim title))
+	  (xml-escape-string (org-confluence--trim colour))))
+
 (defun org-confluence--link (link contents _info)
   "Transcode LINK with CONTENTS to XHTML."
-  (let* ((href (or (org-element-property :raw-link link)
-		   (org-element-property :path link)
-		   ""))
+  (let* ((type (or (org-element-property :type link) ""))
+	 (path (or (org-element-property :path link) ""))
+	 (href (or (org-element-property :raw-link link) path ""))
 	 (label (org-confluence--trim (or contents href))))
-    (format "<a href=\"%s\">%s</a>" (xml-escape-string href) label)))
+    (if (string= type "confluence-status")
+	(org-confluence--status path label)
+      (format "<a href=\"%s\">%s</a>" (xml-escape-string href) label))))
 
 (defun org-confluence--image-filename (link info)
   "Return Confluence attachment filename for image LINK using INFO."

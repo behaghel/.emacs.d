@@ -102,6 +102,26 @@
   "Return NODE ATTRIBUTE value."
   (cdr (assq attribute (hub/confluence-import--node-attributes node))))
 
+(defun hub/confluence-import--macro-name (node)
+  "Return Confluence macro name for NODE."
+  (hub/confluence-import--attribute node 'ac:name))
+
+(defun hub/confluence-import--macro-parameter (node name)
+  "Return Confluence macro NODE parameter NAME, or nil."
+  (seq-some (lambda (child)
+	      (when (and (eq (hub/confluence-import--node-tag child) 'ac:parameter)
+			 (string= (or (hub/confluence-import--attribute child 'ac:name) "") name))
+		(hub/confluence-import--inline child)))
+	    (hub/confluence-import--node-children node)))
+
+(defun hub/confluence-import--status (node)
+  "Convert Confluence status macro NODE to an Org status link."
+  (let ((title (or (hub/confluence-import--macro-parameter node "title") ""))
+	(colour (or (hub/confluence-import--macro-parameter node "colour") "Grey")))
+    (format "[[confluence-status:%s][%s]]"
+	    (string-trim colour)
+	    (string-trim title))))
+
 (defun hub/confluence-import--inline (node)
   "Convert XHTML NODE to inline Org text."
   (cond
@@ -111,11 +131,15 @@
     (let ((contents (mapconcat #'hub/confluence-import--inline
 			       (hub/confluence-import--node-children node) "")))
       (pcase (hub/confluence-import--node-tag node)
-	((or 'strong 'b) (format "*%s*" contents))
-	((or 'em 'i) (format "/%s/" contents))
-	('u (format "_%s_" contents))
-	('strike (format "+%s+" contents))
-	('code (format "~%s~" contents))
+	('ac:structured-macro
+	 (if (string= (or (hub/confluence-import--macro-name node) "") "status")
+	     (hub/confluence-import--status node)
+	   contents))
+	((or 'strong 'b) (format "*%s*" (string-trim contents)))
+	((or 'em 'i) (format "/%s/" (string-trim contents)))
+	('u (format "_%s_" (string-trim contents)))
+	('strike (format "+%s+" (string-trim contents)))
+	('code (format "~%s~" (string-trim contents)))
 	('a (let ((href (hub/confluence-import--attribute node 'href)))
 	      (if href (format "[[%s][%s]]" href contents) contents)))
 	(_ contents))))))
@@ -169,19 +193,78 @@
 	    (hub/confluence-import--join-blocks (list line nested)))))
       (hub/confluence-import--node-children list-node)))))
 
+(defun hub/confluence-import--children-by-tag (node tag)
+  "Return direct children of NODE with TAG."
+  (seq-filter (lambda (child) (eq (hub/confluence-import--node-tag child) tag))
+	      (hub/confluence-import--node-children node)))
+
+(defun hub/confluence-import--table-rows (table)
+  "Return Confluence storage TABLE rows."
+  (let ((direct-rows (hub/confluence-import--children-by-tag table 'tr)))
+    (if direct-rows
+	direct-rows
+      (apply #'append
+	     (mapcar (lambda (section)
+		       (hub/confluence-import--children-by-tag section 'tr))
+		     (seq-filter (lambda (child)
+				   (memq (hub/confluence-import--node-tag child) '(thead tbody)))
+				 (hub/confluence-import--node-children table)))))))
+
+(defun hub/confluence-import--table-row-cells (row)
+  "Return ROW cells as Org-safe inline text."
+  (mapcar (lambda (cell)
+	    (string-trim
+	     (replace-regexp-in-string "|" "\\\\vert{}"
+				       (hub/confluence-import--inline cell)
+				       t t)))
+	  (seq-filter (lambda (child)
+			(memq (hub/confluence-import--node-tag child) '(th td)))
+		      (hub/confluence-import--node-children row))))
+
+(defun hub/confluence-import--org-table-line (cells)
+  "Return an Org table row for CELLS."
+  (format "| %s |" (string-join cells " | ")))
+
+(defun hub/confluence-import--org-table-separator (cells)
+  "Return an Org table separator sized for CELLS."
+  (format "|%s|"
+	  (string-join
+	   (mapcar (lambda (cell)
+		     (make-string (+ 2 (length cell)) ?-))
+		   cells)
+	   "+")))
+
+(defun hub/confluence-import--table (table)
+  "Convert Confluence storage TABLE to an Org table."
+  (let ((rows (mapcar #'hub/confluence-import--table-row-cells
+		      (hub/confluence-import--table-rows table))))
+    (hub/confluence-import--join-blocks
+     (append (list (hub/confluence-import--org-table-line (car rows))
+		   (hub/confluence-import--org-table-separator (car rows)))
+	     (mapcar #'hub/confluence-import--org-table-line (cdr rows))))))
+
 (defun hub/confluence-import--block (node)
   "Convert XHTML NODE to Org block text."
   (pcase (hub/confluence-import--node-tag node)
-    ((or 'html 'body)
+    ((or 'html 'body 'ac:rich-text-body)
      (hub/confluence-import--join-blocks
       (mapcar #'hub/confluence-import--block
 	      (hub/confluence-import--node-children node))))
+    ('ac:structured-macro
+     (if (string= (or (hub/confluence-import--macro-name node) "") "status")
+	 (hub/confluence-import--status node)
+       (hub/confluence-import--join-blocks
+	(mapcar (lambda (child)
+		  (when (eq (hub/confluence-import--node-tag child) 'ac:rich-text-body)
+		    (hub/confluence-import--block child)))
+		(hub/confluence-import--node-children node)))))
     ('h1 (format "* %s" (hub/confluence-import--inline node)))
     ('h2 (format "** %s" (hub/confluence-import--inline node)))
     ('h3 (format "*** %s" (hub/confluence-import--inline node)))
     ('h4 (format "**** %s" (hub/confluence-import--inline node)))
     ('p (hub/confluence-import--inline node))
     ((or 'ul 'ol) (hub/confluence-import--list node))
+    ('table (hub/confluence-import--table node))
     (_ (hub/confluence-import--inline node))))
 
 (defun hub/confluence-import-storage-to-org (xhtml)

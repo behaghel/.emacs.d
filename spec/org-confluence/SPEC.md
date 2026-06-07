@@ -174,7 +174,7 @@ Without a caption, omit `ac:alt` and the caption paragraph.
 
 **Iteration 4c pull/import additions:**
 - `hub/confluence-pull` fetches a page with `cfl page view <id> --raw --content-only` and opens the converted content in a new Org buffer.
-- Import starts conservatively with common storage XHTML: headings, paragraphs, inline emphasis/code/links, and simple ordered/unordered lists.
+- Import starts conservatively with common storage XHTML: headings, paragraphs, inline emphasis/code/links, simple ordered/unordered lists, nested lists, tables, and Confluence status chips.
 - Pull defaults to the current buffer's `#+CONFLUENCE_PAGE_ID` when present and otherwise prompts for a page ID.
 
 **Future additions:**
