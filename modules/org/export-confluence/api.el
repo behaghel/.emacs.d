@@ -82,9 +82,20 @@ When PARENT-ID is non-nil, include it as the new page's parent."
 	(let ((value (string-trim (match-string-no-properties 1))))
 	  (unless (string-empty-p value) value))))))
 
-(defun hub/confluence-api--page-id-from-buffer ()
-  "Return the #+CONFLUENCE_PAGE_ID value from the current buffer, or nil."
-  (hub/confluence-api--keyword-from-buffer "CONFLUENCE_PAGE_ID"))
+(defun hub/confluence-api--property-from-subtree (property)
+  "Return PROPERTY from the current Org subtree, or nil."
+  (when (and (derived-mode-p 'org-mode)
+	     (not (org-before-first-heading-p)))
+    (org-entry-get nil property t)))
+
+(defun hub/confluence-api--page-id-from-buffer (&optional subtreep)
+  "Return the current Confluence page ID, or nil.
+
+When SUBTREEP is non-nil, prefer a CONFLUENCE_PAGE_ID property on the current
+Org subtree.  Otherwise use the buffer-level #+CONFLUENCE_PAGE_ID keyword."
+  (or (when subtreep
+	(hub/confluence-api--property-from-subtree "CONFLUENCE_PAGE_ID"))
+      (hub/confluence-api--keyword-from-buffer "CONFLUENCE_PAGE_ID")))
 
 (defun hub/confluence-api--space-from-buffer ()
   "Return the #+CONFLUENCE_SPACE value from the current buffer, or nil."

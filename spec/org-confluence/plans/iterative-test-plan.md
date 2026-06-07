@@ -168,6 +168,20 @@ All new files are under these directories, which are on `load-path` unconditiona
 4. Change the local image, publish again, and verify the attachment updates.
 5. Verify duplicate basenames and missing files fail before changing the page.
 
+### 4a — Export polish
+
+- **Test files:** `test/org-confluence-export-test.el`, `test/org-confluence-api-test.el`
+- **Tests written first:** definition-list export, footnote anchor/backlink export, duplicate attachment diagnostics.
+- **Red signal:** unsupported Org constructs either disappeared or were downgraded by Confluence.
+- **Green target:** definition lists and footnotes render with Confluence-safe storage markup.
+
+### 4b — Org export dispatch
+
+- **Test files:** `test/org-confluence-export-test.el`, `test/org-confluence-api-test.el`
+- **Tests written first:** dispatcher menu registration, temporary XHTML buffer subtree export, subtree page ID lookup, and dispatch publish option forwarding.
+- **Red signal:** backend existed only as direct functions and custom publish commands, without normal `C-c C-e` integration.
+- **Green target:** users can access Confluence export via `C-c C-e C`, including subtree export/publish with subtree `CONFLUENCE_PAGE_ID` properties.
+
 ## Executed Status
 
 | Iteration | Status |
@@ -180,7 +194,7 @@ All new files are under these directories, which are on `load-path` unconditiona
 | 2 — Rich content | Complete |
 | 3 — Images | Implemented; manual verification pending |
 | 4a — Export polish | Complete |
-| 4b — Org export dispatch | Not started |
+| 4b — Org export dispatch | Implemented; manual verification pending |
 | 4c — Pull/import | Not started |
 
 ## Running Tests

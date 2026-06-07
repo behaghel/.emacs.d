@@ -76,6 +76,10 @@
 (add-to-list 'load-path (expand-file-name "modules/org/export-confluence" user-emacs-directory))
 (autoload 'hub/confluence-publish "commands" nil t)
 (autoload 'hub/confluence-publish-dwim "commands" nil t)
+(autoload 'hub/confluence-publish-from-export-dispatch "commands" nil t)
+(with-eval-after-load 'ox
+  (load (expand-file-name "modules/org/export-confluence/export.el" user-emacs-directory)
+	nil 'nomessage))
 (when (or hub/force-interactive (and (featurep 'core-predicates) (hub/interactive-p)))
   (add-to-list 'load-path (expand-file-name "modules/interactive" user-emacs-directory)))
 

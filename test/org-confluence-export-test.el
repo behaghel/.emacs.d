@@ -73,6 +73,28 @@
   "Export an empty Org buffer as an empty string."
   (should (equal (hub/org-confluence-test--export "") "")))
 
+(ert-deftest hub/org-confluence-export-backend-has-dispatch-menu ()
+  "Register Confluence in the normal Org export dispatcher."
+  (let ((menu (org-export-backend-menu (org-export-get-backend 'confluence))))
+    (should (equal (car menu) ?C))
+    (should (string-match-p "Confluence" (cadr menu)))))
+
+(ert-deftest hub/org-confluence-export-as-xhtml-subtree-buffer ()
+  "Export a subtree to a temporary XHTML buffer through Org export plumbing."
+  (with-temp-buffer
+    (insert "* One\nFirst body\n* Two\nSecond body")
+    (org-mode)
+    (goto-char (point-min))
+    (search-forward "Two")
+    (org-back-to-heading)
+    (let ((buffer (org-confluence-export-as-xhtml nil t nil t nil)))
+      (unwind-protect
+	  (with-current-buffer buffer
+	    (should (equal (string-trim (buffer-string))
+			   "<p>Second body</p>")))
+	(when (buffer-live-p buffer)
+	  (kill-buffer buffer))))))
+
 (ert-deftest hub/org-confluence-export-bold ()
   "Export bold inline markup as XHTML."
   (should (equal (hub/org-confluence-test--export "*bold*")

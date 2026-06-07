@@ -44,6 +44,14 @@
    (lambda ()
      (should (equal (hub/confluence-api--page-id-from-buffer) "123")))))
 
+(ert-deftest hub/confluence-api--page-id-from-subtree-property ()
+  "Read CONFLUENCE_PAGE_ID from the current Org subtree property."
+  (hub/confluence-api-test--with-org-buffer
+   "* Page\n:PROPERTIES:\n:CONFLUENCE_PAGE_ID: 456\n:END:\nBody"
+   (lambda ()
+     (org-back-to-heading)
+     (should (equal (hub/confluence-api--page-id-from-buffer t) "456")))))
+
 (ert-deftest hub/confluence-api--space-from-buffer ()
   "Read CONFLUENCE_SPACE from the current Org buffer."
   (hub/confluence-api-test--with-org-buffer
@@ -74,6 +82,40 @@
   (should (equal (hub/confluence-api--attachment-upload-command "123" "/tmp/foo bar.png")
 		 "cfl attachment upload --page 123 --file /tmp/foo\\ bar.png")))
 
+(ert-deftest hub/confluence-publish-from-export-dispatch-passes-options ()
+  "Publish from Org export dispatch with the dispatcher subtree flag."
+  (let ((received nil))
+    (cl-letf (((symbol-function 'hub/confluence-publish)
+	       (lambda (&rest args)
+		 (setq received args))))
+      (hub/confluence-publish-from-export-dispatch nil t nil t)
+      (should (equal received '(nil t nil t nil))))))
+
+(ert-deftest hub/confluence-publish-uses-subtree-page-id-and-export ()
+  "Publish a subtree selected through Org export dispatch."
+  (hub/confluence-api-test--with-org-buffer
+   "* Page\n:PROPERTIES:\n:CONFLUENCE_PAGE_ID: 456\n:END:\nBody"
+   (lambda ()
+     (let ((commands nil)
+	   (xhtml-file (make-temp-file "org-confluence-test-" nil ".xhtml")))
+       (unwind-protect
+	   (progn
+	     (org-back-to-heading)
+	     (cl-letf (((symbol-function 'org-confluence-export)
+			(lambda (_async subtreep visible-only body-only ext-plist)
+			  (should subtreep)
+			  (should-not visible-only)
+			  (should body-only)
+			  (should (plist-member ext-plist :confluence-image-filenames))
+			  "<p>subtree</p>"))
+		       ((symbol-function 'org-confluence-image-assets) (lambda (&rest _) nil))
+		       ((symbol-function 'hub/confluence-commands--write-temp-xhtml) (lambda (_xhtml) xhtml-file))
+		       ((symbol-function 'hub/confluence-commands--run) (lambda (command) (push command commands) 0)))
+	       (hub/confluence-publish nil t nil t nil)
+	       (should (equal commands (list (format "cfl page edit 456 --file %s --storage" xhtml-file))))))
+	 (when (file-exists-p xhtml-file)
+	   (delete-file xhtml-file)))))))
+
 (ert-deftest hub/confluence-publish-uploads-images-before-page-edit ()
   "Upload all referenced images before editing the Confluence page."
   (hub/confluence-api-test--with-org-buffer
@@ -87,7 +129,7 @@
 	     (with-temp-file source-file (insert "png"))
 	     (cl-letf (((symbol-function 'org-confluence-export) (lambda (&rest _) "<p>x</p>"))
 		       ((symbol-function 'org-confluence-image-assets)
-			(lambda ()
+			(lambda (&rest _)
 			  (list (list :path source-file
 				      :source-path source-file
 				      :source-link "./foo.png"
@@ -140,7 +182,7 @@
 	     (with-temp-file source-file (insert "png"))
 	     (cl-letf (((symbol-function 'org-confluence-export) (lambda (&rest _) "<p>x</p>"))
 		       ((symbol-function 'org-confluence-image-assets)
-			(lambda ()
+			(lambda (&rest _)
 			  (list (list :path source-file
 				      :source-path source-file
 				      :source-link "./foo.png"
@@ -178,7 +220,7 @@
 	     (with-temp-file source-file (insert "png"))
 	     (cl-letf (((symbol-function 'org-confluence-export) (lambda (&rest _) "<p>x</p>"))
 		       ((symbol-function 'org-confluence-image-assets)
-			(lambda ()
+			(lambda (&rest _)
 			  (list (list :path source-file
 				      :source-path source-file
 				      :source-link "./foo.png"

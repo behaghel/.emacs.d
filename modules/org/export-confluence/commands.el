@@ -86,28 +86,39 @@
 	    (hub/confluence-commands--upload-asset page-id asset upload-directory))
 	(delete-directory upload-directory t)))))
 
-(defun hub/confluence-publish ()
-  "Publish the current Org buffer to an existing Confluence page.
+(defun hub/confluence-publish (&optional async subtreep visible-only body-only ext-plist)
+  "Publish the current Org buffer or subtree to an existing Confluence page.
 
-The buffer must contain #+CONFLUENCE_PAGE_ID.  The Org document is exported to
-Confluence Storage Format XHTML and passed to `cfl page edit --file --storage'."
+The document must contain #+CONFLUENCE_PAGE_ID.  When SUBTREEP is non-nil, a
+CONFLUENCE_PAGE_ID Org property on the current subtree takes precedence.  The
+Org document is exported to Confluence Storage Format XHTML and passed to `cfl
+page edit --file --storage'.  ASYNC, SUBTREEP, VISIBLE-ONLY, BODY-ONLY, and
+EXT-PLIST follow Org export conventions."
   (interactive)
-  (let* ((page-id (hub/confluence-api--page-id-from-buffer))
-	 (assets (org-confluence-image-assets))
+  (ignore async)
+  (let* ((page-id (hub/confluence-api--page-id-from-buffer subtreep))
+	 (assets (org-confluence-image-assets subtreep))
 	 (xhtml-file nil))
     (unwind-protect
 	(progn
 	  (setq xhtml-file
 		(hub/confluence-commands--write-temp-xhtml
-		 (org-confluence-export nil nil nil nil
-					(list :confluence-image-filenames
-					      (hub/confluence-commands--asset-filename-map assets)))))
+		 (org-confluence-export nil subtreep visible-only body-only
+					(append (list :confluence-image-filenames
+						      (hub/confluence-commands--asset-filename-map assets))
+						ext-plist))))
 	  (hub/confluence-commands--upload-assets page-id assets)
 	  (hub/confluence-commands--run
 	   (hub/confluence-api--page-update-command page-id xhtml-file))
 	  (message "Published Org buffer to Confluence page %s" page-id))
       (when (and xhtml-file (file-exists-p xhtml-file))
 	(delete-file xhtml-file)))))
+
+(defun hub/confluence-publish-from-export-dispatch
+    (&optional async subtreep visible-only body-only ext-plist)
+  "Publish through `org-export-dispatch' using Org export options."
+  (interactive)
+  (hub/confluence-publish async subtreep visible-only body-only ext-plist))
 
 (defun hub/confluence-publish-dwim (&optional title parent-id)
   "Publish current Org buffer to Confluence, updating or creating as needed.

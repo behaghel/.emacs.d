@@ -166,8 +166,13 @@ Without a caption, omit `ac:alt` and the caption paragraph.
 - Definition lists (`- Term :: Definition`) export as Confluence-safe unordered lists with bold inline term labels.
 - Publish diagnostics distinguish expected attachment reuse from blocking command failures.
 
+**Iteration 4b Org export dispatch additions:**
+- The Confluence backend appears in the normal Org export dispatcher (`C-c C-e C`).
+- Dispatcher actions support publishing/updating, exporting to a temporary XHTML buffer, and exporting to a `.xhtml` file.
+- Subtree publishing uses normal Org subtree export semantics and can read `CONFLUENCE_PAGE_ID` from the subtree property drawer.
+- Subtree publishing only uploads image assets referenced by the selected subtree.
+
 **Future additions:**
-- Subtree export through the normal Org export dispatch experience (`C-c C-e`).
 - Confluence → Org import (`hub/confluence-pull`): fetch page content via `cfl page view` and convert from XHTML to Org.
 - Better error handling: auth failures, missing page ID, and richer `cfl` failure categorization.
 

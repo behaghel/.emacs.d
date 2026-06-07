@@ -155,15 +155,22 @@ storage-format images."
 	(push filename seen))))
   assets)
 
-(defun org-confluence-image-assets ()
+(defun org-confluence-image-assets (&optional subtreep)
   "Return local image assets referenced by the current Org buffer.
-Each asset is a plist with `:path' as an absolute source file and `:filename'
-as the Confluence attachment basename."
+
+When SUBTREEP is non-nil, inspect only the current Org subtree.  Each asset is
+a plist with `:path' as an absolute source file and `:filename' as the
+Confluence attachment basename."
   (org-confluence--validate-image-assets
-   (org-element-map (org-element-parse-buffer) 'paragraph
-		    (lambda (paragraph)
-		      (when-let* ((link (org-confluence--standalone-image-link paragraph)))
-			(org-confluence--image-asset link))))))
+   (save-restriction
+     (when subtreep
+       (unless (org-at-heading-p)
+	 (org-back-to-heading))
+       (org-narrow-to-subtree))
+     (org-element-map (org-element-parse-buffer) 'paragraph
+		      (lambda (paragraph)
+			(when-let* ((link (org-confluence--standalone-image-link paragraph)))
+			  (org-confluence--image-asset link)))))))
 
 (defun org-confluence--compact-list-contents (contents)
   "Return CONTENTS formatted for inclusion in an XHTML list item."
@@ -351,7 +358,12 @@ output whenever an item's bullet type changes so Confluence receives separate
 			     (strike-through . org-confluence--strike-through)
 			     (table . org-confluence--table)
 			     (template . org-confluence--template)
-			     (underline . org-confluence--underline)))
+			     (underline . org-confluence--underline))
+			   :menu-entry
+			   '(?C "Export to Confluence"
+				((?C "Publish/update page" hub/confluence-publish-from-export-dispatch)
+				 (?X "To temporary XHTML buffer" org-confluence-export-as-xhtml)
+				 (?x "To XHTML file" org-confluence-export-to-xhtml))))
 
 (defun org-confluence-export (&optional async subtreep visible-only body-only ext-plist)
   "Export current Org buffer to Confluence Storage Format XHTML.
@@ -362,6 +374,25 @@ ASYNC, SUBTREEP, VISIBLE-ONLY, BODY-ONLY, and EXT-PLIST are passed through to
    "\n\\{2,\\}" "\n"
    (org-confluence--trim
     (org-export-as 'confluence subtreep visible-only (or body-only t) ext-plist))))
+
+(defun org-confluence-export-as-xhtml (&optional async subtreep visible-only body-only ext-plist)
+  "Export current Org buffer or subtree to a temporary Confluence XHTML buffer.
+
+ASYNC, SUBTREEP, VISIBLE-ONLY, BODY-ONLY, and EXT-PLIST follow Org export
+conventions, so this command works from `org-export-dispatch'."
+  (interactive)
+  (org-export-to-buffer 'confluence "*Org Confluence Export*"
+			async subtreep visible-only (or body-only t) ext-plist
+			(lambda () (text-mode))))
+
+(defun org-confluence-export-to-xhtml (&optional async subtreep visible-only body-only ext-plist)
+  "Export current Org buffer or subtree to a Confluence .xhtml file.
+
+ASYNC, SUBTREEP, VISIBLE-ONLY, BODY-ONLY, and EXT-PLIST follow Org export
+conventions, so this command works from `org-export-dispatch'."
+  (interactive)
+  (let ((file (org-export-output-file-name ".xhtml" subtreep)))
+    (org-export-to-file 'confluence file async subtreep visible-only (or body-only t) ext-plist)))
 
 (provide 'org/export-confluence)
 ;;; export.el ends here

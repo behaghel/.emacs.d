@@ -50,6 +50,18 @@ This step requires a second pair of eyes.
 
 Confluence exports `:type` to the corresponding panel macro and `:title` to the panel title. XeLaTeX exports `:title` to the callout environment title.
 
+## Confluence export
+
+Use the normal Org export dispatcher with `C-c C-e C`:
+
+| Key | Action |
+|-----|--------|
+| `C` | Publish/update the current buffer or selected subtree |
+| `X` | Export to a temporary Confluence XHTML buffer |
+| `x` | Export to a `.xhtml` file |
+
+For whole-buffer updates, set `#+CONFLUENCE_PAGE_ID:`. For subtree updates, put `CONFLUENCE_PAGE_ID` in the subtree property drawer and use Org's subtree export option from the dispatcher.
+
 ### Standfirst
 
 Use for the opening paragraph of an article — rendered at `\large` (upright):
