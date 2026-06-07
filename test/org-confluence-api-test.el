@@ -127,6 +127,18 @@
 		  "<h1>Title</h1><p>Hello <strong>world</strong> and <a href=\"https://example.com\">link</a>.</p><ul><li>One</li><li>Two</li></ul>")
 		 "* Title\nHello *world* and [[https://example.com][link]].\n- One\n- Two")))
 
+(ert-deftest hub/confluence-import-storage-to-org-nested-lists ()
+  "Convert nested Confluence storage lists to nested Org lists."
+  (should (equal (hub/confluence-import-storage-to-org
+		  "<ul><li>Parent<ul><li>Child</li></ul></li><li>Second</li></ul>")
+		 "- Parent\n  - Child\n- Second")))
+
+(ert-deftest hub/confluence-import-storage-to-org-nested-ordered-lists ()
+  "Convert nested ordered storage lists to nested Org lists."
+  (should (equal (hub/confluence-import-storage-to-org
+		  "<ol><li><p>Parent</p><ol><li><p>Child</p></li></ol></li><li><p>Second</p></li></ol>")
+		 "1. Parent\n  1. Child\n2. Second")))
+
 (ert-deftest hub/confluence-pull-opens-import-buffer ()
   "Fetch raw storage XHTML and open a converted Org buffer."
   (let ((opened nil))

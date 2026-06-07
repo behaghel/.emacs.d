@@ -127,6 +127,48 @@
 			   blocks)
 	       "\n"))
 
+(defun hub/confluence-import--list-child-p (node)
+  "Return non-nil when NODE is a list element."
+  (memq (hub/confluence-import--node-tag node) '(ul ol)))
+
+(defun hub/confluence-import--list-item-text (item)
+  "Return ITEM direct inline text, excluding nested lists."
+  (string-trim
+   (mapconcat #'hub/confluence-import--inline
+	      (seq-remove #'hub/confluence-import--list-child-p
+			  (hub/confluence-import--node-children item))
+	      "")))
+
+(defun hub/confluence-import--indent-lines (text spaces)
+  "Indent every line in TEXT by SPACES spaces."
+  (let ((prefix (make-string spaces ?\s)))
+    (string-join
+     (mapcar (lambda (line) (concat prefix line))
+	     (split-string text "\n"))
+     "\n")))
+
+(defun hub/confluence-import--list (list-node &optional level)
+  "Convert LIST-NODE to an Org list at nesting LEVEL."
+  (let ((index 0)
+	(level (or level 0))
+	(ordered (eq (hub/confluence-import--node-tag list-node) 'ol)))
+    (hub/confluence-import--join-blocks
+     (mapcar
+      (lambda (child)
+	(when (eq (hub/confluence-import--node-tag child) 'li)
+	  (when ordered (setq index (1+ index)))
+	  (let* ((marker (if ordered (format "%d." index) "-"))
+		 (line (format "%s%s %s" (make-string (* 2 level) ?\s)
+			       marker
+			       (hub/confluence-import--list-item-text child)))
+		 (nested (hub/confluence-import--join-blocks
+			  (mapcar (lambda (nested-list)
+				    (when (hub/confluence-import--list-child-p nested-list)
+				      (hub/confluence-import--list nested-list (1+ level))))
+				  (hub/confluence-import--node-children child)))))
+	    (hub/confluence-import--join-blocks (list line nested)))))
+      (hub/confluence-import--node-children list-node)))))
+
 (defun hub/confluence-import--block (node)
   "Convert XHTML NODE to Org block text."
   (pcase (hub/confluence-import--node-tag node)
@@ -139,18 +181,7 @@
     ('h3 (format "*** %s" (hub/confluence-import--inline node)))
     ('h4 (format "**** %s" (hub/confluence-import--inline node)))
     ('p (hub/confluence-import--inline node))
-    ('ul (hub/confluence-import--join-blocks
-	  (mapcar (lambda (child)
-		    (when (eq (hub/confluence-import--node-tag child) 'li)
-		      (format "- %s" (hub/confluence-import--inline child))))
-		  (hub/confluence-import--node-children node))))
-    ('ol (let ((index 0))
-	   (hub/confluence-import--join-blocks
-	    (mapcar (lambda (child)
-		      (when (eq (hub/confluence-import--node-tag child) 'li)
-			(setq index (1+ index))
-			(format "%d. %s" index (hub/confluence-import--inline child))))
-		    (hub/confluence-import--node-children node)))))
+    ((or 'ul 'ol) (hub/confluence-import--list node))
     (_ (hub/confluence-import--inline node))))
 
 (defun hub/confluence-import-storage-to-org (xhtml)
