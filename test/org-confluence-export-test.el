@@ -301,6 +301,21 @@
 			    (list (hub/org-confluence-test--image-asset image-file "./foo.png")))))))
       (delete-directory root t))))
 
+(ert-deftest hub/org-confluence-export-definition-list ()
+  "Export an Org descriptive list as a Confluence-safe unordered list."
+  (should (equal (hub/org-confluence-test--export "- Term :: Definition")
+		 "<ul><li><strong>Term:</strong> Definition</li></ul>")))
+
+(ert-deftest hub/org-confluence-export-definition-list-multi ()
+  "Export multiple descriptive list items as a Confluence-safe unordered list."
+  (should (equal (hub/org-confluence-test--export "- First :: One\n- Second :: Two")
+		 "<ul><li><strong>First:</strong> One</li><li><strong>Second:</strong> Two</li></ul>")))
+
+(ert-deftest hub/org-confluence-export-footnote ()
+  "Export footnotes as clickable Confluence anchor links."
+  (should (equal (hub/org-confluence-test--export "Text[fn:1]\n\n[fn:1] Note body.")
+		 "<p>Text<ac:structured-macro ac:name=\"anchor\" ac:schema-version=\"1\"><ac:default-parameter>fnref-1</ac:default-parameter></ac:structured-macro><sup><ac:link ac:anchor=\"fn-1\"><ac:plain-text-link-body><![CDATA[1]]></ac:plain-text-link-body></ac:link></sup></p>\n<p><ac:structured-macro ac:name=\"anchor\" ac:schema-version=\"1\"><ac:default-parameter>fn-1</ac:default-parameter></ac:structured-macro><strong>1.</strong> Note body. <ac:link ac:anchor=\"fnref-1\"><ac:plain-text-link-body><![CDATA[↩]]></ac:plain-text-link-body></ac:link></p>")))
+
 (ert-deftest hub/org-confluence-export-callout-default ()
   "Export a callout block as a Confluence info panel macro."
   (should (equal (hub/org-confluence-test--export "#+begin_callout\nHeads up\n#+end_callout")

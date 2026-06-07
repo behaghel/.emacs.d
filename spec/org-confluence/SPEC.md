@@ -161,12 +161,15 @@ Without a caption, omit `ac:alt` and the caption paragraph.
 
 ### Iteration 4 — Polish & Pull
 
-**Additions:**
-- Subtree export (publish a single heading as its own Confluence page, linked from the parent)
-- Confluence → Org import (`hub/confluence-pull`): fetch page content via `cfl page view` and convert from XHTML to Org
-- Footnote handling in Confluence Storage Format
-- Definition lists (tagged Org items) → Confluence definition list macro
-- Better error handling: `cfl` non-zero exit, auth failures, missing page ID
+**Iteration 4a export polish additions:**
+- Footnote references (`[fn:1]`) export as superscript Confluence anchor links; definitions include Confluence anchor macros as targets and a clickable `↩` backlink.
+- Definition lists (`- Term :: Definition`) export as Confluence-safe unordered lists with bold inline term labels.
+- Publish diagnostics distinguish expected attachment reuse from blocking command failures.
+
+**Future additions:**
+- Subtree export through the normal Org export dispatch experience (`C-c C-e`).
+- Confluence → Org import (`hub/confluence-pull`): fetch page content via `cfl page view` and convert from XHTML to Org.
+- Better error handling: auth failures, missing page ID, and richer `cfl` failure categorization.
 
 ## File Headers & Naming
 

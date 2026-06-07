@@ -9,7 +9,9 @@ Approved vertical-slice execution order for implementing the Confluence export/p
 | **1** | Publish backbone (happy path) | Org → XHTML export (headings, paragraphs, bold, italic, links, lists) + `cfl` page update/create wrappers + `hub/confluence-publish` command |
 | **2** | Rich content | Tables, blockquotes, callouts, code blocks, strikethrough, underline |
 | **3** | Images | Upload + inline attachment references |
-| **4** | Polish & pull | Subtree export, Confluence → Org import, error handling |
+| **4a** | Export polish | Definition lists, footnotes, clearer diagnostics |
+| **4b** | Org export dispatch | Subtree/export UX through normal `C-c C-e` flow |
+| **4c** | Pull/import | Confluence → Org import and conversion |
 
 ## File Structure
 
@@ -177,7 +179,9 @@ All new files are under these directories, which are on `load-path` unconditiona
 | 1e — Publish command | Complete |
 | 2 — Rich content | Complete |
 | 3 — Images | Implemented; manual verification pending |
-| 4 — Polish & pull | Not started |
+| 4a — Export polish | Complete |
+| 4b — Org export dispatch | Not started |
+| 4c — Pull/import | Not started |
 
 ## Running Tests
 

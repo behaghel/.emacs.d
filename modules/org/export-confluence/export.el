@@ -186,28 +186,67 @@ as the Confluence attachment basename."
 	"ol"
       "ul")))
 
+(defun org-confluence--definition-list (plain-list info)
+  "Transcode descriptive PLAIN-LIST to a Confluence-safe list using INFO."
+  (format "<ul>%s</ul>"
+	  (mapconcat
+	   (lambda (item)
+	     (let ((term (org-confluence--trim
+			  (org-export-data (org-element-property :tag item) info)))
+		   (definition (org-confluence--compact-list-contents
+				(org-export-data (org-element-contents item) info))))
+	       (format "<li><strong>%s:</strong> %s</li>" term definition)))
+	   (seq-filter (lambda (element) (eq (org-element-type element) 'item))
+		       (org-element-contents plain-list))
+	   "")))
+
 (defun org-confluence--plain-list (plain-list _contents info)
   "Transcode PLAIN-LIST to XHTML using INFO.
 
 Org can group adjacent unordered and ordered items into one `plain-list'.  Split
 output whenever an item's bullet type changes so Confluence receives separate
 `ul' and `ol' elements."
-  (let ((list-type (org-element-property :type plain-list))
-	(current-tag nil)
-	(result nil))
-    (dolist (item (seq-filter (lambda (element) (eq (org-element-type element) 'item))
-			      (org-element-contents plain-list)))
-      (let ((tag (org-confluence--item-list-tag item list-type))
-	    (item-xhtml (replace-regexp-in-string
-			 ">[[:space:]\n]+<" "><"
-			 (org-export-data item info))))
-	(unless (equal tag current-tag)
-	  (when current-tag (push (format "</%s>" current-tag) result))
-	  (push (format "<%s>" tag) result)
-	  (setq current-tag tag))
-	(push item-xhtml result)))
-    (when current-tag (push (format "</%s>" current-tag) result))
-    (replace-regexp-in-string ">[[:space:]\n]+<" "><" (apply #'concat (nreverse result)))))
+  (if (eq (org-element-property :type plain-list) 'descriptive)
+      (org-confluence--definition-list plain-list info)
+    (let ((list-type (org-element-property :type plain-list))
+	  (current-tag nil)
+	  (result nil))
+      (dolist (item (seq-filter (lambda (element) (eq (org-element-type element) 'item))
+				(org-element-contents plain-list)))
+	(let ((tag (org-confluence--item-list-tag item list-type))
+	      (item-xhtml (replace-regexp-in-string
+			   ">[[:space:]\n]+<" "><"
+			   (org-export-data item info))))
+	  (unless (equal tag current-tag)
+	    (when current-tag (push (format "</%s>" current-tag) result))
+	    (push (format "<%s>" tag) result)
+	    (setq current-tag tag))
+	  (push item-xhtml result)))
+      (when current-tag (push (format "</%s>" current-tag) result))
+      (replace-regexp-in-string ">[[:space:]\n]+<" "><" (apply #'concat (nreverse result))))))
+
+(defun org-confluence--footnote-reference (footnote-reference _contents _info)
+  "Transcode FOOTNOTE-REFERENCE to a Confluence anchor link."
+  (let ((label (org-element-property :label footnote-reference)))
+    (concat
+     (format "<ac:structured-macro ac:name=\"anchor\" ac:schema-version=\"1\"><ac:default-parameter>fnref-%s</ac:default-parameter></ac:structured-macro>"
+	     (xml-escape-string label))
+     (format "<sup><ac:link ac:anchor=\"fn-%s\"><ac:plain-text-link-body><![CDATA[%s]]></ac:plain-text-link-body></ac:link></sup>"
+	     (xml-escape-string label)
+	     (org-confluence--cdata label)))))
+
+(defun org-confluence--footnote-definition (footnote-definition contents _info)
+  "Transcode FOOTNOTE-DEFINITION with CONTENTS to Confluence-safe XHTML."
+  (let* ((label (org-element-property :label footnote-definition))
+	 (anchor (format "<ac:structured-macro ac:name=\"anchor\" ac:schema-version=\"1\"><ac:default-parameter>fn-%s</ac:default-parameter></ac:structured-macro>"
+			 (xml-escape-string label)))
+	 (marker (format "<strong>%s.</strong> " (xml-escape-string label)))
+	 (backlink (format " <ac:link ac:anchor=\"fnref-%s\"><ac:plain-text-link-body><![CDATA[↩]]></ac:plain-text-link-body></ac:link>"
+			   (xml-escape-string label)))
+	 (body (org-confluence--trim contents)))
+    (if (string-match "\\`<p>\\(.*\\)</p>\\'" body)
+	(format "<p>%s%s%s%s</p>" anchor marker (match-string 1 body) backlink)
+      (format "<p>%s%s%s%s</p>" anchor marker body backlink))))
 
 (defun org-confluence--horizontal-rule (_horizontal-rule _contents _info)
   "Transcode a horizontal rule to XHTML."
@@ -290,11 +329,13 @@ output whenever an item's bullet type changes so Confluence receives separate
 
 (defun org-confluence--template (contents _info)
   "Return exported document CONTENTS without a wrapper template."
-  (org-confluence--trim contents))
+  (replace-regexp-in-string "\n\\{2,\\}" "\n" (org-confluence--trim contents)))
 
 (org-export-define-backend 'confluence
 			   '((bold . org-confluence--bold)
 			     (code . org-confluence--code)
+			     (footnote-definition . org-confluence--footnote-definition)
+			     (footnote-reference . org-confluence--footnote-reference)
 			     (headline . org-confluence--headline)
 			     (horizontal-rule . org-confluence--horizontal-rule)
 			     (italic . org-confluence--italic)
@@ -317,8 +358,10 @@ output whenever an item's bullet type changes so Confluence receives separate
 
 ASYNC, SUBTREEP, VISIBLE-ONLY, BODY-ONLY, and EXT-PLIST are passed through to
 `org-export-as'.  The default is body-only output suitable for `cfl --storage'."
-  (org-confluence--trim
-   (org-export-as 'confluence subtreep visible-only (or body-only t) ext-plist)))
+  (replace-regexp-in-string
+   "\n\\{2,\\}" "\n"
+   (org-confluence--trim
+    (org-export-as 'confluence subtreep visible-only (or body-only t) ext-plist))))
 
 (provide 'org/export-confluence)
 ;;; export.el ends here
