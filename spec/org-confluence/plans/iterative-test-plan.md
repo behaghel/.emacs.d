@@ -182,6 +182,13 @@ All new files are under these directories, which are on `load-path` unconditiona
 - **Red signal:** backend existed only as direct functions and custom publish commands, without normal `C-c C-e` integration.
 - **Green target:** users can access Confluence export via `C-c C-e C`, including subtree export/publish with subtree `CONFLUENCE_PAGE_ID` properties.
 
+### 4c — Pull/import
+
+- **Test file:** `test/org-confluence-api-test.el`
+- **Tests written first:** raw storage view command construction, basic storage XHTML to Org conversion, and `hub/confluence-pull` opening an imported Org buffer.
+- **Red signal:** no pull command or storage-to-Org conversion path.
+- **Green target:** users can fetch an existing Confluence page into a new Org buffer for review/editing.
+
 ## Executed Status
 
 | Iteration | Status |
@@ -195,7 +202,7 @@ All new files are under these directories, which are on `load-path` unconditiona
 | 3 — Images | Implemented; manual verification pending |
 | 4a — Export polish | Complete |
 | 4b — Org export dispatch | Implemented; manual verification pending |
-| 4c — Pull/import | Not started |
+| 4c — Pull/import | Implemented; manual verification pending |
 
 ## Running Tests
 

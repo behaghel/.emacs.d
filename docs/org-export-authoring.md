@@ -64,6 +64,8 @@ Use the normal Org export dispatcher with `C-c C-e C`:
 
 For whole-buffer updates, set `#+CONFLUENCE_PAGE_ID:`. For subtree updates, put `CONFLUENCE_PAGE_ID` in the subtree property drawer and use Org's subtree export option from the dispatcher.
 
+Use `M-x hub/confluence-pull` to fetch a Confluence page by ID into a new Org buffer. Pull currently performs a conservative import of common storage XHTML: headings, paragraphs, inline emphasis/code/links, and simple ordered/unordered lists.
+
 ### Standfirst
 
 Use for the opening paragraph of an article — rendered at `\large` (upright):

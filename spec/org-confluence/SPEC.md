@@ -172,8 +172,13 @@ Without a caption, omit `ac:alt` and the caption paragraph.
 - Subtree publishing uses normal Org subtree export semantics and can read `CONFLUENCE_PAGE_ID` from the subtree property drawer.
 - Subtree publishing only uploads image assets referenced by the selected subtree.
 
+**Iteration 4c pull/import additions:**
+- `hub/confluence-pull` fetches a page with `cfl page view <id> --raw --content-only` and opens the converted content in a new Org buffer.
+- Import starts conservatively with common storage XHTML: headings, paragraphs, inline emphasis/code/links, and simple ordered/unordered lists.
+- Pull defaults to the current buffer's `#+CONFLUENCE_PAGE_ID` when present and otherwise prompts for a page ID.
+
 **Future additions:**
-- Confluence → Org import (`hub/confluence-pull`): fetch page content via `cfl page view` and convert from XHTML to Org.
+- Richer Confluence → Org conversion for tables, macros, images, footnotes, and nested lists.
 - Better error handling: auth failures, missing page ID, and richer `cfl` failure categorization.
 
 ## File Headers & Naming

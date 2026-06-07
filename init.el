@@ -77,6 +77,7 @@
 (autoload 'hub/confluence-publish "commands" nil t)
 (autoload 'hub/confluence-publish-dwim "commands" nil t)
 (autoload 'hub/confluence-publish-from-export-dispatch "commands" nil t)
+(autoload 'hub/confluence-pull "commands" nil t)
 (with-eval-after-load 'ox
   (load (expand-file-name "modules/org/export-confluence/export.el" user-emacs-directory)
 	nil 'nomessage))

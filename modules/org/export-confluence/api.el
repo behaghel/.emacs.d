@@ -49,6 +49,12 @@
 	     (hub/confluence-api--file-flag file-path)
 	     (list "--storage")))))
 
+(defun hub/confluence-api--page-view-storage-command (page-id)
+  "Build a cfl command to view PAGE-ID as raw storage XHTML."
+  (let ((id (hub/confluence-api--require-string page-id "page ID")))
+    (hub/confluence-api--shell-join
+     (list hub/confluence-api-cfl-command "page" "view" id "--raw" "--content-only"))))
+
 (defun hub/confluence-api--attachment-upload-command (page-id file-path)
   "Build a cfl command to upload FILE-PATH as an attachment to PAGE-ID."
   (let ((id (hub/confluence-api--require-string page-id "page ID"))

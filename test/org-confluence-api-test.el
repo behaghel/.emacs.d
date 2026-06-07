@@ -64,6 +64,11 @@
   (should (equal (hub/confluence-api--page-update-command "123" "/tmp/page.xhtml")
 		 "cfl page edit 123 --file /tmp/page.xhtml --storage")))
 
+(ert-deftest hub/confluence-api--page-view-storage-command ()
+  "Build a cfl page view command that returns raw storage XHTML only."
+  (should (equal (hub/confluence-api--page-view-storage-command "123")
+		 "cfl page view 123 --raw --content-only")))
+
 (ert-deftest hub/confluence-api--page-create-command-with-parent ()
   "Build a cfl page create command with a parent page ID."
   (should (equal (hub/confluence-api--page-create-command "ENG" "Roadmap" nil "456")
@@ -115,6 +120,31 @@
 	       (should (equal commands (list (format "cfl page edit 456 --file %s --storage" xhtml-file))))))
 	 (when (file-exists-p xhtml-file)
 	   (delete-file xhtml-file)))))))
+
+(ert-deftest hub/confluence-import-storage-to-org-basic ()
+  "Convert basic Confluence storage XHTML to Org text."
+  (should (equal (hub/confluence-import-storage-to-org
+		  "<h1>Title</h1><p>Hello <strong>world</strong> and <a href=\"https://example.com\">link</a>.</p><ul><li>One</li><li>Two</li></ul>")
+		 "* Title\nHello *world* and [[https://example.com][link]].\n- One\n- Two")))
+
+(ert-deftest hub/confluence-pull-opens-import-buffer ()
+  "Fetch raw storage XHTML and open a converted Org buffer."
+  (let ((opened nil))
+    (cl-letf (((symbol-function 'hub/confluence-commands--run-output)
+	       (lambda (command)
+		 (should (equal command "cfl page view 123 --raw --content-only"))
+		 "<h1>Title</h1><p>Body</p>"))
+	      ((symbol-function 'pop-to-buffer)
+	       (lambda (buffer &rest _)
+		 (setq opened buffer))))
+      (hub/confluence-pull "123")
+      (unwind-protect
+	  (with-current-buffer opened
+	    (should (derived-mode-p 'org-mode))
+	    (should (equal (buffer-string)
+			   "#+CONFLUENCE_PAGE_ID: 123\n\n* Title\nBody\n")))
+	(when (buffer-live-p opened)
+	  (kill-buffer opened))))))
 
 (ert-deftest hub/confluence-publish-uploads-images-before-page-edit ()
   "Upload all referenced images before editing the Confluence page."

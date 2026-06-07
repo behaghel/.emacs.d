@@ -6,7 +6,9 @@
 ;;; Code:
 
 (require 'org)
+(require 'seq)
 (require 'subr-x)
+(require 'xml)
 
 (let ((dir (file-name-directory (or load-file-name buffer-file-name))))
   (unless (featurep 'org/export-confluence)
@@ -21,6 +23,18 @@
       (insert xhtml))
     file))
 
+(defun hub/confluence-commands--run-process (command output-buffer)
+  "Run shell COMMAND into OUTPUT-BUFFER and return its exit code."
+  (with-current-buffer (get-buffer-create output-buffer)
+    (erase-buffer)
+    (process-file shell-file-name nil output-buffer nil shell-command-switch command)))
+
+(defun hub/confluence-commands--command-output (output-buffer)
+  "Return trimmed contents of OUTPUT-BUFFER."
+  (when-let* ((buffer (get-buffer output-buffer)))
+    (with-current-buffer buffer
+      (string-trim (buffer-string)))))
+
 (defun hub/confluence-commands--run (command)
   "Run shell COMMAND and signal `user-error' on failure."
   (unless (hub/confluence-api--cfl-available-p)
@@ -29,19 +43,27 @@
 		(getenv "PATH")))
   (let* ((output-buffer "*hub-confluence-cfl*")
 	 (default-directory user-emacs-directory)
-	 (exit-code nil))
-    (with-current-buffer (get-buffer-create output-buffer)
-      (erase-buffer)
-      (setq exit-code
-	    (process-file shell-file-name nil output-buffer nil
-			  shell-command-switch command)))
+	 (exit-code (hub/confluence-commands--run-process command output-buffer)))
     (unless (zerop exit-code)
-      (let ((output (when-let* ((buffer (get-buffer output-buffer)))
-		      (with-current-buffer buffer
-			(string-trim (buffer-string))))))
+      (let ((output (hub/confluence-commands--command-output output-buffer)))
 	(user-error "Confluence publish failed with exit code %s.\nCommand: %s\nOutput: %s"
 		    exit-code command (if (string-empty-p (or output "")) "<empty>" output))))
     exit-code))
+
+(defun hub/confluence-commands--run-output (command)
+  "Run shell COMMAND and return its trimmed output."
+  (unless (hub/confluence-api--cfl-available-p)
+    (user-error "Cannot find `%s' on Emacs PATH. Current PATH: %s"
+		hub/confluence-api-cfl-command
+		(getenv "PATH")))
+  (let* ((output-buffer "*hub-confluence-cfl*")
+	 (default-directory user-emacs-directory)
+	 (exit-code (hub/confluence-commands--run-process command output-buffer))
+	 (output (hub/confluence-commands--command-output output-buffer)))
+    (unless (zerop exit-code)
+      (user-error "Confluence command failed with exit code %s.\nCommand: %s\nOutput: %s"
+		  exit-code command (if (string-empty-p (or output "")) "<empty>" output)))
+    output))
 
 (defun hub/confluence-commands--title-from-buffer ()
   "Return the Org #+TITLE value from the current buffer, or nil."
@@ -63,6 +85,80 @@
   "Return non-nil when ERROR is cfl's duplicate attachment failure."
   (string-match-p "Cannot add a new attachment with same file name as an existing attachment"
 		  (error-message-string error)))
+
+(defun hub/confluence-import--node-tag (node)
+  "Return NODE tag, or nil for text nodes."
+  (when (consp node) (car node)))
+
+(defun hub/confluence-import--node-attributes (node)
+  "Return NODE attributes."
+  (when (consp node) (cadr node)))
+
+(defun hub/confluence-import--node-children (node)
+  "Return NODE children."
+  (when (consp node) (cddr node)))
+
+(defun hub/confluence-import--attribute (node attribute)
+  "Return NODE ATTRIBUTE value."
+  (cdr (assq attribute (hub/confluence-import--node-attributes node))))
+
+(defun hub/confluence-import--inline (node)
+  "Convert XHTML NODE to inline Org text."
+  (cond
+   ((stringp node) node)
+   ((not (consp node)) "")
+   (t
+    (let ((contents (mapconcat #'hub/confluence-import--inline
+			       (hub/confluence-import--node-children node) "")))
+      (pcase (hub/confluence-import--node-tag node)
+	((or 'strong 'b) (format "*%s*" contents))
+	((or 'em 'i) (format "/%s/" contents))
+	('u (format "_%s_" contents))
+	('strike (format "+%s+" contents))
+	('code (format "~%s~" contents))
+	('a (let ((href (hub/confluence-import--attribute node 'href)))
+	      (if href (format "[[%s][%s]]" href contents) contents)))
+	(_ contents))))))
+
+(defun hub/confluence-import--join-blocks (blocks)
+  "Join non-empty Org BLOCKS with newlines."
+  (string-join (seq-filter (lambda (block)
+			     (not (string-empty-p (string-trim (or block "")))))
+			   blocks)
+	       "\n"))
+
+(defun hub/confluence-import--block (node)
+  "Convert XHTML NODE to Org block text."
+  (pcase (hub/confluence-import--node-tag node)
+    ((or 'html 'body)
+     (hub/confluence-import--join-blocks
+      (mapcar #'hub/confluence-import--block
+	      (hub/confluence-import--node-children node))))
+    ('h1 (format "* %s" (hub/confluence-import--inline node)))
+    ('h2 (format "** %s" (hub/confluence-import--inline node)))
+    ('h3 (format "*** %s" (hub/confluence-import--inline node)))
+    ('h4 (format "**** %s" (hub/confluence-import--inline node)))
+    ('p (hub/confluence-import--inline node))
+    ('ul (hub/confluence-import--join-blocks
+	  (mapcar (lambda (child)
+		    (when (eq (hub/confluence-import--node-tag child) 'li)
+		      (format "- %s" (hub/confluence-import--inline child))))
+		  (hub/confluence-import--node-children node))))
+    ('ol (let ((index 0))
+	   (hub/confluence-import--join-blocks
+	    (mapcar (lambda (child)
+		      (when (eq (hub/confluence-import--node-tag child) 'li)
+			(setq index (1+ index))
+			(format "%d. %s" index (hub/confluence-import--inline child))))
+		    (hub/confluence-import--node-children node)))))
+    (_ (hub/confluence-import--inline node))))
+
+(defun hub/confluence-import-storage-to-org (xhtml)
+  "Convert Confluence storage XHTML string XHTML to Org text."
+  (with-temp-buffer
+    (insert xhtml)
+    (let ((tree (libxml-parse-html-region (point-min) (point-max))))
+      (string-trim (hub/confluence-import--block tree)))))
 
 (defun hub/confluence-commands--upload-asset (page-id asset upload-directory)
   "Upload one image ASSET to Confluence PAGE-ID from UPLOAD-DIRECTORY."
@@ -119,6 +215,26 @@ EXT-PLIST follow Org export conventions."
   "Publish through `org-export-dispatch' using Org export options."
   (interactive)
   (hub/confluence-publish async subtreep visible-only body-only ext-plist))
+
+(defun hub/confluence-pull (&optional page-id)
+  "Fetch Confluence PAGE-ID and open a new Org buffer with imported content.
+
+When PAGE-ID is nil, default to #+CONFLUENCE_PAGE_ID in the current Org buffer
+and prompt if no page ID is available.  The page is fetched as raw Confluence
+storage XHTML using cfl and converted to a conservative Org representation."
+  (interactive)
+  (let* ((id (or page-id
+		 (hub/confluence-api--page-id-from-buffer)
+		 (read-string "Confluence page ID: ")))
+	 (xhtml (hub/confluence-commands--run-output
+		 (hub/confluence-api--page-view-storage-command id)))
+	 (org (hub/confluence-import-storage-to-org xhtml))
+	 (buffer (generate-new-buffer (format "*Confluence %s*" id))))
+    (with-current-buffer buffer
+      (org-mode)
+      (insert (format "#+CONFLUENCE_PAGE_ID: %s\n\n%s\n" id org))
+      (goto-char (point-min)))
+    (pop-to-buffer buffer)))
 
 (defun hub/confluence-publish-dwim (&optional title parent-id)
   "Publish current Org buffer to Confluence, updating or creating as needed.
