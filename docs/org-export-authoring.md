@@ -36,6 +36,8 @@ Type `<` followed by the shortcut, then `TAB` to expand:
 | `<c` | `#+begin_comment` / `#+end_comment` | Comment block |
 | `<C` | `#+begin_center` / `#+end_center` | Centered block |
 | `<gr` | `#+begin_graph` / `#+end_graph` | Graph/metrics block |
+| `<im` | optional `#+CAPTION` + image link | Shared-exporter image link; leave caption empty to remove the caption line |
+| `<fn` | footnote reference + bottom definition | Inline shortcut; works anywhere in text, jumps to the footnote body, then returns after the body is filled |
 
 ### Callout titles
 

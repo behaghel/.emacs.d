@@ -153,6 +153,11 @@ When Yasnippet is available, expand fields in the inserted template."
 	(yas-expand-snippet template)
       (insert template))))
 
+(defun hub/org-yas-ready-p ()
+  "Return non-nil when Yasnippet can expand snippets in this buffer."
+  (and (fboundp 'yas-expand-snippet)
+       (bound-and-true-p yas-minor-mode)))
+
 (defun hub/org-callout-template-snippet ()
   "Return a Yasnippet-compatible semantic callout template."
   (format "#+ATTR_CALLOUT: :type ${1|%s|} :title \"${2:Title}\"\n#+begin_callout\n$0\n#+end_callout"
@@ -160,7 +165,25 @@ When Yasnippet is available, expand fields in the inserted template."
 
 (defun hub/org-image-template-snippet ()
   "Return a Yasnippet-compatible Org image template."
-  "#+CAPTION: ${1:Caption}\n[[${2:./img/image.png}]]")
+  "#+CAPTION: ${1:}\n[[${2:./img/image.png}]]")
+
+(defun hub/org-remove-empty-caption-at (marker)
+  "Remove an empty Org #+CAPTION line at MARKER."
+  (when (marker-buffer marker)
+    (with-current-buffer (marker-buffer marker)
+      (save-excursion
+	(goto-char marker)
+	(when (looking-at "^[ \t]*#\\+CAPTION:[ \t]*$")
+	  (delete-region (line-beginning-position)
+			 (min (point-max) (1+ (line-end-position)))))))))
+
+(defun hub/org-expand-image-snippet (snippet caption-marker)
+  "Expand image SNIPPET and cleanup empty caption at CAPTION-MARKER."
+  (letrec ((cleanup (lambda ()
+		      (remove-hook 'yas-after-exit-snippet-hook cleanup t)
+		      (hub/org-remove-empty-caption-at caption-marker))))
+    (add-hook 'yas-after-exit-snippet-hook cleanup nil t)
+    (yas-expand-snippet snippet)))
 
 (defun hub/org-image-template-path (path)
   "Return image PATH for insertion in the current Org buffer."
@@ -174,10 +197,14 @@ When Yasnippet is available, expand fields in the inserted template."
       expanded)))
 
 (defun hub/org-insert-image-template ()
-  "Insert an Org image template at point."
+  "Insert an Org image template at point.
+
+When Yasnippet is available, an empty caption field is removed after the
+snippet exits.  Skipping the caption with TAB or clearing it therefore leaves
+only the image link."
   (interactive)
-  (if (fboundp 'yas-expand-snippet)
-      (yas-expand-snippet (hub/org-image-template-snippet))
+  (if (hub/org-yas-ready-p)
+      (hub/org-expand-image-snippet (hub/org-image-template-snippet) (point-marker))
     (let ((caption (read-string "Image caption: "))
 	  (path (hub/org-image-template-path (read-file-name "Image file: "))))
       (unless (string-empty-p caption)
@@ -194,7 +221,7 @@ When Yasnippet is available, expand fields in the inserted template."
 (defun hub/org-insert-callout-template ()
   "Insert a semantic Org callout template at point."
   (interactive)
-  (if (fboundp 'yas-expand-snippet)
+  (if (hub/org-yas-ready-p)
       (yas-expand-snippet (hub/org-callout-template-snippet))
     (let* ((type (completing-read "Callout type: " hub/org-callout-types nil t nil nil "info"))
 	   (title (read-string "Callout title: ")))
@@ -209,6 +236,62 @@ When Yasnippet is available, expand fields in the inserted template."
   (when (looking-back "^ *\\(<co\\)" (line-beginning-position))
     (replace-match "" t t nil 1)
     (hub/org-insert-callout-template)
+    t))
+
+(defun hub/org-footnote-definition-point (label)
+  "Create footnote definition for LABEL and return its insertion point."
+  (require 'org-footnote)
+  (let ((definition-start (org-footnote-create-definition label)))
+    (save-excursion
+      (goto-char definition-start)
+      (search-forward (format "[fn:%s] " label) nil t)
+      (point))))
+
+(defun hub/org-sort-footnotes ()
+  "Sort Org footnote definitions to match reference order."
+  (require 'org-footnote)
+  (org-footnote-sort))
+
+(defun hub/org-expand-footnote-snippet (label return-marker)
+  "Expand a footnote body snippet for LABEL and return to RETURN-MARKER."
+  (ignore label)
+  (letrec ((return-to-reference
+	    (lambda ()
+	      (remove-hook 'yas-after-exit-snippet-hook return-to-reference t)
+	      (hub/org-sort-footnotes)
+	      (when (marker-buffer return-marker)
+		(goto-char return-marker)))))
+    (add-hook 'yas-after-exit-snippet-hook return-to-reference nil t)
+    (yas-expand-snippet "${1:Footnote text}")))
+
+(defun hub/org-insert-footnote-template ()
+  "Insert a footnote reference and edit its bottom definition.
+
+With Yasnippet, point returns to the original text after leaving the footnote
+body field.  Without Yasnippet, prompt for the body immediately and return."
+  (interactive)
+  (require 'org-footnote)
+  (let* ((label (org-footnote-unique-label))
+	 (reference-end nil)
+	 (definition-point nil))
+    (insert (format "[fn:%s]" label))
+    (setq reference-end (point-marker))
+    (setq definition-point (hub/org-footnote-definition-point label))
+    (goto-char definition-point)
+    (if (hub/org-yas-ready-p)
+	(hub/org-expand-footnote-snippet label reference-end)
+      (insert (read-string "Footnote: "))
+      (hub/org-sort-footnotes)
+      (goto-char reference-end))))
+
+(defun hub/org-tempo-complete-footnote ()
+  "Expand the `<fn' Org Tempo shortcut as a bottom footnote.
+
+Unlike block-oriented Org Tempo shortcuts, footnotes are inline text objects, so
+this shortcut is intentionally accepted anywhere on the current line."
+  (when (looking-back "\\(<fn\\)" (line-beginning-position))
+    (replace-match "" t t nil 1)
+    (hub/org-insert-footnote-template)
     t))
 
 (use-package org
@@ -261,6 +344,7 @@ When Yasnippet is available, expand fields in the inserted template."
   (require 'org-tempo)
   (add-hook 'org-tab-before-tab-emulation-hook #'hub/org-tempo-complete-callout -90)
   (add-hook 'org-tab-before-tab-emulation-hook #'hub/org-tempo-complete-image -90)
+  (add-hook 'org-tab-before-tab-emulation-hook #'hub/org-tempo-complete-footnote -90)
 
   (setq org-return-follows-link t
 	org-hide-leading-stars t
