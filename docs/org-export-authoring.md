@@ -63,7 +63,7 @@ Use the normal Org export dispatcher with `C-c C-e C`:
 | `X` | Export to a temporary Confluence XHTML buffer |
 | `x` | Export to a `.xhtml` file |
 
-For whole-buffer updates, set `#+CONFLUENCE_PAGE_ID:`. For subtree updates, put `CONFLUENCE_PAGE_ID` in the subtree property drawer and use Org's subtree export option from the dispatcher.
+For whole-buffer updates, set `#+CONFLUENCE_PAGE_ID:`. For subtree updates, put `CONFLUENCE_PAGE_ID` in the subtree property drawer and use Org's subtree export option from the dispatcher. In `C-c C-e C`, `C` publishes DWIM: it updates when an ID exists and creates otherwise. `O` publishes DWIM and opens the resulting Confluence page using `hub/confluence-api-base-url`. For create flow, set `#+CONFLUENCE_SPACE:` or configure `hub/confluence-api-default-space` in your integration config; after a successful create, the buffer is updated with `#+CONFLUENCE_PAGE_ID:` and `#+CONFLUENCE_SPACE:` for future publishes, but is not auto-saved.
 
 Use `M-x hub/confluence-pull` to fetch a Confluence page by ID into a new Org buffer. Pull currently performs a conservative import of common storage XHTML: headings, paragraphs, inline emphasis/code/links, ordered/unordered lists including sublists, tables, Confluence status chips as `[[confluence-status:Colour][Text]]` links, Confluence emoji as Unicode fallback text, and panel-like macros as semantic callouts.
 

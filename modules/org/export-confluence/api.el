@@ -8,6 +8,7 @@
 (require 'org)
 (require 'seq)
 (require 'subr-x)
+(require 'url-util)
 
 (defgroup hub/confluence-api nil
   "Customizations for publishing Org documents to Confluence."
@@ -16,6 +17,23 @@
 (defcustom hub/confluence-api-cfl-command "cfl"
   "Command used to invoke the cfl Confluence CLI."
   :type 'string
+  :group 'hub/confluence-api)
+
+(defcustom hub/confluence-api-default-space nil
+  "Default Confluence space key used when #+CONFLUENCE_SPACE is absent.
+
+Keep this nil in shared configuration.  Set it from private machine-specific
+configuration when you want create flow to default to a personal space."
+  :type '(choice (const :tag "No default" nil) string)
+  :group 'hub/confluence-api)
+
+(defcustom hub/confluence-api-base-url nil
+  "Base URL of the Confluence site, without the /wiki path.
+
+For Atlassian Cloud, this is typically a URL like
+https://example.atlassian.net.  It is used to open pages in a browser after
+publishing."
+  :type '(choice (const :tag "No base URL" nil) string)
   :group 'hub/confluence-api)
 
 (defun hub/confluence-api--cfl-available-p ()
@@ -104,8 +122,21 @@ Org subtree.  Otherwise use the buffer-level #+CONFLUENCE_PAGE_ID keyword."
       (hub/confluence-api--keyword-from-buffer "CONFLUENCE_PAGE_ID")))
 
 (defun hub/confluence-api--space-from-buffer ()
-  "Return the #+CONFLUENCE_SPACE value from the current buffer, or nil."
-  (hub/confluence-api--keyword-from-buffer "CONFLUENCE_SPACE"))
+  "Return the current Confluence space key, or nil.
+
+Prefer #+CONFLUENCE_SPACE in the current Org buffer.  When absent, fall back to
+`hub/confluence-api-default-space'."
+  (or (hub/confluence-api--keyword-from-buffer "CONFLUENCE_SPACE")
+      hub/confluence-api-default-space))
+
+(defun hub/confluence-api--page-url (page-id &optional space)
+  "Return browser URL for Confluence PAGE-ID in optional SPACE."
+  (let ((base-url (hub/confluence-api--require-string hub/confluence-api-base-url "base URL"))
+	(id (hub/confluence-api--require-string page-id "page ID")))
+    (setq base-url (string-remove-suffix "/wiki" (string-remove-suffix "/" base-url)))
+    (if (hub/confluence-api--present-string-p space)
+	(format "%s/wiki/spaces/%s/pages/%s" base-url (url-hexify-string (string-trim space)) id)
+      (format "%s/wiki/pages/%s" base-url id))))
 
 (provide 'org/export-confluence-api)
 ;;; api.el ends here

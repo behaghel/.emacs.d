@@ -57,7 +57,28 @@
   (hub/confluence-api-test--with-org-buffer
    "#+CONFLUENCE_SPACE: ENG\n* Title"
    (lambda ()
-     (should (equal (hub/confluence-api--space-from-buffer) "ENG")))))
+     (let ((hub/confluence-api-default-space "~personal"))
+       (should (equal (hub/confluence-api--space-from-buffer) "ENG"))))))
+
+(ert-deftest hub/confluence-api--space-from-default ()
+  "Read default Confluence space when Org buffer has no space keyword."
+  (hub/confluence-api-test--with-org-buffer
+   "* Title"
+   (lambda ()
+     (let ((hub/confluence-api-default-space "~personal"))
+       (should (equal (hub/confluence-api--space-from-buffer) "~personal"))))))
+
+(ert-deftest hub/confluence-api--page-url ()
+  "Build browser URLs from Confluence page metadata."
+  (let ((hub/confluence-api-base-url "https://example.atlassian.net/"))
+    (should (equal (hub/confluence-api--page-url "123" "ENG")
+		   "https://example.atlassian.net/wiki/spaces/ENG/pages/123"))))
+
+(ert-deftest hub/confluence-api--page-url-strips-wiki-suffix ()
+  "Accept a Confluence base URL that already includes /wiki."
+  (let ((hub/confluence-api-base-url "https://example.atlassian.net/wiki"))
+    (should (equal (hub/confluence-api--page-url "123")
+		   "https://example.atlassian.net/wiki/pages/123"))))
 
 (ert-deftest hub/confluence-api--page-update-command-with-file ()
   "Build a cfl page update command that reads XHTML from a file."
@@ -90,11 +111,23 @@
 (ert-deftest hub/confluence-publish-from-export-dispatch-passes-options ()
   "Publish from Org export dispatch with the dispatcher subtree flag."
   (let ((received nil))
-    (cl-letf (((symbol-function 'hub/confluence-publish)
+    (cl-letf (((symbol-function 'hub/confluence-publish-dwim)
 	       (lambda (&rest args)
 		 (setq received args))))
       (hub/confluence-publish-from-export-dispatch nil t nil t)
-      (should (equal received '(nil t nil t nil))))))
+      (should (equal received '(nil nil nil t nil t nil))))))
+
+(ert-deftest hub/confluence-publish-and-open-from-export-dispatch-opens-result ()
+  "Publish from Org export dispatch and open the resulting page."
+  (let ((opened nil))
+    (cl-letf (((symbol-function 'hub/confluence-publish-dwim)
+	       (lambda (&rest _args) "789"))
+	      ((symbol-function 'hub/confluence-open-page)
+	       (lambda (page-id space)
+		 (setq opened (list page-id space)))))
+      (let ((hub/confluence-api-default-space "~personal"))
+	(hub/confluence-publish-and-open-from-export-dispatch nil t nil t))
+      (should (equal opened '("789" "~personal"))))))
 
 (ert-deftest hub/confluence-publish-uses-subtree-page-id-and-export ()
   "Publish a subtree selected through Org export dispatch."
@@ -230,6 +263,35 @@
 	(when (buffer-live-p opened)
 	  (kill-buffer opened))))))
 
+(ert-deftest hub/confluence-commands--created-page-id ()
+  "Parse created page IDs from cfl output."
+  (should (equal (hub/confluence-commands--created-page-id "ID: 789") "789"))
+  (should (equal (hub/confluence-commands--created-page-id "{\"id\":\"456\"}") "456"))
+  (should (equal (hub/confluence-commands--created-page-id "https://example/wiki/spaces/X/pages/123/Page") "123")))
+
+(ert-deftest hub/confluence-publish-dwim-records-created-page-metadata ()
+  "Record page ID and space in the Org buffer after create flow succeeds."
+  (hub/confluence-api-test--with-org-buffer
+   "#+TITLE: Created Page\n\nBody"
+   (lambda ()
+     (let ((hub/confluence-api-default-space "~personal")
+	   (xhtml-file (make-temp-file "org-confluence-test-" nil ".xhtml")))
+       (unwind-protect
+	   (cl-letf (((symbol-function 'org-confluence-export) (lambda (&rest _) "<p>Body</p>"))
+		     ((symbol-function 'org-confluence-image-assets) (lambda (&rest _) nil))
+		     ((symbol-function 'hub/confluence-commands--write-temp-xhtml) (lambda (_xhtml) xhtml-file))
+		     ((symbol-function 'hub/confluence-commands--run-output)
+		      (lambda (command)
+			(should (string-match-p (regexp-quote "--space") command))
+			(should (string-match-p (regexp-quote "~personal") command))
+			"Created page\nID: 789"))
+		     ((symbol-function 'hub/confluence-commands--run) (lambda (_command) 0)))
+	     (hub/confluence-publish-dwim)
+	     (should (equal (buffer-string)
+			    "#+TITLE: Created Page\n#+CONFLUENCE_PAGE_ID: 789\n#+CONFLUENCE_SPACE: ~personal\n\nBody")))
+	 (when (file-exists-p xhtml-file)
+	   (delete-file xhtml-file)))))))
+
 (ert-deftest hub/confluence-publish-uploads-images-before-page-edit ()
   "Upload all referenced images before editing the Confluence page."
   (hub/confluence-api-test--with-org-buffer
@@ -264,14 +326,68 @@
 	 (when (file-exists-p xhtml-file)
 	   (delete-file xhtml-file)))))))
 
-(ert-deftest hub/confluence-publish-images-require-page-id ()
-  "Reject image documents in create flow for this iteration."
+(ert-deftest hub/confluence-commands--upload-assets-deduplicates-filenames ()
+  "Upload repeated image assets with the same attachment filename only once."
+  (let ((commands nil)
+	(source-file (make-temp-file "org-confluence-source-" nil ".png")))
+    (unwind-protect
+	(progn
+	  (with-temp-file source-file (insert "png"))
+	  (cl-letf (((symbol-function 'hub/confluence-api--attachment-upload-command)
+		     (lambda (page-id file-path)
+		       (format "upload:%s:%s" page-id (file-name-nondirectory file-path))))
+		    ((symbol-function 'hub/confluence-commands--run)
+		     (lambda (command) (push command commands) 0)))
+	    (hub/confluence-commands--upload-assets
+	     "123"
+	     (list (list :source-path source-file :filename "foo-hash.png")
+		   (list :source-path source-file :filename "foo-hash.png")))
+	    (should (equal commands (list "upload:123:foo-hash.png")))))
+      (when (file-exists-p source-file)
+	(delete-file source-file)))))
+
+(ert-deftest hub/confluence-publish-dwim-creates-then-uploads-images ()
+  "Create a page before uploading image assets in create flow."
   (hub/confluence-api-test--with-org-buffer
-   "#+CONFLUENCE_SPACE: ENG\n[[./foo.png]]"
+   "#+CONFLUENCE_SPACE: ENG\n#+TITLE: Page\n\n[[./foo.png]]"
    (lambda ()
-     (cl-letf (((symbol-function 'org-confluence-image-assets)
-		(lambda () (list (list :path "/tmp/foo.png" :source-path "/tmp/foo.png" :source-link "./foo.png" :filename "foo-hash.png")))))
-       (should-error (hub/confluence-publish-dwim "Page") :type 'user-error)))))
+     (let ((events nil)
+	   (source-file (make-temp-file "org-confluence-source-" nil ".png"))
+	   (xhtml-file (make-temp-file "org-confluence-test-" nil ".xhtml")))
+       (unwind-protect
+	   (progn
+	     (with-temp-file source-file (insert "png"))
+	     (cl-letf (((symbol-function 'org-confluence-image-assets)
+			(lambda (&rest _)
+			  (list (list :path source-file
+				      :source-path source-file
+				      :source-link "./foo.png"
+				      :filename "foo-hash.png"))))
+		       ((symbol-function 'org-confluence-export)
+			(lambda (&rest args)
+			  (should (member '("./foo.png" . "foo-hash.png")
+					  (plist-get (car (last args)) :confluence-image-filenames)))
+			  "<p>x</p>"))
+		       ((symbol-function 'hub/confluence-commands--write-temp-xhtml)
+			(lambda (_xhtml) xhtml-file))
+		       ((symbol-function 'hub/confluence-api--attachment-upload-command)
+			(lambda (page-id file-path)
+			  (format "upload:%s:%s" page-id (file-name-nondirectory file-path))))
+		       ((symbol-function 'hub/confluence-commands--run-output)
+			(lambda (command)
+			  (push command events)
+			  "ID: 789"))
+		       ((symbol-function 'hub/confluence-commands--run)
+			(lambda (command) (push command events) 0)))
+	       (hub/confluence-publish-dwim)
+	       (should (equal (nreverse events)
+			      (list (format "cfl page create --space ENG --title Page --file %s --storage" xhtml-file)
+				    "upload:789:foo-hash.png"
+				    (format "cfl page edit 789 --file %s --storage" xhtml-file))))))
+	 (when (file-exists-p source-file)
+	   (delete-file source-file))
+	 (when (file-exists-p xhtml-file)
+	   (delete-file xhtml-file)))))))
 
 (ert-deftest hub/confluence-commands--run-reports-command-output ()
   "Report command output explicitly when a cfl command fails."

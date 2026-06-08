@@ -6,6 +6,7 @@
 ;;; Code:
 
 (require 'hub-org-callout)
+(require 'hub-prose)
 (require 'hub-utils)
 (require 'seq)
 (require 'subr-x)
@@ -85,10 +86,8 @@ When QUIET is non-nil, do not emit informational messages."
 (when hub/org-directory (setq org-directory hub/org-directory))
 
 (defun hub/org-setup-wrapping ()
-  "Use soft wrapping in Org buffers and avoid hard line breaks."
-  (auto-fill-mode -1)
-  (visual-line-mode 1)
-  (setq-local comment-auto-fill-only-comments nil))
+  "Use virtual autofill in Org buffers and avoid hard line breaks."
+  (hub/prose-visual-fill-mode))
 
 (defun hub/org-set-structure-template (key value)
   "Set Org structure template KEY to VALUE without duplicate entries."

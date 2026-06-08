@@ -342,12 +342,22 @@
 		    (plist-get asset :filename))
 	 (signal (car err) (cdr err)))))))
 
+(defun hub/confluence-commands--unique-upload-assets (assets)
+  "Return ASSETS deduplicated by generated attachment filename."
+  (let ((seen nil)
+	(unique nil))
+    (dolist (asset assets (nreverse unique))
+      (let ((filename (plist-get asset :filename)))
+	(unless (member filename seen)
+	  (push filename seen)
+	  (push asset unique))))))
+
 (defun hub/confluence-commands--upload-assets (page-id assets)
   "Upload image ASSETS to Confluence PAGE-ID."
   (when assets
     (let ((upload-directory (make-temp-file "org-confluence-assets-" t)))
       (unwind-protect
-	  (dolist (asset assets)
+	  (dolist (asset (hub/confluence-commands--unique-upload-assets assets))
 	    (hub/confluence-commands--upload-asset page-id asset upload-directory))
 	(delete-directory upload-directory t)))))
 
@@ -375,15 +385,72 @@ EXT-PLIST follow Org export conventions."
 	  (hub/confluence-commands--upload-assets page-id assets)
 	  (hub/confluence-commands--run
 	   (hub/confluence-api--page-update-command page-id xhtml-file))
-	  (message "Published Org buffer to Confluence page %s" page-id))
+	  (message "Published Org buffer to Confluence page %s" page-id)
+	  page-id)
       (when (and xhtml-file (file-exists-p xhtml-file))
 	(delete-file xhtml-file)))))
 
 (defun hub/confluence-publish-from-export-dispatch
     (&optional async subtreep visible-only body-only ext-plist)
-  "Publish through `org-export-dispatch' using Org export options."
+  "Publish or create through `org-export-dispatch' using Org export options."
   (interactive)
-  (hub/confluence-publish async subtreep visible-only body-only ext-plist))
+  (hub/confluence-publish-dwim nil nil async subtreep visible-only body-only ext-plist))
+
+(defun hub/confluence-open-page (&optional page-id space)
+  "Open Confluence PAGE-ID in browser using optional SPACE."
+  (interactive)
+  (let* ((id (or page-id (hub/confluence-api--page-id-from-buffer)))
+	 (page-space (or space (hub/confluence-api--space-from-buffer)))
+	 (url (hub/confluence-api--page-url id page-space)))
+    (browse-url url)
+    url))
+
+(defun hub/confluence-publish-and-open-from-export-dispatch
+    (&optional async subtreep visible-only body-only ext-plist)
+  "Publish or create through `org-export-dispatch', then open the page."
+  (interactive)
+  (let* ((page-id (hub/confluence-publish-dwim nil nil async subtreep visible-only body-only ext-plist))
+	 (space (hub/confluence-api--space-from-buffer)))
+    (hub/confluence-open-page page-id space)))
+
+(defun hub/confluence-commands--created-page-id (output)
+  "Return Confluence page ID parsed from cfl create OUTPUT, or nil."
+  (cond
+   ((string-match "\"id\"[[:space:]]*:[[:space:]]*\"?\\([0-9]+\\)\"?" output)
+    (match-string 1 output))
+   ((string-match "\\b\\(?:Page[[:space:]]+\\)?ID[[:space:]]*[:=][[:space:]]*\\([0-9]+\\)" output)
+    (match-string 1 output))
+   ((string-match "/pages/\\([0-9]+\\)" output)
+    (match-string 1 output))))
+
+(defun hub/confluence-commands--metadata-keyword-present-p (keyword)
+  "Return non-nil when Org metadata KEYWORD is present in the current buffer."
+  (save-excursion
+    (goto-char (point-min))
+    (let ((case-fold-search t)
+	  (regexp (format "^[ \t]*#\\+%s:" (regexp-quote keyword))))
+      (re-search-forward regexp nil t))))
+
+(defun hub/confluence-commands--insert-metadata-after-keywords (metadata)
+  "Insert missing Confluence METADATA after leading Org keyword lines.
+
+METADATA is an alist of Org keyword names to values."
+  (let ((missing (seq-filter (lambda (entry)
+			       (not (hub/confluence-commands--metadata-keyword-present-p (car entry))))
+			     metadata)))
+    (when missing
+      (save-excursion
+	(goto-char (point-min))
+	(while (looking-at "^[ \t]*#\\+[^:\n]+:.*$")
+	  (forward-line 1))
+	(dolist (entry missing)
+	  (insert (format "#+%s: %s\n" (car entry) (cdr entry))))))))
+
+(defun hub/confluence-publish--record-created-page (page-id space)
+  "Record created PAGE-ID and SPACE metadata in the current Org buffer."
+  (hub/confluence-commands--insert-metadata-after-keywords
+   `(("CONFLUENCE_PAGE_ID" . ,page-id)
+     ("CONFLUENCE_SPACE" . ,space))))
 
 (defun hub/confluence-pull (&optional page-id)
   "Fetch Confluence PAGE-ID and open a new Org buffer with imported content.
@@ -405,30 +472,49 @@ storage XHTML using cfl and converted to a conservative Org representation."
       (goto-char (point-min)))
     (pop-to-buffer buffer)))
 
-(defun hub/confluence-publish-dwim (&optional title parent-id)
+(defun hub/confluence-publish-dwim
+    (&optional title parent-id async subtreep visible-only body-only ext-plist)
   "Publish current Org buffer to Confluence, updating or creating as needed.
 
-When #+CONFLUENCE_PAGE_ID is present, update that page.  Otherwise require
-#+CONFLUENCE_SPACE and create a new page using TITLE, prompting interactively
-when needed.  Optional PARENT-ID is passed to cfl as the parent page."
+When #+CONFLUENCE_PAGE_ID is present, update that page.  Otherwise use
+#+CONFLUENCE_SPACE or `hub/confluence-api-default-space' and create a new page
+using TITLE, prompting interactively when needed.  Optional PARENT-ID is passed
+to cfl as the parent page.  When the new page ID can be parsed from cfl output,
+record Confluence metadata, upload image assets, and re-save the page content.
+ASYNC, SUBTREEP, VISIBLE-ONLY, BODY-ONLY, and EXT-PLIST follow Org export
+conventions."
   (interactive)
-  (let ((page-id (hub/confluence-api--page-id-from-buffer)))
+  (let ((page-id (hub/confluence-api--page-id-from-buffer subtreep)))
     (if page-id
-	(hub/confluence-publish)
-      (let ((assets (org-confluence-image-assets)))
-	(when assets
-	  (user-error "Image publishing requires #+CONFLUENCE_PAGE_ID in this iteration"))
+	(hub/confluence-publish async subtreep visible-only body-only ext-plist)
+      (let ((assets (org-confluence-image-assets subtreep)))
 	(let* ((space (hub/confluence-api--space-from-buffer))
 	       (page-title (or title
 			       (hub/confluence-commands--title-from-buffer)
 			       (read-string "Confluence page title: ")))
 	       (xhtml-file nil))
 	  (unwind-protect
-	      (let ((command nil))
-		(setq xhtml-file (hub/confluence-commands--write-temp-xhtml (org-confluence-export)))
+	      (let ((command nil)
+		    (output nil)
+		    (created-page-id nil))
+		(setq xhtml-file
+		      (hub/confluence-commands--write-temp-xhtml
+		       (org-confluence-export async subtreep visible-only body-only
+					      (append (list :confluence-image-filenames
+							    (hub/confluence-commands--asset-filename-map assets))
+						      ext-plist))))
 		(setq command (hub/confluence-api--page-create-command space page-title xhtml-file parent-id))
-		(hub/confluence-commands--run command)
-		(message "Created Confluence page %s in space %s" page-title space))
+		(setq output (hub/confluence-commands--run-output command))
+		(setq created-page-id (hub/confluence-commands--created-page-id output))
+		(when created-page-id
+		  (hub/confluence-publish--record-created-page created-page-id space)
+		  (hub/confluence-commands--upload-assets created-page-id assets)
+		  (hub/confluence-commands--run
+		   (hub/confluence-api--page-update-command created-page-id xhtml-file)))
+		(message "Created Confluence page %s in space %s%s"
+			 page-title space
+			 (if created-page-id (format " (ID %s)" created-page-id) ""))
+		created-page-id)
 	    (when (and xhtml-file (file-exists-p xhtml-file))
 	      (delete-file xhtml-file))))))))
 

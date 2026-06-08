@@ -44,6 +44,11 @@
   (should (equal (hub/org-confluence-test--export "Hello world")
 		 "<p>Hello world</p>")))
 
+(ert-deftest hub/org-confluence-export-paragraph-normalizes-soft-wraps ()
+  "Export hard-wrapped Org source paragraphs as flowing XHTML text."
+  (should (equal (hub/org-confluence-test--export "This is a hard-wrapped\nparagraph with *inline markup*.")
+		 "<p>This is a hard-wrapped paragraph with <strong>inline markup</strong>.</p>")))
+
 (ert-deftest hub/org-confluence-export-heading-h1 ()
   "Export a level-one heading as XHTML."
   (should (equal (hub/org-confluence-test--export "* Title")
@@ -77,7 +82,8 @@
   "Register Confluence in the normal Org export dispatcher."
   (let ((menu (org-export-backend-menu (org-export-get-backend 'confluence))))
     (should (equal (car menu) ?C))
-    (should (string-match-p "Confluence" (cadr menu)))))
+    (should (string-match-p "Confluence" (cadr menu)))
+    (should (assoc ?O (caddr menu)))))
 
 (ert-deftest hub/org-confluence-export-as-xhtml-subtree-buffer ()
   "Export a subtree to a temporary XHTML buffer through Org export plumbing."
@@ -300,6 +306,22 @@
     (insert "[[./img/foo.png]]")
     (org-mode)
     (should-error (org-confluence-image-assets) :type 'user-error)))
+
+(ert-deftest hub/org-confluence-image-duplicate-reference-is-allowed ()
+  "Allow the same local image to be referenced more than once."
+  (let* ((root (make-temp-file "org-confluence-images-" t))
+	 (org-file (expand-file-name "page.org" root))
+	 (image-file (expand-file-name "foo.png" root)))
+    (unwind-protect
+	(progn
+	  (with-temp-file image-file (insert "png"))
+	  (hub/org-confluence-test--with-file-buffer
+	   org-file "[[./foo.png]]\n\n[[./foo.png]]"
+	   (lambda ()
+	     (should (equal (org-confluence-image-assets)
+			    (list (hub/org-confluence-test--image-asset image-file "./foo.png")
+				  (hub/org-confluence-test--image-asset image-file "./foo.png")))))))
+      (delete-directory root t))))
 
 (ert-deftest hub/org-confluence-image-duplicate-basenames-use-hashed-filenames ()
   "Allow duplicate source basenames by hashing attachment filenames."

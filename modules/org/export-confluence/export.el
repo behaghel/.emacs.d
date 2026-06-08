@@ -28,6 +28,10 @@
   "Transcode plain TEXT to XHTML-safe text."
   (xml-escape-string text))
 
+(defun org-confluence--normalize-soft-wraps (text)
+  "Replace soft paragraph line breaks in TEXT with spaces."
+  (replace-regexp-in-string "[ \t]*\n[ \t]*" " " (org-confluence--trim text)))
+
 (defun org-confluence--format-inline (tag contents)
   "Wrap CONTENTS in XHTML TAG when CONTENTS is non-empty."
   (let ((body (org-confluence--trim contents)))
@@ -157,13 +161,18 @@ storage-format images."
 	  :filename filename)))
 
 (defun org-confluence--validate-image-assets (assets)
-  "Validate Confluence image ASSETS and return them."
+  "Validate Confluence image ASSETS and return them.
+
+Repeated references to the same source image are allowed.  Signal only when a
+single generated attachment filename maps to different source files."
   (let ((seen nil))
     (dolist (asset assets)
-      (let ((filename (plist-get asset :filename)))
-	(when (member filename seen)
-	  (user-error "Duplicate Confluence attachment filename after hashing: %s" filename))
-	(push filename seen))))
+      (let ((filename (plist-get asset :filename))
+	    (source-path (plist-get asset :source-path)))
+	(when-let* ((previous-source-path (cdr (assoc filename seen))))
+	  (unless (string= previous-source-path source-path)
+	    (user-error "Duplicate Confluence attachment filename after hashing: %s" filename)))
+	(push (cons filename source-path) seen))))
   assets)
 
 (defun org-confluence-image-assets (&optional subtreep)
@@ -348,7 +357,7 @@ back to Confluence."
   "Transcode PARAGRAPH with CONTENTS to XHTML using INFO."
   (if-let* ((image-link (org-confluence--standalone-image-link paragraph)))
       (org-confluence--image image-link info (org-confluence--caption paragraph info))
-    (let ((body (org-confluence--trim contents)))
+    (let ((body (org-confluence--normalize-soft-wraps contents)))
       (if (string-empty-p body) "" (format "<p>%s</p>" body)))))
 
 (defun org-confluence--section (_section contents _info)
@@ -389,7 +398,8 @@ back to Confluence."
 			     (underline . org-confluence--underline))
 			   :menu-entry
 			   '(?C "Export to Confluence"
-				((?C "Publish/update page" hub/confluence-publish-from-export-dispatch)
+				((?C "Publish/create page" hub/confluence-publish-from-export-dispatch)
+				 (?O "Publish/create and open page" hub/confluence-publish-and-open-from-export-dispatch)
 				 (?X "To temporary XHTML buffer" org-confluence-export-as-xhtml)
 				 (?x "To XHTML file" org-confluence-export-to-xhtml))))
 

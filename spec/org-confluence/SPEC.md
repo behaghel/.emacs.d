@@ -31,7 +31,7 @@ Three files, each with a distinct responsibility:
 
 - **Primary direction:** Org → Confluence (push). Confluence → Org (pull) is deferred to a future iteration.
 - **Content format:** Confluence Storage Format (XHTML), written to a temporary `.xhtml` file and sent via `cfl page edit --file <file> --storage` or `cfl page create --file <file> --storage`.
-- **Page identity:** Document-level `#+CONFLUENCE_PAGE_ID: <id>` keyword for existing pages. Optional `#+CONFLUENCE_SPACE: <key>` for new page creation.
+- **Page identity:** Document-level `#+CONFLUENCE_PAGE_ID: <id>` keyword for existing pages. Optional `#+CONFLUENCE_SPACE: <key>` for new page creation, falling back to `hub/confluence-api-default-space` when configured.
 - **Update semantics:** Full replacement. Confluence versions the page automatically on each update. No append/prepend mode.
 - **Table mapping:** Simple `<table>` with `<th>` for header rows, `<td>` for body rows. No branded Confluence styling or custom column widths.
 
@@ -98,7 +98,7 @@ Decisions:
 
 **Commands delivered:**
 - `hub/confluence-publish` — export current buffer and update existing page (requires `#+CONFLUENCE_PAGE_ID`)
-- `hub/confluence-publish-dwim` — if `#+CONFLUENCE_PAGE_ID` present, update; if `#+CONFLUENCE_SPACE` present but no page ID, prompt for title and create new
+- `hub/confluence-publish-dwim` — if `#+CONFLUENCE_PAGE_ID` present, update; otherwise create using `#+CONFLUENCE_SPACE` or `hub/confluence-api-default-space`, then insert created page metadata into the buffer for future publishes
 
 **API layer functions:**
 - `hub/confluence--page-update (page-id xhtml)` — calls `cfl page edit <id> --storage`

@@ -77,7 +77,12 @@
 (autoload 'hub/confluence-publish "commands" nil t)
 (autoload 'hub/confluence-publish-dwim "commands" nil t)
 (autoload 'hub/confluence-publish-from-export-dispatch "commands" nil t)
+(autoload 'hub/confluence-publish-and-open-from-export-dispatch "commands" nil t)
+(autoload 'hub/confluence-open-page "commands" nil t)
 (autoload 'hub/confluence-pull "commands" nil t)
+;; Personal Confluence integration defaults.
+(setq hub/confluence-api-default-space "~63cfa80595cff7f585c2f168"
+      hub/confluence-api-base-url "https://veriff.atlassian.net")
 (with-eval-after-load 'ox
   (load (expand-file-name "modules/org/export-confluence/export.el" user-emacs-directory)
 	nil 'nomessage))
@@ -308,6 +313,8 @@
 (add-hook 'text-mode-hook 'turn-on-auto-fill) ; auto-wrap
 (setq sentence-end-double-space nil)    ; one space is enough after a period to end a sentence
 (define-key evil-normal-state-map (kbd ",bs") 'flyspell-mode)
+(require 'hub-prose)
+(use-package visual-fill-column :defer t)
 
 ;; Writing with style
 ;; http://rs.io/software-writers-tools-improve-writing/
@@ -349,8 +356,8 @@
 	 ("\\.markdown\\'" . markdown-mode)
 	 ("README\\.md\\'" . gfm-mode))
   :init
-  ;; in github flavour markdown, \n are enforced strictly
-  (add-hook 'gfm-mode-hook (lambda () (auto-fill-mode -1)))
+  (add-hook 'markdown-mode-hook #'hub/prose-visual-fill-mode)
+  (add-hook 'gfm-mode-hook #'hub/prose-visual-fill-mode)
   :commands (markdown-mode)
   :config
   (setq markdown-command (format "pandoc -c file://%s --from gfm -t html5 --mathjax --highlight-style pygments --standalone --quiet"
