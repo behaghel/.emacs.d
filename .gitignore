@@ -10,6 +10,7 @@ var/
 !/etc/latex/
 /etc/latex/*
 !/etc/latex/hub-article.cls
+!/etc/latex/nomina-es.cls
 !/etc/latex/veriff.cls
 !/etc/latex/assets/
 /etc/latex/assets/*

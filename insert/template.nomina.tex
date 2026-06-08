@@ -1,0 +1,28 @@
+% -*- mode: latex; TeX-engine: xetex; -*-
+% Compile outside this repository with:
+% TEXINPUTS="`(expand-file-name "etc/latex//" user-emacs-directory)`": xelatex `(file-name-nondirectory (or buffer-file-name "nomina.tex"))`
+\documentclass{nomina-es}
+
+% Business inputs.  Partial months are prorated on a standard
+% 30-day commercial month: monthly gross × commercial days / 30.
+% The PDF displays real calendar dates, but salary days are normalized so the
+% last real day of the month counts as commercial day 30.  Therefore full
+% 31-day, 30-day, and February months all pay exactly one monthly salary.
+% Arguments: gross cents, year, month number, start day, end day.
+\NominaUseSSImportassHogarPeriodCents{${1:142450}}{${2:`(format-time-string "%Y")`}}{${3:`(format-time-string "%-m")`}}{${4:1}}{${5:`(let* ((now (decode-time)) (month (nth 4 now)) (year (nth 5 now))) (require 'calendar) (number-to-string (calendar-last-day-of-month month year)))`}}
+
+\NominaSetup{
+  employer-name={${6:Hubert Behaghel}},
+  employer-id={${7:Y9960074F}},
+  employer-ccc={${8:0138 08 236836640}},
+  employer-address={${9:Carrer dels Lleons 18, 08950 Esplugues de Llobregat}},
+  worker-name={${10:Stella Mary Benitez Aguilera}},
+  worker-id={${11:Z3507856Q}},
+  worker-ss={${12:08 1521258342}},
+  payment-reference={${13:Nómina \NominaPeriodMonthName{} \NominaPeriodYear{} Stella Benitez}}
+}
+
+\begin{document}
+\NominaPrint
+\end{document}
+$0

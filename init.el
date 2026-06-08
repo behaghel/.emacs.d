@@ -298,6 +298,7 @@
   (yas-expand-snippet (buffer-string) (point-min) (point-max) expand-env))
 (define-auto-insert "\\.org\\'" ["template.org" hub/autoinsert-yas-expand])
 (define-auto-insert "\\.veriff\\.org\\'" ["template.veriff.org" hub/autoinsert-yas-expand])
+(define-auto-insert "\\(?:nomina\\|.*-nomina\\).*\\.tex\\'" ["template.nomina.tex" hub/autoinsert-yas-expand])
 ;; orj is an extension I invented: org-revealJS
 (define-auto-insert "\\.orj\\'" ["template.orj" hub/autoinsert-yas-expand])
 
@@ -391,6 +392,8 @@
   (unless (getenv "HUB_CI_SKIP_OPTIONALS")
     (require 'notes/brain))
   (require 'tools/blog)
+  (require 'tools/pdf)
+  (require 'tools/nomina)
   (unless (getenv "HUB_CI_SKIP_OPTIONALS")
     (require 'tools/ai))
   (require 'apps/elfeed)
