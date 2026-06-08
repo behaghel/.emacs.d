@@ -154,7 +154,7 @@ All new files are under these directories, which are on `load-path` unconditiona
 - **Tests to write first:**
   - `hub/confluence-api--attachment-upload-command` — builds `cfl attachment upload <page-id> <file>`
   - `hub/confluence-publish-uploads-images-before-page-edit` — shell commands run upload(s), then page edit
-  - `hub/confluence-publish-images-require-page-id` — image documents without `#+CONFLUENCE_PAGE_ID` hard-error before create flow
+  - `hub/confluence-publish-dwim-creates-then-uploads-images` — image documents without `#+CONFLUENCE_PAGE_ID` create the page first, upload attachments to the new page, then update the page content
   - `hub/confluence-publish-cleans-temp-xhtml-on-upload-failure` — temp XHTML removed with `unwind-protect`
   - `hub/confluence-publish-continues-when-hashed-attachment-exists` — duplicate hashed attachment upload is treated as already uploaded
 - **Red signal:** command builder/upload orchestration absent.
@@ -199,10 +199,20 @@ All new files are under these directories, which are on `load-path` unconditiona
 | 1d — API wrappers | Complete |
 | 1e — Publish command | Complete |
 | 2 — Rich content | Complete |
-| 3 — Images | Implemented; manual verification pending |
+| 3 — Images | Complete; manual verification confirmed |
 | 4a — Export polish | Complete |
-| 4b — Org export dispatch | Implemented; manual verification pending |
-| 4c — Pull/import | Implemented; manual verification pending |
+| 4b — Org export dispatch | Complete; manual DWIM/open verification confirmed |
+| 4c — Pull/import | Implemented; deeper round-trip fidelity pending real-page gaps |
+
+## Next Round-Trip Test Slice
+
+The next hardening slice should prove that supported content "lands on its feet" through repeated transformations. Suggested tests:
+
+1. **Storage import canonicalization** — feed representative Confluence storage into `hub/confluence-import-storage-to-org`, then assert the canonical Org includes headings, paragraphs, lists, tables, status chips, emoji fallbacks, and callouts.
+2. **Import → export stability** — import representative storage to Org, export it back with `org-confluence-export`, then assert required Confluence storage constructs are still present. This is semantic, not byte-identical.
+3. **Export → import stability** — export a rich Org fixture, import the resulting XHTML, and compare the imported Org against a canonical expected Org fixture.
+4. **Unknown construct preservation** — when real pages expose complex tables or unsupported macros, import them as `#+begin_confluence_markup` / `#+end_confluence_markup` and verify export emits the preserved storage unchanged.
+5. **Pull/publish/pull command orchestration** — stub `cfl` command output to prove `hub/confluence-pull`, DWIM publish, and a second pull preserve page ID and supported content across command boundaries.
 
 ## Running Tests
 

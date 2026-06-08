@@ -177,8 +177,14 @@ Without a caption, omit `ac:alt` and the caption paragraph.
 - Import starts conservatively with common storage XHTML: headings, paragraphs, inline emphasis/code/links, simple ordered/unordered lists, nested lists, tables, Confluence status chips, Confluence emoji fallbacks, and panel-like macros as semantic callouts.
 - Pull defaults to the current buffer's `#+CONFLUENCE_PAGE_ID` when present and otherwise prompts for a page ID.
 
+**Current acceptance status:**
+- Manual DWIM publish/create/open acceptance is confirmed on real Confluence pages.
+- Image create flow, metadata insertion, default personal space, page opening, duplicate image references, and soft-wrap paragraph normalization are accepted for current needs.
+
 **Future additions:**
-- Richer Confluence → Org conversion for tables, macros, images, footnotes, and nested lists.
+- Add round-trip tests that prove supported storage lands on its feet across pull → publish/export → pull/import normalization. These should compare canonical Org forms rather than byte-identical source, because import/export may normalize harmless whitespace and metadata ordering.
+- Extend Confluence → Org conversion when real pages expose gaps, especially image import, footnote import, unknown macro preservation, and complex table cells containing block content.
+- For Confluence-only or complex constructs that cannot be represented cleanly in native Org, preserve raw storage in `#+begin_confluence_markup` / `#+end_confluence_markup` blocks instead of flattening content.
 - Better error handling: auth failures, missing page ID, and richer `cfl` failure categorization.
 
 ## File Headers & Naming
@@ -232,7 +238,7 @@ This is deferred — no iteration plan until the core publish path is stable.
 
 ## Non-Goals
 
-- This spec does not cover Confluence → Org import (pull) beyond identifying it as a deferred iteration.
+- This spec does not require byte-identical bidirectional sync. Round-trip fidelity means supported content returns to an equivalent canonical Org representation and unsupported content is preserved rather than silently flattened.
 - This spec does not cover ADF (Atlassian Document Format) output. Storage Format XHTML is the target.
 - This spec does not cover bidirectional sync or conflict resolution.
 - This spec does not cover Confluence page moves, re-parenting, or space management.
