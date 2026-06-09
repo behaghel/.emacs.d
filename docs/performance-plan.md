@@ -645,9 +645,32 @@ Performance rule for refactors:
 - load heavy packages only on command invocation, mode hook, after first paint,
   or explicit user action.
 
-## Proposed next step
+## Proposed next steps
 
-Run measurement-only tooling, capture results in this file, then pick exactly
-one optimization proposal for review.  The first proposal should probably be the
-`straight.el`/package-boundary audit because it aligns with existing mechanisms
-and may improve performance without disrupting UX.
+Current state after the 2026-06-09 work:
+
+- startup responsiveness was improved without removing the dashboard;
+- dashboard first paint is intentionally fast, with Denote and agenda refreshed later;
+- `exec-path-from-shell`, Eglot, Magit, `org-ai`, `whisper`, `mu4e-dashboard`, and
+  several other integrations no longer load eagerly on the startup/dashboard path;
+- `packages/org-confluence/` is now the local package boundary for the Confluence
+  exporter, while `modules/interactive/org/confluence.el` owns activation and
+  personal workflow configuration;
+- `private/setup.el` is reserved for secrets/truly uncommittable values, not
+  ordinary personal configuration.
+
+Recommended next session priorities:
+
+1. Split `modules/interactive/ui/gui.el` into smaller modules:
+   performance instrumentation, theme, fonts/emoji, and dashboard activation.
+2. Continue VCS cleanup around `modules/interactive/vcs/git.el`: preserve lazy
+   Magit autoloads, then isolate Diff-HL, ssh-agent, and Treemacs/Magit bridge
+   configuration.
+3. Split `modules/interactive/org/core.el` into base editing, agenda, capture,
+   export, babel, citations, and integrations.
+4. Investigate the Org version mismatch warning and slow forced full-load path.
+5. Consider adding a doc-drift check for generated package docs, following the
+   `eve.el` guardrail pattern.
+
+Before claiming further performance wins, rerun the GUI/dashboard measurements
+from this plan and compare against the recorded dashboard first-paint samples.
