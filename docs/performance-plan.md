@@ -717,9 +717,10 @@ Refactor candidates:
      integration.  Follow-up on 2026-06-09: it now sets the cheap `SSH_ASKPASS`
      environment value directly and leaves `ssh-agency` command/autoload based,
      avoiding an eager GUI startup package load.
-   - `modules/interactive/vcs/diff-hl.el` owns the eager Diff-HL activation and
-     gutter/hunk keybindings.  It remains `:demand t`; changing gutter
-     activation timing is still a future UX/performance decision.
+   - `modules/interactive/vcs/diff-hl.el` owns Diff-HL activation and
+     gutter/hunk keybindings.  Follow-up on 2026-06-09: Diff-HL no longer uses
+     `:demand t`; hunk commands are autoloaded and global gutter activation is
+     scheduled from `emacs-startup-hook` after an idle delay.
    - Replaced the Magit gitman `defadvice` with `define-advice`, removing one
      obsolete-advice warning without changing the intended behavior.
 4. **Org** — split core Org editing from agenda, capture, babel, export,
@@ -768,8 +769,9 @@ Current state after the 2026-06-09 work:
 
 - startup responsiveness was improved without removing the dashboard;
 - dashboard first paint is intentionally fast, with Denote and agenda refreshed later;
-- `exec-path-from-shell`, Eglot, Magit, `org-ai`, `whisper`, `mu4e-dashboard`, and
-  several other integrations no longer load eagerly on the startup/dashboard path;
+- `exec-path-from-shell`, Eglot, Magit, `ssh-agency`, Diff-HL, `org-ai`,
+  `whisper`, `mu4e-dashboard`, and several other integrations no longer load
+  eagerly on the startup/dashboard path;
 - `packages/org-confluence/` is now the local package boundary for the Confluence
   exporter, while `modules/interactive/org/confluence.el` owns activation and
   personal workflow configuration;
@@ -782,9 +784,9 @@ Current state after the 2026-06-09 work:
 
 Recommended next session priorities:
 
-1. Investigate the Org version mismatch warning and slow forced full-load path.
-2. Consider whether Diff-HL should stay eager or move to hook/idle activation;
-   discuss UX first because gutter availability is visible.
+1. Rerun manual GUI startup validation after the `ssh-agency` and Diff-HL lazy
+   activation changes.
+2. Consider deferring the Dired stack from the post-first-paint startup tranche.
 3. Consider adding a doc-drift check for generated package docs, following the
    `eve.el` guardrail pattern.
 
