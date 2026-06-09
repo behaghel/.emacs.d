@@ -115,10 +115,38 @@
       compilation-auto-jump-to-first-error t
       compilation-context-lines 5)
 
+(defcustom hub/flyspell-prog-idle-delay 1.0
+  "Idle delay before enabling Flyspell in visible programming buffers."
+  :type 'number
+  :group 'convenience)
+
+(defvar-local hub/flyspell-prog--enable-scheduled nil
+  "Non-nil when Flyspell enablement is already scheduled for this buffer.")
+
+(defun hub/flyspell-prog-enable-visible-buffer (window)
+  "Schedule Flyspell for WINDOW's visible programming buffer."
+  (when (window-live-p window)
+    (with-current-buffer (window-buffer window)
+      (when (and (derived-mode-p 'prog-mode)
+		 (not (bound-and-true-p flyspell-mode))
+		 (not hub/flyspell-prog--enable-scheduled))
+	(setq hub/flyspell-prog--enable-scheduled t)
+	(let ((buffer (current-buffer)))
+	  (run-with-idle-timer
+	   hub/flyspell-prog-idle-delay nil
+	   (lambda ()
+	     (when (buffer-live-p buffer)
+	       (with-current-buffer buffer
+		 (setq hub/flyspell-prog--enable-scheduled nil)
+		 (when (and (derived-mode-p 'prog-mode)
+			    (not (bound-and-true-p flyspell-mode)))
+		   (flyspell-prog-mode)))))))))))
+
+(add-hook 'window-buffer-change-functions #'hub/flyspell-prog-enable-visible-buffer)
+
 (add-hook 'prog-mode-hook
 	  (lambda ()
 	    (subword-mode)
-	    (flyspell-prog-mode)
 	    (turn-on-auto-fill)
 	    (electric-indent-local-mode)
 	    (define-key evil-normal-state-map (kbd ",br") 'recompile)

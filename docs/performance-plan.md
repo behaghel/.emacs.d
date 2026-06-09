@@ -594,7 +594,9 @@ Measure before proposing changes to:
 - `global-whitespace-mode`
 - `global-whitespace-cleanup-mode`
 - `global-auto-revert-mode`
-- `flyspell-prog-mode` in `prog-mode-hook`
+- `flyspell-prog-mode` in `prog-mode-hook` — follow-up on 2026-06-09:
+  removed from the direct hook; Flyspell is now scheduled only for visible
+  programming buffers after an idle delay, avoiding eager Aspell process startup.
 - `treesit-font-lock-level 4`
 - `diff-hl :demand t`
 
@@ -789,8 +791,9 @@ Recommended next session priorities:
 
 1. Rerun manual GUI startup validation after the `ssh-agency`, Diff-HL, and
    Dired lazy activation changes.
-2. Consider deferring `edit-server` and Ispell startup work from the
-   post-first-paint startup tranche.
+2. Consider deferring `edit-server` from the post-first-paint startup tranche;
+   Ispell/Flyspell programming-buffer activation has been moved to visible-buffer
+   idle scheduling.
 3. Consider adding a doc-drift check for generated package docs, following the
    `eve.el` guardrail pattern.
 
