@@ -30,17 +30,23 @@
 		     (signal (car err) (cdr err))))))))
 
 (defun hub/ci--stub-mu4e ()
-  (unless (require 'mu4e nil 'noerror)
-    (defvar mu4e-mu-version "ci-stub")
-    (defvar mu4e-main-mode-map (make-sparse-keymap))
-    (defvar mu4e-headers-mode-map (make-sparse-keymap))
-    (defun mu4e-message (&rest _args) (ignore))
-    (defun make-mu4e-context (&rest _args) nil)
-    (defun mu4e-context-determine (&rest _args) nil)
-    (defun mu4e-context-current () nil)
-    (defun mu4e-message-field (&rest _args) nil)
-    (defun mu4e-message-contact-field-matches (&rest _args) nil)
-    (provide 'mu4e)))
+  "Install enough mu4e stubs for CI without loading real mu4e.
+
+Do not try `(require 'mu4e nil 'noerror)' here.  In devenv, real mu4e may be
+available and may load mu4e-org before straight.el has made its Org package take
+precedence, reintroducing the classic bundled/newer Org version mismatch during
+CI setup.  Also do not `provide' mu4e: keeping the feature unloaded prevents
+`with-eval-after-load' mu4e blocks from running against incomplete stubs."
+  (setq hub/ci-stubbed-mu4e t)
+  (defvar mu4e-mu-version "1.12.13")
+  (defvar mu4e-main-mode-map (make-sparse-keymap))
+  (defvar mu4e-headers-mode-map (make-sparse-keymap))
+  (defun mu4e-message (&rest _args) (ignore))
+  (defun make-mu4e-context (&rest _args) nil)
+  (defun mu4e-context-determine (&rest _args) nil)
+  (defun mu4e-context-current () nil)
+  (defun mu4e-message-field (&rest _args) nil)
+  (defun mu4e-message-contact-field-matches (&rest _args) nil))
 
 ;; Compute repo root and ensure core predicates are available early
 (let* ((this-file (or load-file-name buffer-file-name))

@@ -80,7 +80,7 @@ Returns the resolved mu binary path (or nil)."
 
 (defun hub/ensure-mu4e-loaded ()
   "Load mu4e from environment if available; fallback to probing common paths."
-  (unless (featurep 'mu4e)
+  (unless (or (featurep 'mu4e) (bound-and-true-p hub/ci-stubbed-mu4e))
     (let* ((mu-bin (executable-find "mu"))
 	   (mu-version (hub/mu--version-from-bin mu-bin))
 	   (lib (locate-library "mu4e")))
@@ -101,7 +101,8 @@ Returns the resolved mu binary path (or nil)."
   ;; mu4e path differs between devenv shell and GUI Emacs).  Initialize it now
   ;; so mu4e modes enter Evil normal state with bépo rotation.
   (when (and (featurep 'evil-collection)
-	     (not (featurep 'evil-collection-mu4e)))
+	     (not (featurep 'evil-collection-mu4e))
+	     (not (bound-and-true-p hub/ci-stubbed-mu4e)))
     (evil-collection-init '(mu4e)))
   (evil-collection-define-key 'normal 'mu4e-main-mode-map
 			      "ê" 'mu4e-headers-search)

@@ -7,7 +7,8 @@
 
 (require 'hub-utils)
 (use-package mu4e-dashboard
-  :if (locate-library "mu4e-headers")
+  :if (and (not (bound-and-true-p hub/ci-stubbed-mu4e))
+	   (locate-library "mu4e-headers"))
   :straight (mu4e-dashboard :type git :host github :repo "rougier/mu4e-dashboard")
   :commands (mu4e-dashboard mu4e-dashboard-mode)
   :init

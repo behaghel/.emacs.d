@@ -585,9 +585,36 @@ Measure before proposing changes to:
 
 ### 5. Org version mismatch cleanup
 
-CI/full-load currently emits Org version mismatch warnings.  Investigate whether
-this reflects load-order overhead or stale compiled artifacts before changing
-anything.
+Status: CI-specific mismatch warning fixed on 2026-06-09; slow full-load still
+needs investigation.
+
+Findings:
+
+- Web/prior-art check confirmed the classic straight.el guidance: if using
+  straight's newer Org, call `(straight-use-package 'org)` immediately after
+  straight bootstrap so straight's Org takes load-path precedence before bundled
+  Org can be pulled in.
+- `core/core-packages.el` already makes straight package load paths available
+  before `org/core` configures Org in normal init.
+- The CI-like mismatch had a different trigger: `scripts/ci-load-all.el` tried
+  `(require 'mu4e nil 'noerror)` while setting up test stubs.  In devenv, real
+  mu4e is available; loading it also loads `mu4e-org`, which pulled in bundled
+  Org before `init.el` bootstrapped straight.
+
+Applied fix:
+
+- `scripts/ci-load-all.el` now installs CI mu4e stubs without requiring or
+  providing real `mu4e`.
+- `email/core` skips real mu4e discovery when `hub/ci-stubbed-mu4e` is set.
+- `email/core` also avoids initializing `evil-collection-mu4e` against CI stubs.
+- `email/dashboard` avoids declaring/loading `mu4e-dashboard` when CI stubs are
+  active.
+
+Validation:
+
+- `devenv -q shell -- ci:load-all` completed without Org version mismatch
+  warnings.  The run still took `310.484s`, so slow forced full-load remains a
+  separate performance target.
 
 ### 6. Package-boundary and definition/configuration refactor
 
