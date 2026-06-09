@@ -791,9 +791,8 @@ Recommended next session priorities:
 
 1. Rerun manual GUI startup validation after the `ssh-agency`, Diff-HL, and
    Dired lazy activation changes.
-2. Consider deferring `edit-server` from the post-first-paint startup tranche;
-   Ispell/Flyspell programming-buffer activation has been moved to visible-buffer
-   idle scheduling.
+2. `edit-server` is now command-only rather than auto-started after init; browser
+   textarea editing can still be enabled with `M-x edit-server-start`.
 3. Consider adding a doc-drift check for generated package docs, following the
    `eve.el` guardrail pattern.
 

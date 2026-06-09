@@ -410,15 +410,11 @@
 (use-package restclient
   :commands (restclient-mode))
 
-;; Use emacs to edit textarea in Chrome
+;; Use Emacs to edit browser textareas when explicitly enabled.
 (use-package edit-server
   :if window-system
-  ;; :ensure t
-  :defer 5
+  :commands (edit-server-start edit-server-stop)
   :init
-  (add-hook 'after-init-hook #'hub/ensure-server-started t)
-  (add-hook 'after-init-hook 'edit-server-start t)
-  :config
   (setq edit-server-default-major-mode 'markdown-mode))
 
 (add-to-list 'load-path "/Users/hubertbehaghel/ws/veriff/herbert/elisp")
