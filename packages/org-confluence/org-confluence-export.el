@@ -1,4 +1,4 @@
-;;; export.el --- Org -> Confluence Storage Format (XHTML) export backend -*- lexical-binding: t; -*-
+;;; org-confluence-export.el --- Org to Confluence Storage Format backend -*- lexical-binding: t; -*-
 
 ;;; Commentary:
 ;; Pure Org -> Confluence Storage Format export support.
@@ -432,5 +432,6 @@ conventions, so this command works from `org-export-dispatch'."
   (let ((file (org-export-output-file-name ".xhtml" subtreep)))
     (org-export-to-file 'confluence file async subtreep visible-only (or body-only t) ext-plist)))
 
+(provide 'org-confluence-export)
 (provide 'org/export-confluence)
-;;; export.el ends here
+;;; org-confluence-export.el ends here

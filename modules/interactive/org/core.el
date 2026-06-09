@@ -568,7 +568,7 @@ this shortcut is intentionally accepted anywhere on the current line."
 		org-download-delete-image-after-download t))
 
 (use-package org-drill :after org :defer 10)
-(use-package citeproc)
+(use-package citeproc :defer t)
 
 (provide 'org/core)
 ;;; core.el ends here

@@ -1,0 +1,5 @@
+| Variable | Default | Description |
+|----------+---------+-------------|
+| =hub/confluence-api-base-url= | =nil= | Base URL of the Confluence site, without the /wiki path. |
+| =hub/confluence-api-cfl-command= | ="cfl"= | Command used to invoke the cfl Confluence CLI. |
+| =hub/confluence-api-default-space= | =nil= | Default Confluence space key used when #+CONFLUENCE_SPACE is absent. |

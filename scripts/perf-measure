@@ -1,0 +1,44 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+# Measurement-only helper.  It intentionally does not change Emacs runtime
+# configuration, package settings, load order, dashboard behavior, or direnv
+# behavior.  Run through devenv:
+#   devenv -q shell -- ./scripts/perf-measure [file] [cross-project-file]
+
+file_to_open="${1:-init.el}"
+cross_project_file="${2:-}"
+
+run_timed() {
+  local label="$1"
+  shift
+  echo "== ${label} =="
+  /usr/bin/time -p "$@"
+  echo
+}
+
+run_timed "batch init load" \
+  env HOME="$PWD" HUB_SKIP_SERVER=1 \
+  emacs --batch -l init.el \
+  --eval '(message "init-time %.3fs gcs=%d" (float-time (time-subtract after-init-time before-init-time)) gcs-done)' \
+  --kill
+
+run_timed "forced full load (optionals skipped)" \
+  env HOME="$PWD" HUB_FORCE_FULL_LOAD=1 HUB_CI_SKIP_OPTIONALS=1 HUB_SKIP_SERVER=1 \
+  emacs --batch -l init.el \
+  --eval '(message "init-time %.3fs gcs=%d" (float-time (time-subtract after-init-time before-init-time)) gcs-done)' \
+  --kill
+
+run_timed "visit file after init: ${file_to_open}" \
+  env HOME="$PWD" HUB_SKIP_SERVER=1 PERF_FILE_TO_OPEN="$file_to_open" \
+  emacs --batch -l init.el \
+  --eval '(let ((start (current-time))) (find-file (getenv "PERF_FILE_TO_OPEN")) (message "visit-file-time %.3fs buffer=%s mode=%s" (float-time (time-subtract (current-time) start)) (buffer-name) major-mode))' \
+  --kill
+
+if [[ -n "${cross_project_file}" ]]; then
+  run_timed "visit cross-project file after init: ${cross_project_file}" \
+    env HOME="$PWD" HUB_SKIP_SERVER=1 PERF_FILE_TO_OPEN="$cross_project_file" \
+    emacs --batch -l init.el \
+    --eval '(let ((start (current-time))) (find-file (getenv "PERF_FILE_TO_OPEN")) (message "visit-cross-project-time %.3fs buffer=%s mode=%s" (float-time (time-subtract (current-time) start)) (buffer-name) major-mode))' \
+    --kill
+fi

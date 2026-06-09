@@ -8,9 +8,11 @@
 (require 'hub-utils)
 (use-package mu4e-dashboard
   :if (locate-library "mu4e-headers")
-  :after mu4e
   :straight (mu4e-dashboard :type git :host github :repo "rougier/mu4e-dashboard")
-  :custom (mu4e-dashboard-file (expand-file-name "modules/interactive/email/mail-sidebar.org" user-emacs-directory))
+  :commands (mu4e-dashboard mu4e-dashboard-mode)
+  :init
+  (setq mu4e-dashboard-file
+	(expand-file-name "modules/interactive/email/mail-sidebar.org" user-emacs-directory))
   :config
   ;; Ensure the dashboard file opens with mu4e-dashboard-mode when visited.
   (defun mu4e-dashboard-hook ()

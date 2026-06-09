@@ -73,19 +73,6 @@
 (add-to-list 'load-path (expand-file-name "modules" user-emacs-directory))
 (add-to-list 'load-path (expand-file-name "modules/lang" user-emacs-directory))
 (add-to-list 'load-path (expand-file-name "modules/org" user-emacs-directory))
-(add-to-list 'load-path (expand-file-name "modules/org/export-confluence" user-emacs-directory))
-(autoload 'hub/confluence-publish "commands" nil t)
-(autoload 'hub/confluence-publish-dwim "commands" nil t)
-(autoload 'hub/confluence-publish-from-export-dispatch "commands" nil t)
-(autoload 'hub/confluence-publish-and-open-from-export-dispatch "commands" nil t)
-(autoload 'hub/confluence-open-page "commands" nil t)
-(autoload 'hub/confluence-pull "commands" nil t)
-;; Personal Confluence integration defaults.
-(setq hub/confluence-api-default-space "~63cfa80595cff7f585c2f168"
-      hub/confluence-api-base-url "https://veriff.atlassian.net")
-(with-eval-after-load 'ox
-  (load (expand-file-name "modules/org/export-confluence/export.el" user-emacs-directory)
-	nil 'nomessage))
 (when (or hub/force-interactive (and (featurep 'core-predicates) (hub/interactive-p)))
   (add-to-list 'load-path (expand-file-name "modules/interactive" user-emacs-directory)))
 
@@ -115,6 +102,10 @@
 	   (setq hub/core-packages-load-ok t))
   (error
    (message "[init] core-packages failed, falling back: %S" err)
+   ;; Keep fallback bootstrap aligned with core/core-packages.el.  Respect any
+   ;; earlier CI override that deliberately disabled modification checks.
+   (unless (boundp 'straight-check-for-modifications)
+     (setq straight-check-for-modifications '(find-when-checking only-once)))
    (defvar bootstrap-version)
    (let* ((repo "radian-software/straight.el")
 	  (branch "develop")
@@ -288,7 +279,8 @@
   (setq yas-prompt-functions '(yas/completing-prompt))
   )
 
-(use-package yasnippet-snippets)
+(use-package yasnippet-snippets
+  :after yasnippet)
 
 ;;; auto-insert-mode is Emacs file templating
 (auto-insert-mode 0)        ; no more the default, use auto-insert manually
@@ -381,7 +373,10 @@
 (when (or hub/force-interactive (and (featurep 'core-predicates) (hub/interactive-p)))
   (require 'ui/core)
   (if (display-graphic-p)
-      (require 'ui/gui)
+      (progn
+	(require 'ui/gui)
+	(when (fboundp 'hub/dashboard-first-paint)
+	  (hub/dashboard-first-paint)))
     (require 'ui/tty)))
 (put 'narrow-to-region 'disabled nil)
 (put 'erase-buffer 'disabled nil)
@@ -395,6 +390,7 @@
   (require 'shell/eshell)
   ;; Knowledge & writing
   (require 'org/core)
+  (require 'org/confluence)
   (require 'org/export-latex)
   (unless (getenv "HUB_CI_SKIP_OPTIONALS")
     (require 'notes/brain))

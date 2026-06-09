@@ -17,21 +17,23 @@
 
 (use-package org-ai
   :straight '(:type git :host github :repo "rksm/org-ai")
-  :after (org)
-  :custom (org-ai-default-chat-model "gpt-4")
+  :commands (org-ai-mode org-ai-global-mode)
+  :init
+  (setq org-ai-default-chat-model "gpt-4"
+	org-ai-openai-api-token nil
+	org-ai-auto-fill t)
   :config
   ;; `org-ai' hardcodes <A for `ai', which collides with Org Tempo's
   ;; built-in <A ASCII export keyword and emits a startup warning.
-  (setq org-structure-template-alist
-	(assoc-delete-all "A" org-structure-template-alist))
-  (org-ai-install-yasnippets)
-  (add-hook 'org-mode-hook #'org-ai-mode)
-  (setq org-ai-openai-api-token nil
-	org-ai-auto-fill t))
+  (when (boundp 'org-structure-template-alist)
+    (setq org-structure-template-alist
+	  (assoc-delete-all "A" org-structure-template-alist)))
+  (org-ai-install-yasnippets))
 
 (use-package whisper
   :straight '(:type git :host github :repo "natrys/whisper.el")
-  :config
+  :commands (whisper-run whisper-file whisper-select-language)
+  :init
   (setq whisper-install-directory "/tmp/"
 	whisper-model "base"
 	whisper-language "en"

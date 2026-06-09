@@ -1,0 +1,100 @@
+#+TITLE: Org Confluence Export
+#+AUTHOR: Hubert Behaghel
+#+OPTIONS: toc:t num:nil
+
+* Org Confluence Export
+
+=org-confluence= exports Org buffers to Confluence Storage Format and publishes
+pages through the =cfl= command-line tool.
+
+This directory is intentionally shaped as a package boundary inside the Emacs
+configuration.  The goal is to make it easy to extract into its own Git
+repository later.
+
+* Package boundary
+
+The package code lives here and should remain independent from the surrounding
+Emacs configuration:
+
+| File | Responsibility |
+|------+----------------|
+| =org-confluence.el= | Package facade / conventional entrypoint. |
+| =org-confluence-export.el= | Pure Org → Confluence Storage Format export backend. |
+| =org-confluence-api.el= | =cfl= command construction and metadata lookup helpers. |
+| =org-confluence-commands.el= | User-facing publish/pull commands composing export + API. |
+| =export.el=, =api.el=, =commands.el= | Compatibility wrappers for the old in-repo names. |
+
+The surrounding Emacs config should own only activation policy and user/site
+preferences.  In this repository that activation lives in:
+
+#+begin_example
+modules/interactive/org/confluence.el
+#+end_example
+
+* Installation
+
+When used from this repository, no separate installation is required.
+
+When extracted as a package, the intended setup should look like this:
+
+#+begin_src emacs-lisp
+(use-package org-confluence
+  :straight (:type git :host github :repo "behaghel/org-confluence")
+  :commands (hub/confluence-publish
+             hub/confluence-publish-dwim
+             hub/confluence-pull)
+  :init
+  (setq hub/confluence-api-base-url "https://example.atlassian.net"
+        hub/confluence-api-default-space "~personal")
+  :config
+  (with-eval-after-load 'ox
+    (require 'org-confluence)))
+#+end_src
+
+* Commands
+
+#+INCLUDE: "docs/generated/commands.org"
+
+* Configuration
+
+#+INCLUDE: "docs/generated/config-reference.org"
+
+Additional exporter variable:
+
+| Variable | Default | Description |
+|----------+---------+-------------|
+| =org-confluence-image-max-width= | =760= | Maximum emitted Confluence image width in pixels. |
+
+* Development notes
+
+Package extraction goals:
+
+1. Keep package files free of personal defaults.
+2. Keep activation/configuration in consumer configs.
+3. Add autoload cookies before external release.
+4. Generate this reference from defcustoms/commands, following the reusable
+   documentation approach used by =eve.el=:
+
+   #+begin_src shell
+   scripts/elisp-package-docs \
+     --load packages/org-confluence/org-confluence.el \
+     --prefix hub/confluence-api- \
+     --command-prefix hub/confluence- \
+     --out packages/org-confluence/docs/generated
+   #+end_src
+
+5. Preserve the current ERT suite as the package's standalone test suite.
+
+* Tests
+
+Current tests live in the parent repository:
+
+#+begin_src shell
+devenv -q shell -- env HOME=$PWD emacs --batch -Q \
+  -L . -L lisp -L packages/org-confluence \
+  -l ert \
+  -l test/test-helpers.el \
+  -l test/org-confluence-export-test.el \
+  -l test/org-confluence-api-test.el \
+  -f ert-run-tests-batch-and-exit
+#+end_src

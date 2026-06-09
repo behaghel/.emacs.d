@@ -73,8 +73,11 @@
   :after (treemacs dired)
   :config (treemacs-icons-dired-mode))
 
-(use-package treemacs-magit
-  :after (treemacs magit))
+;; Avoid a startup-time `use-package' declaration for this optional bridge.
+;; Load it only when both packages it connects are already in use.
+(with-eval-after-load 'magit
+  (with-eval-after-load 'treemacs
+    (require 'treemacs-magit nil 'noerror)))
 
 (provide 'navigation/treemacs)
 ;;; treemacs.el ends here

@@ -1,0 +1,98 @@
+#!/usr/bin/env bash
+# Generate small Org documentation fragments for an Emacs Lisp package.
+#
+# This is a reusable extraction of the documentation pattern used by eve.el:
+# load a package, inspect its public defcustoms/commands, and write Org tables
+# that can be included in package manuals.
+set -euo pipefail
+
+usage() {
+  cat >&2 <<'USAGE'
+Usage: scripts/elisp-package-docs --load FILE --prefix PREFIX --out DIR [--command-prefix PREFIX]
+
+Examples:
+  scripts/elisp-package-docs \
+    --load packages/org-confluence/org-confluence.el \
+    --prefix hub/confluence-api- \
+    --command-prefix hub/confluence- \
+    --out packages/org-confluence/docs/generated
+USAGE
+}
+
+load_file=""
+prefix=""
+command_prefix=""
+out_dir=""
+
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --load) load_file="$2"; shift 2 ;;
+    --prefix) prefix="$2"; shift 2 ;;
+    --command-prefix) command_prefix="$2"; shift 2 ;;
+    --out) out_dir="$2"; shift 2 ;;
+    -h|--help) usage; exit 0 ;;
+    *) echo "Unknown argument: $1" >&2; usage; exit 2 ;;
+  esac
+done
+
+if [[ -z "$load_file" || -z "$prefix" || -z "$out_dir" ]]; then
+  usage
+  exit 2
+fi
+
+repo_root="$(pwd)"
+mkdir -p "$out_dir"
+load_abs="$(cd "$(dirname "$load_file")" && pwd)/$(basename "$load_file")"
+out_abs="$(mkdir -p "$out_dir" && cd "$out_dir" && pwd)"
+command_prefix="${command_prefix:-$prefix}"
+
+emacs --batch -Q \
+  -L "$repo_root" \
+  -L "$repo_root/lisp" \
+  -L "$repo_root/modules" \
+  -L "$repo_root/modules/org" \
+  -L "$(dirname "$load_abs")" \
+  -l "$load_abs" --eval "
+(progn
+  (require 'subr-x)
+  (with-temp-file (expand-file-name \"config-reference.org\" \"$out_abs\")
+    (insert \"| Variable | Default | Description |\\n\")
+    (insert \"|----------+---------+-------------|\\n\")
+    (let ((customs nil))
+      (mapatoms
+       (lambda (sym)
+         (when (and (custom-variable-p sym)
+                    (string-prefix-p \"$prefix\" (symbol-name sym)))
+           (push sym customs))))
+      (setq customs (sort customs (lambda (a b) (string< (symbol-name a) (symbol-name b)))))
+      (dolist (sym customs)
+        (let* ((name (symbol-name sym))
+               (val (default-value sym))
+               (default (cond
+                         ((eq val t) \"=t=\")
+                         ((null val) \"=nil=\")
+                         ((stringp val) (format \"=\\\"%s\\\"=\" val))
+                         ((numberp val) (format \"=%s=\" val))
+                         ((and (listp val) (< (length (format \"%S\" val)) 40))
+                          (format \"=%S=\" val))
+                         (t \"=(...)=\")))
+               (doc (or (get sym 'variable-documentation) \"\"))
+               (first-line (car (split-string doc \"\\n\"))))
+          (insert (format \"| =%s= | %s | %s |\\n\" name default first-line))))))
+
+  (with-temp-file (expand-file-name \"commands.org\" \"$out_abs\")
+    (insert \"| Command | Description |\\n\")
+    (insert \"|---------+-------------|\\n\")
+    (let ((commands nil))
+      (mapatoms
+       (lambda (sym)
+         (when (and (commandp sym)
+                    (string-prefix-p \"$command_prefix\" (symbol-name sym)))
+           (push sym commands))))
+      (setq commands (sort commands (lambda (a b) (string< (symbol-name a) (symbol-name b)))))
+      (dolist (sym commands)
+        (let* ((doc (or (documentation sym t) \"\"))
+               (first-line (car (split-string doc \"\\n\"))))
+          (insert (format \"| =%s= | %s |\\n\" (symbol-name sym) first-line))))))
+  (message \"elisp-package-docs: wrote %s\" \"$out_abs\"))
+"

@@ -15,14 +15,16 @@
 - `core/`: always-on infrastructure such as paths, package bootstrap, predicates, startup, and keybind foundations.
 - `modules/lang/`: language-specific configuration; `modules/interactive/`: interactive-only modules grouped by category like `editing/`, `navigation/`, `email/`, `ui/`.
 - `modules/writing/`: writing helpers that are still loaded from the legacy path.
+- `packages/`: local package-style libraries intended to be reusable/extractable; keep defaults neutral and activate/configure them from modules.
 - `lisp/`: shared local libraries such as `hub-utils.el`, `hub-keys.el`, `hub-struct.el`.
 - `test/`: ERT tests and test helpers.
 - `scripts/`: repo-local validation helpers used by hooks and CI; `etc/`: static assets; `var/`: runtime state files.
-- `private/setup.el`: gitignored machine-specific overrides.
+- `private/setup.el`: gitignored sensitive local overrides only; it is not the normal place for personal configuration and should ideally remain empty.
 
 ## Architecture Rules
 - Keep runtime layers explicit: `core` is always available; `interactive` is loaded only outside batch unless forced.
 - Batch sessions must not expose `modules/interactive` on `load-path`; CI lint checks this.
+- Keep package/library defaults neutral and reusable. Place extractable local packages under `packages/`; put normal personal configuration and activation in tracked config modules under the relevant domain/category; use `private/setup.el` only for secrets or values that truly cannot be committed.
 - Do not add new tracked files under the retired `settings/` directory.
 - Module feature names should be namespaced by category, not by `hub/`; examples: `navigation/perspective-auto`, `email/view`.
 - Repo-specific function and variable names should use the `hub/` prefix.
@@ -143,7 +145,7 @@
 ## Change Discipline
 - Keep edits minimal and scoped to the task.
 - Do not rewrite unrelated formatting or move modules around unless required.
-- Never store secrets or machine-specific values in tracked files; use `private/setup.el`.
+- Never store secrets or truly sensitive values in tracked files; reserve `private/setup.el` for those rare uncommittable values only. Normal personal configuration belongs in tracked modules under the appropriate domain/category.
 - When introducing mutable paths, route them through `var/` or `etc/` according to whether they are runtime state or static assets.
 - Before handoff, run the most relevant load/test commands for the touched area and mention any checks you could not run.
 

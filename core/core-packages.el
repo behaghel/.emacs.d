@@ -5,6 +5,12 @@
 
 ;;; Code:
 
+;; Avoid straight.el's startup-wide find(1) scan while preserving explicit
+;; modification checks through `straight-check-package' and `straight-check-all'.
+;; Must be set before straight.el bootstrap; CI may set this to nil earlier.
+(unless (boundp 'straight-check-for-modifications)
+  (setq straight-check-for-modifications '(find-when-checking only-once)))
+
 (defvar bootstrap-version)
 (let* ((repo "radian-software/straight.el")
        (branch "develop")

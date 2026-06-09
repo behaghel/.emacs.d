@@ -1,0 +1,8 @@
+| Command | Description |
+|---------+-------------|
+| =hub/confluence-open-page= | Open Confluence PAGE-ID in browser using optional SPACE. |
+| =hub/confluence-publish= | Publish the current Org buffer or subtree to an existing Confluence page. |
+| =hub/confluence-publish-and-open-from-export-dispatch= | Publish or create through `org-export-dispatch', then open the page. |
+| =hub/confluence-publish-dwim= | Publish current Org buffer to Confluence, updating or creating as needed. |
+| =hub/confluence-publish-from-export-dispatch= | Publish or create through `org-export-dispatch' using Org export options. |
+| =hub/confluence-pull= | Fetch Confluence PAGE-ID and open a new Org buffer with imported content. |

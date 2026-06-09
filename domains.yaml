@@ -1,0 +1,176 @@
+project:
+  name: emacs-config
+  description: Personal Emacs configuration with layered runtime, productivity workflows, and reproducible development checks.
+
+domains:
+  configuration-runtime:
+    description: Startup entrypoints, package bootstrap, runtime predicates, load-path policy, and always-on foundations.
+    type: core
+    code: [core/, init.el, early-init.el, custom.el]
+    language:
+      - term: Interactive layer
+        meaning: Configuration loaded only in user-facing Emacs sessions, not ordinary batch checks.
+      - term: Batch load
+        meaning: Non-interactive Emacs invocation used for CI, linting, tests, and smoke checks.
+      - term: Force full load
+        meaning: CI-like mode that intentionally loads interactive modules to catch integration failures.
+
+  shared-libraries:
+    description: Repo-owned reusable Elisp helpers, key semantics, prose helpers, Org callout helpers, and structural editing helpers.
+    type: shared-kernel
+    code: [lisp/]
+    language:
+      - term: Hub helper
+        meaning: A repo-owned function, variable, or command named with the hub/ prefix.
+      - term: Shared helper
+        meaning: Reusable behavior consumed by multiple modules rather than one feature only.
+
+  interactive-experience:
+    description: Core interactive editing, completion, navigation, presentation, and OS-specific user experience.
+    type: core
+    code:
+      - modules/interactive/editing/
+      - modules/interactive/completion/
+      - modules/interactive/navigation/
+      - modules/interactive/ui/
+      - modules/interactive/os/
+    language:
+      - term: Leader binding
+        meaning: Discovery-oriented Evil keybinding rooted at comma.
+      - term: Localleader binding
+        meaning: Mode-specific command surface with semantics documented in keybinding guidance.
+      - term: Perspective
+        meaning: Project or activity context used to isolate buffers, windows, and navigation state.
+
+  knowledge-writing:
+    description: Org authoring, writing workflows, notes, document export, PDF/LaTeX authoring, blog tooling, and writing-oriented assets.
+    type: core
+    code:
+      - modules/interactive/org/
+      - modules/org/
+      - packages/
+      - modules/writing/
+      - modules/interactive/notes/
+      - modules/interactive/tools/
+      - etc/
+      - insert/
+    language:
+      - term: Semantic layer
+        meaning: Author-facing Org contract that describes meaning independently from output styling.
+      - term: Class family
+        meaning: A related set of LaTeX/PDF export classes and variants.
+      - term: Specimen
+        meaning: Tracked Org input used to verify export behavior.
+      - term: Local package
+        meaning: Reusable package-style code under packages/ with neutral defaults, separate from activation and personal configuration modules.
+
+  email-productivity:
+    description: mu4e integration, mail contexts, actions, composing, viewing, noise filtering, and email dashboard behavior.
+    type: supporting
+    code: [modules/interactive/email/]
+    language:
+      - term: Context
+        meaning: Mail account or identity selection used by mu4e.
+      - term: Dashboard sidebar
+        meaning: Email-oriented Org/sidebar UI shown alongside mu4e workflows.
+      - term: Noise rule
+        meaning: Local rule for reducing low-value mail visibility.
+
+  development-workbench:
+    description: Language modes, programming defaults, shells, VCS integration, Tree-sitter, Eglot, and project development ergonomics.
+    type: supporting
+    code:
+      - modules/lang/
+      - modules/interactive/dev/
+      - modules/interactive/vcs/
+      - modules/interactive/shell/
+    language:
+      - term: Language module
+        meaning: Per-language configuration under modules/lang/.
+      - term: Development default
+        meaning: Cross-language programming behavior applied by the dev/common module.
+      - term: Project environment
+        meaning: Directory-local shell/tooling environment, often provided through direnv/devenv.
+
+  personal-apps:
+    description: Standalone personal productivity applications layered into Emacs, such as feeds and video workflows.
+    type: supporting
+    code:
+      - modules/interactive/apps/
+      - modules/interactive/video/
+    language:
+      - term: App module
+        meaning: A self-contained interactive workflow that is not part of editing, writing, email, or development foundations.
+
+  quality-system:
+    description: Tests, CI workflows, linting, formatting, parsing, warm-cache scripts, and developer environment automation.
+    type: generic
+    code:
+      - scripts/
+      - test/
+      - .github/workflows/
+      - devenv.nix
+      - devenv.yaml
+    language:
+      - term: Load check
+        meaning: Batch load smoke check for init.el.
+      - term: Full load
+        meaning: CI-like load that forces the interactive layer to catch integration errors.
+      - term: Architecture lint
+        meaning: Static check enforcing module boundary rules.
+
+  architecture-governance:
+    description: Architectural documentation, domain/spec governance, performance discipline, and project-agent instructions.
+    type: supporting
+    code:
+      - docs/
+      - spec/
+      - AGENTS.md
+    language:
+      - term: Performance discipline
+        meaning: The rule set requiring measurement, UX preservation, and standard mechanisms before custom optimization code.
+      - term: Domain spec
+        meaning: Colocated README.md or sibling spec file that captures domain language, invariants, and behavior contracts.
+
+context-map:
+  - from: configuration-runtime
+    to: shared-libraries
+    pattern: shared-kernel
+    via: lisp/ helpers required by core and modules
+    notes: Runtime and modules consume shared hub helpers.
+
+  - from: interactive-experience
+    to: shared-libraries
+    pattern: shared-kernel
+    via: lisp/ helpers and key semantics
+    notes: Interactive modules depend on shared helper contracts.
+
+  - from: knowledge-writing
+    to: shared-libraries
+    pattern: shared-kernel
+    via: hub-org-callout, hub-prose, hub-keys, and hub-utils
+    notes: Writing/export behavior consumes shared authoring and key helpers.
+
+  - from: email-productivity
+    to: interactive-experience
+    pattern: conformist
+    via: Evil, keybinding, UI, and dashboard conventions
+    notes: Email adapts to the established interactive UX model.
+
+  - from: development-workbench
+    to: interactive-experience
+    pattern: conformist
+    via: Evil, completion, project, and navigation conventions
+    notes: Development workflows use the common interactive command surface.
+
+  - from: quality-system
+    to: configuration-runtime
+    pattern: customer-supplier
+    via: scripts/ci-load-all.el, scripts/lint-architecture.el, and GitHub Actions
+    notes: Quality checks verify runtime contracts and report regressions.
+
+  - from: architecture-governance
+    to: quality-system
+    pattern: customer-supplier
+    via: documented checks and performance measurement scripts
+    notes: Governance documents define expectations that quality tooling should enforce where practical.

@@ -1,4 +1,4 @@
-;;; api.el --- cfl shell wrappers for confluence export -*- lexical-binding: t; -*-
+;;; org-confluence-api.el --- cfl shell wrappers for Confluence export -*- lexical-binding: t; -*-
 
 ;;; Commentary:
 ;; Build and run cfl commands for the Org -> Confluence publish flow.
@@ -22,8 +22,8 @@
 (defcustom hub/confluence-api-default-space nil
   "Default Confluence space key used when #+CONFLUENCE_SPACE is absent.
 
-Keep this nil in shared configuration.  Set it from private machine-specific
-configuration when you want create flow to default to a personal space."
+Keep this nil in the reusable package.  Set it from a tracked configuration
+module when your normal Org workflow should default to a personal space."
   :type '(choice (const :tag "No default" nil) string)
   :group 'hub/confluence-api)
 
@@ -138,5 +138,6 @@ Prefer #+CONFLUENCE_SPACE in the current Org buffer.  When absent, fall back to
 	(format "%s/wiki/spaces/%s/pages/%s" base-url (url-hexify-string (string-trim space)) id)
       (format "%s/wiki/pages/%s" base-url id))))
 
+(provide 'org-confluence-api)
 (provide 'org/export-confluence-api)
-;;; api.el ends here
+;;; org-confluence-api.el ends here

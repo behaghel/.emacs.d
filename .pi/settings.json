@@ -1,0 +1,5 @@
+{
+  "packages": [
+    "../../nixos-config/marketplace/plugins/domain-tree"
+  ]
+}

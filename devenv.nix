@@ -40,6 +40,7 @@ in
     - Format all elisp   : devenv shell -- elisp:format-all
     - Checkdoc all elisp : devenv shell -- elisp:checkdoc-all
     - Tangle config      : devenv shell -- tangle
+    - Confluence docs    : devenv shell -- docs:confluence
     - Load check         : devenv shell -- load-check
     - Freeze packages    : devenv shell -- freeze
     - Pre-commit (all)   : devenv shell -- pre-commit:all
@@ -81,6 +82,27 @@ in
       if [ ''${#el_files[@]} -gt 0 ]; then
         ./scripts/elisp-checkdoc "''${el_files[@]}"
       fi
+    '';
+    "docs:confluence".exec = ''
+      ./scripts/elisp-package-docs \
+        --load packages/org-confluence/org-confluence.el \
+        --prefix hub/confluence-api- \
+        --command-prefix hub/confluence- \
+        --out packages/org-confluence/docs/generated
+    '';
+    lint.exec = ''
+      chmod +x scripts/elisp-parse scripts/elisp-checkdoc || true
+      mapfile -t el_files < <(git ls-files "*.el")
+      if [ ''${#el_files[@]} -gt 0 ]; then
+        ./scripts/elisp-parse "''${el_files[@]}"
+        ./scripts/elisp-checkdoc "''${el_files[@]}"
+      fi
+      load-check
+    '';
+    ci.exec = ''
+      lint
+      docs:confluence
+      pre-commit:all
     '';
     "pre-commit:all".exec = ''
       pre-commit run -a || exit 1

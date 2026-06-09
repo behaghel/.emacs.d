@@ -27,11 +27,39 @@
       mac-option-modifier nil
       ns-use-srgb-colorspace t)
 
-(use-package exec-path-from-shell
-  :if (display-graphic-p)
-  :config
-  (setq exec-path-from-shell-arguments '("-l" "-i"))
-  (exec-path-from-shell-initialize))
+(defcustom hub/explicit-exec-path-extra-directories
+  (list (expand-file-name "~/.nix-profile/bin")
+	(format "/etc/profiles/per-user/%s/bin" (user-login-name))
+	"/nix/var/nix/profiles/default/bin"
+	"/run/current-system/sw/bin"
+	"/opt/homebrew/bin"
+	"/usr/local/bin"
+	"/usr/bin"
+	"/bin"
+	"/usr/sbin"
+	"/sbin")
+  "Explicit executable search path entries for Emacs.
+These directories are merged with inherited PATH without invoking a shell.  GUI
+launchd PATH should be managed declaratively from nixos-config."
+  :type '(repeat directory)
+  :group 'convenience)
+
+(defun hub/configure-explicit-exec-path ()
+  "Configure `exec-path' from explicit directories and inherited PATH.
+This intentionally avoids `exec-path-from-shell' so GUI startup does not block on
+interactive shell initialization."
+  (let ((seen nil)
+	(dirs nil))
+    (dolist (dir (append hub/explicit-exec-path-extra-directories
+			 (parse-colon-path (or (getenv "PATH") ""))))
+      (when (and dir (file-directory-p dir) (not (member dir seen)))
+	(push dir seen)
+	(push dir dirs)))
+    (setq dirs (nreverse dirs))
+    (setenv "PATH" (mapconcat #'identity dirs path-separator))
+    (setq exec-path (append dirs (list exec-directory)))))
+
+(hub/configure-explicit-exec-path)
 
 ;; Clipboard integration
 (use-package clipmon :defer t)

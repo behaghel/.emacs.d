@@ -1,4 +1,4 @@
-;;; commands.el --- Org Confluence publish commands -*- lexical-binding: t; -*-
+;;; org-confluence-commands.el --- Org Confluence publish commands -*- lexical-binding: t; -*-
 
 ;;; Commentary:
 ;; User-facing commands for publishing Org buffers to Confluence via cfl.
@@ -10,11 +10,8 @@
 (require 'subr-x)
 (require 'xml)
 
-(let ((dir (file-name-directory (or load-file-name buffer-file-name))))
-  (unless (featurep 'org/export-confluence)
-    (load (expand-file-name "export" dir) nil 'nomessage))
-  (unless (featurep 'org/export-confluence-api)
-    (load (expand-file-name "api" dir) nil 'nomessage)))
+(require 'org-confluence-api)
+(require 'org-confluence-export)
 
 (defun hub/confluence-commands--write-temp-xhtml (xhtml)
   "Write XHTML to a temporary .xhtml file and return its path."
@@ -361,6 +358,7 @@
 	    (hub/confluence-commands--upload-asset page-id asset upload-directory))
 	(delete-directory upload-directory t)))))
 
+;;;###autoload
 (defun hub/confluence-publish (&optional async subtreep visible-only body-only ext-plist)
   "Publish the current Org buffer or subtree to an existing Confluence page.
 
@@ -390,12 +388,14 @@ EXT-PLIST follow Org export conventions."
       (when (and xhtml-file (file-exists-p xhtml-file))
 	(delete-file xhtml-file)))))
 
+;;;###autoload
 (defun hub/confluence-publish-from-export-dispatch
     (&optional async subtreep visible-only body-only ext-plist)
   "Publish or create through `org-export-dispatch' using Org export options."
   (interactive)
   (hub/confluence-publish-dwim nil nil async subtreep visible-only body-only ext-plist))
 
+;;;###autoload
 (defun hub/confluence-open-page (&optional page-id space)
   "Open Confluence PAGE-ID in browser using optional SPACE."
   (interactive)
@@ -405,6 +405,7 @@ EXT-PLIST follow Org export conventions."
     (browse-url url)
     url))
 
+;;;###autoload
 (defun hub/confluence-publish-and-open-from-export-dispatch
     (&optional async subtreep visible-only body-only ext-plist)
   "Publish or create through `org-export-dispatch', then open the page."
@@ -452,6 +453,7 @@ METADATA is an alist of Org keyword names to values."
    `(("CONFLUENCE_PAGE_ID" . ,page-id)
      ("CONFLUENCE_SPACE" . ,space))))
 
+;;;###autoload
 (defun hub/confluence-pull (&optional page-id)
   "Fetch Confluence PAGE-ID and open a new Org buffer with imported content.
 
@@ -472,6 +474,7 @@ storage XHTML using cfl and converted to a conservative Org representation."
       (goto-char (point-min)))
     (pop-to-buffer buffer)))
 
+;;;###autoload
 (defun hub/confluence-publish-dwim
     (&optional title parent-id async subtreep visible-only body-only ext-plist)
   "Publish current Org buffer to Confluence, updating or creating as needed.
@@ -518,5 +521,6 @@ conventions."
 	    (when (and xhtml-file (file-exists-p xhtml-file))
 	      (delete-file xhtml-file))))))))
 
+(provide 'org-confluence-commands)
 (provide 'org/export-confluence-commands)
-;;; commands.el ends here
+;;; org-confluence-commands.el ends here

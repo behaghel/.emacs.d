@@ -13,7 +13,7 @@
 (let ((root (expand-file-name ".." (file-name-directory (or load-file-name buffer-file-name)))))
   (add-to-list 'load-path (expand-file-name "modules" root))
   (add-to-list 'load-path (expand-file-name "modules/org" root))
-  (add-to-list 'load-path (expand-file-name "modules/org/export-confluence" root))
+  (add-to-list 'load-path (expand-file-name "packages/org-confluence" root))
   (add-to-list 'load-path (expand-file-name "lisp" root))
   (add-to-list 'load-path (expand-file-name "core" root)))
 
