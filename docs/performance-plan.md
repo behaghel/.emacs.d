@@ -512,8 +512,11 @@ lazy-loading on 2026-06-09:
 - `emacs-startup-hook`: +4.465s.
 - Denote refresh: +5.575s, 0.045s.
 - Agenda refresh: +12.595s, 3.064s.
-- Remaining visible startup candidates: `ox-clip` before `emacs-startup-hook`,
-  `evil-org` during deferred agenda generation, and the agenda render itself.
+- Remaining visible startup candidates at this point: `ox-clip` before
+  `emacs-startup-hook`, `evil-org` during deferred agenda generation, and the
+  agenda render itself.  Follow-up: `ox-clip` is now command-autoloaded for
+  `ox-clip-formatted-copy`, with the Org visual binding installed without eager
+  package loading.
 
 Result: dashboard first paint is now approximately 7.5s faster than the original
 baseline and 2.2s faster than the previous deferred-only iteration.

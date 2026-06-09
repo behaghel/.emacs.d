@@ -22,7 +22,10 @@
   (add-hook 'org-agenda-mode-hook #'hub/setup-agenda-keybindings))
 
 (use-package ox-clip
-  :config (evil-define-key 'visual org-mode-map (kbd ",y") 'ox-clip-formatted-copy))
+  :commands (ox-clip-formatted-copy)
+  :init
+  (with-eval-after-load 'org
+    (evil-define-key 'visual org-mode-map (kbd ",y") #'ox-clip-formatted-copy)))
 
 (use-package org-cliplink
   :after org
