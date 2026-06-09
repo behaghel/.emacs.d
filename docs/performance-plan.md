@@ -499,6 +499,22 @@ Manual GUI validation sample after Org/email cleanup on 2026-06-09:
 - Denote refresh: +6.532s, 0.064s.
 - Agenda refresh: +13.340s, 2.873s.
 
+Manual GUI validation sample after SSH/Diff-HL/Dired/Flyspell/edit-server
+lazy-loading on 2026-06-09:
+
+- Removed from startup messages: `ssh-agency`, Diff-HL, Dired extension stack,
+  Aspell/Ispell process startup, and `edit-server` auto-start.
+- `ui/gui load start`: +1.457s.
+- `dashboard config start`: +1.755s.
+- `dashboard recentf ready`: +1.784s, 0.028s.
+- `ui/gui load complete`: +1.789s, 0.332s.
+- `dashboard first paint`: +1.808s, 0.018s.
+- `emacs-startup-hook`: +4.465s.
+- Denote refresh: +5.575s, 0.045s.
+- Agenda refresh: +12.595s, 3.064s.
+- Remaining visible startup candidates: `ox-clip` before `emacs-startup-hook`,
+  `evil-org` during deferred agenda generation, and the agenda render itself.
+
 Result: dashboard first paint is now approximately 7.5s faster than the original
 baseline and 2.2s faster than the previous deferred-only iteration.
 
