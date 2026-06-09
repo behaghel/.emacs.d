@@ -17,6 +17,7 @@
   "Return non-nil when the current buffer should get Diff-HL gutters."
   (and buffer-file-name
        (not (file-remote-p buffer-file-name))
+       (vc-backend buffer-file-name)
        (not (bound-and-true-p diff-hl-mode))))
 
 (defun hub/diff-hl-enable-visible-buffer (window)
