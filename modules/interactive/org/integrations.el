@@ -7,19 +7,31 @@
 
 (use-package org-re-reveal :defer t)
 
-(use-package evil-org
-  :after (evil org)
-  :hook (org-mode . evil-org-mode)
-  :config
-  (setq evil-org-movement-bindings '((up . "s") (down . "t") (left . "c") (right . "r")))
-  (evil-org-set-key-theme '(textobjects return insert navigation additional shift calendar))
-  (require 'evil-org-agenda)
-  (evil-org-agenda-set-keys)
-  (defun hub/setup-agenda-keybindings ()
+(defvar hub/org-background-agenda-render-p nil
+  "Non-nil while rendering Org agenda data for non-interactive consumers.")
+
+(defun hub/evil-org-enable-for-interactive-org-buffer ()
+  "Enable Evil Org unless the Org buffer belongs to background agenda work."
+  (unless hub/org-background-agenda-render-p
+    (evil-org-mode 1)))
+
+(defun hub/evil-org-setup-agenda-keybindings ()
+  "Install Evil Org agenda keys for interactive agenda buffers."
+  (unless hub/org-background-agenda-render-p
+    (require 'evil-org-agenda)
+    (evil-org-agenda-set-keys)
     (evil-collection-translate-key 'motion 'org-agenda-mode-map
 				   "c" "h" "C" "H" "t" "j" "T" "J" "s" "k" "S" "K" "r" "l" "R" "L"
-				   ":" "t" "H" "T" "e" "c" "a" "c" "L" "C" "é" "r" "É" "R" "|" "s" "K" "S"))
-  (add-hook 'org-agenda-mode-hook #'hub/setup-agenda-keybindings))
+				   ":" "t" "H" "T" "e" "c" "a" "c" "L" "C" "é" "r" "É" "R" "|" "s" "K" "S")))
+
+(use-package evil-org
+  :commands (evil-org-mode)
+  :init
+  (add-hook 'org-mode-hook #'hub/evil-org-enable-for-interactive-org-buffer)
+  (add-hook 'org-agenda-mode-hook #'hub/evil-org-setup-agenda-keybindings)
+  :config
+  (setq evil-org-movement-bindings '((up . "s") (down . "t") (left . "c") (right . "r")))
+  (evil-org-set-key-theme '(textobjects return insert navigation additional shift calendar)))
 
 (use-package ox-clip
   :commands (ox-clip-formatted-copy)

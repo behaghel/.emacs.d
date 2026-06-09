@@ -516,7 +516,9 @@ lazy-loading on 2026-06-09:
   `emacs-startup-hook`, `evil-org` during deferred agenda generation, and the
   agenda render itself.  Follow-up: `ox-clip` is now command-autoloaded for
   `ox-clip-formatted-copy`, with the Org visual binding installed without eager
-  package loading.
+  package loading.  `evil-org` is now command-autoloaded and skipped while the
+  dashboard renders agenda data in the background; interactive Org and agenda
+  buffers still enable the Evil Org integrations.
 
 Result: dashboard first paint is now approximately 7.5s faster than the original
 baseline and 2.2s faster than the previous deferred-only iteration.

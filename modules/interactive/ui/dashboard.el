@@ -38,6 +38,9 @@ removing the item from `dashboard-items', also avoids loading them."
 (defvar hub/dashboard--resize-refresh-enabled nil
   "Non-nil once dashboard resize refresh has been enabled after startup.")
 
+(defvar hub/org-background-agenda-render-p nil
+  "Non-nil while dashboard renders Org agenda data in the background.")
+
 (defun hub/dashboard-seed-project-list ()
   "Ensure `project.el' knows workspace projects before dashboard renders."
   (let ((start-time (current-time))
@@ -178,7 +181,8 @@ removing the item from `dashboard-items', also avoids loading them."
 		(when (fboundp 'hub/org-prune-missing-agenda-files)
 		  (hub/org-prune-missing-agenda-files t))
 		(with-timeout (2.0 (error "Agenda generation timed out"))
-		  (dashboard-insert-agenda list-size)))
+		  (let ((hub/org-background-agenda-render-p t))
+		    (dashboard-insert-agenda list-size))))
 	    (error (message "[dashboard] skipping agenda section: %s" (error-message-string err))))
 	(hub/performance-log-startup-event "dashboard agenda section" start-time))))
 
