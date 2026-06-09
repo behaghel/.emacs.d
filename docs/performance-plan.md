@@ -713,8 +713,10 @@ Refactor candidates:
      Magit-specific keybindings, and post-load configuration.  It deliberately
      avoids `use-package`/`straight-use-package` so Magit remains unloaded during
      startup.
-   - `modules/interactive/vcs/ssh.el` owns the graphical `ssh-agency` askpass
-     integration.
+   - `modules/interactive/vcs/ssh.el` owns the graphical SSH askpass
+     integration.  Follow-up on 2026-06-09: it now sets the cheap `SSH_ASKPASS`
+     environment value directly and leaves `ssh-agency` command/autoload based,
+     avoiding an eager GUI startup package load.
    - `modules/interactive/vcs/diff-hl.el` owns the eager Diff-HL activation and
      gutter/hunk keybindings.  It remains `:demand t`; changing gutter
      activation timing is still a future UX/performance decision.
