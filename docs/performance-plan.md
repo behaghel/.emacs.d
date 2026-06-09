@@ -484,6 +484,21 @@ Post-change GUI sample:
 - Deferred refresh still completes around +9.562s due agenda work, but after
   first paint.
 
+Manual GUI validation sample after Org/email cleanup on 2026-06-09:
+
+- Dashboard appears and email/link-copy behavior is functional.
+- No Org version mismatch warning appeared.
+- `ui/gui load start`: +1.640s.
+- `dashboard config start`: +2.174s.
+- `dashboard recentf ready`: +2.198s, 0.024s.
+- `ui/gui load complete`: +2.203s, 0.563s.
+- First placeholder dashboard render: +2.218s, 0.015s.
+- `dashboard first paint`: +2.223s, still aligned with the earlier first-paint
+  improvement.
+- `emacs-startup-hook`: +5.376s.
+- Denote refresh: +6.532s, 0.064s.
+- Agenda refresh: +13.340s, 2.873s.
+
 Result: dashboard first paint is now approximately 7.5s faster than the original
 baseline and 2.2s faster than the previous deferred-only iteration.
 
