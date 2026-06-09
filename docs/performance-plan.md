@@ -222,7 +222,7 @@ High-signal observations from the forced full-load sample:
 | `eglot` | 167ms | `(use-package eglot)` in `dev/common` | low-medium | Built-in-ish code assistance should not be required until language hooks need it. Could use built-in recipe and defer/configure after load. Must preserve language hooks. |
 | `yasnippet-snippets` | 98ms | `(use-package yasnippet-snippets)` in `init.el` | low | Eagerly loads while `yasnippet` itself is deferred. Log says snippets prepared just-in-time but no snippets found. Best first candidate. |
 | `evil` family | 145ms for `evil`, plus related packages | `evil` demanded by core interactive UX | high | Core UX; do not defer casually. Possible later work is narrowing `evil-collection-init`, not removing Evil startup. |
-| `dired` + `dired-aux` + friends | ~60ms | Dired module required in full interactive load | medium | Dired behavior is user-facing but not dashboard-critical. Later candidate after command availability review. |
+| `dired` + `dired-aux` + friends | ~60ms | Dired module required in full interactive load | medium | Follow-up on 2026-06-09: Dired command/key availability is preserved, but Dired packages/config now load when Dired is invoked rather than during startup. |
 | `diff-hl` | 40ms | `:demand t` in VCS module | medium | Demand-loading is explicit. Could move to hooks, but this changes when gutters become available. Needs UX discussion. |
 | `perspective` | 23ms | `:defer t`, but module config invokes behavior | medium-high | Perspectives are a daily workflow. Measure project switching before changing. |
 | `smartparens`/`evil-smartparens` | ~31ms | global modes after `:defer 2` in `init.el` | medium | Runtime cost may matter more than startup. Needs global-mode audit. |
@@ -787,9 +787,10 @@ Current state after the 2026-06-09 work:
 
 Recommended next session priorities:
 
-1. Rerun manual GUI startup validation after the `ssh-agency` and Diff-HL lazy
-   activation changes.
-2. Consider deferring the Dired stack from the post-first-paint startup tranche.
+1. Rerun manual GUI startup validation after the `ssh-agency`, Diff-HL, and
+   Dired lazy activation changes.
+2. Consider deferring `edit-server` and Ispell startup work from the
+   post-first-paint startup tranche.
 3. Consider adding a doc-drift check for generated package docs, following the
    `eve.el` guardrail pattern.
 
