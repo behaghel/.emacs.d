@@ -632,8 +632,37 @@ Refactor candidates:
      candidate.
 2. **UI/dashboard** — split `ui/gui.el` into performance instrumentation, theme,
    fonts/emoji, and dashboard activation.
+
+   Applied first split on 2026-06-09:
+
+   - `modules/interactive/ui/gui.el` is now an orchestration-only GUI entrypoint.
+   - `modules/interactive/ui/performance.el` owns startup milestone logging.
+   - `modules/interactive/ui/theme.el` owns the graphical Modus theme setup.
+   - `modules/interactive/ui/fonts.el` owns icons, emoji/symbol fallback, and
+     face font defaults.
+   - `modules/interactive/ui/dashboard.el` owns dashboard activation, first
+     paint, deferred section refresh, and dashboard-specific instrumentation.
+   - No intended UX or load-order behavior change: `ui/gui` still requires the
+     same GUI capabilities in the same sequence and still provides
+     `hub/dashboard-first-paint` via the dashboard module.
 3. **VCS/Magit** — keep Magit autoload-only at startup; isolate Diff-HL,
    ssh-agent, and Magit bridge configuration.
+
+   Applied first split on 2026-06-09:
+
+   - `modules/interactive/vcs/git.el` is now the Git/VCS entrypoint for generic
+     VCS state, shared keybindings, and startup-debug stage orchestration.
+   - `modules/interactive/vcs/magit.el` owns Magit command autoloads,
+     Magit-specific keybindings, and post-load configuration.  It deliberately
+     avoids `use-package`/`straight-use-package` so Magit remains unloaded during
+     startup.
+   - `modules/interactive/vcs/ssh.el` owns the graphical `ssh-agency` askpass
+     integration.
+   - `modules/interactive/vcs/diff-hl.el` owns the eager Diff-HL activation and
+     gutter/hunk keybindings.  It remains `:demand t`; changing gutter
+     activation timing is still a future UX/performance decision.
+   - Replaced the Magit gitman `defadvice` with `define-advice`, removing one
+     obsolete-advice warning without changing the intended behavior.
 4. **Org** — split core Org editing from agenda, capture, babel, export,
    citations, and integrations.
 
@@ -657,19 +686,18 @@ Current state after the 2026-06-09 work:
   exporter, while `modules/interactive/org/confluence.el` owns activation and
   personal workflow configuration;
 - `private/setup.el` is reserved for secrets/truly uncommittable values, not
-  ordinary personal configuration.
+  ordinary personal configuration;
+- `ui/gui` and `vcs/git` are now smaller orchestration entrypoints with their
+  theme/fonts/dashboard and Magit/SSH/Diff-HL responsibilities split out.
 
 Recommended next session priorities:
 
-1. Split `modules/interactive/ui/gui.el` into smaller modules:
-   performance instrumentation, theme, fonts/emoji, and dashboard activation.
-2. Continue VCS cleanup around `modules/interactive/vcs/git.el`: preserve lazy
-   Magit autoloads, then isolate Diff-HL, ssh-agent, and Treemacs/Magit bridge
-   configuration.
-3. Split `modules/interactive/org/core.el` into base editing, agenda, capture,
+1. Split `modules/interactive/org/core.el` into base editing, agenda, capture,
    export, babel, citations, and integrations.
-4. Investigate the Org version mismatch warning and slow forced full-load path.
-5. Consider adding a doc-drift check for generated package docs, following the
+2. Investigate the Org version mismatch warning and slow forced full-load path.
+3. Consider whether Diff-HL should stay eager or move to hook/idle activation;
+   discuss UX first because gutter availability is visible.
+4. Consider adding a doc-drift check for generated package docs, following the
    `eve.el` guardrail pattern.
 
 Before claiming further performance wins, rerun the GUI/dashboard measurements
