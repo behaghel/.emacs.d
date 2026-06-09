@@ -15,23 +15,27 @@
 
 (use-package dired-aux
   :straight nil
-  :after dired
+  :commands (dired-vc-next-action)
   :init
   (setq dired-isearch-filenames 'dwim
 	dired-create-destination-dirs 'ask
 	dired-vc-rename-file t)
-  :config
-  (evil-define-key 'normal dired-mode-map ",vv" #'dired-vc-next-action))
+  (with-eval-after-load 'dired
+    (evil-define-key 'normal dired-mode-map ",vv" #'dired-vc-next-action)))
 
 (use-package dired-subtree
-  :after dired
-  :bind (:map dired-mode-map
-	      ("<tab>" . dired-subtree-toggle)
-	      ("<C-tab>" . dired-subtree-cycle)))
+  :commands (dired-subtree-toggle dired-subtree-cycle)
+  :init
+  (with-eval-after-load 'dired
+    (bind-keys :map dired-mode-map
+	       ("<tab>" . dired-subtree-toggle)
+	       ("<C-tab>" . dired-subtree-cycle))))
 
 (use-package dired-narrow
-  :after dired
-  :bind (:map dired-mode-map (">" . dired-narrow)))
+  :commands (dired-narrow)
+  :init
+  (with-eval-after-load 'dired
+    (bind-key ">" #'dired-narrow dired-mode-map)))
 
 (use-package wdired
   :straight nil
@@ -41,11 +45,13 @@
 	wdired-create-parent-directories t))
 
 (use-package dired-ranger
-  :after dired
-  :bind (:map dired-mode-map
-	      ("Y" . dired-ranger-copy)
-	      ("X" . dired-ranger-move)
-	      ("V" . dired-ranger-paste)))
+  :commands (dired-ranger-copy dired-ranger-move dired-ranger-paste)
+  :init
+  (with-eval-after-load 'dired
+    (bind-keys :map dired-mode-map
+	       ("Y" . dired-ranger-copy)
+	       ("X" . dired-ranger-move)
+	       ("V" . dired-ranger-paste))))
 
 (provide 'navigation/dired)
 ;;; dired.el ends here
