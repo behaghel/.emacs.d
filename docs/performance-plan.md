@@ -719,8 +719,9 @@ Refactor candidates:
      avoiding an eager GUI startup package load.
    - `modules/interactive/vcs/diff-hl.el` owns Diff-HL activation and
      gutter/hunk keybindings.  Follow-up on 2026-06-09: Diff-HL no longer uses
-     `:demand t`; hunk commands are autoloaded and global gutter activation is
-     scheduled from `emacs-startup-hook` after an idle delay.
+     `:demand t`; hunk commands are autoloaded and gutter activation is
+     scheduled per visited file buffer after a short idle delay, not from
+     startup.
    - Replaced the Magit gitman `defadvice` with `define-advice`, removing one
      obsolete-advice warning without changing the intended behavior.
 4. **Org** — split core Org editing from agenda, capture, babel, export,
