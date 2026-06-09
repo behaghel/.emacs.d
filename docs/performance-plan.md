@@ -666,6 +666,35 @@ Refactor candidates:
 4. **Org** — split core Org editing from agenda, capture, babel, export,
    citations, and integrations.
 
+   Applied first extraction step on 2026-06-09:
+
+   - Moved Org-adjacent package declarations from `modules/interactive/org/core.el`
+     to `modules/interactive/org/integrations.el`.
+   - The integrations module now owns `evil-org`, `org-re-reveal`, `ox-clip`,
+     `org-cliplink`, `anki-editor`, `org-download`, `org-drill`, and `citeproc`
+     declarations.
+   - `org/core` still owns the main `use-package org` configuration and requires
+     `org/integrations` afterward, preserving the previous declaration order and
+     avoiding a runtime behavior change.
+
+   Applied broader split on 2026-06-09:
+
+   - `modules/interactive/org/settings.el` owns the shared `hub/org` group and
+     `org-directory` default.
+   - `modules/interactive/org/agenda.el` owns agenda file defaults, missing-file
+     pruning, and agenda display setup.
+   - `modules/interactive/org/capture.el` owns capture templates, the Veriff
+     template helper, blog capture integration, and refile targets.
+   - `modules/interactive/org/babel.el` owns Babel evaluation/source-block
+     behavior and source language mappings.
+   - `modules/interactive/org/export.el` owns citation/export defaults,
+     reveal.js root, and local LaTeX class discovery helpers.
+   - `modules/interactive/org/authoring.el` owns semantic authoring shortcuts,
+     Confluence status link faces, image/callout/footnote snippets, and Tempo
+     shortcut registration.
+   - `modules/interactive/org/core.el` is now an editing/orchestration entrypoint
+     that wires the split setup functions into the main `use-package org` config.
+
 Performance rule for refactors:
 
 - autoload commands early;
@@ -688,16 +717,16 @@ Current state after the 2026-06-09 work:
 - `private/setup.el` is reserved for secrets/truly uncommittable values, not
   ordinary personal configuration;
 - `ui/gui` and `vcs/git` are now smaller orchestration entrypoints with their
-  theme/fonts/dashboard and Magit/SSH/Diff-HL responsibilities split out.
+  theme/fonts/dashboard and Magit/SSH/Diff-HL responsibilities split out;
+- `org/core` is now a smaller orchestration entrypoint with agenda, capture,
+  Babel, export, authoring, settings, and integrations split out.
 
 Recommended next session priorities:
 
-1. Split `modules/interactive/org/core.el` into base editing, agenda, capture,
-   export, babel, citations, and integrations.
-2. Investigate the Org version mismatch warning and slow forced full-load path.
-3. Consider whether Diff-HL should stay eager or move to hook/idle activation;
+1. Investigate the Org version mismatch warning and slow forced full-load path.
+2. Consider whether Diff-HL should stay eager or move to hook/idle activation;
    discuss UX first because gutter availability is visible.
-4. Consider adding a doc-drift check for generated package docs, following the
+3. Consider adding a doc-drift check for generated package docs, following the
    `eve.el` guardrail pattern.
 
 Before claiming further performance wins, rerun the GUI/dashboard measurements
