@@ -9,12 +9,10 @@
 (require 'hub-keys)
 
 (require 'cl-lib)
-(require 'ffap)
 (require 'hydra)
 (require 'rx)
 (require 'evil)
 (require 'subr-x)
-(require 'shr nil t)
 (require 'email/actions)
 ;; Ensure sidebar helper is available at runtime
 (ignore-errors (require 'email/dashboard))
@@ -251,7 +249,10 @@ If URL is non-nil (from `shr-url-at-point'), prefer it. Otherwise try
 `ffap-url-at-point'."
   (interactive (list (when (fboundp 'shr-url-at-point)
 		       (shr-url-at-point current-prefix-arg))))
-  (let ((target (or url (ffap-url-at-point))))
+  (let ((target (or url
+		    (progn
+		      (require 'ffap)
+		      (ffap-url-at-point)))))
     (if (not target)
 	(message "No URL under point")
       (setq target (url-encode-url target))

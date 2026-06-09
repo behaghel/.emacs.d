@@ -613,8 +613,23 @@ Applied fix:
 Validation:
 
 - `devenv -q shell -- ci:load-all` completed without Org version mismatch
-  warnings.  The run still took `310.484s`, so slow forced full-load remains a
+  warnings.  The run still took `310.484s`, so slow forced full-load remained a
   separate performance target.
+
+Slow full-load follow-up on 2026-06-09:
+
+- Instrumented the final interactive require chain and found the dominant delay
+  in `email/view`: top-level `(require 'ffap)` took about `404.5s` in one CI-like
+  run.
+- `ffap` is only needed by `hub/copy-url-at-point-dwim`, an interactive command,
+  so loading it at email module load time was unnecessary.
+- Removed the eager `ffap` require from `modules/interactive/email/view.el` and
+  require it inside `hub/copy-url-at-point-dwim` only when the command needs the
+  fallback URL detector.
+- Also removed the eager optional `shr` require from `email/view`; the command
+  already checks `fboundp` for `shr-url-at-point`.
+- Post-change `devenv -q shell -- ci:load-all` completed in `1.020s` with no Org
+  version mismatch warnings.
 
 ### 6. Package-boundary and definition/configuration refactor
 
