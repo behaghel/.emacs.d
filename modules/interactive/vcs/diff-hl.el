@@ -5,22 +5,39 @@
 
 ;;; Code:
 
-(defcustom hub/diff-hl-file-idle-delay 0.5
-  "Idle delay before enabling Diff-HL after visiting a file."
+(defcustom hub/diff-hl-visible-buffer-idle-delay 0.5
+  "Idle delay before enabling Diff-HL in a visible file buffer."
   :type 'number
   :group 'vc)
 
-(defun hub/diff-hl-enable-for-file-buffer ()
-  "Enable Diff-HL for the current file buffer after a short idle delay."
-  (when (and buffer-file-name (not (file-remote-p buffer-file-name)))
-    (let ((buffer (current-buffer)))
-      (run-with-idle-timer
-       hub/diff-hl-file-idle-delay nil
-       (lambda ()
-	 (when (buffer-live-p buffer)
-	   (with-current-buffer buffer
-	     (when buffer-file-name
-	       (diff-hl-mode 1)))))))))
+(defvar-local hub/diff-hl--enable-scheduled nil
+  "Non-nil when Diff-HL enablement is already scheduled for this buffer.")
+
+(defun hub/diff-hl--eligible-buffer-p ()
+  "Return non-nil when the current buffer should get Diff-HL gutters."
+  (and buffer-file-name
+       (not (file-remote-p buffer-file-name))
+       (not (bound-and-true-p diff-hl-mode))))
+
+(defun hub/diff-hl-enable-visible-buffer (window)
+  "Schedule Diff-HL for WINDOW's visible file buffer.
+This intentionally reacts to displayed buffers rather than `find-file-hook', so
+background file visits such as Org agenda scans do not load Diff-HL during
+startup."
+  (when (window-live-p window)
+    (with-current-buffer (window-buffer window)
+      (when (and (hub/diff-hl--eligible-buffer-p)
+		 (not hub/diff-hl--enable-scheduled))
+	(setq hub/diff-hl--enable-scheduled t)
+	(let ((buffer (current-buffer)))
+	  (run-with-idle-timer
+	   hub/diff-hl-visible-buffer-idle-delay nil
+	   (lambda ()
+	     (when (buffer-live-p buffer)
+	       (with-current-buffer buffer
+		 (setq hub/diff-hl--enable-scheduled nil)
+		 (when (hub/diff-hl--eligible-buffer-p)
+		   (diff-hl-mode 1)))))))))))
 
 (use-package diff-hl
   :commands (diff-hl-revert-hunk
@@ -34,7 +51,7 @@
   (define-key evil-normal-state-map (kbd ",vn") #'diff-hl-next-hunk)
   (define-key evil-normal-state-map (kbd ",vp") #'diff-hl-previous-hunk)
   (define-key evil-normal-state-map (kbd ",vd") #'diff-hl-diff-goto-hunk)
-  (add-hook 'find-file-hook #'hub/diff-hl-enable-for-file-buffer)
+  (add-hook 'window-buffer-change-functions #'hub/diff-hl-enable-visible-buffer)
   :config
   (add-hook 'magit-post-refresh-hook #'diff-hl-magit-post-refresh))
 

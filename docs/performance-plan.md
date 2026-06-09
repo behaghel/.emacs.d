@@ -720,8 +720,9 @@ Refactor candidates:
    - `modules/interactive/vcs/diff-hl.el` owns Diff-HL activation and
      gutter/hunk keybindings.  Follow-up on 2026-06-09: Diff-HL no longer uses
      `:demand t`; hunk commands are autoloaded and gutter activation is
-     scheduled per visited file buffer after a short idle delay, not from
-     startup.
+     scheduled for visible file buffers after a short idle delay.  This avoids
+     loading Diff-HL for background file visits such as dashboard Org agenda
+     scans.
    - Replaced the Magit gitman `defadvice` with `define-advice`, removing one
      obsolete-advice warning without changing the intended behavior.
 4. **Org** — split core Org editing from agenda, capture, babel, export,
