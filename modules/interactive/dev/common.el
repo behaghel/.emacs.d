@@ -59,12 +59,15 @@
   (setq dtrt-indent-min-quality 60 dtrt-indent-verbosity 3))
 
 ;; Automatically indent yanked text in prog-modes
-(dolist (command '(yank yank-pop))
-  (eval `(defadvice ,command (after indent-region activate)
-	   (and (not current-prefix-arg)
-		(derived-mode-p 'prog-mode)
-		(let ((mark-even-if-inactive transient-mark-mode))
-		  (indent-region (region-beginning) (region-end) nil))))))
+(defun hub/indent-yanked-region-in-prog-mode (&rest _args)
+  "Indent the just-yanked region in programming buffers."
+  (and (not current-prefix-arg)
+       (derived-mode-p 'prog-mode)
+       (let ((mark-even-if-inactive transient-mark-mode))
+	 (indent-region (region-beginning) (region-end) nil))))
+
+(advice-add 'yank :after #'hub/indent-yanked-region-in-prog-mode)
+(advice-add 'yank-pop :after #'hub/indent-yanked-region-in-prog-mode)
 
 (use-package apheleia :config (apheleia-global-mode +1))
 

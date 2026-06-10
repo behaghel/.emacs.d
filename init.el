@@ -201,8 +201,7 @@
   (use-package evil-smartparens
     :diminish evil-smartparens-mode
     :config
-    (defadvice evil-sp--add-bindings
-	(after evil-sp--add-bindings-after activate)
+    (define-advice evil-sp--add-bindings (:after (&rest _args) hub/clear-conflicting-keys)
       (evil-define-key 'normal evil-smartparens-mode-map
 		       ;; (kbd ",l") #'evil-sp-change
 		       ;; (kbd ",L") #'evil-sp-change-line
