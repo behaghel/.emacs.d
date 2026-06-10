@@ -625,7 +625,9 @@ Measure before proposing changes to:
 - `flyspell-prog-mode` in `prog-mode-hook` — follow-up on 2026-06-09:
   removed from the direct hook; Flyspell is now scheduled only for visible
   programming buffers after an idle delay, avoiding eager Aspell process startup.
-- `treesit-font-lock-level 4`
+- `treesit-font-lock-level 4` — follow-up on 2026-06-09: generic Treesit
+  defaults are configured once from `prog-mode-hook`, not during startup or when
+  non-code packages incidentally load the built-in `treesit` library.
 - `diff-hl :demand t`
 
 ### 5. Org version mismatch cleanup

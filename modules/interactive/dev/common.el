@@ -70,7 +70,6 @@
 
 ;; highlight TODO, FIXME, etc.
 (add-hook 'prog-mode-hook 'hub/font-lock-comment-annotations)
-(setq treesit-font-lock-level 4)
 
 ;; Folding (interactive only)
 (use-package origami
@@ -237,19 +236,28 @@ first; environment-sensitive tooling catches up shortly after."
   :init (global-whitespace-cleanup-mode))
 
 ;; Treesit (generic setup only; language-specific sources and remaps live under modules/lang/*)
-(use-package treesit :straight (:type built-in)
-  :config
-  (setq treesit-font-lock-settings t
-	treesit-simple-indent-rules t
-	treesit-defun-type-regexp t
-	treesit-defun-name-function t)
-  (run-with-idle-timer 0.1 nil #'treesit-major-mode-setup))
+(defvar hub/treesit--configured nil
+  "Non-nil once generic Tree-sitter defaults have been configured.")
+
+(defun hub/treesit-configure-for-prog-buffer ()
+  "Configure generic Tree-sitter defaults for programming buffers."
+  (when (and (not hub/treesit--configured)
+	     (require 'treesit nil t))
+    (setq hub/treesit--configured t)
+    (setq treesit-font-lock-level 4
+	  treesit-font-lock-settings t
+	  treesit-simple-indent-rules t
+	  treesit-defun-type-regexp t
+	  treesit-defun-name-function t)
+    (treesit-major-mode-setup)))
+
+(add-hook 'prog-mode-hook #'hub/treesit-configure-for-prog-buffer)
 
 ;; Dev helpers for Tree-sitter setup
 (defun hub/treesit-install-missing (&optional langs)
   "Install missing Tree-sitter grammars for LANGS or known sources."
   (interactive)
-  (unless (featurep 'treesit)
+  (unless (require 'treesit nil t)
     (user-error "treesit not available in this Emacs"))
   (let* ((known (mapcar #'car treesit-language-source-alist))
 	 (targets (or langs known))
@@ -265,6 +273,8 @@ first; environment-sensitive tooling catches up shortly after."
 (defun hub/treesit-report (&optional lang)
   "Report Tree-sitter setup; optionally focus on LANG."
   (interactive)
+  (unless (require 'treesit nil t)
+    (user-error "treesit not available in this Emacs"))
   (let* ((lang (or lang 'scala)))
     (message "treesit available: %s" (treesit-available-p))
     (message "extra load path: %S" treesit-extra-load-path)
