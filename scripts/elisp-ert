@@ -3,9 +3,86 @@ set -euo pipefail
 
 export HOME=${HOME:-$PWD}
 
-# Run all *-test.el under test/ with required helpers loaded.
-if ls test/*-test.el >/dev/null 2>&1; then
-  emacs --batch -Q -L . -l ert -l test/test-helpers.el     $(for f in test/*-test.el; do printf " -l %q" "$f"; done)     -f ert-run-tests-batch-and-exit
+all_tests() {
+  find test -maxdepth 1 -type f -name '*-test.el' | sort
+}
+
+add_test() {
+  local test_file="$1"
+  if [ -f "$test_file" ]; then
+    tests+=("$test_file")
+  fi
+}
+
+add_all_tests() {
+  while IFS= read -r test_file; do
+    tests+=("$test_file")
+  done < <(all_tests)
+}
+
+# Select a focused test set from changed paths.  With no paths, preserve the
+# historical behavior and run the full ERT suite.
+tests=()
+if [ "$#" -eq 0 ]; then
+  add_all_tests
 else
-  echo "No tests found under test/" >&2
+  for path in "$@"; do
+    case "$path" in
+      test/test-helpers.el)
+        add_all_tests
+        ;;
+      test/*-test.el)
+        add_test "$path"
+        ;;
+      init.el|core/*.el|early-init.el)
+        add_test test/smoke.el
+        ;;
+      modules/interactive/navigation/perspective-auto.el)
+        add_test test/perspective-auto-test.el
+        ;;
+      modules/interactive/video/eve.el)
+        add_test test/eve-test.el
+        ;;
+      modules/interactive/notes/*|modules/interactive/org/*|modules/interactive/writing/*|lisp/hub-prose.el)
+        add_test test/denote-note-test.el
+        ;;
+      modules/org/export-latex.el|etc/latex/*|etc/latex/assets/*|lisp/hub-org-callout.el)
+        add_test test/org-export-test.el
+        add_test test/org-latex-pdf-export-test.el
+        ;;
+      packages/org-confluence/*)
+        add_test test/org-confluence-api-test.el
+        add_test test/org-confluence-export-test.el
+        ;;
+      scripts/approval-refresh-overdrive-page1.el|scripts/export-demo-adaptive-cards.el)
+        add_test test/org-latex-pdf-export-test.el
+        ;;
+    esac
+  done
 fi
+
+# Dedupe while preserving order.
+if [ "${#tests[@]}" -gt 0 ]; then
+  mapfile -t tests < <(printf '%s\n' "${tests[@]}" | awk '!seen[$0]++')
+fi
+
+# org-dropcap-test relies on the export-latex module loaded by the larger PDF
+# export test file.  Keep focused test runs robust when pre-commit chunks test
+# filenames and does not happen to include that dependency first.
+if printf '%s\n' "${tests[@]}" | grep -qx 'test/org-dropcap-test.el' \
+  && ! printf '%s\n' "${tests[@]}" | grep -qx 'test/org-latex-pdf-export-test.el'; then
+  tests=(test/org-latex-pdf-export-test.el "${tests[@]}")
+fi
+
+if [ "${#tests[@]}" -eq 0 ]; then
+  echo "No related ERT tests selected."
+  exit 0
+fi
+
+load_args=()
+for test_file in "${tests[@]}"; do
+  load_args+=("-l" "$test_file")
+done
+
+echo "Running related ERT tests: ${tests[*]}"
+emacs --batch -Q -L . -l ert -l test/test-helpers.el "${load_args[@]}" -f ert-run-tests-batch-and-exit

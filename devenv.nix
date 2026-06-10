@@ -142,8 +142,8 @@ in
         name = "elisp-ert";
         entry = "./scripts/elisp-ert";
         language = "system";
-        files = "(modules/.+\.el|test/.+\.el)";
-        pass_filenames = false;
+        files = "(core/.+\.el|init\.el|lisp/.+\.el|modules/.+\.el|packages/.+\.el|scripts/.+\.el|test/.+\.el)";
+        pass_filenames = true;
       };
 
     };
