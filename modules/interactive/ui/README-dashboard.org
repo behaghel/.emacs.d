@@ -1,0 +1,195 @@
+#+title: Dashboard Startup UX Spec
+#+author: Hubert Behaghel
+#+startup: overview
+
+* Purpose
+
+The dashboard is the first intentional GUI surface shown by this Emacs
+configuration.  Its job is to make startup feel ready quickly while still
+surfacing useful personal context shortly after startup settles.
+
+This document specifies the behavior owned by =modules/interactive/ui/dashboard.el=.
+It is a user-facing UX contract, not merely an implementation note.
+
+* User-facing contract
+
+** First paint must stay fast
+
+The dashboard should appear before lower-priority interactive modules complete.
+The first paint should contain useful cheap sections immediately and placeholders
+for expensive sections.
+
+Current target:
+
+- render the GUI dashboard around the 1--2 second range on the maintainer's
+  machine;
+- avoid waiting for Org agenda scans, Denote directory scans, mail tooling, VCS
+  gutter tooling, spell checking, Dired extensions, or code-editing helpers;
+- preserve the visual dashboard experience rather than replacing it with a blank
+  scratch buffer for performance.
+
+** Expensive sections may refresh later
+
+The Denote and agenda sections are intentionally deferred.  Their placeholders
+communicate that data is being prepared, and the real sections refresh on idle
+timers after the dashboard is already visible.
+
+Default delays:
+
+- Denote: =1.0s= idle delay;
+- Agenda: =5.0s= idle delay.
+
+These values live in =hub/dashboard-deferred-item-delays=.
+
+** Startup must be resilient
+
+Dashboard section failures must not break startup.  Expensive section generators
+are wrapped with timeouts and error handling.  On failure, startup continues and
+a diagnostic message is written.
+
+Current timeouts:
+
+- Denote scan: =1.5s=;
+- Agenda generation: =2.0s=.
+
+** Dashboard work must be measurable
+
+Dashboard startup events should emit =[perf]= messages through
+=hub/performance-log-startup-event= so changes can be compared before and after.
+
+Important measurement points:
+
+- =ui/gui load start=;
+- =dashboard config start=;
+- =dashboard recentf ready=;
+- =dashboard startup hook installed=;
+- =ui/gui load complete=;
+- =dashboard first paint=;
+- =dashboard denote section=;
+- =dashboard agenda section=;
+- =dashboard deferred refresh (...)=.
+
+* Sections
+
+** Recents
+
+Recents are shown on first paint.  The dashboard enables and loads =recentf= so
+recent files are available immediately.
+
+Maildir paths under =~/Mail/= are filtered from the dashboard's displayed recent
+files without removing them from =recentf-list=.
+
+** Projects
+
+Projects are shown on first paint using =project.el=.
+
+=hub/dashboard-workspace-roots= declares workspace roots used to seed
+=project.el=.  Seeding must be quiet and failure-tolerant.
+
+** Bookmarks
+
+Bookmarks are shown on first paint.  The dashboard explicitly requires the cheap
+built-in =bookmark= library before rendering so first paint does not fail on
+bookmark variables.
+
+** Denote
+
+Denote is deferred because it may scan note directories and load Denote.  The
+Denote section should only require =denote= inside its generator, so removing the
+section from =dashboard-items= or =hub/dashboard-deferred-items= also removes the
+startup dependency.
+
+The Denote section shows recent notes sorted by file name descending and uses
+Denote title metadata when available.
+
+** Agenda
+
+Agenda is deferred because it may require Org agenda machinery and visit agenda
+files.
+
+The current dashboard agenda mode is TODO-focused:
+
+- =dashboard-filter-agenda-entry= is =dashboard-filter-agenda-by-todo=;
+- agenda files are pruned through =hub/org-prune-missing-agenda-files= when that
+  helper is available;
+- dashboard agenda rendering sets =hub/org-background-agenda-render-p= so
+  interactive Org integrations, especially =evil-org=, can avoid loading during
+  non-interactive dashboard scans.
+
+For the TODO-focused path, the dashboard uses a bounded collector: it stops after
+the requested dashboard item count instead of scanning every agenda entry and
+then truncating.  If the agenda filter is changed away from
+=dashboard-filter-agenda-by-todo=, the dashboard falls back to upstream
+=dashboard-insert-agenda= behavior.
+
+* Rendering lifecycle
+
+1. =ui/gui= requires =ui/dashboard= early in GUI startup.
+2. The dashboard package configures cheap sections and installs placeholders for
+   deferred sections.
+3. Default dashboard post-init render hooks are removed.
+4. =hub/dashboard-first-paint= explicitly renders and initializes the dashboard
+   before lower-priority interactive modules finish loading.
+5. =emacs-startup-hook= schedules deferred refresh timers.
+6. Deferred refresh restores one or more real section generators and re-renders
+   the dashboard.
+7. Dashboard resize refresh is re-enabled after startup has settled.
+
+* Integration boundaries
+
+** Org integration
+
+Dashboard agenda rendering is a background consumer of Org data.  It must not
+implicitly turn on interactive Org editing integrations.  The dynamic flag
+=hub/org-background-agenda-render-p= marks this boundary.
+
+Interactive Org buffers and interactive Org agenda buffers may still enable
+=evil-org= and agenda keybindings normally.
+
+** Denote integration
+
+Denote is optional from the dashboard's perspective.  Missing Denote, missing
+Denote directories, or slow Denote scans should degrade by skipping the Denote
+section rather than failing startup.
+
+** Project integration
+
+Project seeding uses built-in =project.el=.  It should not depend on Projectile.
+
+** Window integration
+
+The dashboard's default resize hooks are suppressed during late startup to avoid
+redundant re-renders.  Resize refresh is restored after startup has settled.
+
+* Performance rules for changes
+
+Before changing dashboard startup behavior:
+
+1. capture a GUI startup sample from =*Messages*=;
+2. preserve dashboard first paint unless explicitly deciding otherwise;
+3. keep expensive dependencies inside section generators or deferred hooks;
+4. avoid eager package loads for sections that may be disabled;
+5. rerun a fresh GUI startup sample after the change;
+6. update =docs/performance-plan.md= when the change affects startup timing.
+
+Do not optimize the dashboard by removing visible UX without discussing it first.
+
+* Known tradeoffs
+
+- Deferred sections may appear later if the user keeps Emacs busy, because the
+  refresh timers are idle timers.
+- The bounded agenda collector optimizes the current TODO dashboard use case.  A
+  future agenda redesign may replace it entirely.
+- First paint intentionally performs some cheap setup, including =recentf= and
+  project/bookmark support, because those sections are part of the desired first
+  dashboard view.
+
+* Related files
+
+- =modules/interactive/ui/dashboard.el= -- implementation.
+- =modules/interactive/ui/gui.el= -- GUI orchestration that loads dashboard.
+- =modules/interactive/ui/performance.el= -- startup performance logging helper.
+- =modules/interactive/org/agenda.el= -- agenda file defaults and pruning.
+- =modules/interactive/org/integrations.el= -- Org integration behavior that
+  respects background dashboard agenda rendering.
+- =docs/performance-plan.md= -- measurement history and optimization plan.
