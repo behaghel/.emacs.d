@@ -6,6 +6,8 @@
 
 ;;; Code:
 
+(require 'hub-utils)
+
 (use-package gist
   :commands (gist-buffer gist-buffer-private gist-region gist-region-private gist-list))
 

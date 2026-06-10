@@ -5,6 +5,8 @@
 
 ;;; Code:
 
+(require 'hub-utils)
+
 (require 'hub-org-callout)
 (require 'subr-x)
 

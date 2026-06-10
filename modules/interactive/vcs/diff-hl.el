@@ -5,6 +5,8 @@
 
 ;;; Code:
 
+(require 'hub-utils)
+
 (defcustom hub/diff-hl-visible-buffer-idle-delay 0.5
   "Idle delay before enabling Diff-HL in a visible file buffer."
   :type 'number

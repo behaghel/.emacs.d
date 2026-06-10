@@ -5,6 +5,8 @@
 
 ;;; Code:
 
+(require 'hub-utils)
+
 (require 'ui/performance)
 
 (defvar hub/performance--gui-load-start (current-time)

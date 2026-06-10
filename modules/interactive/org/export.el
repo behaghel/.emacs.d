@@ -5,6 +5,8 @@
 
 ;;; Code:
 
+(require 'hub-utils)
+
 (defcustom hub/org-bibliography-file (expand-file-name "Dropbox/Documents/library.bib" (getenv "HOME"))
   "Default bibliography file for org-cite."
   :type 'file

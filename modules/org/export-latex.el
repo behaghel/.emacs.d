@@ -5,6 +5,8 @@
 
 ;;; Code:
 
+(require 'hub-utils)
+
 (require 'cl-lib)
 (require 'hub-org-callout)
 (require 'org)

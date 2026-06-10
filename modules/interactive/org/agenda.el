@@ -5,6 +5,8 @@
 
 ;;; Code:
 
+(require 'hub-utils)
+
 (require 'seq)
 
 (defcustom hub/org-agenda-file-names '("hubert.org" "inbox.org" "gcal-gmail.org")

@@ -2,6 +2,8 @@
 
 ;;; Code:
 
+(require 'hub-utils)
+
 ;; HTML
 (add-to-list 'auto-mode-alist '("\\.html$" . html-mode))
 (define-advice sgml-delete-tag (:after (&rest _args) hub/reindent-buffer)

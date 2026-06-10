@@ -6,6 +6,8 @@
 
 ;;; Code:
 
+(require 'hub-utils)
+
 (defgroup hub/prose nil
   "Customizations for prose editing display."
   :group 'editing)

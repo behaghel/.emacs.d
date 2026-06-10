@@ -5,6 +5,8 @@
 
 ;;; Code:
 
+(require 'hub-utils)
+
 (require 'hub-keys)
 (require 'seq)
 (require 'subr-x)

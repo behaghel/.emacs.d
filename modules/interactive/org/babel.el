@@ -5,6 +5,8 @@
 
 ;;; Code:
 
+(require 'hub-utils)
+
 (defcustom hub/org-plantuml-jar "~/install/plantuml.jar"
   "Default PlantUML jar path."
   :type 'file

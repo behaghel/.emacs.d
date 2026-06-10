@@ -5,6 +5,8 @@
 
 ;;; Code:
 
+(require 'hub-utils)
+
 (use-package org-re-reveal :defer t)
 
 (defvar hub/org-background-agenda-render-p nil

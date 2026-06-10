@@ -5,6 +5,8 @@
 
 ;;; Code:
 
+(require 'hub-utils)
+
 (defgroup hub/performance nil
   "Startup and responsiveness measurement helpers."
   :group 'convenience)

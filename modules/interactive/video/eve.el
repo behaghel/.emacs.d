@@ -3,6 +3,8 @@
 ;;; Commentary:
 ;;; Code:
 
+(require 'hub-utils)
+
 (defconst hub/eve-straight-recipe
   '(eve :type git :host github :repo "behaghel/eve.el"
 	:local-repo "eve.el"

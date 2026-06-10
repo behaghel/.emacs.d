@@ -5,6 +5,8 @@
 
 ;;; Code:
 
+(require 'hub-utils)
+
 ;; Trigger command keybindings should not live inside a `use-package' form here:
 ;; startup binds them before Magit is loaded.
 (define-key evil-normal-state-map (kbd ",vs") #'magit-status)

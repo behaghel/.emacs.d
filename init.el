@@ -2,29 +2,8 @@
 ;; Copyright (C) 2013 Hubert Behaghel
 ;;
 ;;; Commentary:
-;; *** TODO: move it to .emacs.d and split it into modules
-;; *** TODO: clarify key-bindings (move all of them in their own .el)
-;;           - abandon any use of C-c
-;;           - have a clear strategy when to use evil keymaps
-;;             - z == toggle
-;;             - g == goto + use [] () {} for prior/next
-;;             - , == <leader>
-;;             - ,v == anything versioning
-;;             - ,o == open
-;;             - ,e == anything execute
-;;               > ,el -> execute file or region by loading it in REPL
-;;             - ,h == anything help
-;;             - ,n == new / create
-;;             - ,m == mark, bookmark, store
-;;             - coding:
-;;               - ,.  -> find definition for symbol at point
-;;               - ,hh -> go to help for symbol at point
-;;               - ,b  -> build / compile task
-;;               - ,d  -> debug
-;;               - ,ii -> inspect type at point
-;;                 ,il -> inspect last expression
-;;               - ,f  -> anything formatting / refactoring
-;;               - ,= -> align nicely using M-x align
+;; Main orchestration entrypoint.  Feature and package configuration lives in
+;; core modules and domain modules.
 ;;
 ;;; Code:
 
@@ -34,13 +13,8 @@
 (setq user-emacs-directory
       (file-name-directory (or load-file-name buffer-file-name)))
 
-;; Environment predicates (batch/gui/tty/interactive/ci)
 (add-to-list 'load-path (expand-file-name "core" user-emacs-directory))
-(ignore-errors (require 'core-predicates))
-;; CI override: allow forcing interactive layer loading without predicates
-(defvar hub/force-interactive (getenv "HUB_FORCE_FULL_LOAD"))
-(defvar hub/skip-server (getenv "HUB_SKIP_SERVER")
-  "When set, skip starting the Emacs server (useful in sandboxed environments).")
+(require 'core-predicates)
 
 ;; CI optimizations for straight.el: avoid modification checks and use shallow clones.
 (when (getenv "GITHUB_ACTIONS")
@@ -48,32 +22,30 @@
   (setq straight-check-for-modifications nil)
   (setq straight-vc-git-default-clone-depth 1))
 
-;; Ensure a writable temp directory exists within `user-emacs-directory`.
+;; Ensure a writable temp directory exists within `user-emacs-directory'.
 ;; Some async/native compilation paths try to place temp files under
 ;; `~/.emacs.d/tmp/` — create it proactively to avoid CI failures.
 (let ((tmpdir (expand-file-name "tmp" user-emacs-directory)))
   (unless (file-directory-p tmpdir)
     (ignore-errors (make-directory tmpdir t))))
 
-;; On Windows: set HOME environment variable and put .emacs.d in there!
-
 (defvar native-comp-deferred-compilation-deny-list nil)
-;; to stop M-x customize to pollute my init.el: http://emacsblog.org/2008/12/06/quick-tip-detaching-the-custom-file/
+;; Keep Customize output out of init.el.
 (setq custom-file (expand-file-name "custom.el" user-emacs-directory))
 (load custom-file 'noerror)
 
 (setq hub-lisp-dir (expand-file-name "lisp" user-emacs-directory))
-(add-to-list 'load-path hub-lisp-dir)  ; to include my .el
+(add-to-list 'load-path hub-lisp-dir)
 
 ;; Legacy settings/ folder is being retired; do not add it to load-path.
 ;; Private machine-specific setup now lives under private/setup.el (gitignored).
-;; Project modules: begin migrating to layered paths.
 ;; Keep legacy modules/ on load-path for now (writing, etc.). Also add
-;; interactive layer path so interactive-only modules are not visible in batch.
+;; interactive layer path only for interactive/full-load sessions so ordinary
+;; batch checks do not see interactive-only modules.
 (add-to-list 'load-path (expand-file-name "modules" user-emacs-directory))
 (add-to-list 'load-path (expand-file-name "modules/lang" user-emacs-directory))
 (add-to-list 'load-path (expand-file-name "modules/org" user-emacs-directory))
-(when (or hub/force-interactive (and (featurep 'core-predicates) (hub/interactive-p)))
+(when (hub/interactive-p)
   (add-to-list 'load-path (expand-file-name "modules/interactive" user-emacs-directory)))
 
 (defvar hub/private-setup-loaded nil
@@ -88,21 +60,18 @@
        ((file-exists-p private-new) (load private-new t) (setq hub/private-setup-loaded t))
        ((file-exists-p private-legacy) (load private-legacy t) (setq hub/private-setup-loaded t))))))
 
-;; Load private overrides before modules consume path/account variables.
-(hub/load-private-setup)
-
 (setq user-mail-address "behaghel@gmail.com")
 (setq user-full-name "Hubert Behaghel")
 
-;; Use centralized package management from core/ with safe fallback
-(add-to-list 'load-path (expand-file-name "core" user-emacs-directory))
+;; Use centralized package management from core/ with safe fallback.
 (defvar hub/core-packages-load-ok nil)
 (condition-case err
-    (progn (require 'core-packages)
-	   (setq hub/core-packages-load-ok t))
+    (progn
+      (require 'core-packages)
+      (setq hub/core-packages-load-ok t))
   (error
    (message "[init] core-packages failed, falling back: %S" err)
-   ;; Keep fallback bootstrap aligned with core/core-packages.el.  Respect any
+   ;; Keep fallback bootstrap aligned with core/core-packages.el. Respect any
    ;; earlier CI override that deliberately disabled modification checks.
    (unless (boundp 'straight-check-for-modifications)
      (setq straight-check-for-modifications '(find-when-checking only-once)))
@@ -118,9 +87,9 @@
 	 (eval-print-last-sexp)))
      (load bootstrap-file nil 'nomessage))
    (setq straight-use-package-by-default t)
-   (require 'core-predicates)
    (setq straight-vc-git-default-protocol (hub/preferred-straight-protocol))
    (straight-use-package 'use-package)
+   (straight-use-package 'diminish)
    (require 'use-package)
    (require 'use-package-ensure)
    (require 'use-package-delight)
@@ -137,47 +106,26 @@
       use-package-always-defer nil
       use-package-always-ensure nil)
 
-(use-package diminish)
+;; Load private overrides after package bootstrap so private integrations cannot
+;; accidentally load built-in packages before straight-managed versions are on
+;; `load-path', but before domain modules consume private values.
+(hub/load-private-setup)
 
-;; Core paths and autoloads (under-the-hood only)
-;; Standardize etc/ and var/ via no-littering (requires use-package)
-(ignore-errors (require 'core-paths))
-;; Keep variable state under var/: prefer explicit files for common state
+(require 'core-paths)
+(require 'core-auth)
+(require 'hub-utils)
+
+;; Keep variable state under var/: prefer explicit files for common state.
 (setq
  recentf-save-file (expand-file-name "var/recentf-save.el" user-emacs-directory)
  savehist-file     (expand-file-name "var/savehist.el" user-emacs-directory)
  save-place-file   (expand-file-name "var/save-place.el" user-emacs-directory)
- project-list-file (expand-file-name "var/project-list.el" user-emacs-directory)
  tramp-persistency-file-name (expand-file-name "var/tramp" user-emacs-directory))
-;; Provide streamlined access to writing helpers without changing UX
+
+;; Provide streamlined access to writing helpers without changing UX.
 (autoload 'writing/enable-basics "modules/writing/writing" nil t)
 
-(require 'auth-source-pass)
-(auth-source-pass-enable)
-(use-package pinentry)
-(setq epa-pinentry-mode 'loopback)
-
-(require 'hub-utils)
-
-(defun hub/ensure-server-started ()
-  "Start the Emacs server unless it is already running."
-  (require 'server)
-  (unless (or hub/skip-server (server-running-p))
-    (server-start)))
-
-(when (or hub/force-interactive (and (featurep 'core-predicates) (hub/interactive-p)))
-  (require 'editing/general)
-  (hub/ensure-server-started)
-  (require 'editing/evil)
-  ;; Global keymaps (leader/localleader + DWIM). Kept separate from Evil setup.
-  (ignore-errors (require 'editing/keys)))
-
-;; macOS-specific interactive tweaks (e.g., free M-SPC for Bépo underscore)
-(when (and (or hub/force-interactive (and (featurep 'core-predicates) (hub/interactive-p)))
-	   (eq system-type 'darwin))
-  (require 'os/darwin))
-
-;; Load language configuration (autoloads, treesit sources/remaps, language servers)
+;; Load language configuration (autoloads, treesit sources/remaps, language servers).
 (ignore-errors (require 'lang/treesit-config))
 (ignore-errors (require 'lang/scala))
 (ignore-errors (require 'lang/nix))
@@ -186,213 +134,26 @@
 (ignore-errors (require 'lang/yaml))
 (ignore-errors (require 'lang/misc))
 
-;; Prefer built-in project.el to avoid double-provide with straight installs
-(ignore-errors
-  (eval-when-compile (require 'use-package))
-  (use-package project :straight (:type built-in)))
-
-(defun hub/smartparens-enable-prog-mode ()
-  "Enable Smartparens structural editing in programming buffers."
-  (smartparens-strict-mode 1)
-  (show-smartparens-mode 1))
-
-(use-package smartparens
-  :diminish smartparens-mode
-  :commands (smartparens-mode smartparens-strict-mode show-smartparens-mode)
-  ;; this works great for lisp languages
-  ;; ("C-<right>" . sp-forward-slurp-sexp)
-  ;; this works better for other languages
-  :init
-  (add-hook 'prog-mode-hook #'hub/smartparens-enable-prog-mode)
-  (use-package evil-smartparens
-    :diminish evil-smartparens-mode
-    :commands (evil-smartparens-mode)
-    :init
-    (add-hook 'smartparens-enabled-hook #'evil-smartparens-mode)
-    :config
-    (define-advice evil-sp--add-bindings (:after (&rest _args) hub/clear-conflicting-keys)
-      (evil-define-key 'normal evil-smartparens-mode-map
-		       ;; (kbd ",l") #'evil-sp-change
-		       ;; (kbd ",L") #'evil-sp-change-line
-		       ;; (kbd ",K") #'evil-sp-change-whole-line
-		       ;; (kbd ",D") #'evil-sp-delete-line
-		       (kbd "D") nil
-		       (kbd "c") nil
-		       (kbd "s") nil
-		       (kbd "S") nil
-		       ;; (kbd ",k") #'evil-sp-substitute
-		       ;; (kbd ",K") #'sp-kill-sexp
-		       ;; Finds opening '(' of the current list.
-		       ;; (kbd ",{") #'sp-backward-up-sexp
-		       ;; Finds closing ')' of the current list.
-		       ;; (kbd ",}") #'sp-up-sexp
-		       ;; (kbd ",s") #'sp-backward-up-sexp
-		       ;; (kbd ",t") #'sp-down-sexp
-		       ;; (kbd ",(") #'sp-backward-up-sexp
-		       ;; (kbd ",)") #'sp-up-sexp
-		       ;; Go to the start of current/previous sexp
-		       ;; (kbd "[[") #'sp-backward-sexp
-		       ;; Go to the start of next sexp.
-		       ;; (kbd "]]") #'sp-forward-sexp
-		       ;; (kbd ",r") #'sp-next-sexp
-		       ;; (kbd ",c") #'sp-previous-sexp
-		       ;; (define-key evil-motion-state-map "S" 'evil-window-top)
-		       ;; (define-key evil-motion-state-map "s" 'evil-previous-line)
-		       )))
-  :config
-  (require 'smartparens-config)
-  ;; Keep sexp structural editing bindings scoped to buffers where
-  ;; smartparens is active so they don't override Org's meta arrows.
-  (let ((map smartparens-mode-map))
-    (define-key map (kbd "C-<right>") #'sp-slurp-hybrid-sexp)
-    (define-key map (kbd "M-<left>")  #'sp-backward-slurp-sexp)
-    (define-key map (kbd "C-<left>")  #'sp-forward-barf-sexp)
-    (define-key map (kbd "M-<right>") #'sp-backward-barf-sexp)
-    (define-key map (kbd "M-(")       #'sp-backward-unwrap-sexp)
-    (define-key map (kbd "M-)")       #'sp-unwrap-sexp)
-    (define-key map (kbd "C-<down>")  #'sp-down-sexp)
-    (define-key map (kbd "C-<up>")    #'sp-backward-up-sexp)
-    (define-key map (kbd "M-<down>")  #'sp-backward-down-sexp)
-    (define-key map (kbd "M-<up>")    #'sp-up-sexp)
-    (define-key map (kbd "S-M-f")     #'sp-forward-sexp)
-    (define-key map (kbd "S-M-b")     #'sp-backward-sexp))
-  (add-to-list 'sp-ignore-modes-list 'org-mode))
-
-(use-package hydra)
-
-(use-package general)
-
-(when (or hub/force-interactive (and (featurep 'core-predicates) (hub/interactive-p)))
-  (require 'completion/core))
-
-;;; Yasnippet
-(use-package yasnippet
-  :defer t
-  ;; :ensure t
-  :diminish yas-minor-mode
-  :bind (("<C-tab>" . company-yasnippet)
-	 :map yas-minor-mode-map
-	 ;; expand with company
-	 ("<tab>" . nil)
-	 ("TAB" . nil))
-  :config
-  (yas-global-mode 1)
-  (add-to-list 'yas-snippet-dirs (expand-file-name "modules/interactive/editing/snippets" user-emacs-directory))
-  (define-key yas-keymap (kbd "<tab>") #'yas-next-field-or-maybe-expand)
-  (define-key yas-keymap (kbd "TAB") #'yas-next-field-or-maybe-expand)
-  (setq yas-prompt-functions '(yas/completing-prompt))
-  )
-
-(use-package yasnippet-snippets
-  :after yasnippet)
-
-;;; auto-insert-mode is Emacs file templating
-(auto-insert-mode 0)        ; no more the default, use auto-insert manually
-(setq auto-insert-directory (expand-file-name "insert/" user-emacs-directory))
-;; you can use yasnippet to expand it
-;; see: http://www.emacswiki.org/emacs/AutoInsertMode
-;; the standard emacs way use skeleton
-;; see: https://github.com/cinsk/emacs-scripts/blob/8212d714d5c6f6b95e873e8688b30ba130d07775/xskel.el
-;; also: http://www.howardism.org/Technical/Emacs/templates-tutorial.html
-(defun hub/autoinsert-yas-expand (&optional expand-env)
-  "Replace text in yasnippet template optionally passing EXPAND-ENV (let-style)."
-  (yas-expand-snippet (buffer-string) (point-min) (point-max) expand-env))
-(define-auto-insert "\\.org\\'" ["template.org" hub/autoinsert-yas-expand])
-(define-auto-insert "\\.veriff\\.org\\'" ["template.veriff.org" hub/autoinsert-yas-expand])
-(define-auto-insert "\\(?:nomina\\|.*-nomina\\).*\\.tex\\'" ["template.nomina.tex" hub/autoinsert-yas-expand])
-;; orj is an extension I invented: org-revealJS
-(define-auto-insert "\\.orj\\'" ["template.orj" hub/autoinsert-yas-expand])
-
-
-
-;; Editing text
-(add-hook 'text-mode-hook 'turn-on-auto-fill) ; auto-wrap
-(setq sentence-end-double-space nil)    ; one space is enough after a period to end a sentence
-(define-key evil-normal-state-map (kbd ",bs") 'flyspell-mode)
-(require 'hub-prose)
-(use-package visual-fill-column :defer t)
-
-;; Writing with style
-;; http://rs.io/software-writers-tools-improve-writing/
-;; chase weasel words, count words and more
-;; https://github.com/sachac/artbollocks-mode
-;; http://sachachua.com/blog/2011/12/emacs-artbollocks-mode-el-and-writing-more-clearly/
-(use-package artbollocks-mode
-  :commands (artbollocks-mode)
-  :bind (:map evil-normal-state-map     ;TODO: don't pollute global normal map
-	      (",bw" . artbollocks-count-words)
-	      (",bg" . artbollocks-grade-level)
-	      (",be" . artbollocks-reading-ease)
-	      (",br" . artbollocks-readability-index)))
-
-(use-package writeroom-mode
-  :commands (writeroom-mode)
-  :config
-  (add-to-list 'writeroom-local-effects #'variable-pitch-mode))
-;; inspiration: https://protesilaos.com/codelog/2020-07-16-emacs-focused-editing/
-
-(use-package languagetool
-  :commands (languagetool-check)
-  :bind (:map evil-normal-state-map
-	      (",bc" . langtool-check))
-  :config
-  ;; style and grammar checker
-  (setq langtool-language-tool-jar "/usr/local/Cellar/languagetool/2.6/libexec/languagetool.jar")
-  (define-key evil-normal-state-map (kbd ",bg") 'langtool-check))
-
-
-;; asciidoc
-(add-hook 'adoc-mode-hook (lambda() (buffer-face-mode t)))
-(add-to-list 'auto-mode-alist (cons "\\.asciidoc\\'" 'adoc-mode))
-
-;; Markdown
-(use-package markdown-mode
-  :defer t
-  :mode (("\\.md\\'" . markdown-mode)
-	 ("\\.markdown\\'" . markdown-mode)
-	 ("README\\.md\\'" . gfm-mode))
-  :init
-  (add-hook 'markdown-mode-hook #'hub/prose-visual-fill-mode)
-  (add-hook 'gfm-mode-hook #'hub/prose-visual-fill-mode)
-  :commands (markdown-mode)
-  :config
-  (setq markdown-command (format "pandoc -c file://%s --from gfm -t html5 --mathjax --highlight-style pygments --standalone --quiet"
-				 (expand-file-name "etc/github-pandoc.css" user-emacs-directory)))
-
-  (evil-define-key 'normal markdown-mode-map (kbd ",il") 'markdown-insert-link)
-  (evil-define-key 'normal markdown-mode-map (kbd ",iH") 'markdown-insert-header-dwim)
-  (evil-define-key 'normal markdown-mode-map (kbd ",ih") 'markdown-insert-header-setext-dwim)
-  (evil-define-key 'normal markdown-mode-map (kbd ",i2") 'markdown-insert-header-setext-2)
-  (evil-define-key 'normal markdown-mode-map (kbd ",i1") 'markdown-insert-header-setext-1)
-  (evil-define-key 'normal markdown-mode-map (kbd ",ev") 'markdown-preview)
-  (evil-define-key 'normal markdown-mode-map (kbd "M->") 'markdown-demote)
-  (evil-define-key 'normal markdown-mode-map (kbd "M-<") 'markdown-promote)
-  (evil-define-key 'normal markdown-mode-map (kbd ",eV") 'markdown-export-and-preview))
-
-					; CODING
-(when (or hub/force-interactive (and (featurep 'core-predicates) (hub/interactive-p)))
-  (require 'dev/common))
-
-;; at the end, for windows to pick up the font change
-(when (or hub/force-interactive (and (featurep 'core-predicates) (hub/interactive-p)))
+(when (hub/interactive-p)
+  (require 'editing/core)
+  (require 'core-server)
+  (hub/ensure-server-started)
+  (when (eq system-type 'darwin)
+    (require 'os/darwin))
+  (require 'completion/core)
+  (require 'navigation/core)
+  (require 'writing/core)
+  (require 'dev/core)
   (require 'ui/core)
   (if (display-graphic-p)
       (progn
 	(require 'ui/gui)
 	(when (fboundp 'hub/dashboard-first-paint)
 	  (hub/dashboard-first-paint)))
-    (require 'ui/tty)))
-(put 'narrow-to-region 'disabled nil)
-(put 'erase-buffer 'disabled nil)
-
-(when (or hub/force-interactive (and (featurep 'core-predicates) (hub/interactive-p)))
-  (require 'navigation/treemacs)
-  (require 'navigation/perspective)
-  (require 'navigation/perspective-auto)
+    (require 'ui/tty))
   (require 'vcs/git)
-  (require 'navigation/dired)
   (require 'shell/eshell)
-  ;; Knowledge & writing
+  ;; Knowledge & writing.
   (require 'org/core)
   (require 'org/confluence)
   (require 'org/export-latex)
@@ -403,26 +164,12 @@
   (require 'tools/nomina)
   (unless (getenv "HUB_CI_SKIP_OPTIONALS")
     (require 'tools/ai))
-  (require 'apps/elfeed)
+  (require 'apps/core)
   (require 'video/eve)
   (require 'email/core))
 
-;; (use-package use-package-ensure-system-package
-;;   :ensure t)
+(put 'narrow-to-region 'disabled nil)
+(put 'erase-buffer 'disabled nil)
 
-;; APPS (legacy wrappers removed in favor of layered modules)
-(use-package restclient
-  :commands (restclient-mode))
-
-;; Use Emacs to edit browser textareas when explicitly enabled.
-(use-package edit-server
-  :if window-system
-  :commands (edit-server-start edit-server-stop)
-  :init
-  (setq edit-server-default-major-mode 'markdown-mode))
-
-(add-to-list 'load-path "/Users/hubertbehaghel/ws/veriff/herbert/elisp")
-(add-to-list 'exec-path "/Users/hubertbehaghel/ws/veriff/herbert")
-(require 'herbert-org-mode)
 (provide 'init)
 ;;; init.el ends here

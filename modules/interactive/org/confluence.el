@@ -9,6 +9,8 @@
 
 ;;; Code:
 
+(require 'hub-utils)
+
 (defgroup hub/confluence nil
   "Personal Confluence integration activation."
   :group 'org)

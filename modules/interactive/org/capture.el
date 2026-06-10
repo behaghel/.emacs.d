@@ -5,6 +5,8 @@
 
 ;;; Code:
 
+(require 'hub-utils)
+
 (defcustom hub/org-veriff-template-file
   (expand-file-name "insert/template.veriff.org" user-emacs-directory)
   "Yasnippet-compatible template used for new Veriff Org articles."

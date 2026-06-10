@@ -29,8 +29,12 @@
 (setq straight-vc-git-default-protocol (hub/preferred-straight-protocol))
 
 (straight-use-package 'straight) ;; Manage straight.el with itself so it is pinned in versions
+;; Ensure straight's Org is on `load-path' before any package pulls in the
+;; built-in Org, avoiding Org version mismatch warnings during startup.
+(straight-use-package 'org)
 
 (straight-use-package 'use-package)
+(straight-use-package 'diminish)
 (require 'use-package)
 (require 'use-package-ensure)
 (require 'use-package-delight)

@@ -5,6 +5,8 @@
 
 ;;; Code:
 
+(require 'hub-utils)
+
 (require 'ui/performance)
 
 (defgroup hub/dashboard nil

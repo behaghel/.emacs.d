@@ -6,6 +6,8 @@
 
 ;;; Code:
 
+(require 'hub-utils)
+
 (declare-function org-export-read-attribute "ox" (attribute element &optional property))
 
 (defconst hub/org-callout-types '("info" "note" "warning" "tip" "important")

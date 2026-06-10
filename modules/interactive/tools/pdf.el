@@ -8,6 +8,8 @@
 
 ;;; Code:
 
+(require 'hub-utils)
+
 (require 'seq)
 (require 'subr-x)
 
