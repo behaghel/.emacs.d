@@ -151,8 +151,8 @@
 	(when (fboundp 'hub/dashboard-first-paint)
 	  (hub/dashboard-first-paint)))
     (require 'ui/tty))
-  (require 'vcs/git)
-  (require 'shell/eshell)
+  (require 'vcs/core)
+  (require 'shell/core)
   ;; Knowledge & writing.
   (require 'org/core)
   (require 'org/confluence)
