@@ -48,7 +48,7 @@
 	("\\*Help\\*" (display-buffer-reuse-window display-buffer-in-side-window)
 	 (window-width . fit-window-to-buffer) (side . right))
 	("\\*Org Agenda\\*" display-buffer-in-side-window
-	 (side . right) (slot . 0) (window-width . fit-window-to-buffr)
+	 (side . right) (slot . 0) (window-width . fit-window-to-buffer)
 	 ,adjustable-width ,protected-window)
 	("\\*Agenda Commands\\*" display-buffer-in-side-window
 	 (side . right) (slot . 0) (window-width . 96)
