@@ -172,16 +172,60 @@ removing the item from `dashboard-items', also avoids loading them."
 	      95)
     (hub/performance-log-startup-event "dashboard startup hook installed" start-time))
 
+  (defun hub/dashboard--agenda-files ()
+    "Return existing dashboard agenda files."
+    (if (fboundp 'hub/org-prune-missing-agenda-files)
+	(hub/org-prune-missing-agenda-files t)
+      (seq-filter #'file-exists-p (org-agenda-files))))
+
+  (defun hub/dashboard--collect-todo-agenda (list-size)
+    "Collect up to LIST-SIZE TODO agenda items without scanning every entry."
+    (require 'org-agenda)
+    (if-let* ((prefix-format (assoc 'dashboard-agenda org-agenda-prefix-format)))
+	(setcdr prefix-format dashboard-agenda-prefix-format)
+      (push (cons 'dashboard-agenda dashboard-agenda-prefix-format) org-agenda-prefix-format))
+    (org-compile-prefix-format 'dashboard-agenda)
+    (let ((items nil)
+	  (files (hub/dashboard--agenda-files)))
+      (catch 'done
+	(dolist (file files)
+	  (with-current-buffer (find-file-noselect file)
+	    (org-with-wide-buffer
+	     (goto-char (point-min))
+	     (while (re-search-forward org-heading-regexp nil t)
+	       (when (and (org-entry-is-todo-p)
+			  (not (org-entry-is-done-p))
+			  (not (org-in-archived-heading-p)))
+		 (push (dashboard-agenda-entry-format) items)
+		 (when (>= (length items) list-size)
+		   (throw 'done nil))))))))
+      (nreverse items)))
+
+  (defun hub/dashboard-insert-agenda-fast (list-size)
+    "Insert a bounded TODO agenda section for LIST-SIZE items."
+    (dashboard-insert-section
+     (if dashboard-week-agenda
+	 "Agenda for the coming week:"
+       "Agenda for today:")
+     (hub/dashboard--collect-todo-agenda list-size)
+     list-size
+     'agenda
+     (dashboard-get-shortcut 'agenda)
+     `(lambda (&rest _)
+	(let ((file (get-text-property 0 'dashboard-agenda-file ,el))
+	      (point (get-text-property 0 'dashboard-agenda-loc ,el)))
+	  (funcall dashboard-agenda-action file point)))
+     (format "%s" el)))
+
   (defun hub/dashboard-insert-agenda-safe (list-size)
     "Insert Agenda section without breaking dashboard startup."
     (let ((start-time (current-time)))
       (unwind-protect
 	  (condition-case err
-	      (progn
-		(when (fboundp 'hub/org-prune-missing-agenda-files)
-		  (hub/org-prune-missing-agenda-files t))
-		(with-timeout (2.0 (error "Agenda generation timed out"))
-		  (let ((hub/org-background-agenda-render-p t))
+	      (with-timeout (2.0 (error "Agenda generation timed out"))
+		(let ((hub/org-background-agenda-render-p t))
+		  (if (eq dashboard-filter-agenda-entry #'dashboard-filter-agenda-by-todo)
+		      (hub/dashboard-insert-agenda-fast list-size)
 		    (dashboard-insert-agenda list-size))))
 	    (error (message "[dashboard] skipping agenda section: %s" (error-message-string err))))
 	(hub/performance-log-startup-event "dashboard agenda section" start-time))))
