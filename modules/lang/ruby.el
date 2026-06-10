@@ -14,7 +14,7 @@
   (use-package rubocop)
   (use-package rvm
     :config
-    (defadvice inf-ruby-console-auto (before activate-rvm-for-robe activate)
+    (define-advice inf-ruby-console-auto (:before (&rest _args) hub/activate-rvm)
       (rvm-activate-corresponding-ruby)))
   (use-package minitest :commands (minitest-mode)
     :config

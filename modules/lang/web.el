@@ -4,7 +4,7 @@
 
 ;; HTML
 (add-to-list 'auto-mode-alist '("\\.html$" . html-mode))
-(defadvice sgml-delete-tag (after reindent activate)
+(define-advice sgml-delete-tag (:after (&rest _args) hub/reindent-buffer)
   (indent-region (point-min) (point-max)))
 
 ;; CSS and SCSS
