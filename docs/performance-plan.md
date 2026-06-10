@@ -617,7 +617,9 @@ Investigation questions:
 Measure before proposing changes to:
 
 - `smartparens-global-mode` / `smartparens-global-strict-mode`
-- `global-whitespace-mode`
+- `global-whitespace-mode` — follow-up on 2026-06-09: replaced eager global
+  activation with buffer-local `whitespace-mode` on programming/text buffers,
+  excluding Org/Eve as before.
 - `global-whitespace-cleanup-mode`
 - `global-auto-revert-mode`
 - `flyspell-prog-mode` in `prog-mode-hook` — follow-up on 2026-06-09:

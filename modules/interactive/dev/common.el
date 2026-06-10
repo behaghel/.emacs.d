@@ -219,15 +219,21 @@ first; environment-sensitive tooling catches up shortly after."
 (setq which-func-modes '(prog-mode))
 (add-hook 'prog-mode-hook (lambda () (unless which-function-mode (which-function-mode 1))))
 (define-key evil-normal-state-map (kbd ",hI") 'info)
+(defun hub/whitespace-enable-buffer ()
+  "Enable whitespace visualization in eligible editing buffers."
+  (unless (derived-mode-p 'org-mode 'eve-mode)
+    (whitespace-mode 1)))
+
 (use-package whitespace
-  :diminish global-whitespace-mode
-  :config
-  (setq whitespace-style '(face tabs lines-tail empty trailing)
-	whitespace-global-modes '(not org-mode eve-mode))
-  (global-whitespace-mode))
+  :commands (whitespace-mode)
+  :init
+  (setq whitespace-style '(face tabs lines-tail empty trailing))
+  (add-hook 'prog-mode-hook #'hub/whitespace-enable-buffer)
+  (add-hook 'text-mode-hook #'hub/whitespace-enable-buffer))
+
 (use-package whitespace-cleanup-mode
   :diminish whitespace-cleanup-mode
-  :defer t
+  :commands (global-whitespace-cleanup-mode whitespace-cleanup-mode)
   :init (global-whitespace-cleanup-mode))
 
 ;; Treesit (generic setup only; language-specific sources and remaps live under modules/lang/*)
