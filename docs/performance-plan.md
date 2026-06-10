@@ -525,6 +525,20 @@ lazy-loading on 2026-06-09:
   1.466s; the wall-clock refresh was delayed by user activity because the
   refresh timer is idle-based.
 
+Manual GUI validation sample after editing-helper deferral on 2026-06-09:
+
+- `ui/gui load start`: +1.370s.
+- `dashboard config start`: +1.634s.
+- `dashboard recentf ready`: +1.660s, 0.026s.
+- `ui/gui load complete`: +1.670s, 0.300s.
+- `dashboard first paint`: +1.692s, 0.022s.
+- `smartparens` and `evil-smartparens` still configured after first paint but
+  before `emacs-startup-hook`, because a startup buffer enters a `prog-mode`
+  descendant.
+- `emacs-startup-hook`: +4.070s.
+- Denote refresh: +5.182s, 0.044s.
+- Agenda refresh: +11.747s, 2.609s in this sample.
+
 Result: dashboard first paint is now approximately 7.5s faster than the original
 baseline and 2.2s faster than the previous deferred-only iteration.
 
