@@ -191,15 +191,15 @@
 	  '(orderless))))
 
 (use-package kind-icon
-  :after corfu
-  :custom
-  (kind-icon-use-icons t)
-  (kind-icon-default-face 'corfu-default)
-  (kind-icon-blend-background nil)
-  (kind-icon-blend-frac 0.08)
-  :config
+  :commands (kind-icon-margin-formatter kind-icon-reset-cache)
+  :init
+  (setq kind-icon-use-icons t
+	kind-icon-default-face 'corfu-default
+	kind-icon-blend-background nil
+	kind-icon-blend-frac 0.08)
   (add-to-list 'corfu-margin-formatters #'kind-icon-margin-formatter)
-  (add-hook 'kb/themes-hooks #'(lambda () (interactive) (kind-icon-reset-cache))))
+  (with-eval-after-load 'kind-icon
+    (add-hook 'kb/themes-hooks #'kind-icon-reset-cache)))
 
 (use-package embark
   :defer t

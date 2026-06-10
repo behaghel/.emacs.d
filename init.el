@@ -191,15 +191,24 @@
   (eval-when-compile (require 'use-package))
   (use-package project :straight (:type built-in)))
 
+(defun hub/smartparens-enable-prog-mode ()
+  "Enable Smartparens structural editing in programming buffers."
+  (smartparens-strict-mode 1)
+  (show-smartparens-mode 1))
+
 (use-package smartparens
   :diminish smartparens-mode
-  :defer 2
+  :commands (smartparens-mode smartparens-strict-mode show-smartparens-mode)
   ;; this works great for lisp languages
   ;; ("C-<right>" . sp-forward-slurp-sexp)
   ;; this works better for other languages
   :init
+  (add-hook 'prog-mode-hook #'hub/smartparens-enable-prog-mode)
   (use-package evil-smartparens
     :diminish evil-smartparens-mode
+    :commands (evil-smartparens-mode)
+    :init
+    (add-hook 'smartparens-enabled-hook #'evil-smartparens-mode)
     :config
     (define-advice evil-sp--add-bindings (:after (&rest _args) hub/clear-conflicting-keys)
       (evil-define-key 'normal evil-smartparens-mode-map
@@ -229,8 +238,7 @@
 		       ;; (kbd ",c") #'sp-previous-sexp
 		       ;; (define-key evil-motion-state-map "S" 'evil-window-top)
 		       ;; (define-key evil-motion-state-map "s" 'evil-previous-line)
-		       ))
-    (add-hook 'smartparens-enabled-hook #'evil-smartparens-mode))
+		       )))
   :config
   (require 'smartparens-config)
   ;; Keep sexp structural editing bindings scoped to buffers where
@@ -248,10 +256,7 @@
     (define-key map (kbd "M-<up>")    #'sp-up-sexp)
     (define-key map (kbd "S-M-f")     #'sp-forward-sexp)
     (define-key map (kbd "S-M-b")     #'sp-backward-sexp))
-  (add-to-list 'sp-ignore-modes-list 'org-mode)
-  (smartparens-global-mode t)
-  (show-smartparens-global-mode)
-  (smartparens-global-strict-mode))
+  (add-to-list 'sp-ignore-modes-list 'org-mode))
 
 (use-package hydra)
 

@@ -616,7 +616,9 @@ Investigation questions:
 
 Measure before proposing changes to:
 
-- `smartparens-global-mode` / `smartparens-global-strict-mode`
+- `smartparens-global-mode` / `smartparens-global-strict-mode` — follow-up on
+  2026-06-09: replaced global activation with `prog-mode` activation of
+  `smartparens-strict-mode`, `show-smartparens-mode`, and Evil Smartparens.
 - `global-whitespace-mode` — follow-up on 2026-06-09: replaced eager global
   activation with buffer-local `whitespace-mode` on programming/text buffers,
   excluding Org/Eve as before.
@@ -632,6 +634,11 @@ Measure before proposing changes to:
 - `popwin-mode` — follow-up on 2026-06-09: no longer auto-enabled during
   startup; explicit `display-buffer-alist` rules remain the primary window UX,
   and `popwin-mode` is available manually if needed.
+- `apheleia-global-mode` — follow-up on 2026-06-09: replaced global activation
+  with per-`prog-mode` `apheleia-mode`.
+- `kind-icon` — follow-up on 2026-06-09: no longer loads immediately after Corfu;
+  Corfu keeps the margin formatter symbol and `kind-icon` loads on first formatter
+  use.
 
 ### 5. Org version mismatch cleanup
 

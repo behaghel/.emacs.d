@@ -69,7 +69,9 @@
 (advice-add 'yank :after #'hub/indent-yanked-region-in-prog-mode)
 (advice-add 'yank-pop :after #'hub/indent-yanked-region-in-prog-mode)
 
-(use-package apheleia :config (apheleia-global-mode +1))
+(use-package apheleia
+  :commands (apheleia-mode apheleia-format-buffer)
+  :hook (prog-mode . apheleia-mode))
 
 ;; highlight TODO, FIXME, etc.
 (add-hook 'prog-mode-hook 'hub/font-lock-comment-annotations)
