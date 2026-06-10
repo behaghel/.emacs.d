@@ -629,6 +629,9 @@ Measure before proposing changes to:
   defaults are configured once from `prog-mode-hook`, not during startup or when
   non-code packages incidentally load the built-in `treesit` library.
 - `diff-hl :demand t`
+- `popwin-mode` — follow-up on 2026-06-09: no longer auto-enabled during
+  startup; explicit `display-buffer-alist` rules remain the primary window UX,
+  and `popwin-mode` is available manually if needed.
 
 ### 5. Org version mismatch cleanup
 

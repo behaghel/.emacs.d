@@ -20,7 +20,8 @@
       x-select-enable-primary t)
 (setq visible-bell t)
 
-(use-package popwin :config (popwin-mode 1))
+(use-package popwin
+  :commands (popwin-mode))
 (save-place-mode 1)
 (setq switch-to-buffer-preserve-window-point 'already-displayed
       switch-to-visible-buffer nil
