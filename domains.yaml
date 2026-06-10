@@ -142,9 +142,13 @@ domains:
   personal-apps:
     description: Standalone personal productivity applications layered into Emacs, such as feeds, browser editing, REST requests, and video workflows.
     type: supporting
-    code:
-      - modules/interactive/apps/
-      - modules/interactive/video/
+    subdomains:
+      apps:
+        description: Feed reader, browser editing, REST request, and other standalone app-style workflows.
+        code: [modules/interactive/apps/]
+      video:
+        description: Media-oriented command flows integrated into Emacs.
+        code: [modules/interactive/video/]
     language:
       - term: App module
         meaning: A self-contained interactive workflow that is not part of editing, writing, email, or development foundations.
