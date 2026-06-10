@@ -521,6 +521,9 @@ lazy-loading on 2026-06-09:
   buffers still enable the Evil Org integrations.  The dashboard TODO-agenda
   path now uses a bounded collector that stops after the requested item count,
   instead of scanning every agenda entry before truncating to the visible list.
+  Manual GUI validation showed agenda section time drop from about 3.064s to
+  1.466s; the wall-clock refresh was delayed by user activity because the
+  refresh timer is idle-based.
 
 Result: dashboard first paint is now approximately 7.5s faster than the original
 baseline and 2.2s faster than the previous deferred-only iteration.
