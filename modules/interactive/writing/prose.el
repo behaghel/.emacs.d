@@ -6,10 +6,13 @@
 
 ;;; Code:
 
-(add-hook 'text-mode-hook #'turn-on-auto-fill)
+(require 'hub-prose)
+
+(add-hook 'text-mode-hook #'hub/prose-visual-fill-mode)
 (setq sentence-end-double-space nil)
 (define-key evil-normal-state-map (kbd ",bs") #'flyspell-mode)
 
+(use-package adaptive-wrap :commands adaptive-wrap-prefix-mode)
 (use-package visual-fill-column :defer t)
 
 (use-package artbollocks-mode

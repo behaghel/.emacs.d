@@ -21,13 +21,17 @@
   "Enable virtual autofill for the current prose buffer.
 
 This disables hard autofill, enables word wrapping, and uses
-`visual-fill-column-mode' when available so wrapping happens at
-`hub/prose-visual-fill-column' without changing the file contents."
+`adaptive-wrap-prefix-mode' and `visual-fill-column-mode' when
+available so wrapping happens at `hub/prose-visual-fill-column'
+without changing the file contents."
   (auto-fill-mode -1)
   (visual-line-mode 1)
   (setq-local comment-auto-fill-only-comments nil
 	      truncate-lines nil
 	      word-wrap t)
+  (when (require 'adaptive-wrap nil t)
+    (setq-local adaptive-wrap-extra-indent 0)
+    (adaptive-wrap-prefix-mode 1))
   (when (require 'visual-fill-column nil t)
     (setq-local visual-fill-column-width hub/prose-visual-fill-column
 		visual-fill-column-center-text t)

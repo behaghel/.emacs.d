@@ -45,6 +45,7 @@ else
         ;;
       modules/interactive/notes/*|modules/interactive/org/*|modules/interactive/writing/*|lisp/hub-prose.el)
         add_test test/authoring/notes/denote-note-test.el
+        add_test test/authoring/org/prose-wrapping-test.el
         ;;
       modules/org/export-latex.el|etc/latex/*|etc/latex/assets/*|lisp/hub-org-callout.el)
         add_test test/authoring/documents/org-export-test.el
