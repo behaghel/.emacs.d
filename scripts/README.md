@@ -1,5 +1,5 @@
 ---
-domain: quality-system
+domain: configuration-system
 status: draft
 last-reviewed: 2026-06-08
 ---

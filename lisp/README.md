@@ -1,5 +1,5 @@
 ---
-domain: shared-libraries
+domain: configuration-system
 status: draft
 last-reviewed: 2026-06-08
 ---

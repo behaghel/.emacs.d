@@ -1,5 +1,5 @@
 ---
-domain: secrets-private
+domain: configuration-system
 status: draft
 last-reviewed: 2026-06-10
 ---

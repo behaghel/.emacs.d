@@ -1,5 +1,5 @@
 ---
-domain: email-productivity
+domain: personal-apps
 status: draft
 last-reviewed: 2026-06-08
 ---

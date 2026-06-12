@@ -1,5 +1,5 @@
 ---
-domain: development-workbench
+domain: development
 status: draft
 last-reviewed: 2026-06-10
 ---
