@@ -3,9 +3,9 @@
 ;;; Commentary:
 ;;; Code:
 
-(let* ((repo-root (file-name-directory
-		   (directory-file-name
-		    (file-name-directory (or load-file-name buffer-file-name)))))
+(let* ((repo-root (file-name-as-directory
+		   (locate-dominating-file (or load-file-name buffer-file-name)
+					   "domains.yaml")))
        (user-emacs-directory repo-root)
        (bootstrap-file (expand-file-name "straight/repos/straight.el/bootstrap.el"
 					 repo-root))

@@ -4,7 +4,7 @@ set -euo pipefail
 export HOME=${HOME:-$PWD}
 
 all_tests() {
-  find test -maxdepth 1 -type f -name '*-test.el' | sort
+  find test -type f -name '*-test.el' | sort
 }
 
 add_test() {
@@ -31,31 +31,31 @@ else
       test/test-helpers.el)
         add_all_tests
         ;;
-      test/*-test.el)
+      test/**/*-test.el|test/*-test.el)
         add_test "$path"
         ;;
       init.el|core/*.el|early-init.el)
-        add_test test/smoke.el
+        add_test test/configuration-system/smoke-test.el
         ;;
       modules/interactive/navigation/perspective-auto.el)
-        add_test test/perspective-auto-test.el
+        add_test test/interactive-foundation/navigation/perspective-auto-test.el
         ;;
       modules/interactive/video/eve.el)
-        add_test test/eve-test.el
+        add_test test/personal-apps/video/eve-test.el
         ;;
       modules/interactive/notes/*|modules/interactive/org/*|modules/interactive/writing/*|lisp/hub-prose.el)
-        add_test test/denote-note-test.el
+        add_test test/authoring/notes/denote-note-test.el
         ;;
       modules/org/export-latex.el|etc/latex/*|etc/latex/assets/*|lisp/hub-org-callout.el)
-        add_test test/org-export-test.el
-        add_test test/org-latex-pdf-export-test.el
+        add_test test/authoring/documents/org-export-test.el
+        add_test test/authoring/documents/org-latex-pdf-export-test.el
         ;;
       packages/org-confluence/*)
-        add_test test/org-confluence-api-test.el
-        add_test test/org-confluence-export-test.el
+        add_test test/publishing/confluence/org-confluence-api-test.el
+        add_test test/publishing/confluence/org-confluence-export-test.el
         ;;
       scripts/approval-refresh-overdrive-page1.el|scripts/export-demo-adaptive-cards.el)
-        add_test test/org-latex-pdf-export-test.el
+        add_test test/authoring/documents/org-latex-pdf-export-test.el
         ;;
     esac
   done
@@ -69,9 +69,9 @@ fi
 # org-dropcap-test relies on the export-latex module loaded by the larger PDF
 # export test file.  Keep focused test runs robust when pre-commit chunks test
 # filenames and does not happen to include that dependency first.
-if printf '%s\n' "${tests[@]}" | grep -qx 'test/org-dropcap-test.el' \
-  && ! printf '%s\n' "${tests[@]}" | grep -qx 'test/org-latex-pdf-export-test.el'; then
-  tests=(test/org-latex-pdf-export-test.el "${tests[@]}")
+if printf '%s\n' "${tests[@]}" | grep -qx 'test/authoring/org/org-dropcap-test.el' \
+  && ! printf '%s\n' "${tests[@]}" | grep -qx 'test/authoring/documents/org-latex-pdf-export-test.el'; then
+  tests=(test/authoring/documents/org-latex-pdf-export-test.el "${tests[@]}")
 fi
 
 if [ "${#tests[@]}" -eq 0 ]; then

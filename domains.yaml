@@ -35,7 +35,8 @@ domains:
         type: generic
         code:
           - scripts/
-          - test/
+          - test/configuration-system/
+          - test/test-helpers.el
           - .github/workflows/
           - devenv.nix
           - devenv.yaml
@@ -70,7 +71,9 @@ domains:
         code: [modules/interactive/completion/]
       navigation:
         description: Project focus, perspectives, file/buffer navigation, Treemacs, Dired, and navigation history.
-        code: [modules/interactive/navigation/]
+        code:
+          - modules/interactive/navigation/
+          - test/interactive-foundation/navigation/
       presentation:
         description: Interactive presentation, dashboard, themes, fonts, GUI, and TTY behavior.
         code: [modules/interactive/ui/]
@@ -129,10 +132,13 @@ domains:
           - modules/interactive/org/capture.el
           - modules/interactive/org/agenda.el
           - modules/interactive/org/integrations.el
+          - test/authoring/org/
         spec: modules/interactive/org/
       notes:
         description: Note-taking and personal knowledge management workflows.
-        code: [modules/interactive/notes/]
+        code:
+          - modules/interactive/notes/
+          - test/authoring/notes/
       documents:
         description: Document export, PDF/LaTeX authoring, Nomina workflows, and document assets.
         code:
@@ -141,6 +147,8 @@ domains:
           - modules/interactive/tools/pdf.el
           - modules/interactive/tools/nomina.el
           - etc/
+          - test/authoring/documents/
+          - test/fixtures/org-export/
         spec: modules/org/
     language:
       - term: Semantic layer
@@ -165,6 +173,7 @@ domains:
         code:
           - modules/interactive/org/confluence.el
           - packages/org-confluence/
+          - test/publishing/confluence/
         spec: packages/org-confluence/
     language:
       - term: Publishing workflow
@@ -184,7 +193,9 @@ domains:
         code: [modules/interactive/email/]
       video:
         description: Media-oriented command flows integrated into Emacs.
-        code: [modules/interactive/video/]
+        code:
+          - modules/interactive/video/
+          - test/personal-apps/video/
       ai:
         description: AI and assistant-style standalone workflows.
         code: [modules/interactive/tools/ai.el]

@@ -54,3 +54,9 @@
        (tracked (split-string (shell-command-to-string "git ls-files 'settings/**' 2>/dev/null") "\n" t)))
   (when tracked
     (error "settings/ should be empty; tracked files found: %S" tracked)))
+
+;; Domain-owned tests should live under test/<domain>/..., not flat test/.
+(let* ((default-directory user-emacs-directory)
+       (flat-tests (split-string (shell-command-to-string "git ls-files 'test/*-test.el' 2>/dev/null") "\n" t)))
+  (when flat-tests
+    (error "Domain tests should live under test/<domain>/; flat tests found: %S" flat-tests)))

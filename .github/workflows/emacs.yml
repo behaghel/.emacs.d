@@ -121,7 +121,7 @@ jobs:
       - name: Run ERT smoke tests
         run: |
           export HOME=$GITHUB_WORKSPACE
-          emacs --batch -l ert -l test/smoke.el -f ert-run-tests-batch-and-exit
+          emacs --batch -l ert -l test/configuration-system/smoke-test.el -f ert-run-tests-batch-and-exit
 
       - name: Run ERT module tests (changed on PR)
         if: github.event_name == 'pull_request'
@@ -143,7 +143,7 @@ jobs:
         if: github.event_name == 'push'
         run: |
           export HOME=$GITHUB_WORKSPACE
-          if ls test/*-test.el >/dev/null 2>&1; then
+          if find test -type f -name '*-test.el' -print -quit | grep -q .; then
             ./scripts/elisp-ert
           else
             echo "No module tests present"

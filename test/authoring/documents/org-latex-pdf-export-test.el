@@ -10,7 +10,7 @@
 
 (defconst hub/test-repo-root
   (file-name-as-directory
-   (expand-file-name ".." (file-name-directory (or load-file-name buffer-file-name))))
+   (locate-dominating-file (or load-file-name buffer-file-name) "domains.yaml"))
   "Repository root for Org LaTeX PDF export tests.")
 
 (let ((user-emacs-directory hub/test-repo-root)
@@ -93,7 +93,8 @@
 							       (getenv "TEXINPUTS")))
 			     (shell-quote-argument "/tmp/devenv")
 			     (shell-quote-argument
-			      (concat "path:" (directory-file-name hub/test-repo-root)))))))))
+			      (concat "path:" (directory-file-name
+					       (expand-file-name hub/test-repo-root))))))))))
 
 (ert-deftest hub/org-export-falls-back-to-plain-xelatex-without-devenv ()
   "Compiler process remains usable when devenv is absent."

@@ -10,7 +10,9 @@
 (require 'org)
 
 ;; Ensure repo modules are reachable for isolated batch test runners.
-(let ((root (expand-file-name ".." (file-name-directory (or load-file-name buffer-file-name)))))
+(let ((root (file-name-as-directory
+	     (locate-dominating-file (or load-file-name buffer-file-name)
+				     "domains.yaml"))))
   (add-to-list 'load-path (expand-file-name "modules" root))
   (add-to-list 'load-path (expand-file-name "modules/org" root))
   (add-to-list 'load-path (expand-file-name "packages/org-confluence" root))
