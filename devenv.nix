@@ -144,6 +144,7 @@ in
         language = "system";
         files = "(core/.+\.el|init\.el|lisp/.+\.el|modules/.+\.el|packages/.+\.el|scripts/.+\.el|test/.+\.el)";
         pass_filenames = true;
+        require_serial = true;
       };
 
     };
