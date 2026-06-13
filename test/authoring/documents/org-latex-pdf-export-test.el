@@ -525,6 +525,34 @@
       (when (file-directory-p artifact-root)
 	(delete-directory artifact-root t)))))
 
+(ert-deftest hub/org-export-hub-article-class-defines-sidenote-macro ()
+  "The hub-article class owns the visual sidenote treatment."
+  (let ((class-contents (hub/test-read-file-as-string
+			 (expand-file-name "etc/latex/hub-article.cls" hub/test-repo-root))))
+    (should (string-match-p (regexp-quote "\\newcommand{\\HubArticleSidenote}") class-contents))
+    (should (string-match-p (regexp-quote "\\marginpar") class-contents))))
+
+(ert-deftest hub/org-export-hub-article-footnotes-become-sidenotes ()
+  "Ordinary hub-article Org footnotes export as margin sidenotes."
+  (let ((tex (org-export-string-as "#+LATEX_CLASS: hub-article\n\nText[fn:one]\n\n[fn:one] Note body.\n"
+				   'latex t)))
+    (should (string-match-p (regexp-quote "Text\\HubArticleSidenote{Note body.}") tex))
+    (should-not (string-match-p (regexp-quote "\\footnote{Note body.}") tex))))
+
+(ert-deftest hub/org-export-hub-article-footnote-kind-keeps-bottom-footnote ()
+  "HUB_NOTE_KIND footnote keeps a traditional bottom footnote in hub-article."
+  (let ((tex (org-export-string-as "#+LATEX_CLASS: hub-article\n\nText[fn:one]\n\n[fn:one]\n:PROPERTIES:\n:HUB_NOTE_KIND: footnote\n:END:\nLegal note.\n"
+				   'latex t)))
+    (should (string-match-p (regexp-quote "Text\\footnote{Legal note.}") tex))
+    (should-not (string-match-p (regexp-quote "\\HubArticleSidenote{Legal note.}") tex))))
+
+(ert-deftest hub/org-export-hub-article-comments-are-omitted ()
+  "Comment marginalia are omitted from normal hub-article LaTeX export."
+  (let ((tex (org-export-string-as "#+LATEX_CLASS: hub-article\n\nText[fn:one]\n\n[fn:one]\n:PROPERTIES:\n:HUB_NOTE_KIND: comment\n:END:\nPrivate review note.\n"
+				   'latex t)))
+    (should (string-match-p (regexp-quote "Text") tex))
+    (should-not (string-match-p (regexp-quote "Private review note") tex))))
+
 (ert-deftest hub/org-export-callout-title-uses-semantic-attribute ()
   "LaTeX callout titles come from `#+ATTR_CALLOUT:'."
   (let ((tex (org-export-string-as "#+ATTR_CALLOUT: :type warning :title \"Heads up\"\n#+begin_callout\nCareful\n#+end_callout"

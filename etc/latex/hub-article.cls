@@ -258,6 +258,13 @@
 \newcommand{\HubArticleMarginZone}[1]{%
   \HubArticleMarginMarker{#1}%
 }
+\newcommand{\HubArticleSidenote}[1]{%
+  \marginpar{%
+    \raggedright
+    \HubArticleSans\scriptsize\textcolor{HubArticleMuted}{%
+      \textcolor{HubArticleAccentMuted}{\rule{12mm}{0.35pt}}\par\vspace{0.25em}%
+      #1}}%
+}
 \newcommand{\HubArticleBold}[1]{{\color{HubArticleBoldColor}\textbf{#1}}}
 \newcommand{\HubArticleInlineCode}[1]{%
   \begingroup

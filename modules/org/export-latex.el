@@ -806,6 +806,100 @@ two-column rendering with `:float multicolumn'."
 	   (t image-latex)))
       image-latex)))
 
+(defun hub/org-export--hub-note-kind-from-region (begin end)
+  "Return HUB_NOTE_KIND between BEGIN and END, or nil."
+  (save-excursion
+    (save-restriction
+      (narrow-to-region begin end)
+      (goto-char (point-min))
+      (when (re-search-forward "^[ \t]*:HUB_NOTE_KIND:[ \t]*\\([^ \t\n]+\\)" nil t)
+	(downcase (match-string-no-properties 1))))))
+
+(defun hub/org-export--hub-note-kind-from-label (label)
+  "Return HUB_NOTE_KIND for footnote LABEL in the current export buffer."
+  (when label
+    (save-excursion
+      (goto-char (point-min))
+      (when (re-search-forward (format "^[ \t]*\\[fn:%s\\]" (regexp-quote label)) nil t)
+	(let ((begin (line-beginning-position))
+	      (end (save-excursion
+		     (forward-line 1)
+		     (if (re-search-forward "^[ \t]*\\(?:\\[fn:[^]\n]+\\]\\|\\*+\\s-+\\)" nil t)
+			 (match-beginning 0)
+		       (point-max)))))
+	  (hub/org-export--hub-note-kind-from-region begin end))))))
+
+(defun hub/org-export--hub-note-kind-from-definition (definition &optional label)
+  "Return HUB_NOTE_KIND from footnote DEFINITION or LABEL, or nil."
+  (or (when-let* ((begin (org-element-property :begin definition))
+		  (end (org-element-property :end definition)))
+	(hub/org-export--hub-note-kind-from-region begin end))
+      (hub/org-export--hub-note-kind-from-label label)))
+
+(defun hub/org-export--hub-article-footnote-body (definition info)
+  "Return LaTeX body for footnote DEFINITION using INFO, excluding metadata."
+  (string-trim
+   (mapconcat
+    (lambda (child)
+      (if (and (eq (org-element-type child) 'drawer)
+	       (equal (org-element-property :drawer-name child) "PROPERTIES"))
+	  ""
+	(org-export-data child info)))
+    (org-element-contents definition)
+    "")))
+
+(defun hub/org-export--latex-footnote-separator (footnote-reference info)
+  "Return LaTeX separator before FOOTNOTE-REFERENCE using INFO, if needed."
+  (let ((previous (org-export-get-previous-element footnote-reference info)))
+    (if (org-element-type-p previous 'footnote-reference)
+	(plist-get info :latex-footnote-separator)
+      "")))
+
+(defun hub/org-export--hub-article-footnote-label (label definition footnote-reference info)
+  "Return repeated footnote LABEL for DEFINITION and FOOTNOTE-REFERENCE using INFO."
+  (cond
+   ((not label) "")
+   ((org-element-map (plist-get info :parse-tree)
+		     'footnote-reference
+		     (lambda (reference)
+		       (and (not (eq reference footnote-reference))
+			    (equal (org-element-property :label reference) label)
+			    (org-trim (org-latex--label definition info t t))))
+		     info t))
+   (t "")))
+
+(defun hub/org-export--advice-org-latex-footnote-reference (orig footnote-reference contents info)
+  "Render hub-article FOOTNOTE-REFERENCE as sidenote-aware LaTeX.
+ORIG, CONTENTS, and INFO follow `org-latex-footnote-reference'."
+  (if (not (hub/org-export--info-hub-article-p info))
+      (funcall orig footnote-reference contents info)
+    (let ((label (org-element-property :label footnote-reference)))
+      (cond
+       ((not (org-export-footnote-first-reference-p footnote-reference info))
+	(funcall orig footnote-reference contents info))
+       ((or (org-element-lineage footnote-reference
+				 '(footnote-reference footnote-definition table-cell verse-block))
+	    (org-element-type-p (org-element-parent-element footnote-reference) 'item))
+	(funcall orig footnote-reference contents info))
+       (t
+	(let* ((definition (org-export-get-footnote-definition footnote-reference info))
+	       (kind (hub/org-export--hub-note-kind-from-definition definition label))
+	       (body (hub/org-export--hub-article-footnote-body definition info))
+	       (separator (hub/org-export--latex-footnote-separator footnote-reference info)))
+	  (pcase kind
+	    ((or "comment" "remote-comment") separator)
+	    ("footnote"
+	     (concat separator
+		     (format (plist-get info :latex-default-footnote-command)
+			     body
+			     (hub/org-export--hub-article-footnote-label
+			      label definition footnote-reference info))
+		     (org-latex--delayed-footnotes-definitions definition info)))
+	    (_
+	     (concat separator
+		     (format "\\HubArticleSidenote{%s}" body)
+		     (org-latex--delayed-footnotes-definitions definition info))))))))))
+
 (defun hub/org-export--advice-org-latex-item (orig item contents info)
   "Render Org checkbox ITEM markers through Veriff-owned macros using CONTENTS and INFO."
   (let ((item-latex (funcall orig item contents info)))
@@ -954,6 +1048,7 @@ When OUTPUT-DIR is nil, export into the same directory as the Org file
 (advice-add 'org-latex--text-markup :around #'hub/org-export--advice-org-latex--text-markup)
 (advice-add 'org-latex--inline-image :around #'hub/org-export--advice-org-latex--inline-image)
 (advice-add 'org-latex-item :around #'hub/org-export--advice-org-latex-item)
+(advice-add 'org-latex-footnote-reference :around #'hub/org-export--advice-org-latex-footnote-reference)
 (defun hub/org-export--advice-org-latex-template (orig contents info)
   "Remove TOC boilerplate from hub-article LaTeX template.
 This is a belt-and-suspenders guard: the class config already sets
