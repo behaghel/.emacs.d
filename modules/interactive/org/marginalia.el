@@ -54,8 +54,6 @@
 (defun hub/org-marginalia--kind-label (kind)
   "Return a compact display label for marginalia KIND."
   (pcase kind
-    ('comment "COMMENT")
-    ('remote-comment "REMOTE")
     ('footnote "FOOTNOTE")
     (_ "NOTE")))
 

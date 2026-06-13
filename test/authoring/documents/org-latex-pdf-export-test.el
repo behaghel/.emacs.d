@@ -583,13 +583,6 @@
     (should (string-match-p (regexp-quote "Text\\footnote{Legal note.}") tex))
     (should-not (string-match-p (regexp-quote "\\HubArticleSidenote{Legal note.}") tex))))
 
-(ert-deftest hub/org-export-hub-article-comments-are-omitted ()
-  "Comment marginalia are omitted from normal hub-article LaTeX export."
-  (let ((tex (org-export-string-as "#+LATEX_CLASS: hub-article\n\nText[fn:one]\n\n[fn:one]\n:PROPERTIES:\n:HUB_NOTE_KIND: comment\n:END:\nPrivate review note.\n"
-				   'latex t)))
-    (should (string-match-p (regexp-quote "Text") tex))
-    (should-not (string-match-p (regexp-quote "Private review note") tex))))
-
 (ert-deftest hub/org-export-callout-title-uses-semantic-attribute ()
   "LaTeX callout titles come from `#+ATTR_CALLOUT:'."
   (let ((tex (org-export-string-as "#+ATTR_CALLOUT: :type warning :title \"Heads up\"\n#+begin_callout\nCareful\n#+end_callout"

@@ -34,30 +34,14 @@
    (should (string-match-p (regexp-quote ":HUB_NOTE_KIND: footnote") (buffer-string)))
    (should (string-match-p (regexp-quote "Legal note.") (buffer-string)))))
 
-(ert-deftest hub/org-insert-comment-footnote-template-adds-comment-metadata ()
-  "The comment helper writes comment kind and open status metadata."
-  (hub/org-marginalia-authoring-test--with-buffer
-   (hub/org-marginalia-authoring-test--insert-with-body
-    #'hub/org-insert-comment-footnote-template "Please revise.")
-   (should (string-match-p (regexp-quote "Text[fn:one]") (buffer-string)))
-   (should (string-match-p (regexp-quote ":HUB_NOTE_KIND: comment") (buffer-string)))
-   (should (string-match-p (regexp-quote ":HUB_NOTE_STATUS: open") (buffer-string)))
-   (should (string-match-p (regexp-quote "Please revise.") (buffer-string)))))
-
 (ert-deftest hub/org-tempo-completes-kind-specific-footnote-shortcuts ()
-  "The <ft and <fc shortcuts expand to kind-specific marginalia helpers."
+  "The <ft shortcut expands to a traditional footnote helper."
   (hub/org-marginalia-authoring-test--with-buffer
    (insert " <ft")
    (cl-letf (((symbol-function 'hub/org-insert-traditional-footnote-template)
 	      (lambda () (insert "TRADITIONAL"))))
      (should (hub/org-tempo-complete-traditional-footnote))
-     (should (string-suffix-p " TRADITIONAL" (buffer-string)))))
-  (hub/org-marginalia-authoring-test--with-buffer
-   (insert " <fc")
-   (cl-letf (((symbol-function 'hub/org-insert-comment-footnote-template)
-	      (lambda () (insert "COMMENT"))))
-     (should (hub/org-tempo-complete-comment-footnote))
-     (should (string-suffix-p " COMMENT" (buffer-string))))))
+     (should (string-suffix-p " TRADITIONAL" (buffer-string))))))
 
 (provide 'org-marginalia-authoring-test)
 ;;; org-marginalia-authoring-test.el ends here

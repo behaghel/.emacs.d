@@ -900,7 +900,6 @@ ORIG, CONTENTS, and INFO follow `org-latex-footnote-reference'."
 	       (body (hub/org-export--hub-article-footnote-body definition info))
 	       (separator (hub/org-export--latex-footnote-separator footnote-reference info)))
 	  (pcase kind
-	    ((or "comment" "remote-comment") separator)
 	    ("footnote"
 	     (concat separator
 		     (format (plist-get info :latex-default-footnote-command)

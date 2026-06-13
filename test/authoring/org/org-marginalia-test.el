@@ -30,9 +30,9 @@
 
 (ert-deftest hub/org-marginalia-parses-note-properties ()
   "HUB_NOTE_* properties under a footnote definition enrich the note record."
-  (hub/org-marginalia-test--with-buffer "Text[fn:review]\n\n[fn:review]\n:PROPERTIES:\n:HUB_NOTE_KIND: comment\n:HUB_NOTE_STATUS: open\n:HUB_NOTE_SOURCE: confluence\n:HUB_NOTE_REMOTE_ID: 123\n:END:\nPlease revise.\n"
+  (hub/org-marginalia-test--with-buffer "Text[fn:review]\n\n[fn:review]\n:PROPERTIES:\n:HUB_NOTE_KIND: footnote\n:HUB_NOTE_STATUS: open\n:HUB_NOTE_SOURCE: confluence\n:HUB_NOTE_REMOTE_ID: 123\n:END:\nPlease revise.\n"
 					(let ((note (car (hub/org-marginalia-collect))))
-					  (should (eq 'comment (plist-get note :kind)))
+					  (should (eq 'footnote (plist-get note :kind)))
 					  (should (equal "open" (plist-get note :status)))
 					  (should (equal "confluence" (plist-get note :source)))
 					  (should (equal "123" (plist-get note :remote-id)))

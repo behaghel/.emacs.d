@@ -135,8 +135,6 @@ Point must be at the beginning of a native Org footnote definition."
   "Return marginalia kind symbol for VALUE."
   (pcase (downcase (or value ""))
     ("footnote" 'footnote)
-    ("comment" 'comment)
-    ("remote-comment" 'remote-comment)
     ("sidenote" 'sidenote)
     (_ hub/org-marginalia-default-kind)))
 

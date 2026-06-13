@@ -214,25 +214,28 @@ Without a caption, omit `ac:alt` and the caption paragraph.
 - Module architecture: `modules/org/` is on `load-path` unconditionally (like `modules/lang/`), unlike `modules/interactive/` which is gated behind interactive mode
 - Test helpers: `test/test-helpers.el`
 - `cfl` CLI docs: `cfl page edit --help`, `cfl page create --help`, `cfl attachment upload --help`
-- Confluence Cloud REST API: `/rest/api/content/{id}/comment` endpoints (for future comment support)
+- Confluence Cloud REST API v2 comment endpoints (for future comment support)
 
 ## Confluence Comment Support (Exploratory)
 
-`cfl` does not support comments, but the Confluence Cloud REST API does:
+`cfl` does not support comments, but the Confluence Cloud REST API v2 does. Comments are external review resources, not primary page body content, so the local representation should be a colocated plain-Org sidecar named like `article.comments.org` for `article.org`.
 
 | Endpoint | Method | Purpose |
 | --- | --- | --- |
-| `/rest/api/content/{pageId}/comment` | GET | List comments on a page |
-| `/rest/api/content` (type=comment, container={pageId}) | POST | Create a comment |
-| `/rest/api/content/{commentId}` | PUT | Update a comment |
-| `/rest/api/content/{commentId}` | DELETE | Delete a comment |
+| `/wiki/api/v2/pages/{pageId}/footer-comments` | GET | List page/footer comments |
+| `/wiki/api/v2/pages/{pageId}/inline-comments` | GET | List region-targeted inline comments |
+| `/wiki/api/v2/footer-comments` | POST | Create a page/footer comment |
+| `/wiki/api/v2/inline-comments` | POST | Create a region-targeted inline comment |
+| `/wiki/api/v2/inline-comments/{commentId}` | PUT/DELETE | Update or delete an inline comment |
+
+Read requests should include `body-format=storage` or `body-format=atlas_doc_format` when comment bodies are needed. Inline comments carry target metadata such as original selection text and marker references; locally that belongs in `HUB_COMMENT_*` properties in the sidecar file, not in `HUB_NOTE_KIND` footnotes.
 
 The `cfl` auth config file (`~/.config/cfl/config.yml`) contains the API token, cloud ID, and user email. A future enhancement could parse this file and use `url-retrieve` or `curl` to access the comment endpoints directly, reusing the same credentials.
 
 Possible future commands:
 - `hub/confluence-comment-list` — display page comments in an Emacs buffer
-- `hub/confluence-comment-create` — add a comment from the minibuffer or from an Org entry
-- `hub/confluence-comment-pull` — fetch comments and insert as Org annotations
+- `hub/confluence-comment-create` — add a comment from the minibuffer or from a sidecar Org entry
+- `hub/confluence-comment-pull` — fetch comments into the colocated `*.comments.org` sidecar
 
 This is deferred — no iteration plan until the core publish path is stable.
 

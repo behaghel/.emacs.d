@@ -229,14 +229,6 @@ body field.  Without Yasnippet, prompt for the body immediately and return."
    '(("HUB_NOTE_KIND" . "footnote"))
    "Footnote: "))
 
-(defun hub/org-insert-comment-footnote-template ()
-  "Insert an editorial comment footnote with open status metadata."
-  (interactive)
-  (hub/org-insert-footnote-template-with-properties
-   '(("HUB_NOTE_KIND" . "comment")
-     ("HUB_NOTE_STATUS" . "open"))
-   "Comment: "))
-
 (defun hub/org-tempo-complete-footnote-kind (shortcut insert-function)
   "Expand SHORTCUT and call INSERT-FUNCTION for an inline footnote."
   (when (looking-back (format "\\(<%s\\)" (regexp-quote shortcut)) (line-beginning-position))
@@ -254,10 +246,6 @@ this shortcut is intentionally accepted anywhere on the current line."
 (defun hub/org-tempo-complete-traditional-footnote ()
   "Expand the `<ft' Org Tempo shortcut as a traditional bottom footnote."
   (hub/org-tempo-complete-footnote-kind "ft" #'hub/org-insert-traditional-footnote-template))
-
-(defun hub/org-tempo-complete-comment-footnote ()
-  "Expand the `<fc' Org Tempo shortcut as an editorial comment footnote."
-  (hub/org-tempo-complete-footnote-kind "fc" #'hub/org-insert-comment-footnote-template))
 
 (defun hub/org-insert-confluence-status ()
   "Insert an Org link representing a Confluence status macro."
@@ -293,7 +281,6 @@ this shortcut is intentionally accepted anywhere on the current line."
   (add-hook 'org-tab-before-tab-emulation-hook #'hub/org-tempo-complete-image -90)
   (add-hook 'org-tab-before-tab-emulation-hook #'hub/org-tempo-complete-footnote -90)
   (add-hook 'org-tab-before-tab-emulation-hook #'hub/org-tempo-complete-traditional-footnote -90)
-  (add-hook 'org-tab-before-tab-emulation-hook #'hub/org-tempo-complete-comment-footnote -90)
   (add-hook 'org-tab-before-tab-emulation-hook #'hub/org-tempo-complete-status -90))
 
 (provide 'org/authoring)
