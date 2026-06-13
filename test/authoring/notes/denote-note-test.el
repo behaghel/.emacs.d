@@ -29,6 +29,8 @@
     (unwind-protect
 	(with-current-buffer (find-file-noselect path)
 	  (should (derived-mode-p 'org-mode))
+	  (goto-char (point-min))
+	  (should (search-forward "#+latex_class: hub-article" nil t))
 	  (should (featurep 'org-tempo))
 	  (should-not
 	   (let* ((keys (append (mapcar #'car org-structure-template-alist)

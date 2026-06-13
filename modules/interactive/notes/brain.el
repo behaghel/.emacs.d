@@ -16,6 +16,17 @@
   :type 'directory
   :group 'hub/notes)
 
+(defconst hub/denote--org-front-matter
+  "#+title:      %s
+#+date:       %s
+#+filetags:   %s
+#+identifier: %s
+#+signature:  %s
+#+latex_class: hub-article
+
+"
+  "Org front matter used for new Denote notes.")
+
 (defun hub/denote--configure-org-capture ()
   "Configure Org capture templates that create Denote notes."
   (setq denote-org-capture-specifiers "%l\n%i\n%?")
@@ -45,6 +56,7 @@
 	     denote-type)
   :init
   (setq denote-directory hub/denote-directory
+	denote-org-front-matter hub/denote--org-front-matter
 	denote-known-keywords '("emacs" "faith" "family" "hubert" "pro" "engineering" "leadership")
 	denote-infer-keywords t
 	denote-sort-keywords t
