@@ -186,12 +186,19 @@ only the image link."
     (add-hook 'yas-after-exit-snippet-hook return-to-reference nil t)
     (yas-expand-snippet "${1:Footnote text}")))
 
-(defun hub/org-insert-footnote-template ()
-  "Insert a footnote reference and edit its bottom definition.
+(defun hub/org-footnote-insert-properties (properties)
+  "Insert footnote metadata PROPERTIES at point.
+PROPERTIES is an alist of Org property names to values."
+  (when properties
+    (insert "\n:PROPERTIES:\n")
+    (dolist (property properties)
+      (insert (format ":%s: %s\n" (car property) (cdr property))))
+    (insert ":END:\n")))
 
-With Yasnippet, point returns to the original text after leaving the footnote
-body field.  Without Yasnippet, prompt for the body immediately and return."
-  (interactive)
+(defun hub/org-insert-footnote-template-with-properties (&optional properties prompt)
+  "Insert a footnote reference and edit its definition with PROPERTIES.
+PROMPT is used when Yasnippet is unavailable.  With Yasnippet, point returns to
+original text after leaving the footnote body field."
   (require 'org-footnote)
   (let* ((label (org-footnote-unique-label))
 	 (reference-end nil)
@@ -200,21 +207,57 @@ body field.  Without Yasnippet, prompt for the body immediately and return."
     (setq reference-end (point-marker))
     (setq definition-point (hub/org-footnote-definition-point label))
     (goto-char definition-point)
+    (hub/org-footnote-insert-properties properties)
     (if (hub/org-yas-ready-p)
 	(hub/org-expand-footnote-snippet label reference-end)
-      (insert (read-string "Footnote: "))
+      (insert (read-string (or prompt "Footnote: ")))
       (hub/org-sort-footnotes)
       (goto-char reference-end))))
 
+(defun hub/org-insert-footnote-template ()
+  "Insert a footnote reference and edit its bottom definition.
+
+With Yasnippet, point returns to the original text after leaving the footnote
+body field.  Without Yasnippet, prompt for the body immediately and return."
+  (interactive)
+  (hub/org-insert-footnote-template-with-properties nil "Footnote: "))
+
+(defun hub/org-insert-traditional-footnote-template ()
+  "Insert a footnote forced to remain a traditional bottom footnote."
+  (interactive)
+  (hub/org-insert-footnote-template-with-properties
+   '(("HUB_NOTE_KIND" . "footnote"))
+   "Footnote: "))
+
+(defun hub/org-insert-comment-footnote-template ()
+  "Insert an editorial comment footnote with open status metadata."
+  (interactive)
+  (hub/org-insert-footnote-template-with-properties
+   '(("HUB_NOTE_KIND" . "comment")
+     ("HUB_NOTE_STATUS" . "open"))
+   "Comment: "))
+
+(defun hub/org-tempo-complete-footnote-kind (shortcut insert-function)
+  "Expand SHORTCUT and call INSERT-FUNCTION for an inline footnote."
+  (when (looking-back (format "\\(<%s\\)" (regexp-quote shortcut)) (line-beginning-position))
+    (replace-match "" t t nil 1)
+    (funcall insert-function)
+    t))
+
 (defun hub/org-tempo-complete-footnote ()
-  "Expand the `<fn' Org Tempo shortcut as a bottom footnote.
+  "Expand the `<fn' Org Tempo shortcut as a default footnote or sidenote.
 
 Unlike block-oriented Org Tempo shortcuts, footnotes are inline text objects, so
 this shortcut is intentionally accepted anywhere on the current line."
-  (when (looking-back "\\(<fn\\)" (line-beginning-position))
-    (replace-match "" t t nil 1)
-    (hub/org-insert-footnote-template)
-    t))
+  (hub/org-tempo-complete-footnote-kind "fn" #'hub/org-insert-footnote-template))
+
+(defun hub/org-tempo-complete-traditional-footnote ()
+  "Expand the `<ft' Org Tempo shortcut as a traditional bottom footnote."
+  (hub/org-tempo-complete-footnote-kind "ft" #'hub/org-insert-traditional-footnote-template))
+
+(defun hub/org-tempo-complete-comment-footnote ()
+  "Expand the `<fc' Org Tempo shortcut as an editorial comment footnote."
+  (hub/org-tempo-complete-footnote-kind "fc" #'hub/org-insert-comment-footnote-template))
 
 (defun hub/org-insert-confluence-status ()
   "Insert an Org link representing a Confluence status macro."
@@ -249,6 +292,8 @@ this shortcut is intentionally accepted anywhere on the current line."
   (add-hook 'org-tab-before-tab-emulation-hook #'hub/org-tempo-complete-callout -90)
   (add-hook 'org-tab-before-tab-emulation-hook #'hub/org-tempo-complete-image -90)
   (add-hook 'org-tab-before-tab-emulation-hook #'hub/org-tempo-complete-footnote -90)
+  (add-hook 'org-tab-before-tab-emulation-hook #'hub/org-tempo-complete-traditional-footnote -90)
+  (add-hook 'org-tab-before-tab-emulation-hook #'hub/org-tempo-complete-comment-footnote -90)
   (add-hook 'org-tab-before-tab-emulation-hook #'hub/org-tempo-complete-status -90))
 
 (provide 'org/authoring)

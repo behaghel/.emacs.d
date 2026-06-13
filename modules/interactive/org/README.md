@@ -30,6 +30,7 @@ last-reviewed: 2026-06-08
 - Optional footnote definition properties use repo-owned `HUB_NOTE_*` keys, including `HUB_NOTE_KIND`, `HUB_NOTE_STATUS`, `HUB_NOTE_SOURCE`, and `HUB_NOTE_REMOTE_ID`.
 - Supported local kinds are `sidenote`, `footnote`, `comment`, and `remote-comment`; Confluence sync is reserved for a later publishing slice.
 - The interactive marginalia panel is explicitly opened or toggled with a buffer-local mode; it must not auto-open globally.
+- Inline authoring shortcuts are `<fn` for the default note/sidenote, `<ft` for a forced traditional footnote, and `<fc` for a local editorial comment.
 
 ## Integration Notes
 

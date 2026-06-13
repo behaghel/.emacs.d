@@ -43,6 +43,12 @@ native behavior."
    ((and (null arg)
 	 (fboundp 'hub/org-tempo-complete-footnote)
 	 (hub/org-tempo-complete-footnote)))
+   ((and (null arg)
+	 (fboundp 'hub/org-tempo-complete-traditional-footnote)
+	 (hub/org-tempo-complete-traditional-footnote)))
+   ((and (null arg)
+	 (fboundp 'hub/org-tempo-complete-comment-footnote)
+	 (hub/org-tempo-complete-comment-footnote)))
    (t (org-cycle arg))))
 
 (defun hub/outline-focus-next-section ()
