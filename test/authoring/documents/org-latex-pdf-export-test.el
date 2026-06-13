@@ -84,17 +84,47 @@
 	(hub/org-export-devenv-executable "/tmp/devenv")
 	(user-emacs-directory hub/test-repo-root))
     (cl-letf (((symbol-function 'file-executable-p)
-	       (lambda (path) (string= path "/tmp/devenv"))))
+	       (lambda (path) (string= path "/tmp/devenv")))
+	      ((symbol-function 'hub/org-export--latex-runtime-ready-p)
+	       (lambda (_compiler) nil)))
       (setenv "IN_NIX_SHELL" nil)
       (should (equal (hub/org-export--compiler-command "xelatex")
-		     (format "TEXINPUTS=%s %s shell --from %s -- xelatex"
+		     (format "cd %s && TEXINPUTS=%s %s shell -- xelatex"
+			     (shell-quote-argument
+			      (directory-file-name (expand-file-name hub/test-repo-root)))
 			     (shell-quote-argument
 			      (hub/org-export--merge-texinputs hub/org-export-texinputs-directories
 							       (getenv "TEXINPUTS")))
-			     (shell-quote-argument "/tmp/devenv")
-			     (shell-quote-argument
-			      (concat "path:" (directory-file-name
-					       (expand-file-name hub/test-repo-root))))))))))
+			     (shell-quote-argument "/tmp/devenv")))))))
+
+(ert-deftest hub/org-export-wraps-xelatex-when-incomplete-nix-shell-is-inherited ()
+  "GUI sessions with stale IN_NIX_SHELL still use devenv for complete TeX Live."
+  (let ((hub/org-export-use-devenv-compiler t)
+	(hub/org-export-devenv-executable "/tmp/devenv")
+	(user-emacs-directory hub/test-repo-root))
+    (cl-letf (((symbol-function 'file-executable-p)
+	       (lambda (path) (string= path "/tmp/devenv")))
+	      ((symbol-function 'executable-find)
+	       (lambda (name)
+		 (pcase name
+		   ("xelatex" "/run/current-system/sw/bin/xelatex")
+		   ("kpsewhich" "/run/current-system/sw/bin/kpsewhich")
+		   (_ nil))))
+	      ((symbol-function 'shell-command-to-string)
+	       (lambda (_command) "")))
+      (let ((old-in-nix-shell (getenv "IN_NIX_SHELL")))
+	(unwind-protect
+	    (progn
+	      (setenv "IN_NIX_SHELL" "impure")
+	      (should (equal (hub/org-export--compiler-command "xelatex")
+			     (format "cd %s && TEXINPUTS=%s %s shell -- xelatex"
+				     (shell-quote-argument
+				      (directory-file-name (expand-file-name hub/test-repo-root)))
+				     (shell-quote-argument
+				      (hub/org-export--merge-texinputs hub/org-export-texinputs-directories
+								       (getenv "TEXINPUTS")))
+				     (shell-quote-argument "/tmp/devenv")))))
+	  (setenv "IN_NIX_SHELL" old-in-nix-shell))))))
 
 (ert-deftest hub/org-export-falls-back-to-plain-xelatex-without-devenv ()
   "Compiler process remains usable when devenv is absent."
@@ -530,6 +560,13 @@
   (let ((class-contents (hub/test-read-file-as-string
 			 (expand-file-name "etc/latex/hub-article.cls" hub/test-repo-root))))
     (should (string-match-p (regexp-quote "\\newcommand{\\HubArticleSidenote}") class-contents))
+    (should (string-match-p (regexp-quote "\\refstepcounter{footnote}") class-contents))
+    (should (string-match-p (regexp-quote "\\newcommand{\\HubArticleSidenoteMark}") class-contents))
+    (should (string-match-p (regexp-quote "\\HubArticleSidenoteMark{#1}") class-contents))
+    (should (string-match-p (regexp-quote "\\edef\\HubArticleSidenoteNumber{\\number\\value{footnote}}") class-contents))
+    (should (string-match-p (regexp-quote "\\textsuperscript{\\textcolor{HubArticleMarginaliaMarker}{\\HubArticleSidenoteNumber}}") class-contents))
+    (should (string-match-p (regexp-quote "\\definecolor{HubArticleLightMarginaliaText}") class-contents))
+    (should (string-match-p (regexp-quote "\\colorlet{HubArticleMarginaliaText}{HubArticleLightMarginaliaText}") class-contents))
     (should (string-match-p (regexp-quote "\\marginpar") class-contents))))
 
 (ert-deftest hub/org-export-hub-article-footnotes-become-sidenotes ()

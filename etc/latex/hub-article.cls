@@ -34,6 +34,7 @@
 \definecolor{HubArticleLightTableRule}{HTML}{CAD8D1}
 \definecolor{HubArticleLightCalloutRule}{HTML}{AFCBC3}
 \definecolor{HubArticleLightQuoteRule}{HTML}{9EBDB4}
+\definecolor{HubArticleLightMarginaliaText}{HTML}{7E908A}
 
 \definecolor{HubArticleCodeBaseInk}{HTML}{1B2421}
 \definecolor{HubArticleCodeKeywordInk}{HTML}{164F82}
@@ -63,6 +64,8 @@
 \colorlet{HubArticleTableCaptionText}{HubArticleMuted}
 \colorlet{HubArticleCalloutRule}{HubArticleLightCalloutRule}
 \colorlet{HubArticleQuoteRule}{HubArticleLightQuoteRule}
+\colorlet{HubArticleMarginaliaText}{HubArticleLightMarginaliaText}
+\colorlet{HubArticleMarginaliaMarker}{HubArticleAccentMuted}
 
 \def\HubArticleCodeKeywordColor{HubArticleCodeKeyword}%
 \def\HubArticleCodeStringColor{HubArticleCodeString}%
@@ -258,12 +261,21 @@
 \newcommand{\HubArticleMarginZone}[1]{%
   \HubArticleMarginMarker{#1}%
 }
-\newcommand{\HubArticleSidenote}[1]{%
+\newcommand{\HubArticleSidenoteMark}[1]{%
+  \raisebox{0.55ex}{\HubArticleSans\fontsize{6.5}{7}\selectfont\textcolor{HubArticleMarginaliaMarker}{#1}}%
+}
+\newcommand{\HubArticleSidenoteMargin}[2]{%
   \marginpar{%
     \raggedright
-    \HubArticleSans\scriptsize\textcolor{HubArticleMuted}{%
-      \textcolor{HubArticleAccentMuted}{\rule{12mm}{0.35pt}}\par\vspace{0.25em}%
-      #1}}%
+    \HubArticleSans\scriptsize\color{HubArticleMarginaliaText}%
+    \HubArticleSidenoteMark{#1}\hspace{0.35em}%
+    #2\par}%
+}
+\newcommand{\HubArticleSidenote}[1]{%
+  \refstepcounter{footnote}%
+  \edef\HubArticleSidenoteNumber{\number\value{footnote}}%
+  \textsuperscript{\textcolor{HubArticleMarginaliaMarker}{\HubArticleSidenoteNumber}}%
+  \expandafter\HubArticleSidenoteMargin\expandafter{\HubArticleSidenoteNumber}{#1}%
 }
 \newcommand{\HubArticleBold}[1]{{\color{HubArticleBoldColor}\textbf{#1}}}
 \newcommand{\HubArticleInlineCode}[1]{%

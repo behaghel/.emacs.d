@@ -233,10 +233,25 @@ This is intentionally narrow and targets metadata-like strings."
 	    (replace-regexp-in-string (regexp-quote (car pair)) (cdr pair) result t t)))
     result))
 
+(defun hub/org-export--kpsewhich-file (file)
+  "Return non-empty kpsewhich result for FILE, or nil."
+  (when (executable-find "kpsewhich")
+    (let ((result (string-trim
+		   (shell-command-to-string
+		    (format "kpsewhich %s" (shell-quote-argument file))))))
+      (unless (string-empty-p result)
+	result))))
+
+(defun hub/org-export--latex-runtime-ready-p (compiler)
+  "Return non-nil when COMPILER has the packages needed for local exports."
+  (and (executable-find compiler)
+       (hub/org-export--kpsewhich-file "minted.sty")
+       (executable-find "pygmentize")))
+
 (defun hub/org-export--compiler-ready-p (compiler)
   "Return non-nil when COMPILER is ready for use in this environment."
   (and (string= compiler "xelatex")
-       (or (executable-find compiler)
+       (or (hub/org-export--latex-runtime-ready-p compiler)
 	   (hub/org-export--devenv-compiler-command compiler))))
 
 (defun hub/org-export--effective-compiler (&optional class-name)
@@ -270,23 +285,21 @@ class when CLASS-NAME is nil; signals `user-error' when unavailable."
 
 (defun hub/org-export--devenv-compiler-command (compiler)
   "Return COMPILER command wrapped in the project devenv shell when possible.
-When already inside a devenv shell (detected by IN_NIX_SHELL), skip the
-wrapper and run COMPILER directly — the Nix-provided TeX Live is already
-on PATH, so wrapping would only add ~15s of devenv init per pass."
+When already inside a complete devenv shell, skip the wrapper and run COMPILER
+directly.  Some GUI sessions inherit IN_NIX_SHELL without the matching PATH, so
+runtime readiness is checked instead of trusting that variable alone."
   (if (and hub/org-export-use-devenv-compiler
 	   (file-exists-p (expand-file-name "devenv.nix" user-emacs-directory))
-	   ;; Skip wrapping when already inside a devenv shell:
-	   ;; xelatex and all TeX Live packages are on PATH already.
-	   (not (getenv "IN_NIX_SHELL")))
+	   (not (hub/org-export--latex-runtime-ready-p compiler)))
       (when-let* ((devenv (hub/org-export--devenv-executable))
 		  (project-root (directory-file-name
 				 (expand-file-name user-emacs-directory))))
-	(format "TEXINPUTS=%s %s shell --from %s -- %s"
+	(format "cd %s && TEXINPUTS=%s %s shell -- %s"
+		(shell-quote-argument project-root)
 		(shell-quote-argument
 		 (hub/org-export--merge-texinputs hub/org-export-texinputs-directories
 						  (getenv "TEXINPUTS")))
 		(shell-quote-argument devenv)
-		(shell-quote-argument (concat "path:" project-root))
 		(shell-quote-argument compiler)))
     nil))
 
