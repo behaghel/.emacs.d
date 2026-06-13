@@ -15,6 +15,7 @@
 (require 'org/capture)
 (require 'org/export)
 (require 'org/context-panel)
+(require 'org/comments)
 
 (defun hub/org-setup-wrapping ()
   "Use virtual autofill in Org buffers and avoid hard line breaks."
@@ -73,6 +74,7 @@ native behavior."
 			      ",om" #'hub/org-context-panel-open
 			      ",oM" #'hub/org-context-panel-mode
 			      ",ov" #'hub/org-insert-veriff-template)
+  (evil-define-key 'visual org-mode-map (kbd ",oc") #'hub/org-comment-create)
   (evil-define-key 'motion org-mode-map (kbd "RET") #'org-return)
   (evil-define-key 'motion calendar-mode-map (kbd "RET") #'org-calendar-select)
   (define-key org-mode-map (kbd "<tab>") #'hub/org-tab-dwim)

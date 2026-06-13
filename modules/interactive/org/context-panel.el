@@ -6,6 +6,7 @@
 
 ;;; Code:
 
+(require 'hub-org-comments)
 (require 'hub-org-marginalia)
 (require 'org)
 (require 'subr-x)
@@ -72,44 +73,80 @@ wrapped lines, visual filling, and partial scrolling follow the live window."
     (setq copy (plist-put copy :anchor-line row))
     copy))
 
-(defun hub/org-context-panel--marginalia-for-window (source-window)
-  "Return marginalia records laid out for SOURCE-WINDOW viewport lines."
-  (with-current-buffer (window-buffer source-window)
-    (hub/org-marginalia-layout
-     (delq nil
-	   (mapcar
-	    (lambda (note)
-	      (when-let* ((row (hub/org-context-panel--position-row
-				(plist-get note :reference-pos) source-window)))
-		(hub/org-context-panel--marginalia-with-viewport-anchor note row)))
-	    (hub/org-marginalia-collect))))))
+(defun hub/org-context-panel--item-anchor-position (item)
+  "Return source buffer anchor position for ITEM."
+  (or (plist-get item :reference-pos)
+      (plist-get item :anchor-pos)))
+
+(defun hub/org-context-panel--item-with-viewport-anchor (item row)
+  "Return ITEM copied with its anchor line replaced by viewport ROW."
+  (hub/org-context-panel--marginalia-with-viewport-anchor item row))
+
+(defun hub/org-context-panel--items-for-window (source-window items)
+  "Return context ITEMS laid out for SOURCE-WINDOW viewport lines."
+  (hub/org-marginalia-layout
+   (delq nil
+	 (mapcar
+	  (lambda (item)
+	    (when-let* ((row (hub/org-context-panel--position-row
+			      (hub/org-context-panel--item-anchor-position item)
+			      source-window)))
+	      (hub/org-context-panel--item-with-viewport-anchor item row)))
+	  items))))
 
 (defun hub/org-context-panel--post-command-refresh ()
   "Refresh a visible context panel after source-buffer commands."
   (when hub/org-context-panel-mode
     (hub/org-context-panel-refresh)))
 
+(defun hub/org-context-panel--truncate (text length)
+  "Return TEXT truncated to LENGTH characters with an ellipsis."
+  (if (> (length text) length)
+      (concat (substring text 0 length) "…")
+    text))
+
 (defun hub/org-context-panel--insert-marginalia (note)
-  "Insert NOTE into the current panel buffer."
-  (let ((start (point))
-	(kind (plist-get note :kind))
+  "Insert marginalia NOTE into the current panel buffer."
+  (let ((kind (plist-get note :kind))
 	(body (or (plist-get note :body) "")))
     (insert (format "%s %s\n" (hub/org-context-panel--marginalia-kind-label kind) (plist-get note :id)))
     (unless (string-empty-p body)
-      (insert body "\n"))
-    (when (plist-get note :displaced)
+      (insert body "\n"))))
+
+(defun hub/org-context-panel--insert-comment (comment)
+  "Insert COMMENT into the current panel buffer."
+  (let ((status (or (plist-get comment :status) "open"))
+	(target (or (plist-get comment :target-text) ""))
+	(body (or (plist-get comment :body) "")))
+    (insert (format "COMMENT %s\n" status))
+    (unless (string-empty-p target)
+      (insert "“" (hub/org-context-panel--truncate target 80) "”\n\n"))
+    (unless (string-empty-p body)
+      (insert body "\n"))))
+
+(defun hub/org-context-panel--insert-item (item)
+  "Insert context ITEM into the current panel buffer."
+  (let ((start (point)))
+    (pcase (plist-get item :type)
+      ('comment (hub/org-context-panel--insert-comment item))
+      (_ (hub/org-context-panel--insert-marginalia item)))
+    (when (plist-get item :displaced)
       (insert "↳ shifted down from nearby text\n"))
-    (add-text-properties start (point) `(hub-org-context-panel-item ,note))))
+    (add-text-properties start (point) `(hub-org-context-panel-item ,item))))
 
 ;;;###autoload
 (defun hub/org-context-panel-render-buffer (source-buffer panel-buffer &optional source-window)
   "Render SOURCE-BUFFER context items into PANEL-BUFFER.
 When SOURCE-WINDOW is non-nil, align notes to visible lines in that window."
-  (let* ((all-notes (with-current-buffer source-buffer
-		      (hub/org-marginalia-collect)))
-	 (notes (if (and source-window (window-live-p source-window))
-		    (hub/org-context-panel--marginalia-for-window source-window)
-		  (hub/org-marginalia-layout all-notes))))
+  (let* ((all-items (with-current-buffer source-buffer
+		      (sort (append (hub/org-marginalia-collect)
+				    (hub/org-comment-collect source-buffer))
+			    (lambda (left right)
+			      (< (or (plist-get left :anchor-line) 1)
+				 (or (plist-get right :anchor-line) 1))))))
+	 (items (if (and source-window (window-live-p source-window))
+		    (hub/org-context-panel--items-for-window source-window all-items)
+		  (hub/org-marginalia-layout all-items))))
     (with-current-buffer panel-buffer
       (let ((inhibit-read-only t))
 	(hub/org-context-panel-buffer-mode)
@@ -117,16 +154,16 @@ When SOURCE-WINDOW is non-nil, align notes to visible lines in that window."
 	(setq-local hub/org-context-panel--source-buffer source-buffer)
 	(erase-buffer)
 	(cond
-	 (notes
+	 (items
 	  (let ((current-line 1))
-	    (dolist (note notes)
-	      (let ((display-line (or (plist-get note :display-line) current-line)))
+	    (dolist (item items)
+	      (let ((display-line (or (plist-get item :display-line) current-line)))
 		(while (< current-line display-line)
 		  (insert "\n")
 		  (setq current-line (1+ current-line)))
-		(hub/org-context-panel--insert-marginalia note)
+		(hub/org-context-panel--insert-item item)
 		(setq current-line (line-number-at-pos (point) t))))))
-	 (all-notes
+	 (all-items
 	  ;; The current viewport simply has no context anchors.
 	  (insert ""))
 	 (t
@@ -186,7 +223,8 @@ When SOURCE-WINDOW is non-nil, align notes to visible lines in that window."
   (let* ((note (or (get-text-property (point) 'hub-org-context-panel-item)
 		   (get-text-property (max (point-min) (1- (point))) 'hub-org-context-panel-item)))
 	 (source hub/org-context-panel-source-buffer)
-	 (position (plist-get note :definition-pos)))
+	 (position (or (plist-get note :definition-pos)
+		       (plist-get note :jump-pos))))
     (unless (and note (buffer-live-p source) position)
       (user-error "No context item at point"))
     (pop-to-buffer source)

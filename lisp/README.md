@@ -21,6 +21,7 @@ last-reviewed: 2026-06-08
 - Key semantics should remain discoverable and aligned with documented leader/localleader conventions.
 - Shared code should avoid depending on optional interactive packages unless guarded or moved into the consuming domain.
 - Org marginalia model helpers are pure collection/layout functions: they may parse Org buffers, but they must not open windows, modify source text, or perform export side effects.
+- Org comment storage helpers keep source documents clean by writing region-targeted review comments to colocated `*.comments.org` sidecars; UI commands live in the interactive Org domain.
 
 ## Integration Notes
 

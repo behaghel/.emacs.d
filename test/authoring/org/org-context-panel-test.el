@@ -7,6 +7,7 @@
 
 (require 'ert)
 (require 'test-helpers)
+(require 'hub-org-comments)
 (require 'org/context-panel)
 
 (defmacro hub/org-context-panel-test--with-source (contents &rest body)
@@ -37,6 +38,38 @@
 	       '(:id "one" :anchor-line 486 :body "x") 21)))
     (should (= 21 (plist-get note :anchor-line)))
     (should (= 486 (plist-get note :logical-anchor-line)))))
+
+(ert-deftest hub/org-context-panel-renders-sidecar-comments ()
+  "The panel renderer includes valid sidecar comments."
+  (let* ((dir (make-temp-file "hub-context-panel-" t))
+	 (source-file (expand-file-name "article.org" dir))
+	 (panel (generate-new-buffer " *hub context comment test*")))
+    (unwind-protect
+	(with-current-buffer (find-file-noselect source-file)
+	  (erase-buffer)
+	  (insert "Alpha selected text omega")
+	  (save-buffer)
+	  (org-mode)
+	  (let* ((start (progn
+			  (goto-char (point-min))
+			  (search-forward "selected text")
+			  (match-beginning 0)))
+		 (end (match-end 0))
+		 (record (hub/org-comment-create-record
+			  buffer-file-name start end "Please clarify." "local-panel")))
+	    (hub/org-comment-append-to-sidecar record)
+	    (hub/org-context-panel-render-buffer (current-buffer) panel)
+	    (with-current-buffer panel
+	      (should (search-forward "COMMENT open" nil t))
+	      (should (search-forward "“selected text”" nil t))
+	      (should (search-forward "Please clarify." nil t))
+	      (let ((item (get-text-property (point) 'hub-org-context-panel-item)))
+		(should (eq 'comment (plist-get item :type)))
+		(should (= start (plist-get item :jump-pos)))))))
+      (when (get-file-buffer source-file)
+	(kill-buffer (get-file-buffer source-file)))
+      (kill-buffer panel)
+      (delete-directory dir t))))
 
 (ert-deftest hub/org-context-panel-records-jump-targets ()
   "Rendered notes carry their source footnote definition position."
