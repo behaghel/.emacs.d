@@ -20,6 +20,7 @@ last-reviewed: 2026-06-08
 - Shared libraries must not introduce broad interactive side effects merely by being required.
 - Key semantics should remain discoverable and aligned with documented leader/localleader conventions.
 - Shared code should avoid depending on optional interactive packages unless guarded or moved into the consuming domain.
+- Org marginalia model helpers are pure collection/layout functions: they may parse Org buffers, but they must not open windows, modify source text, or perform export side effects.
 
 ## Integration Notes
 

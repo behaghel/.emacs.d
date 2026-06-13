@@ -21,6 +21,15 @@ last-reviewed: 2026-06-08
 - Writing helpers should not make batch loads depend on interactive-only packages unless guarded.
 - Machine-specific paths belong in private overrides or defcustoms, not hard-coded shared behavior.
 - Generated PDFs, TeX files, screenshots, and visual diff artifacts belong under runtime output locations, not tracked golden files.
+- Marginalia authoring uses native Org footnotes as the canonical source; the panel is a read-only projection and must jump back to footnote definitions for edits.
+- Marginalia stacking preserves source order and may push later notes downward when anchors are close.
+
+## Marginalia Contract
+
+- Ordinary Org footnotes in article-oriented authoring buffers default to `sidenote` marginalia.
+- Optional footnote definition properties use repo-owned `HUB_NOTE_*` keys, including `HUB_NOTE_KIND`, `HUB_NOTE_STATUS`, `HUB_NOTE_SOURCE`, and `HUB_NOTE_REMOTE_ID`.
+- Supported local kinds are `sidenote`, `footnote`, `comment`, and `remote-comment`; Confluence sync is reserved for a later publishing slice.
+- The interactive marginalia panel is explicitly opened or toggled with a buffer-local mode; it must not auto-open globally.
 
 ## Integration Notes
 

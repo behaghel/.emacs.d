@@ -14,6 +14,7 @@
 (require 'org/babel)
 (require 'org/capture)
 (require 'org/export)
+(require 'org/marginalia)
 
 (defun hub/org-setup-wrapping ()
   "Use virtual autofill in Org buffers and avoid hard line breaks."
@@ -66,6 +67,8 @@ native behavior."
 			      (kbd "<next>")  #'org-move-subtree-down
 			      (kbd "<prior>") #'org-move-subtree-up
 			      ",fn" #'org-footnote-new
+			      ",om" #'hub/org-marginalia-open
+			      ",oM" #'hub/org-marginalia-mode
 			      ",ov" #'hub/org-insert-veriff-template)
   (evil-define-key 'motion org-mode-map (kbd "RET") #'org-return)
   (evil-define-key 'motion calendar-mode-map (kbd "RET") #'org-calendar-select)

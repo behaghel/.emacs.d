@@ -128,6 +128,7 @@ domains:
           - modules/interactive/org/core.el
           - modules/interactive/org/settings.el
           - modules/interactive/org/authoring.el
+          - modules/interactive/org/marginalia.el
           - modules/interactive/org/babel.el
           - modules/interactive/org/capture.el
           - modules/interactive/org/agenda.el
