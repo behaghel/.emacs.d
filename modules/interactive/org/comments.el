@@ -46,6 +46,13 @@
 	  (or (plist-get comment :status) "OPEN")
 	  (or (plist-get comment :target-text) "")))
 
+(defun hub/org-comment--completion-table (candidates)
+  "Return completion table for stale comment CANDIDATES."
+  (lambda (string predicate action)
+    (if (eq action 'metadata)
+	'(metadata (category . hub-org-comment))
+      (complete-with-action action candidates string predicate))))
+
 (defun hub/org-comment--read-stale-comment ()
   "Read a stale sidecar comment from minibuffer completion."
   (let* ((comments (hub/org-comment--stale-comments))
@@ -59,11 +66,7 @@
 	      ,(lambda (candidate)
 		 (when-let* ((comment (alist-get candidate choices nil nil #'equal)))
 		   (hub/org-comment--completion-label comment)))))
-	   (table (if (fboundp 'completion-table-with-metadata)
-		      (completion-table-with-metadata
-		       (mapcar #'car choices)
-		       '((category . hub-org-comment)))
-		    (mapcar #'car choices)))
+	   (table (hub/org-comment--completion-table (mapcar #'car choices)))
 	   (choice (completing-read "Reanchor stale comment: " table nil t
 				    nil 'hub/org-comment-reanchor-history)))
       (alist-get choice choices nil nil #'equal))))
