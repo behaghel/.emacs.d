@@ -67,6 +67,11 @@
 		 (when-let* ((comment (alist-get candidate choices nil nil #'equal)))
 		   (hub/org-comment--completion-label comment)))))
 	   (table (hub/org-comment--completion-table (mapcar #'car choices)))
+	   ;; Vertico removes selection faces from the editable minibuffer field.
+	   ;; In this prompt, Emacs 30 can report that field as starting at
+	   ;; `point-min', so a read-only prompt trips `text-read-only'.  Keep this
+	   ;; prompt non-read-only while still using native completion and Vertico.
+	   (minibuffer-prompt-properties '(face minibuffer-prompt))
 	   (choice (completing-read "Reanchor stale comment: " table nil t
 				    nil 'hub/org-comment-reanchor-history)))
       (alist-get choice choices nil nil #'equal))))
