@@ -22,91 +22,17 @@
 
 (use-package vertico
   :demand t
-  :straight (vertico :files (:defaults "extensions/*")
-		     :includes (vertico-indexed vertico-flat vertico-grid
-						vertico-mouse vertico-quick vertico-buffer
-						vertico-repeat vertico-reverse
-						vertico-directory vertico-multiform
-						vertico-unobtrusive))
   :general
-  (:keymaps '(normal insert visual motion) "M-," #'vertico-repeat)
   (:keymaps 'vertico-map
 	    "<tab>" #'vertico-insert
 	    "<escape>" #'minibuffer-keyboard-quit
-	    "?" #'minibuffer-completion-help
-	    "C-M-n" #'vertico-next-group
-	    "C-M-p" #'vertico-previous-group
-	    "<backspace>" #'vertico-directory-delete-char
-	    "C-w" #'vertico-directory-delete-word
-	    "C-<backspace>" #'vertico-directory-delete-word
-	    "RET" #'vertico-directory-enter
-	    "C-i" #'vertico-quick-insert
-	    "C-o" #'vertico-quick-exit
-	    "M-o" #'kb/vertico-quick-embark
-	    "M-G" #'vertico-multiform-grid
-	    "M-F" #'vertico-multiform-flat
-	    "M-R" #'vertico-multiform-reverse
-	    "M-U" #'vertico-multiform-unobtrusive
-	    "C-l" #'kb/vertico-multiform-flat-toggle)
-  :hook ((rfn-eshadow-update-overlay . vertico-directory-tidy)
-	 (minibuffer-setup . vertico-repeat-save))
+	    "?" #'minibuffer-completion-help)
   :custom
   (vertico-count 13)
   (vertico-resize t)
   (vertico-cycle nil)
-  (vertico-grid-separator "       ")
-  (vertico-grid-lookahead 50)
-  (vertico-buffer-display-action '(display-buffer-reuse-window))
-  (vertico-multiform-categories
-   '((consult-grep buffer)
-     (consult-location)
-     (imenu buffer)
-     (library indexed)
-     (org-roam-node indexed)))
-  (vertico-multiform-commands
-   '(("flyspell-correct-*" grid reverse)
-     (org-refile grid reverse indexed)
-     (consult-yank-pop indexed)
-     (consult-flycheck)
-     (consult-lsp-diagnostics)))
-  :init
-  (defun kb/vertico-multiform-flat-toggle ()
-    "Toggle between flat and reverse displays."
-    (interactive)
-    (vertico-multiform--display-toggle 'vertico-flat-mode)
-    (if vertico-flat-mode
-	(vertico-multiform--temporary-mode 'vertico-reverse-mode -1)
-      (vertico-multiform--temporary-mode 'vertico-reverse-mode 1)))
-  (defun kb/vertico-quick-embark (&optional arg)
-    "Embark on candidate using quick keys."
-    (interactive)
-    (when (vertico-quick-jump)
-      (embark-act arg)))
-  (defun kb/basic-remote-try-completion (string table pred point)
-    (and (vertico--remote-p string)
-	 (completion-basic-try-completion string table pred point)))
-  (defun kb/basic-remote-all-completions (string table pred point)
-    (and (vertico--remote-p string)
-	 (completion-basic-all-completions string table pred point)))
-  (add-to-list 'completion-styles-alist
-	       '(basic-remote kb/basic-remote-try-completion
-			      kb/basic-remote-all-completions nil))
   :config
-  (vertico-mode)
-  (vertico-multiform-mode)
-  (defvar +vertico-current-arrow t)
-  (cl-defmethod vertico--format-candidate :around
-    (cand prefix suffix index start &context ((and +vertico-current-arrow
-						   (not (bound-and-true-p vertico-flat-mode)))
-					      (eql t)))
-    (setq cand (cl-call-next-method cand prefix suffix index start))
-    (if (bound-and-true-p vertico-grid-mode)
-	(if (= vertico--index index)
-	    (concat #("▶" 0 1 (face vertico-current)) cand)
-	  (concat #("_" 0 1 (display " ")) cand))
-      (if (= vertico--index index)
-	  (concat #(" " 0 1 (display (left-fringe right-triangle vertico-current))) cand)
-	cand))))
+  (vertico-mode))
 
 (use-package savehist :init (savehist-mode))
 
@@ -114,8 +40,7 @@
   :custom
   (completion-styles '(orderless basic))
   (completion-category-defaults nil)
-  (completion-category-overrides '((file (styles basic-remote orderless))
-				   (eglot (styles orderless))))
+  (completion-category-overrides '((eglot (styles orderless))))
   (orderless-component-separator 'orderless-escapable-split-on-space)
   (orderless-matching-styles '(orderless-literal orderless-prefixes
 						 orderless-initialism orderless-regexp))
