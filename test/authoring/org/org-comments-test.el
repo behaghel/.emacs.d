@@ -109,6 +109,46 @@
 						 (should (search-forward ":HUB_COMMENT_ID: local-command" nil t))
 						 (should (search-forward "Please revise." nil t)))))))
 
+(ert-deftest hub/org-comment-reanchor-completes-multiple-stale-comments-safely ()
+  "Reanchoring multiple stale comments completes over plain candidate IDs."
+  (hub/org-comments-test--with-file-buffer "article.org" "Alpha selected text omega tail"
+					   (let* ((selected-start (progn
+								    (goto-char (point-min))
+								    (search-forward "selected")
+								    (match-beginning 0)))
+						  (selected-end (match-end 0))
+						  (omega-start (progn
+								 (search-forward "omega")
+								 (match-beginning 0)))
+						  (omega-end (match-end 0)))
+					     (hub/org-comment-append-to-sidecar
+					      (hub/org-comment-create-record buffer-file-name selected-start selected-end "First." "local-first"))
+					     (hub/org-comment-append-to-sidecar
+					      (hub/org-comment-create-record buffer-file-name omega-start omega-end "Second." "local-second"))
+					     (save-excursion
+					       (goto-char selected-start)
+					       (delete-char 1)
+					       (insert "S")
+					       (goto-char omega-start)
+					       (delete-char 1)
+					       (insert "O"))
+					     (let ((new-start (progn
+								(goto-char (point-min))
+								(search-forward "tail")
+								(match-beginning 0)))
+						   (new-end (match-end 0)))
+					       (cl-letf (((symbol-function 'hub/org-context-panel-open) #'ignore)
+							 ((symbol-function 'completing-read)
+							  (lambda (_prompt collection &rest _args)
+							    (let ((candidates (all-completions "" collection nil)))
+							      (should (equal '("local-first" "local-second") candidates))
+							      "local-second"))))
+						 (hub/org-comment-reanchor new-start new-end))
+					       (let ((comments (hub/org-comment-collect (current-buffer) t)))
+						 (should (= 2 (length comments)))
+						 (should (eq 'stale (plist-get (car comments) :anchor-state)))
+						 (should (equal "tail" (plist-get (cadr comments) :target-text))))))))
+
 (ert-deftest hub/org-comment-reanchor-updates-stale-comment-target ()
   "Reanchoring updates stale comment metadata to the selected source region."
   (hub/org-comments-test--with-file-buffer "article.org" "Alpha selected text omega"

@@ -37,13 +37,37 @@
    (or (hub/org-comment-collect (current-buffer) t)
        (user-error "No comments in this buffer"))))
 
-(defun hub/org-comment--single-stale-comment ()
-  "Return the only stale sidecar comment for the current Org buffer."
-  (let ((comments (hub/org-comment--stale-comments)))
+(defvar hub/org-comment-reanchor-history nil
+  "Minibuffer history for stale comment reanchoring.")
+
+(defun hub/org-comment--completion-label (comment)
+  "Return completion annotation for COMMENT."
+  (format " %s — %s"
+	  (or (plist-get comment :status) "OPEN")
+	  (or (plist-get comment :target-text) "")))
+
+(defun hub/org-comment--read-stale-comment ()
+  "Read a stale sidecar comment from minibuffer completion."
+  (let* ((comments (hub/org-comment--stale-comments))
+	 (choices (mapcar (lambda (comment)
+			    (cons (plist-get comment :id) comment))
+			  comments)))
     (pcase (length comments)
       (0 (user-error "No stale comments in this buffer"))
       (1 (car comments))
-      (_ (user-error "Multiple stale comments; repair from the sidecar for now")))))
+      (_ (let* ((completion-extra-properties
+		 `(:annotation-function
+		   ,(lambda (candidate)
+		      (when-let* ((comment (alist-get candidate choices nil nil #'equal)))
+			(hub/org-comment--completion-label comment)))))
+		(table (if (fboundp 'completion-table-with-metadata)
+			   (completion-table-with-metadata
+			    (mapcar #'car choices)
+			    '((category . hub-org-comment)))
+			 (mapcar #'car choices)))
+		(choice (completing-read "Reanchor stale comment: " table nil t
+					 nil 'hub/org-comment-reanchor-history)))
+	   (alist-get choice choices nil nil #'equal))))))
 
 (defun hub/org-comment--leave-visual-state ()
   "Deactivate visual selection before prompting or mutating sidecars."
@@ -161,7 +185,7 @@
     (user-error "Org comments only work in Org buffers"))
   (hub/org-comment--leave-visual-state)
   (let* ((source-buffer (current-buffer))
-	 (target-comment (or comment (hub/org-comment--single-stale-comment)))
+	 (target-comment (or comment (hub/org-comment--read-stale-comment)))
 	 (record (hub/org-comment-create-record
 		  buffer-file-name start end "" (plist-get target-comment :id))))
     (hub/org-comment-update-anchor
