@@ -37,22 +37,20 @@
    (or (hub/org-comment-collect (current-buffer) t)
        (user-error "No comments in this buffer"))))
 
-(defun hub/org-comment--completion-label (comment)
-  "Return completion label for COMMENT."
-  (format "%s %s — %s"
-	  (plist-get comment :id)
-	  (or (plist-get comment :status) "OPEN")
-	  (or (plist-get comment :target-text) "")))
+(defun hub/org-comment--single-stale-comment ()
+  "Return the only stale sidecar comment for the current Org buffer."
+  (let ((comments (hub/org-comment--stale-comments)))
+    (pcase (length comments)
+      (0 (user-error "No stale comments in this buffer"))
+      (1 (car comments))
+      (_ (user-error "Multiple stale comments; repair from the sidecar for now")))))
 
-(defun hub/org-comment--read-stale-comment ()
-  "Read a stale sidecar comment from minibuffer completion."
-  (let* ((comments (hub/org-comment--stale-comments))
-	 (choices (mapcar #'hub/org-comment--completion-label comments)))
-    (unless choices
-      (user-error "No stale comments in this buffer"))
-    (nth (cl-position (completing-read "Reanchor stale comment: " choices nil t)
-		      choices :test #'equal)
-	 comments)))
+(defun hub/org-comment--leave-visual-state ()
+  "Deactivate visual selection before prompting or mutating sidecars."
+  (deactivate-mark)
+  (when (and (bound-and-true-p evil-mode)
+	     (fboundp 'evil-normal-state))
+    (evil-normal-state)))
 
 (defun hub/org-comment--goto (comment)
   "Move point to COMMENT and open the context panel."
@@ -156,24 +154,20 @@
   (hub/org-comment--goto-sidecar-heading (hub/org-comment--active-at-point)))
 
 ;;;###autoload
-(defun hub/org-comment-reanchor (start end comment)
+(defun hub/org-comment-reanchor (start end &optional comment)
   "Reanchor stale COMMENT to source region START to END."
-  (interactive
-   (let ((bounds (hub/org-comment--region-bounds)))
-     (list (car bounds) (cdr bounds) (hub/org-comment--read-stale-comment))))
+  (interactive "r")
   (unless (derived-mode-p 'org-mode)
     (user-error "Org comments only work in Org buffers"))
+  (hub/org-comment--leave-visual-state)
   (let* ((source-buffer (current-buffer))
+	 (target-comment (or comment (hub/org-comment--single-stale-comment)))
 	 (record (hub/org-comment-create-record
-		  buffer-file-name start end "" (plist-get comment :id))))
+		  buffer-file-name start end "" (plist-get target-comment :id))))
     (hub/org-comment-update-anchor
-     (plist-get comment :sidecar-file)
-     (plist-get comment :id)
+     (plist-get target-comment :sidecar-file)
+     (plist-get target-comment :id)
      record)
-    (deactivate-mark)
-    (when (and (bound-and-true-p evil-mode)
-	       (fboundp 'evil-normal-state))
-      (evil-normal-state))
     (with-current-buffer source-buffer
       (goto-char start)
       (hub/org-comment-overlays-refresh)
@@ -221,22 +215,18 @@
     (hub/org-context-panel-open)))
 
 ;;;###autoload
-(defun hub/org-comment-create (start end body)
+(defun hub/org-comment-create (start end &optional body)
   "Create a sidecar comment for region START to END with BODY."
-  (interactive
-   (let ((bounds (hub/org-comment--region-bounds)))
-     (list (car bounds) (cdr bounds) (read-string "Comment: "))))
+  (interactive "r")
   (unless (derived-mode-p 'org-mode)
     (user-error "Org comments only work in Org buffers"))
   (unless buffer-file-name
     (user-error "Current buffer is not visiting a file"))
+  (hub/org-comment--leave-visual-state)
   (let* ((source-buffer (current-buffer))
-	 (record (hub/org-comment-create-record buffer-file-name start end body)))
+	 (comment-body (or body (read-string "Comment: ")))
+	 (record (hub/org-comment-create-record buffer-file-name start end comment-body)))
     (hub/org-comment-append-to-sidecar record)
-    (deactivate-mark)
-    (when (and (bound-and-true-p evil-mode)
-	       (fboundp 'evil-normal-state))
-      (evil-normal-state))
     (with-current-buffer source-buffer
       (goto-char start)
       (hub/org-context-panel-open))))
