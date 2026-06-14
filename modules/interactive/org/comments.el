@@ -68,12 +68,20 @@
 				    nil 'hub/org-comment-reanchor-history)))
       (alist-get choice choices nil nil #'equal))))
 
-(defun hub/org-comment--leave-visual-state ()
-  "Deactivate visual selection before prompting or mutating sidecars."
-  (deactivate-mark)
-  (when (and (bound-and-true-p evil-mode)
-	     (fboundp 'evil-normal-state))
-    (evil-normal-state)))
+(defun hub/org-comment--defer-region-command (command start end)
+  "Run COMMAND with START and END after Evil visual state has unwound."
+  (let ((buffer (current-buffer)))
+    (when (and (fboundp 'evil-visual-state-p)
+	       (evil-visual-state-p)
+	       (fboundp 'evil-exit-visual-state))
+      (evil-exit-visual-state))
+    (deactivate-mark)
+    (run-at-time
+     0 nil
+     (lambda ()
+       (when (buffer-live-p buffer)
+	 (with-current-buffer buffer
+	   (funcall command start end)))))))
 
 (defun hub/org-comment--goto (comment)
   "Move point to COMMENT and open the context panel."
@@ -182,7 +190,6 @@
   (interactive "r")
   (unless (derived-mode-p 'org-mode)
     (user-error "Org comments only work in Org buffers"))
-  (hub/org-comment--leave-visual-state)
   (let* ((source-buffer (current-buffer))
 	 (target-comment (or comment (hub/org-comment--read-stale-comment)))
 	 (record (hub/org-comment-create-record
@@ -195,6 +202,14 @@
       (goto-char start)
       (hub/org-comment-overlays-refresh)
       (hub/org-context-panel-open))))
+
+;;;###autoload
+(defun hub/org-comment-reanchor-from-region ()
+  "Defer stale comment reanchoring for the active visual region."
+  (interactive)
+  (let ((bounds (hub/org-comment--region-bounds)))
+    (hub/org-comment--defer-region-command
+     #'hub/org-comment-reanchor (car bounds) (cdr bounds))))
 
 ;;;###autoload
 (defun hub/org-comment-edit ()
@@ -245,7 +260,6 @@
     (user-error "Org comments only work in Org buffers"))
   (unless buffer-file-name
     (user-error "Current buffer is not visiting a file"))
-  (hub/org-comment--leave-visual-state)
   (let* ((source-buffer (current-buffer))
 	 (comment-body (or body (read-string "Comment: ")))
 	 (record (hub/org-comment-create-record buffer-file-name start end comment-body)))
@@ -253,6 +267,14 @@
     (with-current-buffer source-buffer
       (goto-char start)
       (hub/org-context-panel-open))))
+
+;;;###autoload
+(defun hub/org-comment-create-from-region ()
+  "Defer sidecar comment creation for the active visual region."
+  (interactive)
+  (let ((bounds (hub/org-comment--region-bounds)))
+    (hub/org-comment--defer-region-command
+     #'hub/org-comment-create (car bounds) (cdr bounds))))
 
 (provide 'org/comments)
 ;;; comments.el ends here
