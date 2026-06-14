@@ -83,6 +83,7 @@ native behavior."
 			      ",ov" #'hub/org-insert-veriff-template
 			      "]c" #'hub/org-comment-next
 			      "[c" #'hub/org-comment-previous)
+  (evil-define-key 'visual org-mode-map (kbd ",cA") #'hub/org-comment-reanchor)
   (evil-define-key 'visual org-mode-map (kbd ",cc") #'hub/org-comment-create)
   (evil-define-key 'motion org-mode-map (kbd "RET") #'org-return)
   (evil-define-key 'motion calendar-mode-map (kbd "RET") #'org-calendar-select)

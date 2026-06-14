@@ -470,6 +470,10 @@ When SOURCE-WINDOW is non-nil, align notes to visible lines in that window."
 	 (items
 	  (let ((current-line 1))
 	    (dolist (item items)
+	      (when (and (hub/org-context-panel--stale-comment-p item)
+			 (> current-line 1))
+		(insert "\n\n")
+		(setq current-line (+ current-line 2)))
 	      (let ((display-line (or (plist-get item :display-line) current-line)))
 		(while (< current-line display-line)
 		  (insert "\n")
