@@ -47,13 +47,12 @@
 (defun hub/org-comment--read-stale-comment ()
   "Read a stale sidecar comment from minibuffer completion."
   (let* ((comments (hub/org-comment--stale-comments))
-	 (choices (mapcar (lambda (comment)
-			    (cons (hub/org-comment--completion-label comment) comment))
-			  comments)))
+	 (choices (mapcar #'hub/org-comment--completion-label comments)))
     (unless choices
       (user-error "No stale comments in this buffer"))
-    (alist-get (completing-read "Reanchor stale comment: " choices nil t)
-	       choices nil nil #'equal)))
+    (nth (cl-position (completing-read "Reanchor stale comment: " choices nil t)
+		      choices :test #'equal)
+	 comments)))
 
 (defun hub/org-comment--goto (comment)
   "Move point to COMMENT and open the context panel."
