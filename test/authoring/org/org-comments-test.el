@@ -5,6 +5,7 @@
 
 ;;; Code:
 
+(require 'cl-lib)
 (require 'ert)
 (require 'test-helpers)
 (require 'hub-org-comments)
@@ -84,6 +85,62 @@
 						 (insert-file-contents sidecar)
 						 (should (search-forward ":HUB_COMMENT_ID: local-command" nil t))
 						 (should (search-forward "Please revise." nil t)))))))
+
+(ert-deftest hub/org-comment-navigation-wraps-and-opens-panel ()
+  "Comment navigation jumps by target position and refreshes context UI."
+  (hub/org-comments-test--with-file-buffer "article.org" "Alpha first beta second omega"
+					   (let* ((first-start (progn
+								 (goto-char (point-min))
+								 (search-forward "first")
+								 (match-beginning 0)))
+						  (first-end (match-end 0))
+						  (second-start (progn
+								  (search-forward "second")
+								  (match-beginning 0)))
+						  (second-end (match-end 0))
+						  (opened 0))
+					     (hub/org-comment-append-to-sidecar
+					      (hub/org-comment-create-record buffer-file-name first-start first-end "First." "local-first"))
+					     (hub/org-comment-append-to-sidecar
+					      (hub/org-comment-create-record buffer-file-name second-start second-end "Second." "local-second"))
+					     (cl-letf (((symbol-function 'hub/org-context-panel-open)
+							(lambda () (setq opened (1+ opened)))))
+					       (goto-char (point-min))
+					       (hub/org-comment-next)
+					       (should (= first-start (point)))
+					       (hub/org-comment-next)
+					       (should (= second-start (point)))
+					       (hub/org-comment-next)
+					       (should (= first-start (point)))
+					       (hub/org-comment-previous)
+					       (should (= second-start (point)))
+					       (should (= 4 opened))))))
+
+(ert-deftest hub/org-comment-overlays-mode-persists-overlays-after-panel-close ()
+  "Persistent comment overlays survive closing the context panel."
+  (hub/org-comments-test--with-file-buffer "article.org" "Alpha selected text omega"
+					   (let* ((start (progn
+							   (goto-char (point-min))
+							   (search-forward "selected")
+							   (match-beginning 0)))
+						  (end (match-end 0)))
+					     (hub/org-comment-append-to-sidecar
+					      (hub/org-comment-create-record buffer-file-name start end "Keep visible." "local-visible"))
+					     (hub/org-comment-overlays-mode 1)
+					     (should (cl-some
+						      (lambda (overlay)
+							(eq (overlay-get overlay 'face) 'hub/org-context-panel-comment-region-face))
+						      (overlays-at start)))
+					     (hub/org-context-panel-close)
+					     (should (cl-some
+						      (lambda (overlay)
+							(eq (overlay-get overlay 'face) 'hub/org-context-panel-comment-region-face))
+						      (overlays-at start)))
+					     (hub/org-comment-overlays-mode -1)
+					     (should-not (cl-some
+							  (lambda (overlay)
+							    (eq (overlay-get overlay 'face) 'hub/org-context-panel-comment-region-face))
+							  (overlays-at start))))))
 
 (provide 'org-comments-test)
 ;;; org-comments-test.el ends here

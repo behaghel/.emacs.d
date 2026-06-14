@@ -145,6 +145,27 @@ wrapped lines, visual filling, and partial scrolling follow the live window."
 		(overlay-put overlay 'hub-org-context-panel-item item)
 		(push overlay hub/org-context-panel--comment-overlays)))))))))
 
+;;;###autoload
+(defun hub/org-comment-overlays-refresh ()
+  "Refresh persistent sidecar comment overlays in the current Org buffer."
+  (interactive)
+  (unless (derived-mode-p 'org-mode)
+    (user-error "Org comment overlays only work in Org buffers"))
+  (hub/org-context-panel--refresh-comment-overlays
+   (current-buffer)
+   (hub/org-comment-collect (current-buffer))))
+
+;;;###autoload
+(define-minor-mode hub/org-comment-overlays-mode
+  "Toggle persistent sidecar comment overlays in the current Org buffer."
+  :lighter " Cmnt"
+  (if hub/org-comment-overlays-mode
+      (progn
+	(add-hook 'after-save-hook #'hub/org-comment-overlays-refresh nil t)
+	(hub/org-comment-overlays-refresh))
+    (remove-hook 'after-save-hook #'hub/org-comment-overlays-refresh t)
+    (hub/org-context-panel--delete-comment-overlays)))
+
 (defun hub/org-context-panel--post-command-refresh ()
   "Refresh a visible context panel after source-buffer commands."
   (when hub/org-context-panel-mode
@@ -276,7 +297,8 @@ When SOURCE-WINDOW is non-nil, align notes to visible lines in that window."
 			 (current-buffer))))
     (when (buffer-live-p source-buffer)
       (with-current-buffer source-buffer
-	(hub/org-context-panel--delete-comment-overlays)
+	(unless hub/org-comment-overlays-mode
+	  (hub/org-context-panel--delete-comment-overlays))
 	(when-let* ((panel (and (boundp 'hub/org-context-panel--panel-buffer)
 				hub/org-context-panel--panel-buffer))
 		    (window (get-buffer-window panel t)))

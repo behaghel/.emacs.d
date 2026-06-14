@@ -30,6 +30,7 @@ last-reviewed: 2026-06-08
 - Optional footnote definition properties use repo-owned `HUB_NOTE_*` keys; `HUB_NOTE_KIND: footnote` forces a traditional bottom footnote while ordinary footnotes remain sidenotes.
 - Review comments are not marginalia footnote kinds; local comments live in colocated sidecar Org files named like `article.comments.org`.
 - Region comments require an active region, keep source Org clean, and render in the context panel when their stored offsets still match the selected text.
+- Comment overlays are enabled for Org buffers by `hub/org-comment-overlays-mode`, while `]c` and `[c` navigate to next and previous sidecar comments and open the context panel.
 - The interactive context panel is explicitly opened or toggled with a buffer-local mode; it must not auto-open globally.
 - Inline authoring shortcuts are `<fn` for the default note/sidenote and `<ft` for a forced traditional footnote.
 

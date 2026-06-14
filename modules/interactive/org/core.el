@@ -73,7 +73,9 @@ native behavior."
 			      ",fn" #'org-footnote-new
 			      ",om" #'hub/org-context-panel-open
 			      ",oM" #'hub/org-context-panel-mode
-			      ",ov" #'hub/org-insert-veriff-template)
+			      ",ov" #'hub/org-insert-veriff-template
+			      "]c" #'hub/org-comment-next
+			      "[c" #'hub/org-comment-previous)
   (evil-define-key 'visual org-mode-map (kbd ",oc") #'hub/org-comment-create)
   (evil-define-key 'motion org-mode-map (kbd "RET") #'org-return)
   (evil-define-key 'motion calendar-mode-map (kbd "RET") #'org-calendar-select)
@@ -94,7 +96,8 @@ native behavior."
 	org-footnote-auto-adjust t
 	org-cycle-separator-lines 0
 	org-archive-location "archive/%s_archive::datetree/")
-  (add-hook 'org-mode-hook #'hub/org-setup-wrapping))
+  (add-hook 'org-mode-hook #'hub/org-setup-wrapping)
+  (add-hook 'org-mode-hook #'hub/org-comment-overlays-mode))
 
 (use-package org
   :straight (:depth full)

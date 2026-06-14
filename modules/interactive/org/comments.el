@@ -6,6 +6,7 @@
 
 ;;; Code:
 
+(require 'cl-lib)
 (require 'hub-org-comments)
 (require 'org/context-panel)
 (require 'org)
@@ -15,6 +16,50 @@
   (unless (use-region-p)
     (user-error "Select a region to comment on"))
   (cons (region-beginning) (region-end)))
+
+(defun hub/org-comment--valid-comments ()
+  "Return valid sidecar comments for the current Org buffer."
+  (unless (derived-mode-p 'org-mode)
+    (user-error "Org comments only work in Org buffers"))
+  (or (hub/org-comment-collect (current-buffer))
+      (user-error "No comments in this buffer")))
+
+(defun hub/org-comment--target-start (comment)
+  "Return COMMENT target start position."
+  (or (plist-get comment :target-start)
+      (plist-get comment :jump-pos)))
+
+(defun hub/org-comment--goto (comment)
+  "Move point to COMMENT and open the context panel."
+  (goto-char (hub/org-comment--target-start comment))
+  (hub/org-comment-overlays-refresh)
+  (hub/org-context-panel-open))
+
+;;;###autoload
+(defun hub/org-comment-next ()
+  "Jump to the next sidecar comment in the current Org buffer."
+  (interactive)
+  (let* ((point (point))
+	 (comments (hub/org-comment--valid-comments))
+	 (next (or (cl-find-if
+		    (lambda (comment)
+		      (> (hub/org-comment--target-start comment) point))
+		    comments)
+		   (car comments))))
+    (hub/org-comment--goto next)))
+
+;;;###autoload
+(defun hub/org-comment-previous ()
+  "Jump to the previous sidecar comment in the current Org buffer."
+  (interactive)
+  (let* ((point (point))
+	 (comments (reverse (hub/org-comment--valid-comments)))
+	 (previous (or (cl-find-if
+			(lambda (comment)
+			  (< (hub/org-comment--target-start comment) point))
+			comments)
+		       (car comments))))
+    (hub/org-comment--goto previous)))
 
 ;;;###autoload
 (defun hub/org-comment-create (start end body)
