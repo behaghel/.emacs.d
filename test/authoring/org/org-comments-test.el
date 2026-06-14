@@ -80,7 +80,7 @@
 							  (lambda () "local-command")))
 						 (hub/org-comment-create start end "Please revise."))
 					       (should opened)
-					       (should (= end (point)))
+					       (should (= start (point)))
 					       (with-temp-buffer
 						 (insert-file-contents sidecar)
 						 (should (search-forward ":HUB_COMMENT_ID: local-command" nil t))

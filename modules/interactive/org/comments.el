@@ -79,7 +79,7 @@
 	       (fboundp 'evil-normal-state))
       (evil-normal-state))
     (with-current-buffer source-buffer
-      (goto-char end)
+      (goto-char start)
       (hub/org-context-panel-open))))
 
 (provide 'org/comments)

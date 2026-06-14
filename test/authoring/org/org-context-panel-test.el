@@ -93,6 +93,24 @@
       (kill-buffer panel)
       (delete-directory dir t))))
 
+(ert-deftest hub/org-context-panel-truncates-comment-target-preview ()
+  "Comment target previews stay on the card header line."
+  (let ((hub/org-context-panel-target-preview-length 12))
+    (hub/org-context-panel-test--with-source "Alpha[fn:one]\n\n[fn:one] Note body.\n"
+					     (let ((panel (generate-new-buffer " *hub context target preview test*")))
+					       (unwind-protect
+						   (with-current-buffer panel
+						     (hub/org-context-panel-buffer-mode)
+						     (let ((inhibit-read-only t))
+						       (hub/org-context-panel--insert-comment
+							'(:status "open"
+								  :target-text "a very long commented region preview"
+								  :body "Body.")))
+						     (goto-char (point-min))
+						     (should (search-forward "“a very long …”" nil t))
+						     (should-not (search-forward "commented region" nil t)))
+						 (kill-buffer panel))))))
+
 (ert-deftest hub/org-context-panel-focuses-current-comment ()
   "When point is inside a comment target, the panel shows only that comment."
   (let* ((dir (make-temp-file "hub-context-panel-focus-" t))

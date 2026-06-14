@@ -31,6 +31,11 @@
   :type 'boolean
   :group 'hub/org-context-panel)
 
+(defcustom hub/org-context-panel-target-preview-length 32
+  "Maximum length of quoted comment target previews in the context panel."
+  :type 'natnum
+  :group 'hub/org-context-panel)
+
 (defface hub/org-context-panel-status-open-face
   '((t :inherit default :foreground "#FFFFFF" :background "#0052CC" :box (:line-width (1 . -1) :color "#0052CC")))
   "Face for open comment status chips."
@@ -270,6 +275,12 @@ wrapped lines, visual filling, and partial scrolling follow the live window."
     (hub/org-context-panel-refresh)))
 
 
+(defun hub/org-context-panel--truncate (text length)
+  "Return TEXT truncated to LENGTH characters with an ellipsis."
+  (if (> (length text) length)
+      (concat (substring text 0 length) "…")
+    text))
+
 (defun hub/org-context-panel--insert-icon (icon)
   "Insert context panel ICON with its face."
   (insert (propertize icon 'face 'hub/org-context-panel-icon-face)))
@@ -298,8 +309,10 @@ wrapped lines, visual filling, and partial scrolling follow the live window."
     (insert " ")
     (hub/org-context-panel--insert-status-chip status)
     (unless (string-empty-p target)
-      (insert " " (propertize (concat "“" target "”")
-			      'face 'hub/org-context-panel-target-face)))
+      (insert " " (propertize
+		   (concat "“" (hub/org-context-panel--truncate
+				target hub/org-context-panel-target-preview-length) "”")
+		   'face 'hub/org-context-panel-target-face)))
     (insert "\n")
     (unless (string-empty-p body)
       (insert body "\n"))))
