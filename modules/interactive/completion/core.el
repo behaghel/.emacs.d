@@ -21,18 +21,14 @@
   :init (all-the-icons-completion-mode))
 
 (use-package vertico
+  :disabled t
   :demand t
-  :general
-  (:keymaps 'vertico-map
-	    "<tab>" #'vertico-insert
-	    "<escape>" #'minibuffer-keyboard-quit
-	    "?" #'minibuffer-completion-help)
-  :custom
-  (vertico-count 13)
-  (vertico-resize t)
-  (vertico-cycle nil)
   :config
-  (vertico-mode))
+  ;; Disabled temporarily after repeated `text-read-only' errors in
+  ;; `vertico--prompt-selection' during ordinary `find-file' prompts.
+  ;; Keep native Emacs completion until the Vertico/minibuffer interaction is
+  ;; isolated in a minimal reproduction.
+  (vertico-mode -1))
 
 (use-package savehist :init (savehist-mode))
 
