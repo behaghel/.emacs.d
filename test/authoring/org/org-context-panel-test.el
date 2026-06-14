@@ -5,6 +5,7 @@
 
 ;;; Code:
 
+(require 'cl-lib)
 (require 'ert)
 (require 'test-helpers)
 (require 'hub-org-comments)
@@ -58,14 +59,27 @@
 		 (record (hub/org-comment-create-record
 			  buffer-file-name start end "Please clarify." "local-panel")))
 	    (hub/org-comment-append-to-sidecar record)
+	    (goto-char start)
 	    (hub/org-context-panel-render-buffer (current-buffer) panel)
+	    (should (cl-some
+		     (lambda (overlay)
+		       (eq (overlay-get overlay 'face) 'hub/org-context-panel-comment-region-face))
+		     (overlays-at start)))
 	    (with-current-buffer panel
 	      (should (search-forward "COMMENT open" nil t))
+	      (should (eq (get-text-property (match-beginning 0) 'face)
+			  'hub/org-context-panel-current-item-face))
 	      (should (search-forward "“selected text”" nil t))
 	      (should (search-forward "Please clarify." nil t))
 	      (let ((item (get-text-property (point) 'hub-org-context-panel-item)))
 		(should (eq 'comment (plist-get item :type)))
-		(should (= start (plist-get item :jump-pos)))))))
+		(should (= start (plist-get item :jump-pos)))))
+	    (with-current-buffer (current-buffer)
+	      (hub/org-context-panel-close)
+	      (should-not (cl-some
+			   (lambda (overlay)
+			     (eq (overlay-get overlay 'face) 'hub/org-context-panel-comment-region-face))
+			   (overlays-at start))))))
       (when (get-file-buffer source-file)
 	(kill-buffer (get-file-buffer source-file)))
       (kill-buffer panel)

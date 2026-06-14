@@ -25,6 +25,16 @@
   :type 'natnum
   :group 'hub/org-context-panel)
 
+(defface hub/org-context-panel-comment-region-face
+  '((t :inherit highlight :underline t))
+  "Face used to mark commented source regions."
+  :group 'hub/org-context-panel)
+
+(defface hub/org-context-panel-current-item-face
+  '((t :inherit highlight))
+  "Face used for the context item at point in the source buffer."
+  :group 'hub/org-context-panel)
+
 (defvar-local hub/org-context-panel-source-buffer nil
   "Org source buffer rendered by the current context panel.")
 
@@ -34,10 +44,13 @@
 (defvar-local hub/org-context-panel--source-buffer nil
   "Org source buffer associated with the current panel buffer.")
 
+(defvar-local hub/org-context-panel--comment-overlays nil
+  "Comment target overlays in the current Org source buffer.")
+
 (defvar hub/org-context-panel-buffer-mode-map
   (let ((map (make-sparse-keymap)))
     (define-key map (kbd "RET") #'hub/org-context-panel-jump-to-definition)
-    (define-key map (kbd "q") #'quit-window)
+    (define-key map (kbd "q") #'hub/org-context-panel-close)
     map)
   "Keymap used in Org context panel buffers.")
 
@@ -94,6 +107,44 @@ wrapped lines, visual filling, and partial scrolling follow the live window."
 	      (hub/org-context-panel--item-with-viewport-anchor item row)))
 	  items))))
 
+(defun hub/org-context-panel--delete-comment-overlays ()
+  "Delete context-panel comment overlays in the current buffer."
+  (mapc #'delete-overlay hub/org-context-panel--comment-overlays)
+  (setq hub/org-context-panel--comment-overlays nil))
+
+(defun hub/org-context-panel--comment-item-p (item)
+  "Return non-nil when ITEM is a sidecar comment."
+  (eq (plist-get item :type) 'comment))
+
+(defun hub/org-context-panel--source-point-in-item-p (item source-point)
+  "Return non-nil when SOURCE-POINT is inside ITEM's target region."
+  (and source-point
+       (hub/org-context-panel--comment-item-p item)
+       (let ((start (plist-get item :target-start))
+	     (end (plist-get item :target-end)))
+	 (and start end (<= start source-point) (< source-point end)))))
+
+(defun hub/org-context-panel--item-with-current-state (item source-point)
+  "Return ITEM copied with current-state metadata for SOURCE-POINT."
+  (if (hub/org-context-panel--source-point-in-item-p item source-point)
+      (plist-put (copy-sequence item) :current t)
+    item))
+
+(defun hub/org-context-panel--refresh-comment-overlays (source-buffer items)
+  "Refresh source comment overlays for comment ITEMS in SOURCE-BUFFER."
+  (when (buffer-live-p source-buffer)
+    (with-current-buffer source-buffer
+      (hub/org-context-panel--delete-comment-overlays)
+      (dolist (item items)
+	(when (hub/org-context-panel--comment-item-p item)
+	  (let ((start (plist-get item :target-start))
+		(end (plist-get item :target-end)))
+	    (when (and start end (<= (point-min) start) (<= start end) (<= end (point-max)))
+	      (let ((overlay (make-overlay start end nil t nil)))
+		(overlay-put overlay 'face 'hub/org-context-panel-comment-region-face)
+		(overlay-put overlay 'hub-org-context-panel-item item)
+		(push overlay hub/org-context-panel--comment-overlays)))))))))
+
 (defun hub/org-context-panel--post-command-refresh ()
   "Refresh a visible context panel after source-buffer commands."
   (when hub/org-context-panel-mode
@@ -132,21 +183,30 @@ wrapped lines, visual filling, and partial scrolling follow the live window."
       (_ (hub/org-context-panel--insert-marginalia item)))
     (when (plist-get item :displaced)
       (insert "↳ shifted down from nearby text\n"))
-    (add-text-properties start (point) `(hub-org-context-panel-item ,item))))
+    (add-text-properties
+     start (point)
+     `(hub-org-context-panel-item ,item
+				  ,@(when (plist-get item :current)
+				      '(face hub/org-context-panel-current-item-face))))))
 
 ;;;###autoload
 (defun hub/org-context-panel-render-buffer (source-buffer panel-buffer &optional source-window)
   "Render SOURCE-BUFFER context items into PANEL-BUFFER.
 When SOURCE-WINDOW is non-nil, align notes to visible lines in that window."
-  (let* ((all-items (with-current-buffer source-buffer
-		      (sort (append (hub/org-marginalia-collect)
-				    (hub/org-comment-collect source-buffer))
+  (let* ((source-point (with-current-buffer source-buffer (point)))
+	 (all-items (with-current-buffer source-buffer
+		      (sort (mapcar
+			     (lambda (item)
+			       (hub/org-context-panel--item-with-current-state item source-point))
+			     (append (hub/org-marginalia-collect)
+				     (hub/org-comment-collect source-buffer)))
 			    (lambda (left right)
 			      (< (or (plist-get left :anchor-line) 1)
 				 (or (plist-get right :anchor-line) 1))))))
 	 (items (if (and source-window (window-live-p source-window))
 		    (hub/org-context-panel--items-for-window source-window all-items)
 		  (hub/org-marginalia-layout all-items))))
+    (hub/org-context-panel--refresh-comment-overlays source-buffer all-items)
     (with-current-buffer panel-buffer
       (let ((inhibit-read-only t))
 	(hub/org-context-panel-buffer-mode)
@@ -211,10 +271,16 @@ When SOURCE-WINDOW is non-nil, align notes to visible lines in that window."
 (defun hub/org-context-panel-close ()
   "Close the context side panel associated with the current buffer."
   (interactive)
-  (when-let* ((panel (and (boundp 'hub/org-context-panel--panel-buffer)
-			  hub/org-context-panel--panel-buffer))
-	      (window (get-buffer-window panel t)))
-    (quit-window nil window)))
+  (let ((source-buffer (if (derived-mode-p 'hub/org-context-panel-buffer-mode)
+			   hub/org-context-panel-source-buffer
+			 (current-buffer))))
+    (when (buffer-live-p source-buffer)
+      (with-current-buffer source-buffer
+	(hub/org-context-panel--delete-comment-overlays)
+	(when-let* ((panel (and (boundp 'hub/org-context-panel--panel-buffer)
+				hub/org-context-panel--panel-buffer))
+		    (window (get-buffer-window panel t)))
+	  (quit-window nil window))))))
 
 ;;;###autoload
 (defun hub/org-context-panel-jump-to-definition ()
