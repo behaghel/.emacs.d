@@ -59,6 +59,7 @@
 		 (record (hub/org-comment-create-record
 			  buffer-file-name start end "Please clarify." "local-panel")))
 	    (hub/org-comment-append-to-sidecar record)
+	    (hub/org-comment-overlays-mode -1)
 	    (goto-char start)
 	    (hub/org-context-panel-render-buffer (current-buffer) panel)
 	    (should (cl-some
@@ -66,9 +67,13 @@
 		       (eq (overlay-get overlay 'face) 'hub/org-context-panel-comment-region-face))
 		     (overlays-at start)))
 	    (with-current-buffer panel
-	      (should (search-forward "COMMENT open" nil t))
-	      (should (eq (get-text-property (match-beginning 0) 'face)
-			  'hub/org-context-panel-current-item-face))
+	      (should (search-forward "💬" nil t))
+	      (should (search-forward "OPEN" nil t))
+	      (let ((face (get-text-property (match-beginning 0) 'face)))
+		(should (memq 'hub/org-context-panel-status-open-face
+			      (if (listp face) face (list face))))
+		(should (memq 'hub/org-context-panel-current-item-face
+			      (if (listp face) face (list face)))))
 	      (should (search-forward "“selected text”" nil t))
 	      (should (search-forward "Please clarify." nil t))
 	      (let ((item (get-text-property (point) 'hub-org-context-panel-item)))
@@ -84,6 +89,35 @@
 	(kill-buffer (get-file-buffer source-file)))
       (kill-buffer panel)
       (delete-directory dir t))))
+
+(ert-deftest hub/org-context-panel-docks-and-restores-visual-fill-column ()
+  "Opening the context panel can dock visual-fill-column prose toward the panel."
+  (hub/org-context-panel-test--with-source "Text"
+					   (let ((source (current-buffer))
+						 (set-margins-called nil)
+						 (require-function (symbol-function 'require)))
+					     (setq-local visual-fill-column-mode t
+							 visual-fill-column-width 80
+							 visual-fill-column-center-text t
+							 visual-fill-column-extra-text-width nil)
+					     (cl-letf (((symbol-function 'visual-fill-column--window-max-text-width)
+							(lambda (_window) 120))
+						       ((symbol-function 'visual-fill-column--set-margins)
+							(lambda (_window) (setq set-margins-called t)))
+						       ((symbol-function 'require)
+							(lambda (feature &optional filename noerror)
+							  (or (eq feature 'visual-fill-column)
+							      (funcall require-function feature filename noerror)))))
+					       (switch-to-buffer source)
+					       (hub/org-context-panel--dock-prose (selected-window))
+					       (should visual-fill-column-center-text)
+					       (should (equal '(-20 . 20) visual-fill-column-extra-text-width))
+					       (should set-margins-called)
+					       (setq set-margins-called nil)
+					       (hub/org-context-panel--restore-prose-docking source)
+					       (should visual-fill-column-center-text)
+					       (should-not visual-fill-column-extra-text-width)
+					       (should set-margins-called)))))
 
 (ert-deftest hub/org-context-panel-records-jump-targets ()
   "Rendered notes carry their source footnote definition position."

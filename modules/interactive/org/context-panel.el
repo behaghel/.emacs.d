@@ -25,6 +25,36 @@
   :type 'natnum
   :group 'hub/org-context-panel)
 
+(defcustom hub/org-context-panel-dock-prose t
+  "Whether opening the context panel docks visually filled prose toward it."
+  :type 'boolean
+  :group 'hub/org-context-panel)
+
+(defface hub/org-context-panel-status-open-face
+  '((t :inherit default :foreground "#FFFFFF" :background "#0052CC" :box (:line-width (1 . -1) :color "#0052CC")))
+  "Face for open comment status chips."
+  :group 'hub/org-context-panel)
+
+(defface hub/org-context-panel-status-resolved-face
+  '((t :inherit default :foreground "#FFFFFF" :background "#00875A" :box (:line-width (1 . -1) :color "#00875A")))
+  "Face for resolved comment status chips."
+  :group 'hub/org-context-panel)
+
+(defface hub/org-context-panel-status-default-face
+  '((t :inherit default :foreground "#172B4D" :background "#DFE1E6" :box (:line-width (1 . -1) :color "#DFE1E6")))
+  "Face for default comment status chips."
+  :group 'hub/org-context-panel)
+
+(defface hub/org-context-panel-icon-face
+  '((t :inherit shadow))
+  "Face used for compact context panel icons."
+  :group 'hub/org-context-panel)
+
+(defface hub/org-context-panel-target-face
+  '((t :inherit shadow :slant italic))
+  "Face used for comment target previews."
+  :group 'hub/org-context-panel)
+
 (defface hub/org-context-panel-comment-region-face
   '((t :inherit highlight :underline t))
   "Face used to mark commented source regions."
@@ -47,6 +77,9 @@
 (defvar-local hub/org-context-panel--comment-overlays nil
   "Comment target overlays in the current Org source buffer.")
 
+(defvar-local hub/org-context-panel--visual-fill-state nil
+  "Saved visual-fill-column state while context panel docks prose.")
+
 (defvar hub/org-context-panel-buffer-mode-map
   (let ((map (make-sparse-keymap)))
     (define-key map (kbd "RET") #'hub/org-context-panel-jump-to-definition)
@@ -65,11 +98,18 @@
       (setq hub/org-context-panel--panel-buffer
 	    (get-buffer-create hub/org-context-panel-buffer-name))))
 
-(defun hub/org-context-panel--marginalia-kind-label (kind)
-  "Return a compact display label for marginalia KIND."
+(defun hub/org-context-panel--marginalia-kind-icon (kind)
+  "Return a compact display icon for marginalia KIND."
   (pcase kind
-    ('footnote "FOOTNOTE")
-    (_ "NOTE")))
+    ('footnote "†")
+    (_ "✣")))
+
+(defun hub/org-context-panel--comment-status-face (status)
+  "Return status chip face for comment STATUS."
+  (pcase (downcase (or status ""))
+    ("open" 'hub/org-context-panel-status-open-face)
+    ("resolved" 'hub/org-context-panel-status-resolved-face)
+    (_ 'hub/org-context-panel-status-default-face)))
 
 (defun hub/org-context-panel--position-row (position window)
   "Return one-based visible row for POSITION in WINDOW, or nil.
@@ -166,22 +206,75 @@ wrapped lines, visual filling, and partial scrolling follow the live window."
     (remove-hook 'after-save-hook #'hub/org-comment-overlays-refresh t)
     (hub/org-context-panel--delete-comment-overlays)))
 
+(defun hub/org-context-panel--visual-fill-total-margin (source-window)
+  "Return total visual-fill-column margin for SOURCE-WINDOW."
+  (let* ((width (or (and (boundp 'visual-fill-column-width)
+			 (numberp visual-fill-column-width)
+			 visual-fill-column-width)
+		    fill-column))
+	 (total-width (if (fboundp 'visual-fill-column--window-max-text-width)
+			  (visual-fill-column--window-max-text-width source-window)
+			(window-body-width source-window))))
+    (max 0 (- total-width width))))
+
+(defun hub/org-context-panel--dock-prose (source-window)
+  "Dock visually filled prose in SOURCE-WINDOW toward the context panel."
+  (when (and hub/org-context-panel-dock-prose
+	     (window-live-p source-window)
+	     (require 'visual-fill-column nil t))
+    (with-current-buffer (window-buffer source-window)
+      (when (bound-and-true-p visual-fill-column-mode)
+	(unless hub/org-context-panel--visual-fill-state
+	  (setq hub/org-context-panel--visual-fill-state
+		(list :center visual-fill-column-center-text
+		      :extra visual-fill-column-extra-text-width)))
+	(let* ((margin (hub/org-context-panel--visual-fill-total-margin source-window))
+	       (half (/ margin 2)))
+	  ;; `visual-fill-column' can only left-dock or center text directly.  Keep
+	  ;; centering enabled, then shift the centered margins right by expanding the
+	  ;; left margin and collapsing the right margin.
+	  (setq-local visual-fill-column-center-text t
+		      visual-fill-column-extra-text-width (cons (- half) half))
+	  (when (fboundp 'visual-fill-column--set-margins)
+	    (visual-fill-column--set-margins source-window)))))))
+
+(defun hub/org-context-panel--restore-prose-docking (source-buffer)
+  "Restore visual-fill-column state saved for SOURCE-BUFFER."
+  (when (and (buffer-live-p source-buffer)
+	     (require 'visual-fill-column nil t))
+    (with-current-buffer source-buffer
+      (when hub/org-context-panel--visual-fill-state
+	(setq-local visual-fill-column-center-text
+		    (plist-get hub/org-context-panel--visual-fill-state :center)
+		    visual-fill-column-extra-text-width
+		    (plist-get hub/org-context-panel--visual-fill-state :extra)
+		    hub/org-context-panel--visual-fill-state nil)
+	(when-let* ((window (get-buffer-window source-buffer t)))
+	  (when (fboundp 'visual-fill-column--set-margins)
+	    (visual-fill-column--set-margins window)))))))
+
 (defun hub/org-context-panel--post-command-refresh ()
   "Refresh a visible context panel after source-buffer commands."
   (when hub/org-context-panel-mode
     (hub/org-context-panel-refresh)))
 
-(defun hub/org-context-panel--truncate (text length)
-  "Return TEXT truncated to LENGTH characters with an ellipsis."
-  (if (> (length text) length)
-      (concat (substring text 0 length) "…")
-    text))
+
+(defun hub/org-context-panel--insert-icon (icon)
+  "Insert context panel ICON with its face."
+  (insert (propertize icon 'face 'hub/org-context-panel-icon-face)))
+
+(defun hub/org-context-panel--insert-status-chip (status)
+  "Insert comment STATUS as a chip."
+  (let ((label (upcase (or status "unknown"))))
+    (insert (propertize (concat " " label " ")
+			'face (hub/org-context-panel--comment-status-face status)))))
 
 (defun hub/org-context-panel--insert-marginalia (note)
   "Insert marginalia NOTE into the current panel buffer."
   (let ((kind (plist-get note :kind))
 	(body (or (plist-get note :body) "")))
-    (insert (format "%s %s\n" (hub/org-context-panel--marginalia-kind-label kind) (plist-get note :id)))
+    (hub/org-context-panel--insert-icon (hub/org-context-panel--marginalia-kind-icon kind))
+    (insert (format " %s\n" (plist-get note :id)))
     (unless (string-empty-p body)
       (insert body "\n"))))
 
@@ -190,9 +283,13 @@ wrapped lines, visual filling, and partial scrolling follow the live window."
   (let ((status (or (plist-get comment :status) "open"))
 	(target (or (plist-get comment :target-text) ""))
 	(body (or (plist-get comment :body) "")))
-    (insert (format "COMMENT %s\n" status))
+    (hub/org-context-panel--insert-icon "💬")
+    (insert " ")
+    (hub/org-context-panel--insert-status-chip status)
     (unless (string-empty-p target)
-      (insert "“" (hub/org-context-panel--truncate target 80) "”\n\n"))
+      (insert " " (propertize (concat "“" target "”")
+			      'face 'hub/org-context-panel-target-face)))
+    (insert "\n")
     (unless (string-empty-p body)
       (insert body "\n"))))
 
@@ -204,11 +301,9 @@ wrapped lines, visual filling, and partial scrolling follow the live window."
       (_ (hub/org-context-panel--insert-marginalia item)))
     (when (plist-get item :displaced)
       (insert "↳ shifted down from nearby text\n"))
-    (add-text-properties
-     start (point)
-     `(hub-org-context-panel-item ,item
-				  ,@(when (plist-get item :current)
-				      '(face hub/org-context-panel-current-item-face))))))
+    (add-text-properties start (point) `(hub-org-context-panel-item ,item))
+    (when (plist-get item :current)
+      (add-face-text-property start (point) 'hub/org-context-panel-current-item-face t))))
 
 ;;;###autoload
 (defun hub/org-context-panel-render-buffer (source-buffer panel-buffer &optional source-window)
@@ -283,6 +378,7 @@ When SOURCE-WINDOW is non-nil, align notes to visible lines in that window."
     ;; Render after displaying the side window: the source window width changes,
     ;; so position coordinates must use the final narrowed source window.
     (redisplay t)
+    (hub/org-context-panel--dock-prose source-window)
     (hub/org-context-panel-render-buffer source-buffer panel source-window)
     (with-current-buffer source-buffer
       (setq hub/org-context-panel--panel-buffer panel))
@@ -296,6 +392,7 @@ When SOURCE-WINDOW is non-nil, align notes to visible lines in that window."
 			   hub/org-context-panel-source-buffer
 			 (current-buffer))))
     (when (buffer-live-p source-buffer)
+      (hub/org-context-panel--restore-prose-docking source-buffer)
       (with-current-buffer source-buffer
 	(unless hub/org-comment-overlays-mode
 	  (hub/org-context-panel--delete-comment-overlays))
