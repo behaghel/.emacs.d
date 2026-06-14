@@ -31,8 +31,18 @@
   :type 'boolean
   :group 'hub/org-context-panel)
 
-(defcustom hub/org-context-panel-target-preview-length 32
+(defcustom hub/org-context-panel-target-preview-length 20
   "Maximum length of quoted comment target previews in the context panel."
+  :type 'natnum
+  :group 'hub/org-context-panel)
+
+(defcustom hub/org-context-panel-overview-comment-lines 2
+  "Maximum number of comment body lines shown in context panel overview mode."
+  :type 'natnum
+  :group 'hub/org-context-panel)
+
+(defcustom hub/org-context-panel-overview-comment-line-length 34
+  "Maximum length of each comment body line in context panel overview mode."
   :type 'natnum
   :group 'hub/org-context-panel)
 
@@ -178,6 +188,37 @@ wrapped lines, visual filling, and partial scrolling follow the live window."
       (plist-put (copy-sequence item) :current t)
     item))
 
+(defun hub/org-context-panel--overview-comment-lines (body)
+  "Return compact overview lines for comment BODY."
+  (let ((text (string-trim (replace-regexp-in-string "[[:space:]]+" " " (or body ""))))
+	(lines nil)
+	(limit hub/org-context-panel-overview-comment-line-length))
+    (while (and (not (string-empty-p text))
+		(< (length lines) hub/org-context-panel-overview-comment-lines))
+      (if (<= (length text) limit)
+	  (setq lines (append lines (list text))
+		text "")
+	(let ((chunk (substring text 0 limit)))
+	  (setq lines (append lines (list chunk))
+		text (string-trim-left (substring text limit))))))
+    (when (and lines (not (string-empty-p text)))
+      (let* ((last-index (1- (length lines)))
+	     (last-line (nth last-index lines)))
+	(setf (nth last-index lines)
+	      (if (> (length last-line) 1)
+		  (concat (substring last-line 0 (1- (length last-line))) "…")
+		"…"))))
+    lines))
+
+(defun hub/org-context-panel--item-with-overview-height (item)
+  "Return ITEM copied with compact overview height where appropriate."
+  (if (and (hub/org-context-panel--comment-item-p item)
+	   (not (plist-get item :current)))
+      (plist-put (copy-sequence item) :height
+		 (+ 1 (length (hub/org-context-panel--overview-comment-lines
+			       (plist-get item :body)))))
+    item))
+
 (defun hub/org-context-panel--focused-comment (items)
   "Return the current focused comment from ITEMS, or nil."
   (cl-find-if
@@ -314,8 +355,11 @@ wrapped lines, visual filling, and partial scrolling follow the live window."
 				target hub/org-context-panel-target-preview-length) "”")
 		   'face 'hub/org-context-panel-target-face)))
     (insert "\n")
-    (unless (string-empty-p body)
-      (insert body "\n"))))
+    (if (plist-get comment :current)
+	(unless (string-empty-p body)
+	  (insert body "\n"))
+      (dolist (line (hub/org-context-panel--overview-comment-lines body))
+	(insert line "\n")))))
 
 (defun hub/org-context-panel--insert-item (item)
   "Insert context ITEM into the current panel buffer."
@@ -337,7 +381,8 @@ When SOURCE-WINDOW is non-nil, align notes to visible lines in that window."
 	 (all-items (with-current-buffer source-buffer
 		      (sort (mapcar
 			     (lambda (item)
-			       (hub/org-context-panel--item-with-current-state item source-point))
+			       (hub/org-context-panel--item-with-overview-height
+				(hub/org-context-panel--item-with-current-state item source-point)))
 			     (append (hub/org-marginalia-collect)
 				     (hub/org-comment-collect source-buffer)))
 			    (lambda (left right)

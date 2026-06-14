@@ -111,6 +111,26 @@
 						     (should-not (search-forward "commented region" nil t)))
 						 (kill-buffer panel))))))
 
+(ert-deftest hub/org-context-panel-clamps-overview-comment-body ()
+  "Overview comments show at most two compact body lines."
+  (let ((hub/org-context-panel-overview-comment-line-length 10)
+	(hub/org-context-panel-overview-comment-lines 2))
+    (hub/org-context-panel-test--with-source "Alpha[fn:one]\n\n[fn:one] Note body.\n"
+					     (let ((panel (generate-new-buffer " *hub context overview clamp test*")))
+					       (unwind-protect
+						   (with-current-buffer panel
+						     (hub/org-context-panel-buffer-mode)
+						     (let ((inhibit-read-only t))
+						       (hub/org-context-panel--insert-comment
+							'(:status "open"
+								  :target-text "target"
+								  :body "one two three four five six seven eight nine")))
+						     (goto-char (point-min))
+						     (should (search-forward "one two th" nil t))
+						     (should (search-forward "ree four …" nil t))
+						     (should-not (search-forward "five" nil t)))
+						 (kill-buffer panel))))))
+
 (ert-deftest hub/org-context-panel-focuses-current-comment ()
   "When point is inside a comment target, the panel shows only that comment."
   (let* ((dir (make-temp-file "hub-context-panel-focus-" t))
