@@ -93,6 +93,51 @@
       (kill-buffer panel)
       (delete-directory dir t))))
 
+(ert-deftest hub/org-context-panel-renders-stale-comments-as-unanchored-warnings ()
+  "The panel renderer shows stale sidecar comments without source overlays."
+  (let* ((dir (make-temp-file "hub-context-panel-stale-" t))
+	 (source-file (expand-file-name "article.org" dir))
+	 (panel (generate-new-buffer " *hub context stale test*")))
+    (unwind-protect
+	(with-current-buffer (find-file-noselect source-file)
+	  (erase-buffer)
+	  (insert "Alpha selected text omega")
+	  (save-buffer)
+	  (org-mode)
+	  (let* ((start (progn
+			  (goto-char (point-min))
+			  (search-forward "selected")
+			  (match-beginning 0)))
+		 (end (match-end 0))
+		 (record (hub/org-comment-create-record
+			  buffer-file-name start end "Please revisit." "local-stale-panel")))
+	    (hub/org-comment-append-to-sidecar record)
+	    (save-excursion
+	      (goto-char start)
+	      (delete-char 1)
+	      (insert "S"))
+	    (hub/org-context-panel-render-buffer (current-buffer) panel)
+	    (should-not (cl-some
+			 (lambda (overlay)
+			   (eq (overlay-get overlay 'face) 'hub/org-context-panel-comment-region-face))
+			 (overlays-at start)))
+	    (with-current-buffer panel
+	      (should (search-forward "⚠" nil t))
+	      (should (search-forward "OPEN" nil t))
+	      (should (search-forward "Anchor no longer matches source text." nil t))
+	      (should (search-forward "Please revisit." nil t))
+	      (let ((item (get-text-property (point) 'hub-org-context-panel-item)))
+		(should (eq 'stale (plist-get item :anchor-state)))
+		(should-not (plist-get item :jump-pos)))
+	      (hub/org-context-panel-jump-to-definition)
+	      (should (string-suffix-p "article.comments.org" buffer-file-name))
+	      (should (looking-at-p "\\* OPEN Comment: selected")))))
+      (when (get-file-buffer source-file)
+	(kill-buffer (get-file-buffer source-file)))
+      (when (buffer-live-p panel)
+	(kill-buffer panel))
+      (delete-directory dir t))))
+
 (ert-deftest hub/org-context-panel-truncates-comment-target-preview ()
   "Comment target previews stay on the card header line."
   (let ((hub/org-context-panel-target-preview-length 12))

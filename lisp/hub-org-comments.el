@@ -163,8 +163,27 @@ SIDECAR-FILE defaults to the sidecar path for RECORD's source file."
       (cons (string-to-number (car parts))
 	    (string-to-number (cadr parts))))))
 
-(defun hub/org-comment--record-from-heading (sidecar-file source-buffer)
-  "Return a comment record at heading in SIDECAR-FILE for SOURCE-BUFFER."
+(defun hub/org-comment--heading-status (properties)
+  "Return comment workflow status from heading PROPERTIES."
+  (or (alist-get "TODO" properties nil nil #'equal) "OPEN"))
+
+(defun hub/org-comment--base-record (properties sidecar-file target-text start end body)
+  "Return common plist record from PROPERTIES and comment fields."
+  (list :type 'comment
+	:id (alist-get "HUB_COMMENT_ID" properties nil nil #'equal)
+	:kind 'comment
+	:status (hub/org-comment--heading-status properties)
+	:sidecar-file sidecar-file
+	:target-text target-text
+	:target-start start
+	:target-end end
+	:body body
+	:height (max 3 (+ 3 (length (split-string body "\n" t))))))
+
+(defun hub/org-comment--record-from-heading (sidecar-file source-buffer &optional include-stale)
+  "Return a comment record at heading in SIDECAR-FILE for SOURCE-BUFFER.
+When INCLUDE-STALE is non-nil, return unanchored stale records for comments
+whose stored target no longer validates against the source buffer."
   (let* ((properties (hub/org-comment--parse-properties-at-heading))
 	 (id (alist-get "HUB_COMMENT_ID" properties nil nil #'equal))
 	 (target-text (alist-get "HUB_COMMENT_TARGET_TEXT" properties nil nil #'equal))
@@ -173,30 +192,32 @@ SIDECAR-FILE defaults to the sidecar path for RECORD's source file."
 	 (end (cdr target-bounds))
 	 (entry-end (save-excursion (org-end-of-subtree t t)))
 	 (body (hub/org-comment--entry-body entry-end)))
-    (when (and id target-text start end)
-      (with-current-buffer source-buffer
-	(when (and (<= (point-min) start)
-		   (<= start end)
-		   (<= end (point-max))
-		   (equal (hub/org-comment-normalize-target-text
-			   (buffer-substring-no-properties start end))
-			  target-text))
-	  (list :type 'comment
-		:id id
-		:kind 'comment
-		:status (or (alist-get "TODO" properties nil nil #'equal) "OPEN")
-		:sidecar-file sidecar-file
-		:target-text target-text
-		:target-start start
-		:target-end end
-		:anchor-line (line-number-at-pos start t)
-		:anchor-pos start
-		:jump-pos start
-		:body body
-		:height (max 3 (+ 3 (length (split-string body "\n" t))))))))))
+    (when (and id target-text)
+      (let ((record (hub/org-comment--base-record
+		     properties sidecar-file target-text start end body)))
+	(if (and start end
+		 (with-current-buffer source-buffer
+		   (and (<= (point-min) start)
+			(<= start end)
+			(<= end (point-max))
+			(equal (hub/org-comment-normalize-target-text
+				(buffer-substring-no-properties start end))
+			       target-text))))
+	    (with-current-buffer source-buffer
+	      (append record
+		      (list :anchor-line (line-number-at-pos start t)
+			    :anchor-pos start
+			    :jump-pos start)))
+	  (when include-stale
+	    (append record
+		    (list :anchor-state 'stale
+			  :stale t
+			  :anchor-line most-positive-fixnum))))))))
 
-(defun hub/org-comment-collect (&optional source-buffer)
-  "Collect valid sidecar comments for SOURCE-BUFFER or current buffer."
+(defun hub/org-comment-collect (&optional source-buffer include-stale)
+  "Collect valid sidecar comments for SOURCE-BUFFER or current buffer.
+When INCLUDE-STALE is non-nil, include comments whose stored target no longer
+matches the source buffer as unanchored stale records."
   (let* ((buffer (or source-buffer (current-buffer)))
 	 (source-file (buffer-file-name buffer))
 	 (sidecar-file (and source-file (hub/org-comment-sidecar-path source-file))))
@@ -208,7 +229,8 @@ SIDECAR-FILE defaults to the sidecar path for RECORD's source file."
 	  (goto-char (point-min))
 	  (while (re-search-forward org-heading-regexp nil t)
 	    (goto-char (match-beginning 0))
-	    (when-let* ((record (hub/org-comment--record-from-heading sidecar-file buffer)))
+	    (when-let* ((record (hub/org-comment--record-from-heading
+				 sidecar-file buffer include-stale)))
 	      (push record comments))
 	    (forward-line 1))
 	  (nreverse comments))))))

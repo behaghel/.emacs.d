@@ -55,6 +55,24 @@
 					       (should (search-forward ":HUB_COMMENT_TARGET_HASH: sha256:" nil t))
 					       (should (search-forward "Please clarify." nil t))))))
 
+(ert-deftest hub/org-comment-collects-stale-comments-when-requested ()
+  "Comment collection can include unanchored records whose targets drifted."
+  (hub/org-comments-test--with-file-buffer "article.org" "Alpha selected text omega"
+					   (let* ((start (progn (goto-char (point-min)) (search-forward "selected") (match-beginning 0)))
+						  (end (match-end 0))
+						  (record (hub/org-comment-create-record buffer-file-name start end "Drifted." "local-stale")))
+					     (hub/org-comment-append-to-sidecar record)
+					     (save-excursion
+					       (goto-char start)
+					       (delete-char 1)
+					       (insert "S"))
+					     (should-not (hub/org-comment-collect (current-buffer)))
+					     (let ((comments (hub/org-comment-collect (current-buffer) t)))
+					       (should (= 1 (length comments)))
+					       (should (eq 'stale (plist-get (car comments) :anchor-state)))
+					       (should-not (plist-get (car comments) :jump-pos))
+					       (should (equal "local-stale" (plist-get (car comments) :id)))))))
+
 (ert-deftest hub/org-comment-collects-only-matching-offset-comments ()
   "Comment collection ignores sidecar records whose target offsets drifted."
   (hub/org-comments-test--with-file-buffer "article.org" "Alpha selected text omega"

@@ -164,15 +164,21 @@ wrapped lines, visual filling, and partial scrolling follow the live window."
 
 (defun hub/org-context-panel--items-for-window (source-window items)
   "Return context ITEMS laid out for SOURCE-WINDOW viewport lines."
-  (hub/org-marginalia-layout
-   (delq nil
-	 (mapcar
-	  (lambda (item)
-	    (when-let* ((row (hub/org-context-panel--position-row
-			      (hub/org-context-panel--item-anchor-position item)
-			      source-window)))
-	      (hub/org-context-panel--item-with-viewport-anchor item row)))
-	  items))))
+  (let ((stale-items (cl-remove-if-not #'hub/org-context-panel--stale-comment-p items))
+	(anchored-items (cl-remove-if #'hub/org-context-panel--stale-comment-p items)))
+    (append
+     (hub/org-marginalia-layout
+      (delq nil
+	    (mapcar
+	     (lambda (item)
+	       (if source-window
+		   (when-let* ((row (hub/org-context-panel--position-row
+				     (hub/org-context-panel--item-anchor-position item)
+				     source-window)))
+		     (hub/org-context-panel--item-with-viewport-anchor item row))
+		 item))
+	     anchored-items)))
+     stale-items)))
 
 (defun hub/org-context-panel--delete-comment-overlays ()
   "Delete context-panel comment overlays in the current buffer."
@@ -183,10 +189,16 @@ wrapped lines, visual filling, and partial scrolling follow the live window."
   "Return non-nil when ITEM is a sidecar comment."
   (eq (plist-get item :type) 'comment))
 
+(defun hub/org-context-panel--stale-comment-p (item)
+  "Return non-nil when ITEM is an unanchored stale sidecar comment."
+  (and (hub/org-context-panel--comment-item-p item)
+       (eq (plist-get item :anchor-state) 'stale)))
+
 (defun hub/org-context-panel--source-point-in-item-p (item source-point)
   "Return non-nil when SOURCE-POINT is inside ITEM's target region."
   (and source-point
        (hub/org-context-panel--comment-item-p item)
+       (not (hub/org-context-panel--stale-comment-p item))
        (let ((start (plist-get item :target-start))
 	     (end (plist-get item :target-end)))
 	 (and start end (<= start source-point) (<= source-point end)))))
@@ -242,7 +254,8 @@ wrapped lines, visual filling, and partial scrolling follow the live window."
     (with-current-buffer source-buffer
       (hub/org-context-panel--delete-comment-overlays)
       (dolist (item items)
-	(when (hub/org-context-panel--comment-item-p item)
+	(when (and (hub/org-context-panel--comment-item-p item)
+		   (not (hub/org-context-panel--stale-comment-p item)))
 	  (let ((start (plist-get item :target-start))
 		(end (plist-get item :target-end)))
 	    (when (and start end (<= (point-min) start) (<= start end) (<= end (point-max)))
@@ -394,8 +407,9 @@ wrapped lines, visual filling, and partial scrolling follow the live window."
   "Insert COMMENT into the current panel buffer."
   (let ((status (or (plist-get comment :status) "open"))
 	(target (or (plist-get comment :target-text) ""))
-	(body (or (plist-get comment :body) "")))
-    (hub/org-context-panel--insert-icon "💬")
+	(body (or (plist-get comment :body) ""))
+	(stale (hub/org-context-panel--stale-comment-p comment)))
+    (hub/org-context-panel--insert-icon (if stale "⚠" "💬"))
     (insert " ")
     (hub/org-context-panel--insert-status-chip status)
     (unless (string-empty-p target)
@@ -404,6 +418,8 @@ wrapped lines, visual filling, and partial scrolling follow the live window."
 				target hub/org-context-panel-target-preview-length) "”")
 		   'face 'hub/org-context-panel-target-face)))
     (insert "\n")
+    (when stale
+      (insert (propertize "Anchor no longer matches source text.\n" 'face 'warning)))
     (if (plist-get comment :current)
 	(unless (string-empty-p body)
 	  (insert body "\n"))
@@ -433,7 +449,7 @@ When SOURCE-WINDOW is non-nil, align notes to visible lines in that window."
 			       (hub/org-context-panel--item-with-overview-height
 				(hub/org-context-panel--item-with-current-state item source-point)))
 			     (append (hub/org-marginalia-collect)
-				     (hub/org-comment-collect source-buffer)))
+				     (hub/org-comment-collect source-buffer t)))
 			    (lambda (left right)
 			      (< (or (plist-get left :anchor-line) 1)
 				 (or (plist-get right :anchor-line) 1))))))
@@ -442,7 +458,7 @@ When SOURCE-WINDOW is non-nil, align notes to visible lines in that window."
 		 (focused-comment (list focused-comment))
 		 ((and source-window (window-live-p source-window))
 		  (hub/org-context-panel--items-for-window source-window all-items))
-		 (t (hub/org-marginalia-layout all-items)))))
+		 (t (hub/org-context-panel--items-for-window nil all-items)))))
     (hub/org-context-panel--refresh-comment-overlays source-buffer all-items)
     (with-current-buffer panel-buffer
       (let ((inhibit-read-only t))
@@ -528,18 +544,38 @@ When SOURCE-WINDOW is non-nil, align notes to visible lines in that window."
       (quit-window nil panel-window))))
 
 ;;;###autoload
+(defun hub/org-context-panel--jump-to-sidecar-comment (comment)
+  "Jump to COMMENT heading in its sidecar file."
+  (let ((sidecar-file (plist-get comment :sidecar-file))
+	(id (plist-get comment :id)))
+    (unless (and sidecar-file id)
+      (user-error "Comment record is missing sidecar metadata"))
+    (find-file sidecar-file)
+    (org-mode)
+    (goto-char (point-min))
+    (unless (cl-loop while (re-search-forward org-heading-regexp nil t)
+		     do (goto-char (match-beginning 0))
+		     when (equal id (org-entry-get nil "HUB_COMMENT_ID"))
+		     return t
+		     do (forward-line 1))
+      (user-error "Comment %s not found in sidecar" id))))
+
 (defun hub/org-context-panel-jump-to-definition ()
-  "Jump from a rendered context item to its Org footnote definition."
+  "Jump from a rendered context item to its source or sidecar definition."
   (interactive)
   (let* ((note (or (get-text-property (point) 'hub-org-context-panel-item)
 		   (get-text-property (max (point-min) (1- (point))) 'hub-org-context-panel-item)))
 	 (source hub/org-context-panel-source-buffer)
 	 (position (or (plist-get note :definition-pos)
 		       (plist-get note :jump-pos))))
-    (unless (and note (buffer-live-p source) position)
-      (user-error "No context item at point"))
-    (pop-to-buffer source)
-    (goto-char position)))
+    (cond
+     ((and note (hub/org-context-panel--stale-comment-p note))
+      (hub/org-context-panel--jump-to-sidecar-comment note))
+     ((and note (buffer-live-p source) position)
+      (pop-to-buffer source)
+      (goto-char position))
+     (t
+      (user-error "No context item at point")))))
 
 ;;;###autoload
 (define-minor-mode hub/org-context-panel-mode
