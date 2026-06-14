@@ -51,6 +51,11 @@
   "Face for open comment status chips."
   :group 'hub/org-context-panel)
 
+(defface hub/org-context-panel-status-todo-face
+  '((t :inherit default :foreground "#172B4D" :background "#FFAB00" :box (:line-width (1 . -1) :color "#FFAB00")))
+  "Face for todo comment status chips."
+  :group 'hub/org-context-panel)
+
 (defface hub/org-context-panel-status-resolved-face
   '((t :inherit default :foreground "#FFFFFF" :background "#00875A" :box (:line-width (1 . -1) :color "#00875A")))
   "Face for resolved comment status chips."
@@ -129,6 +134,7 @@
   "Return status chip face for comment STATUS."
   (pcase (downcase (or status ""))
     ("open" 'hub/org-context-panel-status-open-face)
+    ("todo" 'hub/org-context-panel-status-todo-face)
     ("resolved" 'hub/org-context-panel-status-resolved-face)
     (_ 'hub/org-context-panel-status-default-face)))
 

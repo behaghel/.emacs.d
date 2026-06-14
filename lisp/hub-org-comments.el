@@ -64,7 +64,7 @@ ID defaults to a new local ID."
 	 (start-line-column (hub/org-comment--line-column-at start))
 	 (end-line-column (hub/org-comment--line-column-at end)))
     (list :id (or id (hub/org-comment-generate-id))
-	  :status "open"
+	  :status "OPEN"
 	  :source-file source-file
 	  :target-text target-text
 	  :target-hash (hub/org-comment-target-hash target-text)
@@ -87,35 +87,35 @@ ID defaults to a new local ID."
     (make-directory (file-name-directory sidecar-file) t)
     (with-temp-file sidecar-file
       (insert (format "#+title: Comments for %s\n" (file-name-nondirectory source-file)))
-      (insert (format "#+source: %s\n\n"
-		      (hub/org-comment--relative-source-file source-file sidecar-file))))))
+      (insert (format "#+source: %s\n"
+		      (hub/org-comment--relative-source-file source-file sidecar-file)))
+      (insert "#+todo: OPEN TODO | RESOLVED\n\n"))))
 
 (defun hub/org-comment--property-line (key value)
   "Return an Org property line for KEY and VALUE."
   (format ":%s: %s\n" key value))
 
-(defun hub/org-comment-format-entry (record sidecar-file)
-  "Return Org text for comment RECORD stored in SIDECAR-FILE."
-  (let ((source-file (plist-get record :source-file)))
-    (concat
-     (format "* TODO %s\n" (plist-get record :title))
-     ":PROPERTIES:\n"
-     (hub/org-comment--property-line "HUB_COMMENT_ID" (plist-get record :id))
-     (hub/org-comment--property-line "HUB_COMMENT_STATUS" (plist-get record :status))
-     (hub/org-comment--property-line
-      "HUB_COMMENT_SOURCE_FILE"
-      (hub/org-comment--relative-source-file source-file sidecar-file))
-     (hub/org-comment--property-line "HUB_COMMENT_TARGET_TEXT" (plist-get record :target-text))
-     (hub/org-comment--property-line "HUB_COMMENT_TARGET_HASH" (plist-get record :target-hash))
-     (hub/org-comment--property-line "HUB_COMMENT_TARGET_START" (plist-get record :target-start))
-     (hub/org-comment--property-line "HUB_COMMENT_TARGET_END" (plist-get record :target-end))
-     (hub/org-comment--property-line "HUB_COMMENT_TARGET_START_LINE" (plist-get record :target-start-line))
-     (hub/org-comment--property-line "HUB_COMMENT_TARGET_START_COLUMN" (plist-get record :target-start-column))
-     (hub/org-comment--property-line "HUB_COMMENT_TARGET_END_LINE" (plist-get record :target-end-line))
-     (hub/org-comment--property-line "HUB_COMMENT_TARGET_END_COLUMN" (plist-get record :target-end-column))
-     ":END:\n\n"
-     (string-trim-right (or (plist-get record :body) ""))
-     "\n")))
+(defun hub/org-comment-format-entry (record _sidecar-file)
+  "Return Org text for comment RECORD."
+  (concat
+   (format "* %s %s\n" (or (plist-get record :status) "OPEN") (plist-get record :title))
+   ":PROPERTIES:\n"
+   (hub/org-comment--property-line "HUB_COMMENT_ID" (plist-get record :id))
+   (hub/org-comment--property-line
+    "HUB_COMMENT_TARGET"
+    (format "%s %s" (plist-get record :target-start) (plist-get record :target-end)))
+   (hub/org-comment--property-line
+    "HUB_COMMENT_TARGET_LINES"
+    (format "%s:%s %s:%s"
+	    (plist-get record :target-start-line)
+	    (plist-get record :target-start-column)
+	    (plist-get record :target-end-line)
+	    (plist-get record :target-end-column)))
+   (hub/org-comment--property-line "HUB_COMMENT_TARGET_TEXT" (plist-get record :target-text))
+   (hub/org-comment--property-line "HUB_COMMENT_TARGET_HASH" (plist-get record :target-hash))
+   ":END:\n\n"
+   (string-trim-right (or (plist-get record :body) ""))
+   "\n"))
 
 (defun hub/org-comment-append-to-sidecar (record &optional sidecar-file)
   "Append comment RECORD to SIDECAR-FILE and return SIDECAR-FILE.
@@ -144,8 +144,8 @@ SIDECAR-FILE defaults to the sidecar path for RECORD's source file."
   (save-excursion
     (let ((body-start (progn
 			(forward-line 1)
-			(when (looking-at-p "[	]*:PROPERTIES:[		]*$")
-			  (when (re-search-forward "^[	]*:END:[	]*$" end t)
+			(when (looking-at-p "[[:space:]]*:PROPERTIES:[[:space:]]*$")
+			  (when (re-search-forward "^[[:space:]]*:END:[[:space:]]*$" end t)
 			    (forward-line 1)))
 			(point))))
       (string-trim (buffer-substring-no-properties body-start end)))))
@@ -155,13 +155,22 @@ SIDECAR-FILE defaults to the sidecar path for RECORD's source file."
   (when-let* ((value (alist-get key properties nil nil #'equal)))
     (string-to-number value)))
 
+(defun hub/org-comment--target-bounds (properties)
+  "Return target bounds cons from compact PROPERTIES."
+  (when-let* ((value (alist-get "HUB_COMMENT_TARGET" properties nil nil #'equal))
+	      (parts (split-string value "[[:space:]]+" t)))
+    (when (= 2 (length parts))
+      (cons (string-to-number (car parts))
+	    (string-to-number (cadr parts))))))
+
 (defun hub/org-comment--record-from-heading (sidecar-file source-buffer)
   "Return a comment record at heading in SIDECAR-FILE for SOURCE-BUFFER."
   (let* ((properties (hub/org-comment--parse-properties-at-heading))
 	 (id (alist-get "HUB_COMMENT_ID" properties nil nil #'equal))
 	 (target-text (alist-get "HUB_COMMENT_TARGET_TEXT" properties nil nil #'equal))
-	 (start (hub/org-comment--number-property properties "HUB_COMMENT_TARGET_START"))
-	 (end (hub/org-comment--number-property properties "HUB_COMMENT_TARGET_END"))
+	 (target-bounds (hub/org-comment--target-bounds properties))
+	 (start (car target-bounds))
+	 (end (cdr target-bounds))
 	 (entry-end (save-excursion (org-end-of-subtree t t)))
 	 (body (hub/org-comment--entry-body entry-end)))
     (when (and id target-text start end)
@@ -175,8 +184,7 @@ SIDECAR-FILE defaults to the sidecar path for RECORD's source file."
 	  (list :type 'comment
 		:id id
 		:kind 'comment
-		:status (or (alist-get "HUB_COMMENT_STATUS" properties nil nil #'equal) "open")
-		:source-file (alist-get "HUB_COMMENT_SOURCE_FILE" properties nil nil #'equal)
+		:status (or (alist-get "TODO" properties nil nil #'equal) "OPEN")
 		:sidecar-file sidecar-file
 		:target-text target-text
 		:target-start start
