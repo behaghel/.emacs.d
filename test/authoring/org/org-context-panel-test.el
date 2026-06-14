@@ -239,6 +239,41 @@
       (when (buffer-live-p other-buffer) (kill-buffer other-buffer))
       (delete-directory dir t))))
 
+(ert-deftest hub/org-context-panel-ignores-selection-while-minibuffer-active ()
+  "A visible context panel must not follow or close during minibuffer prompts."
+  (let* ((dir (make-temp-file "hub-context-panel-minibuffer-" t))
+	 (source-file (expand-file-name "source.org" dir))
+	 (source-buffer (find-file-noselect source-file))
+	 (other-buffer (generate-new-buffer " *hub context minibuffer*")))
+    (unwind-protect
+	(progn
+	  (with-current-buffer source-buffer
+	    (erase-buffer)
+	    (insert "Text[fn:one]\n\n[fn:one] Body.\n")
+	    (save-buffer)
+	    (org-mode))
+	  (with-current-buffer other-buffer
+	    (emacs-lisp-mode))
+	  (delete-other-windows)
+	  (switch-to-buffer source-buffer)
+	  (hub/org-context-panel-open)
+	  (let ((panel-window (hub/org-context-panel--visible-window)))
+	    (let ((hub/org-context-panel--following t))
+	      (switch-to-buffer other-buffer))
+	    (cl-letf (((symbol-function 'active-minibuffer-window)
+		       (lambda () (selected-window))))
+	      (hub/org-context-panel--follow-selected-buffer))
+	    (should (window-live-p panel-window))
+	    (should (eq panel-window (hub/org-context-panel--visible-window)))
+	    (with-current-buffer (window-buffer panel-window)
+	      (should (equal source-buffer hub/org-context-panel-source-buffer)))))
+      (hub/org-context-panel--disable-follow)
+      (when-let* ((panel (get-buffer hub/org-context-panel-buffer-name)))
+	(kill-buffer panel))
+      (when (buffer-live-p source-buffer) (kill-buffer source-buffer))
+      (when (buffer-live-p other-buffer) (kill-buffer other-buffer))
+      (delete-directory dir t))))
+
 (ert-deftest hub/org-context-panel-follows-selected-org-buffer ()
   "A visible context panel rebinds to the selected Org buffer."
   (let* ((dir (make-temp-file "hub-context-panel-follow-" t))
