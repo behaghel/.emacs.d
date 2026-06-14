@@ -90,27 +90,24 @@
 					       (insert "S"))
 					     (should-not (hub/org-comment-collect (current-buffer))))))
 
-(ert-deftest hub/org-comment-create-command-writes-sidecar-and-refreshes-panel ()
-  "The interactive command writes a sidecar comment and refreshes context UI."
+(ert-deftest hub/org-comment-create-command-writes-sidecar-and-opens-body ()
+  "The interactive command writes a sidecar comment and opens its body."
   (hub/org-comments-test--with-file-buffer "article.org" "Alpha selected text omega"
 					   (let ((start (progn (goto-char (point-min)) (search-forward "selected") (match-beginning 0)))
-						 (end (match-end 0))
-						 (opened nil))
+						 (end (match-end 0)))
 					     (let ((sidecar (hub/org-comment-sidecar-path buffer-file-name)))
-					       (cl-letf (((symbol-function 'hub/org-context-panel-open)
-							  (lambda () (setq opened t)))
-							 ((symbol-function 'hub/org-comment-generate-id)
+					       (cl-letf (((symbol-function 'hub/org-comment-generate-id)
 							  (lambda () "local-command")))
 						 (hub/org-comment-create start end "Please revise."))
-					       (should opened)
-					       (should (= start (point)))
+					       (should (equal sidecar buffer-file-name))
+					       (should (looking-at-p "Please revise\."))
 					       (with-temp-buffer
 						 (insert-file-contents sidecar)
 						 (should (search-forward ":HUB_COMMENT_ID: local-command" nil t))
 						 (should (search-forward "Please revise." nil t)))))))
 
-(ert-deftest hub/org-comment-reanchor-prompts-for-single-stale-comment ()
-  "Reanchoring one stale comment still prompts for explicit confirmation."
+(ert-deftest hub/org-comment-reanchor-uses-only-stale-comment-without-prompt ()
+  "Reanchoring one stale comment avoids minibuffer prompts for safety."
   (hub/org-comments-test--with-file-buffer "article.org" "Alpha selected text omega"
 					   (let* ((old-start (progn
 							       (goto-char (point-min))
@@ -127,21 +124,17 @@
 								(goto-char (point-min))
 								(search-forward "text")
 								(match-beginning 0)))
-						   (new-end (match-end 0))
-						   (prompted nil))
+						   (new-end (match-end 0)))
 					       (cl-letf (((symbol-function 'hub/org-context-panel-open) #'ignore)
 							 ((symbol-function 'completing-read)
-							  (lambda (_prompt collection &rest _args)
-							    (setq prompted t)
-							    (should (equal '("local-single") (all-completions "" collection nil)))
-							    "local-single")))
+							  (lambda (&rest _)
+							    (error "Reanchor should not prompt while hardening visual commands"))))
 						 (hub/org-comment-reanchor new-start new-end))
-					       (should prompted)
 					       (should (equal "text" (plist-get (car (hub/org-comment-collect (current-buffer)))
 										:target-text)))))))
 
-(ert-deftest hub/org-comment-reanchor-completes-multiple-stale-comments-safely ()
-  "Reanchoring multiple stale comments completes over plain candidate IDs."
+(ert-deftest hub/org-comment-reanchor-refuses-multiple-stale-comments-without-prompt ()
+  "Reanchoring multiple stale comments errors instead of prompting unsafely."
   (hub/org-comments-test--with-file-buffer "article.org" "Alpha selected text omega tail"
 					   (let* ((selected-start (progn
 								    (goto-char (point-min))
@@ -168,17 +161,8 @@
 								(search-forward "tail")
 								(match-beginning 0)))
 						   (new-end (match-end 0)))
-					       (cl-letf (((symbol-function 'hub/org-context-panel-open) #'ignore)
-							 ((symbol-function 'completing-read)
-							  (lambda (_prompt collection &rest _args)
-							    (let ((candidates (all-completions "" collection nil)))
-							      (should (equal '("local-first" "local-second") candidates))
-							      "local-second"))))
-						 (hub/org-comment-reanchor new-start new-end))
-					       (let ((comments (hub/org-comment-collect (current-buffer) t)))
-						 (should (= 2 (length comments)))
-						 (should (eq 'stale (plist-get (car comments) :anchor-state)))
-						 (should (equal "tail" (plist-get (cadr comments) :target-text))))))))
+					       (should-error (hub/org-comment-reanchor new-start new-end)
+							     :type 'user-error)))))
 
 (ert-deftest hub/org-comment-reanchor-updates-stale-comment-target ()
   "Reanchoring updates stale comment metadata to the selected source region."
