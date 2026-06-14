@@ -170,7 +170,7 @@ wrapped lines, visual filling, and partial scrolling follow the live window."
        (hub/org-context-panel--comment-item-p item)
        (let ((start (plist-get item :target-start))
 	     (end (plist-get item :target-end)))
-	 (and start end (<= start source-point) (< source-point end)))))
+	 (and start end (<= start source-point) (<= source-point end)))))
 
 (defun hub/org-context-panel--item-with-current-state (item source-point)
   "Return ITEM copied with current-state metadata for SOURCE-POINT."

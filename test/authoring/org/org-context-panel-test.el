@@ -135,7 +135,7 @@
 	     (hub/org-comment-create-record buffer-file-name first-start first-end "First body." "local-first"))
 	    (hub/org-comment-append-to-sidecar
 	     (hub/org-comment-create-record buffer-file-name second-start second-end "Second body." "local-second"))
-	    (goto-char second-start)
+	    (goto-char second-end)
 	    (hub/org-context-panel-render-buffer (current-buffer) panel)
 	    (with-current-buffer panel
 	      (should (search-forward "Second body." nil t))
