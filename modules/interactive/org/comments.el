@@ -35,6 +35,42 @@
   (hub/org-comment-overlays-refresh)
   (hub/org-context-panel-open))
 
+(defun hub/org-comment--active-at-point ()
+  "Return the sidecar comment active at point, or signal a user error."
+  (let ((point (point)))
+    (or (cl-find-if
+	 (lambda (comment)
+	   (let ((start (plist-get comment :target-start))
+		 (end (plist-get comment :target-end)))
+	     (and start end (<= start point) (<= point end))))
+	 (hub/org-comment--valid-comments))
+	(user-error "Point is not inside a commented region"))))
+
+(defun hub/org-comment--set-sidecar-status (comment status)
+  "Set COMMENT sidecar heading TODO keyword to STATUS."
+  (let ((sidecar-file (plist-get comment :sidecar-file))
+	(id (plist-get comment :id)))
+    (unless (and sidecar-file id)
+      (user-error "Comment record is missing sidecar metadata"))
+    (with-temp-buffer
+      (insert-file-contents sidecar-file)
+      (org-mode)
+      (goto-char (point-min))
+      (unless (cl-loop while (re-search-forward org-heading-regexp nil t)
+		       do (goto-char (match-beginning 0))
+		       when (equal id (org-entry-get nil "HUB_COMMENT_ID"))
+		       return (progn (org-todo status) t)
+		       do (forward-line 1))
+	(user-error "Comment %s not found in sidecar" id))
+      (write-region (point-min) (point-max) sidecar-file nil 'silent))))
+
+(defun hub/org-comment-set-status (status)
+  "Set the active comment at point to STATUS."
+  (let ((comment (hub/org-comment--active-at-point)))
+    (hub/org-comment--set-sidecar-status comment status)
+    (hub/org-comment-overlays-refresh)
+    (hub/org-context-panel-open)))
+
 ;;;###autoload
 (defun hub/org-comment-next ()
   "Jump to the next sidecar comment in the current Org buffer."
@@ -60,6 +96,38 @@
 			comments)
 		       (car comments))))
     (hub/org-comment--goto previous)))
+
+;;;###autoload
+(defun hub/org-comment-mark-open ()
+  "Mark the active sidecar comment at point as open."
+  (interactive)
+  (hub/org-comment-set-status "OPEN"))
+
+;;;###autoload
+(defun hub/org-comment-mark-todo ()
+  "Mark the active sidecar comment at point as requiring action."
+  (interactive)
+  (hub/org-comment-set-status "TODO"))
+
+;;;###autoload
+(defun hub/org-comment-mark-resolved ()
+  "Mark the active sidecar comment at point as resolved."
+  (interactive)
+  (hub/org-comment-set-status "RESOLVED"))
+
+;;;###autoload
+(defun hub/org-comment-cycle-status ()
+  "Cycle the active sidecar comment status through OPEN, TODO, and RESOLVED."
+  (interactive)
+  (let* ((comment (hub/org-comment--active-at-point))
+	 (status (plist-get comment :status))
+	 (next (pcase status
+		 ("OPEN" "TODO")
+		 ("TODO" "RESOLVED")
+		 (_ "OPEN"))))
+    (hub/org-comment--set-sidecar-status comment next)
+    (hub/org-comment-overlays-refresh)
+    (hub/org-context-panel-open)))
 
 ;;;###autoload
 (defun hub/org-comment-create (start end body)

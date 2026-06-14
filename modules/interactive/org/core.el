@@ -71,12 +71,16 @@ native behavior."
 			      (kbd "<next>")  #'org-move-subtree-down
 			      (kbd "<prior>") #'org-move-subtree-up
 			      ",fn" #'org-footnote-new
-			      ",om" #'hub/org-context-panel-open
-			      ",oM" #'hub/org-context-panel-mode
+			      ",cm" #'hub/org-context-panel-open
+			      ",cM" #'hub/org-context-panel-mode
+			      ",cO" #'hub/org-comment-mark-open
+			      ",cT" #'hub/org-comment-mark-todo
+			      ",cR" #'hub/org-comment-mark-resolved
+			      ",cs" #'hub/org-comment-cycle-status
 			      ",ov" #'hub/org-insert-veriff-template
 			      "]c" #'hub/org-comment-next
 			      "[c" #'hub/org-comment-previous)
-  (evil-define-key 'visual org-mode-map (kbd ",oc") #'hub/org-comment-create)
+  (evil-define-key 'visual org-mode-map (kbd ",cc") #'hub/org-comment-create)
   (evil-define-key 'motion org-mode-map (kbd "RET") #'org-return)
   (evil-define-key 'motion calendar-mode-map (kbd "RET") #'org-calendar-select)
   (define-key org-mode-map (kbd "<tab>") #'hub/org-tab-dwim)

@@ -32,7 +32,7 @@ The design borrows from excellent setups (Doom, Spacemacs, Prot’s dotemacs) wh
   - `,g`: VCS (Magit, hunk nav, diff)
   - `,s`: Search (ripgrep/consult, in‑buffer, xref)
   - `,e`: Evaluate/Execute (eval/compile/shell)
-  - `,c`: Code (LSP actions, format, refactor)
+  - `,c`: Contextual actions for the current buffer domain; code buffers use it for Code (LSP actions, format, refactor), while Org/prose buffers use it for context-panel comments and review state.
   - `,t`: Test/Toggle (tests; UI toggles under `,t u`)
   - `,d`: Debug (dap/gud; language‑specific debug)
   - `,r`: REPL/Run (start/send buffer/region)
@@ -161,13 +161,24 @@ Open brainstorm for further DWIM dimensions
   - `,f` “Files”, `,b` “Buffers”, `,w` “Windows”, `,p` “Project”, `,g` “VCS/Git”, `,s` “Search”,
     `,e` “Eval/Exec”, `,c` “Code”, `,t` “Test/Toggle”, `,d` “Debug”, `,r` “REPL/Run”,
     `,h` “Help/Docs”, `,o` “Open/Apps”, `,x` “Text/Transform”, `,y` “Yank/Copy”, `,q` “Quit/Session”.
-- Use consistent sub‑keys across languages; e.g., `,t t` is always “test current”, `,c a` is always “code action”.
+- Use consistent sub‑keys across languages; e.g., `,t t` is always “test current”, `,c a` is always “code action” in code buffers.
+
+Org/prose context-panel semantics
+- In Org buffers, `,c` is the Context prefix rather than Code:
+  - `,c c` create a sidecar comment for the visual selection.
+  - `,c m` open the context panel.
+  - `,c M` toggle automatic context-panel follow/refresh mode.
+  - `,c O` mark the active comment OPEN.
+  - `,c T` mark the active comment TODO, meaning action is required from me.
+  - `,c R` mark the active comment RESOLVED.
+  - `,c s` cycle the active comment status.
 
 ## Conflict & Mode Policy
 
 - Mode maps can shadow global leader keys for better UX, but must retain category semantics.
+- `,c` is intentionally domain-contextual: in programming buffers it means Code; in Org/prose buffers it means Context, especially context-panel comments and review state. Do not bind code actions under `,c` in non-code buffers.
 - Packages integrate via mode‑local bindings under localleader unless they fit a global category.
-- Never redefine a category prefix to mean a completely different domain within a mode.
+- Never redefine a category prefix to mean a completely unrelated domain within a mode.
 
 ## Migration Plan
 

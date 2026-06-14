@@ -91,6 +91,31 @@
 						 (should (search-forward ":HUB_COMMENT_ID: local-command" nil t))
 						 (should (search-forward "Please revise." nil t)))))))
 
+(ert-deftest hub/org-comment-status-commands-update-active-sidecar-heading ()
+  "Comment status commands update the active sidecar heading TODO keyword."
+  (hub/org-comments-test--with-file-buffer "article.org" "Alpha selected text omega"
+					   (let* ((start (progn
+							   (goto-char (point-min))
+							   (search-forward "selected")
+							   (match-beginning 0)))
+						  (end (match-end 0))
+						  (sidecar (hub/org-comment-append-to-sidecar
+							    (hub/org-comment-create-record buffer-file-name start end "Act." "local-status"))))
+					     (cl-letf (((symbol-function 'hub/org-context-panel-open) #'ignore))
+					       (goto-char start)
+					       (hub/org-comment-mark-todo)
+					       (with-temp-buffer
+						 (insert-file-contents sidecar)
+						 (should (search-forward "* TODO Comment: selected" nil t)))
+					       (hub/org-comment-cycle-status)
+					       (with-temp-buffer
+						 (insert-file-contents sidecar)
+						 (should (search-forward "* RESOLVED Comment: selected" nil t)))
+					       (hub/org-comment-mark-open)
+					       (with-temp-buffer
+						 (insert-file-contents sidecar)
+						 (should (search-forward "* OPEN Comment: selected" nil t)))))))
+
 (ert-deftest hub/org-comment-navigation-wraps-and-opens-panel ()
   "Comment navigation jumps by target position and refreshes context UI."
   (hub/org-comments-test--with-file-buffer "article.org" "Alpha first beta second omega"
