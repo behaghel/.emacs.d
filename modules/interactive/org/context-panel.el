@@ -6,6 +6,7 @@
 
 ;;; Code:
 
+(require 'cl-lib)
 (require 'hub-org-comments)
 (require 'hub-org-marginalia)
 (require 'org)
@@ -170,6 +171,14 @@ wrapped lines, visual filling, and partial scrolling follow the live window."
       (plist-put (copy-sequence item) :current t)
     item))
 
+(defun hub/org-context-panel--focused-comment (items)
+  "Return the current focused comment from ITEMS, or nil."
+  (cl-find-if
+   (lambda (item)
+     (and (hub/org-context-panel--comment-item-p item)
+	  (plist-get item :current)))
+   items))
+
 (defun hub/org-context-panel--refresh-comment-overlays (source-buffer items)
   "Refresh source comment overlays for comment ITEMS in SOURCE-BUFFER."
   (when (buffer-live-p source-buffer)
@@ -319,9 +328,12 @@ When SOURCE-WINDOW is non-nil, align notes to visible lines in that window."
 			    (lambda (left right)
 			      (< (or (plist-get left :anchor-line) 1)
 				 (or (plist-get right :anchor-line) 1))))))
-	 (items (if (and source-window (window-live-p source-window))
-		    (hub/org-context-panel--items-for-window source-window all-items)
-		  (hub/org-marginalia-layout all-items))))
+	 (focused-comment (hub/org-context-panel--focused-comment all-items))
+	 (items (cond
+		 (focused-comment (list focused-comment))
+		 ((and source-window (window-live-p source-window))
+		  (hub/org-context-panel--items-for-window source-window all-items))
+		 (t (hub/org-marginalia-layout all-items)))))
     (hub/org-context-panel--refresh-comment-overlays source-buffer all-items)
     (with-current-buffer panel-buffer
       (let ((inhibit-read-only t))

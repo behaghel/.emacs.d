@@ -32,7 +32,7 @@ last-reviewed: 2026-06-08
 - Region comments require an active region, keep source Org clean, and render in the context panel when their stored offsets still match the selected text.
 - Comment overlays are enabled for Org buffers by `hub/org-comment-overlays-mode`, while `]c` and `[c` navigate to next and previous sidecar comments and open the context panel.
 - The interactive context panel is explicitly opened or toggled with a buffer-local mode; it must not auto-open globally.
-- Opening the context panel docks visually filled prose toward the panel and renders compact icon/status-chip cards.
+- Opening the context panel docks visually filled prose toward the panel and renders compact icon/status-chip cards; when point is inside a comment target, the panel focuses that comment so it can be read in full.
 - Inline authoring shortcuts are `<fn` for the default note/sidenote and `<ft` for a forced traditional footnote.
 
 ## Integration Notes

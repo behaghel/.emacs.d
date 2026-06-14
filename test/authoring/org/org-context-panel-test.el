@@ -90,6 +90,40 @@
       (kill-buffer panel)
       (delete-directory dir t))))
 
+(ert-deftest hub/org-context-panel-focuses-current-comment ()
+  "When point is inside a comment target, the panel shows only that comment."
+  (let* ((dir (make-temp-file "hub-context-panel-focus-" t))
+	 (source-file (expand-file-name "article.org" dir))
+	 (panel (generate-new-buffer " *hub context focus test*")))
+    (unwind-protect
+	(with-current-buffer (find-file-noselect source-file)
+	  (erase-buffer)
+	  (insert "Alpha first beta second omega")
+	  (save-buffer)
+	  (org-mode)
+	  (let* ((first-start (progn
+				(goto-char (point-min))
+				(search-forward "first")
+				(match-beginning 0)))
+		 (first-end (match-end 0))
+		 (second-start (progn
+				 (search-forward "second")
+				 (match-beginning 0)))
+		 (second-end (match-end 0)))
+	    (hub/org-comment-append-to-sidecar
+	     (hub/org-comment-create-record buffer-file-name first-start first-end "First body." "local-first"))
+	    (hub/org-comment-append-to-sidecar
+	     (hub/org-comment-create-record buffer-file-name second-start second-end "Second body." "local-second"))
+	    (goto-char second-start)
+	    (hub/org-context-panel-render-buffer (current-buffer) panel)
+	    (with-current-buffer panel
+	      (should (search-forward "Second body." nil t))
+	      (should-not (search-forward "First body." nil t)))))
+      (when (get-file-buffer source-file)
+	(kill-buffer (get-file-buffer source-file)))
+      (kill-buffer panel)
+      (delete-directory dir t))))
+
 (ert-deftest hub/org-context-panel-docks-and-restores-visual-fill-column ()
   "Opening the context panel can dock visual-fill-column prose toward the panel."
   (hub/org-context-panel-test--with-source "Text"
