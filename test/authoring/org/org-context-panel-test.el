@@ -30,6 +30,9 @@
 						   (with-current-buffer panel
 						     (should (equal source hub/org-context-panel-source-buffer))
 						     (should buffer-read-only)
+						     (should-not truncate-lines)
+						     (should word-wrap)
+						     (should visual-line-mode)
 						     (should (search-forward "Note body." nil t))))
 					       (kill-buffer panel)))))
 

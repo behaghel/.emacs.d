@@ -90,7 +90,9 @@
 
 (define-derived-mode hub/org-context-panel-buffer-mode special-mode "Org-Context"
   "Major mode for read-only Org context panel buffers."
-  (setq-local truncate-lines nil))
+  (setq-local truncate-lines nil
+	      word-wrap t)
+  (visual-line-mode 1))
 
 (defun hub/org-context-panel--panel-buffer ()
   "Return the panel buffer for the current Org source buffer."
