@@ -59,6 +59,7 @@
   (vertico-buffer-display-action '(display-buffer-reuse-window))
   (vertico-multiform-categories
    '((file reverse)
+     (hub-org-comment (:not reverse))
      (consult-grep buffer)
      (consult-location)
      (imenu buffer)
