@@ -350,6 +350,11 @@ wrapped lines, visual filling, and partial scrolling follow the live window."
     (with-current-buffer panel
       hub/org-context-panel-source-buffer)))
 
+(defun hub/org-context-panel--minibuffer-active-p ()
+  "Return non-nil while minibuffer interaction is active."
+  (or (active-minibuffer-window)
+      (minibufferp (window-buffer (selected-window)))))
+
 (defun hub/org-context-panel--enable-follow ()
   "Enable automatic context panel following."
   (add-hook 'buffer-list-update-hook #'hub/org-context-panel--follow-selected-buffer))
@@ -360,7 +365,8 @@ wrapped lines, visual filling, and partial scrolling follow the live window."
 
 (defun hub/org-context-panel--follow-selected-buffer ()
   "Keep a visible context panel bound to the selected Org buffer."
-  (unless hub/org-context-panel--following
+  (unless (or hub/org-context-panel--following
+	      (hub/org-context-panel--minibuffer-active-p))
     (let ((hub/org-context-panel--following t))
       (when-let* ((panel-window (hub/org-context-panel--visible-window))
 		  (source-window (selected-window)))
