@@ -29,6 +29,32 @@
   (or (plist-get comment :target-start)
       (plist-get comment :jump-pos)))
 
+(defun hub/org-comment--stale-comments ()
+  "Return stale sidecar comments for the current Org buffer."
+  (cl-remove-if-not
+   (lambda (comment)
+     (eq (plist-get comment :anchor-state) 'stale))
+   (or (hub/org-comment-collect (current-buffer) t)
+       (user-error "No comments in this buffer"))))
+
+(defun hub/org-comment--completion-label (comment)
+  "Return completion label for COMMENT."
+  (format "%s %s — %s"
+	  (plist-get comment :id)
+	  (or (plist-get comment :status) "OPEN")
+	  (or (plist-get comment :target-text) "")))
+
+(defun hub/org-comment--read-stale-comment ()
+  "Read a stale sidecar comment from minibuffer completion."
+  (let* ((comments (hub/org-comment--stale-comments))
+	 (choices (mapcar (lambda (comment)
+			    (cons (hub/org-comment--completion-label comment) comment))
+			  comments)))
+    (unless choices
+      (user-error "No stale comments in this buffer"))
+    (alist-get (completing-read "Reanchor stale comment: " choices nil t)
+	       choices nil nil #'equal)))
+
 (defun hub/org-comment--goto (comment)
   "Move point to COMMENT and open the context panel."
   (goto-char (hub/org-comment--target-start comment))
@@ -129,6 +155,30 @@
   "Jump to the active sidecar comment heading."
   (interactive)
   (hub/org-comment--goto-sidecar-heading (hub/org-comment--active-at-point)))
+
+;;;###autoload
+(defun hub/org-comment-reanchor (start end comment)
+  "Reanchor stale COMMENT to source region START to END."
+  (interactive
+   (let ((bounds (hub/org-comment--region-bounds)))
+     (list (car bounds) (cdr bounds) (hub/org-comment--read-stale-comment))))
+  (unless (derived-mode-p 'org-mode)
+    (user-error "Org comments only work in Org buffers"))
+  (let* ((source-buffer (current-buffer))
+	 (record (hub/org-comment-create-record
+		  buffer-file-name start end "" (plist-get comment :id))))
+    (hub/org-comment-update-anchor
+     (plist-get comment :sidecar-file)
+     (plist-get comment :id)
+     record)
+    (deactivate-mark)
+    (when (and (bound-and-true-p evil-mode)
+	       (fboundp 'evil-normal-state))
+      (evil-normal-state))
+    (with-current-buffer source-buffer
+      (goto-char start)
+      (hub/org-comment-overlays-refresh)
+      (hub/org-context-panel-open))))
 
 ;;;###autoload
 (defun hub/org-comment-edit ()

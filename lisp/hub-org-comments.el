@@ -135,6 +135,35 @@ SIDECAR-FILE defaults to the sidecar path for RECORD's source file."
       (write-region (point-min) (point-max) target-file nil 'silent))
     target-file))
 
+(defun hub/org-comment-update-anchor (sidecar-file comment-id record)
+  "Update COMMENT-ID anchor metadata in SIDECAR-FILE from RECORD."
+  (with-temp-buffer
+    (insert-file-contents sidecar-file)
+    (org-mode)
+    (goto-char (point-min))
+    (unless (cl-loop while (re-search-forward org-heading-regexp nil t)
+		     do (goto-char (match-beginning 0))
+		     when (equal comment-id (org-entry-get nil "HUB_COMMENT_ID"))
+		     return (progn
+			      (org-entry-put nil "HUB_COMMENT_TARGET"
+					     (format "%s %s"
+						     (plist-get record :target-start)
+						     (plist-get record :target-end)))
+			      (org-entry-put nil "HUB_COMMENT_TARGET_LINES"
+					     (format "%s:%s %s:%s"
+						     (plist-get record :target-start-line)
+						     (plist-get record :target-start-column)
+						     (plist-get record :target-end-line)
+						     (plist-get record :target-end-column)))
+			      (org-entry-put nil "HUB_COMMENT_TARGET_TEXT"
+					     (plist-get record :target-text))
+			      (org-entry-put nil "HUB_COMMENT_TARGET_HASH"
+					     (plist-get record :target-hash))
+			      t)
+		     do (forward-line 1))
+      (user-error "Comment %s not found in sidecar" comment-id))
+    (write-region (point-min) (point-max) sidecar-file nil 'silent)))
+
 (defun hub/org-comment--parse-properties-at-heading ()
   "Return an alist of Org properties at point without inherited values."
   (org-entry-properties nil nil))

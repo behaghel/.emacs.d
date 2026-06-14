@@ -71,6 +71,7 @@ native behavior."
 			      (kbd "<next>")  #'org-move-subtree-down
 			      (kbd "<prior>") #'org-move-subtree-up
 			      ",fn" #'org-footnote-new
+			      ",cA" #'hub/org-comment-reanchor
 			      ",ce" #'hub/org-comment-edit
 			      ",cj" #'hub/org-comment-jump-to-sidecar
 			      ",cm" #'hub/org-context-panel-open

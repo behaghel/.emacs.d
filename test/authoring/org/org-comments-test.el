@@ -109,6 +109,39 @@
 						 (should (search-forward ":HUB_COMMENT_ID: local-command" nil t))
 						 (should (search-forward "Please revise." nil t)))))))
 
+(ert-deftest hub/org-comment-reanchor-updates-stale-comment-target ()
+  "Reanchoring updates stale comment metadata to the selected source region."
+  (hub/org-comments-test--with-file-buffer "article.org" "Alpha selected text omega"
+					   (let* ((old-start (progn
+							       (goto-char (point-min))
+							       (search-forward "selected")
+							       (match-beginning 0)))
+						  (old-end (match-end 0))
+						  (sidecar (hub/org-comment-append-to-sidecar
+							    (hub/org-comment-create-record buffer-file-name old-start old-end "Repair." "local-reanchor"))))
+					     (save-excursion
+					       (goto-char old-start)
+					       (delete-char 1)
+					       (insert "S"))
+					     (let* ((new-start (progn
+								 (goto-char (point-min))
+								 (search-forward "text")
+								 (match-beginning 0)))
+						    (new-end (match-end 0))
+						    (stale (car (hub/org-comment-collect (current-buffer) t))))
+					       (cl-letf (((symbol-function 'hub/org-context-panel-open) #'ignore))
+						 (hub/org-comment-reanchor new-start new-end stale))
+					       (should (= new-start (point)))
+					       (let ((comments (hub/org-comment-collect (current-buffer))))
+						 (should (= 1 (length comments)))
+						 (should (equal "local-reanchor" (plist-get (car comments) :id)))
+						 (should (= new-start (plist-get (car comments) :target-start)))
+						 (should (equal "text" (plist-get (car comments) :target-text))))
+					       (with-temp-buffer
+						 (insert-file-contents sidecar)
+						 (should (search-forward ":HUB_COMMENT_TARGET_TEXT: text" nil t))
+						 (should (search-forward ":HUB_COMMENT_TARGET_HASH: sha256:" nil t)))))))
+
 (ert-deftest hub/org-comment-edit-jumps-to-body-and-narrows-subtree ()
   "Editing an active comment opens its sidecar body narrowed to the subtree."
   (hub/org-comments-test--with-file-buffer "article.org" "Alpha selected text omega"
