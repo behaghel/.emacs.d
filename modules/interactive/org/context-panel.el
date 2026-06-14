@@ -96,6 +96,9 @@
 (defvar-local hub/org-context-panel--visual-fill-state nil
   "Saved visual-fill-column state while context panel docks prose.")
 
+(defvar hub/org-context-panel--following nil
+  "Non-nil while the context panel follow hook is refreshing.")
+
 (defvar hub/org-context-panel-buffer-mode-map
   (let ((map (make-sparse-keymap)))
     (define-key map (kbd "RET") #'hub/org-context-panel-jump-to-definition)
@@ -283,8 +286,10 @@ wrapped lines, visual filling, and partial scrolling follow the live window."
       (when (bound-and-true-p visual-fill-column-mode)
 	(unless hub/org-context-panel--visual-fill-state
 	  (setq hub/org-context-panel--visual-fill-state
-		(list :center visual-fill-column-center-text
-		      :extra visual-fill-column-extra-text-width)))
+		(list :center (and (boundp 'visual-fill-column-center-text)
+				   visual-fill-column-center-text)
+		      :extra (and (boundp 'visual-fill-column-extra-text-width)
+				  visual-fill-column-extra-text-width))))
 	(let* ((margin (hub/org-context-panel--visual-fill-total-margin source-window))
 	       (half (/ margin 2)))
 	  ;; `visual-fill-column' can only left-dock or center text directly.  Keep
@@ -314,6 +319,44 @@ wrapped lines, visual filling, and partial scrolling follow the live window."
   "Refresh a visible context panel after source-buffer commands."
   (when hub/org-context-panel-mode
     (hub/org-context-panel-refresh)))
+
+(defun hub/org-context-panel--visible-window ()
+  "Return the visible context panel window, or nil."
+  (when-let* ((panel (get-buffer hub/org-context-panel-buffer-name)))
+    (get-buffer-window panel t)))
+
+(defun hub/org-context-panel--panel-source-buffer ()
+  "Return the source buffer currently rendered by the context panel."
+  (when-let* ((panel (get-buffer hub/org-context-panel-buffer-name)))
+    (with-current-buffer panel
+      hub/org-context-panel-source-buffer)))
+
+(defun hub/org-context-panel--enable-follow ()
+  "Enable automatic context panel following."
+  (add-hook 'buffer-list-update-hook #'hub/org-context-panel--follow-selected-buffer))
+
+(defun hub/org-context-panel--disable-follow ()
+  "Disable automatic context panel following."
+  (remove-hook 'buffer-list-update-hook #'hub/org-context-panel--follow-selected-buffer))
+
+(defun hub/org-context-panel--follow-selected-buffer ()
+  "Keep a visible context panel bound to the selected Org buffer."
+  (unless hub/org-context-panel--following
+    (let ((hub/org-context-panel--following t))
+      (when-let* ((panel-window (hub/org-context-panel--visible-window))
+		  (source-window (selected-window)))
+	(unless (eq source-window panel-window)
+	  (let ((source-buffer (window-buffer source-window)))
+	    (if (with-current-buffer source-buffer (derived-mode-p 'org-mode))
+		(let ((previous-source (hub/org-context-panel--panel-source-buffer))
+		      (panel-buffer (window-buffer panel-window)))
+		  (unless (eq previous-source source-buffer)
+		    (hub/org-context-panel--restore-prose-docking previous-source))
+		  (hub/org-context-panel--dock-prose source-window)
+		  (hub/org-context-panel-render-buffer source-buffer panel-buffer source-window)
+		  (with-current-buffer source-buffer
+		    (setq hub/org-context-panel--panel-buffer panel-buffer)))
+	      (hub/org-context-panel-close))))))))
 
 
 (defun hub/org-context-panel--truncate (text length)
@@ -454,24 +497,29 @@ When SOURCE-WINDOW is non-nil, align notes to visible lines in that window."
     (hub/org-context-panel-render-buffer source-buffer panel source-window)
     (with-current-buffer source-buffer
       (setq hub/org-context-panel--panel-buffer panel))
+    (hub/org-context-panel--enable-follow)
     panel))
 
 ;;;###autoload
 (defun hub/org-context-panel-close ()
   "Close the context side panel associated with the current buffer."
   (interactive)
-  (let ((source-buffer (if (derived-mode-p 'hub/org-context-panel-buffer-mode)
-			   hub/org-context-panel-source-buffer
-			 (current-buffer))))
+  (hub/org-context-panel--disable-follow)
+  (let* ((panel-window (hub/org-context-panel--visible-window))
+	 (source-buffer (cond
+			 ((derived-mode-p 'hub/org-context-panel-buffer-mode)
+			  hub/org-context-panel-source-buffer)
+			 ((bound-and-true-p hub/org-context-panel--panel-buffer)
+			  (current-buffer))
+			 ((hub/org-context-panel--panel-source-buffer))
+			 (t (current-buffer)))))
     (when (buffer-live-p source-buffer)
       (hub/org-context-panel--restore-prose-docking source-buffer)
       (with-current-buffer source-buffer
 	(unless hub/org-comment-overlays-mode
-	  (hub/org-context-panel--delete-comment-overlays))
-	(when-let* ((panel (and (boundp 'hub/org-context-panel--panel-buffer)
-				hub/org-context-panel--panel-buffer))
-		    (window (get-buffer-window panel t)))
-	  (quit-window nil window))))))
+	  (hub/org-context-panel--delete-comment-overlays))))
+    (when (window-live-p panel-window)
+      (quit-window nil panel-window))))
 
 ;;;###autoload
 (defun hub/org-context-panel-jump-to-definition ()

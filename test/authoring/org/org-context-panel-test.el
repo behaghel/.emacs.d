@@ -165,6 +165,84 @@
       (kill-buffer panel)
       (delete-directory dir t))))
 
+(ert-deftest hub/org-context-panel-closes-on-selected-non-org-buffer ()
+  "A visible context panel closes when selection moves to a non-Org buffer."
+  (let* ((dir (make-temp-file "hub-context-panel-non-org-" t))
+	 (source-file (expand-file-name "source.org" dir))
+	 (source-buffer (find-file-noselect source-file))
+	 (other-buffer (generate-new-buffer " *hub context non-org*")))
+    (unwind-protect
+	(progn
+	  (with-current-buffer source-buffer
+	    (erase-buffer)
+	    (insert "Text[fn:one]\n\n[fn:one] Body.\n")
+	    (save-buffer)
+	    (org-mode))
+	  (with-current-buffer other-buffer
+	    (emacs-lisp-mode))
+	  (delete-other-windows)
+	  (switch-to-buffer source-buffer)
+	  (hub/org-context-panel-open)
+	  (should (hub/org-context-panel--visible-window))
+	  (switch-to-buffer other-buffer)
+	  (hub/org-context-panel--follow-selected-buffer)
+	  (should-not (hub/org-context-panel--visible-window)))
+      (hub/org-context-panel--disable-follow)
+      (when-let* ((panel (get-buffer hub/org-context-panel-buffer-name)))
+	(kill-buffer panel))
+      (when (buffer-live-p source-buffer) (kill-buffer source-buffer))
+      (when (buffer-live-p other-buffer) (kill-buffer other-buffer))
+      (delete-directory dir t))))
+
+(ert-deftest hub/org-context-panel-follows-selected-org-buffer ()
+  "A visible context panel rebinds to the selected Org buffer."
+  (let* ((dir (make-temp-file "hub-context-panel-follow-" t))
+	 (first-file (expand-file-name "first.org" dir))
+	 (second-file (expand-file-name "second.org" dir))
+	 (first-buffer (find-file-noselect first-file))
+	 (second-buffer (find-file-noselect second-file)))
+    (unwind-protect
+	(progn
+	  (with-current-buffer first-buffer
+	    (erase-buffer)
+	    (insert "Alpha first omega")
+	    (save-buffer)
+	    (org-mode)
+	    (let ((start (progn
+			   (goto-char (point-min))
+			   (search-forward "first")
+			   (match-beginning 0)))
+		  (end (match-end 0)))
+	      (hub/org-comment-append-to-sidecar
+	       (hub/org-comment-create-record buffer-file-name start end "First body." "local-first"))))
+	  (with-current-buffer second-buffer
+	    (erase-buffer)
+	    (insert "Beta second omega")
+	    (save-buffer)
+	    (org-mode)
+	    (let ((start (progn
+			   (goto-char (point-min))
+			   (search-forward "second")
+			   (match-beginning 0)))
+		  (end (match-end 0)))
+	      (hub/org-comment-append-to-sidecar
+	       (hub/org-comment-create-record buffer-file-name start end "Second body." "local-second"))))
+	  (delete-other-windows)
+	  (switch-to-buffer first-buffer)
+	  (hub/org-context-panel-open)
+	  (switch-to-buffer second-buffer)
+	  (hub/org-context-panel--follow-selected-buffer)
+	  (with-current-buffer (get-buffer hub/org-context-panel-buffer-name)
+	    (should (equal second-buffer hub/org-context-panel-source-buffer))
+	    (should (search-forward "Second body." nil t))
+	    (should-not (search-forward "First body." nil t))))
+      (hub/org-context-panel--disable-follow)
+      (when-let* ((panel (get-buffer hub/org-context-panel-buffer-name)))
+	(kill-buffer panel))
+      (when (buffer-live-p first-buffer) (kill-buffer first-buffer))
+      (when (buffer-live-p second-buffer) (kill-buffer second-buffer))
+      (delete-directory dir t))))
+
 (ert-deftest hub/org-context-panel-docks-and-restores-visual-fill-column ()
   "Opening the context panel can dock visual-fill-column prose toward the panel."
   (hub/org-context-panel-test--with-source "Text"
