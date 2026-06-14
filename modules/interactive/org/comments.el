@@ -52,22 +52,21 @@
 	 (choices (mapcar (lambda (comment)
 			    (cons (plist-get comment :id) comment))
 			  comments)))
-    (pcase (length comments)
-      (0 (user-error "No stale comments in this buffer"))
-      (1 (car comments))
-      (_ (let* ((completion-extra-properties
-		 `(:annotation-function
-		   ,(lambda (candidate)
-		      (when-let* ((comment (alist-get candidate choices nil nil #'equal)))
-			(hub/org-comment--completion-label comment)))))
-		(table (if (fboundp 'completion-table-with-metadata)
-			   (completion-table-with-metadata
-			    (mapcar #'car choices)
-			    '((category . hub-org-comment)))
-			 (mapcar #'car choices)))
-		(choice (completing-read "Reanchor stale comment: " table nil t
-					 nil 'hub/org-comment-reanchor-history)))
-	   (alist-get choice choices nil nil #'equal))))))
+    (unless choices
+      (user-error "No stale comments in this buffer"))
+    (let* ((completion-extra-properties
+	    `(:annotation-function
+	      ,(lambda (candidate)
+		 (when-let* ((comment (alist-get candidate choices nil nil #'equal)))
+		   (hub/org-comment--completion-label comment)))))
+	   (table (if (fboundp 'completion-table-with-metadata)
+		      (completion-table-with-metadata
+		       (mapcar #'car choices)
+		       '((category . hub-org-comment)))
+		    (mapcar #'car choices)))
+	   (choice (completing-read "Reanchor stale comment: " table nil t
+				    nil 'hub/org-comment-reanchor-history)))
+      (alist-get choice choices nil nil #'equal))))
 
 (defun hub/org-comment--leave-visual-state ()
   "Deactivate visual selection before prompting or mutating sidecars."

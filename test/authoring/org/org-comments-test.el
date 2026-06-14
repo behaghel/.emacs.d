@@ -109,6 +109,37 @@
 						 (should (search-forward ":HUB_COMMENT_ID: local-command" nil t))
 						 (should (search-forward "Please revise." nil t)))))))
 
+(ert-deftest hub/org-comment-reanchor-prompts-for-single-stale-comment ()
+  "Reanchoring one stale comment still prompts for explicit confirmation."
+  (hub/org-comments-test--with-file-buffer "article.org" "Alpha selected text omega"
+					   (let* ((old-start (progn
+							       (goto-char (point-min))
+							       (search-forward "selected")
+							       (match-beginning 0)))
+						  (old-end (match-end 0)))
+					     (hub/org-comment-append-to-sidecar
+					      (hub/org-comment-create-record buffer-file-name old-start old-end "Repair." "local-single"))
+					     (save-excursion
+					       (goto-char old-start)
+					       (delete-char 1)
+					       (insert "S"))
+					     (let ((new-start (progn
+								(goto-char (point-min))
+								(search-forward "text")
+								(match-beginning 0)))
+						   (new-end (match-end 0))
+						   (prompted nil))
+					       (cl-letf (((symbol-function 'hub/org-context-panel-open) #'ignore)
+							 ((symbol-function 'completing-read)
+							  (lambda (_prompt collection &rest _args)
+							    (setq prompted t)
+							    (should (equal '("local-single") (all-completions "" collection nil)))
+							    "local-single")))
+						 (hub/org-comment-reanchor new-start new-end))
+					       (should prompted)
+					       (should (equal "text" (plist-get (car (hub/org-comment-collect (current-buffer)))
+										:target-text)))))))
+
 (ert-deftest hub/org-comment-reanchor-completes-multiple-stale-comments-safely ()
   "Reanchoring multiple stale comments completes over plain candidate IDs."
   (hub/org-comments-test--with-file-buffer "article.org" "Alpha selected text omega tail"
