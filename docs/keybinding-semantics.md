@@ -166,6 +166,8 @@ Open brainstorm for further DWIM dimensions
 Org/prose context-panel semantics
 - In Org buffers, `,c` is the Context prefix rather than Code:
   - `,c c` create a sidecar comment for the visual selection.
+  - `,c e` edit the active sidecar comment body narrowed to its subtree.
+  - `,c j` jump to the active sidecar comment heading.
   - `,c m` open the context panel.
   - `,c M` toggle automatic context-panel follow/refresh mode.
   - `,c O` mark the active comment OPEN.

@@ -31,7 +31,7 @@ last-reviewed: 2026-06-08
 - Review comments are not marginalia footnote kinds; local comments live in colocated sidecar Org files named like `article.comments.org` using compact `OPEN TODO | RESOLVED` Org TODO states.
 - Region comments require an active region, keep source Org clean, and render in the context panel when their stored offsets still match the selected text.
 - Comment overlays are enabled for Org buffers by `hub/org-comment-overlays-mode`, while `]c` and `[c` navigate to next and previous sidecar comments and open the context panel.
-- Org uses `,c` as its context prefix: `,cc` creates sidecar comments from visual selections; `,cm` opens the context panel; `,cO`, `,cT`, `,cR`, and `,cs` update the active comment status.
+- Org uses `,c` as its context prefix: `,cc` creates sidecar comments from visual selections; `,cm` opens the context panel; `,cj` jumps to the active sidecar heading; `,ce` edits the active sidecar comment body narrowed to its subtree; `,cO`, `,cT`, `,cR`, and `,cs` update the active comment status.
 - The interactive context panel is explicitly opened or toggled with a buffer-local mode; it follows the selected Org buffer while visible and closes when selection moves to a non-Org buffer.
 - Opening the context panel docks visually filled prose toward the panel and renders compact icon/status-chip cards; when point is inside a comment target, the panel focuses that comment so it can be read in full.
 - Inline authoring shortcuts are `<fn` for the default note/sidenote and `<ft` for a forced traditional footnote.

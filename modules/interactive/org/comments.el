@@ -46,6 +46,33 @@
 	 (hub/org-comment--valid-comments))
 	(user-error "Point is not inside a commented region"))))
 
+(defun hub/org-comment--goto-sidecar-heading (comment)
+  "Open COMMENT sidecar and move point to its heading."
+  (let ((sidecar-file (plist-get comment :sidecar-file))
+	(id (plist-get comment :id)))
+    (unless (and sidecar-file id)
+      (user-error "Comment record is missing sidecar metadata"))
+    (find-file sidecar-file)
+    (org-mode)
+    (goto-char (point-min))
+    (unless (cl-loop while (re-search-forward org-heading-regexp nil t)
+		     do (goto-char (match-beginning 0))
+		     when (equal id (org-entry-get nil "HUB_COMMENT_ID"))
+		     return t
+		     do (forward-line 1))
+      (user-error "Comment %s not found in sidecar" id))))
+
+(defun hub/org-comment--goto-sidecar-body (comment)
+  "Open COMMENT sidecar and move point to its body."
+  (hub/org-comment--goto-sidecar-heading comment)
+  (forward-line 1)
+  (when (looking-at-p "[[:space:]]*:PROPERTIES:[[:space:]]*$")
+    (let ((subtree-end (save-excursion (org-end-of-subtree t t))))
+      (when (re-search-forward "^[[:space:]]*:END:[[:space:]]*$" subtree-end t)
+	(forward-line 1))))
+  (while (looking-at-p "\n")
+    (forward-char 1)))
+
 (defun hub/org-comment--set-sidecar-status (comment status)
   "Set COMMENT sidecar heading TODO keyword to STATUS."
   (let ((sidecar-file (plist-get comment :sidecar-file))
@@ -96,6 +123,21 @@
 			comments)
 		       (car comments))))
     (hub/org-comment--goto previous)))
+
+;;;###autoload
+(defun hub/org-comment-jump-to-sidecar ()
+  "Jump to the active sidecar comment heading."
+  (interactive)
+  (hub/org-comment--goto-sidecar-heading (hub/org-comment--active-at-point)))
+
+;;;###autoload
+(defun hub/org-comment-edit ()
+  "Edit the active sidecar comment body narrowed to its subtree."
+  (interactive)
+  (let ((comment (hub/org-comment--active-at-point)))
+    (hub/org-comment--goto-sidecar-heading comment)
+    (org-narrow-to-subtree)
+    (hub/org-comment--goto-sidecar-body comment)))
 
 ;;;###autoload
 (defun hub/org-comment-mark-open ()

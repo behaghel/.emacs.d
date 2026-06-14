@@ -91,6 +91,48 @@
 						 (should (search-forward ":HUB_COMMENT_ID: local-command" nil t))
 						 (should (search-forward "Please revise." nil t)))))))
 
+(ert-deftest hub/org-comment-edit-jumps-to-body-and-narrows-subtree ()
+  "Editing an active comment opens its sidecar body narrowed to the subtree."
+  (hub/org-comments-test--with-file-buffer "article.org" "Alpha selected text omega"
+					   (let* ((start (progn
+							   (goto-char (point-min))
+							   (search-forward "selected")
+							   (match-beginning 0)))
+						  (end (match-end 0))
+						  (sidecar (hub/org-comment-append-to-sidecar
+							    (hub/org-comment-create-record buffer-file-name start end "Edit this." "local-edit"))))
+					     (unwind-protect
+						 (progn
+						   (goto-char start)
+						   (hub/org-comment-edit)
+						   (should (equal sidecar buffer-file-name))
+						   (should (buffer-narrowed-p))
+						   (should (looking-at-p "Edit this\\."))
+						   (should (save-excursion
+							     (goto-char (point-min))
+							     (search-forward "* OPEN Comment: selected" nil t))))
+					       (when (get-file-buffer sidecar)
+						 (kill-buffer (get-file-buffer sidecar)))))))
+
+(ert-deftest hub/org-comment-jump-to-sidecar-opens-heading ()
+  "Jumping to sidecar moves to the active comment heading."
+  (hub/org-comments-test--with-file-buffer "article.org" "Alpha selected text omega"
+					   (let* ((start (progn
+							   (goto-char (point-min))
+							   (search-forward "selected")
+							   (match-beginning 0)))
+						  (end (match-end 0))
+						  (sidecar (hub/org-comment-append-to-sidecar
+							    (hub/org-comment-create-record buffer-file-name start end "Jump." "local-jump"))))
+					     (unwind-protect
+						 (progn
+						   (goto-char start)
+						   (hub/org-comment-jump-to-sidecar)
+						   (should (equal sidecar buffer-file-name))
+						   (should (looking-at-p "\\* OPEN Comment: selected")))
+					       (when (get-file-buffer sidecar)
+						 (kill-buffer (get-file-buffer sidecar)))))))
+
 (ert-deftest hub/org-comment-status-commands-update-active-sidecar-heading ()
   "Comment status commands update the active sidecar heading TODO keyword."
   (hub/org-comments-test--with-file-buffer "article.org" "Alpha selected text omega"
