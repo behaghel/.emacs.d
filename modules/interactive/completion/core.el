@@ -58,14 +58,11 @@
   (vertico-grid-lookahead 50)
   (vertico-buffer-display-action '(display-buffer-reuse-window))
   (vertico-multiform-categories
-   '((file reverse)
-     (hub-org-comment (:not reverse))
-     (consult-grep buffer)
+   '((consult-grep buffer)
      (consult-location)
      (imenu buffer)
-     (library reverse indexed)
-     (org-roam-node reverse indexed)
-     (t reverse)))
+     (library indexed)
+     (org-roam-node indexed)))
   (vertico-multiform-commands
    '(("flyspell-correct-*" grid reverse)
      (org-refile grid reverse indexed)
