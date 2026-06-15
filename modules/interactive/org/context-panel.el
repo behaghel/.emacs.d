@@ -515,6 +515,7 @@ When SOURCE-WINDOW is non-nil, align notes to visible lines in that window."
     (hub/org-context-panel--refresh-comment-overlays source-buffer all-items)
     (with-current-buffer panel-buffer
       (let ((inhibit-read-only t)
+	    (preserved-point (point))
 	    (preserved-key (hub/org-context-panel--item-key
 			    (hub/org-context-panel--item-at-point))))
 	(hub/org-context-panel-buffer-mode)
@@ -542,10 +543,11 @@ When SOURCE-WINDOW is non-nil, align notes to visible lines in that window."
 	  (insert "No context items in this buffer.\n")))
 	(if preserved-key
 	    (or (hub/org-context-panel--goto-item-key preserved-key)
-		(goto-char (point-min)))
-	  (goto-char (point-min)))
+		(goto-char (min preserved-point (point-max))))
+	  (goto-char (min preserved-point (point-max))))
 	(setq buffer-read-only t)))
     (when-let* ((window (get-buffer-window panel-buffer t)))
+      (set-window-point window (with-current-buffer panel-buffer (point)))
       (set-window-start window (with-current-buffer panel-buffer (point-min))))
     panel-buffer))
 
@@ -654,17 +656,21 @@ When SOURCE-WINDOW is non-nil, align notes to visible lines in that window."
 
 ;;;###autoload
 (defun hub/org-context-panel-jump-to-item-at-point ()
-  "Jump from source point to the related item in the context panel."
+  "Jump from source point to the related item in the context panel.
+When point is not inside a commented region, fall back to Evil's normal RET
+motion."
   (interactive)
   (unless (derived-mode-p 'org-mode)
     (user-error "Org context panel only works in Org buffers"))
-  (let ((comment (hub/org-context-panel--comment-at-point)))
-    (unless comment
-      (user-error "No context item at point"))
-    (hub/org-context-panel-open)
-    (when-let* ((window (hub/org-context-panel--visible-window)))
-      (select-window window)
-      (hub/org-context-panel--goto-item-key (hub/org-context-panel--item-key comment)))))
+  (if-let* ((comment (hub/org-context-panel--comment-at-point)))
+      (progn
+	(hub/org-context-panel-open)
+	(when-let* ((window (hub/org-context-panel--visible-window)))
+	  (select-window window)
+	  (hub/org-context-panel--goto-item-key (hub/org-context-panel--item-key comment))))
+    (if (fboundp 'evil-ret)
+	(call-interactively #'evil-ret)
+      (call-interactively #'newline))))
 
 (defun hub/org-context-panel-jump-to-definition ()
   "Jump from a rendered context item to its source or sidecar definition."

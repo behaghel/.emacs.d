@@ -176,6 +176,31 @@
 						     (should-not (search-forward "five" nil t)))
 						 (kill-buffer panel))))))
 
+(ert-deftest hub/org-context-panel-render-preserves-non-item-point ()
+  "Panel refresh preserves point even when it is not on a context item."
+  (hub/org-context-panel-test--with-source "Plain text"
+					   (let ((panel (generate-new-buffer " *hub context point test*")))
+					     (unwind-protect
+						 (progn
+						   (with-current-buffer panel
+						     (insert "previous panel text")
+						     (goto-char 9))
+						   (hub/org-context-panel-render-buffer (current-buffer) panel)
+						   (with-current-buffer panel
+						     (should (= 9 (point)))))
+					       (kill-buffer panel)))))
+
+(ert-deftest hub/org-context-panel-source-ret-falls-back-outside-comments ()
+  "Source RET uses Evil fallback when point is not in a commented region."
+  (hub/org-context-panel-test--with-source "Plain text"
+					   (let ((called nil))
+					     (cl-letf (((symbol-function 'evil-ret)
+							(lambda (&rest _) (interactive) (setq called t)))
+						       ((symbol-function 'hub/org-context-panel-open)
+							(lambda () (error "Panel should not open without a comment"))))
+					       (hub/org-context-panel-jump-to-item-at-point)
+					       (should called)))))
+
 (ert-deftest hub/org-context-panel-navigates-items-and-preserves-point ()
   "Panel item navigation wraps and render refresh preserves current item."
   (let* ((dir (make-temp-file "hub-context-panel-nav-" t))
