@@ -111,6 +111,11 @@
     map)
   "Keymap used in Org context panel buffers.")
 
+(with-eval-after-load 'evil
+  (evil-define-key '(normal motion insert) hub/org-context-panel-buffer-mode-map
+		   (kbd "RET") #'hub/org-context-panel-jump-to-definition
+		   (kbd "q") #'hub/org-context-panel-close))
+
 (define-derived-mode hub/org-context-panel-buffer-mode special-mode "Org-Context"
   "Major mode for read-only Org context panel buffers."
   (setq-local truncate-lines nil
