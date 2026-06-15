@@ -107,7 +107,7 @@
 						 (should (search-forward "Please revise." nil t)))))))
 
 (ert-deftest hub/org-comment-reanchor-uses-only-stale-comment-without-prompt ()
-  "Reanchoring one stale comment avoids minibuffer prompts for safety."
+  "Reanchoring one stale comment does not require a picker."
   (hub/org-comments-test--with-file-buffer "article.org" "Alpha selected text omega"
 					   (let* ((old-start (progn
 							       (goto-char (point-min))
@@ -133,8 +133,8 @@
 					       (should (equal "text" (plist-get (car (hub/org-comment-collect (current-buffer)))
 										:target-text)))))))
 
-(ert-deftest hub/org-comment-reanchor-refuses-multiple-stale-comments-without-prompt ()
-  "Reanchoring multiple stale comments errors instead of prompting unsafely."
+(ert-deftest hub/org-comment-reanchor-prompts-for-multiple-stale-comments ()
+  "Reanchoring multiple stale comments uses a completion picker."
   (hub/org-comments-test--with-file-buffer "article.org" "Alpha selected text omega tail"
 					   (let* ((selected-start (progn
 								    (goto-char (point-min))
@@ -160,9 +160,28 @@
 								(goto-char (point-min))
 								(search-forward "tail")
 								(match-beginning 0)))
-						   (new-end (match-end 0)))
-					       (should-error (hub/org-comment-reanchor new-start new-end)
-							     :type 'user-error)))))
+						   (new-end (match-end 0))
+						   seen-category
+						   seen-annotation)
+					       (cl-letf (((symbol-function 'hub/org-context-panel-open) #'ignore)
+							 ((symbol-function 'completing-read)
+							  (lambda (_prompt collection &rest _args)
+							    (let ((metadata (funcall collection "" nil 'metadata)))
+							      (setq seen-category (alist-get 'category (cdr metadata))
+								    seen-annotation (funcall
+										     (alist-get 'annotation-function (cdr metadata))
+										     "local-second")))
+							    "local-second")))
+						 (hub/org-comment-reanchor new-start new-end))
+					       (should (eq 'hub-org-comment seen-category))
+					       (should (string-match-p "OPEN — omega" seen-annotation))
+					       (let ((comments (hub/org-comment-collect (current-buffer) t)))
+						 (should (equal "tail" (plist-get
+									(cl-find "local-second" comments
+										 :key (lambda (comment)
+											(plist-get comment :id))
+										 :test #'equal)
+									:target-text))))))))
 
 (ert-deftest hub/org-comment-reanchor-updates-stale-comment-target ()
   "Reanchoring updates stale comment metadata to the selected source region."

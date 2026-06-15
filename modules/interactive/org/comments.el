@@ -46,15 +46,34 @@
 	  (or (plist-get comment :status) "OPEN")
 	  (or (plist-get comment :target-text) "")))
 
+(defun hub/org-comment--completion-table (comments)
+  "Return a completion table for stale COMMENTS."
+  (let* ((candidates (mapcar (lambda (comment) (plist-get comment :id)) comments))
+	 (by-id (mapcar (lambda (comment) (cons (plist-get comment :id) comment)) comments)))
+    (lambda (string predicate action)
+      (if (eq action 'metadata)
+	  `(metadata
+	    (category . hub-org-comment)
+	    (annotation-function
+	     . ,(lambda (candidate)
+		  (when-let* ((comment (alist-get candidate by-id nil nil #'equal)))
+		    (hub/org-comment--completion-label comment)))))
+	(complete-with-action action candidates string predicate)))))
+
 (defun hub/org-comment--read-stale-comment ()
-  "Return the only stale sidecar comment for the current Org buffer.
-This intentionally avoids minibuffer prompts while visual comment commands are
-being hardened against source-buffer prompt insertion."
+  "Prompt for a stale sidecar comment in the current Org buffer."
   (let ((comments (hub/org-comment--stale-comments)))
     (pcase (length comments)
       (0 (user-error "No stale comments in this buffer"))
       (1 (car comments))
-      (_ (user-error "Multiple stale comments; choose from the sidecar for now")))))
+      (_ (let* ((table (hub/org-comment--completion-table comments))
+		(choice (completing-read
+			 "Reanchor stale comment: "
+			 table nil t nil 'hub/org-comment-reanchor-history)))
+	   (or (cl-find choice comments
+			:key (lambda (comment) (plist-get comment :id))
+			:test #'equal)
+	       (user-error "No stale comment selected")))))))
 
 (defun hub/org-comment--defer-region-command (command start end)
   "Run COMMAND with START and END after Evil visual state has unwound."
