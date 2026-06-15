@@ -176,6 +176,52 @@
 						     (should-not (search-forward "five" nil t)))
 						 (kill-buffer panel))))))
 
+(ert-deftest hub/org-context-panel-navigates-items-and-preserves-point ()
+  "Panel item navigation wraps and render refresh preserves current item."
+  (let* ((dir (make-temp-file "hub-context-panel-nav-" t))
+	 (source-file (expand-file-name "article.org" dir))
+	 (panel (generate-new-buffer " *hub context nav test*")))
+    (unwind-protect
+	(with-current-buffer (find-file-noselect source-file)
+	  (erase-buffer)
+	  (insert "Alpha first beta second omega")
+	  (save-buffer)
+	  (org-mode)
+	  (let* ((source (current-buffer))
+		 (first-start (progn
+				(goto-char (point-min))
+				(search-forward "first")
+				(match-beginning 0)))
+		 (first-end (match-end 0))
+		 (second-start (progn
+				 (search-forward "second")
+				 (match-beginning 0)))
+		 (second-end (match-end 0)))
+	    (hub/org-comment-append-to-sidecar
+	     (hub/org-comment-create-record buffer-file-name first-start first-end "First body." "local-first"))
+	    (hub/org-comment-append-to-sidecar
+	     (hub/org-comment-create-record buffer-file-name second-start second-end "Second body." "local-second"))
+	    (goto-char (point-min))
+	    (hub/org-context-panel-render-buffer (current-buffer) panel)
+	    (with-current-buffer panel
+	      (should (search-forward "First body." nil t))
+	      (hub/org-context-panel-next-item)
+	      (let ((item (hub/org-context-panel--item-at-point)))
+		(should (equal "local-second" (plist-get item :id))))
+	      (hub/org-context-panel-render-buffer source panel)
+	      (let ((item (hub/org-context-panel--item-at-point)))
+		(should (equal "local-second" (plist-get item :id))))
+	      (hub/org-context-panel-next-item)
+	      (let ((item (hub/org-context-panel--item-at-point)))
+		(should (equal "local-first" (plist-get item :id))))
+	      (hub/org-context-panel-previous-item)
+	      (let ((item (hub/org-context-panel--item-at-point)))
+		(should (equal "local-second" (plist-get item :id)))))))
+      (when (get-file-buffer source-file)
+	(kill-buffer (get-file-buffer source-file)))
+      (kill-buffer panel)
+      (delete-directory dir t))))
+
 (ert-deftest hub/org-context-panel-focuses-current-comment ()
   "When point is inside a comment target, the panel shows only that comment."
   (let* ((dir (make-temp-file "hub-context-panel-focus-" t))

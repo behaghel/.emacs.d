@@ -112,9 +112,11 @@
   "Keymap used in Org context panel buffers.")
 
 (with-eval-after-load 'evil
-  (evil-define-key '(normal motion insert) hub/org-context-panel-buffer-mode-map
+  (evil-define-key 'normal hub/org-context-panel-buffer-mode-map
 		   (kbd "RET") #'hub/org-context-panel-jump-to-definition
-		   (kbd "q") #'hub/org-context-panel-close))
+		   (kbd "q") #'hub/org-context-panel-close
+		   (kbd "]c") #'hub/org-context-panel-next-item
+		   (kbd "[c") #'hub/org-context-panel-previous-item))
 
 (define-derived-mode hub/org-context-panel-buffer-mode special-mode "Org-Context"
   "Major mode for read-only Org context panel buffers."
@@ -447,6 +449,48 @@ wrapped lines, visual filling, and partial scrolling follow the live window."
     (when (plist-get item :current)
       (add-face-text-property start (point) 'hub/org-context-panel-current-item-face t))))
 
+(defun hub/org-context-panel--item-key (item)
+  "Return a stable panel identity key for ITEM."
+  (or (plist-get item :id)
+      (plist-get item :definition-pos)
+      (plist-get item :jump-pos)
+      (plist-get item :anchor-pos)))
+
+(defun hub/org-context-panel--item-at-point ()
+  "Return context item at point or just before point."
+  (or (get-text-property (point) 'hub-org-context-panel-item)
+      (get-text-property (max (point-min) (1- (point))) 'hub-org-context-panel-item)))
+
+(defun hub/org-context-panel--item-starts ()
+  "Return positions where context panel items start."
+  (let ((position (point-min))
+	starts)
+    (while (< position (point-max))
+      (let ((item (get-text-property position 'hub-org-context-panel-item)))
+	(when (and item
+		   (or (= position (point-min))
+		       (not (equal item (get-text-property (1- position)
+							   'hub-org-context-panel-item)))))
+	  (push position starts))
+	(setq position (or (next-single-property-change
+			    position 'hub-org-context-panel-item nil (point-max))
+			   (point-max)))))
+    (nreverse starts)))
+
+(defun hub/org-context-panel--goto-item-key (key)
+  "Move point to the context panel item identified by KEY."
+  (let ((found nil))
+    (goto-char (point-min))
+    (while (and (not found) (< (point) (point-max)))
+      (let ((item (get-text-property (point) 'hub-org-context-panel-item)))
+	(when (and item (equal key (hub/org-context-panel--item-key item)))
+	  (setq found (point)))
+	(goto-char (or (next-single-property-change
+			(point) 'hub-org-context-panel-item nil (point-max))
+		       (point-max)))))
+    (when found
+      (goto-char found))))
+
 ;;;###autoload
 (defun hub/org-context-panel-render-buffer (source-buffer panel-buffer &optional source-window)
   "Render SOURCE-BUFFER context items into PANEL-BUFFER.
@@ -470,7 +514,9 @@ When SOURCE-WINDOW is non-nil, align notes to visible lines in that window."
 		 (t (hub/org-context-panel--items-for-window nil all-items)))))
     (hub/org-context-panel--refresh-comment-overlays source-buffer all-items)
     (with-current-buffer panel-buffer
-      (let ((inhibit-read-only t))
+      (let ((inhibit-read-only t)
+	    (preserved-key (hub/org-context-panel--item-key
+			    (hub/org-context-panel--item-at-point))))
 	(hub/org-context-panel-buffer-mode)
 	(setq-local hub/org-context-panel-source-buffer source-buffer)
 	(setq-local hub/org-context-panel--source-buffer source-buffer)
@@ -494,7 +540,10 @@ When SOURCE-WINDOW is non-nil, align notes to visible lines in that window."
 	  (insert ""))
 	 (t
 	  (insert "No context items in this buffer.\n")))
-	(goto-char (point-min))
+	(if preserved-key
+	    (or (hub/org-context-panel--goto-item-key preserved-key)
+		(goto-char (point-min)))
+	  (goto-char (point-min)))
 	(setq buffer-read-only t)))
     (when-let* ((window (get-buffer-window panel-buffer t)))
       (set-window-start window (with-current-buffer panel-buffer (point-min))))
@@ -573,11 +622,54 @@ When SOURCE-WINDOW is non-nil, align notes to visible lines in that window."
 		     do (forward-line 1))
       (user-error "Comment %s not found in sidecar" id))))
 
+(defun hub/org-context-panel-next-item ()
+  "Move point to the next context panel item."
+  (interactive)
+  (let* ((starts (hub/org-context-panel--item-starts))
+	 (next (or (cl-find-if (lambda (position) (> position (point))) starts)
+		   (car starts))))
+    (unless next
+      (user-error "No context items"))
+    (goto-char next)))
+
+(defun hub/org-context-panel-previous-item ()
+  "Move point to the previous context panel item."
+  (interactive)
+  (let* ((starts (reverse (hub/org-context-panel--item-starts)))
+	 (previous (or (cl-find-if (lambda (position) (< position (point))) starts)
+		       (car starts))))
+    (unless previous
+      (user-error "No context items"))
+    (goto-char previous)))
+
+(defun hub/org-context-panel--comment-at-point ()
+  "Return sidecar comment at point in the current source buffer, or nil."
+  (let ((point (point)))
+    (cl-find-if
+     (lambda (comment)
+       (let ((start (plist-get comment :target-start))
+	     (end (plist-get comment :target-end)))
+	 (and start end (<= start point) (<= point end))))
+     (hub/org-comment-collect (current-buffer)))))
+
+;;;###autoload
+(defun hub/org-context-panel-jump-to-item-at-point ()
+  "Jump from source point to the related item in the context panel."
+  (interactive)
+  (unless (derived-mode-p 'org-mode)
+    (user-error "Org context panel only works in Org buffers"))
+  (let ((comment (hub/org-context-panel--comment-at-point)))
+    (unless comment
+      (user-error "No context item at point"))
+    (hub/org-context-panel-open)
+    (when-let* ((window (hub/org-context-panel--visible-window)))
+      (select-window window)
+      (hub/org-context-panel--goto-item-key (hub/org-context-panel--item-key comment)))))
+
 (defun hub/org-context-panel-jump-to-definition ()
   "Jump from a rendered context item to its source or sidecar definition."
   (interactive)
-  (let* ((note (or (get-text-property (point) 'hub-org-context-panel-item)
-		   (get-text-property (max (point-min) (1- (point))) 'hub-org-context-panel-item)))
+  (let* ((note (hub/org-context-panel--item-at-point))
 	 (source hub/org-context-panel-source-buffer)
 	 (position (or (plist-get note :definition-pos)
 		       (plist-get note :jump-pos))))
