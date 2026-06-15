@@ -160,14 +160,17 @@ only the image link."
     (hub/org-insert-callout-template)
     t))
 
-(defun hub/org-footnote-definition-point (label)
-  "Create footnote definition for LABEL and return its insertion point."
+(defun hub/org-footnote-definition-point (label &optional separator)
+  "Create footnote definition for LABEL and return its insertion point.
+SEPARATOR replaces Org's default post-label separator when non-nil."
   (require 'org-footnote)
-  (let ((definition-start (org-footnote-create-definition label)))
-    (save-excursion
-      (goto-char definition-start)
-      (search-forward (format "[fn:%s] " label) nil t)
-      (point))))
+  (let ((definition-start (org-footnote-create-definition label))
+	(separator (or separator " ")))
+    (goto-char definition-start)
+    (search-forward (format "[fn:%s]" label) nil t)
+    (when (looking-at "[ \t]*")
+      (replace-match separator t t))
+    (point)))
 
 (defun hub/org-sort-footnotes ()
   "Sort Org footnote definitions to match reference order."
@@ -195,17 +198,18 @@ PROPERTIES is an alist of Org property names to values."
       (insert (format ":%s: %s\n" (car property) (cdr property))))
     (insert ":END:\n")))
 
-(defun hub/org-insert-footnote-template-with-properties (&optional properties prompt)
+(defun hub/org-insert-footnote-template-with-properties (&optional properties prompt separator)
   "Insert a footnote reference and edit its definition with PROPERTIES.
 PROMPT is used when Yasnippet is unavailable.  With Yasnippet, point returns to
-original text after leaving the footnote body field."
+original text after leaving the footnote body field.  SEPARATOR replaces Org's
+default post-label separator when non-nil."
   (require 'org-footnote)
   (let* ((label (org-footnote-unique-label))
 	 (reference-end nil)
 	 (definition-point nil))
     (insert (format "[fn:%s]" label))
     (setq reference-end (point-marker))
-    (setq definition-point (hub/org-footnote-definition-point label))
+    (setq definition-point (hub/org-footnote-definition-point label separator))
     (goto-char definition-point)
     (hub/org-footnote-insert-properties properties)
     (if (hub/org-yas-ready-p)
@@ -229,6 +233,14 @@ body field.  Without Yasnippet, prompt for the body immediately and return."
    '(("HUB_NOTE_KIND" . "footnote"))
    "Footnote: "))
 
+(defun hub/org-insert-forced-footnote-template ()
+  "Insert a colon-separated footnote forced to stay a bottom footnote."
+  (interactive)
+  (hub/org-insert-footnote-template-with-properties
+   '(("HUB_NOTE_KIND" . "footnote"))
+   "Footnote: "
+   ":"))
+
 (defun hub/org-tempo-complete-footnote-kind (shortcut insert-function)
   "Expand SHORTCUT and call INSERT-FUNCTION for an inline footnote."
   (when (looking-back (format "\\(<%s\\)" (regexp-quote shortcut)) (line-beginning-position))
@@ -246,6 +258,10 @@ this shortcut is intentionally accepted anywhere on the current line."
 (defun hub/org-tempo-complete-traditional-footnote ()
   "Expand the `<ft' Org Tempo shortcut as a traditional bottom footnote."
   (hub/org-tempo-complete-footnote-kind "ft" #'hub/org-insert-traditional-footnote-template))
+
+(defun hub/org-tempo-complete-forced-footnote ()
+  "Expand the `<ff' Org Tempo shortcut as a colon-separated bottom footnote."
+  (hub/org-tempo-complete-footnote-kind "ff" #'hub/org-insert-forced-footnote-template))
 
 (defun hub/org-insert-confluence-status ()
   "Insert an Org link representing a Confluence status macro."
@@ -281,6 +297,7 @@ this shortcut is intentionally accepted anywhere on the current line."
   (add-hook 'org-tab-before-tab-emulation-hook #'hub/org-tempo-complete-image -90)
   (add-hook 'org-tab-before-tab-emulation-hook #'hub/org-tempo-complete-footnote -90)
   (add-hook 'org-tab-before-tab-emulation-hook #'hub/org-tempo-complete-traditional-footnote -90)
+  (add-hook 'org-tab-before-tab-emulation-hook #'hub/org-tempo-complete-forced-footnote -90)
   (add-hook 'org-tab-before-tab-emulation-hook #'hub/org-tempo-complete-status -90))
 
 (provide 'org/authoring)

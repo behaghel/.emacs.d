@@ -34,14 +34,30 @@
    (should (string-match-p (regexp-quote ":HUB_NOTE_KIND: footnote") (buffer-string)))
    (should (string-match-p (regexp-quote "Legal note.") (buffer-string)))))
 
+(ert-deftest hub/org-insert-colon-forced-footnote-template ()
+  "The forced footnote helper writes a colon-separated footnote definition."
+  (hub/org-marginalia-authoring-test--with-buffer
+   (hub/org-marginalia-authoring-test--insert-with-body
+    #'hub/org-insert-forced-footnote-template "Legal note.")
+   (should (string-match-p (regexp-quote "Text[fn:one]") (buffer-string)))
+   (should (string-match-p (regexp-quote "[fn:one]:\n:PROPERTIES:") (buffer-string)))
+   (should (string-match-p (regexp-quote ":HUB_NOTE_KIND: footnote") (buffer-string)))
+   (should (string-match-p (regexp-quote "Legal note.") (buffer-string)))))
+
 (ert-deftest hub/org-tempo-completes-kind-specific-footnote-shortcuts ()
-  "The <ft shortcut expands to a traditional footnote helper."
+  "The <ft and <ff shortcuts expand to forced footnote helpers."
   (hub/org-marginalia-authoring-test--with-buffer
    (insert " <ft")
    (cl-letf (((symbol-function 'hub/org-insert-traditional-footnote-template)
 	      (lambda () (insert "TRADITIONAL"))))
      (should (hub/org-tempo-complete-traditional-footnote))
-     (should (string-suffix-p " TRADITIONAL" (buffer-string))))))
+     (should (string-suffix-p " TRADITIONAL" (buffer-string)))))
+  (hub/org-marginalia-authoring-test--with-buffer
+   (insert " <ff")
+   (cl-letf (((symbol-function 'hub/org-insert-forced-footnote-template)
+	      (lambda () (insert "FORCED"))))
+     (should (hub/org-tempo-complete-forced-footnote))
+     (should (string-suffix-p " FORCED" (buffer-string))))))
 
 (provide 'org-marginalia-authoring-test)
 ;;; org-marginalia-authoring-test.el ends here
