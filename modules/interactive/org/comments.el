@@ -40,24 +40,41 @@
 (defvar hub/org-comment-reanchor-history nil
   "Minibuffer history for stale comment reanchoring.")
 
-(defun hub/org-comment--completion-label (comment)
-  "Return completion annotation for COMMENT."
-  (format " %s — %s"
-	  (or (plist-get comment :status) "OPEN")
-	  (or (plist-get comment :target-text) "")))
+(defcustom hub/org-comment-picker-preview-length 72
+  "Maximum normalized text length in comment picker candidates."
+  :type 'natnum
+  :group 'hub/org-comments)
+
+(defun hub/org-comment--picker-preview (text)
+  "Return TEXT normalized and truncated for picker display."
+  (let ((preview (hub/org-comment-normalize-target-text (or text ""))))
+    (if (> (length preview) hub/org-comment-picker-preview-length)
+	(concat (substring preview 0 hub/org-comment-picker-preview-length) "…")
+      preview)))
+
+(defun hub/org-comment--completion-candidate (comment)
+  "Return a readable completion candidate for COMMENT."
+  (let ((status (or (plist-get comment :status) "OPEN"))
+	(target (hub/org-comment--picker-preview (plist-get comment :target-text)))
+	(body (hub/org-comment--picker-preview (plist-get comment :body))))
+    (string-join
+     (delq nil
+	   (list status
+		 (unless (string-empty-p target)
+		   (format "“%s”" target))
+		 (unless (string-empty-p body)
+		   (format "— %s" body))))
+     " ")))
 
 (defun hub/org-comment--completion-table (comments)
   "Return a completion table for stale COMMENTS."
-  (let* ((candidates (mapcar (lambda (comment) (plist-get comment :id)) comments))
-	 (by-id (mapcar (lambda (comment) (cons (plist-get comment :id) comment)) comments)))
+  (let* ((entries (mapcar (lambda (comment)
+			    (cons (hub/org-comment--completion-candidate comment) comment))
+			  comments))
+	 (candidates (mapcar #'car entries)))
     (lambda (string predicate action)
       (if (eq action 'metadata)
-	  `(metadata
-	    (category . hub-org-comment)
-	    (annotation-function
-	     . ,(lambda (candidate)
-		  (when-let* ((comment (alist-get candidate by-id nil nil #'equal)))
-		    (hub/org-comment--completion-label comment)))))
+	  `(metadata (category . hub-org-comment))
 	(complete-with-action action candidates string predicate)))))
 
 (defun hub/org-comment--read-stale-comment ()
@@ -66,13 +83,14 @@
     (pcase (length comments)
       (0 (user-error "No stale comments in this buffer"))
       (1 (car comments))
-      (_ (let* ((table (hub/org-comment--completion-table comments))
+      (_ (let* ((entries (mapcar (lambda (comment)
+				   (cons (hub/org-comment--completion-candidate comment) comment))
+				 comments))
+		(table (hub/org-comment--completion-table comments))
 		(choice (completing-read
 			 "Reanchor stale comment: "
 			 table nil t nil 'hub/org-comment-reanchor-history)))
-	   (or (cl-find choice comments
-			:key (lambda (comment) (plist-get comment :id))
-			:test #'equal)
+	   (or (alist-get choice entries nil nil #'equal)
 	       (user-error "No stale comment selected")))))))
 
 (defun hub/org-comment--defer-region-command (command start end)

@@ -162,19 +162,18 @@
 								(match-beginning 0)))
 						   (new-end (match-end 0))
 						   seen-category
-						   seen-annotation)
+						   seen-candidates)
 					       (cl-letf (((symbol-function 'hub/org-context-panel-open) #'ignore)
 							 ((symbol-function 'completing-read)
 							  (lambda (_prompt collection &rest _args)
 							    (let ((metadata (funcall collection "" nil 'metadata)))
 							      (setq seen-category (alist-get 'category (cdr metadata))
-								    seen-annotation (funcall
-										     (alist-get 'annotation-function (cdr metadata))
-										     "local-second")))
-							    "local-second")))
+								    seen-candidates (all-completions "" collection)))
+							    "OPEN “omega” — Second.")))
 						 (hub/org-comment-reanchor new-start new-end))
 					       (should (eq 'hub-org-comment seen-category))
-					       (should (string-match-p "OPEN — omega" seen-annotation))
+					       (should (member "OPEN “selected” — First." seen-candidates))
+					       (should (member "OPEN “omega” — Second." seen-candidates))
 					       (let ((comments (hub/org-comment-collect (current-buffer) t)))
 						 (should (equal "tail" (plist-get
 									(cl-find "local-second" comments
