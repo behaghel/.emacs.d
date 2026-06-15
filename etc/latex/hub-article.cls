@@ -331,7 +331,7 @@
   \vspace{0.2em}{\HubArticleSans\footnotesize\bfseries\textcolor{HubArticleAccentMuted}{#1}}\par\vspace{0.1em}%
 }
 
-\renewenvironment{HubArticleCallout}{%
+\newenvironment{HubArticleCallout}{%
   \par\addvspace{0.95em}\noindent
   \begingroup
   \HubArticleSans\small\color{HubArticleInk}%
@@ -392,4 +392,28 @@
   \begin{HubArticleQuote}%
 }{%
   \end{HubArticleQuote}%
+}
+
+\newenvironment{HubArticleEpigraph}{%
+  \par\addvspace{1.0em}\noindent
+  \begin{flushright}%
+  \begin{minipage}{0.68\linewidth}%
+  \begingroup
+  \HubArticleSerif\small\itshape\color{HubArticleStandfirst}%
+  \setlength{\parindent}{0pt}%
+  \setlength{\parskip}{0.35em}%
+  \raggedleft
+  \obeylines
+  \ignorespaces
+}{%
+  \par
+  \endgroup
+  \end{minipage}%
+  \end{flushright}%
+  \par\addvspace{2.1em}%
+}
+\newenvironment{epigraph}{%
+  \begin{HubArticleEpigraph}%
+}{%
+  \end{HubArticleEpigraph}%
 }

@@ -106,6 +106,7 @@ native behavior."
 	org-cycle-separator-lines 0
 	org-archive-location "archive/%s_archive::datetree/")
   (add-hook 'org-mode-hook #'hub/org-setup-wrapping)
+  (add-hook 'org-mode-hook #'hub/org-epigraph-align-mode)
   (add-hook 'org-mode-hook #'hub/org-comment-overlays-mode))
 
 (use-package org

@@ -14,6 +14,9 @@
   '("Grey" "Red" "Yellow" "Green" "Blue" "Purple")
   "Confluence status colours offered by Org authoring shortcuts.")
 
+(defvar-local hub/org-epigraph--overlays nil
+  "Display overlays used to right-align epigraph block contents.")
+
 (defface hub/org-confluence-status-grey
   '((t :inherit default :foreground "#172B4D" :background "#DFE1E6" :box (:line-width (1 . -1) :color "#DFE1E6")))
   "Face for grey Confluence status links."
@@ -276,6 +279,59 @@ this shortcut is intentionally accepted anywhere on the current line."
     (replace-match "" t t nil 1)
     (hub/org-insert-confluence-status)
     t))
+
+(defun hub/org-epigraph--clear-overlays ()
+  "Remove epigraph display overlays in the current buffer."
+  (mapc #'delete-overlay hub/org-epigraph--overlays)
+  (setq hub/org-epigraph--overlays nil))
+
+(defun hub/org-epigraph--display-width ()
+  "Return the display width used for Org epigraph alignment."
+  (max 1
+       (min (or (and (boundp 'visual-fill-column-width)
+		     visual-fill-column-width)
+		fill-column)
+	    (window-body-width))))
+
+(defun hub/org-epigraph--line-text ()
+  "Return visible text for the current line without final newline."
+  (buffer-substring-no-properties (line-beginning-position) (line-end-position)))
+
+(defun hub/org-epigraph-refresh-overlays (&rest _ignore)
+  "Right-align contents of Org epigraph blocks with display overlays."
+  (when (derived-mode-p 'org-mode)
+    (hub/org-epigraph--clear-overlays)
+    (save-excursion
+      (goto-char (point-min))
+      (let ((case-fold-search t)
+	    (width (hub/org-epigraph--display-width)))
+	(while (re-search-forward "^[[:blank:]]*#\\+begin_epigraph\\b.*$" nil t)
+	  (let ((limit (save-excursion
+			 (and (re-search-forward "^[[:blank:]]*#\\+end_epigraph\\b.*$" nil t)
+			      (match-beginning 0)))))
+	    (when limit
+	      (forward-line 1)
+	      (while (< (point) limit)
+		(let* ((text (hub/org-epigraph--line-text))
+		       (padding (max 0 (- width (string-width text)))))
+		  (unless (string-blank-p text)
+		    (let ((overlay (make-overlay (line-beginning-position)
+						 (line-beginning-position))))
+		      (overlay-put overlay 'before-string (make-string padding ?\s))
+		      (push overlay hub/org-epigraph--overlays))))
+		(forward-line 1)))))))))
+
+(define-minor-mode hub/org-epigraph-align-mode
+  "Visually right-align contents of Org epigraph blocks."
+  :lighter nil
+  (if hub/org-epigraph-align-mode
+      (progn
+	(add-hook 'after-change-functions #'hub/org-epigraph-refresh-overlays nil t)
+	(add-hook 'window-configuration-change-hook #'hub/org-epigraph-refresh-overlays nil t)
+	(hub/org-epigraph-refresh-overlays))
+    (remove-hook 'after-change-functions #'hub/org-epigraph-refresh-overlays t)
+    (remove-hook 'window-configuration-change-hook #'hub/org-epigraph-refresh-overlays t)
+    (hub/org-epigraph--clear-overlays)))
 
 (defun hub/org-setup-authoring-templates ()
   "Configure Org Tempo structure templates and custom TAB completions."

@@ -13,6 +13,7 @@
   :init
   (setq evil-want-integration t)
   (setq evil-want-keybinding nil)
+  (setq evil-respect-visual-line-mode t)
   (defun hub/setup-elisp-debugging-keybindings ()
     "Install debugging keybindings for Emacs Lisp debugger."
     (evil-collection-define-key 'normal 'debugger-mode-map
@@ -37,6 +38,24 @@
   (advice-add 'evil-collection-debug-setup :after 'hub/setup-elisp-debugging-keybindings)
   :config
   (evil-mode 1)
+
+  (evil-define-motion hub/evil-next-line-dwim (count)
+		      "Move down by visual lines when `visual-line-mode' is active.
+Otherwise move by physical lines.  COUNT is forwarded to the Evil
+line motion used for the current buffer."
+		      :type exclusive
+		      (if (and evil-respect-visual-line-mode visual-line-mode)
+			  (evil-next-visual-line count)
+			(evil-next-line count)))
+
+  (evil-define-motion hub/evil-previous-line-dwim (count)
+		      "Move up by visual lines when `visual-line-mode' is active.
+Otherwise move by physical lines.  COUNT is forwarded to the Evil
+line motion used for the current buffer."
+		      :type exclusive
+		      (if (and evil-respect-visual-line-mode visual-line-mode)
+			  (evil-previous-visual-line count)
+			(evil-previous-line count)))
 
   (use-package evil-leader)
   (use-package evil-matchit)
@@ -108,6 +127,11 @@
   (define-key evil-normal-state-map (kbd "M-p") 'eval-print-last-sexp)
   (define-key evil-normal-state-map (kbd "M-d") 'eval-last-sexp)
   (define-key evil-normal-state-map (kbd "M-B") 'eval-buffer)
+
+  (dolist (map (list evil-normal-state-map evil-motion-state-map
+		     evil-visual-state-map))
+    (define-key map (kbd "t") #'hub/evil-next-line-dwim)
+    (define-key map (kbd "s") #'hub/evil-previous-line-dwim))
 
   (global-unset-key (kbd "M-t"))
   (define-key evil-normal-state-map (kbd "M-T l") 'transpose-lines)

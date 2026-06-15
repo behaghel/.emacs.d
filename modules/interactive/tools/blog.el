@@ -5,6 +5,7 @@
 
 ;;; Code:
 
+(require 'hub-prose)
 (require 'hub-utils)
 
 (defgroup hub/blog nil
@@ -61,8 +62,25 @@
     (when (string-match hub/blog-posts-dir current-path)
       (ispell-change-dictionary "en_GB")
       (setq-local ispell-check-comments nil)
-      (writeroom-mode)
-      (artbollocks-mode)
+      (writeroom-mode 1)
+      ;; `writeroom-mode' enables `variable-pitch-mode' through our prose
+      ;; setup.  `visual-fill-column' is pixel-based, so narrow proportional
+      ;; glyphs can make a 90-column visual area contain far more than 90
+      ;; buffer columns.  Blog authoring uses fixed pitch so visual and text
+      ;; columns stay aligned.
+      (when (fboundp 'variable-pitch-mode)
+	(variable-pitch-mode -1))
+      ;; `writeroom-mode' owns `visual-fill-column' while active; restore the
+      ;; prose width so blog buffers do not drift to the full window width.
+      (setq-local visual-fill-column-width hub/prose-visual-fill-column
+		  visual-fill-column-center-text t
+		  visual-fill-column-extra-text-width nil)
+      (cond
+       ((fboundp 'visual-fill-column-adjust)
+	(visual-fill-column-adjust))
+       ((fboundp 'visual-fill-column--adjust-window)
+	(visual-fill-column--adjust-window (selected-window))))
+      (artbollocks-mode 1)
       (font-lock-fontify-buffer))))
 (add-hook 'org-mode-hook 'blog-post-hook)
 
