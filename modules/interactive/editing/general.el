@@ -73,7 +73,7 @@ interactive shell initialization."
   :config (global-undo-tree-mode))
 
 (use-package unfill :bind (("M-Q" . unfill-toggle)) :commands (unfill-region unfill-paragraph unfill-toggle))
-(use-package expand-region :bind ("M-r" . er/expand-region) :commands (er/expand-region))
+(use-package expand-region :commands (er/expand-region))
 
 (setq comment-auto-fill-only-comments t)
 (add-to-list 'fill-nobreak-predicate 'fill-french-nobreak-p)

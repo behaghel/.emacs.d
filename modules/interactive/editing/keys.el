@@ -62,9 +62,9 @@
 	(meta-map (make-sparse-keymap)))
     (set-keymap-parent meta-map (lookup-key global-map (kbd "ESC")))
     (define-key meta-map (kbd "c") #'hub/window-focus-far-left)
-    (define-key meta-map (kbd "t") #'hub/window-focus-far-down)
-    (define-key meta-map (kbd "s") #'hub/window-focus-far-up)
-    (define-key meta-map (kbd "n") #'hub/window-focus-far-right)
+    (define-key meta-map (kbd "t") #'hub/window-focus-far-up)
+    (define-key meta-map (kbd "s") #'hub/window-focus-far-down)
+    (define-key meta-map (kbd "r") #'hub/window-focus-far-right)
     (define-key map (kbd "ESC") meta-map)
     map)
   "Global minor-mode map for exact Meta window-focus overrides.")
@@ -82,9 +82,9 @@
 	(fallback (make-sparse-keymap)))
     (set-keymap-parent fallback (lookup-key global-map (kbd "ESC")))
     (define-key fallback (kbd "c") #'hub/window-focus-far-left)
-    (define-key fallback (kbd "t") #'hub/window-focus-far-down)
-    (define-key fallback (kbd "s") #'hub/window-focus-far-up)
-    (define-key fallback (kbd "n") #'hub/window-focus-far-right)
+    (define-key fallback (kbd "t") #'hub/window-focus-far-up)
+    (define-key fallback (kbd "s") #'hub/window-focus-far-down)
+    (define-key fallback (kbd "r") #'hub/window-focus-far-right)
     (if (keymapp meta-map)
 	(set-keymap-parent meta-map fallback)
       (define-key map (kbd "ESC") fallback))))
@@ -105,9 +105,9 @@
   (hub/define-leaders)
   (hub/global-override
    "M-c" #'hub/window-focus-far-left
-   "M-t" #'hub/window-focus-far-down
-   "M-s" #'hub/window-focus-far-up
-   "M-n" #'hub/window-focus-far-right)
+   "M-t" #'hub/window-focus-far-up
+   "M-s" #'hub/window-focus-far-down
+   "M-r" #'hub/window-focus-far-right)
   (hub/leader
    "f f" #'hub/dwim-find-file
    "b b" #'hub/dwim-switch-buffer

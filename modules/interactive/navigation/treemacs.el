@@ -59,9 +59,9 @@
   :after (treemacs evil)
   :config
   (define-key evil-treemacs-state-map (kbd "M-c") #'hub/window-focus-far-left)
-  (define-key evil-treemacs-state-map (kbd "M-t") #'hub/window-focus-far-down)
-  (define-key evil-treemacs-state-map (kbd "M-s") #'hub/window-focus-far-up)
-  (define-key evil-treemacs-state-map (kbd "M-n") #'hub/window-focus-far-right)
+  (define-key evil-treemacs-state-map (kbd "M-t") #'hub/window-focus-far-up)
+  (define-key evil-treemacs-state-map (kbd "M-s") #'hub/window-focus-far-down)
+  (define-key evil-treemacs-state-map (kbd "M-r") #'hub/window-focus-far-right)
   (define-key evil-treemacs-state-map (kbd "z.")  #'treemacs-toggle-show-dotfiles)
   (define-key evil-treemacs-state-map (kbd "zw")  #'treemacs-toggle-fixed-width)
   (define-key evil-treemacs-state-map (kbd "zv")  #'treemacs-fringe-indicator-mode)
