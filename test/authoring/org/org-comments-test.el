@@ -238,6 +238,30 @@
 					       (when (get-file-buffer sidecar)
 						 (kill-buffer (get-file-buffer sidecar)))))))
 
+(ert-deftest hub/org-comment-edit-empty-body-does-not-stay-on-heading ()
+  "Editing an empty sidecar comment lands in the body area, not on the title."
+  (hub/org-comments-test--with-file-buffer "article.org" "Alpha selected text omega"
+					   (let* ((start (progn
+							   (goto-char (point-min))
+							   (search-forward "selected")
+							   (match-beginning 0)))
+						  (end (match-end 0))
+						  (sidecar (hub/org-comment-append-to-sidecar
+							    (hub/org-comment-create-record buffer-file-name start end "" "local-empty"))))
+					     (unwind-protect
+						 (progn
+						   (goto-char start)
+						   (hub/org-comment-edit)
+						   (should (equal sidecar buffer-file-name))
+						   (should (buffer-narrowed-p))
+						   (should-not (looking-at-p "\\* OPEN Comment: selected"))
+						   (let ((body-point (point)))
+						     (should (save-excursion
+							       (goto-char (point-min))
+							       (search-forward ":END:" body-point t)))))
+					       (when (get-file-buffer sidecar)
+						 (kill-buffer (get-file-buffer sidecar)))))))
+
 (ert-deftest hub/org-comment-jump-to-sidecar-opens-heading ()
   "Jumping to sidecar moves to the active comment heading."
   (hub/org-comments-test--with-file-buffer "article.org" "Alpha selected text omega"

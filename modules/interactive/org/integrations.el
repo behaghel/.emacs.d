@@ -33,7 +33,10 @@
   (add-hook 'org-agenda-mode-hook #'hub/evil-org-setup-agenda-keybindings)
   :config
   (setq evil-org-movement-bindings '((up . "s") (down . "t") (left . "c") (right . "r")))
-  (evil-org-set-key-theme '(textobjects return insert navigation additional shift calendar)))
+  (evil-org-set-key-theme '(textobjects return insert navigation additional shift calendar))
+  ;; Keep M-r available for window focus; `org-metaright' remains available via
+  ;; M-<right>.
+  (evil-define-key '(normal visual insert) 'evil-org-mode (kbd "M-r") nil))
 
 (use-package ox-clip
   :commands (ox-clip-formatted-copy)

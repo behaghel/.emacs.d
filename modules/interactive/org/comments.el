@@ -141,16 +141,21 @@
 		     do (forward-line 1))
       (user-error "Comment %s not found in sidecar" id))))
 
+(defun hub/org-comment--goto-body-from-heading ()
+  "Move point from the current Org heading to its comment body."
+  (let ((subtree-end (save-excursion (org-end-of-subtree t t))))
+    (forward-line 1)
+    (when (looking-at-p "[[:space:]]*:PROPERTIES:[[:space:]]*$")
+      (when (re-search-forward "^[[:space:]]*:END:[[:space:]]*$" subtree-end t)
+	(forward-line 1)))
+    (while (and (< (point) subtree-end)
+		(looking-at-p "\n"))
+      (forward-char 1))))
+
 (defun hub/org-comment--goto-sidecar-body (comment)
   "Open COMMENT sidecar and move point to its body."
   (hub/org-comment--goto-sidecar-heading comment)
-  (forward-line 1)
-  (when (looking-at-p "[[:space:]]*:PROPERTIES:[[:space:]]*$")
-    (let ((subtree-end (save-excursion (org-end-of-subtree t t))))
-      (when (re-search-forward "^[[:space:]]*:END:[[:space:]]*$" subtree-end t)
-	(forward-line 1))))
-  (while (looking-at-p "\n")
-    (forward-char 1)))
+  (hub/org-comment--goto-body-from-heading))
 
 (defun hub/org-comment--set-sidecar-status (comment status)
   "Set COMMENT sidecar heading TODO keyword to STATUS."
@@ -243,7 +248,8 @@
   (let ((comment (hub/org-comment--active-at-point)))
     (hub/org-comment--goto-sidecar-heading comment)
     (org-narrow-to-subtree)
-    (hub/org-comment--goto-sidecar-body comment)))
+    (goto-char (point-min))
+    (hub/org-comment--goto-body-from-heading)))
 
 ;;;###autoload
 (defun hub/org-comment-mark-open ()
