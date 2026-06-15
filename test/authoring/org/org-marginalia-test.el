@@ -38,6 +38,13 @@
 					  (should (equal "123" (plist-get note :remote-id)))
 					  (should (equal "Please revise." (plist-get note :body))))))
 
+(ert-deftest hub/org-marginalia-strips-definition-colon-and-metadata ()
+  "Footnote definitions with colon separators hide metadata from note body."
+  (hub/org-marginalia-test--with-buffer "Text[fn:review]\n\n[fn:review]:\n:PROPERTIES:\n:HUB_NOTE_KIND: footnote\n:END:\nTraditional footnote.\n"
+					(let ((note (car (hub/org-marginalia-collect))))
+					  (should (eq 'footnote (plist-get note :kind)))
+					  (should (equal "Traditional footnote." (plist-get note :body))))))
+
 (ert-deftest hub/org-marginalia-preserves-reference-order ()
   "Marginalia records follow reference order, not definition order."
   (hub/org-marginalia-test--with-buffer "First[fn:b]\nSecond[fn:a]\n\n[fn:a] A.\n\n[fn:b] B.\n"
