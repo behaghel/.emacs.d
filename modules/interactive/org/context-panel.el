@@ -438,8 +438,6 @@ wrapped lines, visual filling, and partial scrolling follow the live window."
     (pcase (plist-get item :type)
       ('comment (hub/org-context-panel--insert-comment item))
       (_ (hub/org-context-panel--insert-marginalia item)))
-    (when (plist-get item :displaced)
-      (insert "↳ shifted down from nearby text\n"))
     (add-text-properties start (point) `(hub-org-context-panel-item ,item))
     (when (plist-get item :current)
       (add-face-text-property start (point) 'hub/org-context-panel-current-item-face t))))
