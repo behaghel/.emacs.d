@@ -93,6 +93,41 @@
       (kill-buffer panel)
       (delete-directory dir t))))
 
+(ert-deftest hub/org-context-panel-edits-sidecar-comment-entry ()
+  "Panel edit opens the backing sidecar comment body narrowed to its subtree."
+  (let* ((dir (make-temp-file "hub-context-panel-edit-" t))
+	 (source-file (expand-file-name "article.org" dir))
+	 (panel (generate-new-buffer " *hub context edit test*")))
+    (unwind-protect
+	(with-current-buffer (find-file-noselect source-file)
+	  (erase-buffer)
+	  (insert "Alpha selected text omega")
+	  (save-buffer)
+	  (org-mode)
+	  (let* ((start (progn
+			  (goto-char (point-min))
+			  (search-forward "selected text")
+			  (match-beginning 0)))
+		 (end (match-end 0))
+		 (record (hub/org-comment-create-record
+			  buffer-file-name start end "Please clarify." "local-panel-edit"))
+		 (sidecar (hub/org-comment-append-to-sidecar record)))
+	    (hub/org-context-panel-render-buffer (current-buffer) panel)
+	    (with-current-buffer panel
+	      (goto-char (point-min))
+	      (should (search-forward "Please clarify." nil t))
+	      (hub/org-context-panel-edit-item)
+	      (should (equal sidecar buffer-file-name))
+	      (should (buffer-narrowed-p))
+	      (should (looking-at-p "Please clarify\.")))))
+      (when (get-file-buffer source-file)
+	(kill-buffer (get-file-buffer source-file)))
+      (when-let* ((sidecar-buffer (get-file-buffer (hub/org-comment-sidecar-path source-file))))
+	(kill-buffer sidecar-buffer))
+      (when (buffer-live-p panel)
+	(kill-buffer panel))
+      (delete-directory dir t))))
+
 (ert-deftest hub/org-context-panel-renders-stale-comments-as-unanchored-warnings ()
   "The panel renderer shows stale sidecar comments without source overlays."
   (let* ((dir (make-temp-file "hub-context-panel-stale-" t))

@@ -107,6 +107,7 @@
 (defvar hub/org-context-panel-buffer-mode-map
   (let ((map (make-sparse-keymap)))
     (define-key map (kbd "RET") #'hub/org-context-panel-jump-to-definition)
+    (define-key map (kbd "e") #'hub/org-context-panel-edit-item)
     (define-key map (kbd "q") #'hub/org-context-panel-close)
     map)
   "Keymap used in Org context panel buffers.")
@@ -114,6 +115,7 @@
 (with-eval-after-load 'evil
   (evil-define-key 'normal hub/org-context-panel-buffer-mode-map
 		   (kbd "RET") #'hub/org-context-panel-jump-to-definition
+		   (kbd "e") #'hub/org-context-panel-edit-item
 		   (kbd "q") #'hub/org-context-panel-close
 		   (kbd "]c") #'hub/org-context-panel-next-item
 		   (kbd "[c") #'hub/org-context-panel-previous-item))
@@ -624,6 +626,24 @@ When SOURCE-WINDOW is non-nil, align notes to visible lines in that window."
 		     do (forward-line 1))
       (user-error "Comment %s not found in sidecar" id))))
 
+(defun hub/org-context-panel--goto-sidecar-body-from-heading ()
+  "Move point from the current sidecar heading to its body."
+  (let ((subtree-end (save-excursion (org-end-of-subtree t t))))
+    (forward-line 1)
+    (when (looking-at-p "[[:space:]]*:PROPERTIES:[[:space:]]*$")
+      (when (re-search-forward "^[[:space:]]*:END:[[:space:]]*$" subtree-end t)
+	(forward-line 1)))
+    (while (and (< (point) subtree-end)
+		(looking-at-p "\n"))
+      (forward-char 1))))
+
+(defun hub/org-context-panel--edit-sidecar-comment (comment)
+  "Edit COMMENT sidecar body narrowed to its subtree."
+  (hub/org-context-panel--jump-to-sidecar-comment comment)
+  (org-narrow-to-subtree)
+  (goto-char (point-min))
+  (hub/org-context-panel--goto-sidecar-body-from-heading))
+
 (defun hub/org-context-panel-next-item ()
   "Move point to the next context panel item."
   (interactive)
@@ -671,6 +691,16 @@ motion."
     (if (fboundp 'evil-ret)
 	(call-interactively #'evil-ret)
       (call-interactively #'newline))))
+
+(defun hub/org-context-panel-edit-item ()
+  "Edit the sidecar entry backing the context item at point."
+  (interactive)
+  (let ((item (hub/org-context-panel--item-at-point)))
+    (unless item
+      (user-error "No context item at point"))
+    (unless (eq 'comment (plist-get item :type))
+      (user-error "Context item has no sidecar entry"))
+    (hub/org-context-panel--edit-sidecar-comment item)))
 
 (defun hub/org-context-panel-jump-to-definition ()
   "Jump from a rendered context item to its source or sidecar definition."
