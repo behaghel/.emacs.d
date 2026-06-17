@@ -16,6 +16,17 @@
   :type 'directory
   :group 'hub/notes)
 
+(defcustom hub/denote-work-directory (expand-file-name "~/ws/veriff/my-docs/")
+  "Directory for work Denote notes."
+  :type 'directory
+  :group 'hub/notes)
+
+(defcustom hub/denote-work-known-keywords
+  '("product" "engineering" "business" "culture" "organisation")
+  "Known keywords offered when creating work Denote notes."
+  :type '(repeat string)
+  :group 'hub/notes)
+
 (defconst hub/denote--org-front-matter
   "#+title:      %s
 #+date:       %s
@@ -26,6 +37,27 @@
 
 "
   "Org front matter used for new Denote notes.")
+
+(defconst hub/denote--work-org-front-matter
+  "#+title:      %s
+#+date:       %s
+#+filetags:   %s
+#+identifier: %s
+#+signature:  %s
+
+"
+  "Org front matter used for new work Denote notes.")
+
+(put 'denote-org-front-matter 'safe-local-variable #'stringp)
+
+(defun hub/denote-work ()
+  "Create a Denote note in `hub/denote-work-directory'."
+  (interactive)
+  (make-directory hub/denote-work-directory t)
+  (let ((denote-directory hub/denote-work-directory)
+	(denote-known-keywords hub/denote-work-known-keywords)
+	(denote-org-front-matter hub/denote--work-org-front-matter))
+    (call-interactively #'denote)))
 
 (defun hub/denote--configure-org-capture ()
   "Configure Org capture templates that create Denote notes."
@@ -71,6 +103,7 @@
 
   (evil-global-set-key 'normal ",no" #'denote-open-or-create)
   (evil-global-set-key 'normal ",nn" #'denote)
+  (evil-global-set-key 'normal ",nw" #'hub/denote-work)
   (evil-global-set-key 'normal ",nt" #'denote-type)
   (evil-global-set-key 'normal ",nd" #'denote-date)
   (evil-global-set-key 'normal ",ns" #'denote-subdirectory)
