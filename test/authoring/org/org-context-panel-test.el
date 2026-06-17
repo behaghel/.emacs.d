@@ -8,6 +8,7 @@
 (require 'cl-lib)
 (require 'ert)
 (require 'test-helpers)
+(require 'hub-confluence-people)
 (require 'hub-org-comments)
 (require 'org/context-panel)
 
@@ -36,6 +37,81 @@
 						     (should (search-forward "Note body." nil t))))
 					       (kill-buffer panel)))))
 
+(ert-deftest hub/org-context-panel-renders-comment-html-as-readable-text ()
+  "Comment panel display strips HTML and decodes entities."
+  (let* ((dir (make-temp-file "hub-context-panel-html-" t))
+	 (source-file (expand-file-name "article.org" dir))
+	 (panel (generate-new-buffer " *hub context html test*")))
+    (unwind-protect
+	(with-current-buffer (find-file-noselect source-file)
+	  (erase-buffer)
+	  (insert "Alpha selected text omega")
+	  (save-buffer)
+	  (org-mode)
+	  (let* ((start (progn
+			  (goto-char (point-min))
+			  (search-forward "selected")
+			  (match-beginning 0)))
+		 (end (match-end 0))
+		 (record (hub/org-comment-create-record
+			  buffer-file-name start end
+			  "<p>It&rsquo;s useful &amp; readable.</p>" "local-html")))
+	    (hub/org-comment-append-to-sidecar record)
+	    (goto-char start)
+	    (hub/org-context-panel-render-buffer (current-buffer) panel)
+	    (with-current-buffer panel
+	      (should (search-forward "It’s useful & readable." nil t))
+	      (should-not (memq 'hub/org-context-panel-current-item-face
+				(let ((face (get-text-property (match-beginning 0) 'face)))
+				  (if (listp face) face (list face)))))
+	      (should-not (search-forward "&rsquo;" nil t))
+	      (should-not (search-forward "<p>" nil t)))))
+      (when (get-file-buffer source-file)
+	(kill-buffer (get-file-buffer source-file)))
+      (when (buffer-live-p panel)
+	(kill-buffer panel))
+      (delete-directory dir t))))
+
+(ert-deftest hub/org-context-panel-remote-missing-overview-is-compact ()
+  "Remote-missing overview cards show only a warning icon and struck status."
+  (with-temp-buffer
+    (hub/org-context-panel-buffer-mode)
+    (let ((inhibit-read-only t)
+	  (comment '(:type comment :status "OPEN" :remote-state "missing" :body "Gone")))
+      (hub/org-context-panel--insert-comment comment)
+      (goto-char (point-min))
+      (should (search-forward "⚠" nil t))
+      (should-not (search-forward "remote missing" nil t))
+      (goto-char (point-min))
+      (should (search-forward "OPEN" nil t))
+      (should (eq 'hub/org-context-panel-remote-missing-status-face
+		  (get-text-property (match-beginning 0) 'face))))))
+
+(ert-deftest hub/org-context-panel-remote-missing-focused-shows-detail ()
+  "Focused remote-missing comments show explicit missing-since detail."
+  (with-temp-buffer
+    (hub/org-context-panel-buffer-mode)
+    (let ((inhibit-read-only t)
+	  (comment '(:type comment :status "TODO" :current t
+			   :remote-state "missing"
+			   :remote-missing-at "2026-01-01T00:00:00+0000"
+			   :body "Gone")))
+      (hub/org-context-panel--insert-comment comment)
+      (goto-char (point-min))
+      (should (search-forward "remote missing since 2026-01-01" nil t)))))
+
+(ert-deftest hub/org-context-panel-list-body-gets-wrap-prefix ()
+  "Comment list bodies receive visual wrapping indentation without metadata."
+  (with-temp-buffer
+    (hub/org-context-panel-buffer-mode)
+    (let ((inhibit-read-only t)
+	  (comment '(:type comment :status "OPEN" :current t :body "- first item wraps")))
+      (hub/org-context-panel--insert-comment comment)
+      (goto-char (point-min))
+      (should-not (get-text-property (line-beginning-position) 'wrap-prefix))
+      (search-forward "- first")
+      (should (equal "  " (get-text-property (line-beginning-position) 'wrap-prefix))))))
+
 (ert-deftest hub/org-context-panel-marginalia-with-viewport-anchor-replaces-anchor ()
   "Viewport anchoring must replace, not append after, the original anchor line."
   (let ((note (hub/org-context-panel--marginalia-with-viewport-anchor
@@ -60,7 +136,8 @@
 			  (match-beginning 0)))
 		 (end (match-end 0))
 		 (record (hub/org-comment-create-record
-			  buffer-file-name start end "Please clarify." "local-panel")))
+			  buffer-file-name start end "Please clarify." "local-panel"
+			  "Ada" "2026-06-15T19:42:00+0200")))
 	    (hub/org-comment-append-to-sidecar record)
 	    (hub/org-comment-overlays-mode -1)
 	    (goto-char start)
@@ -78,6 +155,7 @@
 		(should (memq 'hub/org-context-panel-current-item-face
 			      (if (listp face) face (list face)))))
 	      (should (search-forward "“selected text”" nil t))
+	      (should (search-forward "Ada · 2026-06-15 19:42" nil t))
 	      (should (search-forward "Please clarify." nil t))
 	      (let ((item (get-text-property (point) 'hub-org-context-panel-item)))
 		(should (eq 'comment (plist-get item :type)))
@@ -128,6 +206,80 @@
 	(kill-buffer panel))
       (delete-directory dir t))))
 
+(ert-deftest hub/org-context-panel-deletes-sidecar-comment-entry ()
+  "Panel delete removes the backing sidecar comment after confirmation."
+  (let* ((dir (make-temp-file "hub-context-panel-delete-" t))
+	 (source-file (expand-file-name "article.org" dir))
+	 (panel (generate-new-buffer " *hub context delete test*")))
+    (unwind-protect
+	(with-current-buffer (find-file-noselect source-file)
+	  (erase-buffer)
+	  (insert "Alpha selected text omega")
+	  (save-buffer)
+	  (org-mode)
+	  (let* ((start (progn
+			  (goto-char (point-min))
+			  (search-forward "selected text")
+			  (match-beginning 0)))
+		 (end (match-end 0))
+		 (record (hub/org-comment-create-record
+			  buffer-file-name start end "Please delete." "local-panel-delete"))
+		 (sidecar (hub/org-comment-append-to-sidecar record)))
+	    (hub/org-context-panel-render-buffer (current-buffer) panel)
+	    (with-current-buffer panel
+	      (goto-char (point-min))
+	      (should (search-forward "Please delete." nil t))
+	      (cl-letf (((symbol-function 'yes-or-no-p) (lambda (&rest _args) t)))
+		(hub/org-context-panel-delete-item)))
+	    (with-temp-buffer
+	      (insert-file-contents sidecar)
+	      (should-not (search-forward "local-panel-delete" nil t)))))
+      (when (get-file-buffer source-file)
+	(kill-buffer (get-file-buffer source-file)))
+      (when (buffer-live-p panel)
+	(kill-buffer panel))
+      (delete-directory dir t))))
+
+(ert-deftest hub/org-context-panel-resolves-comment-author-from-people-directory ()
+  "Panel rendering resolves Confluence account IDs through people directories."
+  (let* ((dir (make-temp-file "hub-context-panel-people-" t))
+	 (source-file (expand-file-name "article.org" dir))
+	 (sidecar-file (expand-file-name "article.comments.org" dir))
+	 (people-file (expand-file-name "confluence-people.org" dir))
+	 (panel (generate-new-buffer " *hub context people test*")))
+    (unwind-protect
+	(progn
+	  (with-temp-file people-file
+	    (insert "* Alice Example\n:PROPERTIES:\n:HUB_CONFLUENCE_ACCOUNT_ID: acct-1\n:HUB_PERSON_DISPLAY_NAME: Alice Example\n:END:\n"))
+	  (with-current-buffer (find-file-noselect source-file)
+	    (erase-buffer)
+	    (insert "Alpha selected text omega")
+	    (save-buffer)
+	    (org-mode)
+	    (let* ((start (progn
+			    (goto-char (point-min))
+			    (search-forward "selected text")
+			    (match-beginning 0)))
+		   (end (match-end 0))
+		   (record (hub/org-comment-create-record
+			    buffer-file-name start end "Resolve me." "local-resolve"
+			    "acct-1" "2026-06-15T19:42:00+0200")))
+	      (hub/org-comment-append-to-sidecar record sidecar-file)
+	      (with-temp-buffer
+		(insert-file-contents sidecar-file)
+		(goto-char (point-min))
+		(search-forward ":HUB_COMMENT_AUTHOR: acct-1")
+		(insert "\n:HUB_COMMENT_REMOTE_AUTHOR_ID: acct-1")
+		(write-region (point-min) (point-max) sidecar-file nil 'silent))
+	      (hub/org-context-panel-render-buffer (current-buffer) panel)
+	      (with-current-buffer panel
+		(should (search-forward "Alice Example · 2026-06-15 19:42" nil t))))))
+      (when (get-file-buffer source-file)
+	(kill-buffer (get-file-buffer source-file)))
+      (when (buffer-live-p panel)
+	(kill-buffer panel))
+      (delete-directory dir t))))
+
 (ert-deftest hub/org-context-panel-renders-stale-comments-as-unanchored-warnings ()
   "The panel renderer shows stale sidecar comments without source overlays."
   (let* ((dir (make-temp-file "hub-context-panel-stale-" t))
@@ -166,7 +318,7 @@
 		(should-not (plist-get item :jump-pos)))
 	      (hub/org-context-panel-jump-to-definition)
 	      (should (string-suffix-p "article.comments.org" buffer-file-name))
-	      (should (looking-at-p "\\* OPEN Comment: selected")))))
+	      (should (looking-at-p "\\* OPEN .*“selected”")))))
       (when (get-file-buffer source-file)
 	(kill-buffer (get-file-buffer source-file)))
       (when (buffer-live-p panel)

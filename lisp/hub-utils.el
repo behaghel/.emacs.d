@@ -124,14 +124,16 @@ TARGET-SIDE is the semantic direction symbol: left, top, bottom, or right."
   (hub/window--select-extreme 0 '< #'hub/window--center-y 'left))
 
 (defun hub/window-focus-far-up ()
-  "Focus the topmost visible window."
-  (interactive)
-  (hub/window--select-extreme 1 '< #'hub/window--center-x 'top))
-
-(defun hub/window-focus-far-down ()
-  "Focus the bottommost visible window."
+  "Focus the bottommost visible window.
+This follows the configured Bépo window mnemonic where M-t moves down."
   (interactive)
   (hub/window--select-extreme 3 '> #'hub/window--center-x 'bottom))
+
+(defun hub/window-focus-far-down ()
+  "Focus the topmost visible window.
+This follows the configured Bépo window mnemonic where M-s moves up."
+  (interactive)
+  (hub/window--select-extreme 1 '< #'hub/window--center-x 'top))
 
 (defun hub/window-focus-far-right ()
   "Focus the rightmost visible window."

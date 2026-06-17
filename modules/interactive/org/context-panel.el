@@ -7,6 +7,7 @@
 ;;; Code:
 
 (require 'cl-lib)
+(require 'hub-confluence-people)
 (require 'hub-org-comments)
 (require 'hub-org-marginalia)
 (require 'org)
@@ -66,6 +67,11 @@
   "Face for default comment status chips."
   :group 'hub/org-context-panel)
 
+(defface hub/org-context-panel-remote-missing-status-face
+  '((t :inherit warning :strike-through t))
+  "Face for remote-missing comment status chips."
+  :group 'hub/org-context-panel)
+
 (defface hub/org-context-panel-icon-face
   '((t :inherit shadow))
   "Face used for compact context panel icons."
@@ -98,6 +104,9 @@
 (defvar-local hub/org-context-panel--comment-overlays nil
   "Comment target overlays in the current Org source buffer.")
 
+(defvar-local hub/org-context-panel--page-comment-overlay nil
+  "Top-of-buffer page comment marker overlay in the current Org source buffer.")
+
 (defvar-local hub/org-context-panel--visual-fill-state nil
   "Saved visual-fill-column state while context panel docks prose.")
 
@@ -108,7 +117,9 @@
   (let ((map (make-sparse-keymap)))
     (define-key map (kbd "RET") #'hub/org-context-panel-jump-to-definition)
     (define-key map (kbd "e") #'hub/org-context-panel-edit-item)
+    (define-key map (kbd "o") #'hub/org-context-panel-open-page-comments)
     (define-key map (kbd "q") #'hub/org-context-panel-close)
+    (define-key map (kbd "x") #'hub/org-context-panel-delete-item)
     map)
   "Keymap used in Org context panel buffers.")
 
@@ -116,7 +127,9 @@
   (evil-define-key 'normal hub/org-context-panel-buffer-mode-map
 		   (kbd "RET") #'hub/org-context-panel-jump-to-definition
 		   (kbd "e") #'hub/org-context-panel-edit-item
+		   (kbd "o") #'hub/org-context-panel-open-page-comments
 		   (kbd "q") #'hub/org-context-panel-close
+		   (kbd "x") #'hub/org-context-panel-delete-item
 		   (kbd "]c") #'hub/org-context-panel-next-item
 		   (kbd "[c") #'hub/org-context-panel-previous-item))
 
@@ -173,8 +186,12 @@ wrapped lines, visual filling, and partial scrolling follow the live window."
 
 (defun hub/org-context-panel--items-for-window (source-window items)
   "Return context ITEMS laid out for SOURCE-WINDOW viewport lines."
-  (let ((stale-items (cl-remove-if-not #'hub/org-context-panel--stale-comment-p items))
-	(anchored-items (cl-remove-if #'hub/org-context-panel--stale-comment-p items)))
+  (let* ((unanchored-items (cl-remove-if-not
+			    (lambda (item)
+			      (or (hub/org-context-panel--stale-comment-p item)
+				  (hub/org-context-panel--page-comment-p item)))
+			    items))
+	 (anchored-items (cl-set-difference items unanchored-items :test #'eq)))
     (append
      (hub/org-marginalia-layout
       (delq nil
@@ -187,12 +204,15 @@ wrapped lines, visual filling, and partial scrolling follow the live window."
 		     (hub/org-context-panel--item-with-viewport-anchor item row))
 		 item))
 	     anchored-items)))
-     stale-items)))
+     unanchored-items)))
 
 (defun hub/org-context-panel--delete-comment-overlays ()
   "Delete context-panel comment overlays in the current buffer."
   (mapc #'delete-overlay hub/org-context-panel--comment-overlays)
-  (setq hub/org-context-panel--comment-overlays nil))
+  (setq hub/org-context-panel--comment-overlays nil)
+  (when (overlayp hub/org-context-panel--page-comment-overlay)
+    (delete-overlay hub/org-context-panel--page-comment-overlay))
+  (setq hub/org-context-panel--page-comment-overlay nil))
 
 (defun hub/org-context-panel--comment-item-p (item)
   "Return non-nil when ITEM is a sidecar comment."
@@ -202,6 +222,11 @@ wrapped lines, visual filling, and partial scrolling follow the live window."
   "Return non-nil when ITEM is an unanchored stale sidecar comment."
   (and (hub/org-context-panel--comment-item-p item)
        (eq (plist-get item :anchor-state) 'stale)))
+
+(defun hub/org-context-panel--page-comment-p (item)
+  "Return non-nil when ITEM is a page-level sidecar comment."
+  (and (hub/org-context-panel--comment-item-p item)
+       (plist-get item :page-comment)))
 
 (defun hub/org-context-panel--source-point-in-item-p (item source-point)
   "Return non-nil when SOURCE-POINT is inside ITEM's target region."
@@ -257,14 +282,66 @@ wrapped lines, visual filling, and partial scrolling follow the live window."
 	  (plist-get item :current)))
    items))
 
+(defun hub/org-context-panel--metadata-end-position ()
+  "Return position after leading Org metadata keywords."
+  (save-excursion
+    (goto-char (point-min))
+    (while (looking-at-p "^[	]*#\\+[^:
+]+:.*$")
+      (forward-line 1))
+    (point)))
+
+(defun hub/org-context-panel-page-comment-marker-position ()
+  "Return page comment marker position in the current Org buffer, or nil."
+  (cond
+   ((overlayp hub/org-context-panel--page-comment-overlay)
+    (overlay-start hub/org-context-panel--page-comment-overlay))
+   ((hub/org-comment-collect-page (current-buffer))
+    (hub/org-context-panel--metadata-end-position))))
+
+(defun hub/org-context-panel-page-comment-marker-at-point-p ()
+  "Return non-nil when point is at the page comment marker position."
+  (and (derived-mode-p 'org-mode)
+       (equal (point) (hub/org-context-panel-page-comment-marker-position))))
+
+(defun hub/org-context-panel--page-comment-marker-map ()
+  "Return keymap for the top page-comment marker."
+  (let ((map (make-sparse-keymap)))
+    (define-key map (kbd "RET") #'hub/org-page-comments-open)
+    (define-key map [mouse-1] #'hub/org-page-comments-open)
+    map))
+
+(defun hub/org-context-panel--refresh-page-comment-marker (page-comments)
+  "Refresh top marker for PAGE-COMMENTS in the current source buffer."
+  (when (overlayp hub/org-context-panel--page-comment-overlay)
+    (delete-overlay hub/org-context-panel--page-comment-overlay))
+  (setq hub/org-context-panel--page-comment-overlay nil)
+  (when page-comments
+    (let* ((count (length page-comments))
+	   (label (format "[%s PAGE comment%s]" count (if (= count 1) "" "s")))
+	   (overlay (make-overlay (hub/org-context-panel--metadata-end-position)
+				  (hub/org-context-panel--metadata-end-position)
+				  nil t nil)))
+      (overlay-put overlay 'after-string
+		   (concat (propertize label
+				       'face 'link
+				       'mouse-face 'highlight
+				       'help-echo "Open page comments"
+				       'keymap (hub/org-context-panel--page-comment-marker-map))
+			   "\n"))
+      (setq hub/org-context-panel--page-comment-overlay overlay))))
+
 (defun hub/org-context-panel--refresh-comment-overlays (source-buffer items)
   "Refresh source comment overlays for comment ITEMS in SOURCE-BUFFER."
   (when (buffer-live-p source-buffer)
     (with-current-buffer source-buffer
       (hub/org-context-panel--delete-comment-overlays)
+      (hub/org-context-panel--refresh-page-comment-marker
+       (cl-remove-if-not #'hub/org-context-panel--page-comment-p items))
       (dolist (item items)
 	(when (and (hub/org-context-panel--comment-item-p item)
-		   (not (hub/org-context-panel--stale-comment-p item)))
+		   (not (hub/org-context-panel--stale-comment-p item))
+		   (not (hub/org-context-panel--page-comment-p item)))
 	  (let ((start (plist-get item :target-start))
 		(end (plist-get item :target-end)))
 	    (when (and start end (<= (point-min) start) (<= start end) (<= end (point-max)))
@@ -281,7 +358,8 @@ wrapped lines, visual filling, and partial scrolling follow the live window."
     (user-error "Org comment overlays only work in Org buffers"))
   (hub/org-context-panel--refresh-comment-overlays
    (current-buffer)
-   (hub/org-comment-collect (current-buffer))))
+   (append (hub/org-comment-collect (current-buffer))
+	   (hub/org-comment-collect-page (current-buffer)))))
 
 ;;;###autoload
 (define-minor-mode hub/org-comment-overlays-mode
@@ -403,11 +481,49 @@ wrapped lines, visual filling, and partial scrolling follow the live window."
   "Insert context panel ICON with its face."
   (insert (propertize icon 'face 'hub/org-context-panel-icon-face)))
 
-(defun hub/org-context-panel--insert-status-chip (status)
-  "Insert comment STATUS as a chip."
+(defun hub/org-context-panel--insert-status-chip (status &optional face)
+  "Insert comment STATUS as a chip, using optional FACE."
   (let ((label (upcase (or status "unknown"))))
     (insert (propertize (concat " " label " ")
-			'face (hub/org-context-panel--comment-status-face status)))))
+			'face (or face (hub/org-context-panel--comment-status-face status))))))
+
+(defun hub/org-context-panel--format-created-at (created-at)
+  "Return compact display text for CREATED-AT."
+  (if-let* ((time (ignore-errors (date-to-time created-at))))
+      (format-time-string "%Y-%m-%d %H:%M" time)
+    created-at))
+
+(defun hub/org-context-panel--source-directory ()
+  "Return directory of the current context panel source buffer, or nil."
+  (when-let* ((source hub/org-context-panel-source-buffer)
+	      (file (buffer-file-name source)))
+    (file-name-directory file)))
+
+(defun hub/org-context-panel--comment-author (comment)
+  "Return display author for COMMENT, resolving people directories when possible."
+  (let ((author (plist-get comment :author))
+	(remote-author-id (plist-get comment :remote-author-id))
+	(remote-author-display-name (plist-get comment :remote-author-display-name)))
+    (or (hub/confluence-people-resolve-account-id
+	 (or remote-author-id author)
+	 (hub/org-context-panel--source-directory))
+	remote-author-display-name
+	author)))
+
+(defun hub/org-context-panel--insert-comment-metadata (comment)
+  "Insert author/date metadata for COMMENT when present."
+  (let ((author (hub/org-context-panel--comment-author comment))
+	(created-at (plist-get comment :created-at)))
+    (when (or author created-at)
+      (insert (propertize
+	       (string-join
+		(delq nil
+		      (list author
+			    (when created-at
+			      (hub/org-context-panel--format-created-at created-at))))
+		" · ")
+	       'face 'shadow)
+	      "\n"))))
 
 (defun hub/org-context-panel--insert-marginalia (note)
   "Insert marginalia NOTE into the current panel buffer."
@@ -418,15 +534,69 @@ wrapped lines, visual filling, and partial scrolling follow the live window."
     (unless (string-empty-p body)
       (insert body "\n"))))
 
+(defun hub/org-context-panel--readable-comment-body (comment)
+  "Return readable projection of COMMENT body for display."
+  (let ((body (or (plist-get comment :body) "")))
+    (require 'org-confluence-commands nil 'noerror)
+    (or (when (fboundp 'hub/confluence-import-storage-to-org)
+	  (ignore-errors (hub/confluence-import-storage-to-org body)))
+	(hub/org-comment--preview-plain-text body))))
+
+(defun hub/org-context-panel--org-fontified-text (text)
+  "Return TEXT fontified as Org without changing the current buffer mode."
+  (with-temp-buffer
+    (org-mode)
+    (insert text)
+    (font-lock-ensure (point-min) (point-max))
+    (buffer-string)))
+
+(defun hub/org-context-panel--apply-list-wrap-prefix (start end)
+  "Indent wrapped list continuation lines between START and END by two spaces."
+  (save-excursion
+    (goto-char start)
+    (while (< (point) end)
+      (when (looking-at-p "[[:space:]]*\\([-+*]\\|[0-9]+[.)]\\)[[:space:]]+")
+	(add-text-properties (line-beginning-position) (line-end-position)
+			     '(wrap-prefix "  ")))
+      (forward-line 1))))
+
+(defun hub/org-context-panel--insert-comment-body (body)
+  "Insert readable comment BODY with Org fontification and wrapping hints."
+  (unless (string-empty-p body)
+    (let ((start (point)))
+      (insert (hub/org-context-panel--org-fontified-text body) "\n")
+      (hub/org-context-panel--apply-list-wrap-prefix start (point)))))
+
+(defun hub/org-context-panel--insert-comment-replies (comment)
+  "Insert full reply conversation for COMMENT."
+  (dolist (reply (plist-get comment :replies))
+    (insert "\n↳ ")
+    (hub/org-context-panel--insert-comment-metadata reply)
+    (hub/org-context-panel--insert-comment-body
+     (hub/org-context-panel--readable-comment-body reply))))
+
+(defun hub/org-context-panel--remote-missing-comment-p (comment)
+  "Return non-nil when COMMENT is linked to a missing remote comment."
+  (equal (plist-get comment :remote-state) "missing"))
+
 (defun hub/org-context-panel--insert-comment (comment)
   "Insert COMMENT into the current panel buffer."
   (let ((status (or (plist-get comment :status) "open"))
 	(target (or (plist-get comment :target-text) ""))
-	(body (or (plist-get comment :body) ""))
-	(stale (hub/org-context-panel--stale-comment-p comment)))
-    (hub/org-context-panel--insert-icon (if stale "⚠" "💬"))
+	(body (hub/org-context-panel--readable-comment-body comment))
+	(replies (plist-get comment :replies))
+	(stale (hub/org-context-panel--stale-comment-p comment))
+	(remote-missing (hub/org-context-panel--remote-missing-comment-p comment))
+	(page-comment (hub/org-context-panel--page-comment-p comment)))
+    (hub/org-context-panel--insert-icon (cond (stale "⚠")
+					      (remote-missing "⚠")
+					      (page-comment "🗨")
+					      (t "💬")))
     (insert " ")
-    (hub/org-context-panel--insert-status-chip status)
+    (hub/org-context-panel--insert-status-chip
+     status (when remote-missing 'hub/org-context-panel-remote-missing-status-face))
+    (when page-comment
+      (insert " PAGE"))
     (unless (string-empty-p target)
       (insert " " (propertize
 		   (concat "“" (hub/org-context-panel--truncate
@@ -435,11 +605,24 @@ wrapped lines, visual filling, and partial scrolling follow the live window."
     (insert "\n")
     (when stale
       (insert (propertize "Anchor no longer matches source text.\n" 'face 'warning)))
+    (when (and remote-missing (plist-get comment :current))
+      (insert (propertize
+	       (format "⚠ remote missing%s\n"
+		       (if-let* ((missing-at (plist-get comment :remote-missing-at)))
+			   (format " since %s" missing-at)
+			 ""))
+	       'face 'warning)))
+    (hub/org-context-panel--insert-comment-metadata comment)
     (if (plist-get comment :current)
-	(unless (string-empty-p body)
-	  (insert body "\n"))
-      (dolist (line (hub/org-context-panel--overview-comment-lines body))
-	(insert line "\n")))))
+	(progn
+	  (hub/org-context-panel--insert-comment-body body)
+	  (hub/org-context-panel--insert-comment-replies comment))
+      (progn
+	(dolist (line (hub/org-context-panel--overview-comment-lines body))
+	  (insert line "\n"))
+	(when replies
+	  (insert (format "↳ %s repl%s\n"
+			  (length replies) (if (= (length replies) 1) "y" "ies"))))))))
 
 (defun hub/org-context-panel--insert-item (item)
   "Insert context ITEM into the current panel buffer."
@@ -449,7 +632,10 @@ wrapped lines, visual filling, and partial scrolling follow the live window."
       (_ (hub/org-context-panel--insert-marginalia item)))
     (add-text-properties start (point) `(hub-org-context-panel-item ,item))
     (when (plist-get item :current)
-      (add-face-text-property start (point) 'hub/org-context-panel-current-item-face t))))
+      (save-excursion
+	(goto-char start)
+	(add-face-text-property
+	 start (line-end-position) 'hub/org-context-panel-current-item-face t)))))
 
 (defun hub/org-context-panel--item-key (item)
   "Return a stable panel identity key for ITEM."
@@ -504,7 +690,8 @@ When SOURCE-WINDOW is non-nil, align notes to visible lines in that window."
 			       (hub/org-context-panel--item-with-overview-height
 				(hub/org-context-panel--item-with-current-state item source-point)))
 			     (append (hub/org-marginalia-collect)
-				     (hub/org-comment-collect source-buffer t)))
+				     (hub/org-comment-collect source-buffer t)
+				     (hub/org-comment-collect-page source-buffer)))
 			    (lambda (left right)
 			      (< (or (plist-get left :anchor-line) 1)
 				 (or (plist-get right :anchor-line) 1))))))
@@ -618,6 +805,7 @@ When SOURCE-WINDOW is non-nil, align notes to visible lines in that window."
       (user-error "Comment record is missing sidecar metadata"))
     (find-file sidecar-file)
     (org-mode)
+    (hub/org-comment-fold-sidecar-property-drawers)
     (goto-char (point-min))
     (unless (cl-loop while (re-search-forward org-heading-regexp nil t)
 		     do (goto-char (match-beginning 0))
@@ -682,15 +870,19 @@ motion."
   (interactive)
   (unless (derived-mode-p 'org-mode)
     (user-error "Org context panel only works in Org buffers"))
-  (if-let* ((comment (hub/org-context-panel--comment-at-point)))
-      (progn
-	(hub/org-context-panel-open)
-	(when-let* ((window (hub/org-context-panel--visible-window)))
-	  (select-window window)
-	  (hub/org-context-panel--goto-item-key (hub/org-context-panel--item-key comment))))
-    (if (fboundp 'evil-ret)
-	(call-interactively #'evil-ret)
-      (call-interactively #'newline))))
+  (cond
+   ((hub/org-context-panel-page-comment-marker-at-point-p)
+    (hub/org-page-comments-open))
+   ((hub/org-context-panel--comment-at-point)
+    (let ((comment (hub/org-context-panel--comment-at-point)))
+      (hub/org-context-panel-open)
+      (when-let* ((window (hub/org-context-panel--visible-window)))
+	(select-window window)
+	(hub/org-context-panel--goto-item-key (hub/org-context-panel--item-key comment)))))
+   ((fboundp 'evil-ret)
+    (call-interactively #'evil-ret))
+   (t
+    (call-interactively #'newline))))
 
 (defun hub/org-context-panel-edit-item ()
   "Edit the sidecar entry backing the context item at point."
@@ -702,6 +894,36 @@ motion."
       (user-error "Context item has no sidecar entry"))
     (hub/org-context-panel--edit-sidecar-comment item)))
 
+(defun hub/org-context-panel-open-page-comments ()
+  "Open the source buffer page comments bottom window."
+  (interactive)
+  (unless (buffer-live-p hub/org-context-panel-source-buffer)
+    (user-error "No source buffer for this context panel"))
+  (with-current-buffer hub/org-context-panel-source-buffer
+    (hub/org-page-comments-open)))
+
+(defun hub/org-context-panel-delete-item ()
+  "Delete the sidecar comment backing the context item at point."
+  (interactive)
+  (let* ((item (hub/org-context-panel--item-at-point))
+	 (source hub/org-context-panel-source-buffer)
+	 (id (plist-get item :id))
+	 (sidecar-file (plist-get item :sidecar-file)))
+    (unless item
+      (user-error "No context item at point"))
+    (unless (eq 'comment (plist-get item :type))
+      (user-error "Context item has no sidecar entry"))
+    (unless (and id sidecar-file)
+      (user-error "Comment record is missing sidecar metadata"))
+    (when (yes-or-no-p (format "Delete comment %s? " id))
+      (hub/org-comment-delete-entry sidecar-file id)
+      (when (buffer-live-p source)
+	(with-current-buffer source
+	  (hub/org-comment-overlays-refresh))
+	(hub/org-context-panel-render-buffer
+	 source (current-buffer) (get-buffer-window source t)))
+      (message "Deleted comment %s" id))))
+
 (defun hub/org-context-panel-jump-to-definition ()
   "Jump from a rendered context item to its source or sidecar definition."
   (interactive)
@@ -710,7 +932,8 @@ motion."
 	 (position (or (plist-get note :definition-pos)
 		       (plist-get note :jump-pos))))
     (cond
-     ((and note (hub/org-context-panel--stale-comment-p note))
+     ((and note (or (hub/org-context-panel--stale-comment-p note)
+		    (hub/org-context-panel--page-comment-p note)))
       (hub/org-context-panel--jump-to-sidecar-comment note))
      ((and note (buffer-live-p source) position)
       (pop-to-buffer source)

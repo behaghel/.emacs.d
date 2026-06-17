@@ -34,6 +34,11 @@
   "org-confluence-commands" nil t)
 (autoload 'hub/confluence-open-page "org-confluence-commands" nil t)
 (autoload 'hub/confluence-pull "org-confluence-commands" nil t)
+(autoload 'hub/confluence-comment-list "org-confluence-commands" nil t)
+(autoload 'hub/confluence-comment-import "org-confluence-commands" nil t)
+(autoload 'hub/confluence-comment-import-footer "org-confluence-commands" nil t)
+(autoload 'hub/confluence-comment-import-inline "org-confluence-commands" nil t)
+(autoload 'hub/confluence-people-resolve "org-confluence-commands" nil t)
 
 ;; Personal Confluence integration defaults.  These are normal Org workflow
 ;; configuration, so they live in the tracked Org config layer rather than in

@@ -72,14 +72,17 @@ native behavior."
 			      (kbd "<prior>") #'org-move-subtree-up
 			      ",fn" #'org-footnote-new
 			      ",cA" #'hub/org-comment-reanchor
+			      ",cC" #'hub/org-comment-open-sidecar
 			      ",ce" #'hub/org-comment-edit
 			      ",cj" #'hub/org-comment-jump-to-sidecar
 			      ",cm" #'hub/org-context-panel-open
 			      ",cM" #'hub/org-context-panel-mode
 			      ",cO" #'hub/org-comment-mark-open
+			      ",cP" #'hub/org-page-comments-open
 			      ",cT" #'hub/org-comment-mark-todo
 			      ",cR" #'hub/org-comment-mark-resolved
 			      ",cs" #'hub/org-comment-cycle-status
+			      ",cx" #'hub/org-comment-delete
 			      ",ov" #'hub/org-insert-veriff-template
 			      "]c" #'hub/org-comment-next
 			      "[c" #'hub/org-comment-previous)
