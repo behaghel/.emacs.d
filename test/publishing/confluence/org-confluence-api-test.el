@@ -157,28 +157,36 @@
     (should (equal (cdr (assoc-string "inner" reasons t))
 		   "nested inline marker topology"))))
 
-(ert-deftest hub/confluence-publish-preflight-blocks-complex-active-marker-topology ()
-  "Refuse normal publish when active markers have unsupported complex topology."
-  (with-temp-buffer
-    (insert "#+CONFLUENCE_PAGE_ID: 123\n\nAlpha Beta Gamma.\n")
-    (org-mode)
-    (let ((buffer-file-name "/tmp/confluence-complex.org")
-	  (hub/confluence-publish--pages-needing-inline-marker-preservation nil))
-      (cl-letf (((symbol-function 'hub/confluence-api--list-page-comments)
-		 (lambda (&rest _args)
-		   '(:status 200 :body "{\"results\":[{\"id\":\"i1\",\"resolutionStatus\":\"open\",\"properties\":{\"inlineMarkerRef\":\"outer\",\"inlineOriginalSelection\":\"Alpha Beta Gamma\"}}]}")))
-		((symbol-function 'hub/confluence-api--get-page)
-		 (lambda (&rest _args)
-		   '(:status 200 :body "{\"body\":{\"storage\":{\"value\":\"<p><ac:inline-comment-marker ac:ref=\\\"outer\\\">Alpha <ac:inline-comment-marker ac:ref=\\\"inner\\\">Beta</ac:inline-comment-marker> Gamma</ac:inline-comment-marker></p>\"}}}")))
-		((symbol-function 'hub/confluence-commands--import-remote-comments)
-		 (lambda (&rest _args) (list :imported 0)))
-		((symbol-function 'hub/confluence-publish--preflight-report-buffer)
-		 (lambda (&rest _args) nil)))
-	(should-error (hub/confluence-publish--inline-comment-preflight '("123"))
-		      :type 'user-error)))))
+(ert-deftest hub/confluence-preserve-inline-comment-marker-nested-topology ()
+  "Preserve nested Confluence inline marker topology."
+  (let* ((old "<p><ac:inline-comment-marker ac:ref=\"outer\">Alpha <ac:inline-comment-marker ac:ref=\"inner\">Beta</ac:inline-comment-marker> Gamma</ac:inline-comment-marker></p>")
+	 (new "<p>Alpha Beta Gamma</p>")
+	 (outer '((resolutionStatus . "open")
+		  (properties . ((inlineMarkerRef . "outer")
+				 (inlineOriginalSelection . "Alpha Beta Gamma")))))
+	 (inner '((resolutionStatus . "open")
+		  (properties . ((inlineMarkerRef . "inner")
+				 (inlineOriginalSelection . "Beta"))))))
+    (should (equal (hub/confluence-commands--insert-inline-comment-markers
+		    new old (list outer inner))
+		   old))))
 
-(ert-deftest hub/confluence-publish-preflight-force-allows-complex-active-marker-topology ()
-  "Allow force publish to proceed despite complex active marker topology."
+(ert-deftest hub/confluence-preserve-inline-comment-marker-split-topology ()
+  "Preserve split same-ref marker topology around nested comments."
+  (let* ((old "<p><ac:inline-comment-marker ac:ref=\"outer\">This </ac:inline-comment-marker><ac:inline-comment-marker ac:ref=\"inner\"><ac:inline-comment-marker ac:ref=\"outer\">matters</ac:inline-comment-marker></ac:inline-comment-marker><ac:inline-comment-marker ac:ref=\"outer\">.</ac:inline-comment-marker></p>")
+	 (new "<p>This matters.</p>")
+	 (outer '((resolutionStatus . "open")
+		  (properties . ((inlineMarkerRef . "outer")
+				 (inlineOriginalSelection . "This matters.")))))
+	 (inner '((resolutionStatus . "open")
+		  (properties . ((inlineMarkerRef . "inner")
+				 (inlineOriginalSelection . "matters"))))))
+    (should (equal (hub/confluence-commands--insert-inline-comment-markers
+		    new old (list outer inner))
+		   old))))
+
+(ert-deftest hub/confluence-publish-preflight-preserves-complex-active-marker-topology ()
+  "Mark pages with complex active marker topology for preservation."
   (with-temp-buffer
     (insert "#+CONFLUENCE_PAGE_ID: 123\n\nAlpha Beta Gamma.\n")
     (org-mode)
@@ -194,8 +202,9 @@
 		 (lambda (&rest _args) (list :imported 0)))
 		((symbol-function 'hub/confluence-publish--preflight-report-buffer)
 		 (lambda (&rest _args) nil)))
-	(let ((report (hub/confluence-publish--inline-comment-preflight '("123") t)))
-	  (should (= 1 (length (plist-get report :blockers)))))))))
+	(let ((report (hub/confluence-publish--inline-comment-preflight '("123"))))
+	  (should-not (plist-get report :blockers))
+	  (should (member "123" hub/confluence-publish--pages-needing-inline-marker-preservation)))))))
 
 (ert-deftest hub/confluence-repair-uses-sidecar-occurrence-index ()
   "Choose the storage occurrence matching sidecar source anchor occurrence."
