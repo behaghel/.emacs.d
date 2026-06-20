@@ -40,6 +40,215 @@
   (should (equal (hub/confluence-api--page-create-command "ENG" "Roadmap")
 		 "cfl page create --space ENG --title Roadmap --storage")))
 
+(ert-deftest hub/confluence-preserve-inline-comment-marker-exact-selection ()
+  "Reinsert a Confluence inline comment marker around matching exported text."
+  (let* ((old "<p>Alpha <ac:inline-comment-marker ac:ref=\"m1\">selected text</ac:inline-comment-marker> omega.</p>")
+	 (new "<p>Alpha selected text omega.</p>")
+	 (comments '((status . "current")
+		     (resolutionStatus . "open")
+		     (properties . ((inlineMarkerRef . "m1")
+				    (inlineOriginalSelection . "selected text"))))))
+    (should (equal (hub/confluence-commands--insert-inline-comment-markers
+		    new old (list comments))
+		   old))))
+
+(ert-deftest hub/confluence-preserve-inline-comment-marker-uses-context ()
+  "Use old marker context to choose between repeated selected text."
+  (let* ((old "<p>First selected text.</p><p>Alpha <ac:inline-comment-marker ac:ref=\"m1\">selected text</ac:inline-comment-marker> omega.</p>")
+	 (new "<p>First selected text.</p><p>Alpha selected text omega.</p>")
+	 (comments '((resolutionStatus . "open")
+		     (properties . ((inlineMarkerRef . "m1")
+				    (inlineOriginalSelection . "selected text"))))))
+    (should (equal (hub/confluence-commands--insert-inline-comment-markers
+		    new old (list comments))
+		   old))))
+
+(ert-deftest hub/confluence-preserve-inline-comment-marker-across-formatting ()
+  "Match plain selected text across inline storage formatting tags."
+  (let* ((new "<p>aaa <strong>bold</strong> bbb</p>")
+	 (expected "<p><ac:inline-comment-marker ac:ref=\"m1\">aaa <strong>bold</strong> bbb</ac:inline-comment-marker></p>")
+	 (comments '((resolutionStatus . "open")
+		     (properties . ((inlineMarkerRef . "m1")
+				    (inlineOriginalSelection . "aaa bold bbb"))))))
+    (should (equal (hub/confluence-commands--insert-inline-comment-markers
+		    new new (list comments))
+		   expected))))
+
+(ert-deftest hub/confluence-preserve-inline-comment-marker-inside-formatting ()
+  "Match selected text inside an inline formatting tag."
+  (let* ((new "<p><strong>bold text</strong></p>")
+	 (expected "<p><strong><ac:inline-comment-marker ac:ref=\"m1\">bold</ac:inline-comment-marker> text</strong></p>")
+	 (comments '((resolutionStatus . "open")
+		     (properties . ((inlineMarkerRef . "m1")
+				    (inlineOriginalSelection . "bold"))))))
+    (should (equal (hub/confluence-commands--insert-inline-comment-markers
+		    new new (list comments))
+		   expected))))
+
+(ert-deftest hub/confluence-preserve-inline-comment-marker-across-entities ()
+  "Match selected text across decoded storage entities and inline tags."
+  (let* ((new "<p>aaa <strong>Tom &amp; Jerry</strong> bbb</p>")
+	 (expected "<p><ac:inline-comment-marker ac:ref=\"m1\">aaa <strong>Tom &amp; Jerry</strong> bbb</ac:inline-comment-marker></p>")
+	 (comments '((resolutionStatus . "open")
+		     (properties . ((inlineMarkerRef . "m1")
+				    (inlineOriginalSelection . "aaa Tom & Jerry bbb"))))))
+    (should (equal (hub/confluence-commands--insert-inline-comment-markers
+		    new new (list comments))
+		   expected))))
+
+(ert-deftest hub/confluence-preserve-inline-comment-marker-matches-nbsp-as-space ()
+  "Match a normal-space selected text against a storage non-breaking space."
+  (let* ((new "<p>Ready&nbsp;in days</p>")
+	 (expected "<p><ac:inline-comment-marker ac:ref=\"m1\">Ready&nbsp;in</ac:inline-comment-marker> days</p>")
+	 (comments '((resolutionStatus . "open")
+		     (properties . ((inlineMarkerRef . "m1")
+				    (inlineOriginalSelection . "Ready in"))))))
+    (should (equal (hub/confluence-commands--insert-inline-comment-markers
+		    new new (list comments))
+		   expected))))
+
+(ert-deftest hub/confluence-inline-comment-candidates-skip-macro-parameters ()
+  "Do not insert markers into Confluence macro parameters."
+  (let ((storage "<ac:structured-macro ac:name=\"info\"><ac:parameter ac:name=\"title\">Danger</ac:parameter><ac:rich-text-body><p>Safe Danger</p></ac:rich-text-body></ac:structured-macro>"))
+    (should (equal (hub/confluence-commands--inline-comment-candidates storage "Danger")
+		   '((:start 114 :end 120))))))
+
+(ert-deftest hub/confluence-inline-comment-candidates-allow-rich-text-body ()
+  "Allow markers inside Confluence rich-text macro bodies."
+  (let* ((storage "<ac:structured-macro ac:name=\"info\"><ac:rich-text-body><p>Panel text</p></ac:rich-text-body></ac:structured-macro>")
+	 (comments '((resolutionStatus . "open")
+		     (properties . ((inlineMarkerRef . "m1")
+				    (inlineOriginalSelection . "Panel text")))))
+	 (result (hub/confluence-commands--insert-inline-comment-markers
+		  storage storage (list comments))))
+    (should (string-match-p "<ac:inline-comment-marker ac:ref=\"m1\">Panel text</ac:inline-comment-marker>" result))))
+
+(ert-deftest hub/confluence-inline-comment-candidates-skip-plain-text-body ()
+  "Do not insert markers into Confluence plain-text macro bodies."
+  (let ((storage "<ac:structured-macro ac:name=\"code\"><ac:plain-text-body><![CDATA[Panel text]]></ac:plain-text-body></ac:structured-macro>"))
+    (should-not (hub/confluence-commands--inline-comment-candidates storage "Panel text"))))
+
+(ert-deftest hub/confluence-inline-comment-candidates-allow-link-body ()
+  "Allow markers inside Confluence rich link bodies."
+  (let ((storage "<p><ac:link><ri:page ri:content-title=\"Target\"/><ac:link-body>Linked text</ac:link-body></ac:link></p>"))
+    (should (hub/confluence-commands--inline-comment-candidates storage "Linked text"))))
+
+(ert-deftest hub/confluence-inline-comment-candidates-skip-plain-text-link-body ()
+  "Do not insert markers into Confluence plain-text link bodies."
+  (let ((storage "<p><ac:link><ri:page ri:content-title=\"Target\"/><ac:plain-text-link-body><![CDATA[Linked text]]></ac:plain-text-link-body></ac:link></p>"))
+    (should-not (hub/confluence-commands--inline-comment-candidates storage "Linked text"))))
+
+(ert-deftest hub/confluence-inline-comment-candidates-skip-cross-paragraph-selection ()
+  "Do not synthesize one marker across paragraph boundaries."
+  (let ((storage "<p>Alpha</p><p>Beta</p>"))
+    (should-not (hub/confluence-commands--inline-comment-candidates storage "AlphaBeta"))))
+
+(ert-deftest hub/confluence-inline-comment-candidates-skip-cross-table-cell-selection ()
+  "Do not synthesize one marker across table cell boundaries."
+  (let ((storage "<table><tbody><tr><td><p>Alpha</p></td><td><p>Beta</p></td></tr></tbody></table>"))
+    (should-not (hub/confluence-commands--inline-comment-candidates storage "AlphaBeta"))))
+
+(ert-deftest hub/confluence-complex-inline-marker-ref-reasons-detects-nesting-and-splits ()
+  "Detect marker refs whose current Confluence topology is complex."
+  (let* ((storage "<p><ac:inline-comment-marker ac:ref=\"outer\">Alpha <ac:inline-comment-marker ac:ref=\"inner\">Beta</ac:inline-comment-marker> Gamma</ac:inline-comment-marker><ac:inline-comment-marker ac:ref=\"outer\">.</ac:inline-comment-marker></p>")
+	 (reasons (hub/confluence-commands--complex-inline-marker-ref-reasons storage)))
+    (should (equal (cdr (assoc-string "outer" reasons t))
+		   "split inline marker topology"))
+    (should (equal (cdr (assoc-string "inner" reasons t))
+		   "nested inline marker topology"))))
+
+(ert-deftest hub/confluence-publish-preflight-blocks-complex-active-marker-topology ()
+  "Refuse normal publish when active markers have unsupported complex topology."
+  (with-temp-buffer
+    (insert "#+CONFLUENCE_PAGE_ID: 123\n\nAlpha Beta Gamma.\n")
+    (org-mode)
+    (let ((buffer-file-name "/tmp/confluence-complex.org")
+	  (hub/confluence-publish--pages-needing-inline-marker-preservation nil))
+      (cl-letf (((symbol-function 'hub/confluence-api--list-page-comments)
+		 (lambda (&rest _args)
+		   '(:status 200 :body "{\"results\":[{\"id\":\"i1\",\"resolutionStatus\":\"open\",\"properties\":{\"inlineMarkerRef\":\"outer\",\"inlineOriginalSelection\":\"Alpha Beta Gamma\"}}]}")))
+		((symbol-function 'hub/confluence-api--get-page)
+		 (lambda (&rest _args)
+		   '(:status 200 :body "{\"body\":{\"storage\":{\"value\":\"<p><ac:inline-comment-marker ac:ref=\\\"outer\\\">Alpha <ac:inline-comment-marker ac:ref=\\\"inner\\\">Beta</ac:inline-comment-marker> Gamma</ac:inline-comment-marker></p>\"}}}")))
+		((symbol-function 'hub/confluence-commands--import-remote-comments)
+		 (lambda (&rest _args) (list :imported 0)))
+		((symbol-function 'hub/confluence-publish--preflight-report-buffer)
+		 (lambda (&rest _args) nil)))
+	(should-error (hub/confluence-publish--inline-comment-preflight '("123"))
+		      :type 'user-error)))))
+
+(ert-deftest hub/confluence-publish-preflight-force-allows-complex-active-marker-topology ()
+  "Allow force publish to proceed despite complex active marker topology."
+  (with-temp-buffer
+    (insert "#+CONFLUENCE_PAGE_ID: 123\n\nAlpha Beta Gamma.\n")
+    (org-mode)
+    (let ((buffer-file-name "/tmp/confluence-complex.org")
+	  (hub/confluence-publish--pages-needing-inline-marker-preservation nil))
+      (cl-letf (((symbol-function 'hub/confluence-api--list-page-comments)
+		 (lambda (&rest _args)
+		   '(:status 200 :body "{\"results\":[{\"id\":\"i1\",\"resolutionStatus\":\"open\",\"properties\":{\"inlineMarkerRef\":\"outer\",\"inlineOriginalSelection\":\"Alpha Beta Gamma\"}}]}")))
+		((symbol-function 'hub/confluence-api--get-page)
+		 (lambda (&rest _args)
+		   '(:status 200 :body "{\"body\":{\"storage\":{\"value\":\"<p><ac:inline-comment-marker ac:ref=\\\"outer\\\">Alpha <ac:inline-comment-marker ac:ref=\\\"inner\\\">Beta</ac:inline-comment-marker> Gamma</ac:inline-comment-marker></p>\"}}}")))
+		((symbol-function 'hub/confluence-commands--import-remote-comments)
+		 (lambda (&rest _args) (list :imported 0)))
+		((symbol-function 'hub/confluence-publish--preflight-report-buffer)
+		 (lambda (&rest _args) nil)))
+	(let ((report (hub/confluence-publish--inline-comment-preflight '("123") t)))
+	  (should (= 1 (length (plist-get report :blockers)))))))))
+
+(ert-deftest hub/confluence-repair-uses-sidecar-occurrence-index ()
+  "Choose the storage occurrence matching sidecar source anchor occurrence."
+  (let* ((dir (make-temp-file "hub-confluence-repair-" t))
+	 (source (expand-file-name "article.org" dir))
+	 (sidecar (expand-file-name "article.comments.org" dir))
+	 (storage "<ol><li>First ordered item</li><li>Second ordered item</li><li>Third ordered item</li></ol>")
+	 (comment '((id . "i1")
+		    (resolutionStatus . "open")
+		    (properties . ((inlineMarkerRef . "m1")
+				   (inlineOriginalSelection . "ordered"))))))
+    (unwind-protect
+	(progn
+	  (with-temp-file source
+	    (insert "#+CONFLUENCE_PAGE_ID: 123\n\n1. First ordered item\n2. Second ordered item\n3. Third ordered item\n"))
+	  (let ((target-start nil))
+	    (with-temp-buffer
+	      (insert-file-contents source)
+	      (goto-char (point-min))
+	      (search-forward "Third ")
+	      (setq target-start (point)))
+	    (with-temp-file sidecar
+	      (insert "#+source: article.org\n* OPEN Remote\n:PROPERTIES:\n:HUB_COMMENT_REMOTE_ID: i1\n:HUB_COMMENT_TARGET_TEXT: ordered\n")
+	      (insert (format ":HUB_COMMENT_TARGET: %s %s\n" target-start (+ target-start 7)))
+	      (insert ":END:\n")))
+	  (let ((candidate (hub/confluence-repair--candidate-for-comment storage comment source)))
+	    (should (equal (plist-get candidate :start) 69))
+	    (should (equal (substring storage (plist-get candidate :start) (plist-get candidate :end))
+			   "ordered"))))
+      (delete-directory dir t))))
+
+(ert-deftest hub/confluence-repair-inline-comment-anchors-applies-safe-repairs ()
+  "Repair command writes marker-restored storage and updates the page on apply."
+  (let ((commands nil)
+	(written nil))
+    (cl-letf (((symbol-function 'hub/confluence-commands--page-id-or-read)
+	       (lambda (&optional _page-id) "123"))
+	      ((symbol-function 'hub/confluence-api--get-page)
+	       (lambda (&rest _args)
+		 '(:status 200 :body "{\"body\":{\"storage\":{\"value\":\"<p>Alpha selected text omega.</p>\"}}}")))
+	      ((symbol-function 'hub/confluence-api--list-page-comments)
+	       (lambda (&rest _args)
+		 '(:status 200 :body "{\"results\":[{\"id\":\"i1\",\"resolutionStatus\":\"open\",\"properties\":{\"inlineMarkerRef\":\"m1\",\"inlineOriginalSelection\":\"selected text\"}}]}")))
+	      ((symbol-function 'hub/confluence-commands--run)
+	       (lambda (command) (push command commands) 0)))
+      (let ((report (hub/confluence-repair-inline-comment-anchors "123" t)))
+	(setq written (plist-get report :repair-file))
+	(should (= 1 (length (plist-get report :repaired))))
+	(should (equal (length commands) 1))
+	(with-temp-buffer
+	  (insert-file-contents written)
+	  (should (search-forward "<ac:inline-comment-marker ac:ref=\"m1\">selected text</ac:inline-comment-marker>" nil t)))))))
+
 (ert-deftest hub/confluence-api--page-id-from-buffer ()
   "Read CONFLUENCE_PAGE_ID from the current Org buffer."
   (hub/confluence-api-test--with-org-buffer
@@ -1207,8 +1416,8 @@
 	  (kill-buffer buffer)))
       (delete-directory dir t))))
 
-(ert-deftest hub/confluence-publish-blocks-active-inline-comments ()
-  "Publishing aborts before updating pages when active inline comments exist."
+(ert-deftest hub/confluence-publish-blocks-unpreservable-active-inline-comments ()
+  "Publishing aborts when active inline comments lack marker metadata."
   (let* ((dir (make-temp-file "hub-confluence-publish-preflight-" t))
 	 (source (expand-file-name "article.org" dir))
 	 (sidecar (expand-file-name "article.comments.org" dir))
@@ -1224,7 +1433,7 @@
 	      (cl-letf (((symbol-function 'hub/confluence-api--list-page-comments)
 			 (lambda (_page-id kind _body-format)
 			   (should (equal kind "inline-comments"))
-			   '(:status 200 :body "{\"results\":[{\"id\":\"i1\",\"resolutionStatus\":\"open\",\"properties\":{\"inlineMarkerRef\":\"m1\",\"inlineOriginalSelection\":\"selected text\"},\"body\":{\"storage\":{\"value\":\"<p>Inline</p>\"}}}]}")))
+			   '(:status 200 :body "{\"results\":[{\"id\":\"i1\",\"resolutionStatus\":\"open\",\"body\":{\"storage\":{\"value\":\"<p>Inline</p>\"}}}]}")))
 			((symbol-function 'hub/confluence-api--list-comment-children)
 			 (lambda (&rest _args) '(:status 200 :body "{\"results\":[]}")))
 			((symbol-function 'hub/confluence-commands--run)
@@ -1237,8 +1446,7 @@
 	    (should (search-forward "::remote-confluence-i1][comment i1]]" nil t)))
 	  (with-temp-buffer
 	    (insert-file-contents sidecar)
-	    (should (search-forward ":HUB_COMMENT_REMOTE_ID: i1" nil t))
-	    (should (search-forward ":HUB_COMMENT_TARGET_TEXT: selected text" nil t))))
+	    (should (search-forward ":HUB_COMMENT_REMOTE_ID: i1" nil t))))
       (when-let* ((buffer (find-buffer-visiting source)))
 	(kill-buffer buffer))
       (delete-directory dir t))))
@@ -1262,6 +1470,9 @@
 			   '(:status 200 :body "{\"results\":[{\"id\":\"i1\",\"resolutionStatus\":\"open\",\"properties\":{\"inlineMarkerRef\":\"m1\",\"inlineOriginalSelection\":\"selected text\"},\"body\":{\"storage\":{\"value\":\"<p>Inline</p>\"}}}]}")))
 			((symbol-function 'hub/confluence-api--list-comment-children)
 			 (lambda (&rest _args) '(:status 200 :body "{\"results\":[]}")))
+			((symbol-function 'hub/confluence-api--get-page)
+			 (lambda (&rest _args)
+			   '(:status 200 :body "{\"body\":{\"storage\":{\"value\":\"<p>Alpha <ac:inline-comment-marker ac:ref=\\\"m1\\\">selected text</ac:inline-comment-marker> omega.</p>\"}}}")))
 			((symbol-function 'org-confluence-export) (lambda (&rest _) "<p>x</p>"))
 			((symbol-function 'org-confluence-image-assets) (lambda (&rest _) nil))
 			((symbol-function 'hub/confluence-commands--write-temp-xhtml)
@@ -1306,6 +1517,46 @@
 	(kill-buffer buffer))
       (delete-directory dir t))))
 
+(ert-deftest hub/confluence-publish-prompts-to-repair-missing-inline-marker ()
+  "Interactive publish repairs safe missing inline markers before updating."
+  (let* ((dir (make-temp-file "hub-confluence-publish-repair-" t))
+	 (source (expand-file-name "article.org" dir))
+	 (commands nil)
+	 (repairs nil))
+    (unwind-protect
+	(progn
+	  (with-temp-file source
+	    (insert "#+CONFLUENCE_PAGE_ID: 123\n\nAlpha selected text omega.\n"))
+	  (with-current-buffer (find-file-noselect source)
+	    (org-mode)
+	    (let ((hub/confluence-publish--skip-inline-comment-preflight nil)
+		  (hub/confluence-comment-import-resolve-people nil))
+	      (cl-letf (((symbol-function 'hub/confluence-api--list-page-comments)
+			 (lambda (_page-id kind _body-format)
+			   (should (equal kind "inline-comments"))
+			   '(:status 200 :body "{\"results\":[{\"id\":\"i1\",\"resolutionStatus\":\"open\",\"properties\":{\"inlineMarkerRef\":\"m1\",\"inlineOriginalSelection\":\"selected text\"},\"body\":{\"storage\":{\"value\":\"<p>Inline</p>\"}}}]}")))
+			((symbol-function 'hub/confluence-api--list-comment-children)
+			 (lambda (&rest _args) '(:status 200 :body "{\"results\":[]}")))
+			((symbol-function 'hub/confluence-api--get-page)
+			 (lambda (&rest _args)
+			   '(:status 200 :body "{\"body\":{\"storage\":{\"value\":\"<p>Alpha selected text omega.</p>\"}}}")))
+			((symbol-function 'hub/confluence-publish--interactive-repair-p) (lambda () t))
+			((symbol-function 'yes-or-no-p) (lambda (&rest _args) t))
+			((symbol-function 'hub/confluence-repair-inline-comment-anchors)
+			 (lambda (page-id apply) (push (list page-id apply) repairs)))
+			((symbol-function 'org-confluence-export) (lambda (&rest _) "<p>x</p>"))
+			((symbol-function 'org-confluence-image-assets) (lambda (&rest _) nil))
+			((symbol-function 'hub/confluence-commands--write-temp-xhtml)
+			 (lambda (_xhtml) (make-temp-file "org-confluence-test-" nil ".xhtml")))
+			((symbol-function 'hub/confluence-commands--run)
+			 (lambda (command) (push command commands) 0)))
+		(should (equal (hub/confluence-publish) "123")))))
+	  (should (equal repairs '(("123" t))))
+	  (should (= 1 (length commands))))
+      (when-let* ((buffer (find-buffer-visiting source)))
+	(kill-buffer buffer))
+      (delete-directory dir t))))
+
 (ert-deftest hub/confluence-publish-does-not-block-remote-missing-inline-comments ()
   "Remote-missing inline comments are reported but do not block publishing."
   (let* ((dir (make-temp-file "hub-confluence-publish-missing-" t))
@@ -1342,6 +1593,42 @@
       (when-let* ((buffer (find-buffer-visiting source)))
 	(kill-buffer buffer))
       (delete-directory dir t))))
+
+(ert-deftest hub/confluence-publish-recursive-child-does-not-clear-parent-preservation ()
+  "Child subpage publish does not clear parent inline marker preservation state."
+  (hub/confluence-api-test--with-org-buffer
+   "#+CONFLUENCE_PAGE_ID: 123\n\nAlpha selected text omega.\n** Child\n:PROPERTIES:\n:CONFLUENCE_PAGE_ID: 456\n:END:\nChild body."
+   (lambda ()
+     (let ((published-xhtml nil)
+	   (commands nil)
+	   (hub/confluence-publish--skip-inline-comment-preflight nil)
+	   (hub/confluence-comment-import-resolve-people nil))
+       (cl-letf (((symbol-function 'hub/confluence-api--list-page-comments)
+		  (lambda (page-id kind _body-format)
+		    (should (equal kind "inline-comments"))
+		    (if (equal page-id "123")
+			'(:status 200 :body "{\"results\":[{\"id\":\"i1\",\"resolutionStatus\":\"open\",\"properties\":{\"inlineMarkerRef\":\"m1\",\"inlineOriginalSelection\":\"selected text\"},\"body\":{\"storage\":{\"value\":\"<p>Inline</p>\"}}}]}" )
+		      '(:status 200 :body "{\"results\":[]}"))))
+		 ((symbol-function 'hub/confluence-api--list-comment-children)
+		  (lambda (&rest _args) '(:status 200 :body "{\"results\":[]}")))
+		 ((symbol-function 'hub/confluence-commands--import-remote-comments)
+		  (lambda (&rest _args) (list :imported 0)))
+		 ((symbol-function 'hub/confluence-api--get-page)
+		  (lambda (&rest _args)
+		    '(:status 200 :body "{\"body\":{\"storage\":{\"value\":\"<p>Alpha <ac:inline-comment-marker ac:ref=\\\"m1\\\">selected text</ac:inline-comment-marker> omega.</p>\"}}}")))
+		 ((symbol-function 'org-confluence-image-assets) (lambda (&rest _) nil))
+		 ((symbol-function 'org-confluence-export)
+		  (lambda (&rest _args) "<p>Alpha selected text omega.</p>"))
+		 ((symbol-function 'hub/confluence-commands--write-temp-xhtml)
+		  (lambda (xhtml)
+		    (push xhtml published-xhtml)
+		    (make-temp-file "org-confluence-test-" nil ".xhtml")))
+		 ((symbol-function 'hub/confluence-commands--run)
+		  (lambda (command) (push command commands) 0)))
+	 (hub/confluence-publish)
+	 (should (= 2 (length commands)))
+	 (should (string-match-p "<ac:inline-comment-marker ac:ref=\"m1\">selected text</ac:inline-comment-marker>"
+				 (car published-xhtml))))))))
 
 (ert-deftest hub/confluence-publish-recursively-publishes-subpages-first ()
   "Publishing a parent updates child subpages before the parent page."
@@ -1692,6 +1979,34 @@
 	    (insert-file-contents sidecar)
 	    (should-not (search-forward ":HUB_COMMENT_REMOTE_STATE:" nil t))
 	    (should-not (search-forward ":HUB_COMMENT_REMOTE_MISSING_AT:" nil t))))
+      (delete-directory dir t))))
+
+(ert-deftest hub/confluence-comment-import-restores-inline-remote-present-again ()
+  "Inline import clears remote-missing metadata after marker repair."
+  (let* ((dir (make-temp-file "hub-confluence-inline-present-" t))
+	 (source (expand-file-name "article.org" dir))
+	 (sidecar (expand-file-name "article.comments.org" dir)))
+    (unwind-protect
+	(with-current-buffer (find-file-noselect source)
+	  (erase-buffer)
+	  (insert "#+CONFLUENCE_PAGE_ID: 123\n\nAlpha selected text omega.\n")
+	  (save-buffer)
+	  (org-mode)
+	  (with-temp-file sidecar
+	    (insert "#+title: Comments for article.org\n#+source: article.org\n#+todo: OPEN TODO | RESOLVED\n\n")
+	    (insert "* OPEN Was missing\n:PROPERTIES:\n:HUB_COMMENT_ID: remote-confluence-i1\n:HUB_COMMENT_REMOTE_ID: i1\n:HUB_COMMENT_SYNC_KIND: inline\n:HUB_COMMENT_SOURCE: confluence\n:HUB_COMMENT_TARGET_TEXT: selected text\n:HUB_COMMENT_REMOTE_STATE: missing\n:HUB_COMMENT_REMOTE_MISSING_AT: 2026-01-01T00:00:00+0000\n:END:\n\nBody\n"))
+	  (let ((hub/confluence-comment-import-resolve-people nil))
+	    (cl-letf (((symbol-function 'hub/confluence-api--list-page-comments)
+		       (lambda (&rest _args)
+			 '(:status 200 :body "{\"results\":[{\"id\":\"i1\",\"resolutionStatus\":\"open\",\"properties\":{\"inlineMarkerRef\":\"m1\",\"inlineOriginalSelection\":\"selected text\"},\"body\":{\"storage\":{\"value\":\"<p>Back</p>\"}}}]}")))
+		      ((symbol-function 'hub/confluence-api--list-comment-children)
+		       (lambda (&rest _args) '(:status 200 :body "{\"results\":[]}"))))
+	      (should (= 0 (hub/confluence-comment-import-inline)))))
+	  (with-temp-buffer
+	    (insert-file-contents sidecar)
+	    (should-not (search-forward ":HUB_COMMENT_REMOTE_STATE:" nil t))
+	    (should-not (search-forward ":HUB_COMMENT_REMOTE_MISSING_AT:" nil t))
+	    (should (search-forward ":HUB_COMMENT_REMOTE_RESOLUTION_STATUS: open" nil t))))
       (delete-directory dir t))))
 
 (ert-deftest hub/confluence-api--create-footer-comment-posts-storage-payload ()

@@ -24,6 +24,23 @@
   :type 'boolean
   :group 'hub/confluence-api)
 
+(defcustom hub/confluence-publish-preserve-inline-comments t
+  "Whether publishing should reinsert Confluence inline comment markers.
+
+When non-nil, existing page storage and inline comment metadata are fetched before
+page update.  Active inline comments with marker references are wrapped back
+around matching selected text in the newly exported storage XHTML so Confluence
+keeps their anchors."
+  :type 'boolean
+  :group 'hub/confluence-api)
+
+(defconst hub/confluence-commands--inline-comment-marker-regexp
+  "[<]ac:inline-comment-marker[^>]*ac:ref=\"\\([^\"]+\\)\"[^>]*>\\([^<]*\\)[<]/ac:inline-comment-marker>"
+  "Regexp matching a simple Confluence storage inline comment marker.")
+
+(defconst hub/confluence-commands--inline-comment-context-window 100
+  "Number of storage bytes used around inline comment markers for relocation.")
+
 (defun hub/confluence-commands--write-temp-xhtml (xhtml)
   "Write XHTML to a temporary .xhtml file and return its path."
   (let ((file (make-temp-file "org-confluence-" nil ".xhtml")))
@@ -93,6 +110,16 @@
     (unless (listp results)
       (user-error "Confluence comment response did not include results"))
     results))
+
+(defun hub/confluence-commands--page-body-storage-value (response)
+  "Return page body storage value from REST RESPONSE."
+  (let* ((json (hub/confluence-commands--json-alist
+		(hub/confluence-commands--response-body response)))
+	 (storage (alist-get 'storage (alist-get 'body json)))
+	 (value (and (listp storage) (alist-get 'value storage))))
+    (unless (stringp value)
+      (user-error "Confluence page response did not include body.storage.value"))
+    value))
 
 (defun hub/confluence-commands--user-results (response)
   "Return user results from REST RESPONSE."
@@ -273,6 +300,602 @@
 		 (alist-get 'selectedText target)
 		 (alist-get 'selected-text target)
 		 (alist-get 'text target))))))
+
+(defun hub/confluence-commands--remote-inline-marker-ref (comment)
+  "Return Confluence inline marker reference for COMMENT, or nil."
+  (let ((target (hub/confluence-commands--remote-inline-target-object comment)))
+    (or (alist-get 'inlineMarkerRef comment)
+	(alist-get 'inline-marker-ref comment)
+	(alist-get 'markerRef comment)
+	(alist-get 'marker-ref comment)
+	(and (listp target)
+	     (or (alist-get 'inlineMarkerRef target)
+		 (alist-get 'inline-marker-ref target)
+		 (alist-get 'markerRef target)
+		 (alist-get 'marker-ref target))))))
+
+(defun hub/confluence-commands--html-escape-text (text)
+  "Escape TEXT for Confluence storage text-node matching."
+  (replace-regexp-in-string
+   ">" "&gt;"
+   (replace-regexp-in-string
+    "<" "&lt;"
+    (replace-regexp-in-string "&" "&amp;" (or text "") t t)
+    t t)
+   t t))
+
+(defun hub/confluence-commands--context-before (string position)
+  "Return storage context before POSITION in STRING."
+  (let ((start (max 0 (- position hub/confluence-commands--inline-comment-context-window))))
+    (substring string start position)))
+
+(defun hub/confluence-commands--context-after (string position)
+  "Return storage context after POSITION in STRING."
+  (substring string position
+	     (min (length string)
+		  (+ position hub/confluence-commands--inline-comment-context-window))))
+
+(defun hub/confluence-commands--common-prefix-length (a b)
+  "Return length of common prefix between A and B."
+  (let ((limit (min (length a) (length b)))
+	(index 0))
+    (while (and (< index limit)
+		(= (aref a index) (aref b index)))
+      (setq index (1+ index)))
+    index))
+
+(defun hub/confluence-commands--common-suffix-length (a b)
+  "Return length of common suffix between A and B."
+  (let ((limit (min (length a) (length b)))
+	(index 0))
+    (while (and (< index limit)
+		(= (aref a (- (length a) index 1))
+		   (aref b (- (length b) index 1))))
+      (setq index (1+ index)))
+    index))
+
+(defun hub/confluence-commands--inline-marker-ranges (storage)
+  "Return inline comment marker ranges parsed from STORAGE."
+  (let ((stack nil)
+	(markers nil))
+    (with-temp-buffer
+      (insert storage)
+      (goto-char (point-min))
+      (while (re-search-forward "<\\(/?\\)ac:inline-comment-marker\\b\\([^>]*\\)>" nil t)
+	(let* ((tag-start (match-beginning 0))
+	       (tag-end (match-end 0))
+	       (closing (equal (match-string 1) "/"))
+	       (attrs (match-string 2))
+	       (ref (save-match-data
+		      (and (string-match "ac:ref=\"\\([^\"]+\\)\"" attrs)
+			   (match-string 1 attrs))))
+	       (self-closing (and (not closing)
+				  (string-match-p "/[[:space:]]*\\='" attrs))))
+	  (cond
+	   (self-closing
+	    (push (list :ref ref
+			:start tag-start
+			:start-tag-end tag-end
+			:body-start tag-end
+			:body-end tag-end
+			:end tag-end
+			:self-closing t)
+		  markers))
+	   (closing
+	    (when-let* ((opening (pop stack)))
+	      (push (append opening
+			    (list :body-end tag-start
+				  :end tag-end))
+		    markers)))
+	   (t
+	    (push (list :ref ref
+			:start tag-start
+			:start-tag-end tag-end
+			:body-start tag-end
+			:self-closing nil)
+		  stack))))))
+    (sort markers (lambda (a b) (< (plist-get a :start) (plist-get b :start))))))
+
+(defun hub/confluence-commands--complex-inline-marker-ref-reasons (storage)
+  "Return an alist of complex inline marker refs to reasons in STORAGE."
+  (let ((markers (hub/confluence-commands--inline-marker-ranges storage))
+	(counts nil)
+	reasons)
+    (dolist (marker markers)
+      (when-let* ((ref (plist-get marker :ref)))
+	(push ref (alist-get ref counts nil nil #'equal))))
+    (dolist (entry counts)
+      (when (> (length (cdr entry)) 1)
+	(push (cons (car entry) "split inline marker topology") reasons)))
+    (dolist (outer markers)
+      (dolist (inner markers)
+	(when (and (not (eq outer inner))
+		   (plist-get outer :ref)
+		   (plist-get inner :ref)
+		   (not (equal (plist-get outer :ref) (plist-get inner :ref)))
+		   (< (plist-get outer :start) (plist-get inner :start))
+		   (< (plist-get inner :end) (plist-get outer :end)))
+	  (unless (assoc-string (plist-get outer :ref) reasons t)
+	    (push (cons (plist-get outer :ref) "nested inline marker topology") reasons))
+	  (unless (assoc-string (plist-get inner :ref) reasons t)
+	    (push (cons (plist-get inner :ref) "nested inline marker topology") reasons)))))
+    reasons))
+
+(defun hub/confluence-commands--inline-marker-contexts (old-storage)
+  "Return an alist of marker ref to context plist from OLD-STORAGE."
+  (let (contexts)
+    (with-temp-buffer
+      (insert old-storage)
+      (goto-char (point-min))
+      (while (re-search-forward hub/confluence-commands--inline-comment-marker-regexp nil t)
+	(let ((ref (match-string-no-properties 1))
+	      (start (match-beginning 0))
+	      (end (match-end 0)))
+	  (push (cons ref (list :before (string-remove-suffix
+					 "<" (hub/confluence-commands--context-before old-storage start))
+				:after (hub/confluence-commands--context-after old-storage end)))
+		contexts))))
+    contexts))
+
+(defun hub/confluence-commands--inline-comment-exact-candidates (storage selection)
+  "Return exact candidate bounds in STORAGE for COMMENT SELECTION."
+  (let* ((escaped (hub/confluence-commands--html-escape-text selection))
+	 (forms (delete-dups (delq nil (list escaped selection))))
+	 candidates)
+    (dolist (form forms)
+      (when (and (stringp form) (not (string-empty-p form)))
+	(let ((start 0))
+	  (while (string-match (regexp-quote form) storage start)
+	    (push (list :start (match-beginning 0)
+			:end (match-end 0))
+		  candidates)
+	    (setq start (1+ (match-beginning 0)))))))
+    (nreverse candidates)))
+
+(defun hub/confluence-commands--decode-storage-entity (entity)
+  "Return visible text for storage ENTITY, or nil when unknown."
+  (cond
+   ((equal entity "amp") "&")
+   ((equal entity "lt") "<")
+   ((equal entity "gt") ">")
+   ((equal entity "quot") "\"")
+   ((equal entity "apos") "'")
+   ((equal entity "nbsp") " ")
+   ((string-match-p "\\`#x[[:xdigit:]]+\\'" entity)
+    (char-to-string (string-to-number (substring entity 2) 16)))
+   ((string-match-p "\\`#[0-9]+\\'" entity)
+    (char-to-string (string-to-number (substring entity 1) 10)))))
+
+(defun hub/confluence-commands--push-visible-storage-span (text start end text-parts starts ends)
+  "Push TEXT spanning START to END into TEXT-PARTS, STARTS, and ENDS.
+Return a list `(TEXT-PARTS STARTS ENDS)' with one storage span per visible
+character."
+  (dolist (char (string-to-list text))
+    (push (char-to-string char) text-parts)
+    (push start starts)
+    (push end ends))
+  (list text-parts starts ends))
+
+(defun hub/confluence-commands--storage-text-index (storage)
+  "Return a plist mapping visible text positions to STORAGE positions.
+Tags are skipped, so text split by inline storage tags can still be matched as
+one contiguous visible selection.  Common XML/HTML entities are decoded while
+retaining their original storage span."
+  (let ((index 0)
+	(text-parts nil)
+	(starts nil)
+	(ends nil))
+    (while (< index (length storage))
+      (cond
+       ((= (aref storage index) ?<)
+	(let ((tag-end (string-match ">" storage index)))
+	  (setq index (if tag-end (1+ tag-end) (length storage)))))
+       ((= (aref storage index) ?&)
+	(let* ((entity-end (string-match ";" storage index))
+	       (entity (and entity-end (substring storage (1+ index) entity-end)))
+	       (decoded (and entity (hub/confluence-commands--decode-storage-entity entity))))
+	  (if decoded
+	      (pcase-let ((`(,new-parts ,new-starts ,new-ends)
+			   (hub/confluence-commands--push-visible-storage-span
+			    decoded index (1+ entity-end) text-parts starts ends)))
+		(setq text-parts new-parts
+		      starts new-starts
+		      ends new-ends
+		      index (1+ entity-end)))
+	    (let ((start index))
+	      (push (char-to-string (aref storage index)) text-parts)
+	      (push start starts)
+	      (setq index (1+ index))
+	      (push index ends)))))
+       (t
+	(let ((start index))
+	  (push (char-to-string (aref storage index)) text-parts)
+	  (push start starts)
+	  (setq index (1+ index))
+	  (push index ends)))))
+    (list :text (apply #'concat (nreverse text-parts))
+	  :starts (vconcat (nreverse starts))
+	  :ends (vconcat (nreverse ends)))))
+
+(defun hub/confluence-commands--inline-comment-visible-candidates (storage selection)
+  "Return tag-insensitive candidate bounds in STORAGE for COMMENT SELECTION."
+  (let* ((index (hub/confluence-commands--storage-text-index storage))
+	 (text (plist-get index :text))
+	 (starts (plist-get index :starts))
+	 (ends (plist-get index :ends))
+	 candidates)
+    (when (and (hub/confluence-api--present-string-p selection)
+	       (> (length text) 0))
+      (let ((start 0))
+	(while (string-match (regexp-quote selection) text start)
+	  (let* ((text-start (match-beginning 0))
+		 (text-end (match-end 0))
+		 (storage-start (aref starts text-start))
+		 (storage-end (aref ends (1- text-end))))
+	    (push (list :start storage-start
+			:end storage-end)
+		  candidates))
+	  (setq start (1+ (match-beginning 0))))))
+    (nreverse candidates)))
+
+(defun hub/confluence-commands--dedupe-inline-comment-candidates (candidates)
+  "Return CANDIDATES without duplicate start/end bounds."
+  (let (seen result)
+    (dolist (candidate candidates (nreverse result))
+      (let ((key (cons (plist-get candidate :start) (plist-get candidate :end))))
+	(unless (member key seen)
+	  (push key seen)
+	  (push candidate result))))))
+
+(defun hub/confluence-commands--storage-tag-ranges (storage tag)
+  "Return ranges for matching XML TAG in STORAGE."
+  (let (ranges)
+    (with-temp-buffer
+      (insert storage)
+      (goto-char (point-min))
+      (while (re-search-forward
+	      (format "<%s\\(?:[[:space:]][^>]*\\)?>\\(?:.\\|\n\\)*?</%s>"
+		      (regexp-quote tag) (regexp-quote tag))
+	      nil t)
+	(push (cons (match-beginning 0) (match-end 0)) ranges)))
+    (nreverse ranges)))
+
+(defun hub/confluence-commands--storage-cdata-ranges (storage)
+  "Return CDATA ranges in STORAGE."
+  (let ((start 0)
+	ranges)
+    (while (string-match "<!\\[CDATA\\[" storage start)
+      (let* ((range-start (match-beginning 0))
+	     (body-start (match-end 0))
+	     (range-end (if (string-match "\\]\\]>" storage body-start)
+			    (match-end 0)
+			  (length storage))))
+	(push (cons range-start range-end) ranges)
+	(setq start range-end)))
+    (nreverse ranges)))
+
+(defun hub/confluence-commands--storage-ri-tag-ranges (storage)
+  "Return resource identifier tag ranges in STORAGE."
+  (let (ranges)
+    (with-temp-buffer
+      (insert storage)
+      (goto-char (point-min))
+      (while (re-search-forward "<ri:[^>]+/?>" nil t)
+	(push (cons (match-beginning 0) (match-end 0)) ranges)))
+    (nreverse ranges)))
+
+(defun hub/confluence-commands--range-overlaps-p (start end range)
+  "Return non-nil when START..END overlaps RANGE."
+  (and (< start (cdr range))
+       (> end (car range))))
+
+(defun hub/confluence-commands--range-contained-in-ranges-p (start end ranges)
+  "Return non-nil when START..END is contained in one of RANGES."
+  (seq-some (lambda (range)
+	      (and (<= (car range) start)
+		   (<= end (cdr range))))
+	    ranges))
+
+(defun hub/confluence-commands--storage-text-container-ranges (storage)
+  "Return safe text container ranges in STORAGE."
+  (let (ranges)
+    (dolist (tag '("p" "li" "td" "th" "h1" "h2" "h3" "h4" "h5" "h6"
+		   "ac:link-body" "ac:rich-text-body"))
+      (setq ranges (append ranges
+			   (hub/confluence-commands--storage-tag-ranges storage tag))))
+    ranges))
+
+(defun hub/confluence-commands--candidate-crosses-text-container-p (storage start end)
+  "Return non-nil when START..END crosses text container boundaries in STORAGE."
+  (let* ((ranges (hub/confluence-commands--storage-text-container-ranges storage))
+	 (overlapping (seq-filter (lambda (range)
+				    (hub/confluence-commands--range-overlaps-p start end range))
+				  ranges)))
+    (and overlapping
+	 (not (hub/confluence-commands--range-contained-in-ranges-p
+	       start end overlapping)))))
+
+(defun hub/confluence-commands--unsafe-inline-comment-candidate-p (storage candidate)
+  "Return non-nil when CANDIDATE is in unsafe Confluence storage."
+  (let* ((start (plist-get candidate :start))
+	 (end (plist-get candidate :end))
+	 (blocked-ranges (append
+			  (hub/confluence-commands--storage-tag-ranges storage "ac:parameter")
+			  (hub/confluence-commands--storage-tag-ranges storage "ac:plain-text-body")
+			  (hub/confluence-commands--storage-cdata-ranges storage)
+			  (hub/confluence-commands--storage-ri-tag-ranges storage)))
+	 (macro-ranges (hub/confluence-commands--storage-tag-ranges storage "ac:structured-macro"))
+	 (rich-text-ranges (hub/confluence-commands--storage-tag-ranges storage "ac:rich-text-body")))
+    (or (hub/confluence-commands--candidate-crosses-text-container-p storage start end)
+	(seq-some (lambda (range)
+		    (hub/confluence-commands--range-overlaps-p start end range))
+		  blocked-ranges)
+	(and (hub/confluence-commands--range-contained-in-ranges-p start end macro-ranges)
+	     (not (hub/confluence-commands--range-contained-in-ranges-p
+		   start end rich-text-ranges))))))
+
+(defun hub/confluence-commands--safe-inline-comment-candidates (storage candidates)
+  "Return CANDIDATES that are safe marker insertion ranges in STORAGE."
+  (seq-remove (lambda (candidate)
+		(hub/confluence-commands--unsafe-inline-comment-candidate-p storage candidate))
+	      candidates))
+
+(defun hub/confluence-commands--inline-comment-candidates (storage selection)
+  "Return candidate bounds in STORAGE for COMMENT SELECTION."
+  (hub/confluence-commands--safe-inline-comment-candidates
+   storage
+   (hub/confluence-commands--dedupe-inline-comment-candidates
+    (append (hub/confluence-commands--inline-comment-exact-candidates storage selection)
+	    (hub/confluence-commands--inline-comment-visible-candidates storage selection)))))
+
+(defun hub/confluence-commands--score-inline-comment-candidate (storage candidate context)
+  "Return context score for CANDIDATE in STORAGE using old marker CONTEXT."
+  (let ((before (plist-get context :before))
+	(after (plist-get context :after)))
+    (+ (if before
+	   (hub/confluence-commands--common-suffix-length
+	    before (hub/confluence-commands--context-before storage (plist-get candidate :start)))
+	 0)
+       (if after
+	   (hub/confluence-commands--common-prefix-length
+	    after (hub/confluence-commands--context-after storage (plist-get candidate :end)))
+	 0))))
+
+(defun hub/confluence-commands--best-inline-comment-candidate (storage selection context)
+  "Return best STORAGE candidate for SELECTION using optional CONTEXT."
+  (let ((best nil)
+	(best-score -1))
+    (dolist (candidate (hub/confluence-commands--inline-comment-candidates storage selection))
+      (let ((score (if context
+		       (hub/confluence-commands--score-inline-comment-candidate storage candidate context)
+		     0)))
+	(when (> score best-score)
+	  (setq best candidate
+		best-score score))))
+    best))
+
+(defun hub/confluence-commands--inline-comment-replacements (new-storage old-storage comments)
+  "Return marker replacements for COMMENTS from OLD-STORAGE into NEW-STORAGE."
+  (let ((contexts (hub/confluence-commands--inline-marker-contexts old-storage))
+	(seen nil)
+	replacements)
+    (dolist (comment comments)
+      (let ((status (hub/confluence-commands--remote-comment-resolution-status comment))
+	    (ref (hub/confluence-commands--remote-inline-marker-ref comment))
+	    (selection (hub/confluence-commands--remote-inline-target-text comment)))
+	(when (and (not (member status '("resolved" "dangling")))
+		   (hub/confluence-api--present-string-p ref)
+		   (hub/confluence-api--present-string-p selection)
+		   (not (member ref seen)))
+	  (push ref seen)
+	  (when-let* ((candidate (hub/confluence-commands--best-inline-comment-candidate
+				  new-storage selection (cdr (assoc-string ref contexts t)))))
+	    (push (append candidate (list :ref ref)) replacements)))))
+    (sort replacements (lambda (a b) (> (plist-get a :start) (plist-get b :start))))))
+
+(defun hub/confluence-commands--insert-inline-comment-markers (new-storage old-storage comments)
+  "Return NEW-STORAGE with Confluence inline markers restored from COMMENTS.
+OLD-STORAGE supplies surrounding context for duplicate target disambiguation."
+  (let ((min-applied-start (length new-storage)))
+    (dolist (replacement (hub/confluence-commands--inline-comment-replacements
+			  new-storage old-storage comments))
+      (let ((start (plist-get replacement :start))
+	    (end (plist-get replacement :end))
+	    (ref (plist-get replacement :ref)))
+	(unless (> end min-applied-start)
+	  (setq min-applied-start start)
+	  (setq new-storage
+		(concat (substring new-storage 0 start)
+			(format "<ac:inline-comment-marker ac:ref=\"%s\">%s</ac:inline-comment-marker>"
+				(xml-escape-string ref)
+				(substring new-storage start end))
+			(substring new-storage end))))))
+    new-storage))
+
+(defun hub/confluence-commands--preserve-inline-comments (page-id new-storage)
+  "Return NEW-STORAGE with active inline comment markers preserved for PAGE-ID."
+  (if (or (not hub/confluence-publish-preserve-inline-comments)
+	  (not (member (format "%s" page-id)
+		       hub/confluence-publish--pages-needing-inline-marker-preservation)))
+      new-storage
+    (let* ((page-response (hub/confluence-api--get-page page-id "storage"))
+	   (old-storage (hub/confluence-commands--page-body-storage-value page-response))
+	   (comments-response (hub/confluence-api--list-page-comments
+			       page-id "inline-comments" "storage"))
+	   (comments (hub/confluence-commands--comment-results comments-response)))
+      (hub/confluence-commands--insert-inline-comment-markers
+       new-storage old-storage comments))))
+
+(defun hub/confluence-repair--source-occurrence-index (source-file target-text target-start)
+  "Return zero-based occurrence index of TARGET-TEXT before TARGET-START in SOURCE-FILE."
+  (when (and source-file
+	     (file-readable-p source-file)
+	     (hub/confluence-api--present-string-p target-text)
+	     (integerp target-start))
+    (with-temp-buffer
+      (insert-file-contents source-file)
+      (let ((count 0)
+	    (start 0)
+	    found)
+	(while (and (not found)
+		    (string-match (regexp-quote target-text) (buffer-string) start))
+	  (if (= (1+ (match-beginning 0)) target-start)
+	      (setq found count)
+	    (setq count (1+ count)
+		  start (1+ (match-beginning 0)))))
+	found))))
+
+(defun hub/confluence-repair--sidecar-target-info (remote-id source-file)
+  "Return sidecar target info for REMOTE-ID in SOURCE-FILE, or nil."
+  (when-let* ((sidecar-file (and source-file (hub/org-comment-sidecar-path source-file))))
+    (when (and remote-id (file-readable-p sidecar-file))
+      (with-temp-buffer
+	(insert-file-contents sidecar-file)
+	(org-mode)
+	(goto-char (point-min))
+	(cl-loop while (re-search-forward org-heading-regexp nil t)
+		 do (goto-char (match-beginning 0))
+		 when (equal remote-id (org-entry-get nil "HUB_COMMENT_REMOTE_ID"))
+		 return (let* ((target-text (org-entry-get nil "HUB_COMMENT_TARGET_TEXT"))
+			       (target (org-entry-get nil "HUB_COMMENT_TARGET"))
+			       (target-start (and target
+						  (string-match "\\`[[:space:]]*\\([0-9]+\\)" target)
+						  (string-to-number (match-string 1 target)))))
+			  (list :target-text target-text
+				:target-start target-start
+				:occurrence-index
+				(hub/confluence-repair--source-occurrence-index
+				 source-file target-text target-start)))
+		 do (forward-line 1))))))
+
+(defun hub/confluence-repair--comment-marker-present-p (storage comment)
+  "Return non-nil when COMMENT marker ref is present in STORAGE."
+  (when-let* ((ref (hub/confluence-commands--remote-inline-marker-ref comment)))
+    (string-match-p (regexp-quote ref) storage)))
+
+(defun hub/confluence-repair--candidate-for-comment (storage comment &optional source-file)
+  "Return repair candidate plist for COMMENT in STORAGE using SOURCE-FILE hints."
+  (let* ((remote-id (hub/confluence-commands--remote-comment-id comment))
+	 (ref (hub/confluence-commands--remote-inline-marker-ref comment))
+	 (selection (hub/confluence-commands--remote-inline-target-text comment))
+	 (candidates (and selection
+			  (hub/confluence-commands--inline-comment-candidates storage selection)))
+	 (sidecar-info (hub/confluence-repair--sidecar-target-info remote-id source-file))
+	 (occurrence-index (plist-get sidecar-info :occurrence-index))
+	 chosen reason)
+    (cond
+     ((not (hub/confluence-api--present-string-p ref))
+      (setq reason "missing marker ref"))
+     ((not (hub/confluence-api--present-string-p selection))
+      (setq reason "missing original selection"))
+     ((hub/confluence-repair--comment-marker-present-p storage comment)
+      (setq reason "marker already present"))
+     ((null candidates)
+      (setq reason "selection not found"))
+     ((= (length candidates) 1)
+      (setq chosen (car candidates)))
+     ((and (integerp occurrence-index)
+	   (< occurrence-index (length candidates)))
+      (setq chosen (nth occurrence-index candidates)))
+     (t
+      (setq reason (format "ambiguous selection (%s candidates)" (length candidates)))))
+    (append (list :comment-id remote-id
+		  :ref ref
+		  :selection selection
+		  :candidate-count (length candidates)
+		  :reason reason)
+	    chosen)))
+
+(defun hub/confluence-repair--apply-candidates (storage candidates)
+  "Return STORAGE with repair CANDIDATES inserted as inline comment markers."
+  (dolist (candidate (sort (seq-copy candidates)
+			   (lambda (a b) (> (plist-get a :start) (plist-get b :start)))))
+    (let* ((start (plist-get candidate :start))
+	   (end (plist-get candidate :end))
+	   (ref (plist-get candidate :ref))
+	   (selection (substring storage start end)))
+      (setq storage
+	    (concat (substring storage 0 start)
+		    (format "<ac:inline-comment-marker ac:ref=\"%s\">%s</ac:inline-comment-marker>"
+			    (xml-escape-string ref)
+			    selection)
+		    (substring storage end)))))
+  storage)
+
+(defun hub/confluence-repair--report-buffer (page-id repaired skipped backup-file repair-file)
+  "Show repair report for PAGE-ID with REPAIRED and SKIPPED records."
+  (let ((buffer (get-buffer-create "*Confluence Inline Comment Repair*")))
+    (with-current-buffer buffer
+      (let ((inhibit-read-only t))
+	(erase-buffer)
+	(insert (format "Confluence inline comment anchor repair for page %s\n\n" page-id))
+	(insert (format "Backup: %s\nRepair: %s\n\n" backup-file repair-file))
+	(insert (format "* Repairable (%s)\n" (length repaired)))
+	(if repaired
+	    (dolist (record repaired)
+	      (insert (format "- comment %s ref %s selection %S candidates %s\n"
+			      (plist-get record :comment-id)
+			      (plist-get record :ref)
+			      (plist-get record :selection)
+			      (plist-get record :candidate-count))))
+	  (insert "None.\n"))
+	(insert (format "\n* Skipped (%s)\n" (length skipped)))
+	(if skipped
+	    (dolist (record skipped)
+	      (insert (format "- comment %s: %s; selection %S; candidates %s\n"
+			      (plist-get record :comment-id)
+			      (plist-get record :reason)
+			      (plist-get record :selection)
+			      (plist-get record :candidate-count))))
+	  (insert "None.\n"))
+	(goto-char (point-min))
+	(org-mode)
+	(setq buffer-read-only t)))
+    (display-buffer buffer)
+    buffer))
+
+;;;###autoload
+(defun hub/confluence-repair-inline-comment-anchors (&optional page-id apply)
+  "Repair missing Confluence inline comment markers for PAGE-ID.
+
+The command fetches current page storage and inline comment metadata, reinserts
+missing `ac:inline-comment-marker' tags when a safe target can be identified,
+writes before/after XHTML files under `temporary-file-directory', and applies
+the repaired storage when APPLY is non-nil or the user confirms interactively."
+  (interactive (list nil current-prefix-arg))
+  (let* ((id (hub/confluence-commands--page-id-or-read page-id))
+	 (source-file buffer-file-name)
+	 (page-response (hub/confluence-api--get-page id "storage"))
+	 (storage (hub/confluence-commands--page-body-storage-value page-response))
+	 (comments-response (hub/confluence-api--list-page-comments id "inline-comments" "storage"))
+	 (comments (hub/confluence-commands--comment-results comments-response))
+	 repaired skipped)
+    (dolist (comment comments)
+      (let ((candidate (hub/confluence-repair--candidate-for-comment storage comment source-file)))
+	(if (and (plist-member candidate :start)
+		 (not (plist-get candidate :reason)))
+	    (push candidate repaired)
+	  (push candidate skipped))))
+    (setq repaired (nreverse repaired)
+	  skipped (nreverse skipped))
+    (let* ((backup-file (make-temp-file "confluence-before-anchor-repair-" nil ".xhtml"))
+	   (repair-file (make-temp-file "confluence-after-anchor-repair-" nil ".xhtml"))
+	   (repaired-storage (hub/confluence-repair--apply-candidates storage repaired)))
+      (with-temp-file backup-file (insert storage))
+      (with-temp-file repair-file (insert repaired-storage))
+      (hub/confluence-repair--report-buffer id repaired skipped backup-file repair-file)
+      (when (and repaired
+		 (or apply
+		     (yes-or-no-p (format "Apply %s inline comment anchor repair(s) to page %s? "
+					  (length repaired) id))))
+	(hub/confluence-commands--run
+	 (hub/confluence-api--page-update-command id repair-file))
+	(message "Repaired %s Confluence inline comment anchor(s) on page %s"
+		 (length repaired) id))
+      (list :repaired repaired
+	    :skipped skipped
+	    :backup-file backup-file
+	    :repair-file repair-file))))
 
 (defun hub/confluence-commands--property-line (key value)
   "Return an Org property line for KEY and VALUE when VALUE is present."
@@ -1063,6 +1686,16 @@ When SUBTREEP is non-nil, the current subtree root itself is not included."
 (defvar hub/confluence-publish--skip-inline-comment-preflight nil
   "Non-nil means recursive publish calls skip inline comment preflight.")
 
+(defvar hub/confluence-publish--pages-needing-inline-marker-preservation nil
+  "Page IDs whose active inline comment markers should be preserved on update.")
+
+(defvar hub/confluence-publish--pages-needing-inline-marker-repair nil
+  "Page IDs with safely repairable missing inline comment markers.")
+
+(defun hub/confluence-publish--interactive-repair-p ()
+  "Return non-nil when publish may prompt for inline marker repair."
+  (not noninteractive))
+
 (defun hub/confluence-commands--publish-subpages (subtreep visible-only body-only ext-plist)
   "Publish direct child subpages for current export scope before their parent."
   (dolist (marker (hub/confluence-commands--direct-subpage-markers subtreep))
@@ -1089,10 +1722,18 @@ When SUBTREEP is non-nil, the current subtree root itself is not included."
 	(delete-dups (nreverse ids))))))
 
 (defun hub/confluence-publish--inline-comment-blocking-p (comment)
-  "Return non-nil when inline COMMENT should block page publish."
+  "Return non-nil when inline COMMENT should block page publish.
+
+Anchored comments with marker refs and selected text are preserved during page
+update, so they do not block.  Active comments without enough anchor metadata
+still block because they cannot be safely reinserted."
   (let ((status (hub/confluence-commands--remote-comment-resolution-status comment)))
     (and (not (member status '("resolved" "dangling")))
-	 t)))
+	 (or (not hub/confluence-publish-preserve-inline-comments)
+	     (not (hub/confluence-api--present-string-p
+		   (hub/confluence-commands--remote-inline-marker-ref comment)))
+	     (not (hub/confluence-api--present-string-p
+		   (hub/confluence-commands--remote-inline-target-text comment)))))))
 
 (defun hub/confluence-publish--sidecar-comment-property (sidecar-file comment-id property)
   "Return PROPERTY for COMMENT-ID in SIDECAR-FILE, or nil."
@@ -1206,11 +1847,28 @@ When SUBTREEP is non-nil, the current subtree root itself is not included."
 	(insert "* Blocking active inline comments\n")
 	(if-let* ((blockers (plist-get report :blockers)))
 	    (dolist (record blockers)
-	      (insert (format "- page %s %s [%s]%s%s\n"
+	      (insert (format "- page %s %s [%s]%s%s%s\n"
 			      (plist-get record :page-id)
 			      (hub/confluence-publish--preflight-record-link record)
 			      (plist-get record :status)
 			      (if (plist-get record :anchored) " anchored" " anchor-unconfirmed")
+			      (if-let* ((reason (plist-get record :repair-reason)))
+				  (format " reason=%s" reason)
+				"")
+			      (if-let* ((text (plist-get record :target-text)))
+				  (format " — %s" text)
+				""))))
+	  (insert "None.\n"))
+	(insert "\n* Safely repairable missing inline markers\n")
+	(if-let* ((repairable (plist-get report :repairable)))
+	    (dolist (record repairable)
+	      (insert (format "- page %s %s [%s]%s%s\n"
+			      (plist-get record :page-id)
+			      (hub/confluence-publish--preflight-record-link record)
+			      (or (plist-get record :status) "open")
+			      (if-let* ((count (plist-get record :candidate-count)))
+				  (format " candidates=%s" count)
+				"")
 			      (if-let* ((text (plist-get record :target-text)))
 				  (format " — %s" text)
 				""))))
@@ -1250,38 +1908,88 @@ When SUBTREEP is non-nil, the current subtree root itself is not included."
   "Import and classify inline comments for PAGE-IDS before publish.
 When FORCE is nil, signal `user-error' if active inline comments would be
 orphaned by a page update."
-  (let ((report (list :blockers nil :dangling nil :sidecars nil))
+  (let ((report (list :blockers nil :dangling nil :repairable nil :sidecars nil))
 	(body-format "storage"))
     (dolist (page-id page-ids)
       (let* ((response (hub/confluence-api--list-page-comments
 			page-id "inline-comments" body-format))
 	     (comments (hub/confluence-commands--comment-results response))
 	     (sidecar (and buffer-file-name
-			   (hub/org-comment-sidecar-path buffer-file-name))))
-	(hub/confluence-commands--import-remote-comments
-	 page-id "inline-comments" body-format
-	 #'hub/confluence-commands--append-remote-inline-comment t)
-	(when sidecar
-	  (plist-put report :sidecars (cons sidecar (plist-get report :sidecars))))
-	(dolist (comment comments)
-	  (let ((record (hub/confluence-publish--inline-comment-record
-			 page-id comment sidecar buffer-file-name)))
-	    (cond
-	     ((or (equal "dangling" (plist-get record :status))
-		  (hub/confluence-publish--sidecar-remote-missing-p sidecar record))
-	      (plist-put record :remote-state "missing")
-	      (plist-put report :dangling (cons record (plist-get report :dangling))))
-	     ((hub/confluence-publish--inline-comment-blocking-p comment)
-	      (plist-put report :blockers (cons record (plist-get report :blockers)))))))))
+			   (hub/org-comment-sidecar-path buffer-file-name)))
+	     page-storage)
+	(cl-labels ((storage ()
+		      (or page-storage
+			  (setq page-storage
+				(hub/confluence-commands--page-body-storage-value
+				 (hub/confluence-api--get-page page-id "storage"))))))
+	  (hub/confluence-commands--import-remote-comments
+	   page-id "inline-comments" body-format
+	   #'hub/confluence-commands--append-remote-inline-comment t)
+	  (when sidecar
+	    (plist-put report :sidecars (cons sidecar (plist-get report :sidecars))))
+	  (dolist (comment comments)
+	    (let ((record (hub/confluence-publish--inline-comment-record
+			   page-id comment sidecar buffer-file-name)))
+	      (cond
+	       ((or (equal "dangling" (plist-get record :status))
+		    (hub/confluence-publish--sidecar-remote-missing-p sidecar record))
+		(plist-put record :remote-state "missing")
+		(plist-put report :dangling (cons record (plist-get report :dangling))))
+	       ((hub/confluence-publish--inline-comment-blocking-p comment)
+		(plist-put report :blockers (cons record (plist-get report :blockers))))
+	       ((hub/confluence-repair--comment-marker-present-p (storage) comment)
+		(let ((complex-reason
+		       (cdr (assoc-string
+			     (hub/confluence-commands--remote-inline-marker-ref comment)
+			     (hub/confluence-commands--complex-inline-marker-ref-reasons
+			      (storage))
+			     t))))
+		  (if (and complex-reason
+			   (not (member (plist-get record :status) '("resolved" "dangling"))))
+		      (progn
+			(plist-put record :repair-reason complex-reason)
+			(plist-put report :blockers (cons record (plist-get report :blockers))))
+		    (unless (member (format "%s" page-id)
+				    hub/confluence-publish--pages-needing-inline-marker-preservation)
+		      (push (format "%s" page-id)
+			    hub/confluence-publish--pages-needing-inline-marker-preservation)))))
+	       (t
+		(let ((candidate (hub/confluence-repair--candidate-for-comment
+				  (storage) comment buffer-file-name)))
+		  (setq record (append record
+				       (list :candidate-count (plist-get candidate :candidate-count)
+					     :repair-reason (plist-get candidate :reason))))
+		  (if (and (plist-member candidate :start)
+			   (not (plist-get candidate :reason)))
+		      (progn
+			(plist-put report :repairable (cons record (plist-get report :repairable)))
+			(unless (member (format "%s" page-id)
+					hub/confluence-publish--pages-needing-inline-marker-repair)
+			  (push (format "%s" page-id)
+				hub/confluence-publish--pages-needing-inline-marker-repair)))
+		    (plist-put report :blockers (cons record (plist-get report :blockers))))))))))))
     (plist-put report :blockers (nreverse (plist-get report :blockers)))
+    (plist-put report :repairable (nreverse (plist-get report :repairable)))
     (plist-put report :dangling (nreverse (plist-get report :dangling)))
     (hub/confluence-publish--reclassify-nonblocking-records report)
     (when (or (plist-get report :blockers)
+	      (plist-get report :repairable)
 	      (plist-get report :dangling))
       (hub/confluence-publish--preflight-report-buffer report force))
     (when (and (not force) (plist-get report :blockers))
       (user-error "Refusing to publish: %s active inline Confluence comment(s) would lose anchors"
 		  (length (plist-get report :blockers))))
+    (when (plist-get report :repairable)
+      (cond
+       ((not (hub/confluence-publish--interactive-repair-p))
+	(user-error "Refusing to publish: %s inline comment anchor(s) need repair; run hub/confluence-repair-inline-comment-anchors"
+		    (length (plist-get report :repairable))))
+       ((yes-or-no-p (format "Repair %s missing inline comment anchor(s) before publishing? "
+			     (length (plist-get report :repairable))))
+	(dolist (repair-page-id hub/confluence-publish--pages-needing-inline-marker-repair)
+	  (hub/confluence-repair-inline-comment-anchors repair-page-id t)))
+       (t
+	(user-error "Refusing to publish with unrepaired inline comment anchors"))))
     report))
 
 ;;;###autoload
@@ -1295,8 +2003,11 @@ page edit --file --storage'.  Interactively, a prefix argument forces publishing
 despite active inline comment anchors.  ASYNC, SUBTREEP, VISIBLE-ONLY,
 BODY-ONLY, and EXT-PLIST follow Org export conventions."
   (interactive (list current-prefix-arg))
-  (let ((force (and (called-interactively-p 'interactive) async)))
-    (unless hub/confluence-publish--skip-inline-comment-preflight
+  (let ((force (and (called-interactively-p 'interactive) async))
+	(top-level-p (not hub/confluence-publish--skip-inline-comment-preflight)))
+    (when top-level-p
+      (setq hub/confluence-publish--pages-needing-inline-marker-preservation nil
+	    hub/confluence-publish--pages-needing-inline-marker-repair nil)
       (hub/confluence-publish--inline-comment-preflight
        (hub/confluence-publish--target-page-ids subtreep) force))
     (let ((hub/confluence-publish--skip-inline-comment-preflight t))
@@ -1308,24 +2019,30 @@ BODY-ONLY, and EXT-PLIST follow Org export conventions."
 	     (xhtml-file nil))
 	(unwind-protect
 	    (progn
-	      (setq xhtml-file
-		    (hub/confluence-commands--write-temp-xhtml
-		     (org-confluence-export nil subtreep visible-only body-only
-					    (append (list :confluence-image-filenames
-							  (hub/confluence-commands--asset-filename-map assets))
-						    export-plist))))
+	      (let ((xhtml (org-confluence-export nil subtreep visible-only body-only
+						  (append (list :confluence-image-filenames
+								(hub/confluence-commands--asset-filename-map assets))
+							  export-plist))))
+		(setq xhtml-file
+		      (hub/confluence-commands--write-temp-xhtml
+		       (hub/confluence-commands--preserve-inline-comments page-id xhtml))))
 	      (hub/confluence-commands--upload-assets page-id assets)
 	      (hub/confluence-commands--run
 	       (hub/confluence-api--page-update-command page-id xhtml-file))
 	      (message "Published Org buffer to Confluence page %s" page-id)
 	      page-id)
 	  (when (and xhtml-file (file-exists-p xhtml-file))
-	    (delete-file xhtml-file)))))))
+	    (delete-file xhtml-file))
+	  (when top-level-p
+	    (setq hub/confluence-publish--pages-needing-inline-marker-preservation nil
+		  hub/confluence-publish--pages-needing-inline-marker-repair nil)))))))
 
 ;;;###autoload
 (defun hub/confluence-publish-force (&optional subtreep visible-only body-only ext-plist)
   "Publish to Confluence even when active inline comment anchors are present."
   (interactive)
+  (setq hub/confluence-publish--pages-needing-inline-marker-preservation nil
+	hub/confluence-publish--pages-needing-inline-marker-repair nil)
   (hub/confluence-publish--inline-comment-preflight
    (hub/confluence-publish--target-page-ids subtreep) t)
   (let ((hub/confluence-publish--skip-inline-comment-preflight t))
