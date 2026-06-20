@@ -31,7 +31,7 @@ last-reviewed: 2026-06-08
 - Review comments are not marginalia footnote kinds; local comments live in colocated sidecar Org files named like `article.comments.org` using compact `OPEN TODO | RESOLVED` Org TODO states.
 - Region comments require an active region, keep source Org clean, and render in the context panel when their stored offsets still match the selected text.
 - Comment overlays are enabled for Org buffers by `hub/org-comment-overlays-mode`, while `]c` and `[c` navigate to next and previous sidecar comments and open the context panel.
-- Org uses `,c` as its context prefix: `,cc` creates sidecar comments from visual selections; `,cA` reanchors a stale comment to the visual selection; `,cC` opens the sidecar comments file when it exists; `,cm` opens the context panel; `,cj` jumps to the active sidecar heading; `,ce` edits the active sidecar comment body narrowed to its subtree; `,cx` deletes the active source or sidecar comment after confirmation; `,cO`, `,cT`, `,cR`, and `,cs` update the active comment status.
+- Org uses `,c` as its context prefix: normal-state `,cc` opens the context panel, while visual-state `,cc` creates sidecar comments from visual selections; `,cf` creates a page/footer sidecar comment; `,cr` creates a local reply under the active remote-linked comment; `,cA` reanchors a stale comment to the visual selection; `,cC` opens the sidecar comments file when it exists; `,cO` opens the current page in Confluence; `,cl` opens the active remote-linked comment in Confluence; `,cj` jumps to the active sidecar heading; `,ce` edits the active sidecar comment body narrowed to its subtree; `,cx` deletes the active source or sidecar comment after confirmation; `,cmo`, `,cmt`, and `,cmr` update the active comment status.
 - Stale comments whose source anchor no longer matches are shown as unanchored warning cards in the context panel instead of disappearing silently; they do not receive source overlays.
 - Page/footer comments are shown as a display-only `[N PAGE comments]` marker below leading Org metadata and can be read in a bottom page-comments window without modifying the source file.
 - The interactive context panel is explicitly opened or toggled with a buffer-local mode; it follows the selected Org buffer while visible and closes when selection moves to a non-Org buffer.
@@ -46,14 +46,14 @@ marginalia footnotes and sidecar review comments.
 
 ### Opening, focus, and lifecycle
 
-- `,cm` opens or refreshes the context panel for the current Org buffer.
+- Normal-state `,cc` opens or refreshes the context panel for the current Org buffer.
 - `,cM` toggles `hub/org-context-panel-mode`, which refreshes after source-buffer
   commands.
 - The panel follows the selected Org buffer while visible.
 - The panel closes automatically when selection moves to a non-Org buffer.
 - `q` closes the panel when point is inside it.
 - `M-c`, `M-t`, `M-s`, and `M-r` move focus left/down/up/right consistently, so
-  `M-t` moves from the source window down into the page-comments reader and `M-s` moves back up.
+  `M-t` moves from the source window down into the page-context panel and `M-s` moves back up.
 - The panel preserves its point across refreshes and focus changes where possible.
 
 ### Reading items
@@ -61,9 +61,12 @@ marginalia footnotes and sidecar review comments.
 - `✣` marks a normal sidenote/marginalia item.
 - `†` marks a forced traditional footnote (`HUB_NOTE_KIND: footnote`).
 - `💬` marks an anchored sidecar review comment.
+- `👆` marks a page-level comment card.
 - `⚠` marks a stale sidecar comment whose stored source anchor no longer matches.
 - Comment status chips use `OPEN`, `TODO`, and `RESOLVED` from the sidecar Org
-  heading TODO keyword.
+  heading TODO keyword.  Comment cards end their top line with an emoji-only sync
+  badge: `✍️` for unpublished drafts, `🔗` for remote-linked comments, `⚠` for
+  missing or dangling remote comments, and `❓` for unconfirmed inline anchors.
 - Overview cards are intentionally compact.  When source point is inside a
   comment target, the panel focuses that comment and shows the full wrapped body.
 
@@ -75,8 +78,22 @@ Normal-state bindings inside the panel:
 | --- | --- |
 | `RET` | Jump to the item's primary target.  For anchored comments this jumps to the source region; for stale comments this jumps to the sidecar heading; for marginalia this jumps to the footnote definition. |
 | `e` | Edit the backing sidecar entry for comment cards, narrowed to the comment body.  Marginalia has no sidecar entry and reports an error. |
-| `o` | Open the bottom page-comments reader for the source buffer. |
+| `p` | Open the bottom page-context panel for the source buffer. |
+| `o` | Open the current remote-linked comment in Confluence. |
+| `+` | Create a local reply under the current remote-linked comment and jump to its body. |
+| `mo` / `mt` / `mr` | Mark the backing sidecar comment `OPEN`, `TODO`, or `RESOLVED`. |
+| `C-c C-c` | Push the current draft comment or reply to Confluence without visiting the sidecar. |
 | `x` | Delete the backing sidecar comment after confirmation.  Marginalia has no sidecar entry and reports an error. |
+| `zz` | Reset composable context filters.  The default shows normal, resolved, and remote-missing/deleted comments. |
+| `za` | Toggle actionable-only filtering. |
+| `zm` | Toggle current-user-only filtering. |
+| `zd` | Toggle draft/local-edit-only filtering. |
+| `zr` | Toggle showing resolved comments. |
+| `zx` | Toggle showing remote-missing/deleted comments. |
+| `z?` | Show active filter status. |
+| `?` | Toggle a small help window below the panel. |
+
+When filters differ from defaults, panels show a compact header with active filters, item counts, and the `zz` reset hint. If a reply matches a filter but its root does not, the root thread remains visible as conversation context while non-matching replies are hidden.
 | `]c` | Move to the next context item in the panel, wrapping at the end. |
 | `[c` | Move to the previous context item in the panel, wrapping at the beginning. |
 | `q` | Close the panel. |
@@ -94,8 +111,13 @@ Normal-state bindings inside the panel:
   behavior.
 - `]c` / `[c` in the source buffer navigate anchored comments and open/refresh
   the panel.
-- A display-only `[N PAGE comments]` marker below leading Org metadata opens the bottom page-comments reader with `RET` or mouse-1. `]c` and `[c` include the marker as a keyboard navigation stop.
-- `,cP` or `M-x hub/org-page-comments-open` opens the bottom page-comments reader explicitly.
+- A display-only `[N PAGE comments]` marker below leading Org metadata opens the bottom page-context panel with `RET` or mouse-1. `]c` and `[c` include the marker as a keyboard navigation stop.
+- `,cf` or `M-x hub/org-page-comment-create` creates a local page/footer sidecar comment and jumps to its body for editing.
+- `,cO` or `M-x hub/confluence-open-page` opens the current page in Confluence.
+- `,cl` or `M-x hub/confluence-comment-open-current` opens the current remote-linked sidecar/source comment in Confluence using `focusedCommentId`.
+- `,cr` or `M-x hub/org-comment-reply-create` creates a local reply child heading under the active remote-linked comment and jumps to its body for editing; push it afterwards with `C-c C-c` in the comments sidecar or `M-x hub/confluence-comment-push-current`.
+- `C-c C-c` in `*.comments.org` sidecars pushes the current local footer, inline, or reply comment to Confluence.
+- `,cP` or `M-x hub/org-page-comments-open` opens the bottom page-context panel explicitly, using the same card renderer and actions as the main context panel.
 - `,cC` opens the current Org file's sidecar comments file when it exists; when no sidecar exists it reports that in the minibuffer and leaves the source buffer unchanged.
 - Sidecar headings are readable summaries like `* OPEN Alice · “selected target” — Comment body preview` for anchored/inline comments and `* OPEN Page · Alice — Comment body preview` for page comments; IDs and sync metadata stay in properties.
 - Confluence reply conversations are stored as nested child headings under the root comment, for example `** Reply · Alice · 2026-06-10 14:31 — Reply preview`; root headings show a derived `[N replies]` marker immediately after the TODO status.
@@ -105,8 +127,9 @@ Normal-state bindings inside the panel:
 - `,cj` jumps from the active commented region to its sidecar heading.
 - `,ce` edits the active sidecar comment body narrowed to its subtree.
 - `,cx` deletes the active source comment, or the current sidecar comment heading when visiting a `.comments.org` file, after confirmation.
-- `,cO`, `,cT`, `,cR`, and `,cs` mark the active comment `OPEN`, `TODO`,
-  `RESOLVED`, or cycle status.
+- `,cmo`, `,cmt`, and `,cmr` mark the active source or sidecar comment `OPEN`,
+  `TODO`, or `RESOLVED`.
+- `org-comment:` links are Org-native links to sidecar comments through their source file, for example `[[org-comment:article.org::local-20260617T230746-56518c][Comment]]`.  Opening a footer comment link opens the page-context panel and selects the row; opening an anchored inline or reply link opens the source context panel and selects the root/reply row; stale, unanchored, or otherwise unrenderable comments fall back to the sidecar heading.
 
 ### Marginalia authoring
 
@@ -153,10 +176,31 @@ representation for remote review threads.
 - Confluence inline comments map to region-targeted sidecar entries.
 - Local sidecar comments carry canonical `HUB_COMMENT_AUTHOR` and `HUB_COMMENT_CREATED_AT` metadata. Remote comments preserve remote identity and audit fields without duplicating them into canonical local author fields, for example `HUB_COMMENT_REMOTE_ID`, `HUB_COMMENT_SOURCE`, `HUB_COMMENT_REMOTE_AUTHOR_ID`, `HUB_COMMENT_REMOTE_AUTHOR_DISPLAY_NAME`, `HUB_COMMENT_REMOTE_CREATED_AT`, and future sync/version properties.
 - Confluence people mappings live in plain Org `confluence-people.org` files. Lookup prefers a local file next to the source document, then the global file under `org-directory`; imports conservatively cache encountered account IDs and any display names Confluence already provides.
+- Mark the current user in a people entry with `HUB_PERSON_ME: t`; context/page-context cards highlight that author name using the current-author face. Local entries without the marker do not suppress a global marker for the same account.
+- `M-x hub/confluence-people-mark-current-user` fetches the authenticated Confluence user, caches it in the global people file, and marks it with `HUB_PERSON_ME: t` without overwriting manual display names.
 - `M-x hub/confluence-people-resolve` explicitly resolves unresolved cached account IDs through Confluence's bulk user lookup API and updates local/global people files without overwriting manual display names.
 - Remote comment body should be normalized to Org where supported.  Unsupported
   Confluence storage/ADF fragments should be preserved rather than silently
   flattened.
+
+### Page sync
+
+- `M-x hub/confluence-sync-current` synchronizes the current Org page and sidecar comments: page content first, then remote comment import, then local draft/local-edit comment push.
+- `M-x hub/confluence-sync-page-current` synchronizes only the current Org buffer's main page content.
+- Sync metadata is stored as top-level Org keywords: `CONFLUENCE_PAGE_VERSION`, `CONFLUENCE_PAGE_STORAGE_HASH`, `CONFLUENCE_LOCAL_ORG_HASH`, and `CONFLUENCE_PAGE_LAST_SYNCED_AT`.
+- The local Org hash excludes `CONFLUENCE_*` metadata lines, so updating sync metadata does not make the document dirty for the next sync.
+- If the remote version changed and the local body did not, sync fast-forwards by importing remote storage to Org and replacing the local body while preserving leading keywords.
+- If the remote version is unchanged and local content changed, sync publishes local Org and refreshes sync metadata from Confluence.  This uses the same inline-comment preflight guard as `hub/confluence-publish`, so active anchored Confluence inline comments can block a sync push before the page body is updated.
+- If both local and remote changed, sync leaves the source unchanged and opens `*Org Confluence Sync Conflict*` with local and remote sections for manual resolution.
+
+### Safe Confluence publishing
+
+- `M-x hub/confluence-publish` checks the live Confluence inline comments for every page it would update, including recursive subpages, before uploading page storage.
+- The preflight imports/updates inline comment sidecars first, then opens `*Org Confluence Publish Preflight*` when it finds active anchored inline comments, dangling comments, or remote-missing comments relevant to the publish.
+- Active anchored inline comments block publishing because replacing Confluence storage can orphan their markers and show them remotely as deleted-content comments.
+- Dangling or `HUB_COMMENT_REMOTE_STATE: missing` inline comments are reported as non-blocking because they are already detached remotely; publishing cannot make their anchor state worse.
+- Report entries use clickable `org-comment:` links.  `TAB` moves to the next report link; use `C-c C-o` or `M-x org-open-at-point` to open the link if Evil normal-state `RET` is not configured to follow Org links.
+- `C-u M-x hub/confluence-publish` and `M-x hub/confluence-publish-force` still run the preflight/import/report path, then continue despite blockers.  Use force only when accepting possible inline-anchor loss.
 
 ### API foundation
 
@@ -402,11 +446,18 @@ comments into normal remote-linked comments governed by the existing sync model.
 ### Initial Recommended Plan
 
 1. **Footer/page create MVP**
-   - Push one selected local page/footer sidecar comment to Confluence.
+   - Push one selected local page/footer sidecar comment to Confluence from inside
+     the `.comments.org` sidecar via `M-x hub/confluence-comment-push-current`.
+   - A local page/footer comment is explicitly marked with
+     `HUB_COMMENT_SYNC_KIND: footer` before it has a remote ID; absence of target
+     metadata is not inferred as push intent.
    - Store `HUB_COMMENT_REMOTE_ID`, `HUB_COMMENT_SOURCE: confluence`,
      `HUB_COMMENT_SYNC_KIND: footer`, remote audit fields returned by the API,
      and `HUB_COMMENT_REMOTE_LAST_SEEN_AT`.
-   - Leave source Org unchanged and preserve the sidecar body.
+   - Convert the sidecar Org body to conservative Confluence storage XHTML using
+     escaped plain paragraphs only.
+   - Leave source Org unchanged and preserve the sidecar body, canonical local
+     author/creation metadata, and current `OPEN`/`TODO` keyword.
 
 2. **Push reporting and idempotency**
    - Refuse to push comments that already have `HUB_COMMENT_REMOTE_ID` unless an
@@ -416,6 +467,19 @@ comments into normal remote-linked comments governed by the existing sync model.
 3. **Inline create MVP**
    - Push one selected anchored local region comment as a Confluence inline
      comment using existing target metadata.
+   - New local region comments are explicitly marked with
+     `HUB_COMMENT_SYNC_KIND: inline`; older target-bearing comments without a
+     sync kind may still be treated as inline for push compatibility.
+   - Create payloads use Confluence REST v2 `inlineCommentProperties` with
+     `textSelection`, `textSelectionMatchCount`, and `textSelectionMatchIndex`.
+   - Inline push requires a valid local anchor; stale anchors are refused before
+     any network call.
+   - Store local target match diagnostics with `HUB_COMMENT_TARGET_MATCH_COUNT`
+     and `HUB_COMMENT_TARGET_MATCH_INDEX`.
+   - If Confluence accepts the create response but does not return inline anchor
+     confirmation properties, store `HUB_COMMENT_REMOTE_ANCHOR_STATE:
+     unconfirmed`; if it reports `resolutionStatus: dangling`, store
+     `HUB_COMMENT_REMOTE_ANCHOR_STATE: dangling`.
    - If Confluence rejects the inline target, keep the local comment unlinked and
      report the failure without data loss.
 
@@ -430,12 +494,24 @@ comments into normal remote-linked comments governed by the existing sync model.
 
 ### Non-goals For The First Push Work
 
+- Running the push command from the source Org buffer.
+- Pushing local comments that are already remote-linked or locally `RESOLVED`.
 - Pushing replies or creating remote reply threads.
 - Updating existing remote comment bodies.
 - Resolving or reopening Confluence comments from local status changes.
 - Solving advanced marker-ref based inline targeting.
 - Supporting Google Docs push; `HUB_COMMENT_SOURCE` is preserved only to keep the
   model source-extensible.
+
+### Future Architecture Note
+
+`lisp/hub-org-comments.el` currently acts as the generic Org sidecar comment
+model while Confluence-specific code lives in `packages/org-confluence/`.  The
+model should remain source-agnostic (`HUB_COMMENT_SOURCE` distinguishes remote
+adapters).  A future iteration should extract or move the generic sidecar comment
+model under `packages/`, likely as an `org-comments` or `org-sidecar-comments`
+package.  This refactor is deliberately out of scope for the first Confluence
+push slice.
 
 ## Integration Notes
 

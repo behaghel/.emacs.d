@@ -10,6 +10,7 @@
 (require 'dom)
 (require 'hub-confluence-people nil 'noerror)
 (require 'org)
+(require 'ol)
 (require 'seq)
 (require 'subr-x)
 
@@ -216,11 +217,25 @@ ID defaults to a new local ID.  AUTHOR and CREATED-AT default to local metadata.
 	  :target-start-column (cdr start-line-column)
 	  :target-end-line (car end-line-column)
 	  :target-end-column (cdr end-line-column)
+	  :sync-kind "inline"
 	  :body body)))
 
 (defun hub/org-comment--relative-source-file (source-file sidecar-file)
   "Return SOURCE-FILE relative to SIDECAR-FILE directory."
   (file-relative-name source-file (file-name-directory sidecar-file)))
+
+(defun hub/org-comment-source-file-from-sidecar (&optional sidecar-file)
+  "Return source Org file referenced by SIDECAR-FILE or current sidecar."
+  (let* ((file (or sidecar-file buffer-file-name))
+	 (directory (and file (file-name-directory file))))
+    (unless file
+      (user-error "No comments sidecar file"))
+    (with-temp-buffer
+      (insert-file-contents file)
+      (let ((source (hub/org-comment--keyword-from-buffer "SOURCE")))
+	(unless source
+	  (user-error "Comments sidecar has no #+source keyword"))
+	(expand-file-name source directory)))))
 
 (defun hub/org-comment--ensure-sidecar-header (sidecar-file source-file)
   "Create SIDECAR-FILE with a minimal header for SOURCE-FILE when absent."
@@ -249,6 +264,8 @@ ID defaults to a new local ID.  AUTHOR and CREATED-AT default to local metadata.
        (hub/org-comment--property-line "HUB_COMMENT_AUTHOR" author))
      (when-let* ((created-at (plist-get record :created-at)))
        (hub/org-comment--property-line "HUB_COMMENT_CREATED_AT" created-at))
+     (when-let* ((sync-kind (plist-get record :sync-kind)))
+       (hub/org-comment--property-line "HUB_COMMENT_SYNC_KIND" sync-kind))
      (hub/org-comment--property-line
       "HUB_COMMENT_TARGET"
       (format "%s %s" (plist-get record :target-start) (plist-get record :target-end)))
@@ -531,12 +548,15 @@ current Org source file."
 	:status (hub/org-comment--heading-status properties)
 	:sidecar-file sidecar-file
 	:author (alist-get "HUB_COMMENT_AUTHOR" properties nil nil #'equal)
-	:created-at (or (alist-get "HUB_COMMENT_CREATED_AT" properties nil nil #'equal)
-			(alist-get "HUB_COMMENT_REMOTE_CREATED_AT" properties nil nil #'equal))
+	:created-at (or (alist-get "HUB_COMMENT_REMOTE_CREATED_AT" properties nil nil #'equal)
+			(alist-get "HUB_COMMENT_CREATED_AT" properties nil nil #'equal))
+	:local-updated-at (alist-get "HUB_COMMENT_LOCAL_UPDATED_AT" properties nil nil #'equal)
 	:remote-author-id (alist-get "HUB_COMMENT_REMOTE_AUTHOR_ID" properties nil nil #'equal)
 	:remote-author-display-name (alist-get "HUB_COMMENT_REMOTE_AUTHOR_DISPLAY_NAME" properties nil nil #'equal)
+	:source (alist-get "HUB_COMMENT_SOURCE" properties nil nil #'equal)
 	:remote-id (alist-get "HUB_COMMENT_REMOTE_ID" properties nil nil #'equal)
 	:remote-state (alist-get "HUB_COMMENT_REMOTE_STATE" properties nil nil #'equal)
+	:remote-anchor-state (alist-get "HUB_COMMENT_REMOTE_ANCHOR_STATE" properties nil nil #'equal)
 	:remote-missing-at (alist-get "HUB_COMMENT_REMOTE_MISSING_AT" properties nil nil #'equal)
 	:remote-last-seen-at (alist-get "HUB_COMMENT_REMOTE_LAST_SEEN_AT" properties nil nil #'equal)
 	:remote-resolution-status (alist-get "HUB_COMMENT_REMOTE_RESOLUTION_STATUS" properties nil nil #'equal)
@@ -616,6 +636,28 @@ whose stored target no longer validates against the source buffer."
 		    (list :anchor-state 'stale
 			  :stale t
 			  :anchor-line most-positive-fixnum))))))))
+
+(defun hub/org-comment-goto-id (comment-id)
+  "Move point to sidecar heading with COMMENT-ID and return non-nil when found."
+  (goto-char (point-min))
+  (cl-loop while (re-search-forward org-heading-regexp nil t)
+	   do (goto-char (match-beginning 0))
+	   when (equal comment-id (org-entry-get nil "HUB_COMMENT_ID"))
+	   return t
+	   do (forward-line 1)))
+
+(defun hub/org-comment-local-id-for-remote-id (sidecar-file remote-id)
+  "Return local comment id in SIDECAR-FILE for Confluence REMOTE-ID."
+  (when (and remote-id (file-exists-p sidecar-file))
+    (with-temp-buffer
+      (insert-file-contents sidecar-file)
+      (org-mode)
+      (goto-char (point-min))
+      (cl-loop while (re-search-forward org-heading-regexp nil t)
+	       do (goto-char (match-beginning 0))
+	       when (equal remote-id (org-entry-get nil "HUB_COMMENT_REMOTE_ID"))
+	       return (org-entry-get nil "HUB_COMMENT_ID")
+	       do (forward-line 1)))))
 
 (defun hub/org-comment--collect-from-sidecar (sidecar-file collector)
   "Collect comments from SIDECAR-FILE using heading COLLECTOR."
@@ -1039,6 +1081,111 @@ Return a plist summary with `:anchored', `:missing', and `:ambiguous' counts."
 	(forward-line 1))
       (write-region (point-min) (point-max) target-sidecar nil 'silent))
     (list :anchored anchored :missing missing :ambiguous ambiguous)))
+
+(defun hub/org-comment--project-root (&optional file)
+  "Return project-like root for FILE, or nil."
+  (let ((directory (file-name-directory (or file default-directory))))
+    (or (locate-dominating-file directory "domains.yaml")
+	(locate-dominating-file directory ".git"))))
+
+(defun hub/org-comment-link-source-path (source-file)
+  "Return portable source path for SOURCE-FILE in `org-comment:' links."
+  (let ((root (hub/org-comment--project-root source-file)))
+    (if root
+	(file-relative-name source-file root)
+      (abbreviate-file-name source-file))))
+
+(defun hub/org-comment--link-description (description fallback)
+  "Return DESCRIPTION sanitized for use as an Org link label.
+FALLBACK is used when DESCRIPTION is nil or empty."
+  (let ((label (or (hub/org-comment--present-string description) fallback)))
+    (replace-regexp-in-string "[][]" "" label)))
+
+(defun hub/org-comment-make-link (source-file comment-id &optional description)
+  "Return an Org link to COMMENT-ID belonging to SOURCE-FILE."
+  (format "[[org-comment:%s::%s][%s]]"
+	  (hub/org-comment-link-source-path source-file)
+	  comment-id
+	  (hub/org-comment--link-description description comment-id)))
+
+(defun hub/org-comment--resolve-source-file (path)
+  "Resolve org-comment source PATH to an absolute file name."
+  (cond
+   ((file-name-absolute-p path) (expand-file-name path))
+   ((let* ((root (hub/org-comment--project-root default-directory))
+	   (candidate (and root (expand-file-name path root))))
+      (and candidate (file-exists-p candidate) candidate)))
+   (t (expand-file-name path default-directory))))
+
+(defun hub/org-comment--parse-link-path (path)
+  "Parse org-comment PATH into source file and comment id."
+  (if (string-match "\\`\\(.+\\)::\\(.+\\)\\'" path)
+      (cons (hub/org-comment--resolve-source-file (match-string 1 path))
+	    (match-string 2 path))
+    (cons (or buffer-file-name
+	      (when (and (string-suffix-p ".comments.org" (or buffer-file-name "")))
+		(hub/org-comment-source-file-from-sidecar buffer-file-name)))
+	  path)))
+
+(defun hub/org-comment-open-link (path &optional _arg)
+  "Open org-comment link PATH."
+  (pcase-let* ((`(,source-file . ,comment-id) (hub/org-comment--parse-link-path path))
+	       (sidecar-file (and source-file (hub/org-comment-sidecar-path source-file))))
+    (unless (and source-file (file-exists-p source-file))
+      (user-error "Cannot resolve org-comment source file: %s" (or source-file "<none>")))
+    (unless (and sidecar-file (file-exists-p sidecar-file))
+      (user-error "Cannot find comments sidecar for %s" source-file))
+    (let ((source-buffer (find-file-noselect source-file)))
+      (with-current-buffer source-buffer
+	(org-mode))
+      (with-current-buffer (find-file-noselect sidecar-file)
+	(org-mode)
+	(unless (hub/org-comment-goto-id comment-id)
+	  (user-error "Cannot find org comment %s" comment-id))
+	(let* ((sync-kind (org-entry-get nil "HUB_COMMENT_SYNC_KIND"))
+	       (reply-parent
+		(when (equal sync-kind "reply")
+		  (save-excursion
+		    (when (org-up-heading-safe)
+		      (list :id (org-entry-get nil "HUB_COMMENT_ID")
+			    :sync-kind (org-entry-get nil "HUB_COMMENT_SYNC_KIND"))))))
+	       (lookup-id (or (plist-get reply-parent :id) comment-id))
+	       (inline-record (when (equal (or (plist-get reply-parent :sync-kind) sync-kind) "inline")
+				(seq-find (lambda (record)
+					    (equal lookup-id (plist-get record :id)))
+					  (with-current-buffer source-buffer
+					    (hub/org-comment-collect source-buffer nil))))))
+	  (cond
+	   ((and (equal (or (plist-get reply-parent :sync-kind) sync-kind) "footer")
+		 (fboundp 'hub/org-page-context-open-comment))
+	    (pop-to-buffer source-buffer)
+	    (hub/org-page-context-open-comment comment-id))
+	   ((and inline-record (fboundp 'hub/org-context-panel-open-comment))
+	    (pop-to-buffer source-buffer)
+	    (hub/org-context-panel-open-comment
+	     comment-id (plist-get inline-record :jump-pos)))
+	   (t
+	    (pop-to-buffer (current-buffer)))))))))
+
+(defun hub/org-comment-store-link ()
+  "Store an `org-comment:' link for the sidecar comment at point."
+  (when (and buffer-file-name
+	     (string-suffix-p ".comments.org" buffer-file-name)
+	     (derived-mode-p 'org-mode)
+	     (not (org-before-first-heading-p)))
+    (org-back-to-heading t)
+    (when-let* ((comment-id (org-entry-get nil "HUB_COMMENT_ID")))
+      (let* ((source-file (hub/org-comment-source-file-from-sidecar buffer-file-name))
+	     (heading (org-get-heading t t t t))
+	     (link (hub/org-comment-make-link source-file comment-id heading)))
+	(org-link-store-props :type "org-comment"
+			      :link link
+			      :description heading)
+	link))))
+
+(org-link-set-parameters "org-comment"
+			 :follow #'hub/org-comment-open-link
+			 :store #'hub/org-comment-store-link)
 
 (provide 'hub-org-comments)
 ;;; hub-org-comments.el ends here

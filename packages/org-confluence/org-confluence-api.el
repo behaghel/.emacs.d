@@ -139,6 +139,24 @@ Return a plist containing `:base-url', optional `:cloud-id', `:email', and
 	  :email email
 	  :api-token api-token)))
 
+(defun hub/confluence-api--page-detail-url (page-id &optional body-format config)
+  "Return Confluence Cloud REST v2 page detail URL for PAGE-ID."
+  (let* ((id (hub/confluence-api--require-string page-id "page ID"))
+	 (credentials (or config (hub/confluence-api--read-cfl-config)))
+	 (base-url (hub/confluence-api--normalize-base-url (plist-get credentials :base-url)))
+	 (query (when (hub/confluence-api--present-string-p body-format)
+		  (concat "?" (url-build-query-string
+			       `(("body-format" ,(string-trim body-format))))))))
+    (format "%s/wiki/api/v2/pages/%s%s" base-url (url-hexify-string id) (or query ""))))
+
+(defun hub/confluence-api--get-page (page-id &optional body-format config)
+  "Return Confluence PAGE-ID details through REST v2."
+  (hub/confluence-api--rest-request
+   "GET"
+   (hub/confluence-api--page-detail-url page-id (or body-format "storage") config)
+   nil
+   config))
+
 (defun hub/confluence-api--comment-list-url (page-id comment-kind &optional body-format config)
   "Return a REST URL for PAGE-ID comments of COMMENT-KIND.
 COMMENT-KIND should be `inline-comments' or `footer-comments'.  BODY-FORMAT,
@@ -169,7 +187,7 @@ when non-nil, is sent as the `body-format' query parameter.  CONFIG defaults to
   "Perform METHOD request to URL with HEADERS and BODY using url.el."
   (let ((url-request-method method)
 	(url-request-extra-headers headers)
-	(url-request-data body))
+	(url-request-data (and body (encode-coding-string body 'utf-8))))
     (url-retrieve-synchronously url t t)))
 
 (defun hub/confluence-api--url-buffer-response (buffer)
@@ -237,6 +255,125 @@ COMMENT-KIND should be `inline-comments' or `footer-comments'."
   (hub/confluence-api--rest-request
    "GET"
    (hub/confluence-api--comment-children-url comment-id comment-kind (or body-format "storage") config)
+   nil
+   config))
+
+(defun hub/confluence-api--comment-kind (comment-kind)
+  "Return validated Confluence COMMENT-KIND endpoint name."
+  (let ((kind (hub/confluence-api--require-string comment-kind "comment endpoint")))
+    (unless (member kind '("inline-comments" "footer-comments"))
+      (user-error "Unsupported Confluence comment endpoint: %s" kind))
+    kind))
+
+(defun hub/confluence-api--comment-create-url (comment-kind &optional config)
+  "Return Confluence Cloud REST v2 COMMENT-KIND create URL using CONFIG."
+  (let* ((kind (hub/confluence-api--comment-kind comment-kind))
+	 (credentials (or config (hub/confluence-api--read-cfl-config)))
+	 (base-url (hub/confluence-api--normalize-base-url (plist-get credentials :base-url))))
+    (format "%s/wiki/api/v2/%s" base-url kind)))
+
+(defun hub/confluence-api--comment-detail-url
+    (comment-kind comment-id &optional body-format config)
+  "Return Confluence Cloud REST v2 COMMENT-KIND COMMENT-ID URL using CONFIG."
+  (let* ((kind (hub/confluence-api--comment-kind comment-kind))
+	 (id (hub/confluence-api--require-string comment-id "comment ID"))
+	 (credentials (or config (hub/confluence-api--read-cfl-config)))
+	 (base-url (hub/confluence-api--normalize-base-url (plist-get credentials :base-url)))
+	 (query (when (hub/confluence-api--present-string-p body-format)
+		  (concat "?" (url-build-query-string
+			       `(("body-format" ,(string-trim body-format))))))))
+    (format "%s/wiki/api/v2/%s/%s%s" base-url kind (url-hexify-string id) (or query ""))))
+
+(defun hub/confluence-api--footer-comment-create-url (&optional config)
+  "Return Confluence Cloud REST v2 footer comment create URL using CONFIG."
+  (hub/confluence-api--comment-create-url "footer-comments" config))
+
+(defun hub/confluence-api--inline-comment-create-url (&optional config)
+  "Return Confluence Cloud REST v2 inline comment create URL using CONFIG."
+  (hub/confluence-api--comment-create-url "inline-comments" config))
+
+(defun hub/confluence-api--comment-create-payload (container-key container-id storage-body
+								 &optional inline-properties)
+  "Return a comment create payload for CONTAINER-KEY and CONTAINER-ID.
+STORAGE-BODY is a Confluence storage XHTML fragment.  INLINE-PROPERTIES, when
+non-nil, is added as `inlineCommentProperties'."
+  (append `((,container-key . ,(hub/confluence-api--require-string
+				container-id (symbol-name container-key)))
+	    (body . ((representation . "storage")
+		     (value . ,(hub/confluence-api--require-string
+				storage-body "comment body")))))
+	  (when inline-properties
+	    `((inlineCommentProperties . ,inline-properties)))))
+
+(defun hub/confluence-api--create-footer-comment (page-id storage-body &optional config)
+  "Create a Confluence footer comment on PAGE-ID with STORAGE-BODY.
+STORAGE-BODY is a Confluence storage XHTML fragment.  Return the raw REST
+response plist."
+  (hub/confluence-api--rest-request
+   "POST"
+   (hub/confluence-api--footer-comment-create-url config)
+   (json-encode (hub/confluence-api--comment-create-payload 'pageId page-id storage-body))
+   config))
+
+(defun hub/confluence-api--create-inline-comment
+    (page-id storage-body inline-properties &optional config)
+  "Create a Confluence inline comment on PAGE-ID with STORAGE-BODY.
+INLINE-PROPERTIES is sent as `inlineCommentProperties'.  Return the raw REST
+response plist."
+  (hub/confluence-api--rest-request
+   "POST"
+   (hub/confluence-api--inline-comment-create-url config)
+   (json-encode (hub/confluence-api--comment-create-payload
+		 'pageId page-id storage-body inline-properties))
+   config))
+
+(defun hub/confluence-api--create-comment-reply
+    (comment-kind parent-comment-id storage-body &optional config)
+  "Create a reply under PARENT-COMMENT-ID using COMMENT-KIND endpoint.
+COMMENT-KIND is `footer-comments' or `inline-comments'.  STORAGE-BODY is a
+Confluence storage XHTML fragment.  Return the raw REST response plist."
+  (hub/confluence-api--rest-request
+   "POST"
+   (hub/confluence-api--comment-create-url comment-kind config)
+   (json-encode (hub/confluence-api--comment-create-payload
+		 'parentCommentId parent-comment-id storage-body))
+   config))
+
+(defun hub/confluence-api--get-comment (comment-kind comment-id &optional body-format config)
+  "Return Confluence COMMENT-ID from COMMENT-KIND endpoint."
+  (hub/confluence-api--rest-request
+   "GET"
+   (hub/confluence-api--comment-detail-url comment-kind comment-id (or body-format "storage") config)
+   nil
+   config))
+
+(defun hub/confluence-api--comment-update-payload (storage-body version-number)
+  "Return a comment update payload for STORAGE-BODY at VERSION-NUMBER."
+  `((version . ((number . ,version-number)))
+    (body . ((representation . "storage")
+	     (value . ,(hub/confluence-api--require-string storage-body "comment body"))))))
+
+(defun hub/confluence-api--update-comment
+    (comment-kind comment-id storage-body version-number &optional config)
+  "Update Confluence COMMENT-ID in COMMENT-KIND with STORAGE-BODY.
+VERSION-NUMBER is the next Confluence version number to send."
+  (hub/confluence-api--rest-request
+   "PUT"
+   (hub/confluence-api--comment-detail-url comment-kind comment-id nil config)
+   (json-encode (hub/confluence-api--comment-update-payload storage-body version-number))
+   config))
+
+(defun hub/confluence-api--current-user-url (&optional config)
+  "Return Confluence Cloud current user URL using CONFIG."
+  (let* ((credentials (or config (hub/confluence-api--read-cfl-config)))
+	 (base-url (hub/confluence-api--normalize-base-url (plist-get credentials :base-url))))
+    (format "%s/wiki/rest/api/user/current" base-url)))
+
+(defun hub/confluence-api--current-user (&optional config)
+  "Return the current authenticated Confluence user."
+  (hub/confluence-api--rest-request
+   "GET"
+   (hub/confluence-api--current-user-url config)
    nil
    config))
 
@@ -336,6 +473,12 @@ Prefer #+CONFLUENCE_SPACE in the current Org buffer.  When absent, fall back to
     (if (hub/confluence-api--present-string-p space)
 	(format "%s/wiki/spaces/%s/pages/%s" base-url (url-hexify-string (string-trim space)) id)
       (format "%s/wiki/pages/%s" base-url id))))
+
+(defun hub/confluence-api--comment-url (page-id comment-id &optional space)
+  "Return browser URL for COMMENT-ID focused on PAGE-ID in optional SPACE."
+  (format "%s?focusedCommentId=%s"
+	  (hub/confluence-api--page-url page-id space)
+	  (url-hexify-string (hub/confluence-api--require-string comment-id "comment ID"))))
 
 (provide 'org-confluence-api)
 (provide 'org/export-confluence-api)

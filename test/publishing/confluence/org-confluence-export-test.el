@@ -80,6 +80,30 @@
   "Export an empty Org buffer as an empty string."
   (should (equal (hub/org-confluence-test--export "") "")))
 
+(ert-deftest hub/org-confluence-export-parent-replaces-subpage-body ()
+  "Export parent pages with subpage placeholders instead of child page bodies."
+  (should (equal (hub/org-confluence-test--export "* Parent\nIntro.\n** Child\n:PROPERTIES:\n:CONFLUENCE_PAGE_ID: 456\n:END:\nChild body.")
+		 "<h1>Parent</h1>\n<p>Intro.</p>\n<h2>Child</h2>\n<p><ac:link><ri:content-entity ri:content-id=\"456\"/><ac:link-body>Open subpage: Child</ac:link-body></ac:link></p>")))
+
+(ert-deftest hub/org-confluence-export-subpage-omits-root-heading ()
+  "Export a subpage subtree body without duplicating its root heading."
+  (with-temp-buffer
+    (insert "* Parent\n** Child\n:PROPERTIES:\n:CONFLUENCE_PAGE_ID: 456\n:END:\nChild body.")
+    (org-mode)
+    (goto-char (point-min))
+    (search-forward "Child")
+    (should (equal (org-confluence-export nil t nil t '(:confluence-omit-root-heading t))
+		   "<p>Child body.</p>"))))
+
+(ert-deftest hub/org-confluence-export-subpage-replaces-nested-subpage ()
+  "Export a subpage with nested subpage placeholders."
+  (with-temp-buffer
+    (insert "* Child\n:PROPERTIES:\n:CONFLUENCE_PAGE_ID: 456\n:END:\nChild body.\n** Grandchild\n:PROPERTIES:\n:CONFLUENCE_PAGE_ID: 789\n:END:\nGrandchild body.")
+    (org-mode)
+    (goto-char (point-min))
+    (should (equal (org-confluence-export nil t nil t '(:confluence-omit-root-heading t))
+		   "<p>Child body.</p>\n<h2>Grandchild</h2>\n<p><ac:link><ri:content-entity ri:content-id=\"789\"/><ac:link-body>Open subpage: Grandchild</ac:link-body></ac:link></p>"))))
+
 (ert-deftest hub/org-confluence-export-backend-has-dispatch-menu ()
   "Register Confluence in the normal Org export dispatcher."
   (let ((menu (org-export-backend-menu (org-export-get-backend 'confluence))))
@@ -373,9 +397,17 @@
 		 "<ul><li><strong>First:</strong> One</li><li><strong>Second:</strong> Two</li></ul>")))
 
 (ert-deftest hub/org-confluence-export-footnote ()
-  "Export footnotes as clickable Confluence anchor links."
-  (should (equal (hub/org-confluence-test--export "Text[fn:1]\n\n[fn:1] Note body.")
-		 "<p>Text<ac:structured-macro ac:name=\"anchor\" ac:schema-version=\"1\"><ac:default-parameter>fnref-1</ac:default-parameter></ac:structured-macro><sup><ac:link ac:anchor=\"fn-1\"><ac:plain-text-link-body><![CDATA[1]]></ac:plain-text-link-body></ac:link></sup></p>\n<p><ac:structured-macro ac:name=\"anchor\" ac:schema-version=\"1\"><ac:default-parameter>fn-1</ac:default-parameter></ac:structured-macro><strong>1.</strong> Note body. <ac:link ac:anchor=\"fnref-1\"><ac:plain-text-link-body><![CDATA[↩]]></ac:plain-text-link-body></ac:link></p>")))
+  "Export footnotes as Confluence anchor links without CDATA leaks."
+  (let ((xhtml (hub/org-confluence-test--export "Text[fn:1]\n\n[fn:1] Note body.")))
+    (should (equal xhtml
+		   "<p>Text<ac:structured-macro ac:name=\"anchor\" ac:schema-version=\"1\"><ac:parameter ac:name=\"\">fnref-1</ac:parameter></ac:structured-macro><ac:link ac:anchor=\"fn-1\"><ac:link-body><sup>1</sup></ac:link-body></ac:link></p>\n<p><ac:structured-macro ac:name=\"anchor\" ac:schema-version=\"1\"><ac:parameter ac:name=\"\">fn-1</ac:parameter></ac:structured-macro><strong>1.</strong> Note body. <ac:link ac:anchor=\"fnref-1\"><ac:link-body>↩</ac:link-body></ac:link></p>"))
+    (should-not (string-match-p "CDATA" xhtml))
+    (should-not (string-match-p "plain-text-link-body" xhtml))))
+
+(ert-deftest hub/org-confluence-export-footnotes-heading-as-rule ()
+  "Export an Org Footnotes heading as a horizontal rule."
+  (should (equal (hub/org-confluence-test--export "* Footnotes\n\n[fn:1] Note body.")
+		 "<hr/>\n<p><ac:structured-macro ac:name=\"anchor\" ac:schema-version=\"1\"><ac:parameter ac:name=\"\">fn-1</ac:parameter></ac:structured-macro><strong>1.</strong> Note body. <ac:link ac:anchor=\"fnref-1\"><ac:link-body>↩</ac:link-body></ac:link></p>")))
 
 (ert-deftest hub/org-confluence-export-callout-default ()
   "Export a callout block as a Confluence info panel macro."

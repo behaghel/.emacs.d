@@ -10,6 +10,7 @@
 (require 'test-helpers)
 (require 'hub-org-comments)
 (require 'org/comments)
+(require 'org/confluence)
 
 (defmacro hub/org-comments-test--with-file-buffer (name contents &rest body)
   "Visit temp file NAME with CONTENTS, then run BODY."
@@ -244,6 +245,29 @@
 					       (should (equal (plist-get comment :author) "Ada"))
 					       (should (equal (plist-get comment :created-at)
 							      "2026-06-15T19:42:00+0200"))))))
+
+(ert-deftest hub/org-comment-collects-prefers-remote-created-at ()
+  "Comment collection prefers remote timestamps for display when available."
+  (hub/org-comments-test--with-file-buffer "article.org" "Alpha selected text omega"
+					   (let* ((start (progn
+							   (goto-char (point-min))
+							   (search-forward "selected")
+							   (match-beginning 0)))
+						  (end (match-end 0))
+						  (sidecar (hub/org-comment-append-to-sidecar
+							    (hub/org-comment-create-record
+							     buffer-file-name start end "Body." "local-remote-time"
+							     "Ada" "2026-06-15T19:42:00+0200"))))
+					     (with-temp-buffer
+					       (insert-file-contents sidecar)
+					       (goto-char (point-min))
+					       (search-forward ":HUB_COMMENT_CREATED_AT:")
+					       (forward-line 1)
+					       (insert ":HUB_COMMENT_REMOTE_CREATED_AT: 2026-06-16T10:00:00.000Z\n")
+					       (write-region (point-min) (point-max) sidecar nil 'silent))
+					     (let ((comment (car (hub/org-comment-collect (current-buffer)))))
+					       (should (equal (plist-get comment :created-at)
+							      "2026-06-16T10:00:00.000Z"))))))
 
 (ert-deftest hub/org-comment-collects-stale-comments-when-requested ()
   "Comment collection can include unanchored records whose targets drifted."
@@ -511,6 +535,23 @@
 					       (when (get-file-buffer sidecar)
 						 (kill-buffer (get-file-buffer sidecar)))))))
 
+(ert-deftest hub/confluence-comment-sidecar-submit-key-is-local ()
+  "Bind C-c C-c to Confluence push only in comments sidecar buffers."
+  (hub/org-comments-test--with-file-buffer "article.org" "#+TITLE: Article\n\nBody"
+					   (let ((source-buffer (current-buffer))
+						 (sidecar (hub/org-comment-sidecar-path buffer-file-name)))
+					     (should-not (eq (local-key-binding (kbd "C-c C-c"))
+							     #'hub/confluence-comment-push-current))
+					     (with-temp-file sidecar
+					       (insert "#+source: article.org\n#+todo: OPEN TODO | RESOLVED\n\n"))
+					     (with-current-buffer (find-file-noselect sidecar)
+					       (org-mode)
+					       (should (eq (local-key-binding (kbd "C-c C-c"))
+							   #'hub/confluence-comment-push-current)))
+					     (when (get-file-buffer sidecar)
+					       (kill-buffer (get-file-buffer sidecar)))
+					     (should (buffer-live-p source-buffer)))))
+
 (ert-deftest hub/org-comment-open-sidecar-messages-when-absent ()
   "Opening a missing sidecar only reports in the minibuffer."
   (hub/org-comments-test--with-file-buffer "article.org" "Alpha"
@@ -654,7 +695,7 @@
 					     (should (= (point) (hub/org-context-panel-page-comment-marker-position))))))
 
 (ert-deftest hub/org-context-panel-ret-at-page-marker-opens-page-comments ()
-  "RET at the page marker opens the bottom page-comments reader."
+  "RET at the page marker opens the bottom page-context panel."
   (hub/org-comments-test--with-file-buffer "article.org" "#+TITLE: Article\n\nBody"
 					   (let ((sidecar (hub/org-comment-sidecar-path buffer-file-name))
 						 (opened nil))
@@ -676,34 +717,626 @@
 					       (hub/org-context-panel-jump-to-item-at-point))
 					     (should opened))))
 
-(ert-deftest hub/org-page-comments-navigation-wraps ()
-  "Page comments reader supports ]c/[c navigation."
-  (let ((buffer (generate-new-buffer " *page comments navigation test*")))
+(ert-deftest hub/org-page-context-navigation-wraps ()
+  "Page context uses context-panel ]c/[c navigation."
+  (let ((buffer (generate-new-buffer " *page context navigation test*")))
     (unwind-protect
 	(with-current-buffer buffer
-	  (hub/org-page-comments-mode)
+	  (hub/org-context-panel-buffer-mode)
 	  (let ((inhibit-read-only t))
-	    (insert "Header\n\n")
 	    (let ((first-start (point)))
 	      (insert "First\n")
-	      (add-text-properties first-start (point) '(hub-org-page-comment (:id "first")))
+	      (add-text-properties first-start (point) '(hub-org-context-panel-item (:id "first")))
 	      (insert "\n")
 	      (let ((second-start (point)))
 		(insert "Second\n")
-		(add-text-properties second-start (point) '(hub-org-page-comment (:id "second")))
+		(add-text-properties second-start (point) '(hub-org-context-panel-item (:id "second")))
 		(goto-char (point-min))
-		(hub/org-page-comments-next)
-		(should (= (point) first-start))
-		(hub/org-page-comments-next)
+		(hub/org-context-panel-next-item)
 		(should (= (point) second-start))
-		(hub/org-page-comments-next)
+		(hub/org-context-panel-next-item)
 		(should (= (point) first-start))
-		(hub/org-page-comments-previous)
+		(hub/org-context-panel-previous-item)
 		(should (= (point) second-start))))))
       (kill-buffer buffer))))
 
-(ert-deftest hub/org-page-comments-display-splits-source-window ()
-  "Page comments display splits the source window directly."
+(ert-deftest hub/org-context-panel-overview-height-counts-reply-summary ()
+  "Overview card height reserves space for the reply summary line."
+  (let* ((item '(:type comment
+		       :id "c1"
+		       :author "Alice"
+		       :created-at "2026-06-19T10:00:00+0000"
+		       :body "Short body."
+		       :replies ((:id "r1" :body "Reply."))))
+	 (prepared (hub/org-context-panel--item-with-overview-height item)))
+    (should (= (plist-get prepared :height) 4))))
+
+(ert-deftest hub/org-context-panel-highlights-current-user-author ()
+  "Context panel highlights only the current user's author segment."
+  (let* ((dir (make-temp-file "hub-context-me-" t))
+	 (global-dir (make-temp-file "hub-context-me-global-" t))
+	 (org-directory global-dir)
+	 (source (expand-file-name "article.org" dir))
+	 (people (hub/confluence-people-local-file dir)))
+    (unwind-protect
+	(progn
+	  (with-temp-file source
+	    (insert "#+TITLE: Article\n\nBody\n"))
+	  (with-temp-file people
+	    (insert "* Hubert\n:PROPERTIES:\n:HUB_CONFLUENCE_ACCOUNT_ID: acct-me\n:HUB_PERSON_DISPLAY_NAME: Hubert\n:HUB_PERSON_ME: t\n:END:\n"))
+	  (with-current-buffer (find-file-noselect source)
+	    (org-mode)
+	    (let ((hub/org-context-panel-source-buffer (current-buffer)))
+	      (with-temp-buffer
+		(hub/org-context-panel--insert-comment-metadata
+		 '(:remote-author-id "acct-me" :remote-author-display-name "Hubert"
+				     :created-at "2026-06-19T20:00:00+0000"))
+		(goto-char (point-min))
+		(should (equal (get-text-property (point) 'face)
+			       'hub/org-context-panel-current-author-face))
+		(search-forward " · ")
+		(should (equal (get-text-property (point) 'face)
+			       'hub/org-context-panel-metadata-face))))))
+      (when-let* ((buffer (find-buffer-visiting source)))
+	(kill-buffer buffer))
+      (delete-directory dir t)
+      (delete-directory global-dir t))))
+
+(ert-deftest hub/org-context-panel-renders-comment-sync-badges ()
+  "Context panel comments show draft, remote, and degraded sync badges."
+  (hub/org-comments-test--with-file-buffer "article.org" "Alpha selected text omega.\nBeta other text done.\nGamma third text done.\nDelta fourth text done."
+					   (let* ((source-buffer (current-buffer))
+						  (sidecar (hub/org-comment-sidecar-path buffer-file-name))
+						  (panel (generate-new-buffer " *org context sync badges test*")))
+					     (unwind-protect
+						 (progn
+						   (with-temp-file sidecar
+						     (insert "#+source: article.org\n#+todo: OPEN TODO | RESOLVED\n\n")
+						     (insert "* OPEN Draft\n:PROPERTIES:\n:HUB_COMMENT_ID: draft\n:HUB_COMMENT_SYNC_KIND: inline\n:HUB_COMMENT_TARGET: 7 20\n:HUB_COMMENT_TARGET_TEXT: selected text\n:END:\n\nDraft body.\n")
+						     (insert "* OPEN Remote\n:PROPERTIES:\n:HUB_COMMENT_ID: remote\n:HUB_COMMENT_SYNC_KIND: inline\n:HUB_COMMENT_SOURCE: confluence\n:HUB_COMMENT_REMOTE_ID: i123\n:HUB_COMMENT_TARGET: 33 43\n:HUB_COMMENT_TARGET_TEXT: other text\n:END:\n\nRemote body.\n")
+						     (insert "* OPEN Missing\n:PROPERTIES:\n:HUB_COMMENT_ID: missing\n:HUB_COMMENT_SYNC_KIND: inline\n:HUB_COMMENT_SOURCE: confluence\n:HUB_COMMENT_REMOTE_ID: i456\n:HUB_COMMENT_REMOTE_STATE: missing\n:HUB_COMMENT_TARGET: 57 67\n:HUB_COMMENT_TARGET_TEXT: third text\n:END:\n\nMissing body.\n")
+						     (insert "* OPEN Dangling\n:PROPERTIES:\n:HUB_COMMENT_ID: dangling\n:HUB_COMMENT_SYNC_KIND: inline\n:HUB_COMMENT_SOURCE: confluence\n:HUB_COMMENT_REMOTE_ID: i789\n:HUB_COMMENT_REMOTE_ANCHOR_STATE: dangling\n:HUB_COMMENT_TARGET: 81 92\n:HUB_COMMENT_TARGET_TEXT: fourth text\n:END:\n\nDangling body.\n")
+						     (insert "* OPEN Page\n:PROPERTIES:\n:HUB_COMMENT_ID: page\n:HUB_COMMENT_SYNC_KIND: footer\n:END:\n\nPage body.\n"))
+						   (hub/org-context-panel-render-buffer source-buffer panel)
+						   (with-current-buffer panel
+						     (should (search-forward "✍️" nil t))
+						     (should (search-forward "🔗" nil t))
+						     (should (search-forward "⚠" nil t))
+						     (should-not (search-forward "✍️ draft" nil t))
+						     (should-not (search-forward "🔗 confluence" nil t))
+						     (should-not (search-forward "⚠ dangling" nil t))
+						     (should (equal (hub/org-context-panel--comment-sync-badge
+								     '(:remote-anchor-state "unconfirmed"))
+								    "❓"))
+						     (goto-char (point-min))
+						     (should-not (search-forward "Page body." nil t))
+						     (should-not (search-forward "open remote" nil t)))
+						   (hub/org-page-context-render-buffer source-buffer panel t)
+						   (with-current-buffer panel
+						     (should (search-forward "👆" nil t))
+						     (should (search-forward "Page body." nil t))
+						     (should-not (search-forward "PAGE" nil t))))
+					       (when (buffer-live-p panel)
+						 (kill-buffer panel))))))
+
+(ert-deftest hub/org-context-panel-filters-show-missing-by-default ()
+  "Context filters show remote-missing comments by default and zx hides them."
+  (hub/org-comments-test--with-file-buffer "article.org" "Alpha selected text omega."
+					   (let* ((source-buffer (current-buffer))
+						  (sidecar (hub/org-comment-sidecar-path buffer-file-name))
+						  (panel (generate-new-buffer " *org context filter missing test*")))
+					     (unwind-protect
+						 (progn
+						   (with-temp-file sidecar
+						     (insert "#+source: article.org\n#+todo: OPEN TODO | RESOLVED\n\n")
+						     (insert "* OPEN Missing\n:PROPERTIES:\n:HUB_COMMENT_ID: missing\n:HUB_COMMENT_SYNC_KIND: inline\n:HUB_COMMENT_REMOTE_ID: i1\n:HUB_COMMENT_REMOTE_STATE: missing\n:HUB_COMMENT_TARGET: 7 20\n:HUB_COMMENT_TARGET_TEXT: selected text\n:END:\n\nMissing body.\n"))
+						   (hub/org-context-panel-render-buffer source-buffer panel)
+						   (with-current-buffer panel
+						     (should (search-forward "Missing body." nil t))
+						     (hub/org-context-panel-filter-toggle-missing))
+						   (hub/org-context-panel-render-buffer source-buffer panel)
+						   (with-current-buffer panel
+						     (goto-char (point-min))
+						     (should-not (search-forward "Missing body." nil t))))
+					       (when (buffer-live-p panel)
+						 (kill-buffer panel))))))
+
+(ert-deftest hub/org-context-panel-filter-matching-reply-shows-root-context ()
+  "Reply filters keep the parent root visible as conversation context."
+  (let* ((dir (make-temp-file "hub-context-filter-reply-" t))
+	 (global-dir (make-temp-file "hub-context-filter-reply-global-" t))
+	 (org-directory global-dir)
+	 (source (expand-file-name "article.org" dir))
+	 (sidecar (expand-file-name "article.comments.org" dir))
+	 (people (hub/confluence-people-local-file dir))
+	 (panel (generate-new-buffer " *org context filter reply wrapper test*")))
+    (unwind-protect
+	(progn
+	  (with-temp-file source
+	    (insert "#+TITLE: Article\n\nBody\n"))
+	  (with-temp-file people
+	    (insert "* Hubert\n:PROPERTIES:\n:HUB_CONFLUENCE_ACCOUNT_ID: acct-me\n:HUB_PERSON_DISPLAY_NAME: Hubert\n:HUB_PERSON_ME: t\n:END:\n"))
+	  (with-temp-file sidecar
+	    (insert "#+source: article.org\n#+todo: OPEN TODO | RESOLVED\n\n")
+	    (insert "* OPEN Page\n:PROPERTIES:\n:HUB_COMMENT_ID: page-1\n:HUB_COMMENT_SYNC_KIND: footer\n:HUB_COMMENT_REMOTE_ID: f1\n:HUB_COMMENT_REMOTE_AUTHOR_ID: acct-alice\n:HUB_COMMENT_REMOTE_AUTHOR_DISPLAY_NAME: Alice\n:END:\n\nRoot context body.\n")
+	    (insert "** Reply · Hubert — Mine\n:PROPERTIES:\n:HUB_COMMENT_ID: reply-me\n:HUB_COMMENT_SYNC_KIND: reply\n:HUB_COMMENT_REMOTE_ID: r-me\n:HUB_COMMENT_REMOTE_AUTHOR_ID: acct-me\n:HUB_COMMENT_REMOTE_AUTHOR_DISPLAY_NAME: Hubert\n:END:\n\nMy reply body.\n")
+	    (insert "** Reply · Bob — Other\n:PROPERTIES:\n:HUB_COMMENT_ID: reply-other\n:HUB_COMMENT_SYNC_KIND: reply\n:HUB_COMMENT_REMOTE_ID: r-other\n:HUB_COMMENT_REMOTE_AUTHOR_ID: acct-other\n:HUB_COMMENT_REMOTE_AUTHOR_DISPLAY_NAME: Bob\n:END:\n\nOther reply body.\n"))
+	  (with-current-buffer (find-file-noselect source)
+	    (org-mode)
+	    (setq-local hub/org-context-panel-filter-state
+			'(:actionable nil :drafts nil :mine t
+				      :show-resolved t :show-missing nil))
+	    (hub/org-page-context-render-buffer (current-buffer) panel t))
+	  (with-current-buffer panel
+	    (should (search-forward "Root context body." nil t))
+	    (should (search-forward "My reply body." nil t))
+	    (should-not (search-forward "Other reply body." nil t))))
+      (when (buffer-live-p panel)
+	(kill-buffer panel))
+      (when-let* ((buffer (find-buffer-visiting source)))
+	(kill-buffer buffer))
+      (delete-directory dir t)
+      (delete-directory global-dir t))))
+
+(ert-deftest hub/org-context-panel-filters-show-missing-replies-by-default ()
+  "Context filters show remote-missing replies by default and zx hides them."
+  (hub/org-comments-test--with-file-buffer "article.org" "#+TITLE: Article\n\nBody"
+					   (let* ((source-buffer (current-buffer))
+						  (sidecar (hub/org-comment-sidecar-path buffer-file-name))
+						  (panel (generate-new-buffer " *org context filter missing reply test*")))
+					     (unwind-protect
+						 (progn
+						   (with-temp-file sidecar
+						     (insert "#+source: article.org\n#+todo: OPEN TODO | RESOLVED\n\n")
+						     (insert "* OPEN Page\n:PROPERTIES:\n:HUB_COMMENT_ID: page-1\n:HUB_COMMENT_SYNC_KIND: footer\n:HUB_COMMENT_REMOTE_ID: f1\n:END:\n\nPage body.\n")
+						     (insert "** Reply · Bob — Gone\n:PROPERTIES:\n:HUB_COMMENT_ID: reply-1\n:HUB_COMMENT_SYNC_KIND: reply\n:HUB_COMMENT_REMOTE_ID: r1\n:HUB_COMMENT_REMOTE_STATE: missing\n:END:\n\nMissing reply body.\n"))
+						   (hub/org-page-context-render-buffer source-buffer panel t)
+						   (with-current-buffer panel
+						     (should (search-forward "Page body." nil t))
+						     (should (search-forward "Missing reply body." nil t))
+						     (hub/org-context-panel-filter-toggle-missing))
+						   (hub/org-page-context-render-buffer source-buffer panel t)
+						   (with-current-buffer panel
+						     (goto-char (point-min))
+						     (should-not (search-forward "Missing reply body." nil t))
+						     (hub/org-context-panel-filter-toggle-missing))
+						   (hub/org-page-context-render-buffer source-buffer panel t)
+						   (with-current-buffer panel
+						     (goto-char (point-min))
+						     (should (search-forward "Missing reply body." nil t))))
+					       (when (buffer-live-p panel)
+						 (kill-buffer panel))))))
+
+(ert-deftest hub/org-context-panel-filter-keys-use-z-prefix ()
+  "Context filters live under the z prefix and zz resets filters."
+  (with-temp-buffer
+    (hub/org-context-panel-buffer-mode)
+    (should (eq (local-key-binding (kbd "zx"))
+		#'hub/org-context-panel-filter-toggle-missing))
+    (should (eq (local-key-binding (kbd "zz"))
+		#'hub/org-context-panel-filter-reset))))
+
+(ert-deftest hub/org-context-panel-filter-header-shows-state-and-counts ()
+  "Active non-default filters show compact state and item counts."
+  (hub/org-comments-test--with-file-buffer "article.org" "Alpha selected text omega. Beta other text."
+					   (let* ((source-buffer (current-buffer))
+						  (sidecar (hub/org-comment-sidecar-path buffer-file-name))
+						  (panel (generate-new-buffer " *org context filter header test*")))
+					     (unwind-protect
+						 (progn
+						   (with-temp-file sidecar
+						     (insert "#+source: article.org\n#+todo: OPEN TODO | RESOLVED\n\n")
+						     (insert "* OPEN Draft\n:PROPERTIES:\n:HUB_COMMENT_ID: draft\n:HUB_COMMENT_SYNC_KIND: inline\n:HUB_COMMENT_TARGET: 7 20\n:HUB_COMMENT_TARGET_TEXT: selected text\n:END:\n\nDraft body.\n")
+						     (insert "* OPEN Remote\n:PROPERTIES:\n:HUB_COMMENT_ID: remote\n:HUB_COMMENT_SYNC_KIND: inline\n:HUB_COMMENT_REMOTE_ID: i1\n:HUB_COMMENT_TARGET: 33 43\n:HUB_COMMENT_TARGET_TEXT: other text\n:END:\n\nRemote body.\n"))
+						   (hub/org-context-panel-render-buffer source-buffer panel)
+						   (with-current-buffer panel
+						     (should-not header-line-format))
+						   (with-current-buffer source-buffer
+						     (setq-local hub/org-context-panel-filter-state
+								 '(:actionable nil :drafts t :mine nil
+									       :show-resolved t :show-missing nil)))
+						   (hub/org-context-panel-render-buffer source-buffer panel)
+						   (with-current-buffer panel
+						     (should (string-match-p "drafts" (format "%s" header-line-format)))
+						     (should (string-match-p "showing 1/2" (format "%s" header-line-format))))
+						   (with-current-buffer panel
+						     (hub/org-context-panel-filter-reset))
+						   (hub/org-context-panel-render-buffer source-buffer panel)
+						   (with-current-buffer panel
+						     (should-not header-line-format)))
+					       (when (buffer-live-p panel)
+						 (kill-buffer panel))))))
+
+(ert-deftest hub/org-context-panel-help-toggles-bottom-window ()
+  "Question mark toggles an aligned help window below the context panel."
+  (hub/org-comments-test--with-file-buffer "article.org" "Alpha selected text omega"
+					   (let* ((source-buffer (current-buffer))
+						  (start (progn
+							   (goto-char (point-min))
+							   (search-forward "selected")
+							   (match-beginning 0)))
+						  (end (match-end 0))
+						  (record (hub/org-comment-create-record
+							   buffer-file-name start end "Needs help." "root-1"
+							   "Alice" "2026-06-18T09:00:00+0000"))
+						  (sidecar (hub/org-comment-append-to-sidecar record))
+						  (panel (generate-new-buffer " *org context help test*")))
+					     (unwind-protect
+						 (progn
+						   (delete-other-windows)
+						   (hub/org-context-panel-render-buffer source-buffer panel)
+						   (switch-to-buffer panel)
+						   (set-window-point (selected-window) 2)
+						   (hub/org-context-panel-toggle-help)
+						   (should (window-live-p hub/org-context-panel--help-window))
+						   (with-current-buffer (window-buffer hub/org-context-panel--help-window)
+						     (should (derived-mode-p 'hub/org-context-panel-help-mode))
+						     (goto-char (point-min))
+						     (should (search-forward "+    reply" nil t))
+						     (should (search-forward "o    open remote" nil t))
+						     (should-not (search-forward "q    close" nil t))
+						     (goto-char (point-min))
+						     (search-forward "open remote")
+						     (should (eq (get-text-property (match-beginning 0) 'face)
+								 'hub/org-context-panel-help-description-face))
+						     (search-backward "\no    ")
+						     (forward-char 1)
+						     (should (eq (get-text-property (point) 'face)
+								 'hub/org-context-panel-help-key-face))
+						     (should-not (get-text-property (point) 'hub-org-context-panel-item)))
+						   (let ((panel-window (get-buffer-window panel t))
+							 (help-window hub/org-context-panel--help-window))
+						     (select-window help-window)
+						     (hub/org-context-panel-help-close)
+						     (should-not (window-live-p help-window))
+						     (should (eq (selected-window) panel-window))
+						     (should (= (window-point panel-window) 2))
+						     (with-current-buffer panel
+						       (should-not (window-live-p hub/org-context-panel--help-window)))))
+					       (delete-other-windows)
+					       (when (buffer-live-p panel)
+						 (kill-buffer panel))
+					       (when (get-file-buffer sidecar)
+						 (kill-buffer (get-file-buffer sidecar)))))))
+
+(ert-deftest hub/org-comment-compose-opens-below-invoking-panel ()
+  "Compose buffers open below the invoking panel without replacing source text."
+  (let* ((source (generate-new-buffer " *compose source*"))
+	 (panel (generate-new-buffer " *compose panel*"))
+	 (source-window (selected-window))
+	 compose-window)
+    (unwind-protect
+	(progn
+	  (switch-to-buffer source)
+	  (split-window-right)
+	  (other-window 1)
+	  (switch-to-buffer panel)
+	  (with-current-buffer panel
+	    (hub/org-context-panel-buffer-mode)
+	    (setq-local hub/org-context-panel-source-buffer source))
+	  (setq compose-window
+		(with-current-buffer panel
+		  (hub/org-comment-compose-open
+		   'reply '(:type comment :id "root" :remote-id "r1" :sidecar-file "/tmp/root.comments.org"))))
+	  (should (window-live-p compose-window))
+	  (should (eq (window-buffer source-window) source))
+	  (should (equal (buffer-name (window-buffer compose-window)) "*Org Comment Reply*"))
+	  (with-current-buffer (window-buffer compose-window)
+	    (should (equal (buffer-string) ""))
+	    (should (string-match-p "C-c C-c submit" (format "%s" header-line-format)))))
+      (delete-other-windows)
+      (dolist (buffer (list source panel (get-buffer "*Org Comment Reply*")))
+	(when (buffer-live-p buffer)
+	  (kill-buffer buffer))))))
+
+(ert-deftest hub/org-comment-compose-cancel-prompts-before-discarding ()
+  "Canceling a modified compose buffer asks before discarding text."
+  (let ((prompted nil)
+	(buffer (generate-new-buffer " *compose cancel prompt*")))
+    (unwind-protect
+	(with-current-buffer buffer
+	  (org-mode)
+	  (hub/org-comment-compose-mode 1)
+	  (setq-local hub/org-comment-compose--context '(:operation reply))
+	  (insert "unsaved")
+	  (cl-letf (((symbol-function 'yes-or-no-p)
+		     (lambda (&rest _args)
+		       (setq prompted t)
+		       nil)))
+	    (should-error (hub/org-comment-compose-cancel) :type 'user-error))
+	  (should prompted)
+	  (should (buffer-live-p buffer)))
+      (when (buffer-live-p buffer)
+	(with-current-buffer buffer
+	  (setq-local hub/org-comment-compose--closing t))
+	(kill-buffer buffer)))))
+
+(ert-deftest hub/org-comment-compose-kill-prompts-before-discarding ()
+  "Killing a modified compose buffer asks before discarding text."
+  (let ((prompted nil)
+	(buffer (generate-new-buffer " *compose kill prompt*")))
+    (unwind-protect
+	(with-current-buffer buffer
+	  (org-mode)
+	  (hub/org-comment-compose-mode 1)
+	  (setq-local hub/org-comment-compose--context '(:operation reply))
+	  (add-hook 'kill-buffer-query-functions
+		    #'hub/org-comment-compose--confirm-kill nil t)
+	  (insert "unsaved")
+	  (cl-letf (((symbol-function 'yes-or-no-p)
+		     (lambda (&rest _args)
+		       (setq prompted t)
+		       nil)))
+	    (should-not (kill-buffer buffer)))
+	  (should prompted)
+	  (should (buffer-live-p buffer)))
+      (when (buffer-live-p buffer)
+	(with-current-buffer buffer
+	  (setq-local hub/org-comment-compose--closing t))
+	(kill-buffer buffer)))))
+
+(ert-deftest hub/org-comment-compose-close-restores-invoking-panel ()
+  "Closing compose deletes its window and restores the edited panel item."
+  (let* ((source (generate-new-buffer " *compose restore source*"))
+	 (panel (generate-new-buffer " *compose restore panel*"))
+	 (source-window (selected-window))
+	 panel-window
+	 compose-window)
+    (unwind-protect
+	(progn
+	  (switch-to-buffer source)
+	  (setq panel-window (split-window-right))
+	  (set-window-buffer panel-window panel)
+	  (with-current-buffer panel
+	    (hub/org-context-panel-buffer-mode)
+	    (setq-local hub/org-context-panel-source-buffer source)
+	    (let ((inhibit-read-only t)
+		  (first-start (point))
+		  (first '(:type comment :id "first"))
+		  (second '(:type comment :id "second")))
+	      (insert "First\n")
+	      (add-text-properties first-start (point) `(hub-org-context-panel-item ,first))
+	      (let ((second-start (point)))
+		(insert "Second\n")
+		(add-text-properties second-start (point) `(hub-org-context-panel-item ,second))
+		(goto-char first-start))))
+	  (select-window panel-window)
+	  (setq compose-window
+		(with-current-buffer panel
+		  (hub/org-comment-compose-open 'edit '(:type comment :id "second"))))
+	  (with-current-buffer (window-buffer compose-window)
+	    (hub/org-comment-compose--close))
+	  (should-not (window-live-p compose-window))
+	  (should (eq (selected-window) panel-window))
+	  (with-current-buffer panel
+	    (should (equal (plist-get (hub/org-context-panel--item-at-point) :id) "second")))
+	  (should (eq (window-buffer source-window) source)))
+      (delete-other-windows)
+      (dolist (buffer (list source panel (get-buffer "*Org Comment Edit*")))
+	(when (buffer-live-p buffer)
+	  (kill-buffer buffer))))))
+
+(ert-deftest hub/org-context-panel-reply-lines-are-actionable-items ()
+  "Reply lines in context panels expose their own comment item."
+  (hub/org-comments-test--with-file-buffer "article.org" "#+TITLE: Article\n\nBody"
+					   (let* ((source-buffer (current-buffer))
+						  (sidecar (hub/org-comment-sidecar-path buffer-file-name))
+						  (panel (generate-new-buffer " *org context reply item test*")))
+					     (unwind-protect
+						 (progn
+						   (with-temp-file sidecar
+						     (insert "#+source: article.org\n#+todo: OPEN TODO | RESOLVED\n\n")
+						     (insert "* OPEN Page\n:PROPERTIES:\n:HUB_COMMENT_ID: page-1\n:HUB_COMMENT_SYNC_KIND: footer\n:HUB_COMMENT_REMOTE_ID: f1\n:END:\n\nPage body.\n")
+						     (insert "** Reply · Bob — Draft\n:PROPERTIES:\n:HUB_COMMENT_ID: reply-1\n:HUB_COMMENT_SYNC_KIND: reply\n:HUB_COMMENT_AUTHOR: Bob\n:END:\n\nDraft reply.\n"))
+						   (hub/org-page-context-render-buffer source-buffer panel t)
+						   (with-current-buffer panel
+						     (search-forward "Draft reply")
+						     (should (equal (plist-get (hub/org-context-panel--item-at-point) :id)
+								    "reply-1"))))
+					       (when (buffer-live-p panel)
+						 (kill-buffer panel))))))
+
+(ert-deftest hub/org-comment-compose-edit-stamps-local-update ()
+  "Editing a remote-linked comment stamps local update metadata and draft badge."
+  (hub/org-comments-test--with-file-buffer "article.org" "#+TITLE: Article\n\nBody"
+					   (let* ((source-buffer (current-buffer))
+						  (sidecar (hub/org-comment-sidecar-path buffer-file-name)))
+					     (with-temp-file sidecar
+					       (insert "#+source: article.org\n#+todo: OPEN TODO | RESOLVED\n\n")
+					       (insert "* OPEN Page\n:PROPERTIES:\n:HUB_COMMENT_ID: page-1\n:HUB_COMMENT_SYNC_KIND: footer\n:HUB_COMMENT_REMOTE_ID: f1\n:END:\n\nOld body.\n"))
+					     (cl-letf (((symbol-function 'hub/org-comment-current-created-at)
+							(lambda () "2026-06-19T20:00:00+0000")))
+					       (hub/org-comment-compose--save-edit
+						(list :type 'comment :id "page-1" :sidecar-file sidecar :remote-id "f1")
+						"New body."))
+					     (with-temp-buffer
+					       (insert-file-contents sidecar)
+					       (should (search-forward ":HUB_COMMENT_LOCAL_UPDATED_AT: 2026-06-19T20:00:00+0000" nil t)))
+					     (let ((comment (car (hub/org-comment-collect-page source-buffer))))
+					       (should (equal (plist-get comment :local-updated-at)
+							      "2026-06-19T20:00:00+0000"))
+					       (should (equal (hub/org-context-panel--comment-sync-badge comment) "✍️"))))))
+
+(ert-deftest hub/org-context-panel-action-keys-avoid-core-s-and-r ()
+  "Panel actions leave s and r unbound for core navigation."
+  (with-temp-buffer
+    (hub/org-context-panel-buffer-mode)
+    (should (eq (local-key-binding (kbd "C-c C-c")) #'hub/org-context-panel-push-item))
+    (should (eq (local-key-binding (kbd "+")) #'hub/org-context-panel-reply-to-item))
+    (should-not (local-key-binding (kbd "s")))
+    (should-not (local-key-binding (kbd "r")))))
+
+(ert-deftest hub/org-context-panel-push-item-pushes-reply-from-panel ()
+  "Panel push dispatches through the sidecar heading for the item at point."
+  (hub/org-comments-test--with-file-buffer "article.org" "#+TITLE: Article\n\nBody"
+					   (let* ((source-buffer (current-buffer))
+						  (sidecar (hub/org-comment-sidecar-path buffer-file-name))
+						  (panel (generate-new-buffer " *org context push item test*"))
+						  pushed-id)
+					     (unwind-protect
+						 (progn
+						   (with-temp-file sidecar
+						     (insert "#+source: article.org\n#+todo: OPEN TODO | RESOLVED\n\n")
+						     (insert "* OPEN Page\n:PROPERTIES:\n:HUB_COMMENT_ID: page-1\n:HUB_COMMENT_SYNC_KIND: footer\n:HUB_COMMENT_REMOTE_ID: f1\n:END:\n\nPage body.\n")
+						     (insert "** Reply · Bob — Draft\n:PROPERTIES:\n:HUB_COMMENT_ID: reply-1\n:HUB_COMMENT_SYNC_KIND: reply\n:HUB_COMMENT_AUTHOR: Bob\n:END:\n\nDraft reply.\n"))
+						   (hub/org-page-context-render-buffer source-buffer panel t)
+						   (with-current-buffer panel
+						     (search-forward "Draft reply")
+						     (cl-letf (((symbol-function 'hub/confluence-comment-push-current)
+								(lambda (&rest _args)
+								  (setq pushed-id (org-entry-get nil "HUB_COMMENT_ID")))))
+						       (hub/org-context-panel-push-item)))
+						   (should (equal pushed-id "reply-1")))
+					       (when (buffer-live-p panel)
+						 (kill-buffer panel))
+					       (when (get-file-buffer sidecar)
+						 (kill-buffer (get-file-buffer sidecar)))))))
+
+(ert-deftest hub/org-context-panel-open-remote-item-opens-comment-url ()
+  "Pressing open remote in the context panel opens the remote comment."
+  (hub/org-comments-test--with-file-buffer "article.org" "#+CONFLUENCE_PAGE_ID: 123\n\nAlpha selected text omega"
+					   (let* ((source-buffer (current-buffer))
+						  (start (progn
+							   (goto-char (point-min))
+							   (search-forward "selected")
+							   (match-beginning 0)))
+						  (end (match-end 0))
+						  (record (hub/org-comment-create-record
+							   buffer-file-name start end "Remote comment." "root-1"
+							   "Alice" "2026-06-18T09:00:00+0000"))
+						  (sidecar (hub/org-comment-append-to-sidecar record))
+						  (panel (generate-new-buffer " *org context open remote test*"))
+						  opened)
+					     (unwind-protect
+						 (progn
+						   (with-temp-buffer
+						     (insert-file-contents sidecar)
+						     (goto-char (point-min))
+						     (search-forward ":HUB_COMMENT_ID: root-1")
+						     (forward-line 1)
+						     (insert ":HUB_COMMENT_REMOTE_ID: i123\n")
+						     (write-region (point-min) (point-max) sidecar nil 'silent))
+						   (hub/org-context-panel-render-buffer source-buffer panel)
+						   (with-current-buffer panel
+						     (goto-char (point-min))
+						     (search-forward "Remote comment")
+						     (cl-letf (((symbol-function 'hub/confluence-comment-open-current)
+								(lambda (page-id comment-id)
+								  (setq opened (list page-id comment-id)))))
+						       (hub/org-context-panel-open-remote-item)))
+						   (should (equal opened '(nil "i123"))))
+					       (when (buffer-live-p panel)
+						 (kill-buffer panel))))))
+
+(ert-deftest hub/org-context-panel-delete-reply-keeps-page-context-renderer ()
+  "Deleting from page context re-renders page context, not the side panel."
+  (hub/org-comments-test--with-file-buffer "article.org" "#+TITLE: Article\n\nBody"
+					   (let* ((source-buffer (current-buffer))
+						  (sidecar (hub/org-comment-sidecar-path buffer-file-name))
+						  (panel (generate-new-buffer " *org page context delete reply test*")))
+					     (unwind-protect
+						 (progn
+						   (with-temp-file sidecar
+						     (insert "#+source: article.org\n#+todo: OPEN TODO | RESOLVED\n\n")
+						     (insert "* OPEN Page root\n:PROPERTIES:\n:HUB_COMMENT_ID: root-1\n:HUB_COMMENT_SYNC_KIND: footer\n:HUB_COMMENT_REMOTE_ID: f1\n:END:\n\nRoot body.\n")
+						     (insert "** Reply · Bob — First reply\n:PROPERTIES:\n:HUB_COMMENT_ID: reply-1\n:HUB_COMMENT_SYNC_KIND: reply\n:HUB_COMMENT_AUTHOR: Bob\n:END:\n\nFirst reply body.\n"))
+						   (hub/org-page-context-render-buffer source-buffer panel t)
+						   (with-current-buffer panel
+						     (search-forward "First reply body")
+						     (cl-letf (((symbol-function 'yes-or-no-p) (lambda (&rest _args) t)))
+						       (hub/org-context-panel-delete-item))
+						     (should hub/org-context-panel-page-context-p)
+						     (goto-char (point-min))
+						     (should (search-forward "👆" nil t))
+						     (should (search-forward "Root body." nil t))
+						     (should-not (search-forward "First reply body" nil t))))
+					       (when (buffer-live-p panel)
+						 (kill-buffer panel))
+					       (when (get-file-buffer sidecar)
+						 (kill-buffer (get-file-buffer sidecar)))))))
+
+(ert-deftest hub/org-context-panel-reply-to-reply-preserves-root ()
+  "Replying from a reply item creates a sibling without deleting the root."
+  (hub/org-comments-test--with-file-buffer "article.org" "#+TITLE: Article\n\nBody"
+					   (let* ((source-buffer (current-buffer))
+						  (sidecar (hub/org-comment-sidecar-path buffer-file-name))
+						  (panel (generate-new-buffer " *org context reply sibling test*")))
+					     (unwind-protect
+						 (progn
+						   (with-temp-file sidecar
+						     (insert "#+source: article.org\n#+todo: OPEN TODO | RESOLVED\n\n")
+						     (insert "* OPEN Page root\n:PROPERTIES:\n:HUB_COMMENT_ID: root-1\n:HUB_COMMENT_SYNC_KIND: footer\n:HUB_COMMENT_REMOTE_ID: f1\n:END:\n\nRoot body.\n")
+						     (insert "** Reply · Bob — First reply\n:PROPERTIES:\n:HUB_COMMENT_ID: reply-1\n:HUB_COMMENT_SYNC_KIND: reply\n:HUB_COMMENT_AUTHOR: Bob\n:END:\n\nFirst reply body.\n"))
+						   (hub/org-page-context-render-buffer source-buffer panel t)
+						   (with-current-buffer panel
+						     (search-forward "First reply body")
+						     (cl-letf (((symbol-function 'hub/org-comment-current-created-at)
+								(lambda () "2026-06-19T10:00:00+0000"))
+							       ((symbol-function 'hub/org-comment-generate-id)
+								(lambda () "reply-2")))
+						       (hub/org-context-panel-reply-to-item)
+						       (with-current-buffer "*Org Comment Reply*"
+							 (goto-char (point-max))
+							 (insert "Second reply body.")
+							 (hub/org-comment-compose-save-draft))))
+						   (with-temp-buffer
+						     (insert-file-contents sidecar)
+						     (should (search-forward "* OPEN [2 replies]" nil t))
+						     (should (search-forward ":HUB_COMMENT_ID: root-1" nil t))
+						     (should (search-forward "** Reply" nil t))
+						     (should (search-forward ":HUB_COMMENT_ID: reply-1" nil t))
+						     (should (search-forward ":HUB_COMMENT_ID: reply-2" nil t))))
+					       (when (buffer-live-p panel)
+						 (kill-buffer panel))
+					       (when (get-file-buffer sidecar)
+						 (kill-buffer (get-file-buffer sidecar)))))))
+
+(ert-deftest hub/org-context-panel-reply-to-item-creates-reply ()
+  "Pressing reply in the context panel creates a local sidecar reply."
+  (hub/org-comments-test--with-file-buffer "article.org" "Alpha selected text omega"
+					   (let* ((source-buffer (current-buffer))
+						  (start (progn
+							   (goto-char (point-min))
+							   (search-forward "selected")
+							   (match-beginning 0)))
+						  (end (match-end 0))
+						  (record (hub/org-comment-create-record
+							   buffer-file-name start end "Needs reply." "root-1"
+							   "Alice" "2026-06-18T09:00:00+0000"))
+						  (sidecar (hub/org-comment-append-to-sidecar record))
+						  (panel (generate-new-buffer " *org context reply test*")))
+					     (unwind-protect
+						 (progn
+						   (with-temp-buffer
+						     (insert-file-contents sidecar)
+						     (goto-char (point-min))
+						     (search-forward ":HUB_COMMENT_ID: root-1")
+						     (forward-line 1)
+						     (insert ":HUB_COMMENT_REMOTE_ID: i123\n")
+						     (write-region (point-min) (point-max) sidecar nil 'silent))
+						   (hub/org-context-panel-render-buffer source-buffer panel)
+						   (with-current-buffer panel
+						     (goto-char (point-min))
+						     (search-forward "Needs reply")
+						     (cl-letf (((symbol-function 'hub/org-comment-current-created-at)
+								(lambda () "2026-06-18T10:00:00+0000"))
+							       ((symbol-function 'hub/org-comment-generate-id)
+								(lambda () "local-reply-1")))
+						       (hub/org-context-panel-reply-to-item)
+						       (with-current-buffer "*Org Comment Reply*"
+							 (goto-char (point-max))
+							 (insert "Reply body.")
+							 (hub/org-comment-compose-save-draft))))
+						   (with-temp-buffer
+						     (insert-file-contents sidecar)
+						     (should (search-forward "** Reply ·" nil t))
+						     (should (search-forward ":HUB_COMMENT_ID: local-reply-1" nil t))
+						     (should (search-forward ":HUB_COMMENT_REMOTE_PARENT_ID: i123" nil t))))
+					       (when (buffer-live-p panel)
+						 (kill-buffer panel))))))
+
+(ert-deftest hub/org-page-context-display-splits-source-window ()
+  "Page context display splits the source window directly."
   (let ((source-window 'source-window)
 	(page-window 'page-window)
 	(page-buffer (generate-new-buffer " *page comments display test*"))
@@ -721,13 +1354,65 @@
 		   (lambda (window buffer)
 		     (should (eq window page-window))
 		     (should (eq buffer page-buffer)))))
-	  (should (eq (hub/org-page-comments--display-below-source source-window page-buffer)
+	  (should (eq (hub/org-page-context--display-below-source source-window page-buffer)
 		      page-window))
 	  (should (equal called '(source-window -9 below))))
       (kill-buffer page-buffer))))
 
+(ert-deftest hub/org-context-panel-open-auto-opens-page-context ()
+  "Opening context panel auto-opens page context when page comments exist."
+  (hub/org-comments-test--with-file-buffer "article.org" "#+TITLE: Article\n\nBody"
+					   (let* ((source-buffer (current-buffer))
+						  (sidecar (hub/org-comment-sidecar-path buffer-file-name))
+						  opened)
+					     (with-temp-file sidecar
+					       (insert "#+source: article.org\n#+todo: OPEN TODO | RESOLVED\n\n")
+					       (insert "* OPEN Page\n:PROPERTIES:\n:HUB_COMMENT_ID: page-1\n:HUB_COMMENT_SYNC_KIND: footer\n:END:\n\nPage body.\n"))
+					     (cl-letf (((symbol-function 'display-buffer-in-side-window)
+							(lambda (buffer _alist) (display-buffer buffer)))
+						       ((symbol-function 'hub/org-context-panel--dock-prose) #'ignore)
+						       ((symbol-function 'hub/org-page-context--display-below-source)
+							(lambda (_source-window buffer &optional select)
+							  (setq opened (list buffer select)))))
+					       (hub/org-context-panel-open))
+					     (should (buffer-live-p (car opened)))
+					     (should-not (cadr opened))
+					     (with-current-buffer (car opened)
+					       (should (equal source-buffer hub/org-context-panel-source-buffer))
+					       (should hub/org-context-panel-page-context-p)
+					       (should (search-forward "Page body." nil t))))))
+
+(ert-deftest hub/org-context-panel-revert-refreshes-sidecar-state ()
+  "Reverting a context panel rereads sidecar state instead of needing a file."
+  (hub/org-comments-test--with-file-buffer "article.org" "#+TITLE: Article\n\nBody"
+					   (let* ((source-buffer (current-buffer))
+						  (sidecar (hub/org-comment-sidecar-path buffer-file-name))
+						  (panel (generate-new-buffer " *org context revert test*")))
+					     (unwind-protect
+						 (progn
+						   (with-temp-file sidecar
+						     (insert "#+source: article.org\n#+todo: OPEN TODO | RESOLVED\n\n")
+						     (insert "* OPEN Page\n:PROPERTIES:\n:HUB_COMMENT_ID: page-1\n:HUB_COMMENT_SYNC_KIND: footer\n:HUB_COMMENT_REMOTE_ID: f1\n:HUB_COMMENT_SOURCE: confluence\n:END:\n\nPage body.\n")
+						     (insert "** Reply · Bob — Draft\n:PROPERTIES:\n:HUB_COMMENT_ID: reply-1\n:HUB_COMMENT_SYNC_KIND: reply\n:HUB_COMMENT_AUTHOR: Bob\n:END:\n\nDraft reply.\n"))
+						   (hub/org-page-context-render-buffer source-buffer panel t)
+						   (with-current-buffer panel
+						     (should (search-forward "↳ ✍️ Bob" nil t)))
+						   (with-temp-buffer
+						     (insert-file-contents sidecar)
+						     (goto-char (point-min))
+						     (search-forward ":HUB_COMMENT_ID: reply-1")
+						     (forward-line 1)
+						     (insert ":HUB_COMMENT_REMOTE_ID: r1\n:HUB_COMMENT_SOURCE: confluence\n")
+						     (write-region (point-min) (point-max) sidecar nil 'silent))
+						   (with-current-buffer panel
+						     (revert-buffer)
+						     (goto-char (point-min))
+						     (should (search-forward "↳ 🔗 Bob" nil t))))
+					       (when (buffer-live-p panel)
+						 (kill-buffer panel))))))
+
 (ert-deftest hub/org-page-comments-open-renders-footer-comments ()
-  "Page comments open in a bottom reader without touching source text."
+  "Page comments open in a bottom page-context panel without touching source text."
   (hub/org-comments-test--with-file-buffer "article.org" "#+TITLE: Article\n\nBody"
 					   (let* ((source-buffer (current-buffer))
 						  (sidecar (hub/org-comment-sidecar-path buffer-file-name))
@@ -746,19 +1431,33 @@
 					       (insert ":HUB_COMMENT_SYNC_KIND: footer\n")
 					       (insert ":HUB_COMMENT_BODY_FORMAT: storage\n")
 					       (insert ":END:\n\n")
-					       (insert "<p>Footer body</p>\n"))
-					     (cl-letf (((symbol-function 'hub/org-page-comments--display-below-source)
-							(lambda (_source-window buffer)
+					       (insert "<p>Footer body with enough words to avoid the narrow side-panel overview truncation.</p>\n")
+					       (insert "** Reply · Bob — Draft reply\n")
+					       (insert ":PROPERTIES:\n")
+					       (insert ":HUB_COMMENT_ID: local-reply-1\n")
+					       (insert ":HUB_COMMENT_SYNC_KIND: reply\n")
+					       (insert ":HUB_COMMENT_AUTHOR: Bob\n")
+					       (insert ":HUB_COMMENT_CREATED_AT: 2026-06-15T18:00:00.000Z\n")
+					       (insert ":END:\n\n")
+					       (insert "Draft reply body.\n"))
+					     (cl-letf (((symbol-function 'hub/org-page-context--display-below-source)
+							(lambda (_source-window buffer &optional _select)
 							  (setq opened buffer))))
 					       (hub/org-page-comments-open))
 					     (should (equal (buffer-string) "#+TITLE: Article\n\nBody\n"))
 					     (with-current-buffer opened
-					       (should (derived-mode-p 'hub/org-page-comments-mode))
-					       (should (equal source-buffer hub/org-page-comments-source-buffer))
-					       (should (search-forward "PAGE comments for" nil t))
-					       (should (search-forward "OPEN · Alice · 2026-06-15 19:42" nil t))
-					       (should (search-forward "Footer body" nil t))
-					       (should-not (search-forward "<p>Footer body</p>" nil t)))
+					       (should (derived-mode-p 'hub/org-context-panel-buffer-mode))
+					       (should hub/org-context-panel-page-context-p)
+					       (should (equal source-buffer hub/org-context-panel-source-buffer))
+					       (goto-char (point-min))
+					       (should-not (search-forward "PAGE comments for" nil t))
+					       (should (search-forward "👆" nil t))
+					       (should (search-forward "OPEN" nil t))
+					       (should (search-forward "Alice · 2026-06-15 19:42" nil t))
+					       (should (search-forward "Footer body with enough words to avoid the narrow side-panel overview truncation." nil t))
+					       (should (search-forward "↳ ✍️ Bob · 2026-06-15 20:00" nil t))
+					       (should (search-forward "Draft reply body." nil t))
+					       (should-not (search-forward "<p>Footer body" nil t)))
 					     (when (buffer-live-p opened)
 					       (kill-buffer opened)))))
 
@@ -809,6 +1508,87 @@
 							  (lambda (overlay)
 							    (eq (overlay-get overlay 'face) 'hub/org-context-panel-comment-region-face))
 							  (overlays-at start))))))
+
+(ert-deftest hub/org-page-comment-create-appends-local-footer-entry ()
+  "Creating a page comment writes explicit footer metadata to the sidecar."
+  (hub/org-comments-test--with-file-buffer "article.org" "#+TITLE: Article\n\nBody"
+					   (let* ((source-file buffer-file-name)
+						  (sidecar (hub/org-comment-sidecar-path source-file))
+						  (hub/org-comment-author "Alice"))
+					     (cl-letf (((symbol-function 'hub/org-comment-current-created-at)
+							(lambda () "2026-06-17T10:00:00+0000"))
+						       ((symbol-function 'hub/org-comment-generate-id)
+							(lambda () "local-page-1")))
+					       (hub/org-page-comment-create "Review the whole page."))
+					     (should (equal (buffer-file-name) sidecar))
+					     (should (looking-at-p (regexp-quote "Review the whole page.")))
+					     (with-temp-buffer
+					       (insert-file-contents sidecar)
+					       (should (search-forward "#+source: article.org" nil t))
+					       (should (search-forward "* OPEN Page · Alice · Review the whole page." nil t))
+					       (should (search-forward ":HUB_COMMENT_ID: local-page-1" nil t))
+					       (should (search-forward ":HUB_COMMENT_AUTHOR: Alice" nil t))
+					       (should (search-forward ":HUB_COMMENT_CREATED_AT: 2026-06-17T10:00:00+0000" nil t))
+					       (should (search-forward ":HUB_COMMENT_SYNC_KIND: footer" nil t))
+					       (should-not (search-forward ":HUB_COMMENT_TARGET:" nil t))
+					       (should-not (search-forward ":HUB_COMMENT_TARGET_TEXT:" nil t))
+					       (should (search-forward "Review the whole page." nil t)))
+					     (with-temp-buffer
+					       (insert-file-contents source-file)
+					       (should (equal (buffer-string) "#+TITLE: Article\n\nBody\n"))
+					       (should-not (search-forward "HUB_COMMENT" nil t))))))
+
+
+(ert-deftest hub/org-comment-reply-create-adds-child-under-remote-root ()
+  "Creating a reply writes a local child heading under a remote-linked root."
+  (hub/org-comments-test--with-file-buffer "article.org" "#+TITLE: Article\n\nBody"
+					   (let* ((source-file buffer-file-name)
+						  (sidecar (hub/org-comment-sidecar-path source-file))
+						  (hub/org-comment-author "Alice"))
+					     (with-temp-file sidecar
+					       (insert "#+source: article.org\n#+todo: OPEN TODO | RESOLVED\n\n")
+					       (insert "* OPEN Remote root\n")
+					       (insert ":PROPERTIES:\n")
+					       (insert ":HUB_COMMENT_ID: root-1\n")
+					       (insert ":HUB_COMMENT_REMOTE_ID: i123\n")
+					       (insert ":HUB_COMMENT_SOURCE: confluence\n")
+					       (insert ":HUB_COMMENT_SYNC_KIND: inline\n")
+					       (insert ":END:\n\nRoot body\n"))
+					     (find-file sidecar)
+					     (org-mode)
+					     (goto-char (point-min))
+					     (re-search-forward "Remote root")
+					     (cl-letf (((symbol-function 'hub/org-comment-current-created-at)
+							(lambda () "2026-06-18T10:00:00+0000"))
+						       ((symbol-function 'hub/org-comment-generate-id)
+							(lambda () "local-reply-1")))
+					       (hub/org-comment-reply-create "Reply body."))
+					     (should (equal (buffer-file-name) sidecar))
+					     (should (looking-at-p (regexp-quote "Reply body.")))
+					     (with-temp-buffer
+					       (insert-file-contents sidecar)
+					       (should (search-forward "* OPEN [1 reply]" nil t))
+					       (should (search-forward "** Reply · Alice" nil t))
+					       (should-not (search-forward "** OPEN" nil t))
+					       (should (search-forward ":HUB_COMMENT_ID: local-reply-1" nil t))
+					       (should (search-forward ":HUB_COMMENT_SYNC_KIND: reply" nil t))
+					       (should (search-forward ":HUB_COMMENT_REMOTE_PARENT_ID: i123" nil t))
+					       (should (search-forward ":HUB_COMMENT_AUTHOR: Alice" nil t))
+					       (should (search-forward ":HUB_COMMENT_CREATED_AT: 2026-06-18T10:00:00+0000" nil t))
+					       (should (search-forward "Reply body." nil t))))))
+
+(ert-deftest hub/org-comment-reply-create-refuses-local-only-root ()
+  "Creating a Confluence reply requires a remote-linked root comment."
+  (hub/org-comments-test--with-file-buffer "article.org" "#+TITLE: Article\n\nBody"
+					   (let* ((sidecar (hub/org-comment-sidecar-path buffer-file-name)))
+					     (with-temp-file sidecar
+					       (insert "#+source: article.org\n#+todo: OPEN TODO | RESOLVED\n\n")
+					       (insert "* OPEN Local root\n:PROPERTIES:\n:HUB_COMMENT_ID: root-1\n:HUB_COMMENT_SYNC_KIND: inline\n:END:\n\nBody\n"))
+					     (find-file sidecar)
+					     (org-mode)
+					     (goto-char (point-min))
+					     (re-search-forward "Local root")
+					     (should-error (hub/org-comment-reply-create "Reply") :type 'user-error))))
 
 (provide 'org-comments-test)
 ;;; org-comments-test.el ends here

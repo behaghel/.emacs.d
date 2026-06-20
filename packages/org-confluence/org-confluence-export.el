@@ -67,6 +67,12 @@ storage-format images."
 (defconst org-confluence--image-extensions '("png" "jpg" "jpeg" "gif" "webp" "svg")
   "File extensions exported as Confluence attachment images.")
 
+(defvar org-confluence--root-headline-begin nil
+  "Buffer position of the root headline for the current subtree export.")
+
+(defvar org-confluence--omit-root-heading nil
+  "Non-nil means omit the current subtree root heading from export output.")
+
 (org-link-set-parameters "confluence-status")
 
 (defun org-confluence--local-image-link-p (link)
@@ -252,24 +258,39 @@ output whenever an item's bullet type changes so Confluence receives separate
       (when current-tag (push (format "</%s>" current-tag) result))
       (replace-regexp-in-string ">[[:space:]\n]+<" "><" (apply #'concat (nreverse result))))))
 
+(defun org-confluence--anchor-macro (name)
+  "Return Confluence storage anchor macro for NAME."
+  (format "<ac:structured-macro ac:name=\"anchor\" ac:schema-version=\"1\"><ac:parameter ac:name=\"\">%s</ac:parameter></ac:structured-macro>"
+	  (xml-escape-string name)))
+
+(defun org-confluence--anchor-link (target body)
+  "Return Confluence storage link to TARGET with rich link BODY."
+  (format "<ac:link ac:anchor=\"%s\"><ac:link-body>%s</ac:link-body></ac:link>"
+	  (xml-escape-string target)
+	  body))
+
 (defun org-confluence--footnote-reference (footnote-reference _contents _info)
-  "Transcode FOOTNOTE-REFERENCE to a Confluence anchor link."
-  (let ((label (org-element-property :label footnote-reference)))
-    (concat
-     (format "<ac:structured-macro ac:name=\"anchor\" ac:schema-version=\"1\"><ac:default-parameter>fnref-%s</ac:default-parameter></ac:structured-macro>"
-	     (xml-escape-string label))
-     (format "<sup><ac:link ac:anchor=\"fn-%s\"><ac:plain-text-link-body><![CDATA[%s]]></ac:plain-text-link-body></ac:link></sup>"
-	     (xml-escape-string label)
-	     (org-confluence--cdata label)))))
+  "Transcode FOOTNOTE-REFERENCE to a Confluence anchor link.
+
+Use Confluence's documented anchor macro plus rich `ac:link-body'.  The rich
+body avoids the visible CDATA leaks observed with `ac:plain-text-link-body' in
+footnote-sized links."
+  (let* ((label (org-element-property :label footnote-reference))
+	 (reference-id (format "fnref-%s" label))
+	 (definition-id (format "fn-%s" label)))
+    (concat (org-confluence--anchor-macro reference-id)
+	    (org-confluence--anchor-link
+	     definition-id
+	     (format "<sup>%s</sup>" (xml-escape-string label))))))
 
 (defun org-confluence--footnote-definition (footnote-definition contents _info)
   "Transcode FOOTNOTE-DEFINITION with CONTENTS to Confluence-safe XHTML."
   (let* ((label (org-element-property :label footnote-definition))
-	 (anchor (format "<ac:structured-macro ac:name=\"anchor\" ac:schema-version=\"1\"><ac:default-parameter>fn-%s</ac:default-parameter></ac:structured-macro>"
-			 (xml-escape-string label)))
+	 (definition-id (format "fn-%s" label))
+	 (reference-id (format "fnref-%s" label))
+	 (anchor (org-confluence--anchor-macro definition-id))
 	 (marker (format "<strong>%s.</strong> " (xml-escape-string label)))
-	 (backlink (format " <ac:link ac:anchor=\"fnref-%s\"><ac:plain-text-link-body><![CDATA[↩]]></ac:plain-text-link-body></ac:link>"
-			   (xml-escape-string label)))
+	 (backlink (format " %s" (org-confluence--anchor-link reference-id "↩")))
 	 (body (org-confluence--trim contents)))
     (if (string-match "\\`<p>\\(.*\\)</p>\\'" body)
 	(format "<p>%s%s%s%s</p>" anchor marker (match-string 1 body) backlink)
@@ -364,12 +385,33 @@ back to Confluence."
   "Transcode a section with CONTENTS to XHTML."
   (org-confluence--trim contents))
 
+(defun org-confluence--subpage-placeholder (headline title level)
+  "Return parent-page placeholder for subpage HEADLINE with TITLE at LEVEL."
+  (let ((page-id (org-element-property :CONFLUENCE_PAGE_ID headline)))
+    (org-confluence--join-lines
+     (format "<h%d>%s</h%d>" level title level)
+     (format "<p><ac:link><ri:content-entity ri:content-id=\"%s\"/><ac:link-body>Open subpage: %s</ac:link-body></ac:link></p>"
+	     (xml-escape-string page-id)
+	     title))))
+
 (defun org-confluence--headline (headline contents info)
   "Transcode HEADLINE and CONTENTS to XHTML using INFO."
   (let* ((level (min 4 (org-element-property :level headline)))
-	 (title (org-export-data (org-element-property :title headline) info))
-	 (heading (format "<h%d>%s</h%d>" level (org-confluence--trim title) level)))
-    (org-confluence--join-lines heading contents)))
+	 (title (org-confluence--trim
+		 (org-export-data (org-element-property :title headline) info)))
+	 (begin (org-element-property :begin headline))
+	 (rootp (and org-confluence--root-headline-begin
+		     (= begin org-confluence--root-headline-begin)))
+	 (subpagep (and (org-element-property :CONFLUENCE_PAGE_ID headline)
+			(not rootp)))
+	 (heading (cond
+		   (subpagep (org-confluence--subpage-placeholder headline title level))
+		   ((and rootp org-confluence--omit-root-heading) nil)
+		   ((string= title "Footnotes") "<hr/>")
+		   (t (format "<h%d>%s</h%d>" level title level)))))
+    (if subpagep
+	heading
+      (org-confluence--join-lines heading contents))))
 
 (defun org-confluence--template (contents _info)
   "Return exported document CONTENTS without a wrapper template."
@@ -408,10 +450,17 @@ back to Confluence."
 
 ASYNC, SUBTREEP, VISIBLE-ONLY, BODY-ONLY, and EXT-PLIST are passed through to
 `org-export-as'.  The default is body-only output suitable for `cfl --storage'."
-  (replace-regexp-in-string
-   "\n\\{2,\\}" "\n"
-   (org-confluence--trim
-    (org-export-as 'confluence subtreep visible-only (or body-only t) ext-plist))))
+  (let ((org-confluence--root-headline-begin
+	 (when subtreep
+	   (save-excursion
+	     (org-back-to-heading t)
+	     (point))))
+	(org-confluence--omit-root-heading
+	 (plist-get ext-plist :confluence-omit-root-heading)))
+    (replace-regexp-in-string
+     "\n\\{2,\\}" "\n"
+     (org-confluence--trim
+      (org-export-as 'confluence subtreep visible-only (or body-only t) ext-plist)))))
 
 (defun org-confluence-export-as-xhtml (&optional async subtreep visible-only body-only ext-plist)
   "Export current Org buffer or subtree to a temporary Confluence XHTML buffer.

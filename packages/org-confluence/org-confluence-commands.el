@@ -7,8 +7,11 @@
 
 (require 'hub-confluence-people)
 (require 'hub-org-comments)
+(require 'browse-url)
+(require 'cl-lib)
 (require 'json)
 (require 'org)
+(require 'ox-html)
 (require 'seq)
 (require 'subr-x)
 (require 'xml)
@@ -197,6 +200,33 @@
       (alist-get 'createdAt (alist-get 'version comment))
       (alist-get 'created-at (alist-get 'version comment))))
 
+(defun hub/confluence-commands--remote-comment-version-number (comment)
+  "Return current Confluence version number for COMMENT, or nil."
+  (let ((number (or (alist-get 'number (alist-get 'version comment))
+		    (alist-get 'versionNumber comment)
+		    (alist-get 'version-number comment))))
+    (cond
+     ((numberp number) number)
+     ((stringp number) (string-to-number number)))))
+
+(defun hub/confluence-commands--remote-comment-updated-at (comment)
+  "Return remote updated timestamp for Confluence COMMENT, or nil."
+  (or (alist-get 'createdAt (alist-get 'version comment))
+      (alist-get 'created-at (alist-get 'version comment))
+      (alist-get 'updatedAt comment)
+      (alist-get 'updated-at comment)))
+
+(defun hub/confluence-commands--current-user-account-id ()
+  "Return authenticated Confluence user's account ID."
+  (let* ((response (hub/confluence-api--current-user))
+	 (user (hub/confluence-commands--json-alist
+		(hub/confluence-commands--response-body response)))
+	 (account-id (or (alist-get 'accountId user)
+			 (alist-get 'account-id user))))
+    (unless account-id
+      (user-error "Confluence current user response did not include accountId"))
+    account-id))
+
 (defun hub/confluence-commands--remote-comment-resolution-status (comment)
   "Return normalized remote resolution status for Confluence COMMENT, or nil."
   (let* ((properties (alist-get 'properties comment))
@@ -214,6 +244,7 @@
       (let ((value (downcase (string-trim raw))))
 	(cond
 	 ((member value '("resolved" "closed" "done" "true")) "resolved")
+	 ((member value '("dangling")) "dangling")
 	 ((member value '("open" "unresolved" "reopened" "active" "false")) "open"))))
      (t nil))))
 
@@ -229,12 +260,16 @@
   (let ((target (hub/confluence-commands--remote-inline-target-object comment)))
     (or (alist-get 'originalSelection comment)
 	(alist-get 'original-selection comment)
+	(alist-get 'inlineOriginalSelection comment)
+	(alist-get 'inline-original-selection comment)
 	(alist-get 'selectedText comment)
 	(alist-get 'selected-text comment)
 	(alist-get 'text comment)
 	(and (listp target)
 	     (or (alist-get 'originalSelection target)
 		 (alist-get 'original-selection target)
+		 (alist-get 'inlineOriginalSelection target)
+		 (alist-get 'inline-original-selection target)
 		 (alist-get 'selectedText target)
 		 (alist-get 'selected-text target)
 		 (alist-get 'text target))))))
@@ -365,7 +400,7 @@
 (defun hub/confluence-commands--remote-orphan-thread-entry (parent-remote-id &optional _directory)
   "Return placeholder sidecar root entry for missing PARENT-REMOTE-ID."
   (concat
-   (format "* OPEN Remote conversation %s — Missing parent comment\n" parent-remote-id)
+   (format "* OPEN Remote conversation %s - Missing parent comment\n" parent-remote-id)
    ":PROPERTIES:\n"
    (format ":HUB_COMMENT_ID: remote-confluence-%s\n" parent-remote-id)
    (format ":HUB_COMMENT_REMOTE_ID: %s\n" parent-remote-id)
@@ -496,6 +531,29 @@
   (string-match-p "Cannot add a new attachment with same file name as an existing attachment"
 		  (error-message-string error)))
 
+(defvar hub/confluence-import--cdata-map nil
+  "Alist mapping temporary CDATA tokens to original text bodies.")
+
+(defun hub/confluence-import--preserve-cdata (xhtml)
+  "Return XHTML with CDATA bodies replaced by temporary text tokens."
+  (let ((start 0)
+	(index 0)
+	(output ""))
+    (setq hub/confluence-import--cdata-map nil)
+    (while (string-match "<!\\[CDATA\\[" xhtml start)
+      (let* ((open-start (match-beginning 0))
+	     (body-start (match-end 0))
+	     (body-end (string-match "\\]\\]>" xhtml body-start)))
+	(unless body-end
+	  (setq body-end (length xhtml)))
+	(let ((token (format "HUB_CONFLUENCE_CDATA_%d" index))
+	      (body (substring xhtml body-start body-end)))
+	  (setq output (concat output (substring xhtml start open-start) token))
+	  (push (cons token body) hub/confluence-import--cdata-map)
+	  (setq index (1+ index)
+		start (min (length xhtml) (+ body-end 3))))))
+    (concat output (substring xhtml start))))
+
 (defun hub/confluence-import--node-tag (node)
   "Return NODE tag, or nil for text nodes."
   (when (consp node) (car node)))
@@ -523,6 +581,20 @@
 			 (string= (or (hub/confluence-import--attribute child 'ac:name) "") name))
 		(hub/confluence-import--inline child)))
 	    (hub/confluence-import--node-children node)))
+
+(defun hub/confluence-import--anchor-macro-p (node)
+  "Return non-nil when NODE is a Confluence anchor macro."
+  (and (eq (hub/confluence-import--node-tag node) 'ac:structured-macro)
+       (string= (or (hub/confluence-import--macro-name node) "") "anchor")))
+
+(defun hub/confluence-import--anchor-macro-name (node)
+  "Return Confluence anchor macro name from NODE, or nil."
+  (when (hub/confluence-import--anchor-macro-p node)
+    (or (hub/confluence-import--macro-parameter node "")
+	(seq-some (lambda (child)
+		    (when (eq (hub/confluence-import--node-tag child) 'ac:default-parameter)
+		      (hub/confluence-import--inline child)))
+		  (hub/confluence-import--node-children node)))))
 
 (defun hub/confluence-import--status (node)
   "Convert Confluence status macro NODE to an Org status link."
@@ -576,6 +648,30 @@
       (setq attributes (format "%s :title %S" attributes (string-trim title))))
     (format "%s\n#+begin_callout\n%s\n#+end_callout" attributes body)))
 
+(defun hub/confluence-import--plain-text-body (node)
+  "Return plain text macro body from NODE, or an empty string."
+  (let ((body (or (seq-some (lambda (child)
+			      (when (eq (hub/confluence-import--node-tag child) 'ac:plain-text-body)
+				(mapconcat #'hub/confluence-import--inline
+					   (hub/confluence-import--node-children child) "")))
+			    (hub/confluence-import--node-children node))
+		  "")))
+    (or (cdr (assoc body hub/confluence-import--cdata-map))
+	(if (string-match "\\`\\[CDATA\\[\\(\\(?:.\\|
+\\)*\\)\\]\\]\\'" body)
+	    (match-string 1 body)
+	  body))))
+
+(defun hub/confluence-import--code-macro (node)
+  "Convert Confluence code macro NODE to an Org source block."
+  (let ((language (hub/confluence-import--macro-parameter node "language"))
+	(body (hub/confluence-import--plain-text-body node)))
+    (format "#+begin_src%s\n%s\n#+end_src"
+	    (if (and language (not (string-empty-p (string-trim language))))
+		(format " %s" (string-trim language))
+	      "")
+	    body)))
+
 (defun hub/confluence-import--clean-inline-spacing (text)
   "Clean Org inline TEXT spacing introduced for markup boundaries."
   (let ((cleaned (replace-regexp-in-string "[[:space:]]+" " " text)))
@@ -597,9 +693,20 @@
       (pcase (hub/confluence-import--node-tag node)
 	('ac:emoticon (hub/confluence-import--emoticon node))
 	('ac:structured-macro
-	 (if (string= (or (hub/confluence-import--macro-name node) "") "status")
-	     (hub/confluence-import--status node)
-	   (hub/confluence-import--clean-inline-spacing contents)))
+	 (cond
+	  ((hub/confluence-import--anchor-macro-p node) "")
+	  ((string= (or (hub/confluence-import--macro-name node) "") "status")
+	   (hub/confluence-import--status node))
+	  (t (hub/confluence-import--clean-inline-spacing contents))))
+	('ac:link
+	 (let ((anchor (hub/confluence-import--attribute node 'ac:anchor)))
+	   (cond
+	    ((and anchor (string-match "\\`fn-\\(.+\\)\\'" anchor))
+	     (format "[fn:%s]" (match-string 1 anchor)))
+	    ((and anchor (string-match "\\`fnref-.+\\'" anchor)) "")
+	    (t (hub/confluence-import--clean-inline-spacing contents)))))
+	((or 'ac:link-body 'ac:plain-text-link-body 'sup)
+	 (hub/confluence-import--clean-inline-spacing contents))
 	((or 'strong 'b) (hub/confluence-import--markup "*" contents))
 	((or 'em 'i) (hub/confluence-import--markup "/" contents))
 	('u (hub/confluence-import--markup "_" contents))
@@ -623,7 +730,7 @@
 
 (defun hub/confluence-import--list-item-text (item)
   "Return ITEM direct inline text, excluding nested lists."
-  (string-trim
+  (hub/confluence-import--clean-inline-spacing
    (mapconcat #'hub/confluence-import--inline
 	      (seq-remove #'hub/confluence-import--list-child-p
 			  (hub/confluence-import--node-children item))
@@ -637,6 +744,20 @@
 	     (split-string text "\n"))
      "\n")))
 
+(defun hub/confluence-import--description-list-line (item indent)
+  "Return Org description-list line for ITEM at INDENT, or nil."
+  (let* ((children (seq-remove #'hub/confluence-import--list-child-p
+			       (hub/confluence-import--node-children item)))
+	 (first (car children)))
+    (when (memq (hub/confluence-import--node-tag first) '(strong b))
+      (let ((term (hub/confluence-import--clean-inline-spacing
+		   (mapconcat #'hub/confluence-import--inline
+			      (hub/confluence-import--node-children first) "")))
+	    (rest (hub/confluence-import--clean-inline-spacing
+		   (mapconcat #'hub/confluence-import--inline (cdr children) ""))))
+	(when (string-suffix-p ":" term)
+	  (format "%s- %s :: %s" indent (string-remove-suffix ":" term) rest))))))
+
 (defun hub/confluence-import--list (list-node &optional level)
   "Convert LIST-NODE to an Org list at nesting LEVEL."
   (let ((index 0)
@@ -648,9 +769,11 @@
 	(when (eq (hub/confluence-import--node-tag child) 'li)
 	  (when ordered (setq index (1+ index)))
 	  (let* ((marker (if ordered (format "%d." index) "-"))
-		 (line (format "%s%s %s" (make-string (* 2 level) ?\s)
-			       marker
-			       (hub/confluence-import--list-item-text child)))
+		 (indent (make-string (* 2 level) ?\s))
+		 (line (or (and (not ordered)
+				(hub/confluence-import--description-list-line child indent))
+			   (format "%s%s %s" indent marker
+				   (hub/confluence-import--list-item-text child))))
 		 (nested (hub/confluence-import--join-blocks
 			  (mapcar (lambda (nested-list)
 				    (when (hub/confluence-import--list-child-p nested-list)
@@ -709,6 +832,54 @@
 		   (hub/confluence-import--org-table-separator (car rows)))
 	     (mapcar #'hub/confluence-import--org-table-line (cdr rows))))))
 
+(defun hub/confluence-import--footnote-definition-label (node)
+  "Return footnote definition label when paragraph NODE starts with fn anchor."
+  (when (eq (hub/confluence-import--node-tag node) 'p)
+    (seq-some (lambda (child)
+		(when-let* ((anchor (hub/confluence-import--anchor-macro-name child)))
+		  (when (string-match "\\`fn-\\(.+\\)\\'" anchor)
+		    (match-string 1 anchor))))
+	      (hub/confluence-import--node-children node))))
+
+(defun hub/confluence-import--footnote-definition (node label)
+  "Convert footnote definition paragraph NODE with LABEL to Org."
+  (let ((body (hub/confluence-import--clean-inline-spacing
+	       (mapconcat (lambda (child)
+			    (cond
+			     ((hub/confluence-import--anchor-macro-p child) "")
+			     ((and (eq (hub/confluence-import--node-tag child) 'ac:link)
+				   (string-match "\\`fnref-.+\\'"
+						 (or (hub/confluence-import--attribute child 'ac:anchor) "")))
+			      "")
+			     (t (hub/confluence-import--inline child))))
+			  (hub/confluence-import--node-children node) ""))))
+    (setq body (replace-regexp-in-string
+		(format "\\`\\*%s\\.\\* ?" (regexp-quote label)) "" body))
+    (format "[fn:%s] %s" label (string-trim body))))
+
+(defun hub/confluence-import--content-entity-id (node)
+  "Return content entity id from Confluence link NODE, or nil."
+  (when (eq (hub/confluence-import--node-tag node) 'ac:link)
+    (seq-some (lambda (child)
+		(when (eq (hub/confluence-import--node-tag child) 'ri:content-entity)
+		  (hub/confluence-import--attribute child 'ri:content-id)))
+	      (hub/confluence-import--node-children node))))
+
+(defun hub/confluence-import--subpage-placeholder (node)
+  "Return Org property drawer for a subpage placeholder paragraph NODE."
+  (seq-some (lambda (child)
+	      (when-let* ((id (hub/confluence-import--content-entity-id child)))
+		(format ":PROPERTIES:\n:CONFLUENCE_PAGE_ID: %s\n:END:" id)))
+	    (hub/confluence-import--node-children node)))
+
+(defun hub/confluence-import--attachment-filename (node)
+  "Return attachment filename from Confluence image NODE, or nil."
+  (when (eq (hub/confluence-import--node-tag node) 'ac:image)
+    (seq-some (lambda (child)
+		(when (eq (hub/confluence-import--node-tag child) 'ri:attachment)
+		  (hub/confluence-import--attribute child 'ri:filename)))
+	      (hub/confluence-import--node-children node))))
+
 (defun hub/confluence-import--block (node)
   "Convert XHTML NODE to Org block text."
   (pcase (hub/confluence-import--node-tag node)
@@ -720,6 +891,8 @@
      (cond
       ((string= (or (hub/confluence-import--macro-name node) "") "status")
        (hub/confluence-import--status node))
+      ((string= (or (hub/confluence-import--macro-name node) "") "code")
+       (hub/confluence-import--code-macro node))
       ((hub/confluence-import--callout-macro-p node)
        (hub/confluence-import--callout node))
       (t (hub/confluence-import--rich-text-body node))))
@@ -727,17 +900,97 @@
     ('h2 (format "** %s" (hub/confluence-import--inline node)))
     ('h3 (format "*** %s" (hub/confluence-import--inline node)))
     ('h4 (format "**** %s" (hub/confluence-import--inline node)))
-    ('p (hub/confluence-import--inline node))
+    ('p (cond
+	 ((hub/confluence-import--subpage-placeholder node))
+	 ((if-let* ((label (hub/confluence-import--footnote-definition-label node)))
+	      (hub/confluence-import--footnote-definition node label)))
+	 (t (hub/confluence-import--inline node))))
     ((or 'ul 'ol) (hub/confluence-import--list node))
     ('table (hub/confluence-import--table node))
+    ('ac:image (if-let* ((filename (hub/confluence-import--attachment-filename node)))
+		   (format "[[./%s]]" filename)
+		 ""))
+    ('blockquote (format "#+begin_quote\n%s\n#+end_quote"
+			 (hub/confluence-import--join-blocks
+			  (mapcar #'hub/confluence-import--block
+				  (hub/confluence-import--node-children node)))))
+    ('hr "-----")
     (_ (hub/confluence-import--inline node))))
+
+(defun hub/confluence-import--restore-footnotes-heading (org)
+  "Restore the Org Footnotes heading from imported ORG when appropriate."
+  (replace-regexp-in-string "\\(?:\\`\\|\n\\)-----\n\\(\\[fn:[^]]+\\]\\)"
+			    "\n* Footnotes\n\n\\1"
+			    org t))
+
+(defun hub/confluence-import--line-kind (line)
+  "Return structural kind for imported Org LINE."
+  (cond
+   ((string-empty-p (string-trim line)) 'blank)
+   ((string-match-p "\\`\\*+ " line) 'heading)
+   ((string-match-p "\\`:PROPERTIES:\\|:END:\\|:[A-Z0-9_]+:" line) 'property)
+   ((string-match-p "\\`#\\+begin_" line) 'block-begin)
+   ((string-match-p "\\`#\\+end_" line) 'block-end)
+   ((string-match-p "\\`#\\+ATTR_" line) 'attr)
+   ((string-match-p "\\`|" line) 'table)
+   ((string-match-p "\\`[[:space:]]*- " line) 'unordered-list)
+   ((string-match-p "\\`[[:space:]]*[0-9]+\\. " line) 'ordered-list)
+   ((string-match-p "\\`\\[\\[\.\/.*\\]\\]" line) 'image)
+   ((string-match-p "\\`\\[fn:[^]]+\\]" line) 'footnote)
+   (t 'paragraph)))
+
+(defun hub/confluence-import--blank-before-p (previous-kind current-kind _next-kind)
+  "Return non-nil when a blank line should precede CURRENT-KIND.
+PREVIOUS-KIND provides neighboring context."
+  (and previous-kind
+       (not (eq previous-kind 'blank))
+       (not (eq current-kind 'blank))
+       (not (and (eq previous-kind 'heading) (eq current-kind 'property)))
+       (not (and (eq previous-kind 'property) (eq current-kind 'property)))
+       (not (and (eq previous-kind 'attr) (eq current-kind 'block-begin)))
+       (not (and (eq previous-kind 'table) (eq current-kind 'table)))
+       (not (and (memq previous-kind '(unordered-list ordered-list))
+		 (eq current-kind previous-kind)))
+       (or (memq current-kind '(heading block-begin attr table image))
+	   (and (memq previous-kind '(heading block-end table image))
+		(not (eq current-kind 'property)))
+	   (and (memq previous-kind '(unordered-list ordered-list))
+		(not (memq current-kind '(property))))
+	   (and (eq current-kind 'footnote)
+		(not (eq previous-kind 'heading))))))
+
+(defun hub/confluence-import--format-org (org)
+  "Return imported ORG with stable blank lines between block constructs."
+  (let* ((lines (split-string (string-trim org) "\n"))
+	 (kinds (mapcar #'hub/confluence-import--line-kind lines))
+	 (in-verbatim nil)
+	 output previous-kind)
+    (cl-loop for line in lines
+	     for kind in kinds
+	     for index from 0
+	     for next-kind = (nth (1+ index) kinds)
+	     do
+	     (when (and (not in-verbatim)
+			(hub/confluence-import--blank-before-p previous-kind kind next-kind)
+			output
+			(not (string-empty-p (car output))))
+	       (push "" output))
+	     (push line output)
+	     (when (eq kind 'block-begin)
+	       (setq in-verbatim (string-match-p "\\`#\\+begin_\\(?:src\\|example\\)" line)))
+	     (when (and in-verbatim (eq kind 'block-end))
+	       (setq in-verbatim nil))
+	     (setq previous-kind kind))
+    (string-trim (string-join (nreverse output) "\n"))))
 
 (defun hub/confluence-import-storage-to-org (xhtml)
   "Convert Confluence storage XHTML string XHTML to Org text."
   (with-temp-buffer
-    (insert xhtml)
+    (insert (hub/confluence-import--preserve-cdata xhtml))
     (let ((tree (libxml-parse-html-region (point-min) (point-max))))
-      (string-trim (hub/confluence-import--block tree)))))
+      (hub/confluence-import--format-org
+       (hub/confluence-import--restore-footnotes-heading
+	(hub/confluence-import--block tree))))))
 
 (defun hub/confluence-commands--upload-asset (page-id asset upload-directory)
   "Upload one image ASSET to Confluence PAGE-ID from UPLOAD-DIRECTORY."
@@ -771,6 +1024,266 @@
 	    (hub/confluence-commands--upload-asset page-id asset upload-directory))
 	(delete-directory upload-directory t)))))
 
+(defun hub/confluence-commands--subpage-root-position ()
+  "Return current subtree root position when point is at a subpage export root."
+  (when (and (not (org-before-first-heading-p))
+	     (org-entry-get nil "CONFLUENCE_PAGE_ID"))
+    (point)))
+
+(defun hub/confluence-commands--inside-another-subpage-p (root-position)
+  "Return non-nil when current heading is inside another subpage after ROOT-POSITION."
+  (save-excursion
+    (let ((inside nil))
+      (while (and (not inside) (org-up-heading-safe))
+	(when (and (> (point) root-position)
+		   (org-entry-get nil "CONFLUENCE_PAGE_ID"))
+	  (setq inside t)))
+      inside)))
+
+(defun hub/confluence-commands--direct-subpage-markers (&optional subtreep)
+  "Return markers for direct child subpages in current export scope.
+When SUBTREEP is non-nil, the current subtree root itself is not included."
+  (save-excursion
+    (save-restriction
+      (let ((root-position (if subtreep
+			       (progn (org-back-to-heading t) (point))
+			     (point-min)))
+	    markers)
+	(when subtreep
+	  (org-narrow-to-subtree))
+	(org-map-entries
+	 (lambda ()
+	   (when (and (org-entry-get nil "CONFLUENCE_PAGE_ID")
+		      (not (= (point) root-position))
+		      (not (hub/confluence-commands--inside-another-subpage-p root-position)))
+	     (push (point-marker) markers)))
+	 nil (when subtreep 'tree))
+	(nreverse markers)))))
+
+(defvar hub/confluence-publish--skip-inline-comment-preflight nil
+  "Non-nil means recursive publish calls skip inline comment preflight.")
+
+(defun hub/confluence-commands--publish-subpages (subtreep visible-only body-only ext-plist)
+  "Publish direct child subpages for current export scope before their parent."
+  (dolist (marker (hub/confluence-commands--direct-subpage-markers subtreep))
+    (save-excursion
+      (goto-char marker)
+      (hub/confluence-publish nil t visible-only body-only ext-plist))))
+
+(defun hub/confluence-publish--target-page-ids (subtreep)
+  "Return Confluence page IDs that would be updated for SUBTREEP publish."
+  (save-excursion
+    (save-restriction
+      (let ((root-id (hub/confluence-api--page-id-from-buffer subtreep))
+	    ids)
+	(when subtreep
+	  (org-back-to-heading t)
+	  (org-narrow-to-subtree))
+	(when root-id
+	  (push (format "%s" root-id) ids))
+	(org-map-entries
+	 (lambda ()
+	   (when-let* ((id (org-entry-get nil "CONFLUENCE_PAGE_ID")))
+	     (push (format "%s" id) ids)))
+	 nil (when subtreep 'tree))
+	(delete-dups (nreverse ids))))))
+
+(defun hub/confluence-publish--inline-comment-blocking-p (comment)
+  "Return non-nil when inline COMMENT should block page publish."
+  (let ((status (hub/confluence-commands--remote-comment-resolution-status comment)))
+    (and (not (member status '("resolved" "dangling")))
+	 t)))
+
+(defun hub/confluence-publish--sidecar-comment-property (sidecar-file comment-id property)
+  "Return PROPERTY for COMMENT-ID in SIDECAR-FILE, or nil."
+  (when (and sidecar-file comment-id (file-exists-p sidecar-file))
+    (with-temp-buffer
+      (insert-file-contents sidecar-file)
+      (org-mode)
+      (when (hub/org-comment-goto-id comment-id)
+	(org-entry-get nil property)))))
+
+(defun hub/confluence-publish--sidecar-remote-property (sidecar-file remote-id property)
+  "Return PROPERTY for REMOTE-ID in SIDECAR-FILE, or nil."
+  (when (and sidecar-file remote-id (file-exists-p sidecar-file))
+    (with-temp-buffer
+      (insert-file-contents sidecar-file)
+      (org-mode)
+      (goto-char (point-min))
+      (cl-loop while (re-search-forward org-heading-regexp nil t)
+	       do (goto-char (match-beginning 0))
+	       when (equal remote-id (org-entry-get nil "HUB_COMMENT_REMOTE_ID"))
+	       return (org-entry-get nil property)
+	       do (forward-line 1)))))
+
+(defun hub/confluence-publish--sidecar-remote-missing-p (sidecar-file record)
+  "Return non-nil when sidecar says RECORD is remote-missing."
+  (let ((local-id (plist-get record :local-comment-id))
+	(remote-id (plist-get record :comment-id)))
+    (or (equal "missing" (plist-get record :remote-state))
+	(equal "missing"
+	       (hub/confluence-publish--sidecar-comment-property
+		sidecar-file local-id "HUB_COMMENT_REMOTE_STATE"))
+	(equal "missing"
+	       (hub/confluence-publish--sidecar-remote-property
+		sidecar-file remote-id "HUB_COMMENT_REMOTE_STATE")))))
+
+(defun hub/confluence-publish--inline-comment-record (page-id comment &optional sidecar-file source-file)
+  "Return report record for PAGE-ID inline COMMENT."
+  (let* ((remote-id (hub/confluence-commands--remote-comment-id comment))
+	 (local-id (or (and sidecar-file
+			    (hub/org-comment-local-id-for-remote-id sidecar-file remote-id))
+		       (and remote-id (format "remote-confluence-%s" remote-id))))
+	 (remote-state (hub/confluence-publish--sidecar-comment-property
+			sidecar-file local-id "HUB_COMMENT_REMOTE_STATE")))
+    (list :page-id page-id
+	  :comment-id remote-id
+	  :local-comment-id local-id
+	  :source-file source-file
+	  :remote-state remote-state
+	  :author (hub/confluence-commands--remote-comment-author-name comment)
+	  :status (or (hub/confluence-commands--remote-comment-resolution-status comment) "unknown")
+	  :target-text (hub/confluence-commands--remote-inline-target-text comment)
+	  :anchored (hub/confluence-commands--remote-inline-anchor-confirmed-p comment))))
+
+(defun hub/confluence-publish--preflight-record-link (record)
+  "Return actionable Org link text for preflight RECORD."
+  (let ((source-file (plist-get record :source-file))
+	(local-id (plist-get record :local-comment-id))
+	(remote-id (plist-get record :comment-id)))
+    (if (and source-file local-id)
+	(hub/org-comment-make-link source-file local-id (format "comment %s" remote-id))
+      (format "comment %s" (or remote-id "<unknown>")))))
+
+(defun hub/confluence-publish--preflight-next-link ()
+  "Move point to the next link in the Confluence publish preflight report."
+  (interactive)
+  (if (fboundp 'org-next-link)
+      (org-next-link)
+    (unless (re-search-forward org-link-any-re nil t)
+      (goto-char (point-min))
+      (re-search-forward org-link-any-re nil t))))
+
+(defun hub/confluence-publish--record-sidecar-file (record)
+  "Return sidecar file for preflight RECORD, or nil."
+  (when-let* ((source-file (plist-get record :source-file)))
+    (hub/org-comment-sidecar-path source-file)))
+
+(defun hub/confluence-publish--record-remote-missing-p (record)
+  "Return non-nil when RECORD is marked remote-missing in its sidecar."
+  (let ((sidecar-file (hub/confluence-publish--record-sidecar-file record)))
+    (hub/confluence-publish--sidecar-remote-missing-p sidecar-file record)))
+
+(defun hub/confluence-publish--nonblocking-record-p (record)
+  "Return non-nil when RECORD should not block publish."
+  (or (equal "dangling" (plist-get record :status))
+      (hub/confluence-publish--record-remote-missing-p record)))
+
+(defun hub/confluence-publish--reclassify-nonblocking-records (report)
+  "Move remote-missing blockers in REPORT to the non-blocking list."
+  (let (blockers nonblocking)
+    (dolist (record (plist-get report :blockers))
+      (if (hub/confluence-publish--nonblocking-record-p record)
+	  (progn
+	    (plist-put record :remote-state "missing")
+	    (push record nonblocking))
+	(push record blockers)))
+    (plist-put report :blockers (nreverse blockers))
+    (plist-put report :dangling
+	       (append (nreverse nonblocking) (plist-get report :dangling)))
+    report))
+
+(defun hub/confluence-publish--preflight-report-buffer (report &optional force)
+  "Show inline comment preflight REPORT.  FORCE notes non-aborting publish."
+  (let ((buffer (get-buffer-create "*Org Confluence Publish Preflight*")))
+    (with-current-buffer buffer
+      (let ((inhibit-read-only t))
+	(erase-buffer)
+	(insert "Org Confluence publish preflight\n")
+	(when force
+	  (insert "FORCE: publish will continue despite blocking inline comments.\n"))
+	(insert "\n")
+	(insert "* Blocking active inline comments\n")
+	(if-let* ((blockers (plist-get report :blockers)))
+	    (dolist (record blockers)
+	      (insert (format "- page %s %s [%s]%s%s\n"
+			      (plist-get record :page-id)
+			      (hub/confluence-publish--preflight-record-link record)
+			      (plist-get record :status)
+			      (if (plist-get record :anchored) " anchored" " anchor-unconfirmed")
+			      (if-let* ((text (plist-get record :target-text)))
+				  (format " — %s" text)
+				""))))
+	  (insert "None.\n"))
+	(insert "\n* Already dangling or remote-missing / not blocking\n")
+	(if-let* ((dangling (plist-get report :dangling)))
+	    (dolist (record dangling)
+	      (insert (format "- page %s %s [%s%s]%s\n"
+			      (plist-get record :page-id)
+			      (hub/confluence-publish--preflight-record-link record)
+			      (plist-get record :status)
+			      (if-let* ((state (plist-get record :remote-state)))
+				  (format ", %s" state)
+				"")
+			      (if-let* ((text (plist-get record :target-text)))
+				  (format " — %s" text)
+				""))))
+	  (insert "None.\n"))
+	(insert "\n* Updated sidecars\n")
+	(if-let* ((sidecars (plist-get report :sidecars)))
+	    (dolist (sidecar (delete-dups sidecars))
+	      (insert (format "- %s\n" sidecar)))
+	  (insert "None.\n"))
+	(goto-char (point-min))
+	(org-mode)
+	(use-local-map (copy-keymap org-mode-map))
+	(dolist (key (list (kbd "TAB") (kbd "<tab>") (kbd "C-i")))
+	  (local-set-key key #'hub/confluence-publish--preflight-next-link))
+	(when (fboundp 'evil-local-set-key)
+	  (evil-local-set-key 'normal (kbd "TAB") #'hub/confluence-publish--preflight-next-link)
+	  (evil-local-set-key 'normal (kbd "<tab>") #'hub/confluence-publish--preflight-next-link))
+	(setq buffer-read-only t)))
+    (display-buffer buffer)
+    buffer))
+
+(defun hub/confluence-publish--inline-comment-preflight (page-ids &optional force)
+  "Import and classify inline comments for PAGE-IDS before publish.
+When FORCE is nil, signal `user-error' if active inline comments would be
+orphaned by a page update."
+  (let ((report (list :blockers nil :dangling nil :sidecars nil))
+	(body-format "storage"))
+    (dolist (page-id page-ids)
+      (let* ((response (hub/confluence-api--list-page-comments
+			page-id "inline-comments" body-format))
+	     (comments (hub/confluence-commands--comment-results response))
+	     (sidecar (and buffer-file-name
+			   (hub/org-comment-sidecar-path buffer-file-name))))
+	(hub/confluence-commands--import-remote-comments
+	 page-id "inline-comments" body-format
+	 #'hub/confluence-commands--append-remote-inline-comment t)
+	(when sidecar
+	  (plist-put report :sidecars (cons sidecar (plist-get report :sidecars))))
+	(dolist (comment comments)
+	  (let ((record (hub/confluence-publish--inline-comment-record
+			 page-id comment sidecar buffer-file-name)))
+	    (cond
+	     ((or (equal "dangling" (plist-get record :status))
+		  (hub/confluence-publish--sidecar-remote-missing-p sidecar record))
+	      (plist-put record :remote-state "missing")
+	      (plist-put report :dangling (cons record (plist-get report :dangling))))
+	     ((hub/confluence-publish--inline-comment-blocking-p comment)
+	      (plist-put report :blockers (cons record (plist-get report :blockers)))))))))
+    (plist-put report :blockers (nreverse (plist-get report :blockers)))
+    (plist-put report :dangling (nreverse (plist-get report :dangling)))
+    (hub/confluence-publish--reclassify-nonblocking-records report)
+    (when (or (plist-get report :blockers)
+	      (plist-get report :dangling))
+      (hub/confluence-publish--preflight-report-buffer report force))
+    (when (and (not force) (plist-get report :blockers))
+      (user-error "Refusing to publish: %s active inline Confluence comment(s) would lose anchors"
+		  (length (plist-get report :blockers))))
+    report))
+
 ;;;###autoload
 (defun hub/confluence-publish (&optional async subtreep visible-only body-only ext-plist)
   "Publish the current Org buffer or subtree to an existing Confluence page.
@@ -778,28 +1291,45 @@
 The document must contain #+CONFLUENCE_PAGE_ID.  When SUBTREEP is non-nil, a
 CONFLUENCE_PAGE_ID Org property on the current subtree takes precedence.  The
 Org document is exported to Confluence Storage Format XHTML and passed to `cfl
-page edit --file --storage'.  ASYNC, SUBTREEP, VISIBLE-ONLY, BODY-ONLY, and
-EXT-PLIST follow Org export conventions."
+page edit --file --storage'.  Interactively, a prefix argument forces publishing
+despite active inline comment anchors.  ASYNC, SUBTREEP, VISIBLE-ONLY,
+BODY-ONLY, and EXT-PLIST follow Org export conventions."
+  (interactive (list current-prefix-arg))
+  (let ((force (and (called-interactively-p 'interactive) async)))
+    (unless hub/confluence-publish--skip-inline-comment-preflight
+      (hub/confluence-publish--inline-comment-preflight
+       (hub/confluence-publish--target-page-ids subtreep) force))
+    (let ((hub/confluence-publish--skip-inline-comment-preflight t))
+      (hub/confluence-commands--publish-subpages subtreep visible-only body-only ext-plist)
+      (let* ((page-id (hub/confluence-api--page-id-from-buffer subtreep))
+	     (assets (org-confluence-image-assets subtreep))
+	     (export-plist (append (when subtreep '(:confluence-omit-root-heading t))
+				   ext-plist))
+	     (xhtml-file nil))
+	(unwind-protect
+	    (progn
+	      (setq xhtml-file
+		    (hub/confluence-commands--write-temp-xhtml
+		     (org-confluence-export nil subtreep visible-only body-only
+					    (append (list :confluence-image-filenames
+							  (hub/confluence-commands--asset-filename-map assets))
+						    export-plist))))
+	      (hub/confluence-commands--upload-assets page-id assets)
+	      (hub/confluence-commands--run
+	       (hub/confluence-api--page-update-command page-id xhtml-file))
+	      (message "Published Org buffer to Confluence page %s" page-id)
+	      page-id)
+	  (when (and xhtml-file (file-exists-p xhtml-file))
+	    (delete-file xhtml-file)))))))
+
+;;;###autoload
+(defun hub/confluence-publish-force (&optional subtreep visible-only body-only ext-plist)
+  "Publish to Confluence even when active inline comment anchors are present."
   (interactive)
-  (ignore async)
-  (let* ((page-id (hub/confluence-api--page-id-from-buffer subtreep))
-	 (assets (org-confluence-image-assets subtreep))
-	 (xhtml-file nil))
-    (unwind-protect
-	(progn
-	  (setq xhtml-file
-		(hub/confluence-commands--write-temp-xhtml
-		 (org-confluence-export nil subtreep visible-only body-only
-					(append (list :confluence-image-filenames
-						      (hub/confluence-commands--asset-filename-map assets))
-						ext-plist))))
-	  (hub/confluence-commands--upload-assets page-id assets)
-	  (hub/confluence-commands--run
-	   (hub/confluence-api--page-update-command page-id xhtml-file))
-	  (message "Published Org buffer to Confluence page %s" page-id)
-	  page-id)
-      (when (and xhtml-file (file-exists-p xhtml-file))
-	(delete-file xhtml-file)))))
+  (hub/confluence-publish--inline-comment-preflight
+   (hub/confluence-publish--target-page-ids subtreep) t)
+  (let ((hub/confluence-publish--skip-inline-comment-preflight t))
+    (hub/confluence-publish nil subtreep visible-only body-only ext-plist)))
 
 ;;;###autoload
 (defun hub/confluence-publish-from-export-dispatch
@@ -866,6 +1396,242 @@ METADATA is an alist of Org keyword names to values."
    `(("CONFLUENCE_PAGE_ID" . ,page-id)
      ("CONFLUENCE_SPACE" . ,space))))
 
+(defun hub/confluence-sync--sha256 (text)
+  "Return a sha256 digest for TEXT."
+  (concat "sha256:" (secure-hash 'sha256 (or text ""))))
+
+(defun hub/confluence-sync--keyword (keyword)
+  "Return Org KEYWORD value in the current buffer, or nil."
+  (hub/confluence-api--keyword-from-buffer keyword))
+
+(defun hub/confluence-sync--set-keyword (keyword value)
+  "Set Org KEYWORD to VALUE in the current buffer."
+  (save-excursion
+    (goto-char (point-min))
+    (let ((case-fold-search t)
+	  (regexp (format "^[ \t]*#\\+%s:.*$" (regexp-quote keyword))))
+      (if (re-search-forward regexp nil t)
+	  (replace-match (format "#+%s: %s" keyword value) t t)
+	(hub/confluence-commands--insert-metadata-after-keywords
+	 `((,keyword . ,value)))))))
+
+(defun hub/confluence-sync--source-without-sync-metadata ()
+  "Return current Org buffer text without Confluence sync metadata lines."
+  (let ((source-text (buffer-string)))
+    (with-temp-buffer
+      (insert source-text)
+      (goto-char (point-min))
+      (while (re-search-forward "^[	 ]*#\\+CONFLUENCE_.*\n?" nil t)
+	(replace-match ""))
+      (string-trim (buffer-string)))))
+
+(defun hub/confluence-sync--collapse-blank-runs (org)
+  "Collapse repeated blank lines in ORG outside verbatim blocks."
+  (let ((lines (split-string org "\n"))
+	(in-verbatim nil)
+	(blank-pending nil)
+	output)
+    (dolist (line lines)
+      (let ((kind (hub/confluence-import--line-kind line)))
+	(cond
+	 ((and (not in-verbatim) (eq kind 'blank))
+	  (unless blank-pending
+	    (push "" output)
+	    (setq blank-pending t)))
+	 (t
+	  (push line output)
+	  (setq blank-pending nil)))
+	(when (eq kind 'block-begin)
+	  (setq in-verbatim (string-match-p "\\`#\\+begin_\\(?:src\\|example\\)" line)))
+	(when (and in-verbatim (eq kind 'block-end))
+	  (setq in-verbatim nil))))
+    (string-trim (string-join (nreverse output) "\n"))))
+
+(defun hub/confluence-sync--canonical-org-for-hash (org)
+  "Return canonical ORG text for sync hash comparisons."
+  (hub/confluence-sync--collapse-blank-runs
+   (hub/confluence-import--format-org org)))
+
+(defun hub/confluence-sync--local-org-hash ()
+  "Return hash of current Org content excluding sync metadata."
+  (hub/confluence-sync--sha256
+   (hub/confluence-sync--canonical-org-for-hash
+    (hub/confluence-sync--source-without-sync-metadata))))
+
+(defun hub/confluence-sync--page-version (page)
+  "Return Confluence PAGE version number as a string."
+  (format "%s" (or (alist-get 'number (alist-get 'version page))
+		   (user-error "Confluence page response did not include version.number"))))
+
+(defun hub/confluence-sync--page-storage (page)
+  "Return Confluence PAGE storage XHTML."
+  (or (alist-get 'value (alist-get 'storage (alist-get 'body page)))
+      (user-error "Confluence page response did not include body.storage.value")))
+
+(defun hub/confluence-sync--timestamp ()
+  "Return timestamp for page sync metadata."
+  (format-time-string "%Y-%m-%dT%H:%M:%S%z"))
+
+(defun hub/confluence-sync--stamp-metadata (version storage-hash local-hash)
+  "Stamp sync metadata VERSION, STORAGE-HASH, and LOCAL-HASH in current buffer."
+  (hub/confluence-sync--set-keyword "CONFLUENCE_PAGE_VERSION" version)
+  (hub/confluence-sync--set-keyword "CONFLUENCE_PAGE_STORAGE_HASH" storage-hash)
+  (hub/confluence-sync--set-keyword "CONFLUENCE_LOCAL_ORG_HASH" local-hash)
+  (hub/confluence-sync--set-keyword "CONFLUENCE_PAGE_LAST_SYNCED_AT"
+				    (hub/confluence-sync--timestamp)))
+
+(defun hub/confluence-sync--body-start ()
+  "Return position after leading Org keyword block."
+  (save-excursion
+    (goto-char (point-min))
+    (while (looking-at-p "^[ \t]*#\\+[^:\n]+:.*$")
+      (forward-line 1))
+    (while (looking-at-p "^[ \t]*$")
+      (forward-line 1))
+    (point)))
+
+(defun hub/confluence-sync--replace-body (org-body)
+  "Replace current Org document body with ORG-BODY, preserving leading keywords."
+  (let ((start (hub/confluence-sync--body-start)))
+    (delete-region start (point-max))
+    (goto-char start)
+    (insert (string-trim org-body) "\n")))
+
+(defun hub/confluence-sync--conflict-buffer
+    (page-id local-hash stored-local-hash remote-version stored-version remote-org)
+  "Open a conflict buffer for PAGE-ID and return it."
+  (let ((buffer (get-buffer-create "*Org Confluence Sync Conflict*"))
+	(local (buffer-string)))
+    (with-current-buffer buffer
+      (let ((inhibit-read-only t))
+	(erase-buffer)
+	(org-mode)
+	(insert (format "* Conflict: Confluence page %s\n" page-id))
+	(insert (format "- local hash: %s\n- last synced local hash: %s\n" local-hash stored-local-hash))
+	(insert (format "- remote version: %s\n- last synced remote version: %s\n\n" remote-version stored-version))
+	(insert "** Local Org\n" local "\n\n")
+	(insert "** Remote imported Org\n" remote-org "\n")
+	(goto-char (point-min))))
+    (pop-to-buffer buffer)
+    buffer))
+
+;;;###autoload
+(defun hub/confluence-sync-page-current (&optional page-id)
+  "Synchronize current Org buffer main page content with Confluence PAGE-ID."
+  (interactive)
+  (let* ((id (or page-id (hub/confluence-api--page-id-from-buffer)
+		 (read-string "Confluence page ID: ")))
+	 (page (hub/confluence-commands--json-alist
+		(hub/confluence-commands--response-body
+		 (hub/confluence-api--get-page id "storage"))))
+	 (remote-version (hub/confluence-sync--page-version page))
+	 (remote-storage (hub/confluence-sync--page-storage page))
+	 (remote-storage-hash (hub/confluence-sync--sha256 remote-storage))
+	 (remote-org (hub/confluence-import-storage-to-org remote-storage))
+	 (stored-version (hub/confluence-sync--keyword "CONFLUENCE_PAGE_VERSION"))
+	 (stored-local-hash (hub/confluence-sync--keyword "CONFLUENCE_LOCAL_ORG_HASH"))
+	 (local-hash (hub/confluence-sync--local-org-hash)))
+    (cond
+     ((not stored-version)
+      (hub/confluence-sync--stamp-metadata remote-version remote-storage-hash local-hash)
+      (save-buffer)
+      (message "Initialized Confluence sync metadata for page %s" id)
+      (list :initialized 1 :page-id id :remote-version remote-version))
+     ((and (not (equal remote-version stored-version))
+	   stored-local-hash
+	   (not (equal local-hash stored-local-hash)))
+      (hub/confluence-sync--conflict-buffer
+       id local-hash stored-local-hash remote-version stored-version remote-org)
+      (list :conflict 1 :page-id id :remote-version remote-version))
+     ((not (equal remote-version stored-version))
+      (hub/confluence-sync--replace-body remote-org)
+      (setq local-hash (hub/confluence-sync--local-org-hash))
+      (hub/confluence-sync--stamp-metadata remote-version remote-storage-hash local-hash)
+      (save-buffer)
+      (message "Pulled Confluence page %s v%s into local Org" id remote-version)
+      (list :pulled 1 :page-id id :remote-version remote-version))
+     ((and stored-local-hash (not (equal local-hash stored-local-hash)))
+      (hub/confluence-publish)
+      (let* ((updated-page (hub/confluence-commands--json-alist
+			    (hub/confluence-commands--response-body
+			     (hub/confluence-api--get-page id "storage"))))
+	     (updated-version (hub/confluence-sync--page-version updated-page))
+	     (updated-storage (hub/confluence-sync--page-storage updated-page))
+	     (updated-storage-hash (hub/confluence-sync--sha256 updated-storage)))
+	(hub/confluence-sync--stamp-metadata updated-version updated-storage-hash local-hash)
+	(save-buffer)
+	(message "Pushed local Org to Confluence page %s v%s" id updated-version)
+	(list :pushed 1 :page-id id :remote-version updated-version)))
+     (t
+      (message "Confluence page %s already synchronized" id)
+      (list :noop 1 :page-id id :remote-version remote-version)))))
+
+(defun hub/confluence-sync--pending-comment-ids ()
+  "Return local sidecar comment IDs that should be pushed to Confluence."
+  (let (ids)
+    (org-map-entries
+     (lambda ()
+       (when (and (org-entry-get nil "HUB_COMMENT_ID")
+		  (not (equal "RESOLVED" (org-get-todo-state)))
+		  (or (not (org-entry-get nil "HUB_COMMENT_REMOTE_ID"))
+		      (org-entry-get nil "HUB_COMMENT_LOCAL_UPDATED_AT")))
+	 (push (org-entry-get nil "HUB_COMMENT_ID") ids)))
+     nil 'file)
+    (nreverse ids)))
+
+(defun hub/confluence-sync--goto-sidecar-comment-id (comment-id)
+  "Move point to sidecar COMMENT-ID heading and return non-nil when found."
+  (goto-char (point-min))
+  (let ((regexp (format "^[ \t]*:HUB_COMMENT_ID:[ \t]+%s[ \t]*$"
+			(regexp-quote comment-id))))
+    (when (re-search-forward regexp nil t)
+      (org-back-to-heading t)
+      t)))
+
+(defun hub/confluence-sync--push-pending-comments (source-buffer &optional page-id)
+  "Push pending sidecar comments for SOURCE-BUFFER to Confluence PAGE-ID."
+  (let* ((source-file (buffer-file-name source-buffer))
+	 (sidecar-file (and source-file (hub/org-comment-sidecar-path source-file)))
+	 (pushed 0)
+	 errors)
+    (when (and sidecar-file (file-exists-p sidecar-file))
+      (with-current-buffer (find-file-noselect sidecar-file)
+	(unless (derived-mode-p 'org-mode)
+	  (org-mode))
+	(dolist (comment-id (hub/confluence-sync--pending-comment-ids))
+	  (condition-case error
+	      (when (hub/confluence-sync--goto-sidecar-comment-id comment-id)
+		(hub/confluence-comment-push-current page-id)
+		(setq pushed (1+ pushed)))
+	    (error
+	     (push (format "%s: %s" comment-id (error-message-string error)) errors))))))
+    (list :pushed pushed :errors (nreverse errors))))
+
+;;;###autoload
+(defun hub/confluence-sync-current (&optional page-id body-format)
+  "Synchronize current Org page and sidecar comments with Confluence.
+PAGE-ID overrides the current buffer's `CONFLUENCE_PAGE_ID'.  BODY-FORMAT is
+passed to comment import and defaults to storage.  When page sync detects a
+conflict, comments are not imported or pushed."
+  (interactive)
+  (let* ((source-buffer (current-buffer))
+	 (id (hub/confluence-commands--page-id-or-read page-id))
+	 (page-result (hub/confluence-sync-page-current id)))
+    (if (plist-get page-result :conflict)
+	(progn
+	  (message "Confluence page conflict detected; skipped comment sync")
+	  (list :page page-result :comments-skipped 1))
+      (with-current-buffer source-buffer
+	(let* ((imported (hub/confluence-comment-import id body-format))
+	       (push-result (hub/confluence-sync--push-pending-comments source-buffer id))
+	       (pushed (plist-get push-result :pushed))
+	       (errors (plist-get push-result :errors)))
+	  (message "Confluence sync complete: imported %s comments, pushed %s comments%s"
+		   imported pushed
+		   (if errors (format ", %s push errors" (length errors)) ""))
+	  (list :page page-result :comments-imported imported
+		:comments-pushed pushed :comment-push-errors errors))))))
+
 ;;;###autoload
 (defun hub/confluence-pull (&optional page-id)
   "Fetch Confluence PAGE-ID and open a new Org buffer with imported content.
@@ -920,6 +1686,412 @@ modify the source Org buffer.  BODY-FORMAT defaults to storage."
   (or page-id
       (hub/confluence-api--page-id-from-buffer)
       (read-string "Confluence page ID: ")))
+
+(defun hub/confluence-commands--sidecar-source-file ()
+  "Return source Org file for the current comments sidecar buffer."
+  (unless (and buffer-file-name
+	       (string-suffix-p ".comments.org" buffer-file-name))
+    (user-error "Current buffer is not a comments sidecar"))
+  (save-excursion
+    (goto-char (point-min))
+    (let ((case-fold-search t))
+      (unless (re-search-forward "^[\t ]*#\\+source:[\t ]*\\(.*?\\)[\t ]*$" nil t)
+	(user-error "Comments sidecar has no #+source keyword"))
+      (expand-file-name (string-trim (match-string-no-properties 1))
+			(file-name-directory buffer-file-name)))))
+
+(defun hub/confluence-commands--page-id-from-sidecar-source (&optional page-id)
+  "Return PAGE-ID or read Confluence page ID from current sidecar source file."
+  (or page-id
+      (let ((source-file (hub/confluence-commands--sidecar-source-file)))
+	(unless (file-readable-p source-file)
+	  (user-error "Cannot read source Org file: %s" source-file))
+	(with-current-buffer (find-file-noselect source-file)
+	  (or (hub/confluence-api--page-id-from-buffer)
+	      (read-string "Confluence page ID: "))))))
+
+(defun hub/confluence-commands--source-page-metadata-from-sidecar ()
+  "Return plist with Confluence page metadata from current sidecar source file."
+  (let ((source-file (hub/confluence-commands--sidecar-source-file)))
+    (unless (file-readable-p source-file)
+      (user-error "Cannot read source Org file: %s" source-file))
+    (with-current-buffer (find-file-noselect source-file)
+      (list :page-id (or (hub/confluence-api--page-id-from-buffer)
+			 (read-string "Confluence page ID: "))
+	    :space (hub/confluence-api--keyword-from-buffer "CONFLUENCE_SPACE")))))
+
+(defun hub/confluence-commands--html-escape (text)
+  "Return TEXT escaped for an XHTML text node."
+  (replace-regexp-in-string
+   ">" "&gt;"
+   (replace-regexp-in-string
+    "<" "&lt;"
+    (replace-regexp-in-string
+     "&" "&amp;" (or text "") t t)
+    t t)
+   t t))
+
+(defun hub/confluence-commands--sanitize-comment-storage (html)
+  "Return Confluence-friendly storage XHTML from Org-exported HTML."
+  (let ((storage (string-trim html)))
+    (setq storage (replace-regexp-in-string "<b>" "<strong>" storage t t))
+    (setq storage (replace-regexp-in-string "</b>" "</strong>" storage t t))
+    (setq storage (replace-regexp-in-string "<i>" "<em>" storage t t))
+    (setq storage (replace-regexp-in-string "</i>" "</em>" storage t t))
+    (setq storage (replace-regexp-in-string "<ul class=\"org-ul\">" "<ul>" storage t t))
+    (setq storage (replace-regexp-in-string "<ol class=\"org-ol\">" "<ol>" storage t t))
+    (setq storage (replace-regexp-in-string "\n+" " " storage t t))
+    (setq storage (replace-regexp-in-string "<p>[[:space:]]+" "<p>" storage t t))
+    (setq storage (replace-regexp-in-string "[[:space:]]+</p>" "</p>" storage t t))
+    (setq storage (replace-regexp-in-string "</p>[[:space:]]+<" "</p><" storage t t))
+    (setq storage (replace-regexp-in-string "</ul>[[:space:]]+<" "</ul><" storage t t))
+    (setq storage (replace-regexp-in-string "</ol>[[:space:]]+<" "</ol><" storage t t))
+    (setq storage (replace-regexp-in-string "<ul>[[:space:]]+" "<ul>" storage t t))
+    (setq storage (replace-regexp-in-string "[[:space:]]+</ul>" "</ul>" storage t t))
+    (setq storage (replace-regexp-in-string "<ol>[[:space:]]+" "<ol>" storage t t))
+    (setq storage (replace-regexp-in-string "[[:space:]]+</ol>" "</ol>" storage t t))
+    (setq storage (replace-regexp-in-string ">[[:space:]]+</li>" "></li>" storage t t))
+    (setq storage (replace-regexp-in-string "</li>[[:space:]]+<li" "</li><li" storage t t))
+    (string-trim storage)))
+
+(defun hub/confluence-commands--org-comment-body-to-storage (body)
+  "Return Confluence storage XHTML for sidecar Org comment BODY.
+Supported authoring syntax includes paragraphs, basic inline markup, links, and
+plain Org ordered/unordered lists."
+  (if (string-empty-p (string-trim (or body "")))
+      ""
+    (hub/confluence-commands--sanitize-comment-storage
+     (org-export-string-as
+      (string-trim body) 'html t
+      '(:with-toc nil :section-numbers nil :with-title nil)))))
+
+(defun hub/confluence-commands--current-sidecar-comment-body ()
+  "Return body text for the current sidecar comment heading."
+  (hub/org-comment--entry-body (save-excursion (org-end-of-subtree t t))))
+
+(defun hub/confluence-commands--current-comment-sync-kind ()
+  "Return current sidecar comment sync kind for push."
+  (let ((kind (org-entry-get nil "HUB_COMMENT_SYNC_KIND"))
+	(target (org-entry-get nil "HUB_COMMENT_TARGET_TEXT")))
+    (cond
+     ((member kind '("footer" "inline" "reply")) kind)
+     (target "inline")
+     (t nil))))
+
+(defun hub/confluence-commands--root-comment-info ()
+  "Return plist for nearest root sidecar comment ancestor."
+  (save-excursion
+    (while (> (org-outline-level) 1)
+      (org-up-heading-safe))
+    (list :remote-id (org-entry-get nil "HUB_COMMENT_REMOTE_ID")
+	  :sync-kind (org-entry-get nil "HUB_COMMENT_SYNC_KIND"))))
+
+(defun hub/confluence-commands--ensure-current-comment-pushable ()
+  "Validate the current sidecar heading for Confluence comment push.
+Return the comment sync kind, one of `footer', `inline', or `reply'."
+  (unless (and buffer-file-name
+	       (string-suffix-p ".comments.org" buffer-file-name))
+    (user-error "Current buffer is not a comments sidecar"))
+  (unless (derived-mode-p 'org-mode)
+    (org-mode))
+  (when (org-before-first-heading-p)
+    (user-error "Point is not on a sidecar comment"))
+  (org-back-to-heading t)
+  (unless (org-entry-get nil "HUB_COMMENT_ID")
+    (user-error "Point is not on a sidecar comment"))
+  (when (and (> (org-outline-level) 1)
+	     (not (equal "reply" (org-entry-get nil "HUB_COMMENT_SYNC_KIND"))))
+    (user-error "Child comments must be marked with HUB_COMMENT_SYNC_KIND: reply"))
+  (when (and (org-entry-get nil "HUB_COMMENT_REMOTE_ID")
+	     (not (org-entry-get nil "HUB_COMMENT_LOCAL_UPDATED_AT")))
+    (user-error "Comment is already linked to Confluence and has no local edits to update"))
+  (when (equal "RESOLVED" (org-get-todo-state))
+    (user-error "Refusing to push RESOLVED local comment; reopen it first with OPEN or TODO"))
+  (when (string-empty-p (string-trim (hub/confluence-commands--current-sidecar-comment-body)))
+    (user-error "Cannot push an empty sidecar comment"))
+  (let ((sync-kind (or (hub/confluence-commands--current-comment-sync-kind)
+		       (user-error "Comment is not marked as a footer/page, inline, or reply comment"))))
+    (when (equal sync-kind "reply")
+      (let* ((root (hub/confluence-commands--root-comment-info))
+	     (parent-id (plist-get root :remote-id))
+	     (parent-kind (plist-get root :sync-kind))
+	     (stored-parent (org-entry-get nil "HUB_COMMENT_REMOTE_PARENT_ID")))
+	(unless (member parent-kind '("footer" "inline"))
+	  (user-error "Cannot determine Confluence endpoint for reply parent"))
+	(unless parent-id
+	  (user-error "Cannot push reply before parent comment has HUB_COMMENT_REMOTE_ID"))
+	(when (and stored-parent (not (equal stored-parent parent-id)))
+	  (user-error "Reply parent ID %s does not match ancestor remote ID %s"
+		      stored-parent parent-id))))
+    sync-kind))
+
+(defun hub/confluence-commands--stamp-created-comment (comment seen-at sync-kind &optional parent-id)
+  "Stamp current sidecar heading with created remote COMMENT metadata at SEEN-AT.
+SYNC-KIND is stored as `HUB_COMMENT_SYNC_KIND'.  PARENT-ID, when non-nil, is
+stored as `HUB_COMMENT_REMOTE_PARENT_ID'."
+  (let ((remote-id (hub/confluence-commands--remote-comment-id comment))
+	(author-name (hub/confluence-commands--remote-comment-author-name comment))
+	(author-id (hub/confluence-commands--remote-comment-author-id comment))
+	(created-at (hub/confluence-commands--remote-comment-created-at comment))
+	(resolution-status (hub/confluence-commands--remote-comment-resolution-status comment)))
+    (unless remote-id
+      (user-error "Confluence create response did not include a comment id"))
+    (org-entry-put nil "HUB_COMMENT_REMOTE_ID" remote-id)
+    (org-entry-put nil "HUB_COMMENT_SOURCE" "confluence")
+    (org-entry-put nil "HUB_COMMENT_SYNC_KIND" sync-kind)
+    (when parent-id
+      (org-entry-put nil "HUB_COMMENT_REMOTE_PARENT_ID" parent-id))
+    (org-entry-put nil "HUB_COMMENT_REMOTE_LAST_SEEN_AT" seen-at)
+    (when resolution-status
+      (org-entry-put nil "HUB_COMMENT_REMOTE_RESOLUTION_STATUS" resolution-status))
+    (when (equal sync-kind "inline")
+      (hub/confluence-commands--stamp-inline-match-info)
+      (hub/confluence-commands--stamp-remote-inline-anchor-state comment))
+    (hub/confluence-commands--put-property-when-missing "HUB_COMMENT_REMOTE_AUTHOR_ID" author-id)
+    (hub/confluence-commands--put-property-when-missing
+     "HUB_COMMENT_REMOTE_AUTHOR_DISPLAY_NAME" author-name)
+    (hub/confluence-commands--put-property-when-missing "HUB_COMMENT_REMOTE_CREATED_AT" created-at)
+    remote-id))
+
+(defun hub/confluence-commands--target-bounds-at-heading ()
+  "Return current sidecar target bounds as a cons cell, or nil."
+  (when-let* ((value (org-entry-get nil "HUB_COMMENT_TARGET"))
+	      (parts (split-string value "[[:space:]]+" t)))
+    (when (= 2 (length parts))
+      (cons (string-to-number (car parts))
+	    (string-to-number (cadr parts))))))
+
+(defun hub/confluence-commands--inline-match-info (source-file target-text target-bounds)
+  "Return strict inline match info for SOURCE-FILE TARGET-TEXT and TARGET-BOUNDS.
+Signal `user-error' when the sidecar anchor is missing, stale, or ambiguous in a
+way that prevents computing Confluence's text selection match index."
+  (unless (hub/confluence-api--present-string-p target-text)
+    (user-error "Inline comment is missing HUB_COMMENT_TARGET_TEXT"))
+  (unless target-bounds
+    (user-error "Inline comment is missing HUB_COMMENT_TARGET"))
+  (unless (and source-file (file-readable-p source-file))
+    (user-error "Cannot read source Org file for inline anchor preflight"))
+  (with-current-buffer (find-file-noselect source-file)
+    (let* ((matches (hub/org-comment--anchor-matches-for-text (current-buffer) target-text))
+	   (index (cl-position target-bounds matches :test #'equal)))
+      (unless index
+	(user-error "Inline comment anchor is stale; reanchor before pushing"))
+      (list :count (length matches) :index index))))
+
+(defun hub/confluence-commands--inline-comment-properties ()
+  "Return strict `inlineCommentProperties' for the current sidecar comment."
+  (let* ((target-text (org-entry-get nil "HUB_COMMENT_TARGET_TEXT"))
+	 (match-info (hub/confluence-commands--inline-match-info
+		      (hub/confluence-commands--sidecar-source-file)
+		      target-text
+		      (hub/confluence-commands--target-bounds-at-heading))))
+    `((textSelection . ,target-text)
+      (textSelectionMatchCount . ,(plist-get match-info :count))
+      (textSelectionMatchIndex . ,(plist-get match-info :index)))))
+
+(defun hub/confluence-commands--stamp-inline-match-info ()
+  "Store local inline target match diagnostics at the current heading."
+  (let ((match-info (hub/confluence-commands--inline-match-info
+		     (hub/confluence-commands--sidecar-source-file)
+		     (org-entry-get nil "HUB_COMMENT_TARGET_TEXT")
+		     (hub/confluence-commands--target-bounds-at-heading))))
+    (org-entry-put nil "HUB_COMMENT_TARGET_MATCH_COUNT"
+		   (number-to-string (plist-get match-info :count)))
+    (org-entry-put nil "HUB_COMMENT_TARGET_MATCH_INDEX"
+		   (number-to-string (plist-get match-info :index)))))
+
+(defun hub/confluence-commands--comment-endpoint-for-kind (sync-kind)
+  "Return Confluence REST endpoint for SYNC-KIND at point."
+  (pcase sync-kind
+    ("footer" "footer-comments")
+    ("inline" "inline-comments")
+    ("reply" (plist-get (hub/confluence-commands--reply-parent-info) :endpoint))))
+
+(defun hub/confluence-commands--reply-parent-info ()
+  "Return plist with reply parent remote id, sync kind, and endpoint."
+  (let* ((root (hub/confluence-commands--root-comment-info))
+	 (parent-kind (plist-get root :sync-kind))
+	 (parent-id (plist-get root :remote-id)))
+    (list :parent-id parent-id
+	  :parent-kind parent-kind
+	  :endpoint (pcase parent-kind
+		      ("footer" "footer-comments")
+		      ("inline" "inline-comments")))))
+
+(defun hub/confluence-commands--remote-inline-anchor-confirmed-p (comment)
+  "Return non-nil when COMMENT response includes Confluence inline anchor properties."
+  (let ((properties (hub/confluence-commands--remote-inline-target-object comment)))
+    (and (listp properties)
+	 (or (hub/confluence-api--present-string-p
+	      (alist-get 'inlineMarkerRef properties))
+	     (hub/confluence-api--present-string-p
+	      (alist-get 'inline-marker-ref properties))
+	     (hub/confluence-api--present-string-p
+	      (alist-get 'markerRef properties))
+	     (hub/confluence-api--present-string-p
+	      (alist-get 'marker-ref properties))
+	     (hub/confluence-api--present-string-p
+	      (alist-get 'inlineOriginalSelection properties))
+	     (hub/confluence-api--present-string-p
+	      (alist-get 'inline-original-selection properties))
+	     (hub/confluence-api--present-string-p
+	      (alist-get 'originalSelection properties))
+	     (hub/confluence-api--present-string-p
+	      (alist-get 'original-selection properties))))))
+
+(defun hub/confluence-commands--stamp-remote-inline-anchor-state (comment)
+  "Stamp remote inline anchor state from Confluence COMMENT response."
+  (cond
+   ((equal "dangling" (hub/confluence-commands--remote-comment-resolution-status comment))
+    (org-entry-put nil "HUB_COMMENT_REMOTE_ANCHOR_STATE" "dangling"))
+   ((hub/confluence-commands--remote-inline-anchor-confirmed-p comment)
+    (org-entry-delete nil "HUB_COMMENT_REMOTE_ANCHOR_STATE"))
+   (t
+    (org-entry-put nil "HUB_COMMENT_REMOTE_ANCHOR_STATE" "unconfirmed"))))
+
+(defun hub/confluence-commands--response-comment (response)
+  "Return a Confluence comment alist parsed from REST RESPONSE."
+  (hub/confluence-commands--json-alist
+   (hub/confluence-commands--response-body response)))
+
+(defun hub/confluence-commands--ensure-current-user-authored-comment (remote-comment)
+  "Signal unless REMOTE-COMMENT was authored by the authenticated user."
+  (let ((author-id (hub/confluence-commands--remote-comment-author-id remote-comment))
+	(account-id (hub/confluence-commands--current-user-account-id)))
+    (unless (and author-id (equal author-id account-id))
+      (user-error "Refusing to update Confluence comment authored by %s as %s"
+		  (or author-id "<unknown>") account-id))))
+
+(defun hub/confluence-commands--stamp-updated-comment (comment seen-at)
+  "Stamp current sidecar heading after remote COMMENT update at SEEN-AT."
+  (org-entry-delete nil "HUB_COMMENT_LOCAL_UPDATED_AT")
+  (org-entry-put nil "HUB_COMMENT_REMOTE_LAST_SEEN_AT" seen-at)
+  (when-let* ((updated-at (hub/confluence-commands--remote-comment-updated-at comment)))
+    (org-entry-put nil "HUB_COMMENT_REMOTE_UPDATED_AT" updated-at))
+  (when-let* ((status (hub/confluence-commands--remote-comment-resolution-status comment)))
+    (org-entry-put nil "HUB_COMMENT_REMOTE_RESOLUTION_STATUS" status))
+  (when (equal "inline" (org-entry-get nil "HUB_COMMENT_SYNC_KIND"))
+    (hub/confluence-commands--stamp-remote-inline-anchor-state comment)))
+
+(defun hub/confluence-commands--update-current-comment (sync-kind storage seen-at)
+  "Update current remote-linked comment of SYNC-KIND with STORAGE at SEEN-AT."
+  (let* ((remote-id (org-entry-get nil "HUB_COMMENT_REMOTE_ID"))
+	 (endpoint (hub/confluence-commands--comment-endpoint-for-kind sync-kind))
+	 (current (hub/confluence-commands--response-comment
+		   (hub/confluence-api--get-comment endpoint remote-id "storage")))
+	 (version (hub/confluence-commands--remote-comment-version-number current)))
+    (unless version
+      (user-error "Confluence comment %s response did not include version.number" remote-id))
+    (hub/confluence-commands--ensure-current-user-authored-comment current)
+    (let* ((response (hub/confluence-api--update-comment endpoint remote-id storage (1+ version)))
+	   (comment (hub/confluence-commands--response-comment response)))
+      (hub/confluence-commands--stamp-updated-comment comment seen-at)
+      remote-id)))
+
+(defun hub/confluence-commands--sidecar-comment-id-at-point ()
+  "Return remote Confluence comment ID from current sidecar heading."
+  (unless (and buffer-file-name
+	       (string-suffix-p ".comments.org" buffer-file-name))
+    (user-error "Current buffer is not a comments sidecar"))
+  (unless (derived-mode-p 'org-mode)
+    (org-mode))
+  (when (org-before-first-heading-p)
+    (user-error "Point is not on a sidecar comment"))
+  (org-back-to-heading t)
+  (or (org-entry-get nil "HUB_COMMENT_REMOTE_ID")
+      (user-error "Comment is not linked to Confluence")))
+
+(defun hub/confluence-commands--active-source-comment ()
+  "Return active sidecar comment record at point in the current source buffer."
+  (let ((point (point)))
+    (or (seq-find (lambda (comment)
+		    (let ((start (plist-get comment :target-start))
+			  (end (plist-get comment :target-end)))
+		      (and start end (<= start point) (<= point end))))
+		  (hub/org-comment-collect (current-buffer)))
+	(user-error "No active sidecar comment at point"))))
+
+(defun hub/confluence-commands--source-comment-id-at-point ()
+  "Return remote Confluence comment ID for active source comment at point."
+  (or (plist-get (hub/confluence-commands--active-source-comment) :remote-id)
+      (user-error "Comment is not linked to Confluence")))
+
+;;;###autoload
+(defun hub/confluence-comment-open-current (&optional page-id comment-id)
+  "Open current or explicit Confluence COMMENT-ID for PAGE-ID in a browser.
+When COMMENT-ID is nil, use the current sidecar heading or active source comment."
+  (interactive)
+  (let* ((metadata (if (and buffer-file-name
+			    (string-suffix-p ".comments.org" buffer-file-name))
+		       (hub/confluence-commands--source-page-metadata-from-sidecar)
+		     (list :page-id (or page-id
+					(hub/confluence-api--page-id-from-buffer)
+					(read-string "Confluence page ID: "))
+			   :space (hub/confluence-api--keyword-from-buffer "CONFLUENCE_SPACE"))))
+	 (id (or comment-id
+		 (if (and buffer-file-name
+			  (string-suffix-p ".comments.org" buffer-file-name))
+		     (hub/confluence-commands--sidecar-comment-id-at-point)
+		   (hub/confluence-commands--source-comment-id-at-point))))
+	 (url (hub/confluence-api--comment-url
+	       (plist-get metadata :page-id) id (plist-get metadata :space))))
+    (browse-url url)
+    url))
+
+;;;###autoload
+(defun hub/confluence-comment-push-current (&optional page-id)
+  "Push the current local sidecar comment to Confluence.
+This command works from inside a `.comments.org' sidecar, on a root local footer
+or inline comment.  PAGE-ID, when non-nil, overrides the page ID read from the
+sidecar source Org file."
+  (interactive)
+  (let* ((sync-kind (hub/confluence-commands--ensure-current-comment-pushable))
+	 (sidecar-file buffer-file-name)
+	 (heading (org-get-heading t t t t))
+	 (body (hub/confluence-commands--current-sidecar-comment-body))
+	 (storage (hub/confluence-commands--org-comment-body-to-storage body))
+	 (reply-info (when (equal sync-kind "reply")
+		       (hub/confluence-commands--reply-parent-info)))
+	 (page-metadata (hub/confluence-commands--source-page-metadata-from-sidecar))
+	 (id (or page-id (plist-get page-metadata :page-id)))
+	 (space (plist-get page-metadata :space))
+	 (seen-at (hub/confluence-commands--sync-timestamp))
+	 (existing-remote-id (org-entry-get nil "HUB_COMMENT_REMOTE_ID"))
+	 response comment remote-id action)
+    (if existing-remote-id
+	(setq remote-id (hub/confluence-commands--update-current-comment sync-kind storage seen-at)
+	      action :updated)
+      (setq response (pcase sync-kind
+		       ("footer" (hub/confluence-api--create-footer-comment id storage))
+		       ("inline" (hub/confluence-api--create-inline-comment
+				  id storage
+				  (hub/confluence-commands--inline-comment-properties)))
+		       ("reply" (hub/confluence-api--create-comment-reply
+				 (plist-get reply-info :endpoint)
+				 (plist-get reply-info :parent-id)
+				 storage)))
+	    comment (hub/confluence-commands--response-comment response)
+	    action :created)
+      (setq remote-id
+	    (condition-case error
+		(hub/confluence-commands--stamp-created-comment
+		 comment seen-at sync-kind (plist-get reply-info :parent-id))
+	      (error
+	       (let ((created-id (hub/confluence-commands--remote-comment-id comment)))
+		 (if created-id
+		     (user-error "Created Confluence comment %s, but failed to update sidecar: %s"
+				 created-id (error-message-string error))
+		   (signal (car error) (cdr error))))))))
+    (let ((url (hub/confluence-api--comment-url id remote-id space)))
+      (save-buffer)
+      (hub/org-comment-refresh-sidecar-headings sidecar-file)
+      (hub/org-comment-fold-sidecar-property-drawers)
+      (kill-new url)
+      (message "%s Confluence %s comment %s for %s; URL copied: %s"
+	       (if (eq action :updated) "Updated" "Created")
+	       sync-kind remote-id heading url)
+      (list action 1 :remote-id remote-id :sync-kind sync-kind
+	    :sidecar-file sidecar-file :url url))))
 
 (defun hub/confluence-commands--maybe-resolve-people-and-refresh (sidecar-file directory)
   "Resolve people for DIRECTORY and refresh SIDECAR-FILE headings when enabled."
@@ -985,6 +2157,10 @@ modify the source Org buffer.  BODY-FORMAT defaults to storage."
 	     "HUB_COMMENT_REMOTE_AUTHOR_DISPLAY_NAME" author-name)
 	    (hub/confluence-commands--put-property-when-missing
 	     "HUB_COMMENT_REMOTE_CREATED_AT" created-at)
+	    (when (equal "inline" (org-entry-get nil "HUB_COMMENT_SYNC_KIND"))
+	      (hub/confluence-commands--put-property-when-missing
+	       "HUB_COMMENT_TARGET_TEXT"
+	       (hub/confluence-commands--remote-inline-target-text comment)))
 	    (hub/confluence-commands--set-remote-present-properties comment)
 	    (unless (equal "reply" (org-entry-get nil "HUB_COMMENT_SYNC_KIND"))
 	      (hub/confluence-commands--apply-remote-status-at-heading comment report))
@@ -1015,6 +2191,10 @@ Return plist with `:imported', `:seen-ids', `:parent-id', and `:complete'."
 		(hub/confluence-commands--backfill-remote-metadata sidecar-file reply report)
 	      (hub/confluence-commands--append-remote-reply-comment
 	       sidecar-file source-file reply body-format parent-id)
+	      (plist-put report :imported-ids
+			 (cons remote-id (plist-get report :imported-ids)))
+	      (plist-put report :imported-reply-ids
+			 (cons remote-id (plist-get report :imported-reply-ids)))
 	      (setq imported (1+ imported)))))))
     (list :imported imported :seen-ids seen-ids :parent-id parent-id :complete complete)))
 
@@ -1100,22 +2280,40 @@ Return plist with `:imported', `:seen-ids', `:parent-id', and `:complete'."
 
 (defun hub/confluence-commands--import-report-message (report fallback)
   "Show concise import REPORT with FALLBACK message when it is empty."
-  (let ((lines (delq nil
-		     (list
-		      (when-let* ((count (plist-get report :imported)))
-			(when (> count 0) (format "Imported new: %s" count)))
-		      (when-let* ((count (plist-get report :marked-missing)))
-			(when (> count 0) (format "Remote missing: %s" count)))
-		      (when-let* ((count (plist-get report :present-again)))
-			(when (> count 0) (format "Remote present again: %s" count)))
-		      (when-let* ((count (plist-get report :remote-resolved)))
-			(when (> count 0) (format "Remote resolved locally: %s" count)))
-		      (when-let* ((count (plist-get report :remote-reopened)))
-			(when (> count 0) (format "Remote reopened locally: %s" count)))
-		      (when-let* ((items (plist-get report :todo-resolved)))
-			(when items (format "Local TODO closed by remote resolution: %s" (length items))))
-		      (when-let* ((items (plist-get report :todo-missing)))
-			(when items (format "Local TODO now remote-missing: %s" (length items))))))))
+  (let* ((root-ids (reverse (plist-get report :imported-root-ids)))
+	 (reply-ids (reverse (plist-get report :imported-reply-ids)))
+	 (lines (delq nil
+		      (list
+		       (when (or root-ids reply-ids)
+			 (string-join
+			  (delq nil
+				(list
+				 (when root-ids
+				   (format "Imported roots: %s (%s)"
+					   (length root-ids) (string-join root-ids ", ")))
+				 (when reply-ids
+				   (format "replies: %s (%s)"
+					   (length reply-ids) (string-join reply-ids ", ")))))
+			  "; "))
+		       (unless (or root-ids reply-ids)
+			 (when-let* ((count (plist-get report :imported)))
+			   (when (> count 0)
+			     (let ((ids (reverse (plist-get report :imported-ids))))
+			       (if ids
+				   (format "Imported new: %s (%s)" count (string-join ids ", "))
+				 (format "Imported new: %s" count))))))
+		       (when-let* ((count (plist-get report :marked-missing)))
+			 (when (> count 0) (format "Remote missing: %s" count)))
+		       (when-let* ((count (plist-get report :present-again)))
+			 (when (> count 0) (format "Remote present again: %s" count)))
+		       (when-let* ((count (plist-get report :remote-resolved)))
+			 (when (> count 0) (format "Remote resolved locally: %s" count)))
+		       (when-let* ((count (plist-get report :remote-reopened)))
+			 (when (> count 0) (format "Remote reopened locally: %s" count)))
+		       (when-let* ((items (plist-get report :todo-resolved)))
+			 (when items (format "Local TODO closed by remote resolution: %s" (length items))))
+		       (when-let* ((items (plist-get report :todo-missing)))
+			 (when items (format "Local TODO now remote-missing: %s" (length items))))))))
     (message "%s" (if lines (string-join lines "; ") fallback))
     (when (or (plist-get report :todo-resolved)
 	      (plist-get report :todo-missing))
@@ -1156,7 +2354,11 @@ BODY-FORMAT defaults to storage.  Return import report plist."
 	(if (hub/confluence-commands--sidecar-has-remote-comment-p sidecar-file remote-id)
 	    (hub/confluence-commands--backfill-remote-metadata sidecar-file comment report)
 	  (funcall append-function sidecar-file source-file comment format-name)
-	  (plist-put report :imported (1+ (or (plist-get report :imported) 0))))
+	  (plist-put report :imported (1+ (or (plist-get report :imported) 0)))
+	  (plist-put report :imported-ids
+		     (cons remote-id (plist-get report :imported-ids)))
+	  (plist-put report :imported-root-ids
+		     (cons remote-id (plist-get report :imported-root-ids))))
 	(let ((reply-summary (hub/confluence-commands--import-remote-replies
 			      sidecar-file source-file comment endpoint format-name report)))
 	  (plist-put report :imported (+ (or (plist-get report :imported) 0)
@@ -1223,6 +2425,11 @@ Imported inline comments are left unanchored until manually reanchored."
   (or (alist-get 'displayName user)
       (alist-get 'publicName user)))
 
+(defun hub/confluence-commands--current-user ()
+  "Return authenticated Confluence user as an alist."
+  (hub/confluence-commands--json-alist
+   (hub/confluence-commands--response-body (hub/confluence-api--current-user))))
+
 (defun hub/confluence-commands--resolve-people-in-files (files users)
   "Update people FILES from Confluence USERS and return resolved count."
   (let ((resolved 0))
@@ -1236,6 +2443,21 @@ Imported inline comments are left unanchored until manually reanchored."
 		 (alist-get 'accountStatus user)
 		 (alist-get 'timeZone user))
 	    (setq resolved (1+ resolved))))))))
+
+;;;###autoload
+(defun hub/confluence-people-mark-current-user ()
+  "Mark the authenticated Confluence user as the current user in people cache.
+The identity is cached in the global people file and marked with
+`HUB_PERSON_ME: t'."
+  (interactive)
+  (let* ((user (hub/confluence-commands--current-user))
+	 (account-id (or (hub/confluence-commands--user-account-id user)
+			 (user-error "Confluence current user response did not include accountId")))
+	 (display-name (hub/confluence-commands--user-display-name user))
+	 (email (alist-get 'email user))
+	 (file (hub/confluence-people-mark-me account-id display-name email)))
+    (message "Marked Confluence user %s as me in %s" (or display-name account-id) file)
+    file))
 
 ;;;###autoload
 (defun hub/confluence-people-resolve (&optional directory)

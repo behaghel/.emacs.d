@@ -85,6 +85,32 @@ Search local people file for DIRECTORY first, then the global people file."
 			return (hub/confluence-people--entry-display-name)
 			do (forward-line 1))))))
 
+(defun hub/confluence-people--truthy-entry-value-p (property)
+  "Return non-nil when current Org entry PROPERTY is truthy."
+  (when-let* ((value (hub/confluence-people--entry-value property)))
+    (member (downcase value) '("t" "true" "yes" "1"))))
+
+(defun hub/confluence-people-current-user-p (identifier &optional directory)
+  "Return non-nil when IDENTIFIER is marked as the current user.
+IDENTIFIER may be a Confluence account ID or a display name.  Search all people
+files visible from DIRECTORY; a local entry without `HUB_PERSON_ME' does not
+suppress a global marker for the same identity."
+  (when-let* ((id (hub/confluence-people--present-string identifier)))
+    (cl-loop for file in (hub/confluence-people-files directory)
+	     thereis
+	     (with-temp-buffer
+	       (insert-file-contents file)
+	       (org-mode)
+	       (goto-char (point-min))
+	       (cl-loop while (re-search-forward org-heading-regexp nil t)
+			do (goto-char (match-beginning 0))
+			when (and (hub/confluence-people--truthy-entry-value-p "HUB_PERSON_ME")
+				  (or (equal id (hub/confluence-people--entry-value
+						 "HUB_CONFLUENCE_ACCOUNT_ID"))
+				      (equal id (hub/confluence-people--entry-display-name))))
+			return t
+			do (forward-line 1))))))
+
 (defun hub/confluence-people--ensure-file (file)
   "Ensure people directory FILE exists."
   (unless (file-exists-p file)
@@ -134,6 +160,21 @@ people directory under `org-directory'."
 	(hub/confluence-people--put-missing "HUB_PERSON_SEEN_AT" (hub/confluence-people--seen-at))
 	(write-region (point-min) (point-max) target-file nil 'silent))
       target-file)))
+
+(defun hub/confluence-people-mark-me (account-id display-name &optional email file)
+  "Cache ACCOUNT-ID and mark it as the current user in people FILE.
+DISPLAY-NAME and EMAIL are cached conservatively.  Existing manual display names
+are preserved.  FILE defaults to the global people directory."
+  (when-let* ((target-file (hub/confluence-people-cache-identity
+			    account-id display-name email file)))
+    (with-temp-buffer
+      (insert-file-contents target-file)
+      (org-mode)
+      (unless (hub/confluence-people--find-account-id account-id)
+	(user-error "Could not find cached Confluence account %s" account-id))
+      (org-entry-put nil "HUB_PERSON_ME" "t")
+      (write-region (point-min) (point-max) target-file nil 'silent))
+    target-file))
 
 (defun hub/confluence-people-unresolved-account-ids (&optional files)
   "Return unresolved Confluence account IDs from people FILES."

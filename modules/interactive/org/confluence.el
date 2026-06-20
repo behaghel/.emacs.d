@@ -10,6 +10,7 @@
 ;;; Code:
 
 (require 'hub-utils)
+(require 'subr-x)
 
 (defgroup hub/confluence nil
   "Personal Confluence integration activation."
@@ -34,11 +35,25 @@
   "org-confluence-commands" nil t)
 (autoload 'hub/confluence-open-page "org-confluence-commands" nil t)
 (autoload 'hub/confluence-pull "org-confluence-commands" nil t)
+(autoload 'hub/confluence-sync-page-current "org-confluence-commands" nil t)
+(autoload 'hub/confluence-sync-current "org-confluence-commands" nil t)
 (autoload 'hub/confluence-comment-list "org-confluence-commands" nil t)
 (autoload 'hub/confluence-comment-import "org-confluence-commands" nil t)
 (autoload 'hub/confluence-comment-import-footer "org-confluence-commands" nil t)
 (autoload 'hub/confluence-comment-import-inline "org-confluence-commands" nil t)
+(autoload 'hub/confluence-comment-open-current "org-confluence-commands" nil t)
+(autoload 'hub/confluence-comment-push-current "org-confluence-commands" nil t)
+(autoload 'hub/confluence-people-mark-current-user "org-confluence-commands" nil t)
 (autoload 'hub/confluence-people-resolve "org-confluence-commands" nil t)
+
+(defun hub/confluence-comment--enable-sidecar-submit-key ()
+  "Bind `C-c C-c' to push comments in comments sidecar buffers."
+  (when (and buffer-file-name
+	     (string-suffix-p ".comments.org" buffer-file-name))
+    (use-local-map (copy-keymap (current-local-map)))
+    (local-set-key (kbd "C-c C-c") #'hub/confluence-comment-push-current)))
+
+(add-hook 'org-mode-hook #'hub/confluence-comment--enable-sidecar-submit-key)
 
 ;; Personal Confluence integration defaults.  These are normal Org workflow
 ;; configuration, so they live in the tracked Org config layer rather than in

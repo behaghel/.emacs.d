@@ -75,13 +75,16 @@ native behavior."
 			      ",cC" #'hub/org-comment-open-sidecar
 			      ",ce" #'hub/org-comment-edit
 			      ",cj" #'hub/org-comment-jump-to-sidecar
-			      ",cm" #'hub/org-context-panel-open
+			      ",cl" #'hub/confluence-comment-open-current
+			      ",cc" #'hub/org-context-panel-open
 			      ",cM" #'hub/org-context-panel-mode
-			      ",cO" #'hub/org-comment-mark-open
+			      ",cO" #'hub/confluence-open-page
+			      ",cf" #'hub/org-page-comment-create
 			      ",cP" #'hub/org-page-comments-open
-			      ",cT" #'hub/org-comment-mark-todo
-			      ",cR" #'hub/org-comment-mark-resolved
-			      ",cs" #'hub/org-comment-cycle-status
+			      ",cr" #'hub/org-comment-reply-create
+			      ",cmo" #'hub/org-comment-mark-open
+			      ",cmt" #'hub/org-comment-mark-todo
+			      ",cmr" #'hub/org-comment-mark-resolved
 			      ",cx" #'hub/org-comment-delete
 			      ",ov" #'hub/org-insert-veriff-template
 			      "]c" #'hub/org-comment-next

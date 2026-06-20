@@ -165,16 +165,16 @@ Open brainstorm for further DWIM dimensions
 
 Org/prose context-panel semantics
 - In Org buffers, `,c` is the Context prefix rather than Code:
-  - `,c c` create a sidecar comment for the visual selection.
+  - normal-state `,c c` open the context panel.
+  - visual-state `,c c` create a sidecar comment for the visual selection.
   - `,c A` reanchor a stale sidecar comment to the visual selection.
   - `,c e` edit the active sidecar comment body narrowed to its subtree.
   - `,c j` jump to the active sidecar comment heading.
-  - `,c m` open the context panel.
   - `,c M` toggle automatic context-panel follow/refresh mode.
-  - `,c O` mark the active comment OPEN.
-  - `,c T` mark the active comment TODO, meaning action is required from me.
-  - `,c R` mark the active comment RESOLVED.
-  - `,c s` cycle the active comment status.
+  - `,c O` open the current Confluence page.
+  - `,c m o` mark the active comment OPEN.
+  - `,c m t` mark the active comment TODO, meaning action is required from me.
+  - `,c m r` mark the active comment RESOLVED.
 
 ## Conflict & Mode Policy
 

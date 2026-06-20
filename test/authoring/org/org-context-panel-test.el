@@ -37,6 +37,69 @@
 						     (should (search-forward "Note body." nil t))))
 					       (kill-buffer panel)))))
 
+(ert-deftest hub/org-context-panel-renders-footnotes-with-org-formatting ()
+  "Footnote bodies in the context panel keep Org fontification."
+  (hub/org-context-panel-test--with-source "Text[fn:one]\n\n[fn:one] *Bold* and [[https://example.test][link]].\n"
+					   (let ((panel (generate-new-buffer " *hub context footnote font test*")))
+					     (unwind-protect
+						 (let ((source (current-buffer)))
+						   (hub/org-context-panel-render-buffer source panel)
+						   (with-current-buffer panel
+						     (goto-char (point-min))
+						     (should (search-forward "Bold" nil t))
+						     (should (memq 'bold
+								   (let ((face (get-text-property (match-beginning 0) 'face)))
+								     (if (listp face) face (list face)))))
+						     (should (search-forward "link" nil t))
+						     (should (memq 'org-link
+								   (let ((face (get-text-property (match-beginning 0) 'face)))
+								     (if (listp face) face (list face)))))))
+					       (kill-buffer panel)))))
+
+(ert-deftest hub/org-context-panel-goto-comment-id-selects-row ()
+  "Jump to a context panel row by comment ID."
+  (with-temp-buffer
+    (hub/org-context-panel-buffer-mode)
+    (let ((inhibit-read-only t)
+	  first-start second-start)
+      (setq first-start (point))
+      (insert "First\n")
+      (add-text-properties first-start (point)
+			   '(hub-org-context-panel-item (:id "first")))
+      (setq second-start (point))
+      (insert "Second\n")
+      (add-text-properties second-start (point)
+			   '(hub-org-context-panel-item (:id "second")))
+      (goto-char (point-min))
+      (hub/org-context-panel-goto-comment-id "second")
+      (should (= (point) second-start)))))
+
+(ert-deftest hub/org-comment-link-to-reply-opens-parent-panel-context ()
+  "Reply links open their parent context and select the reply row."
+  (let* ((dir (make-temp-file "hub-org-comment-reply-link-" t))
+	 (source (expand-file-name "article.org" dir))
+	 (sidecar (expand-file-name "article.comments.org" dir))
+	 opened selected)
+    (unwind-protect
+	(progn
+	  (with-temp-file source
+	    (insert "Body.\n"))
+	  (with-temp-file sidecar
+	    (insert "#+source: article.org\n#+todo: OPEN TODO | RESOLVED\n\n")
+	    (insert "* OPEN Page\n:PROPERTIES:\n:HUB_COMMENT_ID: root\n:HUB_COMMENT_SYNC_KIND: footer\n:END:\n\nPage body.\n")
+	    (insert "** Reply · Alice\n:PROPERTIES:\n:HUB_COMMENT_ID: reply-1\n:HUB_COMMENT_SYNC_KIND: reply\n:END:\n\nReply body.\n"))
+	  (cl-letf (((symbol-function 'pop-to-buffer)
+		     (lambda (buffer &rest _args) (setq opened buffer)))
+		    ((symbol-function 'hub/org-page-context-open-comment)
+		     (lambda (comment-id) (setq selected comment-id))))
+	    (hub/org-comment-open-link (format "%s::reply-1" source)))
+	  (should (equal (buffer-file-name opened) source))
+	  (should (equal selected "reply-1")))
+      (dolist (buffer (buffer-list))
+	(when (member (buffer-file-name buffer) (list source sidecar))
+	  (kill-buffer buffer)))
+      (delete-directory dir t))))
+
 (ert-deftest hub/org-context-panel-renders-comment-html-as-readable-text ()
   "Comment panel display strips HTML and decodes entities."
   (let* ((dir (make-temp-file "hub-context-panel-html-" t))
@@ -161,18 +224,15 @@
 		(should (eq 'comment (plist-get item :type)))
 		(should (= start (plist-get item :jump-pos)))))
 	    (with-current-buffer (current-buffer)
-	      (hub/org-context-panel-close)
-	      (should-not (cl-some
-			   (lambda (overlay)
-			     (eq (overlay-get overlay 'face) 'hub/org-context-panel-comment-region-face))
-			   (overlays-at start))))))
+	      (setq-local hub/org-comment-overlays-mode nil)
+	      (hub/org-context-panel-close))))
       (when (get-file-buffer source-file)
 	(kill-buffer (get-file-buffer source-file)))
       (kill-buffer panel)
       (delete-directory dir t))))
 
 (ert-deftest hub/org-context-panel-edits-sidecar-comment-entry ()
-  "Panel edit opens the backing sidecar comment body narrowed to its subtree."
+  "Panel edit opens a body-only compose buffer for the backing sidecar comment."
   (let* ((dir (make-temp-file "hub-context-panel-edit-" t))
 	 (source-file (expand-file-name "article.org" dir))
 	 (panel (generate-new-buffer " *hub context edit test*")))
@@ -195,9 +255,13 @@
 	      (goto-char (point-min))
 	      (should (search-forward "Please clarify." nil t))
 	      (hub/org-context-panel-edit-item)
-	      (should (equal sidecar buffer-file-name))
-	      (should (buffer-narrowed-p))
-	      (should (looking-at-p "Please clarify\.")))))
+	      (with-current-buffer "*Org Comment Edit*"
+		(should (equal (buffer-string) "Please clarify."))
+		(should-not (buffer-narrowed-p))
+		(should (equal (plist-get hub/org-comment-compose--context :operation) 'edit))
+		(should (equal (plist-get (plist-get hub/org-comment-compose--context :item)
+					  :sidecar-file)
+			       sidecar))))))
       (when (get-file-buffer source-file)
 	(kill-buffer (get-file-buffer source-file)))
       (when-let* ((sidecar-buffer (get-file-buffer (hub/org-comment-sidecar-path source-file))))
@@ -234,6 +298,41 @@
 	    (with-temp-buffer
 	      (insert-file-contents sidecar)
 	      (should-not (search-forward "local-panel-delete" nil t)))))
+      (when (get-file-buffer source-file)
+	(kill-buffer (get-file-buffer source-file)))
+      (when (buffer-live-p panel)
+	(kill-buffer panel))
+      (delete-directory dir t))))
+
+(ert-deftest hub/org-context-panel-marks-sidecar-comment-status ()
+  "Panel status commands update the backing sidecar comment TODO keyword."
+  (let* ((dir (make-temp-file "hub-context-panel-status-" t))
+	 (source-file (expand-file-name "article.org" dir))
+	 (panel (generate-new-buffer " *hub context status test*")))
+    (unwind-protect
+	(with-current-buffer (find-file-noselect source-file)
+	  (erase-buffer)
+	  (insert "Alpha selected text omega")
+	  (save-buffer)
+	  (org-mode)
+	  (let* ((start (progn
+			  (goto-char (point-min))
+			  (search-forward "selected text")
+			  (match-beginning 0)))
+		 (end (match-end 0))
+		 (record (hub/org-comment-create-record
+			  buffer-file-name start end "Please triage." "local-panel-status"))
+		 (sidecar (hub/org-comment-append-to-sidecar record)))
+	    (hub/org-context-panel-render-buffer (current-buffer) panel)
+	    (with-current-buffer panel
+	      (goto-char (point-min))
+	      (should (search-forward "Please triage." nil t))
+	      (hub/org-context-panel-mark-todo)
+	      (hub/org-context-panel-mark-resolved)
+	      (hub/org-context-panel-mark-open))
+	    (with-temp-buffer
+	      (insert-file-contents sidecar)
+	      (should (search-forward "* OPEN " nil t)))))
       (when (get-file-buffer source-file)
 	(kill-buffer (get-file-buffer source-file)))
       (when (buffer-live-p panel)
