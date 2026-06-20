@@ -150,6 +150,16 @@ storage-format images."
       (user-error "Missing Confluence image file: %s" absolute-path))
     absolute-path))
 
+(defun org-confluence--maybe-resolve-image-path (path)
+  "Resolve local image PATH, or return nil when it does not exist."
+  (condition-case nil
+      (org-confluence--resolve-image-path path)
+    (user-error nil)))
+
+(defun org-confluence--hashed-attachment-filename-p (filename)
+  "Return non-nil when FILENAME looks like a generated Confluence attachment."
+  (string-match-p "-[0-9a-f]\\{12\\}\\.[^.]+\\'" filename))
+
 (defun org-confluence--hashed-image-filename (path)
   "Return a content-hashed Confluence attachment filename for PATH."
   (let* ((extension (file-name-extension path t))
@@ -159,12 +169,20 @@ storage-format images."
 
 (defun org-confluence--image-asset (link)
   "Return an upload asset plist for image LINK."
-  (let* ((source-path (org-confluence--resolve-image-path (org-element-property :path link)))
-	 (filename (org-confluence--hashed-image-filename source-path)))
-    (list :path source-path
-	  :source-path source-path
-	  :source-link (org-element-property :path link)
-	  :filename filename)))
+  (let* ((source-link (org-element-property :path link))
+	 (source-path (org-confluence--maybe-resolve-image-path source-link))
+	 (basename (file-name-nondirectory source-link))
+	 (imported-attachment-p (org-confluence--hashed-attachment-filename-p basename))
+	 (filename (cond
+		    (imported-attachment-p basename)
+		    (source-path (org-confluence--hashed-image-filename source-path))
+		    (t (org-confluence--resolve-image-path source-link)))))
+    (append (list :path source-path
+		  :source-path source-path
+		  :source-link source-link
+		  :filename filename)
+	    (when (and imported-attachment-p (not source-path))
+	      (list :missing-source t)))))
 
 (defun org-confluence--validate-image-assets (assets)
   "Validate Confluence image ASSETS and return them.

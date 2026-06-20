@@ -314,6 +314,78 @@ keeps their anchors."
 		 (alist-get 'markerRef target)
 		 (alist-get 'marker-ref target))))))
 
+(defun hub/confluence-commands--remote-inline-match-number (comment keys)
+  "Return numeric inline match property from COMMENT using KEYS."
+  (let ((target (hub/confluence-commands--remote-inline-target-object comment))
+	value)
+    (dolist (key keys)
+      (setq value (or value
+		      (alist-get key comment)
+		      (and (listp target) (alist-get key target)))))
+    (cond
+     ((numberp value) value)
+     ((and (stringp value) (string-match-p "\\`[0-9]+\\'" value))
+      (string-to-number value)))))
+
+(defun hub/confluence-commands--remote-inline-match-count (comment)
+  "Return Confluence text selection match count for inline COMMENT, or nil."
+  (hub/confluence-commands--remote-inline-match-number
+   comment '(textSelectionMatchCount text-selection-match-count matchCount match-count)))
+
+(defun hub/confluence-commands--remote-inline-match-index (comment)
+  "Return Confluence text selection match index for inline COMMENT, or nil."
+  (hub/confluence-commands--remote-inline-match-number
+   comment '(textSelectionMatchIndex text-selection-match-index matchIndex match-index)))
+
+(defun hub/confluence-commands--remote-marker-occurrence-count (comment)
+  "Return remote marker occurrence count from COMMENT, or nil."
+  (alist-get 'hub-marker-occurrence-count comment))
+
+(defun hub/confluence-commands--remote-marker-occurrence-index (comment)
+  "Return remote marker occurrence index from COMMENT, or nil."
+  (alist-get 'hub-marker-occurrence-index comment))
+
+(defun hub/confluence-commands--count-normalized-occurrences (needle haystack)
+  "Return count of normalized NEEDLE occurrences in normalized HAYSTACK."
+  (let ((target (hub/org-comment-normalize-target-text (or needle "")))
+	(source (hub/org-comment-normalize-target-text (or haystack "")))
+	(start 0)
+	(count 0))
+    (unless (string-empty-p target)
+      (while (string-match (regexp-quote target) source start)
+	(setq count (1+ count)
+	      start (max (1+ (match-beginning 0)) (match-end 0)))))
+    count))
+
+(defun hub/confluence-commands--storage-marker-occurrence-info (storage comment)
+  "Return marker occurrence info for COMMENT in STORAGE, or nil."
+  (let ((ref (hub/confluence-commands--remote-inline-marker-ref comment))
+	(selection (hub/confluence-commands--remote-inline-target-text comment))
+	chosen)
+    (when (and (hub/confluence-api--present-string-p ref)
+	       (hub/confluence-api--present-string-p selection))
+      (dolist (marker (hub/confluence-commands--inline-marker-ranges storage))
+	(when (and (not chosen) (equal ref (plist-get marker :ref)))
+	  (setq chosen marker)))
+      (when chosen
+	(let ((before (hub/confluence-commands--storage-visible-text
+		       (substring storage 0 (plist-get chosen :body-start))))
+	      (all (hub/confluence-commands--storage-visible-text storage)))
+	  (list :count (hub/confluence-commands--count-normalized-occurrences selection all)
+		:index (hub/confluence-commands--count-normalized-occurrences selection before)))))))
+
+(defun hub/confluence-commands--annotate-inline-comment-with-marker-occurrence (storage comment)
+  "Return COMMENT annotated with marker occurrence metadata from STORAGE."
+  (if-let* ((info (hub/confluence-commands--storage-marker-occurrence-info storage comment)))
+      (append comment `((hub-marker-occurrence-count . ,(plist-get info :count))
+			(hub-marker-occurrence-index . ,(plist-get info :index))))
+    comment))
+
+(defun hub/confluence-commands--number-property-line (key value)
+  "Return an Org property line for KEY and numeric VALUE when present."
+  (when (numberp value)
+    (format ":%s: %s\n" key value)))
+
 (defun hub/confluence-commands--html-escape-text (text)
   "Escape TEXT for Confluence storage text-node matching."
   (replace-regexp-in-string
@@ -1176,6 +1248,18 @@ the repaired storage when APPLY is non-nil or the user confirms interactively."
      ":PROPERTIES:\n"
      (hub/confluence-commands--remote-comment-common-properties comment body-format "inline")
      (hub/confluence-commands--property-line "HUB_COMMENT_TARGET_TEXT" target-text)
+     (hub/confluence-commands--number-property-line
+      "HUB_COMMENT_TARGET_MATCH_COUNT"
+      (hub/confluence-commands--remote-inline-match-count comment))
+     (hub/confluence-commands--number-property-line
+      "HUB_COMMENT_TARGET_MATCH_INDEX"
+      (hub/confluence-commands--remote-inline-match-index comment))
+     (hub/confluence-commands--number-property-line
+      "HUB_COMMENT_REMOTE_MARKER_OCCURRENCE_COUNT"
+      (hub/confluence-commands--remote-marker-occurrence-count comment))
+     (hub/confluence-commands--number-property-line
+      "HUB_COMMENT_REMOTE_MARKER_OCCURRENCE_INDEX"
+      (hub/confluence-commands--remote-marker-occurrence-index comment))
      ":END:\n\n"
      (string-trim-right (hub/confluence-commands--remote-comment-body comment))
      "\n")))
@@ -1728,16 +1812,19 @@ PREVIOUS-KIND provides neighboring context."
 
 (defun hub/confluence-commands--upload-asset (page-id asset upload-directory)
   "Upload one image ASSET to Confluence PAGE-ID from UPLOAD-DIRECTORY."
-  (let ((upload-path (expand-file-name (plist-get asset :filename) upload-directory)))
-    (copy-file (plist-get asset :source-path) upload-path t)
-    (condition-case err
-	(hub/confluence-commands--run
-	 (hub/confluence-api--attachment-upload-command page-id upload-path))
-      (user-error
-       (if (hub/confluence-commands--duplicate-attachment-error-p err)
-	   (message "Confluence attachment already exists, reusing %s"
-		    (plist-get asset :filename))
-	 (signal (car err) (cdr err)))))))
+  (if (plist-get asset :missing-source)
+      (message "Confluence attachment source missing, reusing existing %s"
+	       (plist-get asset :filename))
+    (let ((upload-path (expand-file-name (plist-get asset :filename) upload-directory)))
+      (copy-file (plist-get asset :source-path) upload-path t)
+      (condition-case err
+	  (hub/confluence-commands--run
+	   (hub/confluence-api--attachment-upload-command page-id upload-path))
+	(user-error
+	 (if (hub/confluence-commands--duplicate-attachment-error-p err)
+	     (message "Confluence attachment already exists, reusing %s"
+		      (plist-get asset :filename))
+	   (signal (car err) (cdr err))))))))
 
 (defun hub/confluence-commands--unique-upload-assets (assets)
   "Return ASSETS deduplicated by generated attachment filename."
@@ -2979,7 +3066,19 @@ sidecar source Org file."
 	    (when (equal "inline" (org-entry-get nil "HUB_COMMENT_SYNC_KIND"))
 	      (hub/confluence-commands--put-property-when-missing
 	       "HUB_COMMENT_TARGET_TEXT"
-	       (hub/confluence-commands--remote-inline-target-text comment)))
+	       (hub/confluence-commands--remote-inline-target-text comment))
+	      (when-let* ((count (hub/confluence-commands--remote-inline-match-count comment)))
+		(hub/confluence-commands--put-property-when-missing
+		 "HUB_COMMENT_TARGET_MATCH_COUNT" (number-to-string count)))
+	      (when-let* ((index (hub/confluence-commands--remote-inline-match-index comment)))
+		(hub/confluence-commands--put-property-when-missing
+		 "HUB_COMMENT_TARGET_MATCH_INDEX" (number-to-string index)))
+	      (when-let* ((count (hub/confluence-commands--remote-marker-occurrence-count comment)))
+		(hub/confluence-commands--put-property-when-missing
+		 "HUB_COMMENT_REMOTE_MARKER_OCCURRENCE_COUNT" (number-to-string count)))
+	      (when-let* ((index (hub/confluence-commands--remote-marker-occurrence-index comment)))
+		(hub/confluence-commands--put-property-when-missing
+		 "HUB_COMMENT_REMOTE_MARKER_OCCURRENCE_INDEX" (number-to-string index))))
 	    (hub/confluence-commands--set-remote-present-properties comment)
 	    (unless (equal "reply" (org-entry-get nil "HUB_COMMENT_SYNC_KIND"))
 	      (hub/confluence-commands--apply-remote-status-at-heading comment report))
@@ -3164,7 +3263,20 @@ BODY-FORMAT defaults to storage.  Return import report plist."
 	 (comments (hub/confluence-commands--comment-results response))
 	 (sync-kind (hub/confluence-commands--endpoint-sync-kind endpoint))
 	 (report (or report (list :imported 0)))
+	 page-storage
 	 seen-ids)
+    (when (equal sync-kind "inline")
+      (setq page-storage
+	    (condition-case nil
+		(hub/confluence-commands--page-body-storage-value
+		 (hub/confluence-api--get-page id "storage"))
+	      (user-error nil)))
+      (when page-storage
+	(setq comments
+	      (mapcar (lambda (comment)
+			(hub/confluence-commands--annotate-inline-comment-with-marker-occurrence
+			 page-storage comment))
+		      comments))))
     (dolist (comment comments)
       (hub/confluence-commands--cache-comment-author comment source-directory)
       (when-let* ((remote-id (hub/confluence-commands--remote-comment-id comment)))

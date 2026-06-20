@@ -749,6 +749,31 @@ buffer start and end positions for each character in TEXT."
 	      (setq start (max (1+ match-start) match-end))))
 	  (nreverse matches))))))
 
+(defun hub/org-comment--property-number (properties key)
+  "Return numeric value for KEY in PROPERTIES, or nil."
+  (let ((value (alist-get key properties nil nil #'equal)))
+    (cond
+     ((numberp value) value)
+     ((and (stringp value) (string-match-p "\\`[0-9]+\\'" value))
+      (string-to-number value)))))
+
+(defun hub/org-comment--remote-indexed-anchor-match (properties matches)
+  "Return MATCHES element selected by remote match metadata in PROPERTIES."
+  (let* ((expected-count (or (hub/org-comment--property-number
+			      properties "HUB_COMMENT_TARGET_MATCH_COUNT")
+			     (hub/org-comment--property-number
+			      properties "HUB_COMMENT_REMOTE_MARKER_OCCURRENCE_COUNT")))
+	 (index (or (hub/org-comment--property-number
+		     properties "HUB_COMMENT_TARGET_MATCH_INDEX")
+		    (hub/org-comment--property-number
+		     properties "HUB_COMMENT_REMOTE_MARKER_OCCURRENCE_INDEX")))
+	 (count (length matches)))
+    (when (and expected-count index
+	       (= expected-count count)
+	       (< -1 index)
+	       (< index count))
+      (nth index matches))))
+
 (defun hub/org-comment--similarity (left right)
   "Return approximate similarity ratio between LEFT and RIGHT."
   (let* ((a (hub/org-comment-normalize-target-text (or left "")))
@@ -1075,9 +1100,15 @@ Return a plist summary with `:anchored', `:missing', and `:ambiguous' counts."
 		  buffer (caar matches) (cdar matches) target-text)
 		 (setq anchored (1+ anchored)))
 		(_
-		 (org-entry-put nil "HUB_COMMENT_ANCHOR_STATE" "ambiguous")
-		 (org-entry-put nil "HUB_COMMENT_ANCHOR_MATCH_COUNT" (number-to-string count))
-		 (setq ambiguous (1+ ambiguous)))))))
+		 (if-let* ((remote-match (hub/org-comment--remote-indexed-anchor-match
+					  properties matches)))
+		     (progn
+		       (hub/org-comment--put-anchor-properties
+			buffer (car remote-match) (cdr remote-match) target-text)
+		       (setq anchored (1+ anchored)))
+		   (org-entry-put nil "HUB_COMMENT_ANCHOR_STATE" "ambiguous")
+		   (org-entry-put nil "HUB_COMMENT_ANCHOR_MATCH_COUNT" (number-to-string count))
+		   (setq ambiguous (1+ ambiguous))))))))
 	(forward-line 1))
       (write-region (point-min) (point-max) target-sidecar nil 'silent))
     (list :anchored anchored :missing missing :ambiguous ambiguous)))
