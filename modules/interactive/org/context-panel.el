@@ -14,6 +14,8 @@
 (require 'subr-x)
 
 (autoload 'hub/confluence-comment-push-current "org-confluence-commands" nil t)
+(autoload 'hub/confluence-sync-status-marker-string "org-confluence-commands" nil nil)
+(autoload 'hub/confluence-sync-status-open-from-marker "org-confluence-commands" nil t)
 
 (defgroup hub/org-context-panel nil
   "Interactive Org context panel."
@@ -140,6 +142,9 @@
 
 (defvar-local hub/org-context-panel--page-comment-overlay nil
   "Top-of-buffer page comment marker overlay in the current Org source buffer.")
+
+(defvar-local hub/org-context-panel--sync-status-overlay nil
+  "Top-of-buffer Confluence sync status marker overlay in the current Org source buffer.")
 
 (defvar-local hub/org-context-panel--visual-fill-state nil
   "Saved visual-fill-column state while context panel docks prose.")
@@ -338,7 +343,10 @@ wrapped lines, visual filling, and partial scrolling follow the live window."
   (setq hub/org-context-panel--comment-overlays nil)
   (when (overlayp hub/org-context-panel--page-comment-overlay)
     (delete-overlay hub/org-context-panel--page-comment-overlay))
-  (setq hub/org-context-panel--page-comment-overlay nil))
+  (setq hub/org-context-panel--page-comment-overlay nil)
+  (when (overlayp hub/org-context-panel--sync-status-overlay)
+    (delete-overlay hub/org-context-panel--sync-status-overlay))
+  (setq hub/org-context-panel--sync-status-overlay nil))
 
 (defun hub/org-context-panel--comment-item-p (item)
   "Return non-nil when ITEM is a sidecar comment."
@@ -465,6 +473,43 @@ wrapped lines, visual filling, and partial scrolling follow the live window."
 			   "\n"))
       (setq hub/org-context-panel--page-comment-overlay overlay))))
 
+(defun hub/org-context-panel--sync-status-marker-map ()
+  "Return keymap for the Confluence sync status marker."
+  (let ((map (make-sparse-keymap)))
+    (when (fboundp 'hub/confluence-sync-status-open-from-marker)
+      (define-key map (kbd "RET") #'hub/confluence-sync-status-open-from-marker)
+      (define-key map [mouse-1] #'hub/confluence-sync-status-open-from-marker))
+    map))
+
+(defun hub/org-context-panel--confluence-page-id-present-p ()
+  "Return non-nil when the current Org buffer has a Confluence page ID."
+  (save-excursion
+    (goto-char (point-min))
+    (let ((case-fold-search t))
+      (re-search-forward "^[[:blank:]]*#\\+CONFLUENCE_PAGE_ID:[[:blank:]]*\\S-+" nil t))))
+
+(defun hub/org-context-panel--refresh-sync-status-marker ()
+  "Refresh top Confluence sync status marker in the current source buffer."
+  (when (overlayp hub/org-context-panel--sync-status-overlay)
+    (delete-overlay hub/org-context-panel--sync-status-overlay))
+  (setq hub/org-context-panel--sync-status-overlay nil)
+  (when (and buffer-file-name
+	     (fboundp 'hub/confluence-sync-status-marker-string)
+	     (hub/org-context-panel--confluence-page-id-present-p))
+    (let* ((label (hub/confluence-sync-status-marker-string buffer-file-name))
+	   (overlay (make-overlay (hub/org-context-panel--metadata-end-position)
+				  (hub/org-context-panel--metadata-end-position)
+				  nil t nil)))
+      (overlay-put overlay 'priority -1)
+      (overlay-put overlay 'after-string
+		   (concat (propertize label
+				       'face 'link
+				       'mouse-face 'highlight
+				       'help-echo "Open Confluence sync status"
+				       'keymap (hub/org-context-panel--sync-status-marker-map))
+			   "\n"))
+      (setq hub/org-context-panel--sync-status-overlay overlay))))
+
 (defun hub/org-context-panel--refresh-comment-overlays (source-buffer items)
   "Refresh source comment overlays for comment ITEMS in SOURCE-BUFFER."
   (when (buffer-live-p source-buffer)
@@ -472,6 +517,7 @@ wrapped lines, visual filling, and partial scrolling follow the live window."
       (hub/org-context-panel--delete-comment-overlays)
       (hub/org-context-panel--refresh-page-comment-marker
        (cl-remove-if-not #'hub/org-context-panel--page-comment-p items))
+      (hub/org-context-panel--refresh-sync-status-marker)
       (dolist (item items)
 	(when (and (hub/org-context-panel--comment-item-p item)
 		   (not (hub/org-context-panel--stale-comment-p item))
@@ -1267,8 +1313,9 @@ When SHOW-EMPTY is non-nil, render an empty-state message when no page comments 
 		      (with-current-buffer source
 			hub/org-context-panel--page-panel-buffer)))
 	 (window (and (buffer-live-p buffer) (get-buffer-window buffer t))))
-    (when (window-live-p window)
-      (quit-window nil window))))
+    (when (and (window-live-p window)
+	       (not (one-window-p t)))
+      (delete-window window))))
 
 ;;;###autoload
 (defun hub/org-page-context-open (&optional select show-empty)

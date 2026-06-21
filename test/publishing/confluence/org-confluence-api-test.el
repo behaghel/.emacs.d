@@ -842,6 +842,56 @@
 				   (inlineMarkerRef . "marker-1")))))
 		 "ordered")))
 
+(ert-deftest hub/confluence-sync-status-mode-keeps-bepo-navigation-free ()
+  "Keep c/t/s/r free in the sync status report keymap."
+  (dolist (key '("c" "t" "s" "r"))
+    (should-not (lookup-key hub/confluence-sync-status-mode-map (kbd key)))))
+
+(ert-deftest hub/confluence-sync-status-writes-cache-and-summarizes-issues ()
+  "Collect Confluence sync status into a hidden JSON cache."
+  (let* ((dir (make-temp-file "hub-confluence-status-" t))
+	 (source (expand-file-name "article.org" dir))
+	 (sidecar (expand-file-name "article.comments.org" dir)))
+    (unwind-protect
+	(progn
+	  (with-temp-file source
+	    (insert "#+CONFLUENCE_PAGE_ID: 123\n\n[[./image-abcdef123456.png]]\n"))
+	  (with-temp-file sidecar
+	    (insert "#+source: article.org\n")
+	    (insert "* OPEN Remote\n:PROPERTIES:\n")
+	    (insert ":HUB_COMMENT_ID: remote-confluence-i1\n")
+	    (insert ":HUB_COMMENT_REMOTE_ID: i1\n")
+	    (insert ":HUB_COMMENT_SOURCE: confluence\n")
+	    (insert ":HUB_COMMENT_SYNC_KIND: inline\n")
+	    (insert ":HUB_COMMENT_TARGET_TEXT: repeated\n")
+	    (insert ":HUB_COMMENT_ANCHOR_STATE: ambiguous\n")
+	    (insert ":END:\n\nBody\n"))
+	  (with-current-buffer (find-file-noselect source)
+	    (org-mode)
+	    (cl-letf (((symbol-function 'hub/confluence-api--get-page)
+		       (lambda (&rest _args)
+			 '(:status 200 :body "{\"body\":{\"storage\":{\"value\":\"<p>Body</p>\"}}}"))))
+	      (let ((status (hub/confluence-sync-status--collect)))
+		(should (equal (alist-get 'state status) "warning"))
+		(should (string-match-p "comment issue" (alist-get 'summary status)))
+		(should (string-match-p "attachment issue" (alist-get 'summary status)))
+		(should (seq-some
+			 (lambda (issue)
+			   (when-let* ((link (alist-get 'link issue)))
+			     (string-match-p "\\`\\[\\[org-comment:" link)))
+			 (append (alist-get 'issues status) nil)))
+		(hub/confluence-sync-status--write-cache status source)
+		(should (file-exists-p (expand-file-name ".article.confluence.cache" dir)))
+		(should (string-match-p "Sync ⚠" (hub/confluence-sync-status-marker-string source)))
+		(let* ((hub/confluence-sync-status-stale-after-days 3)
+		       (old (copy-alist status)))
+		  (setf (alist-get 'checkedAt old) "2000-01-01T00:00:00+0000")
+		  (hub/confluence-sync-status--write-cache old source)
+		  (should (string-match-p "Sync \\? stale" (hub/confluence-sync-status-marker-string source))))))))
+      (when-let* ((buffer (find-buffer-visiting source)))
+	(kill-buffer buffer))
+      (delete-directory dir t))))
+
 (ert-deftest hub/confluence-comment-import-inline-uses-storage-marker-occurrence ()
   "Anchor ambiguous imported inline comments using marker occurrence in storage."
   (let* ((dir (make-temp-file "hub-confluence-inline-marker-index-" t))

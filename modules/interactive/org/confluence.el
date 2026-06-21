@@ -9,6 +9,7 @@
 
 ;;; Code:
 
+(require 'hub-keys)
 (require 'hub-utils)
 (require 'subr-x)
 
@@ -28,6 +29,12 @@
 
 (add-to-list 'load-path hub/confluence-export-directory)
 
+(use-package magit-section
+  :demand t)
+
+(use-package transient
+  :demand t)
+
 (autoload 'hub/confluence-publish "org-confluence-commands" nil t)
 (autoload 'hub/confluence-publish-dwim "org-confluence-commands" nil t)
 (autoload 'hub/confluence-publish-from-export-dispatch "org-confluence-commands" nil t)
@@ -37,6 +44,9 @@
 (autoload 'hub/confluence-pull "org-confluence-commands" nil t)
 (autoload 'hub/confluence-sync-page-current "org-confluence-commands" nil t)
 (autoload 'hub/confluence-sync-current "org-confluence-commands" nil t)
+(autoload 'hub/confluence-sync-status "org-confluence-commands" nil t)
+(autoload 'hub/confluence-sync-status-open-from-marker "org-confluence-commands" nil t)
+(autoload 'hub/confluence-sync-status-marker-string "org-confluence-commands" nil nil)
 (autoload 'hub/confluence-comment-list "org-confluence-commands" nil t)
 (autoload 'hub/confluence-comment-import "org-confluence-commands" nil t)
 (autoload 'hub/confluence-comment-import-footer "org-confluence-commands" nil t)
@@ -45,6 +55,11 @@
 (autoload 'hub/confluence-comment-push-current "org-confluence-commands" nil t)
 (autoload 'hub/confluence-people-mark-current-user "org-confluence-commands" nil t)
 (autoload 'hub/confluence-people-resolve "org-confluence-commands" nil t)
+
+(with-eval-after-load 'general
+  (hub/define-leaders)
+  (hub/leader
+   "c g" #'hub/confluence-sync-status))
 
 (defun hub/confluence-comment--enable-sidecar-submit-key ()
   "Bind `C-c C-c' to push comments in comments sidecar buffers."

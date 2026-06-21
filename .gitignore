@@ -84,6 +84,7 @@ devenv.local.nix
 .pre-commit-config.yaml
 
 # Local agent/browser/TeX scratch artifacts
+.*.confluence.cache
 .emacs.d/
 .playwright-mcp/
 .sisyphus/

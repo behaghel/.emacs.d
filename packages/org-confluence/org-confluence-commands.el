@@ -8,12 +8,16 @@
 (require 'hub-confluence-people)
 (require 'hub-org-comments)
 (require 'browse-url)
+(require 'button)
 (require 'cl-lib)
+(require 'eieio)
 (require 'json)
+(require 'magit-section nil 'noerror)
 (require 'org)
 (require 'ox-html)
 (require 'seq)
 (require 'subr-x)
+(require 'transient nil 'noerror)
 (require 'xml)
 
 (require 'org-confluence-api)
@@ -32,6 +36,51 @@ page update.  Active inline comments with marker references are wrapped back
 around matching selected text in the newly exported storage XHTML so Confluence
 keeps their anchors."
   :type 'boolean
+  :group 'hub/confluence-api)
+
+(defcustom hub/confluence-sync-status-stale-after-days 3
+  "Number of days before cached Confluence sync status is considered stale."
+  :type 'number
+  :group 'hub/confluence-api)
+
+(defface hub/confluence-sync-status-clean-face
+  '((t :inherit success :weight bold))
+  "Face for clean Confluence sync status elements."
+  :group 'hub/confluence-api)
+
+(defface hub/confluence-sync-status-warning-face
+  '((t :inherit warning :weight bold))
+  "Face for warning Confluence sync status elements."
+  :group 'hub/confluence-api)
+
+(defface hub/confluence-sync-status-blocking-face
+  '((t :inherit error :weight bold))
+  "Face for blocking Confluence sync status elements."
+  :group 'hub/confluence-api)
+
+(defface hub/confluence-sync-status-heading-face
+  '((t :inherit font-lock-function-name-face :weight bold :height 1.18))
+  "Face for Confluence sync status report headings."
+  :group 'hub/confluence-api)
+
+(defface hub/confluence-sync-status-section-face
+  '((t :inherit font-lock-keyword-face :weight bold))
+  "Face for Confluence sync status section names."
+  :group 'hub/confluence-api)
+
+(defface hub/confluence-sync-status-field-face
+  '((t :inherit font-lock-keyword-face :weight semi-bold))
+  "Face for Confluence sync status metadata fields."
+  :group 'hub/confluence-api)
+
+(defface hub/confluence-sync-status-value-face
+  '((t :inherit font-lock-string-face))
+  "Face for Confluence sync status metadata values."
+  :group 'hub/confluence-api)
+
+(defface hub/confluence-sync-status-muted-face
+  '((t :inherit shadow :slant italic))
+  "Face for subdued Confluence sync status report text."
   :group 'hub/confluence-api)
 
 (defconst hub/confluence-commands--inline-comment-marker-regexp
@@ -1893,6 +1942,881 @@ When SUBTREEP is non-nil, the current subtree root itself is not included."
 (defun hub/confluence-publish--interactive-repair-p ()
   "Return non-nil when publish may prompt for inline marker repair."
   (not noninteractive))
+
+(defvar-local hub/confluence-sync-status--source-buffer nil
+  "Source Org buffer associated with the current Confluence sync status report.")
+
+(defvar-local hub/confluence-sync-status--restore-page-context nil
+  "Non-nil when closing this sync report should restore page comments.")
+
+(defun hub/confluence-sync-status--refresh-source-marker (source-buffer)
+  "Refresh the top sync marker in SOURCE-BUFFER when the Org UI is loaded."
+  (when (and (buffer-live-p source-buffer)
+	     (fboundp 'hub/org-context-panel--refresh-sync-status-marker))
+    (with-current-buffer source-buffer
+      (hub/org-context-panel--refresh-sync-status-marker))))
+
+(defun hub/confluence-sync-status--cache-file (&optional source-file)
+  "Return hidden Confluence sync cache path for SOURCE-FILE."
+  (let* ((file (or source-file buffer-file-name))
+	 (directory (and file (file-name-directory file)))
+	 (base (and file (file-name-sans-extension (file-name-nondirectory file)))))
+    (unless (and directory base)
+      (user-error "Current buffer is not visiting a file"))
+    (expand-file-name (format ".%s.confluence.cache" base) directory)))
+
+(defun hub/confluence-sync-status--timestamp ()
+  "Return current timestamp for Confluence sync status cache."
+  (format-time-string "%Y-%m-%dT%H:%M:%S%z"))
+
+(defun hub/confluence-sync-status--timestamp-age-days (timestamp)
+  "Return age in days for TIMESTAMP, or nil when it cannot be parsed."
+  (when-let* ((time (ignore-errors (date-to-time timestamp))))
+    (/ (float-time (time-subtract (current-time) time)) 86400.0)))
+
+(defun hub/confluence-sync-status--read-cache (&optional source-file)
+  "Return cached Confluence sync status for SOURCE-FILE, or nil."
+  (let ((cache-file (hub/confluence-sync-status--cache-file source-file)))
+    (when (file-readable-p cache-file)
+      (condition-case nil
+	  (with-temp-buffer
+	    (insert-file-contents cache-file)
+	    (json-parse-buffer :object-type 'alist :array-type 'list))
+	(error nil)))))
+
+(defun hub/confluence-sync-status--write-cache (status &optional source-file)
+  "Write Confluence sync STATUS cache next to SOURCE-FILE."
+  (let ((cache-file (hub/confluence-sync-status--cache-file source-file)))
+    (with-temp-file cache-file
+      (insert (json-encode status) "\n"))))
+
+(defun hub/confluence-sync-status--cache-state (&optional source-file)
+  "Return cached sync state for SOURCE-FILE accounting for staleness."
+  (if-let* ((status (hub/confluence-sync-status--read-cache source-file)))
+      (let* ((checked-at (alist-get 'checkedAt status))
+	     (age (hub/confluence-sync-status--timestamp-age-days checked-at)))
+	(if (and age (> age hub/confluence-sync-status-stale-after-days))
+	    `((state . "unknown")
+	      (summary . ,(format "stale %sd" (floor age)))
+	      (checkedAt . ,checked-at)
+	      (stale . t))
+	  status))
+    '((state . "unknown")
+      (summary . "unchecked")
+      (unchecked . t))))
+
+(defun hub/confluence-sync-status--string-value (value)
+  "Return VALUE when it is a string, otherwise nil.
+This treats JSON null values parsed as `:null' as absent."
+  (and (stringp value) value))
+
+(defun hub/confluence-sync-status--issue (severity category message &optional action link)
+  "Return a Confluence sync issue.
+SEVERITY, CATEGORY, and MESSAGE describe the issue.  ACTION names the suggested
+correction and LINK is an optional `org-comment:' link for the relevant sidecar
+comment."
+  (append `((severity . ,severity)
+	    (category . ,category)
+	    (message . ,message))
+	  (when action `((action . ,action)))
+	  (when link `((link . ,link)))))
+
+(defun hub/confluence-sync-status--issue-severity (issue)
+  "Return ISSUE severity string."
+  (alist-get 'severity issue))
+
+(defun hub/confluence-sync-status--overall-state (issues)
+  "Return overall sync state for ISSUES."
+  (cond
+   ((seq-some (lambda (issue)
+		(equal "blocking" (hub/confluence-sync-status--issue-severity issue)))
+	      issues)
+    "blocking")
+   (issues "warning")
+   (t "clean")))
+
+(defun hub/confluence-sync-status--state-symbol (state)
+  "Return display symbol for sync STATE."
+  (pcase state
+    ("clean" "✓")
+    ("warning" "⚠")
+    ("blocking" "×")
+    (_ "?")))
+
+(defun hub/confluence-sync-status--state-face (state)
+  "Return face for sync STATE."
+  (pcase state
+    ("clean" 'hub/confluence-sync-status-clean-face)
+    ("warning" 'hub/confluence-sync-status-warning-face)
+    ("blocking" 'hub/confluence-sync-status-blocking-face)
+    (_ 'hub/confluence-sync-status-muted-face)))
+
+(defun hub/confluence-sync-status--face (text face)
+  "Return TEXT using FACE for both display face properties.
+Magit-section buffers primarily use `font-lock-face'.  Setting both `face' and
+`font-lock-face' keeps this report visible across special-mode, magit-section,
+and theme/font-lock combinations."
+  (propertize text 'face face 'font-lock-face face))
+
+(defun hub/confluence-sync-status--state-chip (state)
+  "Return propertized state symbol for STATE."
+  (hub/confluence-sync-status--face
+   (hub/confluence-sync-status--state-symbol state)
+   (hub/confluence-sync-status--state-face state)))
+
+(defun hub/confluence-sync-status--plural (count singular)
+  "Return COUNT plus SINGULAR pluralized for human status summaries."
+  (format "%s %s%s" count singular (if (= count 1) "" "s")))
+
+(defun hub/confluence-sync-status--summary (state issues &optional fallback)
+  "Return human summary for STATE and ISSUES using FALLBACK when needed."
+  (if (member state '("unknown" unknown))
+      (or fallback "unknown")
+    (if (null issues)
+	""
+      (let ((counts nil))
+	(dolist (issue issues)
+	  (let ((category (alist-get 'category issue)))
+	    (setf (alist-get category counts nil nil #'equal)
+		  (1+ (or (alist-get category counts nil nil #'equal) 0)))))
+	(string-join
+	 (mapcar (lambda (entry)
+		   (hub/confluence-sync-status--plural
+		    (cdr entry) (format "%s issue" (car entry))))
+		 (nreverse counts))
+	 ", ")))))
+
+(defun hub/confluence-sync-status-marker-string (&optional source-file)
+  "Return compact Confluence sync marker string for SOURCE-FILE."
+  (let* ((status (hub/confluence-sync-status--cache-state source-file))
+	 (state (or (hub/confluence-sync-status--string-value
+		     (alist-get 'state status))
+		    "unknown"))
+	 (summary (hub/confluence-sync-status--string-value (alist-get 'summary status)))
+	 (symbol (hub/confluence-sync-status--state-symbol state)))
+    (if (equal state "clean")
+	(format "[Sync %s]" symbol)
+      (format "[Sync %s %s]" symbol (or summary "unknown")))))
+
+(defun hub/confluence-sync-status--shorten (text &optional length)
+  "Return TEXT shortened to LENGTH for sync status display."
+  (let ((limit (or length 72)))
+    (if (and text (> (length text) limit))
+	(concat (substring text 0 (max 0 (- limit 1))) "…")
+      text)))
+
+(defun hub/confluence-sync-status--comment-summary ()
+  "Return a compact summary of the sidecar comment at point."
+  (hub/confluence-sync-status--shorten
+   (string-trim (or (org-get-heading t t t t) "untitled comment")) 96))
+
+(defun hub/confluence-sync-status--comment-label (sync-kind remote-id target-text)
+  "Return a human label for comment SYNC-KIND, REMOTE-ID, and TARGET-TEXT."
+  (string-join
+   (delq nil
+	 (list (if (string-empty-p (or sync-kind "")) "comment" sync-kind)
+	       (and remote-id (format "#%s" remote-id))
+	       (and target-text
+		    (not (string-empty-p target-text))
+		    (format "“%s”" (hub/confluence-sync-status--shorten target-text 40)))))
+   " "))
+
+(defun hub/confluence-sync-status--comment-details (summary &rest details)
+  "Return sync issue text from SUMMARY plus non-empty DETAILS."
+  (string-join (delq nil (cons summary details)) "; "))
+
+(defun hub/confluence-sync-status--comment-link (source-file comment-id heading)
+  "Return an `org-comment:' link for COMMENT-ID in SOURCE-FILE."
+  (when (and source-file comment-id)
+    (hub/org-comment-make-link
+     source-file comment-id (hub/confluence-sync-status--shorten heading 72))))
+
+(defun hub/confluence-sync-status--remote-comment-id-set (page-id)
+  "Return a hash table of remote comment IDs currently present on PAGE-ID."
+  (let ((ids (make-hash-table :test #'equal)))
+    (dolist (endpoint '("footer-comments" "inline-comments"))
+      (dolist (comment (hub/confluence-commands--comment-results
+			(hub/confluence-api--list-page-comments page-id endpoint "storage")))
+	(when-let* ((id (hub/confluence-sync-status--string-value
+			 (alist-get 'id comment))))
+	  (puthash id endpoint ids))))
+    ids))
+
+(defun hub/confluence-sync-status--sidecar-issues (source-buffer remote-comment-ids)
+  "Return sync issues found in SOURCE-BUFFER's sidecar comments.
+REMOTE-COMMENT-IDS is a hash table of comment IDs currently returned by
+Confluence, used to distinguish remotely deleted comments from stale sidecar
+metadata."
+  (let* ((source-file (buffer-file-name source-buffer))
+	 (sidecar (and source-file (hub/org-comment-sidecar-path source-file)))
+	 (people (make-hash-table :test #'equal))
+	 issues)
+    (when (and sidecar (file-readable-p sidecar))
+      (with-temp-buffer
+	(insert-file-contents sidecar)
+	(org-mode)
+	(goto-char (point-min))
+	(while (re-search-forward org-heading-regexp nil t)
+	  (goto-char (match-beginning 0))
+	  (let* ((state (org-entry-get nil "HUB_COMMENT_ANCHOR_STATE"))
+		 (sync-kind (org-entry-get nil "HUB_COMMENT_SYNC_KIND"))
+		 (remote-id (org-entry-get nil "HUB_COMMENT_REMOTE_ID"))
+		 (remote-state (org-entry-get nil "HUB_COMMENT_REMOTE_STATE"))
+		 (author-id (org-entry-get nil "HUB_COMMENT_REMOTE_AUTHOR_ID"))
+		 (display-name (org-entry-get nil "HUB_COMMENT_REMOTE_AUTHOR_DISPLAY_NAME"))
+		 (target-text (org-entry-get nil "HUB_COMMENT_TARGET_TEXT"))
+		 (target-lines (org-entry-get nil "HUB_COMMENT_TARGET_LINES"))
+		 (last-seen (org-entry-get nil "HUB_COMMENT_REMOTE_LAST_SEEN_AT"))
+		 (missing-at (org-entry-get nil "HUB_COMMENT_REMOTE_MISSING_AT"))
+		 (created-at (or (org-entry-get nil "HUB_COMMENT_REMOTE_CREATED_AT")
+				 (org-entry-get nil "HUB_COMMENT_CREATED_AT")))
+		 (heading (hub/confluence-sync-status--comment-summary))
+		 (comment-id (org-entry-get nil "HUB_COMMENT_ID"))
+		 (comment-link (hub/confluence-sync-status--comment-link source-file comment-id heading))
+		 (label (hub/confluence-sync-status--comment-label sync-kind remote-id target-text)))
+	    (when (member state '("ambiguous" "stale" "missing"))
+	      (push (hub/confluence-sync-status--issue
+		     "warning" "comment"
+		     (hub/confluence-sync-status--comment-details
+		      (format "Local anchor for %s is %s" label state)
+		      (and target-lines (format "source lines %s" target-lines))
+		      (format "sidecar: %s" heading))
+		     "reanchor" comment-link)
+		    issues))
+	    (when (and sync-kind (not remote-id) (not (equal "reply" sync-kind)))
+	      (push (hub/confluence-sync-status--issue
+		     "warning" "comment"
+		     (hub/confluence-sync-status--comment-details
+		      (format "Local %s draft is unpublished" sync-kind)
+		      (and target-text
+			   (format "target “%s”"
+				   (hub/confluence-sync-status--shorten target-text 40)))
+		      (format "sidecar: %s" heading))
+		     "open-sidecar" comment-link)
+		    issues))
+	    (when (member remote-state '("missing" "dangling"))
+	      (if (and remote-id remote-comment-ids (gethash remote-id remote-comment-ids))
+		  (push (hub/confluence-sync-status--issue
+			 "warning" "comment"
+			 (hub/confluence-sync-status--comment-details
+			  (format "Local metadata is stale: remote %s is present in Confluence, but the sidecar still says %s"
+				  label remote-state)
+			  "use i to import comments and clear the stale missing marker"
+			  (format "sidecar: %s" heading))
+			 "import" comment-link)
+			issues)
+		(push (hub/confluence-sync-status--issue
+		       "warning" "comment"
+		       (hub/confluence-sync-status--comment-details
+			(format "Remote %s appears deleted or unavailable in Confluence" label)
+			"if this deletion is intentional, open the comment and delete the local copy with x"
+			"if this looks wrong, use i to import comments before deleting anything"
+			(and missing-at (format "missing since %s" missing-at))
+			(and last-seen (format "last seen %s" last-seen))
+			(and created-at (format "created %s" created-at))
+			(format "sidecar: %s" heading))
+		       "delete-local" comment-link)
+		      issues)))
+	    (when (and author-id display-name (equal author-id display-name))
+	      (let ((resolved-name (hub/confluence-people-resolve-account-id
+				    author-id (file-name-directory source-file))))
+		(when (or (not resolved-name) (equal resolved-name author-id))
+		  (let* ((entry (gethash author-id people))
+			 (count (1+ (or (plist-get entry :count) 0)))
+			 (examples (plist-get entry :examples)))
+		    (puthash author-id
+			     (list :display-name display-name
+				   :count count
+				   :examples (if (< (length examples) 3)
+						 (append examples (list (or remote-id heading)))
+					       examples))
+			     people))))))
+	  (forward-line 1))
+	(maphash
+	 (lambda (account-id data)
+	   (let ((count (plist-get data :count))
+		 (examples (plist-get data :examples)))
+	     (push (hub/confluence-sync-status--issue
+		    "warning" "people"
+		    (format "Unresolved Confluence person %s appears in %s; examples: %s"
+			    account-id
+			    (hub/confluence-sync-status--plural count "comment")
+			    (string-join examples ", "))
+		    "resolve-people")
+		   issues)))
+	 people)))
+    (nreverse issues)))
+
+(defun hub/confluence-sync-status--attachment-issues ()
+  "Return sync issues for image attachments in the current Org buffer."
+  (condition-case error
+      (let (issues)
+	(dolist (asset (org-confluence-image-assets))
+	  (when (plist-get asset :missing-source)
+	    (push (hub/confluence-sync-status--issue
+		   "warning" "attachment"
+		   (format "Remote attachment %s is reused without a local file"
+			   (plist-get asset :filename))
+		   "download-attachment-todo")
+		  issues)))
+	(nreverse issues))
+    (user-error
+     (list (hub/confluence-sync-status--issue
+	    "blocking" "attachment" (error-message-string error) "remap-image")))))
+
+(defun hub/confluence-sync-status--remote-page-issues (page-id)
+  "Return remote page sync issues for PAGE-ID."
+  (condition-case error
+      (progn
+	(hub/confluence-api--get-page page-id "storage")
+	nil)
+    (user-error
+     (list (hub/confluence-sync-status--issue
+	    "blocking" "page" (error-message-string error) "refresh")))))
+
+(defun hub/confluence-sync-status--collect (&optional source-buffer)
+  "Collect fresh Confluence sync status for SOURCE-BUFFER."
+  (let* ((buffer (or source-buffer (current-buffer)))
+	 (source-file (buffer-file-name buffer))
+	 (page-id (with-current-buffer buffer
+		    (hub/confluence-api--page-id-from-buffer)))
+	 remote-comment-ids
+	 issues)
+    (unless source-file
+      (user-error "Current buffer is not visiting a file"))
+    (if (not page-id)
+	(push (hub/confluence-sync-status--issue
+	       "blocking" "page" "Missing #+CONFLUENCE_PAGE_ID" "open-page")
+	      issues)
+      (setq issues (append issues (hub/confluence-sync-status--remote-page-issues page-id)))
+      (condition-case error
+	  (setq remote-comment-ids (hub/confluence-sync-status--remote-comment-id-set page-id))
+	(user-error
+	 (push (hub/confluence-sync-status--issue
+		"warning" "comment"
+		(format "Could not verify live Confluence comments: %s"
+			(error-message-string error))
+		"import")
+	       issues))))
+    (with-current-buffer buffer
+      (setq issues (append issues (hub/confluence-sync-status--attachment-issues))))
+    (setq issues (append issues (hub/confluence-sync-status--sidecar-issues
+				 buffer remote-comment-ids)))
+    (let* ((state (hub/confluence-sync-status--overall-state issues))
+	   (summary (hub/confluence-sync-status--summary state issues)))
+      `((checkedAt . ,(hub/confluence-sync-status--timestamp))
+	(sourceFile . ,source-file)
+	(pageId . ,page-id)
+	(state . ,state)
+	(summary . ,summary)
+	(issues . ,(vconcat issues))))))
+
+(defun hub/confluence-sync-status--with-source-buffer (function)
+  "Run FUNCTION in this report's source buffer."
+  (unless (buffer-live-p hub/confluence-sync-status--source-buffer)
+    (user-error "No source buffer for this sync status report"))
+  (with-current-buffer hub/confluence-sync-status--source-buffer
+    (funcall function)))
+
+(defun hub/confluence-sync-status-import-comments ()
+  "Import Confluence comments for this sync status report's source buffer."
+  (interactive)
+  (hub/confluence-sync-status--with-source-buffer
+   (lambda ()
+     (hub/confluence-comment-import-footer)
+     (hub/confluence-comment-import-inline))))
+
+(defun hub/confluence-sync-status-reanchor-comments ()
+  "Reanchor imported inline comments for this report's source buffer."
+  (interactive)
+  (hub/confluence-sync-status--with-source-buffer
+   (lambda ()
+     (hub/org-comment--anchor-imported-inline-comments))))
+
+(defun hub/confluence-sync-status-repair-anchors ()
+  "Repair remote Confluence inline anchors for this report's source buffer."
+  (interactive)
+  (hub/confluence-sync-status--with-source-buffer
+   (lambda ()
+     (hub/confluence-repair-inline-comment-anchors))))
+
+(defun hub/confluence-sync-status-publish ()
+  "Publish this report's source buffer to Confluence."
+  (interactive)
+  (hub/confluence-sync-status--with-source-buffer #'hub/confluence-publish))
+
+(defun hub/confluence-sync-status-force-publish ()
+  "Force-publish this report's source buffer after confirmation."
+  (interactive)
+  (unless (yes-or-no-p "Force publish may orphan comments. Continue? ")
+    (user-error "Canceled"))
+  (hub/confluence-sync-status--with-source-buffer #'hub/confluence-publish-force))
+
+(defun hub/confluence-sync-status-open-page ()
+  "Open this report's source Confluence page."
+  (interactive)
+  (hub/confluence-sync-status--with-source-buffer #'hub/confluence-open-page))
+
+(defun hub/confluence-sync-status-open-sidecar ()
+  "Open this report's source sidecar comment file."
+  (interactive)
+  (hub/confluence-sync-status--with-source-buffer #'hub/org-comment-open-sidecar))
+
+(defun hub/confluence-sync-status-list-comments ()
+  "List Confluence comments for this report's source buffer."
+  (interactive)
+  (hub/confluence-sync-status--with-source-buffer #'hub/confluence-comment-list))
+
+(defun hub/confluence-sync-status-remap-image ()
+  "Placeholder for remapping a missing local image path."
+  (interactive)
+  (user-error "TODO: remap missing local image path from sync report"))
+
+(defun hub/confluence-sync-status-resolve-people ()
+  "Resolve Confluence people for this report's source directory."
+  (interactive)
+  (hub/confluence-sync-status--with-source-buffer
+   (lambda ()
+     (hub/confluence-people-resolve default-directory))))
+
+(defun hub/confluence-sync-status-close ()
+  "Close the current sync status report window.
+When this report replaced page comments, restore that bottom panel instead of
+closing the window."
+  (interactive)
+  (let ((source hub/confluence-sync-status--source-buffer)
+	(restore hub/confluence-sync-status--restore-page-context)
+	(window (selected-window)))
+    (cond
+     ((and restore
+	   (buffer-live-p source)
+	   (fboundp 'hub/org-page-context-render-buffer))
+      (with-current-buffer source
+	(when (and (boundp 'hub/org-context-panel--page-panel-buffer)
+		   (buffer-live-p hub/org-context-panel--page-panel-buffer))
+	  (hub/org-page-context-render-buffer source hub/org-context-panel--page-panel-buffer t)
+	  (set-window-buffer window hub/org-context-panel--page-panel-buffer))))
+     ((and (window-live-p window)
+	   (not (one-window-p t)))
+      (delete-window window))
+     (t
+      (quit-window)))))
+
+(defun hub/confluence-sync-status--section-issue ()
+  "Return the sync issue represented by the Magit section at point."
+  (when (and (featurep 'magit-section) (fboundp 'magit-current-section))
+    (let ((section (magit-current-section))
+	  issue)
+      (while (and section (not issue))
+	(when (eq (oref section type) 'sync-issue)
+	  (setq issue (oref section value)))
+	(setq section (oref section parent)))
+      issue)))
+
+(defun hub/confluence-sync-status--line-button ()
+  "Return a button on the current line, if any."
+  (or (button-at (point))
+      (save-excursion
+	(beginning-of-line)
+	(cl-loop while (< (point) (line-end-position))
+		 for candidate = (button-at (point))
+		 when candidate return candidate
+		 do (goto-char (next-single-property-change
+				(point) 'button nil (line-end-position)))))))
+
+(defun hub/confluence-sync-status-act-at-point ()
+  "Act on the sync issue at point, Magit-section style."
+  (interactive)
+  (if-let* ((button (hub/confluence-sync-status--line-button)))
+      (push-button (button-start button))
+    (if-let* ((issue (hub/confluence-sync-status--section-issue))
+	      (link (hub/confluence-sync-status--string-value
+		     (alist-get 'link issue))))
+	(org-open-link-from-string link)
+      (user-error "No issue action here; use ? for actions or move to an issue"))))
+
+(defun hub/confluence-sync-status-delete-local-at-point ()
+  "Delete the local sidecar comment for the current deleted-remote issue."
+  (interactive)
+  (let* ((issue (or (hub/confluence-sync-status--section-issue)
+		    (user-error "No sync issue at point")))
+	 (action (hub/confluence-sync-status--string-value (alist-get 'action issue)))
+	 (link (hub/confluence-sync-status--string-value (alist-get 'link issue))))
+    (unless (equal action "delete-local")
+      (user-error "This issue does not recommend deleting a local comment"))
+    (unless link
+      (user-error "This issue has no linked local comment"))
+    (pcase-let* ((`(,source-file . ,comment-id)
+		  (hub/org-comment--parse-link-path
+		   (if (string-match "org-comment:\\([^]]+\\)" link)
+		       (match-string 1 link)
+		     link)))
+		 (sidecar (hub/org-comment-sidecar-path source-file)))
+      (unless (yes-or-no-p (format "Delete local comment %s? " comment-id))
+	(user-error "Canceled"))
+      (hub/org-comment-delete-entry sidecar comment-id)
+      (message "Deleted local comment %s" comment-id)
+      (hub/confluence-sync-status-refresh))))
+
+(defun hub/confluence-sync-status-actions ()
+  "Show point-sensitive Confluence sync status actions."
+  (interactive)
+  (if (and (featurep 'transient) (fboundp 'hub/confluence-sync-status-dispatch))
+      (hub/confluence-sync-status-dispatch)
+    (user-error "Transient is unavailable; use direct report keys instead")))
+
+(defun hub/confluence-sync-status-jump-section (section-name)
+  "Jump to sync status section named SECTION-NAME."
+  (goto-char (point-min))
+  (unless (re-search-forward (format "^[✓⚠×?] %s " (regexp-quote section-name)) nil t)
+    (user-error "No %s section in this sync report" section-name))
+  (beginning-of-line))
+
+(defun hub/confluence-sync-status-jump-page ()
+  "Jump to the Page section."
+  (interactive)
+  (hub/confluence-sync-status-jump-section "Page"))
+
+(defun hub/confluence-sync-status-jump-comments ()
+  "Jump to the Comments section."
+  (interactive)
+  (hub/confluence-sync-status-jump-section "Comments"))
+
+(defun hub/confluence-sync-status-jump-attachments ()
+  "Jump to the Attachments section."
+  (interactive)
+  (hub/confluence-sync-status-jump-section "Attachments"))
+
+(defun hub/confluence-sync-status-jump-people ()
+  "Jump to the People section."
+  (interactive)
+  (hub/confluence-sync-status-jump-section "People"))
+
+(defvar hub/confluence-sync-status-mode-map
+  (let ((map (make-sparse-keymap)))
+    (when (boundp 'magit-section-mode-map)
+      (set-keymap-parent map magit-section-mode-map))
+    (define-key map (kbd "g") #'hub/confluence-sync-status-refresh)
+    (define-key map (kbd "i") #'hub/confluence-sync-status-import-comments)
+    (define-key map (kbd "a") #'hub/confluence-sync-status-reanchor-comments)
+    (define-key map (kbd "A") #'hub/confluence-sync-status-repair-anchors)
+    (define-key map (kbd "m") #'hub/confluence-sync-status-remap-image)
+    (define-key map (kbd "u") #'hub/confluence-sync-status-resolve-people)
+    (define-key map (kbd "p") #'hub/confluence-sync-status-publish)
+    (define-key map (kbd "o") #'hub/confluence-sync-status-open-page)
+    (define-key map (kbd "C") #'hub/confluence-sync-status-open-sidecar)
+    (define-key map (kbd "L") #'hub/confluence-sync-status-list-comments)
+    (define-key map (kbd "!") #'hub/confluence-sync-status-force-publish)
+    (define-key map (kbd "?") #'hub/confluence-sync-status-actions)
+    (define-key map (kbd "x") #'hub/confluence-sync-status-delete-local-at-point)
+    (define-key map (kbd "RET") #'hub/confluence-sync-status-act-at-point)
+    (define-key map (kbd "q") #'hub/confluence-sync-status-close)
+    (define-key map (kbd "j p") #'hub/confluence-sync-status-jump-page)
+    (define-key map (kbd "j c") #'hub/confluence-sync-status-jump-comments)
+    (define-key map (kbd "j a") #'hub/confluence-sync-status-jump-attachments)
+    (define-key map (kbd "j u") #'hub/confluence-sync-status-jump-people)
+    map)
+  "Keymap for Confluence sync status reports.")
+
+(if (featurep 'magit-section)
+    (define-derived-mode hub/confluence-sync-status-mode magit-section-mode "Confluence-Sync"
+      "Major mode for Confluence sync status reports."
+      (setq-local truncate-lines nil
+		  word-wrap t))
+  (define-derived-mode hub/confluence-sync-status-mode special-mode "Confluence-Sync"
+    "Major mode for Confluence sync status reports."
+    (setq-local truncate-lines nil
+		word-wrap t)))
+
+(when (featurep 'transient)
+  (transient-define-prefix hub/confluence-sync-status-dispatch ()
+			   "Show Confluence sync status actions."
+			   [["Global"
+			     ("g" "refresh" hub/confluence-sync-status-refresh)
+			     ("i" "import comments" hub/confluence-sync-status-import-comments)
+			     ("u" "resolve people" hub/confluence-sync-status-resolve-people)
+			     ("p" "publish safely" hub/confluence-sync-status-publish)
+			     ("o" "open page" hub/confluence-sync-status-open-page)]
+			    ["At point"
+			     ("RET" "open issue/comment" hub/confluence-sync-status-act-at-point)
+			     ("x" "delete local deleted-remote comment" hub/confluence-sync-status-delete-local-at-point)
+			     ("a" "reanchor local comments" hub/confluence-sync-status-reanchor-comments)]
+			    ["Advanced"
+			     ("A" "repair remote anchors" hub/confluence-sync-status-repair-anchors)
+			     ("m" "remap image" hub/confluence-sync-status-remap-image)
+			     ("!" "force publish" hub/confluence-sync-status-force-publish)]]))
+
+(defun hub/confluence-sync-status--open-link-button (button)
+  "Open the Org comment link stored on BUTTON."
+  (org-open-link-from-string (button-get button 'hub/link)))
+
+(defun hub/confluence-sync-status--link-label (link)
+  "Return display label for Org comment LINK."
+  (let ((link (hub/confluence-sync-status--string-value link)))
+    (if (and link (string-match "\\`\\[\\[[^]]+\\]\\[\\(.*\\)\\]\\]\\'" link))
+	(match-string 1 link)
+      "Open linked comment")))
+
+(defun hub/confluence-sync-status--insert-issue-link (link)
+  "Insert clickable sync issue LINK when non-nil."
+  (when-let* ((link (hub/confluence-sync-status--string-value link)))
+    (insert "\n  ↪ ")
+    (insert-text-button (format "Open comment: %s"
+				(hub/confluence-sync-status--link-label link))
+			'face 'link
+			'follow-link t
+			'action #'hub/confluence-sync-status--open-link-button
+			'hub/link link
+			'help-echo "Open linked Org comment")))
+
+(defun hub/confluence-sync-status--message-lines (issue)
+  "Return display lines for ISSUE message."
+  (let ((link (hub/confluence-sync-status--string-value (alist-get 'link issue))))
+    (seq-remove
+     (lambda (line)
+       (and link (string-prefix-p "sidecar: " line)))
+     (split-string (or (hub/confluence-sync-status--string-value
+			(alist-get 'message issue))
+		       "")
+		   "; " t))))
+
+(defun hub/confluence-sync-status--insert-issue (issue)
+  "Insert one sync ISSUE in a readable multi-line shape."
+  (let* ((lines (hub/confluence-sync-status--message-lines issue))
+	 (summary (or (car lines) "Unknown issue"))
+	 (details (cdr lines)))
+    (insert (format "%s %s%s"
+		    (pcase (alist-get 'severity issue)
+		      ("blocking" "×")
+		      ("warning" "⚠")
+		      (_ "?"))
+		    summary
+		    (if-let* ((action (hub/confluence-sync-status--string-value
+				       (alist-get 'action issue))))
+			(format " [%s]" action)
+		      "")))
+    (dolist (detail details)
+      (insert (format "\n  · %s" detail)))
+    (hub/confluence-sync-status--insert-issue-link (alist-get 'link issue))
+    (insert "\n")))
+
+(defun hub/confluence-sync-status--insert-section (title issues)
+  "Insert sync status section TITLE containing ISSUES."
+  (insert (format "* %s\n" title))
+  (if issues
+      (dolist (issue issues)
+	(hub/confluence-sync-status--insert-issue issue))
+    (insert "✓ No issues.\n"))
+  (insert "\n"))
+
+(defun hub/confluence-sync-status--section-shortcut (title)
+  "Return jump shortcut label for section TITLE."
+  (pcase title
+    ("Page" "p")
+    ("Comments" "c")
+    ("Attachments" "a")
+    ("People" "u")
+    (_ nil)))
+
+(defun hub/confluence-sync-status--section-summary (title issues)
+  "Return one-line summary for section TITLE and ISSUES."
+  (let* ((state (if issues "warning" "clean"))
+	 (face (hub/confluence-sync-status--state-face state))
+	 (shortcut (hub/confluence-sync-status--section-shortcut title)))
+    (concat
+     (hub/confluence-sync-status--face (if issues "⚠" "✓") face)
+     " "
+     (hub/confluence-sync-status--face
+      title 'hub/confluence-sync-status-section-face)
+     (when shortcut
+       (hub/confluence-sync-status--face
+	(format " (%s)" shortcut) 'hub/confluence-sync-status-muted-face))
+     " "
+     (if issues
+	 (hub/confluence-sync-status--face
+	  (format "— %s" (hub/confluence-sync-status--plural
+			  (length issues) "issue"))
+	  face)
+       (hub/confluence-sync-status--face
+	"— clean" 'hub/confluence-sync-status-clean-face)))))
+
+(defun hub/confluence-sync-status--render-magit-issue (issue)
+  "Render ISSUE as a Magit section."
+  (magit-insert-section (sync-issue issue)
+			(let* ((lines (hub/confluence-sync-status--message-lines issue))
+			       (summary (or (car lines) "Unknown issue"))
+			       (severity (alist-get 'severity issue))
+			       (face (pcase severity
+				       ("blocking" 'hub/confluence-sync-status-blocking-face)
+				       ("warning" 'hub/confluence-sync-status-warning-face)
+				       (_ 'hub/confluence-sync-status-muted-face))))
+			  (insert (format "  %s %s%s\n"
+					  (hub/confluence-sync-status--face
+					   (pcase severity
+					     ("blocking" "×")
+					     ("warning" "⚠")
+					     (_ "?"))
+					   face)
+					  summary
+					  (if-let* ((action (hub/confluence-sync-status--string-value
+							     (alist-get 'action issue))))
+					      (hub/confluence-sync-status--face
+					       (format "  [%s]" action)
+					       'hub/confluence-sync-status-muted-face)
+					    ""))))
+			(magit-insert-section-body
+			 (dolist (detail (cdr (hub/confluence-sync-status--message-lines issue)))
+			   (insert (format "    %s %s\n"
+					   (hub/confluence-sync-status--face
+					    "·" 'hub/confluence-sync-status-muted-face)
+					   detail)))
+			 (when-let* ((link (hub/confluence-sync-status--string-value
+					    (alist-get 'link issue))))
+			   (insert "    ↪ ")
+			   (insert-text-button (format "Open comment: %s"
+						       (hub/confluence-sync-status--link-label link))
+					       'face 'link
+					       'font-lock-face 'link
+					       'follow-link t
+					       'action #'hub/confluence-sync-status--open-link-button
+					       'hub/link link
+					       'help-echo "Open linked Org comment")
+			   (insert "\n")))))
+
+(defun hub/confluence-sync-status--render-magit-section (title issues)
+  "Render TITLE and ISSUES as a collapsible Magit section."
+  (magit-insert-section (sync-category title (not issues))
+			(insert (hub/confluence-sync-status--section-summary title issues) "\n")
+			(magit-insert-section-body
+			 (if issues
+			     (dolist (issue issues)
+			       (hub/confluence-sync-status--render-magit-issue issue))
+			   (insert "  " (hub/confluence-sync-status--face
+					 "✓" 'hub/confluence-sync-status-clean-face)
+				   " " (hub/confluence-sync-status--face
+					"No issues." 'hub/confluence-sync-status-muted-face) "\n")))))
+
+(defun hub/confluence-sync-status--insert-metadata (field value)
+  "Insert metadata FIELD and VALUE with distinct faces."
+  (insert (hub/confluence-sync-status--face
+	   (concat field ": ") 'hub/confluence-sync-status-field-face)
+	  (hub/confluence-sync-status--face
+	   (or value "<none>") 'hub/confluence-sync-status-value-face)
+	  "\n"))
+
+(defun hub/confluence-sync-status--insert-action-help (text)
+  "Insert subdued action help TEXT."
+  (insert (hub/confluence-sync-status--face
+	   text 'hub/confluence-sync-status-muted-face)))
+
+(defun hub/confluence-sync-status--render (status source-buffer)
+  "Render STATUS for SOURCE-BUFFER in the current buffer."
+  (let* ((state (or (hub/confluence-sync-status--string-value
+		     (alist-get 'state status))
+		    "unknown"))
+	 (issues (append (alist-get 'issues status) nil))
+	 (page (seq-filter (lambda (issue) (equal "page" (alist-get 'category issue))) issues))
+	 (comments (seq-filter (lambda (issue) (equal "comment" (alist-get 'category issue))) issues))
+	 (attachments (seq-filter (lambda (issue) (equal "attachment" (alist-get 'category issue))) issues))
+	 (people (seq-filter (lambda (issue) (equal "people" (alist-get 'category issue))) issues)))
+    (insert (hub/confluence-sync-status--face
+	     "Org ↔ Confluence Sync Status"
+	     'hub/confluence-sync-status-heading-face) "\n")
+    (hub/confluence-sync-status--insert-metadata
+     "Source" (or (buffer-file-name source-buffer) "<none>"))
+    (hub/confluence-sync-status--insert-metadata
+     "Page" (or (alist-get 'pageId status) "<none>"))
+    (hub/confluence-sync-status--insert-metadata
+     "Checked" (or (alist-get 'checkedAt status) "<unknown>"))
+    (insert (hub/confluence-sync-status--face
+	     "Overall: " 'hub/confluence-sync-status-field-face)
+	    (hub/confluence-sync-status--face
+	     "Sync " 'hub/confluence-sync-status-value-face)
+	    (hub/confluence-sync-status--state-chip state))
+    (when-let* ((summary (hub/confluence-sync-status--string-value
+			  (alist-get 'summary status)))
+		(_ (not (string-empty-p summary))))
+      (insert (hub/confluence-sync-status--face
+	       (format " — %s" summary)
+	       (hub/confluence-sync-status--state-face state))))
+    (insert "\n\n")
+    (hub/confluence-sync-status--render-magit-section "Page" page)
+    (hub/confluence-sync-status--render-magit-section "Comments" comments)
+    (hub/confluence-sync-status--render-magit-section "Attachments" attachments)
+    (hub/confluence-sync-status--render-magit-section "People" people)
+    (insert "\n\n")
+    (magit-insert-section (sync-actions nil t)
+			  (hub/confluence-sync-status--insert-action-help
+			   "Actions  (? opens action menu)\n")
+			  (magit-insert-section-body
+			   (hub/confluence-sync-status--insert-action-help
+			    "  Global: g refresh · i import comments · u resolve people · p publish safely · o open page\n")
+			   (hub/confluence-sync-status--insert-action-help
+			    "  At point: RET open issue/comment · x delete local when recommended · a reanchor comments\n")
+			   (hub/confluence-sync-status--insert-action-help
+			    "  Advanced: A repair remote anchors · m remap image · ! force publish · q quit\n")))))
+
+(defun hub/confluence-sync-status--page-context-window (source-buffer)
+  "Return visible page-context window for SOURCE-BUFFER, or nil."
+  (when (buffer-live-p source-buffer)
+    (with-current-buffer source-buffer
+      (when (and (boundp 'hub/org-context-panel--page-panel-buffer)
+		 (buffer-live-p hub/org-context-panel--page-panel-buffer))
+	(get-buffer-window hub/org-context-panel--page-panel-buffer t)))))
+
+(defun hub/confluence-sync-status--display-bottom (buffer source-buffer)
+  "Display sync status BUFFER below SOURCE-BUFFER.
+If a page-comments panel is already visible, reuse its window and return
+`page-context'.  Otherwise create/reuse a bottom window and return nil."
+  (let* ((source-window (or (get-buffer-window source-buffer t) (selected-window)))
+	 (page-window (hub/confluence-sync-status--page-context-window source-buffer))
+	 (target-window (or page-window
+			    (split-window source-window
+					  (- (max 8 (floor (* (window-total-height source-window) 0.33))))
+					  'below))))
+    (set-window-buffer target-window buffer)
+    (select-window target-window)
+    (when page-window 'page-context)))
+
+;;;###autoload
+(defun hub/confluence-sync-status-open-from-marker ()
+  "Open sync status from the top marker, refreshing stale or unknown cache."
+  (interactive)
+  (let* ((cached (hub/confluence-sync-status--cache-state buffer-file-name))
+	 (state (alist-get 'state cached)))
+    (hub/confluence-sync-status (equal state "unknown"))))
+
+;;;###autoload
+(defun hub/confluence-sync-status (&optional _refresh)
+  "Refresh and open Confluence sync status report for the current Org buffer."
+  (interactive "P")
+  (let* ((source-buffer (current-buffer))
+	 (status (let ((fresh (hub/confluence-sync-status--collect source-buffer)))
+		   (hub/confluence-sync-status--write-cache
+		    fresh (buffer-file-name source-buffer))
+		   (hub/confluence-sync-status--refresh-source-marker source-buffer)
+		   fresh))
+	 (buffer (get-buffer-create "*Org Confluence Sync Status*")))
+    (with-current-buffer buffer
+      (let ((inhibit-read-only t))
+	(erase-buffer)
+	(hub/confluence-sync-status-mode)
+	(setq-local hub/confluence-sync-status--source-buffer source-buffer)
+	(hub/confluence-sync-status--render status source-buffer)
+	(goto-char (point-min))))
+    (with-current-buffer buffer
+      (setq-local hub/confluence-sync-status--restore-page-context
+		  (eq (hub/confluence-sync-status--display-bottom buffer source-buffer)
+		      'page-context)))
+    buffer))
+
+(defun hub/confluence-sync-status-refresh ()
+  "Refresh the current Confluence sync status report."
+  (interactive)
+  (unless (buffer-live-p hub/confluence-sync-status--source-buffer)
+    (user-error "No source buffer for this sync status report"))
+  (with-current-buffer hub/confluence-sync-status--source-buffer
+    (hub/confluence-sync-status t)))
 
 (defun hub/confluence-commands--publish-subpages (subtreep visible-only body-only ext-plist)
   "Publish direct child subpages for current export scope before their parent."
