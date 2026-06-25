@@ -36,7 +36,8 @@
 - Preferred workflow: enable `direnv` and run `direnv allow` at repo root.
 - Use `devenv shell -- <command>` for one-off commands to match local hooks and CI.
 - `devenv.nix` defines convenience scripts and pre-commit hooks; check it before inventing new commands.
-- When a tool or LaTeX/package dependency is missing from the development environment, install it through `devenv.nix` instead of reimplementing that capability inside repo code.
+- When a general tool dependency is missing from the development environment, install it through `devenv.nix` instead of reimplementing that capability inside repo code.
+- Exception: LaTeX packages expected by Emacs document/export workflows must be added in `~/nixos-config/`, not only in this repo's `devenv.nix`. The canonical Home Manager linkage lives in `~/nixos-config/modules/home/emacs/texlive.nix`, re-exported by `~/nixos-config/modules/home/texlive/default.nix`, so GUI Emacs and system activation get the same TeX Live closure.
 - CI and many local checks run with `HOME=$PWD` so state stays inside the repository.
 - Environment predicates live in `core/core-predicates.el`: `hub/interactive-p`, `hub/batch-p`, `hub/gui-p`, `hub/tty-p`, `hub/ci-p`.
 

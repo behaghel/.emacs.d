@@ -19,8 +19,11 @@
   (defvar hub/direnv--pending-timer nil
     "Pending idle timer for deferred direnv updates.")
 
-  (defvar hub/direnv--last-scheduled-directory nil
-    "Last directory scheduled for a direnv update.")
+  (defvar hub/direnv--pending-directory nil
+    "Directory currently waiting for a deferred direnv update.")
+
+  (defvar hub/direnv--last-applied-directory nil
+    "Directory most recently applied by the deferred direnv integration.")
 
   (defun hub/direnv--buffer-directory (&optional buffer)
     "Return local directory relevant for direnv in BUFFER."
@@ -36,13 +39,29 @@
     (when dir
       (locate-dominating-file dir ".envrc")))
 
+  (defun hub/direnv--active-directory ()
+    "Return the directory currently active in `direnv', if known."
+    (when (boundp 'direnv--active-directory)
+      (symbol-value 'direnv--active-directory)))
+
+  (defun hub/direnv--environment-current-p (dir)
+    "Return non-nil when DIR is already the active direnv directory."
+    (equal dir (or (hub/direnv--active-directory)
+		   hub/direnv--last-applied-directory)))
+
   (defun hub/direnv--apply-directory (dir)
     "Apply direnv environment for DIR."
-    (when (and dir (file-directory-p dir) (not (file-remote-p dir)))
-      (condition-case err
-	  (direnv-update-directory-environment dir)
-	(error
-	 (message "[direnv] failed for %s: %s" dir (error-message-string err))))))
+    (unwind-protect
+	(when (and dir (file-directory-p dir) (not (file-remote-p dir)))
+	  (condition-case err
+	      (progn
+		(direnv-update-directory-environment dir)
+		(setq hub/direnv--last-applied-directory dir))
+	    (error
+	     (message "[direnv] failed for %s: %s" dir (error-message-string err)))))
+      (when (equal dir hub/direnv--pending-directory)
+	(setq hub/direnv--pending-directory nil))
+      (setq hub/direnv--pending-timer nil)))
 
   (defun hub/direnv-schedule-update (&optional buffer)
     "Schedule a deferred direnv update for BUFFER.
@@ -50,10 +69,12 @@ The update runs on an idle timer so file visits and project switches can display
 first; environment-sensitive tooling catches up shortly after."
     (let* ((dir (hub/direnv--buffer-directory buffer))
 	   (env-root (hub/direnv--project-root-with-envrc dir)))
-      (when (and env-root (not (equal env-root hub/direnv--last-scheduled-directory)))
-	(setq hub/direnv--last-scheduled-directory env-root)
+      (when (and env-root
+		 (not (hub/direnv--environment-current-p env-root))
+		 (not (equal env-root hub/direnv--pending-directory)))
 	(when (timerp hub/direnv--pending-timer)
 	  (cancel-timer hub/direnv--pending-timer))
+	(setq hub/direnv--pending-directory env-root)
 	(setq hub/direnv--pending-timer
 	      (run-with-idle-timer hub/direnv-idle-delay nil
 				   #'hub/direnv--apply-directory env-root)))))
