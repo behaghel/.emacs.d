@@ -14,6 +14,11 @@
 
 (use-package adaptive-wrap :commands adaptive-wrap-prefix-mode)
 (use-package visual-fill-column :defer t)
+(use-package phscroll
+  :straight (:type git :host github :repo "misohena/phscroll" :files ("*.el"))
+  :after org
+  :config
+  (require 'org-phscroll nil t))
 
 (use-package artbollocks-mode
   :commands (artbollocks-mode)

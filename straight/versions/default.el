@@ -93,6 +93,7 @@
  ("persist" . "a4c6e759e340d7af9b3f2aad21d279f336cfde68")
  ("perspective-el" . "f5f87d1670dd2b5e813a2201dec40b1945da264f")
  ("perspective-project-bridge" . "bd262893d5413e809bb2ac09142e413d1626d503")
+ ("phscroll" . "06569550a1474fe7db49643fee20b252b8fb603a")
  ("pfuture" . "19b53aebbc0f2da31de6326c495038901bffb73c")
  ("pinentry" . "99480adc192f657d7d9f2eb3ed4e568df3de8613")
  ("popwin" . "f7a39759180fa88f3890c3c5f35379ab086e04fa")
