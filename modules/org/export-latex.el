@@ -68,6 +68,11 @@ When nil, discover devenv from `exec-path' and common Nix profile locations."
 (defconst hub/org-export--babel-package '("AUTO" "babel" nil)
   "Package entry enabling locale-aware Babel wiring in Org LaTeX exports.")
 
+(defconst hub/org-export--french-month-names
+  '("janvier" "février" "mars" "avril" "mai" "juin"
+    "juillet" "août" "septembre" "octobre" "novembre" "décembre")
+  "French month names for locale-owned generated dates.")
+
 (defconst hub/org-export--latex-class-directory
   (expand-file-name "etc/latex" user-emacs-directory)
   "Directory containing repo-local LaTeX class assets.")
@@ -232,6 +237,55 @@ This is intentionally narrow and targets metadata-like strings."
       (setq result
 	    (replace-regexp-in-string (regexp-quote (car pair)) (cdr pair) result t t)))
     result))
+
+(defun hub/org-export--date-components-from-iso-string (date)
+  "Return (YEAR MONTH DAY) parsed from ISO DATE, or nil."
+  (when (and (stringp date)
+	     (string-match "\\`\\([0-9][0-9][0-9][0-9]\\)-\\([0-9][0-9]\\)-\\([0-9][0-9]\\)\\'" date))
+    (list (string-to-number (match-string 1 date))
+	  (string-to-number (match-string 2 date))
+	  (string-to-number (match-string 3 date)))))
+
+(defun hub/org-export--date-components-from-timestamp (date)
+  "Return (YEAR MONTH DAY) from single timestamp DATE, or nil."
+  (when (and date
+	     (not (cdr date))
+	     (org-element-type-p (car date) 'timestamp))
+    (let ((timestamp (car date)))
+      (list (org-element-property :year-start timestamp)
+	    (org-element-property :month-start timestamp)
+	    (org-element-property :day-start timestamp)))))
+
+(defun hub/org-export--french-date-from-components (components)
+  "Return fine French LaTeX date text from date COMPONENTS."
+  (pcase-let ((`(,year ,month ,day) components))
+    (when (and year month day
+	       (<= 1 month)
+	       (<= month (length hub/org-export--french-month-names)))
+      (format "%s~%s~%s"
+	      (if (= day 1) "1er" (number-to-string day))
+	      (nth (1- month) hub/org-export--french-month-names)
+	      year))))
+
+(defun hub/org-export--format-hub-article-date (info fallback)
+  "Return locale-aware hub-article date for INFO, or FALLBACK."
+  (if (and (hub/org-export--info-hub-article-p info)
+	   (equal (plist-get info :language) "fr"))
+      (or (hub/org-export--french-date-from-components
+	   (or (hub/org-export--date-components-from-timestamp (plist-get info :date))
+	       (hub/org-export--date-components-from-iso-string fallback)))
+	  fallback)
+    fallback))
+
+(defun hub/org-export--advice-org-latex--format-spec (orig info)
+  "Make Org LaTeX metadata format spec locale-aware around ORIG for INFO."
+  (let* ((spec (funcall orig info))
+	 (date (cdr (assq ?D spec)))
+	 (formatted-date (hub/org-export--format-hub-article-date info date)))
+    (if (equal formatted-date date)
+	spec
+      (cons (cons ?D formatted-date)
+	    (assq-delete-all ?D (copy-sequence spec))))))
 
 (defun hub/org-export--kpsewhich-file (file)
   "Return non-empty kpsewhich result for FILE, or nil."
@@ -412,6 +466,25 @@ buffer metadata.  Missing variants default to
      ((not (hub/org-export--gallery-white-leading-standfirst-p))
       (user-error "gallery-white standfirst must be the first content block")))))
 
+(defun hub/org-export--package-entry-name (entry)
+  "Return the LaTeX package name from package-alist ENTRY."
+  (cadr entry))
+
+(defun hub/org-export--filter-latex-package (package entries)
+  "Return ENTRIES without LaTeX PACKAGE entries."
+  (seq-remove (lambda (entry)
+		(equal (hub/org-export--package-entry-name entry) package))
+	      entries))
+
+(defun hub/org-export--use-class-owned-fontspec ()
+  "Keep fontspec in the class file instead of generated LaTeX preamble."
+  (setq-local org-latex-default-packages-alist
+	      (hub/org-export--filter-latex-package
+	       "fontspec" org-latex-default-packages-alist))
+  (setq-local org-latex-packages-alist
+	      (hub/org-export--filter-latex-package
+	       "fontspec" org-latex-packages-alist)))
+
 (defun hub/org-export--insert-header-extra (latex-line)
   "Insert LATEX-LINE as a `LATEX_HEADER_EXTRA' keyword at the end of the header.
 Insertion happens after `#+COLUMNS:' and similar buffer-wide settings,
@@ -448,6 +521,7 @@ not at `point-min', to avoid interfering with `#+TITLE:' keyword parsing."
     (when (and code-theme (not (string-empty-p code-theme)) (not (member code-theme '("light" "dark"))))
       (user-error "Invalid EXPORT_CODE_THEME: %s. Must be 'light' or 'dark'." code-theme))
     (setq-local org-export-with-toc nil)
+    (hub/org-export--use-class-owned-fontspec)
     (setq-local org-latex-compiler (hub/org-export--effective-compiler))
     (setq-local org-latex-pdf-process
 		(hub/org-export--pdf-process-for-compiler org-latex-compiler))
@@ -518,6 +592,7 @@ not at `point-min', to avoid interfering with `#+TITLE:' keyword parsing."
   "Configure title variables for the personal article class."
   (let ((eyebrow (hub/org-export--keyword-string "EXPORT_EYEBROW")))
     (setq-local org-export-with-toc nil)
+    (hub/org-export--use-class-owned-fontspec)
     ;; Strip any toc: setting from #+OPTIONS in the buffer copy,
     ;; so the `setq-local' above is the single authority for TOC.
     (save-excursion
@@ -575,6 +650,7 @@ This runs on the temporary export buffer only."
      ((hub/org-export--hub-article-p)
       (hub/org-export--configure-hub-article-title))
      ((hub/org-export--xelatex-class-p)
+      (hub/org-export--use-class-owned-fontspec)
       (setq-local org-latex-compiler (hub/org-export--effective-compiler))
       (setq-local org-latex-pdf-process
 		  (hub/org-export--pdf-process-for-compiler org-latex-compiler))))))
@@ -1057,6 +1133,7 @@ When OUTPUT-DIR is nil, export into the same directory as the Org file
 (hub/org-export--ensure-texinputs)
 (advice-add 'org-latex--org-table :around #'hub/org-export--advice-org-latex-org-table)
 (advice-add 'org-latex-special-block :around #'hub/org-export--advice-org-latex-special-block)
+(advice-add 'org-latex--format-spec :around #'hub/org-export--advice-org-latex--format-spec)
 (advice-add 'org-latex--text-markup :around #'hub/org-export--advice-org-latex--text-markup)
 (advice-add 'org-latex--inline-image :around #'hub/org-export--advice-org-latex--inline-image)
 (advice-add 'org-latex-item :around #'hub/org-export--advice-org-latex-item)

@@ -48,6 +48,44 @@ More content."))
       (ignore-errors (delete-file org-file))
       (ignore-errors (delete-file tex-file)))))
 
+(ert-deftest hub/org-export-hub-article-french-hero-date ()
+  "Export French hub-article dates with editorial typography."
+  (let ((org-file (make-temp-file "hub-article-fr-date-" nil ".org"
+				  "#+TITLE: Article français
+#+AUTHOR: Test Author
+#+DATE: <2026-06-22 Mon>
+#+LANGUAGE: fr
+#+LATEX_CLASS: hub-article
+#+OPTIONS: toc:nil
+
+Texte.")))
+    (unwind-protect
+	(with-current-buffer (find-file-noselect org-file)
+	  (hub/org-export-register-hub-article)
+	  (let ((output (org-export-as 'latex nil nil nil nil)))
+	    (should output)
+	    (should (string-match-p "\\\\HubArticleMeta{Test Author}{22~juin~2026}" output))))
+      (ignore-errors (delete-file org-file)))))
+
+(ert-deftest hub/org-export-hub-article-french-first-day-date ()
+  "Export the first day of a French month as 1er in hub-article metadata."
+  (let ((org-file (make-temp-file "hub-article-fr-date-" nil ".org"
+				  "#+TITLE: Article français
+#+AUTHOR: Test Author
+#+DATE: 2026-06-01
+#+LANGUAGE: fr
+#+LATEX_CLASS: hub-article
+#+OPTIONS: toc:nil
+
+Texte.")))
+    (unwind-protect
+	(with-current-buffer (find-file-noselect org-file)
+	  (hub/org-export-register-hub-article)
+	  (let ((output (org-export-as 'latex nil nil nil nil)))
+	    (should output)
+	    (should (string-match-p "\\\\HubArticleMeta{Test Author}{1er~juin~2026}" output))))
+      (ignore-errors (delete-file org-file)))))
+
 (ert-deftest hub/org-export-no-toc-in-hub-article-subtree ()
   "Export a hub-article subtree and verify no TOC."
   (let ((org-file (make-temp-file "hub-article-test-" nil ".org"

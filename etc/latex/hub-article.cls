@@ -331,7 +331,8 @@
   \vspace{0.2em}{\HubArticleSans\footnotesize\bfseries\textcolor{HubArticleAccentMuted}{#1}}\par\vspace{0.1em}%
 }
 
-\newenvironment{HubArticleCallout}{%
+\newenvironment{HubArticleCallout}{}{}
+\renewenvironment{HubArticleCallout}{%
   \par\addvspace{0.95em}\noindent
   \begingroup
   \HubArticleSans\small\color{HubArticleInk}%
