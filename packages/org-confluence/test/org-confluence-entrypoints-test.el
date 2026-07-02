@@ -146,22 +146,47 @@
   (let ((source (generate-new-buffer " *org-confluence-source*"))
 	(calls nil))
     (unwind-protect
-	(with-temp-buffer
-	  (setq-local org-confluence-sync-status--source-buffer source)
-	  (cl-letf (((symbol-function 'org-confluence-sync-page-current)
-		     (lambda (&rest _) (push (list 'sync-page (current-buffer)) calls)))
-		    ((symbol-function 'org-confluence-sync-current)
-		     (lambda (&rest _) (push (list 'sync-current (current-buffer)) calls)))
-		    ((symbol-function 'org-confluence-pull)
-		     (lambda (&rest args) (push (list 'pull (current-buffer) args) calls))))
-	    (org-confluence-sync-status-sync-page)
-	    (org-confluence-sync-status-sync-current)
-	    (org-confluence-sync-status-pull-page)
-	    (org-confluence-sync-status-pull-page-with-comments))
-	  (should (member (list 'sync-page source) calls))
-	  (should (member (list 'sync-current source) calls))
-	  (should (member (list 'pull source nil) calls))
-	  (should (member (list 'pull source '(nil t)) calls)))
+	(progn
+	  (with-current-buffer source
+	    (org-mode)
+	    (setq buffer-file-name "/tmp/article.org"))
+	  (with-temp-buffer
+	    (setq-local org-confluence-sync-status--source-buffer source)
+	    (cl-letf (((symbol-function 'org-confluence-sync-page-current)
+		       (lambda (&rest _) (push (list 'sync-page (current-buffer)) calls)))
+		      ((symbol-function 'org-confluence-sync-current)
+		       (lambda (&rest _) (push (list 'sync-current (current-buffer)) calls)))
+		      ((symbol-function 'org-confluence-pull)
+		       (lambda (&rest args) (push (list 'pull (current-buffer) args) calls))))
+	      (org-confluence-sync-status-sync-page)
+	      (org-confluence-sync-status-sync-current)
+	      (org-confluence-sync-status-pull-page)
+	      (org-confluence-sync-status-pull-page-with-comments))
+	    (should (member (list 'sync-page source) calls))
+	    (should (member (list 'sync-current source) calls))
+	    (should (member (list 'pull source nil) calls))
+	    (should (member (list 'pull source '(nil t)) calls))))
+      (kill-buffer source))))
+
+(ert-deftest org-confluence-sync-status-action-recovers-source-from-help-buffer ()
+  "Sync status actions keep working after focus moves to a helper buffer."
+  (let ((source (generate-new-buffer " *org-confluence-source*"))
+	(org-confluence-sync-status--last-source-buffer nil)
+	called)
+    (unwind-protect
+	(progn
+	  (with-current-buffer source
+	    (org-mode)
+	    (setq buffer-file-name "/tmp/article.org")
+	    (insert "#+CONFLUENCE_PAGE_ID: 123\n\nBody\n"))
+	  (setq org-confluence-sync-status--last-source-buffer source)
+	  (with-temp-buffer
+	    (help-mode)
+	    (cl-letf (((symbol-function 'org-confluence-sync-page-current)
+		       (lambda (&rest _)
+			 (setq called (current-buffer)))))
+	      (org-confluence-sync-status-sync-page)))
+	  (should (eq called source)))
       (kill-buffer source))))
 
 (ert-deftest org-confluence-sync-status-marker-is-idempotent ()

@@ -17,6 +17,9 @@
 (defvar-local org-confluence-sync-status--source-buffer nil
   "Source Org buffer associated with the current Confluence sync status report.")
 
+(defvar org-confluence-sync-status--last-source-buffer nil
+  "Last source Org buffer associated with a Confluence sync status report.")
+
 (defvar org-confluence-sync-status-refresh-source-marker-function nil
   "Function called with a source buffer after sync status cache updates.")
 
@@ -139,6 +142,7 @@
 	(erase-buffer)
 	(org-confluence-sync-status-mode)
 	(setq-local org-confluence-sync-status--source-buffer source-buffer)
+	(setq org-confluence-sync-status--last-source-buffer source-buffer)
 	(org-confluence-sync-status-render status source-buffer)
 	(goto-char (point-min))))
     (org-confluence-sync-status-display-bottom buffer source-buffer)

@@ -27,13 +27,52 @@
 (declare-function org-confluence-sync-status-refresh "org-confluence-sync-status" ())
 (defvar org-confluence-sync-status--source-buffer nil
   "Source Org buffer associated with the current Confluence sync status report.")
+(defvar org-confluence-sync-status--last-source-buffer nil
+  "Last source Org buffer associated with a Confluence sync status report.")
+
+(defun org-confluence-sync-status--source-buffer-live-p (buffer)
+  "Return non-nil when BUFFER is a live source buffer."
+  (and (buffer-live-p buffer)
+       (with-current-buffer buffer
+	 (and (derived-mode-p 'org-mode)
+	      buffer-file-name))))
+
+(defun org-confluence-sync-status--linked-org-buffer-p (buffer)
+  "Return non-nil when BUFFER looks like a Confluence-linked Org source."
+  (and (org-confluence-sync-status--source-buffer-live-p buffer)
+       (with-current-buffer buffer
+	 (save-excursion
+	   (goto-char (point-min))
+	   (re-search-forward "^[ \\t]*#\\+CONFLUENCE_PAGE_ID:" nil t)))))
+
+(defun org-confluence-sync-status--source-buffer-from-visible-report ()
+  "Return a source buffer from any visible sync status report."
+  (cl-loop for window in (window-list nil 'no-minibuf)
+	   for buffer = (window-buffer window)
+	   for source = (buffer-local-value
+			 'org-confluence-sync-status--source-buffer buffer)
+	   when (org-confluence-sync-status--source-buffer-live-p source)
+	   return source))
+
+(defun org-confluence-sync-status--resolve-source-buffer ()
+  "Return the best available source buffer for a sync status action."
+  (or (and (org-confluence-sync-status--source-buffer-live-p
+	    org-confluence-sync-status--source-buffer)
+	   org-confluence-sync-status--source-buffer)
+      (org-confluence-sync-status--source-buffer-from-visible-report)
+      (and (org-confluence-sync-status--linked-org-buffer-p (current-buffer))
+	   (current-buffer))
+      (and (org-confluence-sync-status--source-buffer-live-p
+	    org-confluence-sync-status--last-source-buffer)
+	   org-confluence-sync-status--last-source-buffer)))
 
 (defun org-confluence-sync-status--with-source-buffer (function)
   "Run FUNCTION in this report's source buffer."
-  (unless (buffer-live-p org-confluence-sync-status--source-buffer)
-    (user-error "No source buffer for this sync status report"))
-  (with-current-buffer org-confluence-sync-status--source-buffer
-    (funcall function)))
+  (let ((source-buffer (org-confluence-sync-status--resolve-source-buffer)))
+    (unless source-buffer
+      (user-error "No source buffer for this sync status action"))
+    (with-current-buffer source-buffer
+      (funcall function))))
 
 (defun org-confluence-sync-status-import-comments ()
   "Import Confluence comments for this sync status report's source buffer."
