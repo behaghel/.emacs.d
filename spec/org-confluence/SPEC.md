@@ -42,7 +42,7 @@ not part of the target architecture.
 - **Content format:** Confluence Storage Format (XHTML), written to a temporary `.xhtml` file and sent via `cfl page edit --file <file> --storage` or `cfl page create --file <file> --storage`.
 - **Page identity:** Document-level `#+CONFLUENCE_PAGE_ID: <id>` keyword for existing pages. Optional `#+CONFLUENCE_SPACE: <key>` for new page creation, falling back to `org-confluence-api-default-space` when configured.
 - **Update semantics:** Full replacement. Confluence versions the page automatically on each update. No append/prepend mode.
-- **Publish safety:** When a buffer records `#+CONFLUENCE_PAGE_VERSION`, normal publish checks the remote page version before uploading assets or editing the page. If Confluence changed since the last recorded sync, publish refuses and directs the user to run page sync or explicitly force publish.
+- **Publish safety:** When a buffer records `#+CONFLUENCE_PAGE_VERSION`, normal publish checks the remote page version before uploading assets or editing the page. If Confluence changed since the last recorded sync, publish refuses and directs the user to run page sync or explicitly force publish. Successful whole-buffer publish records sync metadata, including `#+CONFLUENCE_LOCAL_ORG_HASH`, so a subsequent pull can prove the local file is safe to refresh.
 - **Table mapping:** Simple `<table>` with `<th>` for header rows, `<td>` for body rows. No branded Confluence styling or custom column widths.
 - **Date mapping:** Org active and inactive date timestamps export to Confluence native `<time datetime="YYYY-MM-DD" />` elements. Confluence time elements import as inactive Org dates (`[YYYY-MM-DD]`) to preserve the calendar date without implying scheduled Org semantics.
 
@@ -188,6 +188,7 @@ Without a caption, omit `ac:alt` and the caption paragraph.
 - Import starts conservatively with common storage XHTML: headings, paragraphs, inline emphasis/code/links, simple ordered/unordered lists, nested lists, tables, Confluence status chips, Confluence emoji fallbacks, and panel-like macros as semantic callouts.
 - Pull defaults to the current buffer's `#+CONFLUENCE_PAGE_ID` when present and otherwise prompts for a page ID.
 - Interactive `org-confluence-pull` includes comments when called with a prefix argument.
+- Sync status exposes direct content actions separately from comment actions: `y` syncs page content, `f` fetches page content, `p` publishes, `Y` syncs page plus comments, `F` fetches page plus comments, and `i` imports comments only.
 - `org-confluence-pull-to-file` accepts `:include-comments t`; when set, page body import writes only the main Org file and remote Confluence comments are imported into the conventionally adjacent `.comments.org` sidecar. The return plist includes `:comments-file`, `:comments-count`, `:footer-comments-count`, and `:inline-comments-count`.
 
 **Current acceptance status:**

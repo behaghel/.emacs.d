@@ -5,6 +5,7 @@
 
 ;;; Code:
 
+(require 'cl-lib)
 (require 'ert)
 (require 'org-confluence)
 (require 'org-confluence-commands)
@@ -128,6 +129,40 @@
     (insert "#+TITLE: Plain\n\nBody\n")
     (org-confluence-mode-maybe)
     (should-not org-confluence-mode)))
+
+(ert-deftest org-confluence-sync-status-map-exposes-content-and-comment-actions ()
+  "Sync status mode exposes direct content and comment operations."
+  (should (eq (lookup-key org-confluence-sync-status-mode-map (kbd "y"))
+	      #'org-confluence-sync-status-sync-page))
+  (should (eq (lookup-key org-confluence-sync-status-mode-map (kbd "Y"))
+	      #'org-confluence-sync-status-sync-current))
+  (should (eq (lookup-key org-confluence-sync-status-mode-map (kbd "f"))
+	      #'org-confluence-sync-status-pull-page))
+  (should (eq (lookup-key org-confluence-sync-status-mode-map (kbd "F"))
+	      #'org-confluence-sync-status-pull-page-with-comments)))
+
+(ert-deftest org-confluence-sync-status-actions-delegate-to-source-buffer ()
+  "Sync status content/comment actions run in their source buffer."
+  (let ((source (generate-new-buffer " *org-confluence-source*"))
+	(calls nil))
+    (unwind-protect
+	(with-temp-buffer
+	  (setq-local org-confluence-sync-status--source-buffer source)
+	  (cl-letf (((symbol-function 'org-confluence-sync-page-current)
+		     (lambda (&rest _) (push (list 'sync-page (current-buffer)) calls)))
+		    ((symbol-function 'org-confluence-sync-current)
+		     (lambda (&rest _) (push (list 'sync-current (current-buffer)) calls)))
+		    ((symbol-function 'org-confluence-pull)
+		     (lambda (&rest args) (push (list 'pull (current-buffer) args) calls))))
+	    (org-confluence-sync-status-sync-page)
+	    (org-confluence-sync-status-sync-current)
+	    (org-confluence-sync-status-pull-page)
+	    (org-confluence-sync-status-pull-page-with-comments))
+	  (should (member (list 'sync-page source) calls))
+	  (should (member (list 'sync-current source) calls))
+	  (should (member (list 'pull source nil) calls))
+	  (should (member (list 'pull source '(nil t)) calls)))
+      (kill-buffer source))))
 
 (ert-deftest org-confluence-sync-status-marker-is-idempotent ()
   "Source sync marker refresh removes persisted duplicates and keeps one overlay."

@@ -58,6 +58,10 @@
     (when (boundp 'magit-section-mode-map)
       (set-keymap-parent map magit-section-mode-map))
     (define-key map (kbd "g") #'org-confluence-sync-status-refresh)
+    (define-key map (kbd "y") #'org-confluence-sync-status-sync-page)
+    (define-key map (kbd "Y") #'org-confluence-sync-status-sync-current)
+    (define-key map (kbd "f") #'org-confluence-sync-status-pull-page)
+    (define-key map (kbd "F") #'org-confluence-sync-status-pull-page-with-comments)
     (define-key map (kbd "i") #'org-confluence-sync-status-import-comments)
     (define-key map (kbd "a") #'org-confluence-sync-status-reanchor-comments)
     (define-key map (kbd "A") #'org-confluence-sync-status-repair-anchors)
@@ -91,19 +95,25 @@
 (when (featurep 'transient)
   (transient-define-prefix org-confluence-sync-status-dispatch ()
 			   "Show Confluence sync status actions."
-			   [["Global"
-			     ("g" "refresh" org-confluence-sync-status-refresh)
-			     ("i" "import comments" org-confluence-sync-status-import-comments)
-			     ("u" "resolve people" org-confluence-sync-status-resolve-people)
+			   [["Content"
+			     ("g" "refresh report" org-confluence-sync-status-refresh)
+			     ("y" "sync page" org-confluence-sync-status-sync-page)
+			     ("f" "fetch page" org-confluence-sync-status-pull-page)
 			     ("p" "publish safely" org-confluence-sync-status-publish)
+			     ("!" "force publish" org-confluence-sync-status-force-publish)
 			     ("o" "open page" org-confluence-sync-status-open-page)]
-			    ["At point"
+			    ["Comments"
+			     ("Y" "sync page + comments" org-confluence-sync-status-sync-current)
+			     ("F" "fetch page + comments" org-confluence-sync-status-pull-page-with-comments)
+			     ("i" "import comments" org-confluence-sync-status-import-comments)
+			     ("C" "open sidecar" org-confluence-sync-status-open-sidecar)
+			     ("L" "list remote comments" org-confluence-sync-status-list-comments)]
+			    ["At point / tools"
 			     ("RET" "open issue/comment" org-confluence-sync-status-act-at-point)
 			     ("x" "delete local deleted-remote comment" org-confluence-sync-status-delete-local-at-point)
-			     ("a" "reanchor local comments" org-confluence-sync-status-reanchor-comments)]
-			    ["Advanced"
+			     ("a" "reanchor local comments" org-confluence-sync-status-reanchor-comments)
 			     ("A" "repair remote anchors" org-confluence-sync-status-repair-anchors)
-			     ("!" "force publish" org-confluence-sync-status-force-publish)]]))
+			     ("u" "resolve people" org-confluence-sync-status-resolve-people)]]))
 
 ;;;###autoload
 (defun org-confluence-sync-status-open-from-marker ()

@@ -16,7 +16,9 @@
 
 (require 'org-confluence-comments-diagnostics)
 (require 'org-confluence-comments-import)
+(require 'org-confluence-import)
 (require 'org-confluence-inline-repair)
+(require 'org-confluence-sync)
 (require 'org-confluence-sync-status-collect)
 
 (declare-function org-confluence-publish "org-confluence-publish" (&optional page-id subtreep visible-only body-only ext-plist))
@@ -54,6 +56,28 @@
   (org-confluence-sync-status--with-source-buffer
    (lambda ()
      (org-confluence-inline-repair-comment-anchors))))
+
+(defun org-confluence-sync-status-sync-page ()
+  "Synchronize this report's source page content with Confluence."
+  (interactive)
+  (org-confluence-sync-status--with-source-buffer #'org-confluence-sync-page-current))
+
+(defun org-confluence-sync-status-sync-current ()
+  "Synchronize this report's source page content and comments with Confluence."
+  (interactive)
+  (org-confluence-sync-status--with-source-buffer #'org-confluence-sync-current))
+
+(defun org-confluence-sync-status-pull-page ()
+  "Pull this report's source page content from Confluence."
+  (interactive)
+  (org-confluence-sync-status--with-source-buffer #'org-confluence-pull))
+
+(defun org-confluence-sync-status-pull-page-with-comments ()
+  "Pull this report's source page content and comments from Confluence."
+  (interactive)
+  (org-confluence-sync-status--with-source-buffer
+   (lambda ()
+     (org-confluence-pull nil t))))
 
 (defun org-confluence-sync-status-publish ()
   "Publish this report's source buffer to Confluence."

@@ -42,8 +42,12 @@
 | =org-confluence-sync-status-open-page= | Open this report's source Confluence page. |
 | =org-confluence-sync-status-open-sidecar= | Open this report's source sidecar comment file. |
 | =org-confluence-sync-status-publish= | Publish this report's source buffer to Confluence. |
+| =org-confluence-sync-status-pull-page= | Pull this report's source page content from Confluence. |
+| =org-confluence-sync-status-pull-page-with-comments= | Pull this report's source page content and comments from Confluence. |
 | =org-confluence-sync-status-reanchor-comments= | Reanchor imported inline comments for this report's source buffer. |
 | =org-confluence-sync-status-refresh= | Refresh the current Confluence sync status report. |
 | =org-confluence-sync-status-refresh-source-marker= | Refresh the Confluence sync status marker in the current Org source buffer. |
 | =org-confluence-sync-status-repair-anchors= | Repair remote Confluence inline anchors for this report's source buffer. |
 | =org-confluence-sync-status-resolve-people= | Resolve Confluence people for this report's source directory. |
+| =org-confluence-sync-status-sync-current= | Synchronize this report's source page content and comments with Confluence. |
+| =org-confluence-sync-status-sync-page= | Synchronize this report's source page content with Confluence. |

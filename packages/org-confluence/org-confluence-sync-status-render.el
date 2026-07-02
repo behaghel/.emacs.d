@@ -305,11 +305,11 @@ and theme/font-lock combinations."
 			   "Actions  (? opens action menu)\n")
 			  (magit-insert-section-body
 			   (org-confluence-sync-status--insert-action-help
-			    "  Global: g refresh · i import comments · u resolve people · p publish safely · o open page\n")
+			    "  Content: g refresh · y sync page · f fetch page · p publish · ! force publish · o open page\n")
 			   (org-confluence-sync-status--insert-action-help
-			    "  At point: RET open issue/comment · x delete local when recommended · a reanchor comments\n")
+			    "  Comments: Y sync page+comments · F fetch page+comments · i import · C sidecar · L list remote\n")
 			   (org-confluence-sync-status--insert-action-help
-			    "  Advanced: A repair remote anchors · m remap image · ! force publish · q quit\n")))))
+			    "  At point/tools: RET open · x delete local when recommended · a reanchor · A repair anchors · u resolve people · q quit\n")))))
 
 (provide 'org-confluence-sync-status-render)
 ;;; org-confluence-sync-status-render.el ends here

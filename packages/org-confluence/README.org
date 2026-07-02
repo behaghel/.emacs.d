@@ -174,9 +174,12 @@ Full page synchronization remains in =org-confluence-sync.el= and is exposed via
 
 =org-confluence-sync-status= opens a read-only report for page, attachment,
 people, and comment state.  =org-confluence-mode= can show a compact
-source-buffer marker whose activation opens this report.  Optional UI callback
-variables let personal configuration reuse surrounding windows without making
-the package depend on personal context-panel modules.
+source-buffer marker whose activation opens this report.  The report separates
+content operations (=y= sync page, =f= fetch/pull page, =p= publish, =!= force
+publish) from comment operations (=Y= sync page+comments, =F= fetch page+comments,
+=i= import comments, =C= open sidecar, =L= list remote comments).  Optional UI
+callback variables let personal configuration reuse surrounding windows without
+making the package depend on personal context-panel modules.
 
 * Commands
 

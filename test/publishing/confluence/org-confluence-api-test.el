@@ -2035,6 +2035,43 @@
 	(org-confluence-publish-and-open-from-export-dispatch nil t nil t))
       (should (equal opened '("789" "~personal"))))))
 
+(ert-deftest org-confluence-publish-stamps-sync-metadata-for-safe-pull ()
+  "Publishing a page records metadata that allows a subsequent safe pull."
+  (let* ((dir (make-temp-file "hub-confluence-publish-pull-metadata-" t))
+	 (source (expand-file-name "article.org" dir)))
+    (unwind-protect
+	(progn
+	  (with-temp-file source
+	    (insert "#+TITLE: Local\n#+CONFLUENCE_PAGE_ID: 123\n\nPublished body.\n"))
+	  (with-current-buffer (find-file-noselect source)
+	    (org-mode)
+	    (cl-letf (((symbol-function 'org-confluence-export)
+		       (lambda (&rest _) "<p>Published body.</p>"))
+		      ((symbol-function 'org-confluence-image-assets) (lambda (&rest _) nil))
+		      ((symbol-function 'org-confluence-publish-upload-assets)
+		       (lambda (&rest _) nil))
+		      ((symbol-function 'org-confluence-process-run)
+		       (lambda (&rest _) nil))
+		      ((symbol-function 'org-confluence-api--get-page)
+		       (lambda (_page-id _format)
+			 (org-confluence-api-test--page-response
+			  "123" "Remote" 8 "<p>Published body.</p>"))))
+	      (let ((org-confluence-publish--skip-inline-comment-preflight t))
+		(should (equal (org-confluence-publish) "123"))))
+	    (should-not (buffer-modified-p))
+	    (goto-char (point-min))
+	    (should (search-forward "#+CONFLUENCE_PAGE_VERSION: 8" nil t))
+	    (should (search-forward "#+CONFLUENCE_LOCAL_ORG_HASH: sha256:" nil t))
+	    (cl-letf (((symbol-function 'org-confluence-api--get-page)
+		       (lambda (_page-id _format)
+			 (org-confluence-api-test--page-response
+			  "123" "Remote" 9 "<p>Remote body.</p>"))))
+	      (should (equal (plist-get (org-confluence-pull-to-file "123" source) :status)
+			     'refreshed)))))
+      (when-let* ((buffer (find-buffer-visiting source)))
+	(kill-buffer buffer))
+      (delete-directory dir t))))
+
 (ert-deftest org-confluence-publish-refuses-stale-remote-page ()
   "Do not update when Confluence changed since the last recorded pull."
   (org-confluence-api-test--with-org-buffer

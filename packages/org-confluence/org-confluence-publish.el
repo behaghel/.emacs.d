@@ -24,6 +24,7 @@
 (require 'org-confluence-page)
 (require 'org-confluence-process)
 (require 'org-confluence-response)
+(require 'org-confluence-sync)
 
 (defcustom org-confluence-publish-preserve-inline-comments t
   "Whether publishing should reinsert Confluence inline comment markers.
@@ -185,6 +186,32 @@ SUBTREEP selects subtree metadata.  FORCE skips the check."
 	(user-error
 	 "Refusing to publish Confluence page %s: remote version %s differs from last synced version %s; run org-confluence-sync-page-current or org-confluence-publish-force"
 	 page-id remote-version stored-version)))))
+
+(defun org-confluence-publish--remote-page-after-publish (page-id)
+  "Return PAGE-ID storage-format page metadata after publish, if available."
+  (condition-case nil
+      (let ((page (org-confluence-response-json-alist
+		   (org-confluence-response-body
+		    (org-confluence-api--get-page page-id "storage")))))
+	(cons (org-confluence-sync--page-version-optional page)
+	      (org-confluence-sync--page-storage page)))
+    (error nil)))
+
+(defun org-confluence-publish--stamp-sync-metadata (page-id storage subtreep)
+  "Stamp successful publish metadata for PAGE-ID and STORAGE.
+
+Whole-buffer publishes record enough sync metadata for a subsequent safe pull.
+SUBTREEP publishes do not stamp global file-level sync metadata."
+  (unless subtreep
+    (let* ((remote (org-confluence-publish--remote-page-after-publish page-id))
+	   (remote-version (car remote))
+	   (remote-storage (or (cdr remote) storage)))
+      (org-confluence-sync--stamp-metadata
+       remote-version
+       (org-confluence-sync--sha256 remote-storage)
+       (org-confluence-sync--local-org-hash))
+      (when buffer-file-name
+	(save-buffer)))))
 
 (defun org-confluence-publish--inline-comment-blocking-p (comment)
   "Return non-nil when inline COMMENT should block page publish.
@@ -473,6 +500,7 @@ VISIBLE-ONLY, BODY-ONLY, and EXT-PLIST follow Org export conventions."
 		       (org-confluence-image-assets subtreep)))
 	     (export-plist (append (when subtreep '(:confluence-omit-root-heading t))
 				   ext-plist))
+	     (published-storage nil)
 	     (xhtml-file nil))
 	(unwind-protect
 	    (progn
@@ -480,12 +508,15 @@ VISIBLE-ONLY, BODY-ONLY, and EXT-PLIST follow Org export conventions."
 						  (append (list :confluence-image-filenames
 								(org-confluence-publish-asset-filename-map assets))
 							  export-plist))))
+		(setq published-storage
+		      (org-confluence-inline-comments-preserve-inline-comments page-id xhtml))
 		(setq xhtml-file
-		      (org-confluence-process-write-temp-xhtml
-		       (org-confluence-inline-comments-preserve-inline-comments page-id xhtml))))
+		      (org-confluence-process-write-temp-xhtml published-storage)))
 	      (org-confluence-publish-upload-assets page-id assets)
 	      (org-confluence-process-run
 	       (org-confluence-api--page-update-command page-id xhtml-file))
+	      (org-confluence-publish--stamp-sync-metadata
+	       page-id published-storage subtreep)
 	      (message "Published Org buffer to Confluence page %s" page-id)
 	      page-id)
 	  (when (and xhtml-file (file-exists-p xhtml-file))
