@@ -136,6 +136,18 @@ domains:
           - modules/interactive/org/integrations.el
           - test/authoring/org/
         spec: modules/interactive/org/
+      comments:
+        description: Reusable Org-native comments package, including sidecar storage, backend contracts, overlays, panels, compose flows, and package-local tests.
+        type: shared-kernel
+        code:
+          - packages/org-comments/
+        spec: packages/org-comments/
+      marginalia:
+        description: Reusable Org marginalia package, including native footnote/sidenote collection, layout, and context-panel provider integration.
+        type: shared-kernel
+        code:
+          - packages/org-marginalia/
+        spec: spec/org-marginalia/
       notes:
         description: Note-taking and personal knowledge management workflows.
         code:
@@ -234,6 +246,12 @@ context-map:
     pattern: customer-supplier
     via: Org content, export semantics, and reusable publishing package contracts
     notes: Publishing consumes authored documents and preserves authoring semantics when sending content externally.
+
+  - from: publishing
+    to: authoring.comments
+    pattern: shared-kernel
+    via: packages/org-comments/ backend protocol and comment record model
+    notes: Remote publishing/comment adapters such as Confluence consume the reusable comments kernel instead of private authoring UI internals.
 
   - from: publishing
     to: configuration-system

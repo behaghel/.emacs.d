@@ -22,6 +22,7 @@ in
   # Developer shell packages
   packages = [
     pkgs.editorconfig-core-c
+    pkgs.emacsPackages.package-lint
     pkgs.fd
     pkgs.git
     pkgs.pass
@@ -29,6 +30,7 @@ in
     pkgs.pre-commit
     pkgs.ghostscript
     pkgs.poppler-utils
+    pkgs.texinfo
     texliveEnv
   ];
 
@@ -39,8 +41,11 @@ in
     - CI full load       : devenv shell -- ci:load-all
     - Format all elisp   : devenv shell -- elisp:format-all
     - Checkdoc all elisp : devenv shell -- elisp:checkdoc-all
+    - Byte compile pkgs  : devenv shell -- elisp:byte-compile-packages
+    - Package lint pkgs  : devenv shell -- elisp:package-lint-packages
     - Tangle config      : devenv shell -- tangle
     - Confluence docs    : devenv shell -- docs:confluence
+    - Org comments docs  : devenv shell -- docs:org-comments
     - Load check         : devenv shell -- load-check
     - Freeze packages    : devenv shell -- freeze
     - Pre-commit (all)   : devenv shell -- pre-commit:all
@@ -83,12 +88,36 @@ in
         ./scripts/elisp-checkdoc "''${el_files[@]}"
       fi
     '';
+    "elisp:byte-compile-packages".exec = ''
+      chmod +x scripts/elisp-byte-compile || true
+      ./scripts/elisp-byte-compile
+    '';
+    "elisp:package-lint-packages".exec = ''
+      chmod +x scripts/elisp-package-lint || true
+      ./scripts/elisp-package-lint
+    '';
     "docs:confluence".exec = ''
       ./scripts/elisp-package-docs \
         --load packages/org-confluence/org-confluence.el \
-        --prefix hub/confluence-api- \
-        --command-prefix hub/confluence- \
+        --prefix org-confluence- \
+        --command-prefix org-confluence- \
         --out packages/org-confluence/docs/generated
+    '';
+    "docs:org-comments".exec = ''
+      chmod +x scripts/org-comments-gen-docs scripts/org-comments-check-doc-drift || true
+      ./scripts/org-comments-gen-docs
+      emacs --batch -Q -L packages/org-comments -l ox-texinfo \
+        --visit packages/org-comments/docs/org-comments.org \
+        --funcall org-texinfo-export-to-texinfo
+      makeinfo --no-split packages/org-comments/docs/org-comments.texi \
+        -o packages/org-comments/docs/org-comments.info
+      install-info --dir=packages/org-comments/docs/dir \
+        packages/org-comments/docs/org-comments.info
+    '';
+    "docs:org-comments:check".exec = ''
+      chmod +x scripts/org-comments-gen-docs scripts/org-comments-check-doc-drift || true
+      ./scripts/org-comments-gen-docs
+      ./scripts/org-comments-check-doc-drift
     '';
     lint.exec = ''
       chmod +x scripts/elisp-parse scripts/elisp-checkdoc || true
@@ -102,6 +131,7 @@ in
     ci.exec = ''
       lint
       docs:confluence
+      docs:org-comments:check
       pre-commit:all
     '';
     "pre-commit:all".exec = ''

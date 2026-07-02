@@ -19,7 +19,7 @@
   (add-to-list 'load-path (expand-file-name "lisp" root))
   (add-to-list 'load-path (expand-file-name "core" root)))
 
-(load "export" nil 'nomessage)
+(require 'org-confluence-export)
 
 (defun hub/org-confluence-test--export (org)
   "Return Confluence XHTML exported from ORG."
@@ -50,6 +50,16 @@
   "Export hard-wrapped Org source paragraphs as flowing XHTML text."
   (should (equal (hub/org-confluence-test--export "This is a hard-wrapped\nparagraph with *inline markup*.")
 		 "<p>This is a hard-wrapped paragraph with <strong>inline markup</strong>.</p>")))
+
+(ert-deftest hub/org-confluence-export-user-mention-link ()
+  "Export confluence-user Org links as native Confluence mentions."
+  (should (equal (hub/org-confluence-test--export "Hello [[confluence-user:acct-1][@alice]]")
+		 "<p>Hello <ac:link><ri:user ri:account-id=\"acct-1\" /></ac:link></p>")))
+
+(ert-deftest hub/org-confluence-export-date-timestamp ()
+  "Export Org date timestamps as native Confluence time elements."
+  (should (equal (hub/org-confluence-test--export "Due <2026-07-02 Thu> and [2026-07-03 Fri]")
+		 "<p>Due <time datetime=\"2026-07-02\" /> and <time datetime=\"2026-07-03\" /></p>")))
 
 (ert-deftest hub/org-confluence-export-heading-h1 ()
   "Export a level-one heading as XHTML."

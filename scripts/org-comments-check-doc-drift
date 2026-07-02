@@ -1,0 +1,58 @@
+#!/usr/bin/env bash
+# Verify public org-comments commands/customs are present in the manual or generated refs.
+set -euo pipefail
+
+repo_root="$(cd "$(dirname "$0")/.." && pwd)"
+manual="$repo_root/packages/org-comments/docs/org-comments.org"
+generated="$repo_root/packages/org-comments/docs/generated"
+
+if [ ! -f "$manual" ]; then
+  echo "org-comments-check-doc-drift: missing $manual" >&2
+  exit 1
+fi
+
+all_docs="$(cat "$manual" "$generated"/*.org 2>/dev/null || true)"
+missing=0
+
+symbols="$(emacs --batch -Q \
+  -L "$repo_root" \
+  -L "$repo_root/packages/org-comments" \
+  -l org-comments \
+  --eval "$(cat <<'ELISP'
+(progn
+  (defun org-comments-docs--public-symbol-p (sym)
+    (let ((name (symbol-name sym)))
+      (and (string-prefix-p "org-comments-" name)
+           (not (string-prefix-p "org-comments--" name)))))
+  (let (symbols)
+    (mapatoms
+     (lambda (sym)
+       (when (and (custom-variable-p sym)
+                  (org-comments-docs--public-symbol-p sym)
+                  (not (string-suffix-p "-hook" (symbol-name sym))))
+         (push (symbol-name sym) symbols))
+       (when (and (commandp sym)
+                  (org-comments-docs--public-symbol-p sym))
+         (push (symbol-name sym) symbols))))
+    (setq symbols (sort (delete-dups symbols) #'string<))
+    (dolist (name symbols)
+      (princ (format "%s\n" name)))))
+ELISP
+)" 2>/dev/null | sort -u)"
+
+while IFS= read -r symbol; do
+  [ -z "$symbol" ] && continue
+  if ! printf '%s\n' "$all_docs" | grep -qF "$symbol"; then
+    echo "org-comments-check-doc-drift: '$symbol' is not documented" >&2
+    missing=1
+  fi
+done <<EOF
+$symbols
+EOF
+
+if [ "$missing" -ne 0 ]; then
+  echo "org-comments-check-doc-drift: FAIL" >&2
+  exit 1
+fi
+
+echo "org-comments-check-doc-drift: all public commands/customs documented"

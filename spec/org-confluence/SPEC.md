@@ -8,22 +8,31 @@ The motivating document is `~/Documents/org/veriff-bloom.org`, a strategic Verif
 
 ## Target Architecture
 
-Three files, each with a distinct responsibility:
+The current package lives under `packages/org-confluence/` with canonical
+`org-confluence-*` modules:
 
 | File | Responsibility | Layer |
 | --- | --- | --- |
-| `lisp/hub-confluence-api.el` | Low-level `cfl` shell wrappers: page create/update, attachment upload, config lookup | Always-on library |
-| `modules/org/export-confluence/export.el` | Pure Org → Confluence Storage Format (XHTML) translation backend (`org-export-define-backend 'confluence`) | Always-on module (batch-safe) |
-| `modules/org/export-confluence/commands.el` | User-facing commands (`hub/confluence-publish`, `hub/confluence-publish-dwim`) that compose the API layer and the export backend | Always-on module (batch-safe) |
-| `modules/org/export-confluence/api.el` | `cfl` shell wrappers specific to the confluence publish flow | Always-on module (batch-safe) |
+| `org-confluence.el` | Package facade, minor mode, dispatch, and integration entrypoint | Package entrypoint |
+| `org-confluence-export.el` | Pure Org → Confluence Storage Format (XHTML) export backend | Export backend |
+| `org-confluence-import.el` | Confluence Storage XHTML → Org import and page pull | Import/pull |
+| `org-confluence-publish.el` | Publish/create orchestration, asset upload, and inline-comment preflight | Publish |
+| `org-confluence-sync.el` | Page sync and page/comment sync orchestration | Sync |
+| `org-confluence-api.el` | `cfl`/REST command construction, config lookup, metadata helpers | API boundary |
+| `org-confluence-comments-*.el` | Confluence-backed `org-comments` import/open/push/sync/backend adapters | Comment integration |
+| `org-confluence-sync-status-*.el` | Sync status cache/collect/render/display/actions/source marker | Status UI |
+
+Former short wrapper files such as `api.el`, `commands.el`, and `export.el` are
+not part of the target architecture.
 
 ### Layering Rules
 
-- `hub-confluence-api.el` must not depend on Org or the export system. It receives pre-formatted XHTML and shell arguments.
-- `export.el` (providing `org/export-confluence`) must not shell out. It receives an Org document and returns an XHTML string.
-- `api.el` (providing `org/export-confluence-api`) wraps `cfl` shell calls.
-- `commands.el` (providing `org/export-confluence-commands`) composes the two: export buffer to XHTML, then dispatch via `cfl`.
-- The user interacts only with the commands namespace.
+- `org-confluence-export.el` must not shell out. It receives an Org document and returns XHTML.
+- `org-confluence-api.el` owns Confluence CLI/REST command construction and configuration lookup.
+- `org-confluence-publish.el` composes export, API, asset upload, and inline-comment preservation.
+- `org-confluence-sync.el` owns page sync safety decisions and coordinates page/comment sync.
+- `org-confluence-comments-*` modules integrate with `org-comments` without depending on personal modules.
+- The user interacts with the `org-confluence-*` command namespace.
 
 ## Accepted Decisions (from grilling)
 
@@ -31,9 +40,11 @@ Three files, each with a distinct responsibility:
 
 - **Primary direction:** Org → Confluence (push). Confluence → Org (pull) is deferred to a future iteration.
 - **Content format:** Confluence Storage Format (XHTML), written to a temporary `.xhtml` file and sent via `cfl page edit --file <file> --storage` or `cfl page create --file <file> --storage`.
-- **Page identity:** Document-level `#+CONFLUENCE_PAGE_ID: <id>` keyword for existing pages. Optional `#+CONFLUENCE_SPACE: <key>` for new page creation, falling back to `hub/confluence-api-default-space` when configured.
+- **Page identity:** Document-level `#+CONFLUENCE_PAGE_ID: <id>` keyword for existing pages. Optional `#+CONFLUENCE_SPACE: <key>` for new page creation, falling back to `org-confluence-api-default-space` when configured.
 - **Update semantics:** Full replacement. Confluence versions the page automatically on each update. No append/prepend mode.
+- **Publish safety:** When a buffer records `#+CONFLUENCE_PAGE_VERSION`, normal publish checks the remote page version before uploading assets or editing the page. If Confluence changed since the last recorded sync, publish refuses and directs the user to run page sync or explicitly force publish.
 - **Table mapping:** Simple `<table>` with `<th>` for header rows, `<td>` for body rows. No branded Confluence styling or custom column widths.
+- **Date mapping:** Org active and inactive date timestamps export to Confluence native `<time datetime="YYYY-MM-DD" />` elements. Confluence time elements import as inactive Org dates (`[YYYY-MM-DD]`) to preserve the calendar date without implying scheduled Org semantics.
 
 ### Callout Mapping
 
@@ -97,14 +108,14 @@ Decisions:
 - Horizontal rules: `<hr/>`
 
 **Commands delivered:**
-- `hub/confluence-publish` — export current buffer and update existing page (requires `#+CONFLUENCE_PAGE_ID`)
-- `hub/confluence-publish-dwim` — if `#+CONFLUENCE_PAGE_ID` present, update; otherwise create using `#+CONFLUENCE_SPACE` or `hub/confluence-api-default-space`, then insert created page metadata into the buffer for future publishes
+- `org-confluence-publish` — export current buffer and update existing page (requires `#+CONFLUENCE_PAGE_ID`); refuses when recorded sync metadata shows the remote page changed since the last pull
+- `org-confluence-publish-dwim` — if `#+CONFLUENCE_PAGE_ID` present, update; otherwise create using `#+CONFLUENCE_SPACE` or `org-confluence-api-default-space`, then insert created page metadata into the buffer for future publishes
 
 **API layer functions:**
-- `hub/confluence--page-update (page-id xhtml)` — calls `cfl page edit <id> --storage`
-- `hub/confluence--page-create (space title xhtml &optional parent-id)` — calls `cfl page create`
-- `hub/confluence--page-id-from-buffer` — reads `#+CONFLUENCE_PAGE_ID`
-- `hub/confluence--space-from-buffer` — reads `#+CONFLUENCE_SPACE`
+- `org-confluence-api--page-update-command (page-id &optional file-path)` — builds `cfl page edit <id> --storage`
+- `org-confluence-api--page-create-command (space title &optional file-path parent-id)` — builds `cfl page create`
+- `org-confluence-api--page-id-from-buffer` — reads `#+CONFLUENCE_PAGE_ID`
+- `org-confluence-api--space-from-buffer` — reads `#+CONFLUENCE_SPACE`
 
 **Tests:**
 - Export backend: one Org buffer with headings, bold, italic, links, lists → assert XHTML output matches expected structure
@@ -143,7 +154,7 @@ Decisions:
 Without a caption, omit `ac:alt` and the caption paragraph.
 
 **API/publish layer additions:**
-- `hub/confluence-api--attachment-upload-command (page-id filepath)` — builds `cfl attachment upload` command.
+- `org-confluence-api--attachment-upload-command (page-id filepath)` — builds `cfl attachment upload` command.
 - Image asset collection from the Org AST for exported standalone local image links.
 - Image path resolution: relative paths from `.org` file directory, absolute paths allowed.
 - Preflight validation for missing files and duplicate basenames.
@@ -173,9 +184,10 @@ Without a caption, omit `ac:alt` and the caption paragraph.
 - Subtree publishing only uploads image assets referenced by the selected subtree.
 
 **Iteration 4c pull/import additions:**
-- `hub/confluence-pull` fetches a page with `cfl page view <id> --raw --content-only` and opens the converted content in a new Org buffer.
+- `org-confluence-pull` fetches a page with `cfl page view <id> --raw --content-only` and opens the converted content in a new Org buffer.
 - Import starts conservatively with common storage XHTML: headings, paragraphs, inline emphasis/code/links, simple ordered/unordered lists, nested lists, tables, Confluence status chips, Confluence emoji fallbacks, and panel-like macros as semantic callouts.
 - Pull defaults to the current buffer's `#+CONFLUENCE_PAGE_ID` when present and otherwise prompts for a page ID.
+- `org-confluence-pull-to-file` accepts `:include-comments t`; when set, page body import writes only the main Org file and remote Confluence comments are imported into the conventionally adjacent `.comments.org` sidecar. The return plist includes `:comments-file`, `:comments-count`, `:footer-comments-count`, and `:inline-comments-count`.
 
 **Current acceptance status:**
 - Manual DWIM publish/create/open acceptance is confirmed on real Confluence pages.
@@ -189,21 +201,18 @@ Without a caption, omit `ac:alt` and the caption paragraph.
 
 ## File Headers & Naming
 
+Canonical package files use the `org-confluence-*` namespace and provide the
+matching feature.  Examples:
+
 ```elisp
-;;; hub-confluence-api.el --- Low-level Confluence Cloud CLI wrappers -*- lexical-binding: t; -*-
-(provide 'hub-confluence-api)
+;;; org-confluence-export.el --- Org to Confluence Storage Format backend -*- lexical-binding: t; -*-
+(provide 'org-confluence-export)
 
-;;; export.el --- Org -> Confluence Storage Format (XHTML) export backend -*- lexical-binding: t; -*-
-;; Located in modules/org/export-confluence/
-(provide 'org/export-confluence)
+;;; org-confluence-api.el --- cfl shell wrappers for Confluence export -*- lexical-binding: t; -*-
+(provide 'org-confluence-api)
 
-;;; commands.el --- Org Confluence publish commands -*- lexical-binding: t; -*-
-;; Located in modules/org/export-confluence/
-(provide 'org/export-confluence-commands)
-
-;;; api.el --- cfl shell wrappers for confluence export -*- lexical-binding: t; -*-
-;; Located in modules/org/export-confluence/
-(provide 'org/export-confluence-api)
+;;; org-confluence-publish.el --- Publish Org buffers to Confluence -*- lexical-binding: t; -*-
+(provide 'org-confluence-publish)
 ```
 
 ## Cross-Links
@@ -233,9 +242,9 @@ Read requests should include `body-format=storage` or `body-format=atlas_doc_for
 The `cfl` auth config file (`~/.config/cfl/config.yml`) contains the API token, cloud ID, and user email. A future enhancement could parse this file and use `url-retrieve` or `curl` to access the comment endpoints directly, reusing the same credentials.
 
 Possible future commands:
-- `hub/confluence-comment-list` — display page comments in an Emacs buffer
-- `hub/confluence-comment-create` — add a comment from the minibuffer or from a sidecar Org entry
-- `hub/confluence-comment-pull` — fetch comments into the colocated `*.comments.org` sidecar
+- `org-confluence-comments-list` — display page comments in an Emacs buffer
+- `org-confluence-comments-push-current` — push the current sidecar Org comment to Confluence
+- `org-confluence-comments-import` — fetch comments into the colocated `*.comments.org` sidecar
 
 This is deferred — no iteration plan until the core publish path is stable.
 
@@ -249,7 +258,7 @@ This is deferred — no iteration plan until the core publish path is stable.
 
 ## Acceptance Signals
 
-- A user can run `hub/confluence-publish` from any Org buffer with `#+CONFLUENCE_PAGE_ID` and see the content live on Confluence within seconds.
+- A user can run `org-confluence-publish` from any Org buffer with `#+CONFLUENCE_PAGE_ID` and see the content live on Confluence within seconds.
 - The Confluence page renders headings, paragraphs, bold, italic, links, and lists correctly after Iteration 1.
 - Tables, callouts, blockquotes, and code blocks are added by Iteration 2 without breaking Iteration 1 output.
 - Images appear inline by Iteration 3.

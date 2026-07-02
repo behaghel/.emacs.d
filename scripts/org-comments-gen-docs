@@ -1,0 +1,116 @@
+#!/usr/bin/env bash
+# Generate Org reference fragments for the org-comments manual.
+set -euo pipefail
+
+repo_root="$(cd "$(dirname "$0")/.." && pwd)"
+out_dir="$repo_root/packages/org-comments/docs/generated"
+mkdir -p "$out_dir"
+
+emacs --batch -Q \
+  -L "$repo_root" \
+  -L "$repo_root/packages/org-comments" \
+  -l org-comments \
+  --eval "(setq org-comments-docs-output-directory \"$out_dir\")" \
+  --eval "$(cat <<'ELISP'
+(progn
+  (require 'subr-x)
+
+  (defun org-comments-docs--default-value (value)
+    (cond
+     ((eq value t) "=t=")
+     ((null value) "=nil=")
+     ((stringp value) (format "=\"%s\"=" value))
+     ((symbolp value) (format "=%S=" value))
+     ((numberp value) (format "=%s=" value))
+     ((and (listp value) (< (length (format "%S" value)) 48))
+      (format "=%S=" value))
+     (t "=(...)=")))
+
+  (defun org-comments-docs--first-line (doc)
+    (car (split-string (or doc "") "\n")))
+
+  (defun org-comments-docs--public-symbol-p (sym)
+    (let ((name (symbol-name sym)))
+      (and (string-prefix-p "org-comments-" name)
+           (not (string-prefix-p "org-comments--" name)))))
+
+  (defun org-comments-docs--public-command-symbol-p (sym)
+    (let ((name (symbol-name sym)))
+      (and (or (string-prefix-p "org-comments-" name)
+               (string-prefix-p "org-context-panel-" name))
+           (not (string-prefix-p "org-comments--" name))
+           (not (string-prefix-p "org-context-panel--" name)))))
+
+  (with-temp-file (expand-file-name "config-reference.org" org-comments-docs-output-directory)
+    (insert "| Variable | Default | Description |\n")
+    (insert "|----------+---------+-------------|\n")
+    (let (customs)
+      (mapatoms
+       (lambda (sym)
+         (when (and (custom-variable-p sym)
+                    (org-comments-docs--public-symbol-p sym)
+                    (not (string-suffix-p "-hook" (symbol-name sym))))
+           (push sym customs))))
+      (setq customs (sort customs (lambda (a b) (string< (symbol-name a) (symbol-name b)))))
+      (dolist (sym customs)
+        (insert (format "| =%s= | %s | %s |\n"
+                        (symbol-name sym)
+                        (org-comments-docs--default-value (default-value sym))
+                        (org-comments-docs--first-line
+                         (get sym 'variable-documentation)))))))
+
+  (with-temp-file (expand-file-name "commands.org" org-comments-docs-output-directory)
+    (insert "| Command | Description |\n")
+    (insert "|---------+-------------|\n")
+    (let (commands)
+      (mapatoms
+       (lambda (sym)
+         (when (and (commandp sym)
+                    (org-comments-docs--public-command-symbol-p sym))
+           (push sym commands))))
+      (setq commands (sort commands (lambda (a b) (string< (symbol-name a) (symbol-name b)))))
+      (dolist (sym commands)
+        (insert (format "| =%s= | %s |\n"
+                        (symbol-name sym)
+                        (org-comments-docs--first-line (documentation sym t)))))))
+
+  (defun org-comments-docs--keymap-rows (keymap &optional prefix)
+    (let (rows)
+      (map-keymap
+       (lambda (event binding)
+         (let ((keys (vconcat prefix (vector event))))
+           (cond
+            ((and (symbolp binding)
+                  (commandp binding)
+                  (org-comments-docs--public-command-symbol-p binding))
+             (push (cons (key-description keys) binding) rows))
+            ((keymapp binding)
+             (setq rows
+                   (append (org-comments-docs--keymap-rows binding keys)
+                           rows))))))
+       keymap)
+      rows))
+
+  (defun org-comments-docs--write-map (file title keymap)
+    (with-temp-file (expand-file-name file org-comments-docs-output-directory)
+      (insert (format "#+CAPTION: %s\n" title))
+      (insert "| Key | Command |\n")
+      (insert "|-----+---------|\n")
+      (let ((rows (org-comments-docs--keymap-rows keymap)))
+        (setq rows (sort rows (lambda (a b) (string< (car a) (car b)))))
+        (dolist (row rows)
+          (insert (format "| =%s= | =%s= |\n" (car row) (symbol-name (cdr row))))))))
+
+  (org-comments-docs--write-map "keybindings-mode.org" "org-comments-mode bindings" org-comments-mode-map)
+  (org-comments-docs--write-map "keybindings-panel.org" "org-comments-panel-mode bindings" org-comments-panel-mode-map)
+  (if (boundp 'org-comments-page-panel-mode-map)
+      (org-comments-docs--write-map
+       "keybindings-page-panel.org" "org-comments-page-panel-mode bindings"
+       org-comments-page-panel-mode-map)
+    (with-temp-file (expand-file-name "keybindings-page-panel.org" org-comments-docs-output-directory)
+      (insert "| Key | Command |\n")
+      (insert "|-----+---------|\n")
+      (insert "| /No dedicated page panel keymap yet./ |  |\n")))
+  (message "org-comments-gen-docs: wrote %s" org-comments-docs-output-directory))
+ELISP
+)"

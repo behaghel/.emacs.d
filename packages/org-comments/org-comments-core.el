@@ -1,0 +1,97 @@
+;;; org-comments-core.el --- Core helpers for Org comments -*- lexical-binding: t; -*-
+
+;;; Commentary:
+;; Core customization and identity helpers for the initial Org comments
+;; extraction.  Names remain in the legacy `org-comments-*' namespace until
+;; the public API migration slice.
+
+;;; Code:
+
+(require 'subr-x)
+
+(defgroup org-comments nil
+  "Region-targeted Org sidecar comments."
+  :group 'org)
+
+(defcustom org-comments-heading-preview-length 60
+  "Maximum normalized target text length used in sidecar headings."
+  :type 'natnum
+  :group 'org-comments)
+
+(defcustom org-comments-heading-target-preview-length 48
+  "Maximum normalized target text length used in comment headings."
+  :type 'natnum
+  :group 'org-comments)
+
+(defcustom org-comments-heading-body-preview-length 60
+  "Maximum normalized body text length used in comment headings."
+  :type 'natnum
+  :group 'org-comments)
+
+(defcustom org-comments-author nil
+  "Author name used for newly created local comments.
+When nil, comments fall back to Org metadata and then Emacs user identity."
+  :type '(choice (const :tag "Infer author" nil) string)
+  :group 'org-comments)
+
+(defcustom org-comments-resolve-account-id-function nil
+  "Function resolving a remote account id to a display name.
+The function is called with ACCOUNT-ID and optional DIRECTORY, and should return
+a string display name or nil.  Backends can set this callback to resolve
+provider-specific identities without adding backend dependencies to
+`org-comments'."
+  :type '(choice (const :tag "No resolver" nil) function)
+  :group 'org-comments)
+
+(defun org-comments-resolve-account-id (account-id &optional directory)
+  "Resolve ACCOUNT-ID to a display name using optional DIRECTORY context."
+  (when (and account-id org-comments-resolve-account-id-function)
+    (funcall org-comments-resolve-account-id-function account-id directory)))
+
+(defun org-comments--random-hex ()
+  "Return a short random hexadecimal suffix for local comment IDs."
+  (format "%06x" (random #x1000000)))
+
+(defun org-comments-generate-id ()
+  "Return a stable local comment ID."
+  (format "local-%s-%s" (format-time-string "%Y%m%dT%H%M%S") (org-comments--random-hex)))
+
+(defun org-comments--present-string (value)
+  "Return trimmed VALUE when it is a non-empty string, or nil."
+  (when (stringp value)
+    (let ((trimmed (string-trim value)))
+      (unless (string-empty-p trimmed)
+	trimmed))))
+
+(defun org-comments--keyword-from-buffer (keyword)
+  "Return Org KEYWORD value from the current buffer, or nil."
+  (save-excursion
+    (goto-char (point-min))
+    (let ((case-fold-search t)
+	  (regexp (format "^[	]*#\\+%s:[	]*\\(.*?\\)[	]*$"
+			  (regexp-quote keyword))))
+      (when (re-search-forward regexp nil t)
+	(org-comments--present-string (match-string-no-properties 1))))))
+
+(defun org-comments-current-author ()
+  "Return the best available author name for a new local comment."
+  (or (org-comments--present-string org-comments-author)
+      (org-comments--keyword-from-buffer "AUTHOR")
+      (org-comments--keyword-from-buffer "EMAIL")
+      (org-comments--present-string user-full-name)
+      (org-comments--present-string user-mail-address)
+      (org-comments--present-string user-login-name)
+      "unknown"))
+
+(defun org-comments-current-created-at ()
+  "Return an ISO-like timestamp for a new local comment."
+  (format-time-string "%Y-%m-%dT%H:%M:%S%z"))
+
+(defun org-comments--truncate (text length)
+  "Return TEXT truncated to LENGTH with ellipsis when needed."
+  (if (> (length text) length)
+      (concat (substring text 0 length) "…")
+    text))
+
+(provide 'org-comments-core)
+;;; org-comments-core.el ends here

@@ -1,0 +1,275 @@
+#+TITLE: Org Comments Manual
+#+AUTHOR: Hubert Behaghel
+#+TEXINFO_FILENAME: org-comments.info
+#+TEXINFO_DIR_CATEGORY: Emacs
+#+TEXINFO_DIR_TITLE: Org Comments: (org-comments).
+#+TEXINFO_DIR_DESC: Org-native comments with backend-ready storage.
+#+TEXINFO_PRINTED_TITLE: Org Comments Manual
+#+OPTIONS: H:4 num:t toc:t
+
+* Introduction
+:PROPERTIES:
+:DESCRIPTION: What org-comments provides.
+:END:
+
+=org-comments= adds review comments to Org buffers while keeping the source
+Org text clean.  Local comments are stored in colocated =.comments.org=
+sidecar files.  Remote systems such as Confluence can register backends for
+comment synchronization, remote opening, push, and pull operations.
+
+The package is intentionally backend-neutral.  Its core model describes comment
+identity, target text, replies, local draft state, remote state, sync state,
+people identity, and actionability without requiring a specific provider.
+Confluence is one backend; Google Docs or another review system can implement
+the same protocol later.
+
+This manual is written as an Emacs Info manual.  After building it, browse it
+with =C-h i m org-comments RET=.
+
+* Getting Started
+:PROPERTIES:
+:DESCRIPTION: Installing and enabling org-comments.
+:END:
+
+** Requirements
+
+- Emacs with Org mode available.
+- A writable directory next to each commented Org source file for local
+  sidecar files.
+- Optional backend packages for remote providers, such as =org-confluence=.
+
+** Installation from a checkout
+
+Add the package directory to =load-path= and require the package:
+
+#+begin_src emacs-lisp
+(add-to-list 'load-path "/path/to/org-comments")
+(require 'org-comments)
+#+end_src
+
+Then enable =org-comments-mode= in Org buffers.  This minor mode is the main
+user entry point for commands, keybindings, and overlays:
+
+#+begin_src emacs-lisp
+(add-hook 'org-mode-hook #'org-comments-mode)
+#+end_src
+
+For a commands-only setup without inline/page markers, set
+=org-comments-enable-overlays= before enabling the mode:
+
+#+begin_src emacs-lisp
+(setq org-comments-enable-overlays nil)
+(add-hook 'org-mode-hook #'org-comments-mode)
+#+end_src
+
+** Minimal workflow
+
+1. Open an Org file.
+2. Enable =org-comments-mode=.
+3. Select a region and run =M-x org-comments-create=.
+4. Open the side panel with =M-x org-comments-open=.
+5. Navigate comments with =org-comments-next= and =org-comments-previous=.
+
+See *note Commands:: and *note Keybindings:: for the generated reference.
+
+* Concepts
+:PROPERTIES:
+:DESCRIPTION: The package vocabulary and data model.
+:END:
+
+** Source buffers and sidecars
+
+A source buffer is the Org document being reviewed.  The default local backend
+stores comments in a sibling sidecar whose name ends in =.comments.org=.  For
+example, =article.org= uses =article.comments.org=.
+
+Sidecars are ordinary Org files.  Each top-level heading represents a root
+comment.  Replies are child headings.  Comment metadata is stored as Org
+properties with the =ORG_COMMENTS_= prefix.
+
+** Anchors
+
+Inline comments store target text and compact position metadata.  When the
+source text changes, =org-comments= can report comments as stale or re-anchor
+imported inline comments using exact and fuzzy matching.
+
+** Page comments
+
+Page comments are comments about the entire document instead of a specific text
+range.  They are represented as footer/page records and can be shown in a page
+comments panel.
+
+** Collaboration state
+
+Backends normalize collaboration metadata into provider-neutral fields:
+
+- remote identifiers and parent/thread identifiers;
+- remote state such as present, missing, deleted, or unknown;
+- local state such as draft, edited, pending push, or push error;
+- sync state such as clean, dirty, conflict, or error;
+- resolved and actionable state;
+- backend-qualified people identity.
+
+See also the backend-neutral model in =../COLLABORATION.md=.
+
+* Local Org Sidecars
+:PROPERTIES:
+:DESCRIPTION: Local storage format and behavior.
+:END:
+
+The default backend is =org=.  It reads and writes local Org sidecars and does
+not require network access.
+
+New sidecar metadata uses only =ORG_COMMENTS_*= properties.  Legacy
+=HUB_COMMENT_*= properties are migration input only.  Normal collection reports
+legacy sidecars as requiring explicit migration instead of silently reading the
+old format.
+
+* Comment UI
+:PROPERTIES:
+:DESCRIPTION: Modes, panels, and default interaction model.
+:END:
+
+=org-comments-mode= is the standalone minor mode and the recommended activation
+point for users.  It installs Org-native bindings, and when
+=org-comments-enable-overlays= is non-nil it also shows overlays for inline
+targets and displays page-comment markers.  The default panel is implemented by
+=org-comments-panel-mode= and can be replaced or enriched by setting UI adapter
+variables.
+
+The package does not install Evil, leader-key, or layout-specific bindings.
+Personal keybindings belong in user configuration.
+
+* Backends
+:PROPERTIES:
+:DESCRIPTION: Backend registry and operations.
+:END:
+
+Backends register a backend id, capabilities, and operation functions through
+=org-comments-register-backend=.  Generic commands detect the active backend
+from the current source buffer and dispatch to the backend operation.
+
+Important operations include:
+
+- list or collect comments;
+- open the remote comment;
+- push local comment edits;
+- pull remote comment state;
+- sync comments.
+
+Backend =:sync= is comments-only.  It must not perform a full document or page
+sync.  Provider packages may offer separate full-document synchronization
+commands outside the generic =org-comments= backend contract.
+
+** Identity resolution
+
+Backends can set =org-comments-resolve-account-id-function= to resolve remote
+account IDs into display names for sidecar headings and UI surfaces.  The
+callback is called with an account ID and optional directory context, and should
+return a display name string or nil.  This keeps provider-specific people stores
+outside the generic =org-comments= package.
+
+* Confluence Backend
+:PROPERTIES:
+:DESCRIPTION: How Confluence integrates with org-comments.
+:END:
+
+The Confluence integration lives in =org-confluence=.  When a source Org buffer
+contains =#+CONFLUENCE_PAGE_ID=, the Confluence detector can select the
+=confluence= backend for remote comment operations.
+
+The backend supports remote open, push, pull, and comments-only sync.  Full
+Confluence page synchronization remains an =org-confluence= responsibility and
+is intentionally separate from =org-comments-sync=.
+
+* Migration
+:PROPERTIES:
+:DESCRIPTION: Migrating legacy metadata.
+:END:
+
+Older sidecars may contain =HUB_COMMENT_*= properties.  Run
+=org-comments-migrate-sidecar= on one sidecar, or
+=org-comments-migrate-directory-sidecars= for a directory of sidecars, to
+rewrite those properties to =ORG_COMMENTS_*=.
+
+Migration is explicit by design.  Durable storage should not depend on the
+former personal metadata prefix.
+
+* Commands
+:PROPERTIES:
+:DESCRIPTION: Generated command reference.
+:END:
+
+#+INCLUDE: "generated/commands.org"
+
+* Customization
+:PROPERTIES:
+:DESCRIPTION: Generated defcustom reference.
+:END:
+
+#+INCLUDE: "generated/config-reference.org"
+
+* Keybindings
+:PROPERTIES:
+:DESCRIPTION: Generated keybinding reference.
+:END:
+
+** Org buffers
+
+#+INCLUDE: "generated/keybindings-mode.org"
+
+** Comment panel
+
+#+INCLUDE: "generated/keybindings-panel.org"
+
+** Page comments panel
+
+#+INCLUDE: "generated/keybindings-page-panel.org"
+
+* Developer API
+:PROPERTIES:
+:DESCRIPTION: Extension seams for backends and UIs.
+:END:
+
+Use public =org-comments-*= functions for package integration.  Functions with
+an =org-comments--= prefix are private implementation details and should not be
+called by backend packages.
+
+Important extension areas:
+
+- backend registration in =org-comments-backend.el=;
+- UI adapter variables in =org-comments-ui.el= and panel action modules;
+- collaboration normalization in =org-comments-collaboration.el=;
+- explicit migration helpers in =org-comments-migrate.el=.
+
+* Troubleshooting
+:PROPERTIES:
+:DESCRIPTION: Common problems and fixes.
+:END:
+
+** No comments appear
+
+Check that the source buffer is visiting a file and that the sibling
+=.comments.org= file exists.  Local sidecars are file-backed.
+
+** Legacy sidecar error
+
+If collection reports legacy metadata, run =M-x org-comments-migrate-sidecar=
+on the sidecar file and retry.
+
+** Remote operation is unsupported
+
+Backends advertise capabilities.  If a backend does not support push, pull,
+sync, or remote open, the generic command reports a clear unsupported operation
+error.
+
+** Info manual is missing
+
+Build the manual from the repository checkout:
+
+#+begin_src shell
+devenv -q shell -- docs:org-comments
+#+end_src
+
+Then add the package =docs/= directory to =Info-directory-list= or install the
+Info file into your site Info directory.

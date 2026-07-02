@@ -1,0 +1,87 @@
+#+TITLE: Org Comments
+#+AUTHOR: Hubert Behaghel
+#+OPTIONS: toc:t num:nil
+
+* Org Comments
+
+=org-comments= provides Org-native review comments with clean source buffers,
+local Org sidecars, and a backend protocol for remote comment systems.
+
+Local comments are stored next to the source document in =.comments.org= files.
+Remote integrations such as Confluence can register backends for opening,
+pushing, pulling, and syncing comments without coupling the generic package to a
+specific provider.
+
+The full user manual is in =docs/org-comments.org= and can be built as an Emacs
+Info manual.
+
+* Highlights
+
+- Source Org buffers stay clean.
+- Local sidecars are ordinary Org files.
+- =org-comments-mode= provides Org-native commands and overlays.
+- Backends provide remote comment operations through a generic protocol.
+- Collaboration state is backend-neutral: remote state, local state, sync state,
+  resolved/actionable flags, and people identity use provider-independent
+  fields.
+- Legacy =HUB_COMMENT_*= metadata is migrated explicitly to =ORG_COMMENTS_*=.
+
+* Installation from a checkout
+
+#+begin_src emacs-lisp
+(add-to-list 'load-path "/path/to/org-comments")
+(require 'org-comments)
+(add-hook 'org-mode-hook #'org-comments-mode)
+#+end_src
+
+* First use
+
+=org-comments-mode= is the main user entry point.  Enable it per buffer with
+=M-x org-comments-mode= or automatically from =org-mode-hook=.
+
+1. Open an Org file.
+2. Enable =org-comments-mode=.
+3. Select a region and run =M-x org-comments-create=.
+4. Open the panel with =M-x org-comments-open=.
+5. Navigate with =org-comments-next= and =org-comments-previous=.
+
+By default the mode shows inline and page-comment overlays.  Set
+=org-comments-enable-overlays= to nil for a commands-only setup.
+
+* Backend identity resolution
+
+Backends can resolve remote account IDs for headings and UI display by setting
+=org-comments-resolve-account-id-function=.  The callback receives an account ID
+and optional directory context, and returns a display name or nil.
+
+* Manual and Info
+
+Build generated references and the Info manual:
+
+#+begin_src shell
+devenv -q shell -- docs:org-comments
+#+end_src
+
+Then open the manual with:
+
+#+begin_example
+C-h i m org-comments RET
+#+end_example
+
+If the manual is not installed globally, add the package =docs/= directory to
+=Info-directory-list=.
+
+* Development documentation
+
+- User manual: =docs/org-comments.org=
+- Extension points: =docs/extension-points.org=
+- Org context panel specification: =docs/org-context-panel.org=
+- Backend-neutral collaboration model: =COLLABORATION.md=
+- Current refactor/spec notes: =README.md=
+- Generated references: =docs/generated/=
+
+Use the drift check before changing public commands or customization options:
+
+#+begin_src shell
+devenv -q shell -- docs:org-comments:check
+#+end_src

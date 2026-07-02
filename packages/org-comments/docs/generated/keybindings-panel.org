@@ -1,0 +1,23 @@
+#+CAPTION: org-comments-panel-mode bindings
+| Key | Command |
+|-----+---------|
+| =?= | =org-comments-help-current-ui= |
+| =D= | =org-comments-panel-pull= |
+| =O= | =org-comments-panel-open-remote= |
+| =RET= | =org-context-panel-jump-at-point= |
+| =S= | =org-comments-panel-sync= |
+| =U= | =org-comments-panel-push= |
+| =[ c= | =org-comments-previous-item-at-point= |
+| =] c= | =org-comments-next-item-at-point= |
+| =d= | =org-comments-delete-at-point= |
+| =e= | =org-comments-edit-at-point= |
+| =g= | =org-comments-panel-refresh= |
+| =m o= | =org-comments-panel-mark-open= |
+| =m r= | =org-comments-panel-mark-resolved= |
+| =m t= | =org-comments-panel-mark-todo= |
+| =p= | =org-comments-page-open-at-point= |
+| =q= | =org-comments-close-current-ui= |
+| =r= | =org-comments-reply-at-point= |
+| =z ?= | =org-comments-filter-status-current-ui= |
+| =z r= | =org-comments-filter-toggle-resolved-current-ui= |
+| =z z= | =org-comments-filter-reset-current-ui= |

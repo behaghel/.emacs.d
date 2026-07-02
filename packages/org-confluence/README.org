@@ -1,35 +1,84 @@
-#+TITLE: Org Confluence Export
+#+TITLE: Org Confluence
 #+AUTHOR: Hubert Behaghel
 #+OPTIONS: toc:t num:nil
 
-* Org Confluence Export
+* Org Confluence
 
-=org-confluence= exports Org buffers to Confluence Storage Format and publishes
-pages through the =cfl= command-line tool.
+=org-confluence= is a package-style Org integration for Confluence.  It owns
+Org ↔ Confluence Storage Format conversion, page import/publish/sync,
+Confluence people resolution, inline comment marker preservation/repair, sync
+status reporting, and Confluence-backed =org-comments= operations.
 
 This directory is intentionally shaped as a package boundary inside the Emacs
-configuration.  The goal is to make it easy to extract into its own Git
-repository later.
-
-* Package boundary
-
-The package code lives here and should remain independent from the surrounding
-Emacs configuration:
-
-| File | Responsibility |
-|------+----------------|
-| =org-confluence.el= | Package facade / conventional entrypoint. |
-| =org-confluence-export.el= | Pure Org → Confluence Storage Format export backend. |
-| =org-confluence-api.el= | =cfl= command construction and metadata lookup helpers. |
-| =org-confluence-commands.el= | User-facing publish/pull commands composing export + API. |
-| =export.el=, =api.el=, =commands.el= | Compatibility wrappers for the old in-repo names. |
-
-The surrounding Emacs config should own only activation policy and user/site
-preferences.  In this repository that activation lives in:
+configuration.  The package should remain extractable: reusable behavior lives
+under =packages/org-confluence/=, while site defaults, personal leader keys,
+Evil/Bépo bindings, and window/layout policy live in consumer configuration.
+In this repository, personal activation lives in:
 
 #+begin_example
 modules/interactive/org/confluence.el
 #+end_example
+
+* Canonical entry points
+
+The canonical package entrypoint is:
+
+#+begin_src emacs-lisp
+(require 'org-confluence)
+#+end_src
+
+=org-confluence.el= loads the export backend, command facade, comments backend
+integration, people-store support, and mode-level source markers.  Users should
+activate buffer-local integration with either:
+
+- =org-confluence-mode= for an already linked Org buffer; or
+- =org-confluence-mode-maybe= from =org-mode-hook= to enable only when
+  Confluence metadata such as =#+CONFLUENCE_PAGE_ID= is present.
+
+Former short wrapper files such as =api.el=, =commands.el=, and =export.el= are
+not part of the package boundary.  Code should require the canonical
+=org-confluence-*= modules directly.
+
+* Package boundary
+
+| File | Responsibility |
+|------+----------------|
+| =org-confluence.el= | Package facade, minor mode, dispatch command, empty-page notice, and mode-level integration. |
+| =org-confluence-export.el= | Org → Confluence Storage Format export backend. |
+| =org-confluence-import.el= | Confluence Storage XHTML → Org conversion and page pull. |
+| =org-confluence-publish.el= | Publish/create orchestration, asset upload, inline-comment preflight, and marker preservation. |
+| =org-confluence-sync.el= | Page sync, child-page pull, safe pull/push decisions, and page/comment sync orchestration. |
+| =org-confluence-api.el= | REST/CLI command construction, metadata lookup, URL helpers, and authenticated transport helpers. |
+| =org-confluence-page.el= | Shared page metadata and Org keyword helpers. |
+| =org-confluence-process.el= | Shared =cfl= process runner and temporary XHTML helpers. |
+| =org-confluence-response.el= | Confluence REST response parsing helpers. |
+| =org-confluence-commands.el= | Aggregate command facade requiring focused command modules. |
+| =org-confluence-mentions.el= | Confluence user mention to Org link conversion. |
+| =org-confluence-people-store.el= | Org-backed Confluence people directory storage. |
+| =org-confluence-people.el= | API-backed Confluence people/current-user helpers. |
+| =org-confluence-inline-comments.el= | Preserve and relocate Confluence inline comment markers. |
+| =org-confluence-inline-repair.el= | Repair missing Confluence inline comment marker anchors. |
+| =org-confluence-comments.el= | Package-native facade for Confluence comment operations. |
+| =org-confluence-comments-backend.el= | =org-comments= backend registration and dispatch adapter. |
+| =org-confluence-comments-context.el= | Resolve sidecar source files and page metadata for comment operations. |
+| =org-confluence-comments-diagnostics.el= | Render read-only remote comment diagnostic buffers. |
+| =org-confluence-comments-import.el= | Import remote Confluence comments into Org sidecars. |
+| =org-confluence-comments-open.el= | Open remote Confluence comments from sidecar/source context. |
+| =org-confluence-comments-push.el= | Push local sidecar comments to Confluence. |
+| =org-confluence-comments-remote.el= | Interpret remote Confluence comment payloads and metadata. |
+| =org-confluence-comments-sync.el= | Comments-only Confluence sync helper. |
+| =org-confluence-sync-status.el= | Sync status report mode, keymap, and open/refresh orchestration. |
+| =org-confluence-sync-status-actions.el= | Sync status report actions and point-sensitive commands. |
+| =org-confluence-sync-status-cache.el= | Sync status cache paths, JSON persistence, and staleness. |
+| =org-confluence-sync-status-collect.el= | Sync status issue construction and fresh status collection. |
+| =org-confluence-sync-status-display.el= | Sync status window placement and optional page-context restoration. |
+| =org-confluence-sync-status-marker.el= | Source-buffer sync marker lifecycle for =org-confluence-mode=. |
+| =org-confluence-sync-status-render.el= | Sync status faces, marker labels, and report rendering. |
+
+The sync-status modules are intentionally layered: cache/collect build the
+status model, render/display/marker present it, actions mutate related
+page/comment state, and =org-confluence-sync-status.el= remains the report
+entrypoint.
 
 * Installation
 
@@ -40,16 +89,92 @@ When extracted as a package, the intended setup should look like this:
 #+begin_src emacs-lisp
 (use-package org-confluence
   :straight (:type git :host github :repo "behaghel/org-confluence")
-  :commands (hub/confluence-publish
-             hub/confluence-publish-dwim
-             hub/confluence-pull)
+  :commands (org-confluence-mode
+             org-confluence-mode-maybe
+             org-confluence-publish
+             org-confluence-publish-dwim
+             org-confluence-pull
+             org-confluence-sync-current)
+  :hook (org-mode . org-confluence-mode-maybe)
   :init
-  (setq hub/confluence-api-base-url "https://example.atlassian.net"
-        hub/confluence-api-default-space "~personal")
-  :config
-  (with-eval-after-load 'ox
-    (require 'org-confluence)))
+  (setq org-confluence-api-base-url "https://example.atlassian.net"
+        org-confluence-api-default-space "~personal"))
 #+end_src
+
+=org-confluence-mode= registers the Confluence =org-comments= backend and, when
+=org-confluence-enable-org-comments-mode= is non-nil, enables
+=org-comments-mode= for local comment commands and overlays.  The package mode
+does not install personal leader keys, Evil bindings, or layout policy.
+
+The mode binds one package-native dispatch command by default:
+
+#+begin_example
+C-c C-x C  org-confluence-dispatch
+#+end_example
+
+Set =org-confluence-keymap-prefix= to nil before enabling the mode to leave the
+mode map without a default binding, or set it to another key sequence and call
+=org-confluence-rebuild-mode-map=.
+
+* Workflows
+
+** Export and publish
+
+- =org-confluence-export-to-xhtml= writes Confluence Storage XHTML for the
+  current Org buffer or subtree.
+- =org-confluence-publish= updates an existing Confluence page identified by
+  buffer or subtree metadata.
+- =org-confluence-publish-dwim= updates an existing page or creates a page when
+  enough space/parent metadata is available.
+- =org-confluence-publish-force= bypasses stale remote-version and
+  inline-comment preservation checks after confirmation.
+
+When an Org buffer records =#+CONFLUENCE_PAGE_VERSION=, publish checks the
+current remote page version before uploading assets or editing the page.  If the
+remote page changed since the last recorded sync, normal publish refuses and asks
+you to run =org-confluence-sync-page-current= or explicitly force publish.
+
+Publishing uploads local image assets before page update.  When
+=org-confluence-publish-preserve-inline-comments= is non-nil, publishing fetches
+existing page storage and inline comment metadata so active inline comment
+markers can be reinserted into newly exported storage XHTML when safe.
+
+** Import and pull
+
+- =org-confluence-pull= refreshes the current Org file from Confluence storage.
+- =org-confluence-pull-to-file= accepts =:include-comments t= to pull page
+  comments into the adjacent =.comments.org= sidecar while keeping the main Org
+  page free of comment content.
+- =org-confluence-pull-child-page= selects a descendant page/folder and pulls it
+  beside the current Org file.
+
+Import converts common Confluence constructs into readable Org, including
+status macros, panel/callout macros, emojis, tables, lists, dates, inline
+comment markers, and user mentions.  Org date timestamps export as Confluence
+native =<time datetime="YYYY-MM-DD" />= elements; imported Confluence time
+elements become inactive Org dates such as =[2026-07-02]=.
+
+** Page and comment sync
+
+- =org-confluence-sync-page-current= syncs page content only.
+- =org-confluence-comments-import= imports footer and inline comments into the
+  =org-comments= sidecar.
+- =org-confluence-comments-push-current= pushes the current local sidecar
+  comment to Confluence.
+- =org-confluence-sync-current= performs page sync and then comments sync when
+  the page sync is safe.
+
+The =org-comments= backend operation =:sync= is intentionally comments-only.
+Full page synchronization remains in =org-confluence-sync.el= and is exposed via
+=org-confluence-sync-current=.
+
+** Sync status
+
+=org-confluence-sync-status= opens a read-only report for page, attachment,
+people, and comment state.  =org-confluence-mode= can show a compact
+source-buffer marker whose activation opens this report.  Optional UI callback
+variables let personal configuration reuse surrounding windows without making
+the package depend on personal context-panel modules.
 
 * Commands
 
@@ -65,36 +190,52 @@ Additional exporter variable:
 |----------+---------+-------------|
 | =org-confluence-image-max-width= | =760= | Maximum emitted Confluence image width in pixels. |
 
-* Development notes
+* Extension points
 
-Package extraction goals:
+See =docs/extension-points.org= for mode activation, =org-comments= backend
+registration, people-store customization, storage XHTML conversion, optional
+sync-status UI callbacks, and package-boundary expectations.
 
-1. Keep package files free of personal defaults.
-2. Keep activation/configuration in consumer configs.
-3. Add autoload cookies before external release.
-4. Generate this reference from defcustoms/commands, following the reusable
-   documentation approach used by =eve.el=:
+* Development
 
-   #+begin_src shell
-   scripts/elisp-package-docs \
-     --load packages/org-confluence/org-confluence.el \
-     --prefix hub/confluence-api- \
-     --command-prefix hub/confluence- \
-     --out packages/org-confluence/docs/generated
-   #+end_src
+Generate this reference from defcustoms/commands with:
 
-5. Preserve the current ERT suite as the package's standalone test suite.
+#+begin_src shell
+scripts/elisp-package-docs \
+  --load packages/org-confluence/org-confluence.el \
+  --prefix org-confluence- \
+  --command-prefix org-confluence- \
+  --out packages/org-confluence/docs/generated
+#+end_src
 
-* Tests
-
-Current tests live in the parent repository:
+Run the focused package tests with:
 
 #+begin_src shell
 devenv -q shell -- env HOME=$PWD emacs --batch -Q \
-  -L . -L lisp -L packages/org-confluence \
+  -L packages/org-comments \
+  -L packages/org-confluence \
+  -L lisp \
   -l ert \
-  -l test/test-helpers.el \
-  -l test/org-confluence-export-test.el \
-  -l test/org-confluence-api-test.el \
+  -l packages/org-confluence/test/org-confluence-entrypoints-test.el \
+  -l packages/org-confluence/test/org-confluence-comments-backend-test.el \
   -f ert-run-tests-batch-and-exit
 #+end_src
+
+Run the broader repository Confluence tests with:
+
+#+begin_src shell
+devenv -q shell -- env HOME=$PWD emacs --batch -Q \
+  -L . \
+  -L packages/org-comments \
+  -L packages/org-confluence \
+  -L lisp \
+  -l ert \
+  -l test/test-helpers.el \
+  -l test/publishing/confluence/confluence-people-test.el \
+  -l test/publishing/confluence/org-confluence-api-test.el \
+  -l test/publishing/confluence/org-confluence-export-test.el \
+  -f ert-run-tests-batch-and-exit
+#+end_src
+
+Before handoff, also run package byte-compile/lint, =load-check=, and the docs
+generation command above.

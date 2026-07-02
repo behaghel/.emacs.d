@@ -86,4 +86,10 @@ for test_file in "${tests[@]}"; do
 done
 
 echo "Running related ERT tests: ${tests[*]}"
-emacs --batch -Q -L . -l ert -l test/test-helpers.el "${load_args[@]}" -f ert-run-tests-batch-and-exit
+emacs --batch -Q \
+  -L . \
+  -L packages/org-comments \
+  -L packages/org-marginalia \
+  -L packages/org-confluence \
+  -L lisp \
+  -l ert -l test/test-helpers.el "${load_args[@]}" -f ert-run-tests-batch-and-exit

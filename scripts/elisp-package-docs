@@ -13,8 +13,8 @@ Usage: scripts/elisp-package-docs --load FILE --prefix PREFIX --out DIR [--comma
 Examples:
   scripts/elisp-package-docs \
     --load packages/org-confluence/org-confluence.el \
-    --prefix hub/confluence-api- \
-    --command-prefix hub/confluence- \
+    --prefix org-confluence-api- \
+    --command-prefix org-confluence- \
     --out packages/org-confluence/docs/generated
 USAGE
 }
@@ -49,6 +49,7 @@ command_prefix="${command_prefix:-$prefix}"
 emacs --batch -Q \
   -L "$repo_root" \
   -L "$repo_root/lisp" \
+  -L "$repo_root/packages/org-comments" \
   -L "$repo_root/modules" \
   -L "$repo_root/modules/org" \
   -L "$(dirname "$load_abs")" \
@@ -87,7 +88,8 @@ emacs --batch -Q \
       (mapatoms
        (lambda (sym)
          (when (and (commandp sym)
-                    (string-prefix-p \"$command_prefix\" (symbol-name sym)))
+                    (string-prefix-p \"$command_prefix\" (symbol-name sym))
+                    (not (string-match-p \"--\" (symbol-name sym))))
            (push sym commands))))
       (setq commands (sort commands (lambda (a b) (string< (symbol-name a) (symbol-name b)))))
       (dolist (sym commands)

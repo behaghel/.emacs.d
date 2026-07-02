@@ -1,0 +1,35 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+if ! command -v emacs >/dev/null 2>&1; then
+  echo "[elisp-byte-compile] ERROR: 'emacs' not found in PATH" >&2
+  exit 127
+fi
+
+repo_root=$(cd "$(dirname "$0")/.." && pwd)
+cd "$repo_root"
+
+files=("$@")
+if [ ${#files[@]} -eq 0 ]; then
+  mapfile -t files < <(find packages/org-comments packages/org-confluence \
+    -maxdepth 1 -name '*.el' -print | sort)
+fi
+
+if [ ${#files[@]} -eq 0 ]; then
+  exit 0
+fi
+
+cleanup() {
+  find packages/org-comments packages/org-confluence \
+    -maxdepth 1 -name '*.elc' -delete 2>/dev/null || true
+}
+trap cleanup EXIT
+cleanup
+
+emacs --batch -Q \
+  -L packages/org-comments \
+  -L packages/org-confluence \
+  -L lisp \
+  --eval '(setq byte-compile-error-on-warn t)' \
+  -f batch-byte-compile \
+  "${files[@]}"

@@ -85,6 +85,7 @@ devenv.local.nix
 
 # Local agent/browser/TeX scratch artifacts
 .*.confluence.cache
+/org-confluence/
 .emacs.d/
 .playwright-mcp/
 .sisyphus/
@@ -98,6 +99,7 @@ devenv.local.nix
 /test/fixtures/org-export/*.pdf
 /test/fixtures/org-export/*.tex
 texput.*
+packages/*/docs/dir
 blog-home*.md
 blog-home*.png
 efficiency-post*.md

@@ -1,0 +1,3 @@
+| Key | Command |
+|-----+---------|
+| /No dedicated page panel keymap yet./ |  |

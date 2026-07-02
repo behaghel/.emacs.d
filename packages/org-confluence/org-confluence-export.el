@@ -5,7 +5,6 @@
 
 ;;; Code:
 
-(require 'hub-org-callout)
 (require 'org)
 (require 'ol)
 (require 'ox)
@@ -13,9 +12,36 @@
 (require 'subr-x)
 (require 'xml)
 
+(require 'org-confluence-mentions)
+
 (defun org-confluence--trim (string)
   "Trim STRING, returning an empty string for nil."
   (string-trim (or string "")))
+
+(defun org-confluence--callout-unquote (value)
+  "Return VALUE without one layer of Org attribute string quoting."
+  (cond
+   ((not (stringp value)) value)
+   ((string-match-p "\\`\".*\"\\'" value)
+    (condition-case nil
+	(car (read-from-string value))
+      (error (string-trim value "\"" "\""))))
+   (t value)))
+
+(defun org-confluence--callout-attributes (special-block)
+  "Return Confluence callout attributes for SPECIAL-BLOCK."
+  (let* ((attr (org-export-read-attribute :attr_callout special-block))
+	 (type (org-confluence--callout-unquote (plist-get attr :type)))
+	 (title (org-confluence--callout-unquote (plist-get attr :title))))
+    (list :type type :title title)))
+
+(defun org-confluence--callout-type (special-block &optional default)
+  "Return SPECIAL-BLOCK's callout type, or DEFAULT."
+  (or (plist-get (org-confluence--callout-attributes special-block) :type) default))
+
+(defun org-confluence--callout-title (special-block)
+  "Return SPECIAL-BLOCK's callout title, or nil."
+  (plist-get (org-confluence--callout-attributes special-block) :title))
 
 (defun org-confluence--join-lines (&rest parts)
   "Join non-empty XHTML PARTS with newlines."
@@ -57,6 +83,13 @@
   "Transcode underline CONTENTS to XHTML."
   (org-confluence--format-inline "u" contents))
 
+(defun org-confluence--timestamp (timestamp _contents _info)
+  "Transcode Org TIMESTAMP to a Confluence time element."
+  (format "<time datetime=\"%04d-%02d-%02d\" />"
+	  (org-element-property :year-start timestamp)
+	  (org-element-property :month-start timestamp)
+	  (org-element-property :day-start timestamp)))
+
 (defcustom org-confluence-image-max-width 760
   "Maximum Confluence image width in pixels.
 This is emitted as `ac:width' because Confluence may ignore CSS max-width on
@@ -96,9 +129,13 @@ storage-format images."
 	 (path (or (org-element-property :path link) ""))
 	 (href (or (org-element-property :raw-link link) path ""))
 	 (label (org-confluence--trim (or contents href))))
-    (if (string= type "confluence-status")
-	(org-confluence--status path label)
-      (format "<a href=\"%s\">%s</a>" (xml-escape-string href) label))))
+    (cond
+     ((string= type "confluence-status")
+      (org-confluence--status path label))
+     ((string= type "confluence-user")
+      (or (org-confluence-mentions-storage-link path) ""))
+     (t
+      (format "<a href=\"%s\">%s</a>" (xml-escape-string href) label)))))
 
 (defun org-confluence--image-filename (link info)
   "Return Confluence attachment filename for image LINK using INFO."
@@ -382,8 +419,8 @@ back to Confluence."
 (defun org-confluence--special-block (special-block contents _info)
   "Transcode SPECIAL-BLOCK with CONTENTS to XHTML."
   (if (string= (downcase (or (org-element-property :type special-block) "")) "callout")
-      (let ((kind (hub/org-callout-type special-block "info"))
-	    (title (hub/org-callout-title special-block)))
+      (let ((kind (org-confluence--callout-type special-block "info"))
+	    (title (org-confluence--callout-title special-block)))
 	(concat (format "<ac:structured-macro ac:name=\"%s\" ac:schema-version=\"1\">" (xml-escape-string kind))
 		(when title
 		  (format "<ac:parameter ac:name=\"title\">%s</ac:parameter>"
@@ -455,19 +492,22 @@ back to Confluence."
 			     (strike-through . org-confluence--strike-through)
 			     (table . org-confluence--table)
 			     (template . org-confluence--template)
+			     (timestamp . org-confluence--timestamp)
 			     (underline . org-confluence--underline))
 			   :menu-entry
 			   '(?C "Export to Confluence"
-				((?C "Publish/create page" hub/confluence-publish-from-export-dispatch)
-				 (?O "Publish/create and open page" hub/confluence-publish-and-open-from-export-dispatch)
+				((?C "Publish/create page" org-confluence-publish-from-export-dispatch)
+				 (?O "Publish/create and open page" org-confluence-publish-and-open-from-export-dispatch)
 				 (?X "To temporary XHTML buffer" org-confluence-export-as-xhtml)
 				 (?x "To XHTML file" org-confluence-export-to-xhtml))))
 
 (defun org-confluence-export (&optional async subtreep visible-only body-only ext-plist)
   "Export current Org buffer to Confluence Storage Format XHTML.
 
-ASYNC, SUBTREEP, VISIBLE-ONLY, BODY-ONLY, and EXT-PLIST are passed through to
-`org-export-as'.  The default is body-only output suitable for `cfl --storage'."
+SUBTREEP, VISIBLE-ONLY, BODY-ONLY, and EXT-PLIST are passed through to
+`org-export-as'.  The default is body-only output suitable for `cfl --storage'.
+ASYNC is accepted for Org export-dispatch compatibility."
+  (ignore async)
   (let ((org-confluence--root-headline-begin
 	 (when subtreep
 	   (save-excursion
@@ -500,5 +540,4 @@ conventions, so this command works from `org-export-dispatch'."
     (org-export-to-file 'confluence file async subtreep visible-only (or body-only t) ext-plist)))
 
 (provide 'org-confluence-export)
-(provide 'org/export-confluence)
 ;;; org-confluence-export.el ends here

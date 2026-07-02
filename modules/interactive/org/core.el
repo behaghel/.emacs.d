@@ -75,10 +75,10 @@ native behavior."
 			      ",cC" #'hub/org-comment-open-sidecar
 			      ",ce" #'hub/org-comment-edit
 			      ",cj" #'hub/org-comment-jump-to-sidecar
-			      ",cl" #'hub/confluence-comment-open-current
-			      ",cc" #'hub/org-context-panel-open
+			      ",cl" #'org-confluence-comments-open-current
+			      ",cc" #'org-comments-open
 			      ",cM" #'hub/org-context-panel-mode
-			      ",cO" #'hub/confluence-open-page
+			      ",cO" #'org-confluence-open-page
 			      ",cf" #'hub/org-page-comment-create
 			      ",cP" #'hub/org-page-comments-open
 			      ",cr" #'hub/org-comment-reply-create
@@ -91,7 +91,7 @@ native behavior."
 			      "[c" #'hub/org-comment-previous)
   (evil-define-key 'visual org-mode-map (kbd ",cA") #'hub/org-comment-reanchor-from-region)
   (evil-define-key 'visual org-mode-map (kbd ",cc") #'hub/org-comment-create-from-region)
-  (evil-define-key 'normal org-mode-map (kbd "RET") #'hub/org-context-panel-jump-to-item-at-point)
+  (evil-define-key 'normal org-mode-map (kbd "RET") #'hub/org-comments-source-ret-dwim)
   (evil-define-key 'insert org-mode-map (kbd "RET") #'org-return)
   (evil-define-key 'motion calendar-mode-map (kbd "RET") #'org-calendar-select)
   (define-key org-mode-map (kbd "<tab>") #'hub/org-tab-dwim)
@@ -113,7 +113,7 @@ native behavior."
 	org-archive-location "archive/%s_archive::datetree/")
   (add-hook 'org-mode-hook #'hub/org-setup-wrapping)
   (add-hook 'org-mode-hook #'hub/org-epigraph-align-mode)
-  (add-hook 'org-mode-hook #'hub/org-comment-overlays-mode))
+  (add-hook 'org-mode-hook #'org-comments-mode))
 
 (use-package org
   :straight (:depth full)

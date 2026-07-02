@@ -7,11 +7,15 @@
 ;;; Code:
 
 (require 'cl-lib)
-(require 'hub-confluence-people)
-(require 'hub-org-comments)
+(require 'org-confluence-people-store)
+(require 'org-comments)
 (require 'org/context-panel)
 (require 'org)
 (require 'subr-x)
+
+(defgroup hub/org-comments nil
+  "Personal Org sidecar comments commands."
+  :group 'org-comments)
 
 (defun hub/org-comment--region-bounds ()
   "Return active region bounds or signal a user error."
@@ -23,7 +27,7 @@
   "Return valid sidecar comments for the current Org buffer."
   (unless (derived-mode-p 'org-mode)
     (user-error "Org comments only work in Org buffers"))
-  (or (hub/org-comment-collect (current-buffer))
+  (or (org-comments-collect (current-buffer))
       (user-error "No comments in this buffer")))
 
 (defun hub/org-comment--target-start (comment)
@@ -36,7 +40,7 @@
   (cl-remove-if-not
    (lambda (comment)
      (eq (plist-get comment :anchor-state) 'stale))
-   (or (hub/org-comment-collect (current-buffer) t)
+   (or (org-comments-collect (current-buffer) t)
        (user-error "No comments in this buffer"))))
 
 (defvar hub/org-comment-reanchor-history nil
@@ -49,7 +53,7 @@
 
 (defun hub/org-comment--picker-preview (text)
   "Return TEXT normalized and truncated for picker display."
-  (let ((preview (hub/org-comment-normalize-target-text (or text ""))))
+  (let ((preview (org-comments-normalize-target-text (or text ""))))
     (if (> (length preview) hub/org-comment-picker-preview-length)
 	(concat (substring preview 0 hub/org-comment-picker-preview-length) "…")
       preview)))
@@ -112,8 +116,8 @@
 
 (defun hub/org-comment--page-marker-record ()
   "Return a pseudo comment record for the page-comments marker, or nil."
-  (when (hub/org-comment-collect-page (current-buffer))
-    (when-let* ((position (hub/org-context-panel-page-comment-marker-position)))
+  (when (org-comments-collect-page (current-buffer))
+    (when-let* ((position (org-comments-context-panel-page-marker-position)))
       (list :type 'page-marker
 	    :target-start position))))
 
@@ -122,7 +126,7 @@
   (unless (derived-mode-p 'org-mode)
     (user-error "Org comments only work in Org buffers"))
   (let ((comments (sort (delq nil (cons (hub/org-comment--page-marker-record)
-					(hub/org-comment-collect (current-buffer))))
+					(org-comments-collect (current-buffer))))
 			(lambda (left right)
 			  (< (hub/org-comment--target-start left)
 			     (hub/org-comment--target-start right))))))
@@ -132,9 +136,9 @@
 (defun hub/org-comment--goto (comment)
   "Move point to COMMENT and open the context panel."
   (goto-char (hub/org-comment--target-start comment))
-  (hub/org-comment-overlays-refresh)
+  (org-comments-overlays-refresh)
   (unless (eq (plist-get comment :type) 'page-marker)
-    (hub/org-context-panel-open)))
+    (org-comments-open)))
 
 (defun hub/org-comment--active-at-point ()
   "Return the sidecar comment active at point, or signal a user error."
@@ -154,9 +158,9 @@
 	     (not (org-before-first-heading-p)))
     (save-excursion
       (org-back-to-heading t)
-      (while (and (equal "reply" (org-entry-get nil "HUB_COMMENT_SYNC_KIND"))
+      (while (and (equal "reply" (org-entry-get nil "ORG_COMMENTS_SYNC_KIND"))
 		  (org-up-heading-safe)))
-      (when-let* ((id (org-entry-get nil "HUB_COMMENT_ID")))
+      (when-let* ((id (org-entry-get nil "ORG_COMMENTS_ID")))
 	(list :id id :sidecar-file buffer-file-name)))))
 
 (defun hub/org-comment--comment-to-delete-at-point ()
@@ -172,11 +176,11 @@
       (user-error "Comment record is missing sidecar metadata"))
     (find-file sidecar-file)
     (org-mode)
-    (hub/org-comment-fold-sidecar-property-drawers)
+    (org-comments-fold-sidecar-property-drawers)
     (goto-char (point-min))
     (unless (cl-loop while (re-search-forward org-heading-regexp nil t)
 		     do (goto-char (match-beginning 0))
-		     when (equal id (org-entry-get nil "HUB_COMMENT_ID"))
+		     when (equal id (org-entry-get nil "ORG_COMMENTS_ID"))
 		     return t
 		     do (forward-line 1))
       (user-error "Comment %s not found in sidecar" id))))
@@ -209,7 +213,7 @@
       (goto-char (point-min))
       (unless (cl-loop while (re-search-forward org-heading-regexp nil t)
 		       do (goto-char (match-beginning 0))
-		       when (equal id (org-entry-get nil "HUB_COMMENT_ID"))
+		       when (equal id (org-entry-get nil "ORG_COMMENTS_ID"))
 		       return (progn (org-todo status) t)
 		       do (forward-line 1))
 	(user-error "Comment %s not found in sidecar" id))
@@ -227,8 +231,8 @@
     (if (and buffer-file-name
 	     (string-suffix-p ".comments.org" buffer-file-name))
 	(revert-buffer :ignore-auto :noconfirm)
-      (hub/org-comment-overlays-refresh)
-      (hub/org-context-panel-open))))
+      (org-comments-overlays-refresh)
+      (org-comments-open))))
 
 ;;;###autoload
 (defun hub/org-comment-next ()
@@ -266,24 +270,24 @@
 (defun hub/org-comment-open-sidecar ()
   "Open the current Org file's sidecar comments file when it exists."
   (interactive)
-  (let ((sidecar-file (hub/org-comment-sidecar-path)))
+  (let ((sidecar-file (org-comments-sidecar-path)))
     (if (file-exists-p sidecar-file)
 	(progn
 	  (find-file sidecar-file)
-	  (hub/org-comment-fold-sidecar-property-drawers))
+	  (org-comments-fold-sidecar-property-drawers))
       (message "No sidecar comments file: %s" sidecar-file))))
 
 ;;;###autoload
-(defun hub/org-comment-refresh-sidecar-headings-command ()
+(defun org-comments-refresh-sidecar-headings-command ()
   "Refresh headings in the current Org sidecar comments file."
   (interactive)
   (let ((sidecar-file (if (and buffer-file-name
 			       (string-suffix-p ".comments.org" buffer-file-name))
 			  buffer-file-name
-			(hub/org-comment-sidecar-path))))
+			(org-comments-sidecar-path))))
     (unless (file-exists-p sidecar-file)
       (user-error "No sidecar comments file: %s" sidecar-file))
-    (let ((count (hub/org-comment-refresh-sidecar-headings sidecar-file)))
+    (let ((count (org-comments-refresh-sidecar-headings sidecar-file)))
       (when (and buffer-file-name (file-equal-p buffer-file-name sidecar-file))
 	(revert-buffer :ignore-auto :noconfirm))
       (message "Refreshed %s sidecar comment heading%s"
@@ -296,15 +300,15 @@
   (interactive)
   (unless (derived-mode-p 'org-mode)
     (user-error "Org comments only work in Org buffers"))
-  (let* ((summary (hub/org-comment--anchor-imported-inline-comments (current-buffer)))
-	 (sidecar-file (hub/org-comment-sidecar-path))
+  (let* ((summary (org-comments-anchor-imported-inline-comments (current-buffer)))
+	 (sidecar-file (org-comments-sidecar-path))
 	 (anchored (plist-get summary :anchored))
 	 (missing (plist-get summary :missing))
 	 (ambiguous (plist-get summary :ambiguous)))
-    (hub/org-comment-refresh-sidecar-headings sidecar-file)
-    (hub/org-comment-overlays-refresh)
+    (org-comments-refresh-sidecar-headings sidecar-file)
+    (org-comments-overlays-refresh)
     (when (get-buffer-window hub/org-context-panel-buffer-name t)
-      (ignore-errors (hub/org-context-panel-open)))
+      (ignore-errors (org-comments-open)))
     (message "Anchored %s inline comments; %s missing; %s ambiguous"
 	     anchored missing ambiguous)
     summary))
@@ -315,13 +319,13 @@
   (interactive)
   (unless (derived-mode-p 'org-mode)
     (user-error "Org comments only work in Org buffers"))
-  (let* ((sidecar-file (hub/org-comment-sidecar-path))
-	 (exact (hub/org-comment--anchor-imported-inline-comments (current-buffer) sidecar-file))
-	 (triage (hub/org-comment--triage-imported-inline-comments (current-buffer) sidecar-file)))
-    (hub/org-comment-refresh-sidecar-headings sidecar-file)
-    (hub/org-comment-overlays-refresh)
+  (let* ((sidecar-file (org-comments-sidecar-path))
+	 (exact (org-comments-anchor-imported-inline-comments (current-buffer) sidecar-file))
+	 (triage (org-comments--triage-imported-inline-comments (current-buffer) sidecar-file)))
+    (org-comments-refresh-sidecar-headings sidecar-file)
+    (org-comments-overlays-refresh)
     (when (get-buffer-window hub/org-context-panel-buffer-name t)
-      (ignore-errors (hub/org-context-panel-open)))
+      (ignore-errors (org-comments-open)))
     (message "Anchored %s exact, %s selected, %s skipped"
 	     (plist-get exact :anchored)
 	     (plist-get triage :selected)
@@ -338,14 +342,14 @@
     (unless (and id sidecar-file)
       (user-error "No sidecar comment at point"))
     (when (yes-or-no-p (format "Delete comment %s? " id))
-      (hub/org-comment-delete-entry sidecar-file id)
+      (org-comments-delete-entry sidecar-file id)
       (when (and buffer-file-name
 		 (file-equal-p buffer-file-name sidecar-file))
 	(revert-buffer :ignore-auto :noconfirm))
       (when (derived-mode-p 'org-mode)
-	(ignore-errors (hub/org-comment-overlays-refresh))
+	(ignore-errors (org-comments-overlays-refresh))
 	(when (get-buffer-window hub/org-context-panel-buffer-name t)
-	  (ignore-errors (hub/org-context-panel-open))))
+	  (ignore-errors (org-comments-open))))
       (message "Deleted comment %s" id))))
 
 ;;;###autoload
@@ -356,16 +360,16 @@
     (user-error "Org comments only work in Org buffers"))
   (let* ((source-buffer (current-buffer))
 	 (target-comment (or comment (hub/org-comment--read-stale-comment)))
-	 (record (hub/org-comment-create-record
+	 (record (org-comments-create-record
 		  buffer-file-name start end "" (plist-get target-comment :id))))
-    (hub/org-comment-update-anchor
+    (org-comments-update-anchor
      (plist-get target-comment :sidecar-file)
      (plist-get target-comment :id)
      record)
     (with-current-buffer source-buffer
       (goto-char start)
-      (hub/org-comment-overlays-refresh)
-      (hub/org-context-panel-open))))
+      (org-comments-overlays-refresh)
+      (org-comments-open))))
 
 ;;;###autoload
 (defun hub/org-comment-reanchor-from-region ()
@@ -421,8 +425,8 @@
     (if (and buffer-file-name
 	     (string-suffix-p ".comments.org" buffer-file-name))
 	(revert-buffer :ignore-auto :noconfirm)
-      (hub/org-comment-overlays-refresh)
-      (hub/org-context-panel-open))))
+      (org-comments-overlays-refresh)
+      (org-comments-open))))
 
 ;;;###autoload
 (defun hub/org-comment-create (start end &optional body)
@@ -433,11 +437,11 @@
   (unless buffer-file-name
     (user-error "Current buffer is not visiting a file"))
   (let* ((source-buffer (current-buffer))
-	 (record (hub/org-comment-create-record buffer-file-name start end (or body "")))
-	 (sidecar-file (hub/org-comment-append-to-sidecar record)))
+	 (record (org-comments-create-record buffer-file-name start end (or body "")))
+	 (sidecar-file (org-comments-append-to-sidecar record)))
     (with-current-buffer source-buffer
       (goto-char start)
-      (hub/org-comment-overlays-refresh))
+      (org-comments-overlays-refresh))
     (hub/org-comment--goto-sidecar-body
      (list :id (plist-get record :id)
 	   :sidecar-file sidecar-file))))
@@ -446,24 +450,24 @@
   "Return a page-level sidecar comment record for SOURCE-FILE.
 BODY defaults to an empty string.  ID, AUTHOR, and CREATED-AT default to local
 comment metadata."
-  (list :id (or id (hub/org-comment-generate-id))
+  (list :id (or id (org-comments-generate-id))
 	:status "OPEN"
 	:source-file source-file
-	:author (or author (hub/org-comment-current-author))
-	:created-at (or created-at (hub/org-comment-current-created-at))
+	:author (or author (org-comments-current-author))
+	:created-at (or created-at (org-comments-current-created-at))
 	:sync-kind "footer"
 	:body (or body "")))
 
 (defun hub/org-page-comment--format-entry (record sidecar-file)
   "Return sidecar Org entry text for page comment RECORD in SIDECAR-FILE."
-  (let ((title (hub/org-comment-heading-title record (file-name-directory sidecar-file))))
+  (let ((title (org-comments-heading-title record (file-name-directory sidecar-file))))
     (concat
      (format "* %s %s\n" (or (plist-get record :status) "OPEN") title)
      ":PROPERTIES:\n"
-     (hub/org-comment--property-line "HUB_COMMENT_ID" (plist-get record :id))
-     (hub/org-comment--property-line "HUB_COMMENT_AUTHOR" (plist-get record :author))
-     (hub/org-comment--property-line "HUB_COMMENT_CREATED_AT" (plist-get record :created-at))
-     (hub/org-comment--property-line "HUB_COMMENT_SYNC_KIND" "footer")
+     (org-comments--property-line "ORG_COMMENTS_ID" (plist-get record :id))
+     (org-comments--property-line "ORG_COMMENTS_AUTHOR" (plist-get record :author))
+     (org-comments--property-line "ORG_COMMENTS_CREATED_AT" (plist-get record :created-at))
+     (org-comments--property-line "ORG_COMMENTS_SYNC_KIND" "footer")
      ":END:\n\n"
      (string-trim-right (or (plist-get record :body) ""))
      "\n")))
@@ -471,8 +475,8 @@ comment metadata."
 (defun hub/org-page-comment--append-to-sidecar (record &optional sidecar-file)
   "Append page comment RECORD to SIDECAR-FILE and return SIDECAR-FILE."
   (let* ((source-file (plist-get record :source-file))
-	 (target-file (or sidecar-file (hub/org-comment-sidecar-path source-file))))
-    (hub/org-comment--ensure-sidecar-header target-file source-file)
+	 (target-file (or sidecar-file (org-comments-sidecar-path source-file))))
+    (org-comments-ensure-sidecar-header target-file source-file)
     (with-temp-buffer
       (insert-file-contents target-file)
       (goto-char (point-max))
@@ -497,7 +501,7 @@ comment metadata."
 	 (record (hub/org-page-comment--create-record buffer-file-name body))
 	 (sidecar-file (hub/org-page-comment--append-to-sidecar record)))
     (with-current-buffer source-buffer
-      (hub/org-comment-overlays-refresh))
+      (org-comments-overlays-refresh))
     (hub/org-comment--goto-sidecar-body
      (list :id (plist-get record :id)
 	   :sidecar-file sidecar-file))))
@@ -512,8 +516,8 @@ comment metadata."
   (org-back-to-heading t)
   (while (and (> (org-outline-level) 1)
 	      (org-up-heading-safe)))
-  (let ((id (org-entry-get nil "HUB_COMMENT_ID"))
-	(remote-id (org-entry-get nil "HUB_COMMENT_REMOTE_ID")))
+  (let ((id (org-entry-get nil "ORG_COMMENTS_ID"))
+	(remote-id (org-entry-get nil "ORG_COMMENTS_REMOTE_ID")))
     (unless id
       (user-error "Point is not on a sidecar comment"))
     (unless remote-id
@@ -534,13 +538,13 @@ comment metadata."
 (defun hub/org-comment--format-reply-entry (record directory)
   "Return sidecar Org text for local reply RECORD using DIRECTORY."
   (concat
-   (format "** %s\n" (hub/org-comment-reply-heading-title record directory))
+   (format "** %s\n" (org-comments-reply-heading-title record directory))
    ":PROPERTIES:\n"
-   (hub/org-comment--property-line "HUB_COMMENT_ID" (plist-get record :id))
-   (hub/org-comment--property-line "HUB_COMMENT_SYNC_KIND" "reply")
-   (hub/org-comment--property-line "HUB_COMMENT_REMOTE_PARENT_ID" (plist-get record :remote-parent-id))
-   (hub/org-comment--property-line "HUB_COMMENT_AUTHOR" (plist-get record :author))
-   (hub/org-comment--property-line "HUB_COMMENT_CREATED_AT" (plist-get record :created-at))
+   (org-comments--property-line "ORG_COMMENTS_ID" (plist-get record :id))
+   (org-comments--property-line "ORG_COMMENTS_SYNC_KIND" "reply")
+   (org-comments--property-line "ORG_COMMENTS_REMOTE_PARENT_ID" (plist-get record :remote-parent-id))
+   (org-comments--property-line "ORG_COMMENTS_AUTHOR" (plist-get record :author))
+   (org-comments--property-line "ORG_COMMENTS_CREATED_AT" (plist-get record :created-at))
    ":END:\n\n"
    (string-trim-right (or (plist-get record :body) ""))
    "\n"))
@@ -555,10 +559,10 @@ BODY defaults to an empty string.  The reply is not pushed automatically."
     (user-error "Org comment replies only work in Org buffers or comment sidecars"))
   (let* ((root (hub/org-comment--reply-root-from-context))
 	 (sidecar-file (plist-get root :sidecar-file))
-	 (record (list :id (hub/org-comment-generate-id)
+	 (record (list :id (org-comments-generate-id)
 		       :remote-parent-id (plist-get root :remote-id)
-		       :author (hub/org-comment-current-author)
-		       :created-at (hub/org-comment-current-created-at)
+		       :author (org-comments-current-author)
+		       :created-at (org-comments-current-created-at)
 		       :body (or body "")))
 	 (reply-id (plist-get record :id)))
     (hub/org-comment--goto-sidecar-heading root)
@@ -573,7 +577,7 @@ BODY defaults to an empty string.  The reply is not pushed automatically."
       (insert (hub/org-comment--format-reply-entry
 	       record (file-name-directory sidecar-file)))
       (save-buffer)
-      (hub/org-comment-refresh-sidecar-headings sidecar-file)
+      (org-comments-refresh-sidecar-headings sidecar-file)
       (hub/org-comment--goto-sidecar-heading
        (list :id reply-id :sidecar-file sidecar-file))
       (unless (= (org-outline-level) (1+ root-level))
@@ -584,7 +588,7 @@ BODY defaults to an empty string.  The reply is not pushed automatically."
 (defun hub/org-page-comments-open ()
   "Open the bottom page-context window for the current Org buffer."
   (interactive)
-  (hub/org-page-context-open t t))
+  (org-comments-page-open))
 
 ;;;###autoload
 (defun hub/org-comment-create-from-region ()

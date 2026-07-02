@@ -1,8 +1,49 @@
 | Command | Description |
 |---------+-------------|
-| =hub/confluence-open-page= | Open Confluence PAGE-ID in browser using optional SPACE. |
-| =hub/confluence-publish= | Publish the current Org buffer or subtree to an existing Confluence page. |
-| =hub/confluence-publish-and-open-from-export-dispatch= | Publish or create through `org-export-dispatch', then open the page. |
-| =hub/confluence-publish-dwim= | Publish current Org buffer to Confluence, updating or creating as needed. |
-| =hub/confluence-publish-from-export-dispatch= | Publish or create through `org-export-dispatch' using Org export options. |
-| =hub/confluence-pull= | Fetch Confluence PAGE-ID and open a new Org buffer with imported content. |
+| =org-confluence-comments-import= | Import remote footer and inline comments for PAGE-ID into the sidecar. |
+| =org-confluence-comments-import-footer= | Import remote footer comments for PAGE-ID into the current Org sidecar. |
+| =org-confluence-comments-import-inline= | Import remote inline comments for PAGE-ID into the current Org sidecar. |
+| =org-confluence-comments-list= | Fetch Confluence comments for PAGE-ID and render a diagnostic buffer. |
+| =org-confluence-comments-open-current= | Open Confluence COMMENT-ID for PAGE-ID in a browser. |
+| =org-confluence-comments-push-current= | Push the current local sidecar comment to Confluence. |
+| =org-confluence-dispatch= | Show Confluence commands for the current Org buffer. |
+| =org-confluence-export-as-xhtml= | Export current Org buffer or subtree to a temporary Confluence XHTML buffer. |
+| =org-confluence-export-to-xhtml= | Export current Org buffer or subtree to a Confluence .xhtml file. |
+| =org-confluence-inline-repair-comment-anchors= | Repair missing Confluence inline comment markers for PAGE-ID. |
+| =org-confluence-mode= | Enable Confluence integration for the current Org buffer. |
+| =org-confluence-open-page= | Open Confluence PAGE-ID in browser using optional SPACE. |
+| =org-confluence-people-mark-current-user= | Mark the authenticated Confluence user as the current user in people cache. |
+| =org-confluence-people-resolve= | Resolve unresolved Confluence people in local/global people files. |
+| =org-confluence-publish= | Publish the current Org buffer or subtree to an existing Confluence page. |
+| =org-confluence-publish-and-open-from-export-dispatch= | Publish or create through `org-export-dispatch', then open the page. |
+| =org-confluence-publish-dwim= | Publish current Org buffer to Confluence, updating or creating as needed. |
+| =org-confluence-publish-force= | Publish to Confluence even when remote version or inline-comment checks block. |
+| =org-confluence-publish-from-export-dispatch= | Publish or create through `org-export-dispatch' using Org export options. |
+| =org-confluence-pull= | Refresh the current Org file from Confluence PAGE-ID. |
+| =org-confluence-pull-child-page= | Select one descendant page of PAGE-ID and pull it beside the current Org file. |
+| =org-confluence-refresh-empty-page-notice= | Refresh the Confluence empty page notice in the current buffer. |
+| =org-confluence-sync-current= | Synchronize current Org page and sidecar comments with Confluence. |
+| =org-confluence-sync-page-current= | Synchronize current Org buffer main page content with Confluence PAGE-ID. |
+| =org-confluence-sync-status= | Refresh and open Confluence sync status report for the current Org buffer. |
+| =org-confluence-sync-status-act-at-point= | Act on the sync issue at point, Magit-section style. |
+| =org-confluence-sync-status-actions= | Show point-sensitive Confluence sync status actions. |
+| =org-confluence-sync-status-close= | Close the current sync status report window. |
+| =org-confluence-sync-status-delete-local-at-point= | Delete the local sidecar comment for the current deleted-remote issue. |
+| =org-confluence-sync-status-dispatch= | Show Confluence sync status actions. |
+| =org-confluence-sync-status-force-publish= | Force-publish this report's source buffer after confirmation. |
+| =org-confluence-sync-status-import-comments= | Import Confluence comments for this sync status report's source buffer. |
+| =org-confluence-sync-status-jump-attachments= | Jump to the Attachments section. |
+| =org-confluence-sync-status-jump-comments= | Jump to the Comments section. |
+| =org-confluence-sync-status-jump-page= | Jump to the Page section. |
+| =org-confluence-sync-status-jump-people= | Jump to the People section. |
+| =org-confluence-sync-status-list-comments= | List Confluence comments for this report's source buffer. |
+| =org-confluence-sync-status-mode= | Major mode for Confluence sync status reports. |
+| =org-confluence-sync-status-open-from-marker= | Open sync status from the top marker, refreshing stale or unknown cache. |
+| =org-confluence-sync-status-open-page= | Open this report's source Confluence page. |
+| =org-confluence-sync-status-open-sidecar= | Open this report's source sidecar comment file. |
+| =org-confluence-sync-status-publish= | Publish this report's source buffer to Confluence. |
+| =org-confluence-sync-status-reanchor-comments= | Reanchor imported inline comments for this report's source buffer. |
+| =org-confluence-sync-status-refresh= | Refresh the current Confluence sync status report. |
+| =org-confluence-sync-status-refresh-source-marker= | Refresh the Confluence sync status marker in the current Org source buffer. |
+| =org-confluence-sync-status-repair-anchors= | Repair remote Confluence inline anchors for this report's source buffer. |
+| =org-confluence-sync-status-resolve-people= | Resolve Confluence people for this report's source directory. |

@@ -9,7 +9,7 @@
 (require 'test-helpers)
 (require 'org/authoring)
 
-(defmacro hub/org-marginalia-authoring-test--with-buffer (&rest body)
+(defmacro org-marginalia-authoring-test--with-buffer (&rest body)
   "Run BODY in a temporary Org buffer."
   (declare (indent 0))
   `(with-temp-buffer
@@ -18,7 +18,7 @@
      (goto-char (point-max))
      ,@body))
 
-(defun hub/org-marginalia-authoring-test--insert-with-body (command body)
+(defun org-marginalia-authoring-test--insert-with-body (command body)
   "Call COMMAND while stubbing minibuffer note BODY."
   (cl-letf (((symbol-function 'org-footnote-unique-label) (lambda (&rest _args) "one"))
 	    ((symbol-function 'hub/org-yas-ready-p) (lambda () nil))
@@ -27,8 +27,8 @@
 
 (ert-deftest hub/org-insert-forced-footnote-template-adds-kind-property ()
   "The traditional footnote helper writes HUB_NOTE_KIND footnote metadata."
-  (hub/org-marginalia-authoring-test--with-buffer
-   (hub/org-marginalia-authoring-test--insert-with-body
+  (org-marginalia-authoring-test--with-buffer
+   (org-marginalia-authoring-test--insert-with-body
     #'hub/org-insert-traditional-footnote-template "Legal note.")
    (should (string-match-p (regexp-quote "Text[fn:one]") (buffer-string)))
    (should (string-match-p (regexp-quote ":HUB_NOTE_KIND: footnote") (buffer-string)))
@@ -36,8 +36,8 @@
 
 (ert-deftest hub/org-insert-colon-forced-footnote-template ()
   "The forced footnote helper writes a colon-separated footnote definition."
-  (hub/org-marginalia-authoring-test--with-buffer
-   (hub/org-marginalia-authoring-test--insert-with-body
+  (org-marginalia-authoring-test--with-buffer
+   (org-marginalia-authoring-test--insert-with-body
     #'hub/org-insert-forced-footnote-template "Legal note.")
    (should (string-match-p (regexp-quote "Text[fn:one]") (buffer-string)))
    (should (string-match-p (regexp-quote "[fn:one]:\n:PROPERTIES:") (buffer-string)))
@@ -46,13 +46,13 @@
 
 (ert-deftest hub/org-tempo-completes-kind-specific-footnote-shortcuts ()
   "The <ft and <ff shortcuts expand to forced footnote helpers."
-  (hub/org-marginalia-authoring-test--with-buffer
+  (org-marginalia-authoring-test--with-buffer
    (insert " <ft")
    (cl-letf (((symbol-function 'hub/org-insert-traditional-footnote-template)
 	      (lambda () (insert "TRADITIONAL"))))
      (should (hub/org-tempo-complete-traditional-footnote))
      (should (string-suffix-p " TRADITIONAL" (buffer-string)))))
-  (hub/org-marginalia-authoring-test--with-buffer
+  (org-marginalia-authoring-test--with-buffer
    (insert " <ff")
    (cl-letf (((symbol-function 'hub/org-insert-forced-footnote-template)
 	      (lambda () (insert "FORCED"))))

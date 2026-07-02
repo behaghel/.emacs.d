@@ -1,0 +1,114 @@
+#+TITLE: Org Confluence Extension Points
+#+AUTHOR: Hubert Behaghel
+#+OPTIONS: toc:t num:nil
+
+* Overview
+
+=org-confluence= adapts Confluence publishing, page sync, comments, people, and
+storage XHTML conversion to the generic =org-comments= package.  Package code
+owns provider behavior; consumer configuration owns activation policy and
+site-specific defaults.
+
+The canonical modules are named =org-confluence-*=.  Former short wrapper files
+such as =api.el=, =commands.el=, and =export.el= are not part of the package
+boundary; extensions should require canonical modules directly.
+
+* Mode entry points
+
+=org-confluence-mode= is the package-level integration mode.  It registers the
+Confluence =org-comments= backend, installs the Confluence account-ID resolver
+buffer-locally when no resolver is already configured, and enables
+=org-comments-mode= by default.
+
+=org-confluence-mode-maybe= is the metadata-driven hook helper.  It enables
+=org-confluence-mode= only when the current Org buffer has Confluence page
+metadata such as =#+CONFLUENCE_PAGE_ID=.
+
+* Org comments backend
+
+=org-confluence-comments-backend-register= registers the =confluence= backend
+with =org-comments=.  The backend detector checks Confluence page metadata and
+its operations dispatch to focused Confluence modules:
+
+- open remote comments;
+- push current sidecar comments;
+- import remote comments;
+- run comments-only sync.
+
+Backend =:sync= is comments-only.  Full Confluence page synchronization remains
+in =org-confluence-sync.el= and is exposed through commands such as
+=org-confluence-sync-page-current= and =org-confluence-sync-current=.  This split
+keeps =org-comments= backend operations focused on comment sidecars while page
+pull/publish conflict checks stay in the Confluence page-sync layer.
+
+* People store
+
+The package people store is plain Org and package-neutral by default:
+
+- =org-confluence-people-store-directory= selects the global people-store
+  directory.
+- =org-confluence-people-store-file-name= selects the file name, normally
+  =confluence-people.org=.
+
+Lookup prefers a local people file next to the source document and then the
+global people file.  Consumer configuration can point the global directory at an
+existing Org directory, but the package itself does not depend on =org-directory=.
+
+* Identity resolver
+
+=org-confluence-mode= installs =org-confluence-people-resolve-account-id= into
+=org-comments-resolve-account-id-function= only when the buffer has no existing
+resolver.  Disabling the mode removes only the resolver it installed.
+
+Import code also dynamically binds the resolver while generating Confluence
+sidecar headings, so imported comments can show resolved names without coupling
+=org-comments= to the Confluence people store.
+
+* Storage XHTML conversion
+
+=org-confluence-import-storage-to-org= converts Confluence storage XHTML into
+readable Org.  This is where provider-specific rich text belongs.  The converter
+handles common Confluence constructs such as:
+
+- status macros;
+- panel/callout macros;
+- emojis;
+- tables and lists;
+- inline comment markers;
+- user mentions such as =ac:link= / =ri:user=.
+
+This boundary matters for comment display: =org-comments= can store a remote
+body as opaque provider markup, while =org-confluence= can render that body into
+readable Org for panels and diagnostics.
+
+* Sync-status UI callbacks
+
+=org-confluence-sync-status= exposes package-neutral callback variables for
+optional UI integration.  Personal modules can configure these callbacks to open
+or refresh a surrounding context panel.  The package must not require personal
+context-panel modules.
+
+- =org-confluence-sync-status-refresh-source-marker-function= refreshes the
+  source-buffer marker after sync status cache updates.
+- =org-confluence-sync-status-page-context-window-function= locates an existing
+  page-context window that the sync-status report may reuse.
+- =org-confluence-sync-status-restore-page-context-function= restores that page
+  context when the sync-status report closes.
+
+* Publish/pull policy
+
+Page import and publish are Confluence-specific operations.  Extensions should
+keep safety checks near =org-confluence-sync.el= and =org-confluence-publish.el=:
+page version metadata, local/remote hash comparisons, inline-comment marker
+preflight, asset upload, and force-publish confirmation belong there rather than
+in =org-comments=.
+
+Comment import/push/sync helpers may read page metadata through
+=org-confluence-comments-context.el=, but they should leave page body mutation to
+the page-sync layer.
+
+* Activation policy
+
+The package does not install personal leader keys, Evil bindings, or window
+layout policy.  Consumers should configure those outside the package, for
+example in an Org/Confluence activation module.

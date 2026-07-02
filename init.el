@@ -36,6 +36,9 @@
 
 (setq hub-lisp-dir (expand-file-name "lisp" user-emacs-directory))
 (add-to-list 'load-path hub-lisp-dir)
+(add-to-list 'load-path (expand-file-name "packages/org-comments" user-emacs-directory))
+(add-to-list 'load-path (expand-file-name "packages/org-confluence" user-emacs-directory))
+(add-to-list 'load-path (expand-file-name "packages/org-marginalia" user-emacs-directory))
 
 ;; Legacy settings/ folder is being retired; do not add it to load-path.
 ;; Private machine-specific setup now lives under private/setup.el (gitignored).

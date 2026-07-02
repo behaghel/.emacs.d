@@ -1,0 +1,60 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+if ! command -v emacs >/dev/null 2>&1; then
+  echo "[elisp-package-lint] ERROR: 'emacs' not found in PATH" >&2
+  exit 127
+fi
+
+repo_root=$(cd "$(dirname "$0")/.." && pwd)
+cd "$repo_root"
+
+package_lint_file=${PACKAGE_LINT_FILE:-}
+if [ -z "$package_lint_file" ]; then
+  if command -v nix >/dev/null 2>&1; then
+    package_lint_store=$(nix eval --raw nixpkgs#emacsPackages.package-lint.outPath 2>/dev/null || true)
+    if [ -n "$package_lint_store" ]; then
+      package_lint_file=$(find "$package_lint_store/share/emacs/site-lisp" \
+        -type f -name package-lint.el -print -quit 2>/dev/null || true)
+    fi
+  fi
+fi
+
+if [ -z "$package_lint_file" ] || [ ! -f "$package_lint_file" ]; then
+  echo "[elisp-package-lint] ERROR: package-lint.el not found" >&2
+  echo "Set PACKAGE_LINT_FILE=/path/to/package-lint.el or install package-lint in devenv." >&2
+  exit 127
+fi
+
+package_lint_dir=$(dirname "$package_lint_file")
+
+files=("$@")
+if [ ${#files[@]} -eq 0 ]; then
+  files=(
+    packages/org-comments/org-comments.el
+    packages/org-confluence/org-confluence.el
+  )
+fi
+
+emacs --batch -Q \
+  -L "$package_lint_dir" \
+  -L packages/org-comments \
+  -L packages/org-confluence \
+  -l package-lint \
+  --eval '
+(defun org-packages-package-lint--ignored-message-p (message)
+  "Return non-nil when MESSAGE is an expected offline-local dependency warning."
+  (or (string-match-p "Package [`'‘]org['’] is not installable\\." message)
+      (string-match-p "Package [`'‘]org-comments['’] is not installable\\." message)))
+(let ((files command-line-args-left)
+      (status 0))
+  (dolist (file files)
+    (with-current-buffer (find-file-noselect file)
+      (let ((default-directory (file-name-directory (buffer-file-name))))
+        (dolist (issue (package-lint-buffer))
+          (pcase-let ((`(,line ,col ,type ,message) issue))
+            (unless (org-packages-package-lint--ignored-message-p message)
+              (setq status 1)
+              (princ (format "%s:%s:%s: %s: %s\n" file line col type message))))))))
+  (kill-emacs status))' \
+  "${files[@]}"

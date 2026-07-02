@@ -1,0 +1,24 @@
+| Variable | Default | Description |
+|----------+---------+-------------|
+| =org-comments-author= | =nil= | Author name used for newly created local comments. |
+| =org-comments-current-user-id-function= | =ignore= | Function returning the current backend-agnostic person id. |
+| =org-comments-default-backend= | =org= | Default backend id used by backend-neutral Org comments commands. |
+| =org-comments-enable-overlays= | =t= | Whether `org-comments-mode' shows inline and page comment overlays. |
+| =org-comments-heading-body-preview-length= | =60= | Maximum normalized body text length used in comment headings. |
+| =org-comments-heading-preview-length= | =60= | Maximum normalized target text length used in sidecar headings. |
+| =org-comments-heading-target-preview-length= | =48= | Maximum normalized target text length used in comment headings. |
+| =org-comments-keymap-prefix= | ="C-c ;"= | Prefix key for `org-comments-mode' default bindings. |
+| =org-comments-page-panel-buffer-name= | ="*Org Page Comments*"= | Buffer name used for the standalone Org page comments panel. |
+| =org-comments-panel-buffer-name= | ="*Org Comments*"= | Buffer name used for the standalone Org comments panel. |
+| =org-comments-panel-overview-comment-line-length= | =80= | Maximum length of each comment overview line. |
+| =org-comments-panel-overview-comment-lines= | =2= | Maximum number of comment body lines shown in comment panel overview rows. |
+| =org-comments-panel-target-preview-length= | =20= | Maximum length of quoted comment target previews in comment panels. |
+| =org-comments-panel-width= | =38= | Width of the standalone Org comments side window. |
+| =org-comments-resolve-account-id-function= | =nil= | Function resolving a remote account id to a display name. |
+| =org-comments-resolve-person-function= | =ignore= | Function resolving a backend user id to a person plist. |
+| =org-comments-ui-compose-reply-function= | =nil= | Function used by `org-comments-reply' to compose a comment reply. |
+| =org-comments-ui-open-comment-function= | =nil= | Function used to open an inline comment by id from an `org-comment:' link. |
+| =org-comments-ui-open-function= | =nil= | Function used by `org-comments-open' to open a rich comments UI. |
+| =org-comments-ui-page-open-comment-function= | =nil= | Function used to open a page comment by id from an `org-comment:' link. |
+| =org-comments-ui-page-open-function= | =nil= | Function used by `org-comments-page-open' to open page comments. |
+| =org-comments-ui-refresh-function= | =nil= | Function used after comment mutations to refresh visible UI state. |

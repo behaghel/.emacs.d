@@ -1,0 +1,103 @@
+#+TITLE: Org Comments Extension Points
+#+AUTHOR: Hubert Behaghel
+#+OPTIONS: toc:t num:nil
+
+* Overview
+
+=org-comments= is backend-neutral.  It owns the local sidecar model, generic
+comment commands, overlays, panels, filters, and callback seams.  Provider
+packages such as =org-confluence= should adapt remote systems into these seams
+instead of requiring personal configuration or provider code from the generic
+package.
+
+* Backend protocol
+
+Backends register with =org-comments-register-backend=.  A backend spec declares
+an ID, optional detector, capabilities, and operation functions.
+
+Important operations:
+
+- =:collect= returns normalized comments.
+- =:open-remote= opens a provider comment URL.
+- =:push= pushes a local sidecar comment.
+- =:pull= imports remote comment state.
+- =:sync= performs comments-only synchronization.
+
+The =:sync= operation is intentionally comments-only.  Full document/page sync
+belongs to provider packages.
+
+* Activation
+
+=org-comments-mode= is the main user entry point.  It installs package-native
+bindings and, when =org-comments-enable-overlays= is non-nil, enables inline and
+page-comment overlays.
+
+Provider packages may enable =org-comments-mode= from their own integration
+modes, but should not install personal leader, Evil, or layout-specific keys.
+
+* Identity callbacks
+
+=org-comments= has two levels of people identity extension:
+
+- =org-comments-resolve-account-id-function= resolves a remote account ID to a
+  display name for headings and UI text.  It is called with ACCOUNT-ID and an
+  optional DIRECTORY context.
+- =org-comments-resolve-person-function= resolves a backend/raw ID pair to a
+  provider-neutral plist such as =(:id ID :name NAME :me BOOL)=.
+- =org-comments-current-user-id-function= returns the current provider-neutral
+  user ID for “mine” filters.
+
+Provider packages should set these callbacks buffer-locally or dynamically when
+possible.  =org-comments= must not depend on a provider people store.
+
+* UI adapters
+
+The package exposes adapter variables for UIs that want to replace or enrich the
+built-in panel:
+
+- current comment lookup;
+- current source buffer lookup;
+- refresh hooks;
+- open-comment/open-page actions;
+- close/help actions.
+
+The default panel uses these same seams, so provider or personal UIs can remain
+optional.
+
+* Context-panel providers
+
+=org-context-panel= is the reusable Org UI layer used by =org-comments= and
+other providers such as =org-marginalia=.  Providers register buffer-local plist
+descriptors with =org-context-panel-register-provider=.
+
+Composable providers should supply:
+
+- =:name=, a stable provider symbol;
+- =:priority=, a numeric ordering tie-breaker where lower appears first;
+- =:collect-side-items=, returning provider-neutral side item plists;
+- =:render-side-item=, rendering one row for one item;
+- =:jump-side-item=, handling =RET= on one rendered row.
+
+=org-context-panel= annotates collected rows with =:provider= and stores each
+rendered row as the =org-context-panel-item= text property.  The generic command
+=org-context-panel-jump-at-point= dispatches =RET= to the row provider's
+=:jump-side-item= function.  This keeps the panel core independent from
+comments, marginalia, Confluence, =magit-section=, and =transient= while still
+allowing multiple providers to share one viewport-aligned side panel.
+
+* Filters
+
+Filters are registered with =org-comments-register-filter=.  A filter predicate
+receives COMMENT, VALUE, and the full filter STATE.  It should return non-nil
+when the comment remains visible.
+
+Filters should use normalized collaboration fields from
+=org-comments-normalize-record= rather than provider-specific raw payloads.
+
+* Provider body conversion
+
+=org-comments= stores and transports comment bodies, but rich provider-specific
+markup conversion belongs to provider packages.  For example, =org-confluence=
+converts Confluence storage XHTML mentions, emojis, and macros into readable Org
+text before display.  This keeps the generic package independent from remote
+storage dialects.

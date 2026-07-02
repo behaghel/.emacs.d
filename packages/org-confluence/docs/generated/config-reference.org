@@ -1,5 +1,18 @@
 | Variable | Default | Description |
 |----------+---------+-------------|
-| =hub/confluence-api-base-url= | =nil= | Base URL of the Confluence site, without the /wiki path. |
-| =hub/confluence-api-cfl-command= | ="cfl"= | Command used to invoke the cfl Confluence CLI. |
-| =hub/confluence-api-default-space= | =nil= | Default Confluence space key used when #+CONFLUENCE_SPACE is absent. |
+| =org-confluence-api-base-url= | =nil= | Base URL of the Confluence site, without the /wiki path. |
+| =org-confluence-api-cfl-command= | ="cfl"= | Command used to invoke the cfl Confluence CLI. |
+| =org-confluence-api-cfl-config-file= | ="/Users/hubertbehaghel/.config/cfl/config.yml"= | Path to the cfl configuration file used for Confluence Cloud REST auth. |
+| =org-confluence-api-default-space= | =nil= | Default Confluence space key used when #+CONFLUENCE_SPACE is absent. |
+| =org-confluence-comments-import-resolve-people= | =t= | Whether comment import resolves Confluence people in bulk afterwards. |
+| =org-confluence-enable-org-comments-mode= | =t= | Whether `org-confluence-mode' also enables `org-comments-mode'. |
+| =org-confluence-image-max-width= | =760= | Maximum Confluence image width in pixels. |
+| =org-confluence-keymap-prefix= | ="C-c C-x C"= | Prefix key used by `org-confluence-mode' for `org-confluence-dispatch'. |
+| =org-confluence-mode-hook= | =nil= | Hook run after entering or leaving `org-confluence-mode'. |
+| =org-confluence-people-store-directory= | ="~/.emacs.d/org-confluence/"= | Directory for the global Confluence people store. |
+| =org-confluence-people-store-file-name= | ="confluence-people.org"= | File name used for Confluence people directories. |
+| =org-confluence-process-working-directory= | =nil= | Directory used as the working directory for Confluence CLI commands. |
+| =org-confluence-publish-preserve-inline-comments= | =t= | Whether publishing should reinsert Confluence inline comment markers. |
+| =org-confluence-show-empty-page-notice= | =t= | Whether `org-confluence-mode' marks linked Org buffers with empty bodies. |
+| =org-confluence-sync-status-show-source-marker= | =t= | Whether `org-confluence-mode' shows a source-buffer sync status marker. |
+| =org-confluence-sync-status-stale-after-days= | =3= | Number of days before cached Confluence sync status is considered stale. |

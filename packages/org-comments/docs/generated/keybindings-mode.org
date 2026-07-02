@@ -1,0 +1,19 @@
+#+CAPTION: org-comments-mode bindings
+| Key | Command |
+|-----+---------|
+| =C-c ; D= | =org-comments-pull= |
+| =C-c ; O= | =org-comments-open-remote= |
+| =C-c ; P= | =org-comments-page-create= |
+| =C-c ; S= | =org-comments-sync= |
+| =C-c ; U= | =org-comments-push= |
+| =C-c ; c= | =org-comments-create= |
+| =C-c ; d= | =org-comments-delete= |
+| =C-c ; e= | =org-comments-edit= |
+| =C-c ; m o= | =org-comments-mark-open= |
+| =C-c ; m r= | =org-comments-mark-resolved= |
+| =C-c ; m t= | =org-comments-mark-todo= |
+| =C-c ; n= | =org-comments-next= |
+| =C-c ; o= | =org-comments-open= |
+| =C-c ; p= | =org-comments-previous= |
+| =C-c ; r= | =org-comments-reply= |
+| =C-c ; s= | =org-comments-open-sidecar= |

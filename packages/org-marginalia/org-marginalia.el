@@ -1,9 +1,15 @@
-;;; hub-org-marginalia.el --- Org marginalia model helpers -*- lexical-binding: t; -*-
+;;; org-marginalia.el --- Org marginalia model helpers -*- lexical-binding: t; -*-
+
+;; Author: Hubert Behaghel
+;; Maintainer: Hubert Behaghel
+;; Version: 0.1.0
+;; Package-Requires: ((emacs "29.1") (org "9.6"))
+;; Keywords: outlines, convenience
+;; URL: https://github.com/behaghel/org-marginalia
 
 ;;; Commentary:
 ;; Parse native Org footnotes into a small marginalia model and compute a
-;; deterministic right-margin layout.  This library is side-effect free so it
-;; can be reused by interactive authoring commands and document exporters.
+;; deterministic right-margin layout.
 
 ;;; Code:
 
@@ -11,26 +17,26 @@
 (require 'org)
 (require 'subr-x)
 
-(defgroup hub/org-marginalia nil
+(defgroup org-marginalia nil
   "Org marginalia helpers."
   :group 'org)
 
-(defcustom hub/org-marginalia-default-kind 'sidenote
+(defcustom org-marginalia-default-kind 'sidenote
   "Default marginalia kind for ordinary Org footnotes."
   :type '(choice (const :tag "Sidenote" sidenote)
 		 (const :tag "Footnote" footnote))
-  :group 'hub/org-marginalia)
+  :group 'org-marginalia)
 
-(defcustom hub/org-marginalia-layout-gap 1
+(defcustom org-marginalia-layout-gap 1
   "Blank-line gap preserved between rendered marginalia boxes."
   :type 'natnum
-  :group 'hub/org-marginalia)
+  :group 'org-marginalia)
 
-(defun hub/org-marginalia--line-number-at (position)
+(defun org-marginalia--line-number-at (position)
   "Return one-based line number at POSITION in the current buffer."
   (line-number-at-pos position t))
 
-(defun hub/org-marginalia--reference-at-definition-p (position)
+(defun org-marginalia--reference-at-definition-p (position)
   "Return non-nil when footnote reference at POSITION starts a definition."
   (save-excursion
     (goto-char position)
@@ -40,7 +46,7 @@
       (and (= (point) reference-position)
 	   (looking-at-p "\\[fn:[^]\n]+\\]")))))
 
-(defun hub/org-marginalia--collect-references ()
+(defun org-marginalia--collect-references ()
   "Return footnote references in source order for the current Org buffer."
   (let (references)
     (save-excursion
@@ -48,17 +54,16 @@
       (while (re-search-forward "\\[fn:\\([^]:\n]+\\)\\]" nil t)
 	(let ((start (match-beginning 0))
 	      (label (match-string-no-properties 1)))
-	  (unless (hub/org-marginalia--reference-at-definition-p start)
+	  (unless (org-marginalia--reference-at-definition-p start)
 	    (push (list :id label
 			:reference-pos start
-			:anchor-line (hub/org-marginalia--line-number-at start)
+			:anchor-line (org-marginalia--line-number-at start)
 			:reference-marker (match-string-no-properties 0))
 		  references)))))
     (nreverse references)))
 
-(defun hub/org-marginalia--definition-bounds ()
-  "Return bounds for the footnote definition at point.
-Point must be at the beginning of a native Org footnote definition."
+(defun org-marginalia--definition-bounds ()
+  "Return bounds for the footnote definition at point."
   (let ((start (point))
 	(content-start (match-end 0))
 	end)
@@ -69,23 +74,23 @@ Point must be at the beginning of a native Org footnote definition."
 		    (point-max))))
     (list start content-start end)))
 
-(defun hub/org-marginalia--collect-definitions ()
+(defun org-marginalia--collect-definitions ()
   "Return a hash table mapping footnote labels to definition plists."
   (let ((definitions (make-hash-table :test 'equal)))
     (save-excursion
       (goto-char (point-min))
       (while (re-search-forward "^[ \t]*\\[fn:\\([^]:\n]+\\)\\]" nil t)
 	(let* ((label (match-string-no-properties 1))
-	       (bounds (hub/org-marginalia--definition-bounds))
+	       (bounds (org-marginalia--definition-bounds))
 	       (content-start (nth 1 bounds))
 	       (end (nth 2 bounds))
-	       (parsed (hub/org-marginalia--parse-definition-content content-start end)))
+	       (parsed (org-marginalia--parse-definition-content content-start end)))
 	  (puthash label
 		   (append (list :definition-pos (car bounds)) parsed)
 		   definitions))))
     definitions))
 
-(defun hub/org-marginalia--property-name (key)
+(defun org-marginalia--property-name (key)
   "Return the HUB_NOTE property name for KEY."
   (pcase key
     (:kind "HUB_NOTE_KIND")
@@ -93,7 +98,7 @@ Point must be at the beginning of a native Org footnote definition."
     (:source "HUB_NOTE_SOURCE")
     (:remote-id "HUB_NOTE_REMOTE_ID")))
 
-(defun hub/org-marginalia--parse-definition-content (start end)
+(defun org-marginalia--parse-definition-content (start end)
   "Parse footnote content between START and END into a note plist."
   (let ((properties nil)
 	(body-start start)
@@ -110,21 +115,21 @@ Point must be at the beginning of a native Org footnote definition."
 	(let ((drawer-start (point)))
 	  (when (re-search-forward "^[ \t]*:END:[ \t]*$" end t)
 	    (let ((drawer-end (point)))
-	      (setq properties (hub/org-marginalia--parse-properties drawer-start drawer-end))
+	      (setq properties (org-marginalia--parse-properties drawer-start drawer-end))
 	      (forward-line 1)
 	      (setq body-start (point))))))
       (unless properties
 	(setq body-start (point)))
       (setq body (string-trim (buffer-substring-no-properties body-start end))))
-    (list :kind (hub/org-marginalia--kind-from-string
-		 (alist-get (hub/org-marginalia--property-name :kind) properties nil nil #'equal))
-	  :status (alist-get (hub/org-marginalia--property-name :status) properties nil nil #'equal)
-	  :source (alist-get (hub/org-marginalia--property-name :source) properties nil nil #'equal)
-	  :remote-id (alist-get (hub/org-marginalia--property-name :remote-id) properties nil nil #'equal)
+    (list :kind (org-marginalia--kind-from-string
+		 (alist-get (org-marginalia--property-name :kind) properties nil nil #'equal))
+	  :status (alist-get (org-marginalia--property-name :status) properties nil nil #'equal)
+	  :source (alist-get (org-marginalia--property-name :source) properties nil nil #'equal)
+	  :remote-id (alist-get (org-marginalia--property-name :remote-id) properties nil nil #'equal)
 	  :body body
 	  :height (max 1 (length (split-string body "\n"))))))
 
-(defun hub/org-marginalia--parse-properties (start end)
+(defun org-marginalia--parse-properties (start end)
   "Return an alist of Org drawer properties between START and END."
   (let (properties)
     (save-excursion
@@ -136,27 +141,27 @@ Point must be at the beginning of a native Org footnote definition."
 	    (push (cons key value) properties)))))
     properties))
 
-(defun hub/org-marginalia--kind-from-string (value)
+(defun org-marginalia--kind-from-string (value)
   "Return marginalia kind symbol for VALUE."
   (pcase (downcase (or value ""))
     ("footnote" 'footnote)
     ("sidenote" 'sidenote)
-    (_ hub/org-marginalia-default-kind)))
+    (_ org-marginalia-default-kind)))
 
 ;;;###autoload
-(defun hub/org-marginalia-collect ()
+(defun org-marginalia-collect ()
   "Collect marginalia records from native Org footnotes in the current buffer."
-  (let ((definitions (hub/org-marginalia--collect-definitions)))
-    (cl-loop for reference in (hub/org-marginalia--collect-references)
+  (let ((definitions (org-marginalia--collect-definitions)))
+    (cl-loop for reference in (org-marginalia--collect-references)
 	     for definition = (gethash (plist-get reference :id) definitions)
 	     when definition
 	     collect (append reference definition))))
 
-(defun hub/org-marginalia-layout (notes &optional gap)
+(defun org-marginalia-layout (notes &optional gap)
   "Return NOTES with display-line and displaced layout properties.
-GAP defaults to `hub/org-marginalia-layout-gap'."
+GAP defaults to `org-marginalia-layout-gap'."
   (let ((next-free-line 1)
-	(layout-gap (or gap hub/org-marginalia-layout-gap)))
+	(layout-gap (or gap org-marginalia-layout-gap)))
     (mapcar
      (lambda (note)
        (let* ((anchor-line (or (plist-get note :anchor-line) 1))
@@ -167,5 +172,5 @@ GAP defaults to `hub/org-marginalia-layout-gap'."
 			    :displaced (> display-line anchor-line)))))
      notes)))
 
-(provide 'hub-org-marginalia)
-;;; hub-org-marginalia.el ends here
+(provide 'org-marginalia)
+;;; org-marginalia.el ends here

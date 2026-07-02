@@ -1,0 +1,711 @@
+\input texinfo    @c -*- texinfo -*-
+@c %**start of header
+@setfilename org-comments.info
+@settitle Org Comments Manual
+@documentencoding UTF-8
+@documentlanguage en
+@c %**end of header
+
+@dircategory Emacs
+@direntry
+* Org Comments: (org-comments). Org-native comments with backend-ready storage.
+@end direntry
+
+@finalout
+@titlepage
+@title Org Comments Manual
+@author Hubert Behaghel
+@end titlepage
+
+@contents
+
+@ifnottex
+@node Top
+@top Org Comments Manual
+@end ifnottex
+
+@menu
+* Introduction::                 What org-comments provides.
+* Getting Started::              Installing and enabling org-comments.
+* Concepts::                     The package vocabulary and data model.
+* Local Org Sidecars::           Local storage format and behavior.
+* Comment UI::                   Modes, panels, and default interaction model.
+* Backends::                     Backend registry and operations.
+* Confluence Backend::           How Confluence integrates with org-comments.
+* Migration::                    Migrating legacy metadata.
+* Commands::                     Generated command reference.
+* Customization::                Generated defcustom reference.
+* Keybindings::                  Generated keybinding reference.
+* Developer API::                Extension seams for backends and UIs.
+* Troubleshooting::              Common problems and fixes.
+
+@detailmenu
+--- The Detailed Node Listing ---
+
+Getting Started
+
+* Requirements::
+* Installation from a checkout::
+* Minimal workflow::
+
+Concepts
+
+* Source buffers and sidecars::
+* Anchors::
+* Page comments::
+* Collaboration state::
+
+Backends
+
+* Identity resolution::
+
+Keybindings
+
+* Org buffers::
+* Comment panel::
+* Page comments panel::
+
+Troubleshooting
+
+* No comments appear::
+* Legacy sidecar error::
+* Remote operation is unsupported::
+* Info manual is missing::
+
+@end detailmenu
+@end menu
+
+@node Introduction
+@chapter Introduction
+
+@samp{org-comments} adds review comments to Org buffers while keeping the source
+Org text clean.  Local comments are stored in colocated @samp{.comments.org}
+sidecar files.  Remote systems such as Confluence can register backends for
+comment synchronization, remote opening, push, and pull operations.
+
+The package is intentionally backend-neutral.  Its core model describes comment
+identity, target text, replies, local draft state, remote state, sync state,
+people identity, and actionability without requiring a specific provider.
+Confluence is one backend; Google Docs or another review system can implement
+the same protocol later.
+
+This manual is written as an Emacs Info manual.  After building it, browse it
+with @samp{C-h i m org-comments RET}.
+
+@node Getting Started
+@chapter Getting Started
+
+@menu
+* Requirements::
+* Installation from a checkout::
+* Minimal workflow::
+@end menu
+
+@node Requirements
+@section Requirements
+
+@itemize
+@item
+Emacs with Org mode available.
+@item
+A writable directory next to each commented Org source file for local
+sidecar files.
+@item
+Optional backend packages for remote providers, such as @samp{org-confluence}.
+@end itemize
+
+@node Installation from a checkout
+@section Installation from a checkout
+
+Add the package directory to @samp{load-path} and require the package:
+
+@lisp
+(add-to-list 'load-path "/path/to/org-comments")
+(require 'org-comments)
+@end lisp
+
+Then enable @samp{org-comments-mode} in Org buffers.  This minor mode is the main
+user entry point for commands, keybindings, and overlays:
+
+@lisp
+(add-hook 'org-mode-hook #'org-comments-mode)
+@end lisp
+
+For a commands-only setup without inline/page markers, set
+@samp{org-comments-enable-overlays} before enabling the mode:
+
+@lisp
+(setq org-comments-enable-overlays nil)
+(add-hook 'org-mode-hook #'org-comments-mode)
+@end lisp
+
+@node Minimal workflow
+@section Minimal workflow
+
+@enumerate
+@item
+Open an Org file.
+@item
+Enable @samp{org-comments-mode}.
+@item
+Select a region and run @samp{M-x org-comments-create}.
+@item
+Open the side panel with @samp{M-x org-comments-open}.
+@item
+Navigate comments with @samp{org-comments-next} and @samp{org-comments-previous}.
+@end enumerate
+
+See *note Commands:: and *note Keybindings:: for the generated reference.
+
+@node Concepts
+@chapter Concepts
+
+@menu
+* Source buffers and sidecars::
+* Anchors::
+* Page comments::
+* Collaboration state::
+@end menu
+
+@node Source buffers and sidecars
+@section Source buffers and sidecars
+
+A source buffer is the Org document being reviewed.  The default local backend
+stores comments in a sibling sidecar whose name ends in @samp{.comments.org}.  For
+example, @samp{article.org} uses @samp{article.comments.org}.
+
+Sidecars are ordinary Org files.  Each top-level heading represents a root
+comment.  Replies are child headings.  Comment metadata is stored as Org
+properties with the @samp{ORG_COMMENTS_} prefix.
+
+@node Anchors
+@section Anchors
+
+Inline comments store target text and compact position metadata.  When the
+source text changes, @samp{org-comments} can report comments as stale or re-anchor
+imported inline comments using exact and fuzzy matching.
+
+@node Page comments
+@section Page comments
+
+Page comments are comments about the entire document instead of a specific text
+range.  They are represented as footer/page records and can be shown in a page
+comments panel.
+
+@node Collaboration state
+@section Collaboration state
+
+Backends normalize collaboration metadata into provider-neutral fields:
+
+@itemize
+@item
+remote identifiers and parent/thread identifiers;
+@item
+remote state such as present, missing, deleted, or unknown;
+@item
+local state such as draft, edited, pending push, or push error;
+@item
+sync state such as clean, dirty, conflict, or error;
+@item
+resolved and actionable state;
+@item
+backend-qualified people identity.
+@end itemize
+
+See also the backend-neutral model in @samp{../COLLABORATION.md}.
+
+@node Local Org Sidecars
+@chapter Local Org Sidecars
+
+The default backend is @samp{org}.  It reads and writes local Org sidecars and does
+not require network access.
+
+New sidecar metadata uses only @samp{ORG_COMMENTS_*} properties.  Legacy
+@samp{HUB_COMMENT_*} properties are migration input only.  Normal collection reports
+legacy sidecars as requiring explicit migration instead of silently reading the
+old format.
+
+@node Comment UI
+@chapter Comment UI
+
+@samp{org-comments-mode} is the standalone minor mode and the recommended activation
+point for users.  It installs Org-native bindings, and when
+@samp{org-comments-enable-overlays} is non-nil it also shows overlays for inline
+targets and displays page-comment markers.  The default panel is implemented by
+@samp{org-comments-panel-mode} and can be replaced or enriched by setting UI adapter
+variables.
+
+The package does not install Evil, leader-key, or layout-specific bindings.
+Personal keybindings belong in user configuration.
+
+@node Backends
+@chapter Backends
+
+Backends register a backend id, capabilities, and operation functions through
+@samp{org-comments-register-backend}.  Generic commands detect the active backend
+from the current source buffer and dispatch to the backend operation.
+
+Important operations include:
+
+@itemize
+@item
+list or collect comments;
+@item
+open the remote comment;
+@item
+push local comment edits;
+@item
+pull remote comment state;
+@item
+sync comments.
+@end itemize
+
+Backend @samp{:sync} is comments-only.  It must not perform a full document or page
+sync.  Provider packages may offer separate full-document synchronization
+commands outside the generic @samp{org-comments} backend contract.
+
+@menu
+* Identity resolution::
+@end menu
+
+@node Identity resolution
+@section Identity resolution
+
+Backends can set @samp{org-comments-resolve-account-id-function} to resolve remote
+account IDs into display names for sidecar headings and UI surfaces.  The
+callback is called with an account ID and optional directory context, and should
+return a display name string or nil.  This keeps provider-specific people stores
+outside the generic @samp{org-comments} package.
+
+@node Confluence Backend
+@chapter Confluence Backend
+
+The Confluence integration lives in @samp{org-confluence}.  When a source Org buffer
+contains @samp{#+CONFLUENCE_PAGE_ID}, the Confluence detector can select the
+@samp{confluence} backend for remote comment operations.
+
+The backend supports remote open, push, pull, and comments-only sync.  Full
+Confluence page synchronization remains an @samp{org-confluence} responsibility and
+is intentionally separate from @samp{org-comments-sync}.
+
+@node Migration
+@chapter Migration
+
+Older sidecars may contain @samp{HUB_COMMENT_*} properties.  Run
+@samp{org-comments-migrate-sidecar} on one sidecar, or
+@samp{org-comments-migrate-directory-sidecars} for a directory of sidecars, to
+rewrite those properties to @samp{ORG_COMMENTS_*}.
+
+Migration is explicit by design.  Durable storage should not depend on the
+former personal metadata prefix.
+
+@node Commands
+@chapter Commands
+
+@multitable {aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa} {aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa}
+@headitem Command
+@tab Description
+@item @samp{org-comments-close-current-ui}
+@tab Close the current comments UI using the active close adapter.
+@item @samp{org-comments-compact-sidecar-metadata}
+@tab Remove obsolete or derivable comment metadata from SIDECAR-FILE@.
+@item @samp{org-comments-compose-cancel}
+@tab Cancel the current Org comment compose buffer.
+@item @samp{org-comments-compose-mode}
+@tab Minor mode for composing Org sidecar comments without visiting sidecars.
+@item @samp{org-comments-compose-save-draft}
+@tab Save the current composed comment as a local draft.
+@item @samp{org-comments-compose-submit}
+@tab Submit the current composed comment by saving it and closing compose.
+@item @samp{org-comments-create}
+@tab Create a sidecar comment for region START to END with BODY@.
+@item @samp{org-comments-create-from-region}
+@tab Create a sidecar comment for the active region.
+@item @samp{org-comments-delete}
+@tab Delete the comment at point from its sidecar.
+@item @samp{org-comments-delete-at-point}
+@tab Delete the current comment at point and refresh the UI@.
+@item @samp{org-comments-edit}
+@tab Jump to the body of the comment at point.
+@item @samp{org-comments-edit-at-point}
+@tab Open the current comment at point for editing in its sidecar.
+@item @samp{org-comments-filter-reset-current-ui}
+@tab Reset filters in the current comments UI@.
+@item @samp{org-comments-filter-status-current-ui}
+@tab Show filter status for the current comments UI@.
+@item @samp{org-comments-filter-toggle-resolved-current-ui}
+@tab Toggle resolved comments in the current comments UI@.
+@item @samp{org-comments-help-current-ui}
+@tab Show help for the current comments UI using the active help adapter.
+@item @samp{org-comments-jump-at-point}
+@tab Jump from the current item at point using the active comments UI@.
+@item @samp{org-comments-mark-open}
+@tab Mark the current comment open.
+@item @samp{org-comments-mark-open-at-point}
+@tab Mark the current comment at point OPEN@.
+@item @samp{org-comments-mark-resolved}
+@tab Mark the current comment resolved.
+@item @samp{org-comments-mark-resolved-at-point}
+@tab Mark the current comment at point RESOLVED@.
+@item @samp{org-comments-mark-todo}
+@tab Mark the current comment TODO@.
+@item @samp{org-comments-mark-todo-at-point}
+@tab Mark the current comment at point TODO@.
+@item @samp{org-comments-migrate-directory-sidecars}
+@tab Explicitly migrate all `.comments.org' sidecars under DIRECTORY@.
+@item @samp{org-comments-migrate-sidecar}
+@tab Explicitly migrate SIDECAR-FILE from legacy to package-native properties.
+@item @samp{org-comments-mode}
+@tab Enable Org-native comment commands for the current buffer.
+@item @samp{org-comments-next}
+@tab Move to the next source comment, wrapping at end of buffer.
+@item @samp{org-comments-next-item-at-point}
+@tab Move point to the next rendered comment item, wrapping at end.
+@item @samp{org-comments-open}
+@tab Open the best available comments UI for the current buffer.
+@item @samp{org-comments-open-remote}
+@tab Open the current comment in the detected remote backend.
+@item @samp{org-comments-open-remote-at-point}
+@tab Open the current comment through the detected remote backend.
+@item @samp{org-comments-open-sidecar}
+@tab Open the comments sidecar for the current Org source buffer.
+@item @samp{org-comments-overlays-refresh}
+@tab Refresh persistent sidecar comment overlays in the current Org buffer.
+@item @samp{org-comments-page-create}
+@tab Create a page/footer sidecar comment with BODY and edit it.
+@item @samp{org-comments-page-open}
+@tab Open the page-context window for the current Org buffer.
+@item @samp{org-comments-page-open-at-point}
+@tab Open page-level comments for the current comments UI@.
+@item @samp{org-comments-page-panel-open}
+@tab Open or refresh the standalone page comments panel for the current source.
+@item @samp{org-comments-page-panel-refresh}
+@tab Refresh the standalone Org page comments panel.
+@item @samp{org-comments-panel-close}
+@tab Close the standalone Org comments panel.
+@item @samp{org-comments-panel-delete}
+@tab Delete the current panel row's sidecar comment and refresh the panel.
+@item @samp{org-comments-panel-edit}
+@tab Open the current panel row's sidecar comment body for editing.
+@item @samp{org-comments-panel-filter-reset}
+@tab Reset filters in the current Org comments panel.
+@item @samp{org-comments-panel-filter-toggle-resolved}
+@tab Toggle display of resolved comments in the current panel.
+@item @samp{org-comments-panel-jump}
+@tab Jump from the current panel row to its source comment target.
+@item @samp{org-comments-panel-mark-open}
+@tab Mark the current panel row's comment open.
+@item @samp{org-comments-panel-mark-resolved}
+@tab Mark the current panel row's comment resolved.
+@item @samp{org-comments-panel-mark-todo}
+@tab Mark the current panel row's comment TODO@.
+@item @samp{org-comments-panel-mode}
+@tab Major mode for the standalone Org comments panel.
+@item @samp{org-comments-panel-open}
+@tab Open or refresh the standalone Org comments panel for the current source.
+@item @samp{org-comments-panel-open-remote}
+@tab Open the current panel row through the detected remote backend.
+@item @samp{org-comments-panel-pull}
+@tab Pull remote comments through the detected backend for the panel source.
+@item @samp{org-comments-panel-push}
+@tab Push the current panel row through the detected remote backend.
+@item @samp{org-comments-panel-refresh}
+@tab Refresh the standalone Org comments panel.
+@item @samp{org-comments-panel-reply}
+@tab Prompt for a reply to the current panel row and refresh.
+@item @samp{org-comments-panel-sync}
+@tab Synchronize comments through the detected backend for the panel source.
+@item @samp{org-comments-previous}
+@tab Move to the previous source comment, wrapping at beginning of buffer.
+@item @samp{org-comments-previous-item-at-point}
+@tab Move point to the previous rendered comment item, wrapping at beginning.
+@item @samp{org-comments-pull}
+@tab Pull remote comments through the detected backend for the current buffer.
+@item @samp{org-comments-push}
+@tab Push the current comment through the detected remote backend.
+@item @samp{org-comments-push-at-point}
+@tab Push the current comment through the detected remote backend.
+@item @samp{org-comments-rebuild-mode-map}
+@tab Rebuild `org-comments-mode-map' after changing `org-comments-keymap-prefix'.
+@item @samp{org-comments-refresh-sidecar-headings}
+@tab Refresh all comment headings in SIDECAR-FILE from metadata and body previews.
+@item @samp{org-comments-reply}
+@tab Create a reply using the best available comments UI@.
+@item @samp{org-comments-reply-at-point}
+@tab Reply to the current comment at point and refresh the UI@.
+@item @samp{org-comments-setup}
+@tab Enable `org-comments-mode' in Org buffers.
+@item @samp{org-comments-sync}
+@tab Synchronize comments for the current Org source buffer.
+@item @samp{org-context-panel-buffer-mode}
+@tab Major mode for generic Org context side panel buffers.
+@item @samp{org-context-panel-close}
+@tab Close the generic side context panel for the current source.
+@item @samp{org-context-panel-close-bottom-view}
+@tab Close the generic bottom context view for the current source.
+@item @samp{org-context-panel-jump-at-point}
+@tab Jump from the current context-panel row using its provider.
+@item @samp{org-context-panel-mode}
+@tab Enable reusable Org context-panel mechanics for the current buffer.
+@item @samp{org-context-panel-open}
+@tab Open or refresh a generic side context panel for SOURCE-BUFFER@.
+@item @samp{org-context-panel-open-bottom-view}
+@tab Open bottom context view VIEW-ID for SOURCE-BUFFER@.
+@item @samp{org-context-panel-open-marker-view}
+@tab Open the bottom view associated with the top marker at point.
+@item @samp{org-context-panel-refresh}
+@tab Refresh the generic side context panel.
+@item @samp{org-context-panel-refresh-bottom-view}
+@tab Refresh the current generic bottom context view.
+@end multitable
+
+@node Customization
+@chapter Customization
+
+@multitable {aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa} {aaaaaaaaaaaaaaaaaaaaaaa} {aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa}
+@headitem Variable
+@tab Default
+@tab Description
+@item @samp{org-comments-author}
+@tab @samp{nil}
+@tab Author name used for newly created local comments.
+@item @samp{org-comments-current-user-id-function}
+@tab @samp{ignore}
+@tab Function returning the current backend-agnostic person id.
+@item @samp{org-comments-default-backend}
+@tab @samp{org}
+@tab Default backend id used by backend-neutral Org comments commands.
+@item @samp{org-comments-enable-overlays}
+@tab @samp{t}
+@tab Whether `org-comments-mode' shows inline and page comment overlays.
+@item @samp{org-comments-heading-body-preview-length}
+@tab @samp{60}
+@tab Maximum normalized body text length used in comment headings.
+@item @samp{org-comments-heading-preview-length}
+@tab @samp{60}
+@tab Maximum normalized target text length used in sidecar headings.
+@item @samp{org-comments-heading-target-preview-length}
+@tab @samp{48}
+@tab Maximum normalized target text length used in comment headings.
+@item @samp{org-comments-keymap-prefix}
+@tab @samp{"C-c ;"}
+@tab Prefix key for `org-comments-mode' default bindings.
+@item @samp{org-comments-page-panel-buffer-name}
+@tab @samp{"*Org Page Comments*"}
+@tab Buffer name used for the standalone Org page comments panel.
+@item @samp{org-comments-panel-buffer-name}
+@tab @samp{"*Org Comments*"}
+@tab Buffer name used for the standalone Org comments panel.
+@item @samp{org-comments-panel-overview-comment-line-length}
+@tab @samp{80}
+@tab Maximum length of each comment overview line.
+@item @samp{org-comments-panel-overview-comment-lines}
+@tab @samp{2}
+@tab Maximum number of comment body lines shown in comment panel overview rows.
+@item @samp{org-comments-panel-target-preview-length}
+@tab @samp{20}
+@tab Maximum length of quoted comment target previews in comment panels.
+@item @samp{org-comments-panel-width}
+@tab @samp{38}
+@tab Width of the standalone Org comments side window.
+@item @samp{org-comments-resolve-account-id-function}
+@tab @samp{nil}
+@tab Function resolving a remote account id to a display name.
+@item @samp{org-comments-resolve-person-function}
+@tab @samp{ignore}
+@tab Function resolving a backend user id to a person plist.
+@item @samp{org-comments-ui-compose-reply-function}
+@tab @samp{nil}
+@tab Function used by `org-comments-reply' to compose a comment reply.
+@item @samp{org-comments-ui-open-comment-function}
+@tab @samp{nil}
+@tab Function used to open an inline comment by id from an `org-comment:' link.
+@item @samp{org-comments-ui-open-function}
+@tab @samp{nil}
+@tab Function used by `org-comments-open' to open a rich comments UI@.
+@item @samp{org-comments-ui-page-open-comment-function}
+@tab @samp{nil}
+@tab Function used to open a page comment by id from an `org-comment:' link.
+@item @samp{org-comments-ui-page-open-function}
+@tab @samp{nil}
+@tab Function used by `org-comments-page-open' to open page comments.
+@item @samp{org-comments-ui-refresh-function}
+@tab @samp{nil}
+@tab Function used after comment mutations to refresh visible UI state.
+@end multitable
+
+@node Keybindings
+@chapter Keybindings
+
+@menu
+* Org buffers::
+* Comment panel::
+* Page comments panel::
+@end menu
+
+@node Org buffers
+@section Org buffers
+
+@float Table,org6ca2b1e
+@multitable {aaaaaaaaaaa} {aaaaaaaaaaaaaaaaaaaaaaaaaaaa}
+@headitem Key
+@tab Command
+@item @samp{C-c ; D}
+@tab @samp{org-comments-pull}
+@item @samp{C-c ; O}
+@tab @samp{org-comments-open-remote}
+@item @samp{C-c ; P}
+@tab @samp{org-comments-page-create}
+@item @samp{C-c ; S}
+@tab @samp{org-comments-sync}
+@item @samp{C-c ; U}
+@tab @samp{org-comments-push}
+@item @samp{C-c ; c}
+@tab @samp{org-comments-create}
+@item @samp{C-c ; d}
+@tab @samp{org-comments-delete}
+@item @samp{C-c ; e}
+@tab @samp{org-comments-edit}
+@item @samp{C-c ; m o}
+@tab @samp{org-comments-mark-open}
+@item @samp{C-c ; m r}
+@tab @samp{org-comments-mark-resolved}
+@item @samp{C-c ; m t}
+@tab @samp{org-comments-mark-todo}
+@item @samp{C-c ; n}
+@tab @samp{org-comments-next}
+@item @samp{C-c ; o}
+@tab @samp{org-comments-open}
+@item @samp{C-c ; p}
+@tab @samp{org-comments-previous}
+@item @samp{C-c ; r}
+@tab @samp{org-comments-reply}
+@item @samp{C-c ; s}
+@tab @samp{org-comments-open-sidecar}
+@end multitable
+@caption{org-comments-mode bindings}
+@end float
+
+@node Comment panel
+@section Comment panel
+
+@float Table,orge701e76
+@multitable {aaaaa} {aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa}
+@headitem Key
+@tab Command
+@item @samp{?}
+@tab @samp{org-comments-help-current-ui}
+@item @samp{D}
+@tab @samp{org-comments-panel-pull}
+@item @samp{O}
+@tab @samp{org-comments-panel-open-remote}
+@item @samp{RET}
+@tab @samp{org-context-panel-jump-at-point}
+@item @samp{S}
+@tab @samp{org-comments-panel-sync}
+@item @samp{U}
+@tab @samp{org-comments-panel-push}
+@item @samp{[ c}
+@tab @samp{org-comments-previous-item-at-point}
+@item @samp{] c}
+@tab @samp{org-comments-next-item-at-point}
+@item @samp{d}
+@tab @samp{org-comments-delete-at-point}
+@item @samp{e}
+@tab @samp{org-comments-edit-at-point}
+@item @samp{g}
+@tab @samp{org-comments-panel-refresh}
+@item @samp{m o}
+@tab @samp{org-comments-panel-mark-open}
+@item @samp{m r}
+@tab @samp{org-comments-panel-mark-resolved}
+@item @samp{m t}
+@tab @samp{org-comments-panel-mark-todo}
+@item @samp{p}
+@tab @samp{org-comments-page-open-at-point}
+@item @samp{q}
+@tab @samp{org-comments-close-current-ui}
+@item @samp{r}
+@tab @samp{org-comments-reply-at-point}
+@item @samp{z ?}
+@tab @samp{org-comments-filter-status-current-ui}
+@item @samp{z r}
+@tab @samp{org-comments-filter-toggle-resolved-current-ui}
+@item @samp{z z}
+@tab @samp{org-comments-filter-reset-current-ui}
+@end multitable
+@caption{org-comments-panel-mode bindings}
+@end float
+
+@node Page comments panel
+@section Page comments panel
+
+@multitable {aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa} {aaaaaaa}
+@headitem Key
+@tab Command
+@item @emph{No dedicated page panel keymap yet.}
+@tab 
+@end multitable
+
+@node Developer API
+@chapter Developer API
+
+Use public @samp{org-comments-*} functions for package integration.  Functions with
+an @samp{org-comments--} prefix are private implementation details and should not be
+called by backend packages.
+
+Important extension areas:
+
+@itemize
+@item
+backend registration in @samp{org-comments-backend.el};
+@item
+UI adapter variables in @samp{org-comments-ui.el} and panel action modules;
+@item
+collaboration normalization in @samp{org-comments-collaboration.el};
+@item
+explicit migration helpers in @samp{org-comments-migrate.el}.
+@end itemize
+
+@node Troubleshooting
+@chapter Troubleshooting
+
+@menu
+* No comments appear::
+* Legacy sidecar error::
+* Remote operation is unsupported::
+* Info manual is missing::
+@end menu
+
+@node No comments appear
+@section No comments appear
+
+Check that the source buffer is visiting a file and that the sibling
+@samp{.comments.org} file exists.  Local sidecars are file-backed.
+
+@node Legacy sidecar error
+@section Legacy sidecar error
+
+If collection reports legacy metadata, run @samp{M-x org-comments-migrate-sidecar}
+on the sidecar file and retry.
+
+@node Remote operation is unsupported
+@section Remote operation is unsupported
+
+Backends advertise capabilities.  If a backend does not support push, pull,
+sync, or remote open, the generic command reports a clear unsupported operation
+error.
+
+@node Info manual is missing
+@section Info manual is missing
+
+Build the manual from the repository checkout:
+
+@example
+devenv -q shell -- docs:org-comments
+@end example
+
+Then add the package @samp{docs/} directory to @samp{Info-directory-list} or install the
+Info file into your site Info directory.
+
+@bye
