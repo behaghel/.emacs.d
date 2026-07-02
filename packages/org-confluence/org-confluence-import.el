@@ -526,20 +526,22 @@ DIRECTORY, when non-nil, is used to resolve Confluence people labels."
 	  (org-confluence-import--block tree)))))))
 
 ;;;###autoload
-(defun org-confluence-pull (&optional page-id)
+(defun org-confluence-pull (&optional page-id include-comments)
   "Refresh the current Org file from Confluence PAGE-ID.
 
 When PAGE-ID is nil, default to #+CONFLUENCE_PAGE_ID in the current Org buffer
 and prompt if no page ID is available.  The current buffer must visit a file;
-that file is refreshed through `org-confluence-pull-to-file'."
-  (interactive)
+that file is refreshed through `org-confluence-pull-to-file'.  Interactively, a
+prefix argument imports page comments into the adjacent comments sidecar."
+  (interactive (list nil current-prefix-arg))
   (unless buffer-file-name
     (user-error "Current buffer is not visiting a file"))
-  (let ((result (org-confluence-pull-to-file
-		 (or page-id
-		     (org-confluence-api--page-id-from-buffer)
-		     (read-string "Confluence page ID: "))
-		 buffer-file-name)))
+  (let ((result (apply #'org-confluence-pull-to-file
+		       (or page-id
+			   (org-confluence-api--page-id-from-buffer)
+			   (read-string "Confluence page ID: "))
+		       buffer-file-name
+		       (when include-comments '(:include-comments t)))))
     (revert-buffer :ignore-auto :noconfirm)
     result))
 

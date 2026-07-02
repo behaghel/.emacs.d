@@ -141,7 +141,9 @@ markers can be reinserted into newly exported storage XHTML when safe.
 
 ** Import and pull
 
-- =org-confluence-pull= refreshes the current Org file from Confluence storage.
+- =org-confluence-pull= refreshes the current Org file from Confluence storage;
+  call it with a prefix argument (=C-u M-x org-confluence-pull=) to include
+  comments.
 - =org-confluence-pull-to-file= accepts =:include-comments t= to pull page
   comments into the adjacent =.comments.org= sidecar while keeping the main Org
   page free of comment content.

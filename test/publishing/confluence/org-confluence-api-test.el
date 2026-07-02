@@ -2301,6 +2301,29 @@
 	(kill-buffer buffer))
       (delete-directory dir t))))
 
+(ert-deftest org-confluence-pull-prefix-includes-comments ()
+  "A prefix argument makes interactive pull include comments."
+  (let* ((dir (make-temp-file "hub-confluence-pull-prefix-comments-" t))
+	 (source (expand-file-name "article.org" dir))
+	 received)
+    (unwind-protect
+	(progn
+	  (with-temp-file source
+	    (insert "#+CONFLUENCE_PAGE_ID: 123\n\nBody.\n"))
+	  (with-current-buffer (find-file-noselect source)
+	    (org-mode)
+	    (cl-letf (((symbol-function 'org-confluence-pull-to-file)
+		       (lambda (&rest args)
+			 (setq received args)
+			 '(:status refreshed)))
+		      ((symbol-function 'revert-buffer) (lambda (&rest _) nil)))
+	      (let ((current-prefix-arg '(4)))
+		(call-interactively #'org-confluence-pull)))
+	    (should (equal received (list "123" source :include-comments t)))))
+      (when-let* ((buffer (find-buffer-visiting source)))
+	(kill-buffer buffer))
+      (delete-directory dir t))))
+
 (ert-deftest org-confluence-page-created-page-id ()
   "Parse created page IDs from cfl output."
   (should (equal (org-confluence-page-created-page-id "ID: 789") "789"))
