@@ -531,8 +531,11 @@ DIRECTORY, when non-nil, is used to resolve Confluence people labels."
 
 When PAGE-ID is nil, default to #+CONFLUENCE_PAGE_ID in the current Org buffer
 and prompt if no page ID is available.  The current buffer must visit a file;
-that file is refreshed through `org-confluence-pull-to-file'.  Interactively, a
-prefix argument imports page comments into the adjacent comments sidecar."
+that file is refreshed through `org-confluence-pull-to-file'.
+
+Interactively, plain `M-x org-confluence-pull' refreshes only the page body.
+With a prefix argument, `C-u M-x org-confluence-pull' also imports Confluence
+comments into the adjacent .comments.org sidecar."
   (interactive (list nil current-prefix-arg))
   (unless buffer-file-name
     (user-error "Current buffer is not visiting a file"))
