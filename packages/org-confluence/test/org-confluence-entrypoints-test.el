@@ -168,6 +168,38 @@
 	    (should (member (list 'pull source '(nil t)) calls))))
       (kill-buffer source))))
 
+(ert-deftest org-confluence-sync-status-actions-display-below-report-window ()
+  "Sync status action help aligns below the visible report window."
+  (let ((source (generate-new-buffer " *org-confluence-source*"))
+	(report (generate-new-buffer " *org-confluence-report*"))
+	(actions (generate-new-buffer " *org-confluence-actions*")))
+    (unwind-protect
+	(progn
+	  (delete-other-windows)
+	  (let* ((report-window (selected-window))
+		 (_side-window (split-window-right))
+		 (report-width (window-total-width report-window))
+		 (report-left (car (window-edges report-window))))
+	    (with-current-buffer source
+	      (org-mode)
+	      (setq buffer-file-name "/tmp/article.org"))
+	    (with-current-buffer report
+	      (org-confluence-sync-status-mode)
+	      (setq-local org-confluence-sync-status--source-buffer source))
+	    (set-window-buffer report-window report)
+	    (let ((action-window
+		   (org-confluence-sync-status--display-actions-buffer
+		    actions '((dedicated . t) (window-height . 4)))))
+	      (should (window-live-p action-window))
+	      (should (eq (window-buffer action-window) actions))
+	      (should (= (window-total-width action-window) report-width))
+	      (should (= (car (window-edges action-window)) report-left)))))
+      (delete-other-windows)
+      (mapc (lambda (buffer)
+	      (when (buffer-live-p buffer)
+		(kill-buffer buffer)))
+	    (list source report actions)))))
+
 (ert-deftest org-confluence-sync-status-action-recovers-source-from-help-buffer ()
   "Sync status actions keep working after focus moves to a helper buffer."
   (let ((source (generate-new-buffer " *org-confluence-source*"))

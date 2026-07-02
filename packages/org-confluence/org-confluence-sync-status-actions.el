@@ -208,11 +208,45 @@
       (message "Deleted local comment %s" comment-id)
       (org-confluence-sync-status-refresh))))
 
+(defun org-confluence-sync-status--visible-report-window ()
+  "Return a visible Confluence sync status report window, if any."
+  (cl-loop for window in (window-list nil 'no-minibuf)
+	   for buffer = (window-buffer window)
+	   when (buffer-local-value
+		 'org-confluence-sync-status--source-buffer buffer)
+	   return window))
+
+(defun org-confluence-sync-status--display-actions-buffer (buffer alist)
+  "Display transient action BUFFER below the sync status report.
+ALIST is the display action alist passed by `display-buffer'."
+  (let* ((target-window (or (org-confluence-sync-status--visible-report-window)
+			    (selected-window)))
+	 (existing-window (get-buffer-window buffer t))
+	 (height (alist-get 'window-height alist)))
+    (if (window-live-p existing-window)
+	(progn
+	  (set-window-buffer existing-window buffer)
+	  existing-window)
+      (let ((window (split-window target-window
+				  (- (max 4 (min 16 (floor (window-total-height target-window) 2))))
+				  'below)))
+	(set-window-buffer window buffer)
+	(when (alist-get 'dedicated alist)
+	  (set-window-dedicated-p window t))
+	(when height
+	  (fit-window-to-buffer window height 4))
+	window))))
+
 (defun org-confluence-sync-status-actions ()
   "Show point-sensitive Confluence sync status actions."
   (interactive)
   (if (and (featurep 'transient) (fboundp 'org-confluence-sync-status-dispatch))
-      (call-interactively #'org-confluence-sync-status-dispatch)
+      (let ((transient-display-buffer-action
+	     '(org-confluence-sync-status--display-actions-buffer
+	       (dedicated . t)
+	       (inhibit-same-window . t)
+	       (window-height . fit-window-to-buffer))))
+	(call-interactively #'org-confluence-sync-status-dispatch))
     (user-error "Transient is unavailable; use direct report keys instead")))
 
 (provide 'org-confluence-sync-status-actions)
