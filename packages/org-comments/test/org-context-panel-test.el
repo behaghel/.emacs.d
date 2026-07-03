@@ -108,6 +108,29 @@
       (when (buffer-live-p source-buffer)
 	(kill-buffer source-buffer)))))
 
+(ert-deftest org-context-panel-renders-composed-items-at-viewport-rows ()
+  "Composable provider rows are padded down to their viewport anchor rows."
+  (let ((source-buffer (generate-new-buffer " *org context aligned source*")))
+    (unwind-protect
+	(with-current-buffer source-buffer
+	  (org-mode)
+	  (org-context-panel-register-provider
+	   (list :name 'test
+		 :collect-side-items (lambda (_source) nil)
+		 :render-side-item (lambda (_source item)
+				     (insert (plist-get item :id) "\n"))))
+	  (with-temp-buffer
+	    (org-context-panel--render-composed-side-panel
+	     source-buffer
+	     (list (list :id "three" :provider 'test :anchor-line 3 :logical-anchor-line 30)
+		   (list :id "six" :provider 'test :anchor-line 6 :logical-anchor-line 60))
+	     (with-current-buffer source-buffer
+	       (org-context-panel-registered-providers)))
+	    (should (equal (split-string (buffer-string) "\n" nil)
+			   '("" "" "three" "" "" "six" "")))))
+      (when (buffer-live-p source-buffer)
+	(kill-buffer source-buffer)))))
+
 (ert-deftest org-context-panel-jump-at-point-dispatches-provider ()
   "Generic row jump dispatches through the item provider."
   (let ((source-buffer (generate-new-buffer " *org context jump source*"))

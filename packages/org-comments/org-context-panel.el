@@ -380,11 +380,20 @@ Return the destination position, or nil when KEY is not visible."
 	(org-context-panel-current-panel-window panel-window))
     (run-hooks hook)))
 
+(defun org-context-panel--pad-to-viewport-row (row)
+  "Insert blank lines until point is at viewport ROW."
+  (when (and (integerp row) (> row 1))
+    (while (< (line-number-at-pos) row)
+      (insert "\n"))))
+
 (defun org-context-panel--render-composed-side-panel (source-buffer items providers)
   "Render merged provider ITEMS for SOURCE-BUFFER using PROVIDERS."
   (dolist (item (org-context-panel--sort-items items providers))
     (when-let* ((provider (org-context-panel--item-provider item providers))
 		(function (plist-get provider :render-side-item)))
+      (when (plist-get item :logical-anchor-line)
+	(org-context-panel--pad-to-viewport-row
+	 (plist-get item :anchor-line)))
       (let ((start (point)))
 	(funcall function source-buffer item)
 	(add-text-properties start (point)
