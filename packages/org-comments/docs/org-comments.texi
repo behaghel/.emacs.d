@@ -329,12 +329,8 @@ former personal metadata prefix.
 @tab Create a sidecar comment for the active region.
 @item @samp{org-comments-delete}
 @tab Delete the comment at point from its sidecar.
-@item @samp{org-comments-delete-at-point}
-@tab Delete the current comment at point and refresh the UI@.
 @item @samp{org-comments-edit}
 @tab Jump to the body of the comment at point.
-@item @samp{org-comments-edit-at-point}
-@tab Open the current comment at point for editing in its sidecar.
 @item @samp{org-comments-filter-reset-current-ui}
 @tab Reset filters in the current comments UI@.
 @item @samp{org-comments-filter-status-current-ui}
@@ -343,20 +339,12 @@ former personal metadata prefix.
 @tab Toggle resolved comments in the current comments UI@.
 @item @samp{org-comments-help-current-ui}
 @tab Show help for the current comments UI using the active help adapter.
-@item @samp{org-comments-jump-at-point}
-@tab Jump from the current item at point using the active comments UI@.
 @item @samp{org-comments-mark-open}
 @tab Mark the current comment open.
-@item @samp{org-comments-mark-open-at-point}
-@tab Mark the current comment at point OPEN@.
 @item @samp{org-comments-mark-resolved}
 @tab Mark the current comment resolved.
-@item @samp{org-comments-mark-resolved-at-point}
-@tab Mark the current comment at point RESOLVED@.
 @item @samp{org-comments-mark-todo}
 @tab Mark the current comment TODO@.
-@item @samp{org-comments-mark-todo-at-point}
-@tab Mark the current comment at point TODO@.
 @item @samp{org-comments-migrate-directory-sidecars}
 @tab Explicitly migrate all `.comments.org' sidecars under DIRECTORY@.
 @item @samp{org-comments-migrate-sidecar}
@@ -365,14 +353,10 @@ former personal metadata prefix.
 @tab Enable Org-native comment commands for the current buffer.
 @item @samp{org-comments-next}
 @tab Move to the next source comment, wrapping at end of buffer.
-@item @samp{org-comments-next-item-at-point}
-@tab Move point to the next rendered comment item, wrapping at end.
 @item @samp{org-comments-open}
 @tab Open the best available comments UI for the current buffer.
 @item @samp{org-comments-open-remote}
 @tab Open the current comment in the detected remote backend.
-@item @samp{org-comments-open-remote-at-point}
-@tab Open the current comment through the detected remote backend.
 @item @samp{org-comments-open-sidecar}
 @tab Open the comments sidecar for the current Org source buffer.
 @item @samp{org-comments-overlays-refresh}
@@ -381,8 +365,6 @@ former personal metadata prefix.
 @tab Create a page/footer sidecar comment with BODY and edit it.
 @item @samp{org-comments-page-open}
 @tab Open the page-context window for the current Org buffer.
-@item @samp{org-comments-page-open-at-point}
-@tab Open page-level comments for the current comments UI@.
 @item @samp{org-comments-page-panel-open}
 @tab Open or refresh the standalone page comments panel for the current source.
 @item @samp{org-comments-page-panel-refresh}
@@ -399,37 +381,17 @@ former personal metadata prefix.
 @tab Toggle display of resolved comments in the current panel.
 @item @samp{org-comments-panel-jump}
 @tab Jump from the current panel row to its source comment target.
-@item @samp{org-comments-panel-mark-open}
-@tab Mark the current panel row's comment open.
-@item @samp{org-comments-panel-mark-resolved}
-@tab Mark the current panel row's comment resolved.
-@item @samp{org-comments-panel-mark-todo}
-@tab Mark the current panel row's comment TODO@.
 @item @samp{org-comments-panel-mode}
 @tab Major mode for the standalone Org comments panel.
 @item @samp{org-comments-panel-open}
 @tab Open or refresh the standalone Org comments panel for the current source.
-@item @samp{org-comments-panel-open-remote}
-@tab Open the current panel row through the detected remote backend.
-@item @samp{org-comments-panel-pull}
-@tab Pull remote comments through the detected backend for the panel source.
-@item @samp{org-comments-panel-push}
-@tab Push the current panel row through the detected remote backend.
 @item @samp{org-comments-panel-refresh}
 @tab Refresh the standalone Org comments panel.
-@item @samp{org-comments-panel-reply}
-@tab Prompt for a reply to the current panel row and refresh.
-@item @samp{org-comments-panel-sync}
-@tab Synchronize comments through the detected backend for the panel source.
 @item @samp{org-comments-previous}
 @tab Move to the previous source comment, wrapping at beginning of buffer.
-@item @samp{org-comments-previous-item-at-point}
-@tab Move point to the previous rendered comment item, wrapping at beginning.
 @item @samp{org-comments-pull}
 @tab Pull remote comments through the detected backend.
 @item @samp{org-comments-push}
-@tab Push the current comment through the detected remote backend.
-@item @samp{org-comments-push-at-point}
 @tab Push the current comment through the detected remote backend.
 @item @samp{org-comments-rebuild-mode-map}
 @tab Rebuild `org-comments-mode-map' after changing `org-comments-keymap-prefix'.
@@ -437,8 +399,6 @@ former personal metadata prefix.
 @tab Refresh all comment headings in SIDECAR-FILE from metadata and body previews.
 @item @samp{org-comments-reply}
 @tab Create a reply using the best available comments UI@.
-@item @samp{org-comments-reply-at-point}
-@tab Reply to the current comment at point and refresh the UI@.
 @item @samp{org-comments-setup}
 @tab Enable `org-comments-mode' in Org buffers.
 @item @samp{org-comments-sync}
@@ -449,8 +409,6 @@ former personal metadata prefix.
 @tab Close the generic side context panel for the current source.
 @item @samp{org-context-panel-close-bottom-view}
 @tab Close the generic bottom context view for the current source.
-@item @samp{org-context-panel-jump-at-point}
-@tab Jump from the current context-panel row using its provider.
 @item @samp{org-context-panel-mode}
 @tab Enable reusable Org context-panel mechanics for the current buffer.
 @item @samp{org-context-panel-open}
@@ -552,7 +510,7 @@ former personal metadata prefix.
 @node Org buffers
 @section Org buffers
 
-@float Table,org6e5a2e3
+@float Table,org4e6b49d
 @multitable {aaaaaaaaaaa} {aaaaaaaaaaaaaaaaaaaaaaaaaaaa}
 @headitem Key
 @tab Command
@@ -595,7 +553,7 @@ former personal metadata prefix.
 @node Comment panel
 @section Comment panel
 
-@float Table,org7bc121f
+@float Table,org364d820
 @multitable {aaaaa} {aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa}
 @headitem Key
 @tab Command
@@ -605,20 +563,10 @@ former personal metadata prefix.
 @tab @samp{org-comments-pull}
 @item @samp{O}
 @tab @samp{org-comments-open-remote}
-@item @samp{RET}
-@tab @samp{org-context-panel-jump-at-point}
 @item @samp{S}
 @tab @samp{org-comments-sync}
 @item @samp{U}
 @tab @samp{org-comments-push}
-@item @samp{[ c}
-@tab @samp{org-comments-previous-item-at-point}
-@item @samp{] c}
-@tab @samp{org-comments-next-item-at-point}
-@item @samp{d}
-@tab @samp{org-comments-delete-at-point}
-@item @samp{e}
-@tab @samp{org-comments-edit-at-point}
 @item @samp{g}
 @tab @samp{org-comments-panel-refresh}
 @item @samp{m o}
@@ -629,8 +577,6 @@ former personal metadata prefix.
 @tab @samp{org-comments-mark-todo}
 @item @samp{o}
 @tab @samp{org-comments-open-remote}
-@item @samp{p}
-@tab @samp{org-comments-page-open-at-point}
 @item @samp{q}
 @tab @samp{org-comments-close-current-ui}
 @item @samp{r}

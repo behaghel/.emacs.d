@@ -39,7 +39,8 @@ emacs --batch -Q \
       (and (or (string-prefix-p "org-comments-" name)
                (string-prefix-p "org-context-panel-" name))
            (not (string-prefix-p "org-comments--" name))
-           (not (string-prefix-p "org-context-panel--" name)))))
+           (not (string-prefix-p "org-context-panel--" name))
+           (not (string-match-p "\\(?:-at-point\\|^org-comments-panel-\\(?:open-remote\\|pull\\|push\\|reply\\|sync\\|mark-\\)\\)" name)))))
 
   (with-temp-file (expand-file-name "config-reference.org" org-comments-docs-output-directory)
     (insert "| Variable | Default | Description |\n")

@@ -4,19 +4,13 @@
 | =?= | =org-comments-help-current-ui= |
 | =D= | =org-comments-pull= |
 | =O= | =org-comments-open-remote= |
-| =RET= | =org-context-panel-jump-at-point= |
 | =S= | =org-comments-sync= |
 | =U= | =org-comments-push= |
-| =[ c= | =org-comments-previous-item-at-point= |
-| =] c= | =org-comments-next-item-at-point= |
-| =d= | =org-comments-delete-at-point= |
-| =e= | =org-comments-edit-at-point= |
 | =g= | =org-comments-panel-refresh= |
 | =m o= | =org-comments-mark-open= |
 | =m r= | =org-comments-mark-resolved= |
 | =m t= | =org-comments-mark-todo= |
 | =o= | =org-comments-open-remote= |
-| =p= | =org-comments-page-open-at-point= |
 | =q= | =org-comments-close-current-ui= |
 | =r= | =org-comments-reply= |
 | =z ?= | =org-comments-filter-status-current-ui= |

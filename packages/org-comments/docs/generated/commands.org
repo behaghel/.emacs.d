@@ -9,33 +9,24 @@
 | =org-comments-create= | Create a sidecar comment for region START to END with BODY. |
 | =org-comments-create-from-region= | Create a sidecar comment for the active region. |
 | =org-comments-delete= | Delete the comment at point from its sidecar. |
-| =org-comments-delete-at-point= | Delete the current comment at point and refresh the UI. |
 | =org-comments-edit= | Jump to the body of the comment at point. |
-| =org-comments-edit-at-point= | Open the current comment at point for editing in its sidecar. |
 | =org-comments-filter-reset-current-ui= | Reset filters in the current comments UI. |
 | =org-comments-filter-status-current-ui= | Show filter status for the current comments UI. |
 | =org-comments-filter-toggle-resolved-current-ui= | Toggle resolved comments in the current comments UI. |
 | =org-comments-help-current-ui= | Show help for the current comments UI using the active help adapter. |
-| =org-comments-jump-at-point= | Jump from the current item at point using the active comments UI. |
 | =org-comments-mark-open= | Mark the current comment open. |
-| =org-comments-mark-open-at-point= | Mark the current comment at point OPEN. |
 | =org-comments-mark-resolved= | Mark the current comment resolved. |
-| =org-comments-mark-resolved-at-point= | Mark the current comment at point RESOLVED. |
 | =org-comments-mark-todo= | Mark the current comment TODO. |
-| =org-comments-mark-todo-at-point= | Mark the current comment at point TODO. |
 | =org-comments-migrate-directory-sidecars= | Explicitly migrate all `.comments.org' sidecars under DIRECTORY. |
 | =org-comments-migrate-sidecar= | Explicitly migrate SIDECAR-FILE from legacy to package-native properties. |
 | =org-comments-mode= | Enable Org-native comment commands for the current buffer. |
 | =org-comments-next= | Move to the next source comment, wrapping at end of buffer. |
-| =org-comments-next-item-at-point= | Move point to the next rendered comment item, wrapping at end. |
 | =org-comments-open= | Open the best available comments UI for the current buffer. |
 | =org-comments-open-remote= | Open the current comment in the detected remote backend. |
-| =org-comments-open-remote-at-point= | Open the current comment through the detected remote backend. |
 | =org-comments-open-sidecar= | Open the comments sidecar for the current Org source buffer. |
 | =org-comments-overlays-refresh= | Refresh persistent sidecar comment overlays in the current Org buffer. |
 | =org-comments-page-create= | Create a page/footer sidecar comment with BODY and edit it. |
 | =org-comments-page-open= | Open the page-context window for the current Org buffer. |
-| =org-comments-page-open-at-point= | Open page-level comments for the current comments UI. |
 | =org-comments-page-panel-open= | Open or refresh the standalone page comments panel for the current source. |
 | =org-comments-page-panel-refresh= | Refresh the standalone Org page comments panel. |
 | =org-comments-panel-close= | Close the standalone Org comments panel. |
@@ -44,32 +35,20 @@
 | =org-comments-panel-filter-reset= | Reset filters in the current Org comments panel. |
 | =org-comments-panel-filter-toggle-resolved= | Toggle display of resolved comments in the current panel. |
 | =org-comments-panel-jump= | Jump from the current panel row to its source comment target. |
-| =org-comments-panel-mark-open= | Mark the current panel row's comment open. |
-| =org-comments-panel-mark-resolved= | Mark the current panel row's comment resolved. |
-| =org-comments-panel-mark-todo= | Mark the current panel row's comment TODO. |
 | =org-comments-panel-mode= | Major mode for the standalone Org comments panel. |
 | =org-comments-panel-open= | Open or refresh the standalone Org comments panel for the current source. |
-| =org-comments-panel-open-remote= | Open the current panel row through the detected remote backend. |
-| =org-comments-panel-pull= | Pull remote comments through the detected backend for the panel source. |
-| =org-comments-panel-push= | Push the current panel row through the detected remote backend. |
 | =org-comments-panel-refresh= | Refresh the standalone Org comments panel. |
-| =org-comments-panel-reply= | Prompt for a reply to the current panel row and refresh. |
-| =org-comments-panel-sync= | Synchronize comments through the detected backend for the panel source. |
 | =org-comments-previous= | Move to the previous source comment, wrapping at beginning of buffer. |
-| =org-comments-previous-item-at-point= | Move point to the previous rendered comment item, wrapping at beginning. |
 | =org-comments-pull= | Pull remote comments through the detected backend. |
 | =org-comments-push= | Push the current comment through the detected remote backend. |
-| =org-comments-push-at-point= | Push the current comment through the detected remote backend. |
 | =org-comments-rebuild-mode-map= | Rebuild `org-comments-mode-map' after changing `org-comments-keymap-prefix'. |
 | =org-comments-refresh-sidecar-headings= | Refresh all comment headings in SIDECAR-FILE from metadata and body previews. |
 | =org-comments-reply= | Create a reply using the best available comments UI. |
-| =org-comments-reply-at-point= | Reply to the current comment at point and refresh the UI. |
 | =org-comments-setup= | Enable `org-comments-mode' in Org buffers. |
 | =org-comments-sync= | Synchronize comments for the current Org source or comments panel. |
 | =org-context-panel-buffer-mode= | Major mode for generic Org context side panel buffers. |
 | =org-context-panel-close= | Close the generic side context panel for the current source. |
 | =org-context-panel-close-bottom-view= | Close the generic bottom context view for the current source. |
-| =org-context-panel-jump-at-point= | Jump from the current context-panel row using its provider. |
 | =org-context-panel-mode= | Enable reusable Org context-panel mechanics for the current buffer. |
 | =org-context-panel-open= | Open or refresh a generic side context panel for SOURCE-BUFFER. |
 | =org-context-panel-open-bottom-view= | Open bottom context view VIEW-ID for SOURCE-BUFFER. |
