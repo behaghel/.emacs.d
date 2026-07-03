@@ -70,16 +70,7 @@ When REPLY is non-nil, return a reply heading title."
 
 (defun org-confluence-comments-import-sidecar-has-remote-p (sidecar-file remote-id)
   "Return non-nil when SIDECAR-FILE already has Confluence REMOTE-ID."
-  (when (file-exists-p sidecar-file)
-    (with-temp-buffer
-      (insert-file-contents sidecar-file)
-      (org-mode)
-      (goto-char (point-min))
-      (cl-loop while (re-search-forward org-heading-regexp nil t)
-	       do (goto-char (match-beginning 0))
-	       when (equal remote-id (org-entry-get nil "ORG_COMMENTS_REMOTE_ID"))
-	       return t
-	       do (forward-line 1)))))
+  (org-comments-sidecar-has-remote-p sidecar-file remote-id))
 
 (defun org-confluence-comments-import-put-property-when-missing (property value)
   "Set Org PROPERTY to VALUE at point only when missing."
@@ -311,10 +302,8 @@ BODY-FORMAT and SYNC-KIND describe imported comment metadata."
 
 (defun org-confluence-comments-import-set-remote-present-properties (comment)
   "Set present-state properties for remote COMMENT at current Org heading."
-  (org-entry-delete nil "ORG_COMMENTS_REMOTE_STATE")
-  (org-entry-put nil "ORG_COMMENTS_REMOTE_LAST_SEEN_AT"
-		 (org-confluence-comments-import-sync-timestamp))
-  (org-entry-delete nil "ORG_COMMENTS_REMOTE_MISSING_AT")
+  (org-comments-sidecar-mark-present-at-heading
+   #'org-confluence-comments-import-sync-timestamp)
   (if-let* ((status (org-confluence-comments-remote-resolution-status comment)))
       (org-entry-put nil "ORG_COMMENTS_REMOTE_RESOLUTION_STATUS" status)
     (org-entry-delete nil "ORG_COMMENTS_REMOTE_RESOLUTION_STATUS")))
@@ -423,79 +412,41 @@ Return plist with `:imported', `:seen-ids', `:parent-id', and `:complete'."
     ("footer-comments" "footer")
     ("inline-comments" "inline")))
 
-(defun org-confluence-comments-import-mark-missing-at-heading ()
-  "Mark current remote-linked Org heading as remote missing."
-  (org-entry-put nil "ORG_COMMENTS_REMOTE_STATE" "missing")
-  (unless (org-entry-get nil "ORG_COMMENTS_REMOTE_MISSING_AT")
-    (org-entry-put nil "ORG_COMMENTS_REMOTE_MISSING_AT"
-		   (org-confluence-comments-import-sync-timestamp))))
-
 (defun org-confluence-comments-import-reconcile-missing-roots
     (sidecar-file sync-kind seen-ids report)
   "Mark remote-linked root comments of SYNC-KIND absent from SEEN-IDS missing."
-  (when (file-exists-p sidecar-file)
-    (with-temp-buffer
-      (insert-file-contents sidecar-file)
-      (org-mode)
-      (let ((changed nil))
-	(goto-char (point-min))
-	(while (re-search-forward org-heading-regexp nil t)
-	  (goto-char (match-beginning 0))
-	  (let ((remote-id (org-entry-get nil "ORG_COMMENTS_REMOTE_ID"))
-		(kind (org-entry-get nil "ORG_COMMENTS_SYNC_KIND")))
-	    (when (and remote-id
-		       (equal kind sync-kind)
-		       (not (member remote-id seen-ids)))
-	      (when (equal (org-get-todo-state) "TODO")
-		(plist-put report :todo-missing
-			   (cons remote-id (plist-get report :todo-missing))))
-	      (unless (equal (org-entry-get nil "ORG_COMMENTS_REMOTE_STATE") "missing")
-		(plist-put report :marked-missing (1+ (or (plist-get report :marked-missing) 0))))
-	      (org-confluence-comments-import-mark-missing-at-heading)
-	      (setq changed t)))
-	  (forward-line 1))
-	(when changed
-	  (write-region (point-min) (point-max) sidecar-file nil 'silent))))))
+  (let ((missing-count
+	 (org-comments-sidecar-reconcile-missing
+	  sidecar-file seen-ids
+	  :sync-kind sync-kind
+	  :timestamp #'org-confluence-comments-import-sync-timestamp
+	  :on-missing
+	  (lambda (remote-id _newly-missing)
+	    (when (equal (org-get-todo-state) "TODO")
+	      (plist-put report :todo-missing
+			 (cons remote-id (plist-get report :todo-missing))))))))
+    (plist-put report :marked-missing
+	       (+ (or (plist-get report :marked-missing) 0)
+		  (or missing-count 0)))))
 
 (defun org-confluence-comments-import-reconcile-missing-replies
     (sidecar-file parent-id seen-ids report)
   "Mark remote-linked replies under PARENT-ID absent from SEEN-IDS missing."
-  (when (and parent-id (file-exists-p sidecar-file))
-    (with-temp-buffer
-      (insert-file-contents sidecar-file)
-      (org-mode)
-      (let ((changed nil))
-	(goto-char (point-min))
-	(while (re-search-forward org-heading-regexp nil t)
-	  (goto-char (match-beginning 0))
-	  (let ((remote-id (org-entry-get nil "ORG_COMMENTS_REMOTE_ID"))
-		(parent (org-entry-get nil "ORG_COMMENTS_REMOTE_PARENT_ID"))
-		(kind (org-entry-get nil "ORG_COMMENTS_SYNC_KIND")))
-	    (when (and remote-id
-		       (equal kind "reply")
-		       (equal parent parent-id)
-		       (not (member remote-id seen-ids)))
-	      (unless (equal (org-entry-get nil "ORG_COMMENTS_REMOTE_STATE") "missing")
-		(plist-put report :marked-missing (1+ (or (plist-get report :marked-missing) 0))))
-	      (org-confluence-comments-import-mark-missing-at-heading)
-	      (setq changed t)))
-	  (forward-line 1))
-	(when changed
-	  (write-region (point-min) (point-max) sidecar-file nil 'silent))))))
+  (let ((missing-count
+	 (and parent-id
+	      (org-comments-sidecar-reconcile-missing
+	       sidecar-file seen-ids
+	       :sync-kind "reply"
+	       :parent-remote-id parent-id
+	       :timestamp #'org-confluence-comments-import-sync-timestamp))))
+    (plist-put report :marked-missing
+	       (+ (or (plist-get report :marked-missing) 0)
+		  (or missing-count 0)))))
 
 (defun org-confluence-comments-import-record-present-again (sidecar-file remote-id report)
   "Record REMOTE-ID present-again in REPORT when SIDECAR-FILE says missing."
-  (when (and remote-id (file-exists-p sidecar-file))
-    (with-temp-buffer
-      (insert-file-contents sidecar-file)
-      (org-mode)
-      (goto-char (point-min))
-      (when (cl-loop while (re-search-forward org-heading-regexp nil t)
-		     do (goto-char (match-beginning 0))
-		     when (equal remote-id (org-entry-get nil "ORG_COMMENTS_REMOTE_ID"))
-		     return (equal (org-entry-get nil "ORG_COMMENTS_REMOTE_STATE") "missing")
-		     do (forward-line 1))
-	(plist-put report :present-again (1+ (or (plist-get report :present-again) 0)))))))
+  (when (org-comments-sidecar-remote-missing-p sidecar-file remote-id)
+    (plist-put report :present-again (1+ (or (plist-get report :present-again) 0)))))
 
 (defun org-confluence-comments-import-generic-report (report)
   "Return provider-neutral import report derived from Confluence REPORT."

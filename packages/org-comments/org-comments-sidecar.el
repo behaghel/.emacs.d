@@ -206,6 +206,107 @@ SIDECAR-FILE defaults to the sidecar path for RECORD's source file."
       (user-error "Comment %s not found in sidecar" comment-id))
     (write-region (point-min) (point-max) sidecar-file nil 'silent)))
 
+(defun org-comments-sidecar--filter-match-p (filters)
+  "Return non-nil when current heading matches sidecar FILTERS."
+  (and (or (not (plist-member filters :backend))
+	   (equal (plist-get filters :backend)
+		  (org-entry-get nil "ORG_COMMENTS_BACKEND")))
+       (or (not (plist-member filters :source))
+	   (equal (plist-get filters :source)
+		  (org-entry-get nil "ORG_COMMENTS_SOURCE")))
+       (or (not (plist-member filters :sync-kind))
+	   (equal (plist-get filters :sync-kind)
+		  (org-entry-get nil "ORG_COMMENTS_SYNC_KIND")))
+       (or (not (plist-member filters :parent-remote-id))
+	   (equal (plist-get filters :parent-remote-id)
+		  (org-entry-get nil "ORG_COMMENTS_REMOTE_PARENT_ID")))))
+
+(defun org-comments-sidecar-has-remote-p (sidecar-file remote-id &rest filters)
+  "Return non-nil when SIDECAR-FILE contains REMOTE-ID matching FILTERS."
+  (when (and remote-id (file-exists-p sidecar-file))
+    (with-temp-buffer
+      (insert-file-contents sidecar-file)
+      (org-mode)
+      (goto-char (point-min))
+      (cl-loop while (re-search-forward org-heading-regexp nil t)
+	       do (goto-char (match-beginning 0))
+	       when (and (equal remote-id (org-entry-get nil "ORG_COMMENTS_REMOTE_ID"))
+			 (org-comments-sidecar--filter-match-p filters))
+	       return t
+	       do (forward-line 1)))))
+
+(defun org-comments-sidecar-remote-missing-p (sidecar-file remote-id &rest filters)
+  "Return non-nil when REMOTE-ID in SIDECAR-FILE is marked missing.
+FILTERS narrow the candidate heading by backend, source, sync kind, or parent."
+  (when (and remote-id (file-exists-p sidecar-file))
+    (with-temp-buffer
+      (insert-file-contents sidecar-file)
+      (org-mode)
+      (goto-char (point-min))
+      (cl-loop while (re-search-forward org-heading-regexp nil t)
+	       do (goto-char (match-beginning 0))
+	       when (and (equal remote-id (org-entry-get nil "ORG_COMMENTS_REMOTE_ID"))
+			 (org-comments-sidecar--filter-match-p filters))
+	       return (equal (org-entry-get nil "ORG_COMMENTS_REMOTE_STATE") "missing")
+	       do (forward-line 1)))))
+
+(defun org-comments-sidecar--timestamp-value (timestamp)
+  "Return sidecar reconciliation timestamp for TIMESTAMP."
+  (cond
+   ((functionp timestamp) (funcall timestamp))
+   ((stringp timestamp) timestamp)
+   (t (org-comments-current-created-at))))
+
+(defun org-comments-sidecar-mark-missing-at-heading (&optional timestamp)
+  "Mark current remote-linked heading missing with optional TIMESTAMP."
+  (org-entry-put nil "ORG_COMMENTS_REMOTE_STATE" "missing")
+  (unless (org-entry-get nil "ORG_COMMENTS_REMOTE_MISSING_AT")
+    (org-entry-put nil "ORG_COMMENTS_REMOTE_MISSING_AT"
+		   (org-comments-sidecar--timestamp-value timestamp))))
+
+(defun org-comments-sidecar-mark-present-at-heading (&optional last-seen-at)
+  "Mark current remote-linked heading present and clear missing metadata.
+When LAST-SEEN-AT is non-nil, record it as `ORG_COMMENTS_REMOTE_LAST_SEEN_AT'."
+  (org-entry-delete nil "ORG_COMMENTS_REMOTE_STATE")
+  (org-entry-delete nil "ORG_COMMENTS_REMOTE_MISSING_AT")
+  (when last-seen-at
+    (org-entry-put nil "ORG_COMMENTS_REMOTE_LAST_SEEN_AT"
+		   (org-comments-sidecar--timestamp-value last-seen-at))))
+
+(defun org-comments-sidecar-reconcile-missing (sidecar-file seen-ids &rest options)
+  "Mark remote-linked sidecar entries absent from SEEN-IDS as missing.
+OPTIONS may include `:backend', `:source', `:sync-kind', `:parent-remote-id',
+`:timestamp', and `:on-missing'.  `:on-missing', when non-nil, is called at
+matching missing headings with REMOTE-ID and whether the heading is newly
+missing.  Return the number of newly missing headings."
+  (when (file-exists-p sidecar-file)
+    (with-temp-buffer
+      (insert-file-contents sidecar-file)
+      (org-mode)
+      (let ((changed nil)
+	    (missing-count 0)
+	    (on-missing (plist-get options :on-missing)))
+	(goto-char (point-min))
+	(while (re-search-forward org-heading-regexp nil t)
+	  (goto-char (match-beginning 0))
+	  (let ((remote-id (org-entry-get nil "ORG_COMMENTS_REMOTE_ID")))
+	    (when (and remote-id
+		       (org-comments-sidecar--filter-match-p options)
+		       (not (member remote-id seen-ids)))
+	      (let ((newly-missing
+		     (not (equal (org-entry-get nil "ORG_COMMENTS_REMOTE_STATE")
+				 "missing"))))
+		(when on-missing
+		  (funcall on-missing remote-id newly-missing))
+		(when newly-missing
+		  (setq missing-count (1+ missing-count)))
+		(org-comments-sidecar-mark-missing-at-heading
+		 (plist-get options :timestamp))
+		(setq changed t))))
+	  (forward-line 1))
+	(when changed
+	  (write-region (point-min) (point-max) sidecar-file nil 'silent))
+	missing-count))))
 
 (defun org-comments--parse-properties-at-heading ()
   "Return an alist of Org properties at point without inherited values."

@@ -210,19 +210,6 @@ Return non-nil when an entry was updated."
     (insert entry)
     (write-region (point-min) (point-max) sidecar-file nil 'silent)))
 
-(defun org-google-docs-comments-import--sidecar-has-remote-p (sidecar-file remote-id)
-  "Return non-nil when SIDECAR-FILE already contains REMOTE-ID."
-  (when (and remote-id (file-exists-p sidecar-file))
-    (with-temp-buffer
-      (insert-file-contents sidecar-file)
-      (org-mode)
-      (goto-char (point-min))
-      (cl-loop while (re-search-forward org-heading-regexp nil t)
-	       do (goto-char (match-beginning 0))
-	       when (equal remote-id (org-entry-get nil "ORG_COMMENTS_REMOTE_ID"))
-	       return t
-	       do (forward-line 1)))))
-
 (defun org-google-docs-comments-import--update-reply-at-heading (reply parent-remote-id)
   "Update sidecar reply heading at point from normalized Google REPLY."
   (org-entry-put nil "ORG_COMMENTS_BACKEND" "google-docs")
@@ -271,7 +258,7 @@ Return non-nil when a reply was updated."
 Return non-nil when the reply was appended."
   (let ((remote-id (plist-get reply :remote-id)))
     (when (and remote-id
-	       (not (org-google-docs-comments-import--sidecar-has-remote-p
+	       (not (org-comments-sidecar-has-remote-p
 		     sidecar-file remote-id)))
       (with-temp-buffer
 	(insert-file-contents sidecar-file)
@@ -297,35 +284,14 @@ Return non-nil when the reply was appended."
 (defun org-google-docs-comments-import--mark-missing-replies
     (sidecar-file parent-remote-id seen-reply-ids report)
   "Mark replies under PARENT-REMOTE-ID absent from SEEN-REPLY-IDS missing."
-  (when (file-exists-p sidecar-file)
-    (with-temp-buffer
-      (insert-file-contents sidecar-file)
-      (org-mode)
-      (let ((changed nil)
-	    (missing-count 0))
-	(goto-char (point-min))
-	(while (re-search-forward org-heading-regexp nil t)
-	  (goto-char (match-beginning 0))
-	  (let ((sync-kind (org-entry-get nil "ORG_COMMENTS_SYNC_KIND"))
-		(parent-id (org-entry-get nil "ORG_COMMENTS_REMOTE_PARENT_ID"))
-		(remote-id (org-entry-get nil "ORG_COMMENTS_REMOTE_ID"))
-		(remote-state (org-entry-get nil "ORG_COMMENTS_REMOTE_STATE")))
-	    (when (and (equal sync-kind "reply")
-		       (equal parent-id parent-remote-id)
-		       remote-id
-		       (not (member remote-id seen-reply-ids))
-		       (not (equal remote-state "missing")))
-	      (org-entry-put nil "ORG_COMMENTS_REMOTE_STATE" "missing")
-	      (org-entry-put nil "ORG_COMMENTS_REMOTE_MISSING_AT"
-			     (org-comments-current-created-at))
-	      (setq changed t)
-	      (setq missing-count (1+ missing-count))))
-	  (forward-line 1))
-	(when changed
-	  (write-region (point-min) (point-max) sidecar-file nil 'silent))
-	(plist-put report :remote-missing-replies
-		   (+ (or (plist-get report :remote-missing-replies) 0)
-		      missing-count))))))
+  (let ((missing-count
+	 (org-comments-sidecar-reconcile-missing
+	  sidecar-file seen-reply-ids
+	  :sync-kind "reply"
+	  :parent-remote-id parent-remote-id)))
+    (plist-put report :remote-missing-replies
+	       (+ (or (plist-get report :remote-missing-replies) 0)
+		  (or missing-count 0)))))
 
 (defun org-google-docs-comments-import--import-replies (sidecar-file comment report)
   "Import COMMENT replies into SIDECAR-FILE and update REPORT."
@@ -350,35 +316,14 @@ Return non-nil when the reply was appended."
     (sidecar-file seen-remote-ids report)
   "Mark Google Docs comments absent from SEEN-REMOTE-IDS missing in SIDECAR-FILE.
 Update REPORT with the number of newly missing root comments."
-  (when (file-exists-p sidecar-file)
-    (with-temp-buffer
-      (insert-file-contents sidecar-file)
-      (org-mode)
-      (let ((changed nil)
-	    (missing-count 0))
-	(goto-char (point-min))
-	(while (re-search-forward org-heading-regexp nil t)
-	  (goto-char (match-beginning 0))
-	  (let ((backend (org-entry-get nil "ORG_COMMENTS_BACKEND"))
-		(sync-kind (org-entry-get nil "ORG_COMMENTS_SYNC_KIND"))
-		(remote-id (org-entry-get nil "ORG_COMMENTS_REMOTE_ID"))
-		(remote-state (org-entry-get nil "ORG_COMMENTS_REMOTE_STATE")))
-	    (when (and (equal backend "google-docs")
-		       (not (equal sync-kind "reply"))
-		       remote-id
-		       (not (member remote-id seen-remote-ids))
-		       (not (equal remote-state "missing")))
-	      (org-entry-put nil "ORG_COMMENTS_REMOTE_STATE" "missing")
-	      (org-entry-put nil "ORG_COMMENTS_REMOTE_MISSING_AT"
-			     (org-comments-current-created-at))
-	      (setq changed t)
-	      (setq missing-count (1+ missing-count))))
-	  (forward-line 1))
-	(when changed
-	  (write-region (point-min) (point-max) sidecar-file nil 'silent))
-	(plist-put report :remote-missing
-		   (+ (or (plist-get report :remote-missing) 0)
-		      missing-count))))))
+  (let ((missing-count
+	 (org-comments-sidecar-reconcile-missing
+	  sidecar-file seen-remote-ids
+	  :backend "google-docs"
+	  :sync-kind nil)))
+    (plist-put report :remote-missing
+	       (+ (or (plist-get report :remote-missing) 0)
+		  (or missing-count 0)))))
 
 (defun org-google-docs-comments-import--import-list
     (comments include-resolved source-file source-buffer)
@@ -400,7 +345,7 @@ Return a provider-neutral import report plist."
     (dolist (comment comments)
       (let* ((remote-id (plist-get comment :remote-id))
 	     (existing (and remote-id
-			    (org-google-docs-comments-import--sidecar-has-remote-p
+			    (org-comments-sidecar-has-remote-p
 			     sidecar-file remote-id))))
 	(when remote-id
 	  (push remote-id seen-remote-ids))

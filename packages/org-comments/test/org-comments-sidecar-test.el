@@ -93,6 +93,72 @@
     (org-comments-entry-mark-status-dirty "RESOLVED")
     (should-not (org-entry-get nil "ORG_COMMENTS_LOCAL_STATUS_DIRTY"))))
 
+(ert-deftest org-comments-sidecar-reconcile-missing-marks-filtered-remotes ()
+  "Missing reconciliation marks matching remote sidecar entries only."
+  (let* ((dir (make-temp-file "org-comments-sidecar-reconcile-" t))
+	 (sidecar (expand-file-name "article.comments.org" dir))
+	 seen)
+    (unwind-protect
+	(progn
+	  (with-temp-file sidecar
+	    (insert "#+title: Comments\n\n")
+	    (insert "* OPEN Present\n:PROPERTIES:\n")
+	    (insert ":ORG_COMMENTS_ID: google-docs:c-present\n")
+	    (insert ":ORG_COMMENTS_BACKEND: google-docs\n")
+	    (insert ":ORG_COMMENTS_REMOTE_ID: c-present\n:END:\n\n")
+	    (insert "* OPEN Missing\n:PROPERTIES:\n")
+	    (insert ":ORG_COMMENTS_ID: google-docs:c-missing\n")
+	    (insert ":ORG_COMMENTS_BACKEND: google-docs\n")
+	    (insert ":ORG_COMMENTS_REMOTE_ID: c-missing\n:END:\n\n")
+	    (insert "* OPEN Other provider\n:PROPERTIES:\n")
+	    (insert ":ORG_COMMENTS_ID: remote-confluence:c-other\n")
+	    (insert ":ORG_COMMENTS_SOURCE: confluence\n")
+	    (insert ":ORG_COMMENTS_REMOTE_ID: c-other\n:END:\n\n"))
+	  (should (= 1 (org-comments-sidecar-reconcile-missing
+			sidecar '("c-present")
+			:backend "google-docs"
+			:timestamp "2026-07-03T21:00:00+0000"
+			:on-missing (lambda (remote-id newly-missing)
+				      (push (list remote-id newly-missing) seen)))))
+	  (with-temp-buffer
+	    (insert-file-contents sidecar)
+	    (org-mode)
+	    (goto-char (point-min))
+	    (should (search-forward ":ORG_COMMENTS_REMOTE_ID: c-missing" nil t))
+	    (org-back-to-heading t)
+	    (should (equal (org-entry-get nil "ORG_COMMENTS_REMOTE_STATE") "missing"))
+	    (should (equal (org-entry-get nil "ORG_COMMENTS_REMOTE_MISSING_AT")
+			   "2026-07-03T21:00:00+0000"))
+	    (goto-char (point-min))
+	    (should (search-forward ":ORG_COMMENTS_REMOTE_ID: c-other" nil t))
+	    (org-back-to-heading t)
+	    (should-not (org-entry-get nil "ORG_COMMENTS_REMOTE_STATE")))
+	  (should (equal seen '(("c-missing" t)))))
+      (delete-directory dir t))))
+
+(ert-deftest org-comments-sidecar-remote-presence-helpers-filter-headings ()
+  "Remote presence helpers honor provider filters."
+  (let* ((dir (make-temp-file "org-comments-sidecar-presence-" t))
+	 (sidecar (expand-file-name "article.comments.org" dir)))
+    (unwind-protect
+	(progn
+	  (with-temp-file sidecar
+	    (insert "#+title: Comments\n\n")
+	    (insert "* OPEN Missing\n:PROPERTIES:\n")
+	    (insert ":ORG_COMMENTS_BACKEND: google-docs\n")
+	    (insert ":ORG_COMMENTS_REMOTE_ID: same\n")
+	    (insert ":ORG_COMMENTS_REMOTE_STATE: missing\n:END:\n\n")
+	    (insert "* OPEN Present\n:PROPERTIES:\n")
+	    (insert ":ORG_COMMENTS_SOURCE: confluence\n")
+	    (insert ":ORG_COMMENTS_REMOTE_ID: same\n:END:\n\n"))
+	  (should (org-comments-sidecar-has-remote-p
+		   sidecar "same" :source "confluence"))
+	  (should-not (org-comments-sidecar-remote-missing-p
+		       sidecar "same" :source "confluence"))
+	  (should (org-comments-sidecar-remote-missing-p
+		   sidecar "same" :backend "google-docs")))
+      (delete-directory dir t))))
+
 (ert-deftest org-comments-sidecar-delete-entry-removes-subtree ()
   "Deleting an entry removes its sidecar subtree."
   (let* ((dir (make-temp-file "org-comments-sidecar-" t))
