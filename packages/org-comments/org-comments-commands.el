@@ -221,7 +221,7 @@ the source-buffer comment at point."
 		       (org-mode)
 		       (unless (org-comments-goto-id comment-id)
 			 (user-error "Cannot find comment %s" comment-id))
-		       (org-todo status)
+		       (org-comments-set-entry-status status)
 		       (save-buffer))
 		     status)))
       (org-comments-refresh)

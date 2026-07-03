@@ -75,6 +75,24 @@
 	    (should (search-forward ":ORG_COMMENTS_TARGET_TEXT: Beta" nil t))))
       (delete-directory dir t))))
 
+(ert-deftest org-comments-sidecar-status-dirty-tracks-remote-divergence ()
+  "Setting local status marks remote-backed entries dirty when they diverge."
+  (with-temp-buffer
+    (org-mode)
+    (insert "* OPEN Google comment\n")
+    (insert ":PROPERTIES:\n")
+    (insert ":ORG_COMMENTS_ID: google-docs:c-1\n")
+    (insert ":ORG_COMMENTS_REMOTE_ID: c-1\n")
+    (insert ":ORG_COMMENTS_REMOTE_RESOLUTION_STATUS: open\n")
+    (insert ":END:\n\nBody.\n")
+    (goto-char (point-min))
+    (org-comments-entry-mark-status-dirty "RESOLVED")
+    (should (equal (org-entry-get nil "ORG_COMMENTS_LOCAL_STATUS_DIRTY") "status"))
+    (should (org-entry-get nil "ORG_COMMENTS_LOCAL_UPDATED_AT"))
+    (org-entry-put nil "ORG_COMMENTS_REMOTE_RESOLUTION_STATUS" "resolved")
+    (org-comments-entry-mark-status-dirty "RESOLVED")
+    (should-not (org-entry-get nil "ORG_COMMENTS_LOCAL_STATUS_DIRTY"))))
+
 (ert-deftest org-comments-sidecar-delete-entry-removes-subtree ()
   "Deleting an entry removes its sidecar subtree."
   (let* ((dir (make-temp-file "org-comments-sidecar-" t))

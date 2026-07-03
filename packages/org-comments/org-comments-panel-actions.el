@@ -361,7 +361,7 @@ remains sidecar-only until backends declare broader status semantics."
 	 (result (if (org-comments-remote-status-p comment source-buffer status)
 		     (org-comments-set-remote-status comment source-buffer status)
 		   (with-current-buffer (org-comments-panel--goto-sidecar-heading comment)
-		     (org-todo status)
+		     (org-comments-set-entry-status status)
 		     (save-buffer))
 		   (message "Marked comment %s %s" (plist-get comment :id) status)
 		   status)))

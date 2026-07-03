@@ -333,6 +333,7 @@
        (insert ":ORG_COMMENTS_BACKEND: google-docs\n")
        (insert ":ORG_COMMENTS_REMOTE_ID: c-1\n")
        (insert ":ORG_COMMENTS_REMOTE_RESOLUTION_STATUS: open\n")
+       (insert ":ORG_COMMENTS_LOCAL_STATUS_DIRTY: status\n")
        (insert ":END:\n\nBody.\n\n")
        (insert "** Local notes\nKeep this note.\n")
        (write-region (point-min) (point-max) sidecar nil 'silent))
@@ -348,6 +349,7 @@
        (insert-file-contents sidecar)
        (should (search-forward "* RESOLVED Google Docs comment" nil t))
        (should (search-forward ":ORG_COMMENTS_REMOTE_RESOLUTION_STATUS: resolved" nil t))
+       (should-not (search-forward ":ORG_COMMENTS_LOCAL_STATUS_DIRTY:" nil t))
        (should (search-forward "** Local notes" nil t))))))
 
 (ert-deftest org-google-docs-comments-import-marks-missing-remote-comments ()

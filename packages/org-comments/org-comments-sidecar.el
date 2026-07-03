@@ -87,6 +87,32 @@ For example, article.org maps to article.comments.org."
      (string-trim-right (or (plist-get record :body) ""))
      "\n")))
 
+(defun org-comments-remote-status-value (status)
+  "Return remote resolution value corresponding to local TODO STATUS."
+  (when (equal status "RESOLVED")
+    "resolved"))
+
+(defun org-comments-entry-mark-status-dirty (status)
+  "Update current heading dirty metadata after setting local TODO STATUS.
+Remote-backed comments get `ORG_COMMENTS_LOCAL_STATUS_DIRTY' when STATUS differs
+from known remote state.  Matching or local-only comments clear that marker."
+  (let ((remote-id (org-entry-get nil "ORG_COMMENTS_REMOTE_ID"))
+	(remote-status (org-entry-get nil "ORG_COMMENTS_REMOTE_RESOLUTION_STATUS"))
+	(target-remote-status (org-comments-remote-status-value status)))
+    (if (and remote-id
+	     target-remote-status
+	     (not (equal remote-status target-remote-status)))
+	(progn
+	  (org-entry-put nil "ORG_COMMENTS_LOCAL_STATUS_DIRTY" "status")
+	  (org-entry-put nil "ORG_COMMENTS_LOCAL_UPDATED_AT"
+			 (org-comments-current-created-at)))
+      (org-entry-delete nil "ORG_COMMENTS_LOCAL_STATUS_DIRTY"))))
+
+(defun org-comments-set-entry-status (status)
+  "Set current sidecar entry TODO state to STATUS and update dirty metadata."
+  (org-todo status)
+  (org-comments-entry-mark-status-dirty status))
+
 (defun org-comments-append-to-sidecar (record &optional sidecar-file)
   "Append comment RECORD to SIDECAR-FILE and return SIDECAR-FILE.
 SIDECAR-FILE defaults to the sidecar path for RECORD's source file."
@@ -295,6 +321,7 @@ SIDECAR-FILE defaults to the sidecar path for RECORD's source file."
 	   :remote-missing-at (alist-get "ORG_COMMENTS_REMOTE_MISSING_AT" properties nil nil #'equal)
 	   :remote-last-seen-at (alist-get "ORG_COMMENTS_REMOTE_LAST_SEEN_AT" properties nil nil #'equal)
 	   :remote-resolution-status (alist-get "ORG_COMMENTS_REMOTE_RESOLUTION_STATUS" properties nil nil #'equal)
+	   :local-status-dirty (alist-get "ORG_COMMENTS_LOCAL_STATUS_DIRTY" properties nil nil #'equal)
 	   :sync-kind (alist-get "ORG_COMMENTS_SYNC_KIND" properties nil nil #'equal)
 	   :body-format (or (alist-get "ORG_COMMENTS_BODY_FORMAT" properties nil nil #'equal)
 			    "storage")

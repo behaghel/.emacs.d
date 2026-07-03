@@ -98,9 +98,11 @@ SIDECAR-FILE, DOCUMENT-ID, and ACCOUNT are copied into the returned record."
   (let ((status (org-get-todo-state))
 	(sync-kind (org-entry-get nil "ORG_COMMENTS_SYNC_KIND"))
 	(remote-id (org-entry-get nil "ORG_COMMENTS_REMOTE_ID"))
-	(remote-status (org-entry-get nil "ORG_COMMENTS_REMOTE_RESOLUTION_STATUS")))
+	(remote-status (org-entry-get nil "ORG_COMMENTS_REMOTE_RESOLUTION_STATUS"))
+	(status-dirty (org-entry-get nil "ORG_COMMENTS_LOCAL_STATUS_DIRTY")))
     (when (and (not (equal sync-kind "reply"))
 	       (equal status "RESOLVED")
+	       (equal status-dirty "status")
 	       remote-id
 	       (not (string-empty-p remote-id))
 	       (not (equal remote-status "resolved")))
@@ -175,6 +177,8 @@ SIDECAR-FILE, DOCUMENT-ID, and ACCOUNT are copied into the returned record."
 	      :remote-id (org-entry-get nil "ORG_COMMENTS_REMOTE_ID")
 	      :remote-resolution-status
 	      (org-entry-get nil "ORG_COMMENTS_REMOTE_RESOLUTION_STATUS")
+	      :local-status-dirty
+	      (org-entry-get nil "ORG_COMMENTS_LOCAL_STATUS_DIRTY")
 	      :body (org-comments-entry-body
 		     (save-excursion (org-end-of-subtree t t))))))))
 
@@ -192,6 +196,7 @@ SIDECAR-FILE, DOCUMENT-ID, and ACCOUNT are copied into the returned record."
 	    (org-inhibit-logging t))
 	(org-todo "RESOLVED"))
       (org-entry-put nil "ORG_COMMENTS_REMOTE_RESOLUTION_STATUS" "resolved")
+      (org-entry-delete nil "ORG_COMMENTS_LOCAL_STATUS_DIRTY")
       (write-region (point-min) (point-max) sidecar-file nil 'silent))))
 
 (defun org-google-docs-comments-backend--reply-payload (comment)
@@ -349,6 +354,8 @@ is forwarded to upstream gdocs request helpers."
 	 (remote-id (or (plist-get comment :remote-id)
 			(plist-get info :remote-id)))
 	 (status (or (plist-get comment :status) (plist-get info :status)))
+	 (status-dirty (or (plist-get comment :local-status-dirty)
+			   (plist-get info :local-status-dirty)))
 	 (remote-status (or (plist-get comment :remote-resolution-status)
 			    (plist-get info :remote-resolution-status))))
     (unless (equal sync-kind "reply")
@@ -356,6 +363,7 @@ is forwarded to upstream gdocs request helpers."
 	(user-error "Google Docs root comment creation is not supported yet"))
       (cond
        ((and (equal status "RESOLVED")
+	     (equal status-dirty "status")
 	     (not (equal remote-status "resolved")))
 	(org-google-docs-comments-backend-set-status
 	 (append comment
