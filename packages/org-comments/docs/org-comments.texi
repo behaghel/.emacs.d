@@ -32,6 +32,7 @@
 * Comment UI::                   Modes, panels, and default interaction model.
 * Backends::                     Backend registry and operations.
 * Confluence Backend::           How Confluence integrates with org-comments.
+* Google Docs Backend::          How Google Docs integrates with org-comments.
 * Migration::                    Migrating legacy metadata.
 * Commands::                     Generated command reference.
 * Customization::                Generated defcustom reference.
@@ -294,6 +295,27 @@ The backend supports remote open, push, pull, and comments-only sync.  Full
 Confluence page synchronization remains an @samp{org-confluence} responsibility and
 is intentionally separate from @samp{org-comments-sync}.
 
+@node Google Docs Backend
+@chapter Google Docs Backend
+
+The Google Docs integration lives in @samp{org-google-docs}.  When a source Org
+buffer is linked to a Google Doc, the Google Docs detector can select the
+@samp{google-docs} backend for comment operations.
+
+The backend supports importing remote Google comments into the adjacent
+@samp{.comments.org} sidecar, opening remote comments, pushing local replies under
+imported root comments, resolving imported root comments, and comments-only
+sync.  Sync pushes pending local root resolutions and then pulls remote comment
+state.  Re-import updates remote-owned root/reply bodies and metadata, imports
+new remote replies, marks missing remote roots/replies, and preserves local notes
+and unsynced local replies.
+
+Google Docs full-document body sync remains an upstream @samp{gdocs} /
+@samp{org-google-docs} responsibility.  @samp{org-comments-sync} is comments-only and does
+not push or pull document body content.  Creating new Google Docs root comments
+from local-only sidecar roots is intentionally unsupported until anchoring
+semantics are specified.
+
 @node Migration
 @chapter Migration
 
@@ -506,7 +528,7 @@ former personal metadata prefix.
 @node Org buffers
 @section Org buffers
 
-@float Table,orga2ff6d7
+@float Table,orge21cc48
 @multitable {aaaaaaaaaaa} {aaaaaaaaaaaaaaaaaaaaaaaaaaaa}
 @headitem Key
 @tab Command
@@ -549,7 +571,7 @@ former personal metadata prefix.
 @node Comment panel
 @section Comment panel
 
-@float Table,org3e1b291
+@float Table,org94a6bc8
 @multitable {aaaaa} {aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa}
 @headitem Key
 @tab Command

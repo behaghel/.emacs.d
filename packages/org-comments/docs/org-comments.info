@@ -21,6 +21,7 @@ Org Comments Manual
 * Comment UI::                   Modes, panels, and default interaction model.
 * Backends::                     Backend registry and operations.
 * Confluence Backend::           How Confluence integrates with org-comments.
+* Google Docs Backend::          How Google Docs integrates with org-comments.
 * Migration::                    Migrating legacy metadata.
 * Commands::                     Generated command reference.
 * Customization::                Generated defcustom reference.
@@ -287,7 +288,7 @@ keeps provider-specific people stores outside the generic ‘org-comments’
 package.
 
 
-File: org-comments.info,  Node: Confluence Backend,  Next: Migration,  Prev: Backends,  Up: Top
+File: org-comments.info,  Node: Confluence Backend,  Next: Google Docs Backend,  Prev: Backends,  Up: Top
 
 7 Confluence Backend
 ********************
@@ -301,9 +302,34 @@ Full Confluence page synchronization remains an ‘org-confluence’
 responsibility and is intentionally separate from ‘org-comments-sync’.
 
 
-File: org-comments.info,  Node: Migration,  Next: Commands,  Prev: Confluence Backend,  Up: Top
+File: org-comments.info,  Node: Google Docs Backend,  Next: Migration,  Prev: Confluence Backend,  Up: Top
 
-8 Migration
+8 Google Docs Backend
+*********************
+
+The Google Docs integration lives in ‘org-google-docs’.  When a source
+Org buffer is linked to a Google Doc, the Google Docs detector can
+select the ‘google-docs’ backend for comment operations.
+
+   The backend supports importing remote Google comments into the
+adjacent ‘.comments.org’ sidecar, opening remote comments, pushing local
+replies under imported root comments, resolving imported root comments,
+and comments-only sync.  Sync pushes pending local root resolutions and
+then pulls remote comment state.  Re-import updates remote-owned
+root/reply bodies and metadata, imports new remote replies, marks
+missing remote roots/replies, and preserves local notes and unsynced
+local replies.
+
+   Google Docs full-document body sync remains an upstream ‘gdocs’ /
+‘org-google-docs’ responsibility.  ‘org-comments-sync’ is comments-only
+and does not push or pull document body content.  Creating new Google
+Docs root comments from local-only sidecar roots is intentionally
+unsupported until anchoring semantics are specified.
+
+
+File: org-comments.info,  Node: Migration,  Next: Commands,  Prev: Google Docs Backend,  Up: Top
+
+9 Migration
 ***********
 
 Older sidecars may contain ‘HUB_COMMENT_*’ properties.  Run
@@ -317,8 +343,8 @@ on the former personal metadata prefix.
 
 File: org-comments.info,  Node: Commands,  Next: Customization,  Prev: Migration,  Up: Top
 
-9 Commands
-**********
+10 Commands
+***********
 
 Command                                            Description
 -----------------------------------------------------------------------------------------------------------------------------------
@@ -379,7 +405,7 @@ Command                                            Description
 
 File: org-comments.info,  Node: Customization,  Next: Keybindings,  Prev: Commands,  Up: Top
 
-10 Customization
+11 Customization
 ****************
 
 Variable                                            Default                   Description
@@ -410,7 +436,7 @@ Variable                                            Default                   De
 
 File: org-comments.info,  Node: Keybindings,  Next: Developer API,  Prev: Customization,  Up: Top
 
-11 Keybindings
+12 Keybindings
 **************
 
 * Menu:
@@ -422,7 +448,7 @@ File: org-comments.info,  Node: Keybindings,  Next: Developer API,  Prev: Custom
 
 File: org-comments.info,  Node: Org buffers,  Next: Comment panel,  Up: Keybindings
 
-11.1 Org buffers
+12.1 Org buffers
 ================
 
 Key           Command
@@ -444,12 +470,12 @@ Key           Command
 ‘C-c ; r’     ‘org-comments-reply’
 ‘C-c ; s’     ‘org-comments-open-sidecar’
 
-Table 11.1: org-comments-mode bindings
+Table 12.1: org-comments-mode bindings
 
 
 File: org-comments.info,  Node: Comment panel,  Next: Page comments panel,  Prev: Org buffers,  Up: Keybindings
 
-11.2 Comment panel
+12.2 Comment panel
 ==================
 
 Key     Command
@@ -472,12 +498,12 @@ Key     Command
 ‘z r’   ‘org-comments-filter-toggle-resolved-current-ui’
 ‘z z’   ‘org-comments-filter-reset-current-ui’
 
-Table 11.2: org-comments-panel-mode bindings
+Table 12.2: org-comments-panel-mode bindings
 
 
 File: org-comments.info,  Node: Page comments panel,  Prev: Comment panel,  Up: Keybindings
 
-11.3 Page comments panel
+12.3 Page comments panel
 ========================
 
 Key                                     Command
@@ -487,7 +513,7 @@ _No dedicated page panel keymap yet._
 
 File: org-comments.info,  Node: Developer API,  Next: Troubleshooting,  Prev: Keybindings,  Up: Top
 
-12 Developer API
+13 Developer API
 ****************
 
 Use public ‘org-comments-*’ functions for package integration.
@@ -505,7 +531,7 @@ details and should not be called by backend packages.
 
 File: org-comments.info,  Node: Troubleshooting,  Prev: Developer API,  Up: Top
 
-13 Troubleshooting
+14 Troubleshooting
 ******************
 
 * Menu:
@@ -518,7 +544,7 @@ File: org-comments.info,  Node: Troubleshooting,  Prev: Developer API,  Up: Top
 
 File: org-comments.info,  Node: No comments appear,  Next: Legacy sidecar error,  Up: Troubleshooting
 
-13.1 No comments appear
+14.1 No comments appear
 =======================
 
 Check that the source buffer is visiting a file and that the sibling
@@ -527,7 +553,7 @@ Check that the source buffer is visiting a file and that the sibling
 
 File: org-comments.info,  Node: Legacy sidecar error,  Next: Remote operation is unsupported,  Prev: No comments appear,  Up: Troubleshooting
 
-13.2 Legacy sidecar error
+14.2 Legacy sidecar error
 =========================
 
 If collection reports legacy metadata, run ‘M-x
@@ -536,7 +562,7 @@ org-comments-migrate-sidecar’ on the sidecar file and retry.
 
 File: org-comments.info,  Node: Remote operation is unsupported,  Next: Info manual is missing,  Prev: Legacy sidecar error,  Up: Troubleshooting
 
-13.3 Remote operation is unsupported
+14.3 Remote operation is unsupported
 ====================================
 
 Backends advertise capabilities.  If a backend does not support push,
@@ -546,7 +572,7 @@ unsupported operation error.
 
 File: org-comments.info,  Node: Info manual is missing,  Prev: Remote operation is unsupported,  Up: Troubleshooting
 
-13.4 Info manual is missing
+14.4 Info manual is missing
 ===========================
 
 Build the manual from the repository checkout:
@@ -559,36 +585,37 @@ install the Info file into your site Info directory.
 
 Tag Table:
 Node: Top229
-Node: Introduction1684
-Node: Getting Started2568
-Node: Requirements2785
-Node: Installation from a checkout3153
-Node: Minimal workflow3923
-Node: Concepts4425
-Node: Source buffers and sidecars4649
-Node: Anchors5230
-Node: Page comments5586
-Node: Collaboration state5907
-Node: Local Org Sidecars6526
-Node: Comment UI7033
-Node: Backends8063
-Node: Identity resolution8866
-Node: Confluence Backend9352
-Node: Migration9929
-Node: Commands10412
-Node: Customization16643
-Node: Keybindings20280
-Node: Org buffers20480
-Ref: orga2ff6d720602
-Node: Comment panel21433
-Ref: org3e1b29121587
-Node: Page comments panel22458
-Node: Developer API22742
-Node: Troubleshooting23399
-Node: No comments appear23642
-Node: Legacy sidecar error23932
-Node: Remote operation is unsupported24244
-Node: Info manual is missing24632
+Node: Introduction1763
+Node: Getting Started2647
+Node: Requirements2864
+Node: Installation from a checkout3232
+Node: Minimal workflow4002
+Node: Concepts4504
+Node: Source buffers and sidecars4728
+Node: Anchors5309
+Node: Page comments5665
+Node: Collaboration state5986
+Node: Local Org Sidecars6605
+Node: Comment UI7112
+Node: Backends8142
+Node: Identity resolution8945
+Node: Confluence Backend9431
+Node: Google Docs Backend10018
+Node: Migration11223
+Node: Commands11707
+Node: Customization17940
+Node: Keybindings21577
+Node: Org buffers21777
+Ref: orge21cc4821899
+Node: Comment panel22730
+Ref: org94a6bc822884
+Node: Page comments panel23755
+Node: Developer API24039
+Node: Troubleshooting24696
+Node: No comments appear24939
+Node: Legacy sidecar error25229
+Node: Remote operation is unsupported25541
+Node: Info manual is missing25929
 
 End Tag Table
 

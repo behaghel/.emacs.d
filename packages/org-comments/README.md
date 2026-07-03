@@ -29,7 +29,7 @@ The target package must support:
 
 - local Org sidecar comments today,
 - remote Confluence comments today,
-- Google Docs comments later,
+- Google Docs comments through the `org-google-docs` backend,
 - Org-native default keybindings,
 - personal Evil bindings only in `modules/`.
 
@@ -122,7 +122,7 @@ Initial operations:
 - `org-comments-register-backend-detector`
 - `org-comments-backend-detect`
 
-The local Org sidecar backend is the default backend. Confluence registers a detector so Org source buffers with `#+CONFLUENCE_PAGE_ID` default remote comment operations to the Confluence backend. Google Docs should later implement the same protocol.
+The local Org sidecar backend is the default backend. Confluence registers a detector so Org source buffers with `#+CONFLUENCE_PAGE_ID` default remote comment operations to the Confluence backend. Google Docs implements the same protocol for linked `gdocs` buffers.
 
 ## Keybinding Policy
 

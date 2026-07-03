@@ -188,6 +188,29 @@ The backend supports remote open, push, pull, and comments-only sync.  Full
 Confluence page synchronization remains an =org-confluence= responsibility and
 is intentionally separate from =org-comments-sync=.
 
+* Google Docs Backend
+:PROPERTIES:
+:DESCRIPTION: How Google Docs integrates with org-comments.
+:END:
+
+The Google Docs integration lives in =org-google-docs=.  When a source Org
+buffer is linked to a Google Doc, the Google Docs detector can select the
+=google-docs= backend for comment operations.
+
+The backend supports importing remote Google comments into the adjacent
+=.comments.org= sidecar, opening remote comments, pushing local replies under
+imported root comments, resolving imported root comments, and comments-only
+sync.  Sync pushes pending local root resolutions and then pulls remote comment
+state.  Re-import updates remote-owned root/reply bodies and metadata, imports
+new remote replies, marks missing remote roots/replies, and preserves local notes
+and unsynced local replies.
+
+Google Docs full-document body sync remains an upstream =gdocs= /
+=org-google-docs= responsibility.  =org-comments-sync= is comments-only and does
+not push or pull document body content.  Creating new Google Docs root comments
+from local-only sidecar roots is intentionally unsupported until anchoring
+semantics are specified.
+
 * Migration
 :PROPERTIES:
 :DESCRIPTION: Migrating legacy metadata.

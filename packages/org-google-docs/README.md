@@ -32,7 +32,7 @@ This repository has a mature Org ↔ Confluence publishing and sync workflow, bu
 | Command surface | Thin `org-google-docs-*` facade plus upstream `gdocs-*` availability | Provides Confluence-like muscle memory while keeping upstream docs useful. |
 | Dispatch key | Package-native `C-c C-x G` initially | Leader bindings belong in activation modules, not package defaults. |
 | Credentials | Auth-source/pass-backed `gdocs-accounts` setup | Secrets must not be committed; activation may provide glue or a documented hook point. |
-| Comments v1 | Defer to second milestone; read-only sidecar import first | Body sync must be validated before comment UX. Initial comments should import/list/open only, not mutate remote comments. |
+| Comments v1 | Import-first sidecar workflow, then explicit actions on imported threads | Body sync is delegated upstream; local adapter now owns comment import, replies, resolve, and reconciliation while still deferring new root creation. |
 | Comment anchoring | Quoted-text exact/fuzzy matching with stale/ambiguous states | Avoid deep dependency on upstream internals until needed. |
 | Upstream contribution | Upstream-friendly split | Generic missing primitives can be prepared for upstream; repo-specific `org-comments` UX remains local. |
 
@@ -70,15 +70,51 @@ Milestone 1 proves that upstream `gdocs` can support the desired Google Docs pub
 
 Milestone 2 adds the first useful comment parity layer without mutating remote Google comments.
 
-### Planned Acceptance Criteria
+### Acceptance Criteria
 
-- [ ] AC-10: Given a linked Google Docs Org buffer, when importing comments, then active/open Google comments are written to the adjacent `.comments.org` sidecar.
-- [ ] AC-11: Given import is run with an include-resolved option, then resolved comments are imported or updated as well.
-- [ ] AC-12: Given an imported Google comment already exists locally, when re-importing, then machine-owned remote metadata/body is updated while user-owned notes are preserved.
-- [ ] AC-13: Given `quotedFileContent` uniquely matches source Org text, when comments are imported, then the sidecar records an anchor that `org-comments` can display in source/context-panel UI.
-- [ ] AC-14: Given no unique source match exists, when comments are imported, then the sidecar marks the comment as stale/ambiguous instead of guessing.
-- [ ] AC-15: Given a Google Docs comment sidecar entry, when open-remote is requested, then a browser opens the best available Google Docs URL for that document/comment context.
-- [ ] AC-16: Given the Google Docs backend is registered with `org-comments`, when backend detection runs in a linked `gdocs` buffer, then it can select the Google Docs backend for supported read-only operations.
+- [x] AC-10: Given a linked Google Docs Org buffer, when importing comments, then active/open Google comments are written to the adjacent `.comments.org` sidecar.
+- [x] AC-11: Given import is run with an include-resolved option, then resolved comments are imported or updated as well.
+- [x] AC-12: Given an imported Google comment already exists locally, when re-importing, then machine-owned remote metadata/body is updated while user-owned notes are preserved.
+- [x] AC-13: Given `quotedFileContent` uniquely matches source Org text, when comments are imported, then the sidecar records an anchor that `org-comments` can display in source/context-panel UI.
+- [x] AC-14: Given no unique source match exists, when comments are imported, then the sidecar marks the comment as stale/ambiguous instead of guessing.
+- [x] AC-15: Given a Google Docs comment sidecar entry, when open-remote is requested, then a browser opens the best available Google Docs URL for that document/comment context.
+- [x] AC-16: Given the Google Docs backend is registered with `org-comments`, when backend detection runs in a linked `gdocs` buffer, then it can select the Google Docs backend for supported read-only operations.
+
+## Current Comment Workflow
+
+Google Docs comment support is built on top of the generic `org-comments`
+sidecar model.  The supported workflow is:
+
+1. Link or create a Google Doc through upstream `gdocs` / `org-google-docs` body
+   commands.
+2. Run `org-google-docs-comments-import` or generic `org-comments-pull` from the
+   linked Org buffer to populate `SOURCE.comments.org`.
+3. Review imported comments in the source buffer or `org-comments-panel-mode`.
+4. Use generic DWIM commands from source or panel rows:
+   - `org-comments-open-remote` opens the Google Doc focused on the remote
+     comment when possible;
+   - `org-comments-reply` creates a local sidecar reply;
+   - `org-comments-push` pushes a local reply or a pending local root resolve;
+   - `org-comments-mark-resolved` resolves an imported Google root comment
+     remotely;
+   - `org-comments-sync` pushes pending local resolves, then pulls remote
+     comment state.
+
+Re-import reconciles remote roots and replies: existing remote-owned bodies and
+metadata are updated, new remote replies are appended, missing roots/replies are
+marked with `ORG_COMMENTS_REMOTE_STATE: missing`, and local notes or unsynced
+local replies are preserved.  Import and push/sync commands report concise
+provider-neutral summaries such as `added replies 2`, `remote missing 1`,
+`pushed replies 1`, or `resolved 1`.
+
+Current limitations:
+
+- local-only root comment creation/push is intentionally unsupported;
+- reopening Google comments is not implemented;
+- Google API visibility can make "missing" mean deleted, hidden by filtering, or
+  otherwise absent from the current API payload;
+- body sync remains upstream `gdocs` responsibility, separate from comments-only
+  `org-comments-sync`.
 
 ## Confluence Authoring And Collaboration Parity Roadmap
 
@@ -91,13 +127,13 @@ the authoring and review loop this configuration supports today.
 | Pull remote body | Pull page into Org | Delegated to upstream `gdocs-pull` | Needs real-world confidence and clearer conflict guidance. |
 | Open remote document | Open Confluence page | `org-google-docs-open` | Usable. |
 | Manual sync command | `org-confluence-sync-current` | `org-google-docs-sync-current` currently pushes | Needs safer stale-aware semantics or documented upstream behavior. |
-| Comment import | Remote comments into `.comments.org` | Active/resolved import implemented | Needs missing/deleted reconciliation and better update reporting. |
-| Side panel review | `org-comments` context panel | Imported Google comments appear in side panel | Usable once package stack is loaded. |
-| Open remote comment | Browser opens focused Confluence comment | Google Docs backend opens `?disco=COMMENT_ID` URL | Needs real-world confirmation across comment types. |
-| Reply to reviewer | Local sidecar reply pushed to Confluence | Not implemented | High-value next collaboration gap. |
-| Resolve comment | Status change pushed to Confluence | Not implemented | High-value next collaboration gap; lower anchoring risk than creating comments. |
+| Comment import | Remote comments into `.comments.org` | Active/resolved import, root/reply update, and missing reconciliation implemented | Usable; deleted-vs-hidden semantics remain Google API dependent. |
+| Side panel review | `org-comments` context panel | Imported Google comments and replies appear in side panel | Usable. |
+| Open remote comment | Browser opens focused Confluence comment | Google Docs backend opens `?disco=COMMENT_ID` URL | Usable. |
+| Reply to reviewer | Local sidecar reply pushed to Confluence | Local replies under imported roots push to Drive replies API | Usable; duplicate pushes are skipped. |
+| Resolve comment | Status change pushed to Confluence | Imported roots resolve via Drive reply action; pending local `RESOLVED` state syncs | Usable; reopening is deferred. |
 | Create new anchored remote comment | Local sidecar draft pushed to Confluence | Not implemented | Harder; Google Drive comment anchoring is less predictable. |
-| Sync status dashboard | Confluence sync status report | Not implemented | Useful after bidirectional comment actions exist. |
+| Sync status dashboard | Confluence sync status report | Provider-neutral push/import feedback implemented for Google actions | Basic summaries usable; richer history/dirty-state remains deferred. |
 | Child pages/folders | Pull child pages | Upstream has Drive folder concepts | Lower priority for authoring parity. |
 | Suggestions/tracked changes | Out of current Confluence parity scope | Not implemented | Explicitly deferred. |
 
@@ -118,20 +154,20 @@ Planned behavior:
 
 Acceptance criteria:
 
-- [ ] AC-17: Given a sidecar reply under an imported Google comment, when the
+- [x] AC-17: Given a sidecar reply under an imported Google comment, when the
   reply push command runs, then a Google Drive reply is created under the remote
   comment and the sidecar reply records its remote id.
-- [ ] AC-18: Given an imported Google comment, when the resolve command runs,
+- [x] AC-18: Given an imported Google comment, when the resolve command runs,
   then the remote Google comment is marked resolved and local sidecar metadata is
   updated to `resolved`.
-- [ ] AC-19: Given a local-only sidecar root comment with no remote id, when a
+- [x] AC-19: Given a local-only sidecar root comment with no remote id, when a
   Google Docs push/resolve command is requested, then the command fails with a
   clear error explaining that new anchored remote comment creation is not yet
   supported.
-- [ ] AC-20: Given a Google Docs source buffer, when generic `org-comments`
+- [x] AC-20: Given a Google Docs source buffer, when generic `org-comments`
   backend actions dispatch `:reply` or `:set-status`, then they route to the
   Google Docs backend for supported operations.
-- [ ] AC-21: Given upstream Google API support is missing for an operation, when
+- [x] AC-21: Given upstream Google API support is missing for an operation, when
   the adapter implements the minimum REST wrapper locally, then the wrapper is
   isolated and shaped for a possible upstream `gdocs` contribution.
 
@@ -153,8 +189,9 @@ Verification:
 - Secrets must not be committed. OAuth client secrets belong in auth-source/pass or private untracked configuration.
 - Upstream `gdocs` remains the source of truth for document link/sync metadata in v1.
 - Manual sync is the default in this repository unless explicitly changed later.
-- Google comment support is read-only in the first comment milestone: import/list/open only; no create/reply/resolve.
-- Local sidecar user notes must not be overwritten by remote comment re-import.
+- Google comment root creation is deferred; imported remote roots are actionable, but local-only root comments cannot be pushed yet.
+- Google comment mutations stay explicit and command-driven: replies and resolves are never pushed implicitly except through comments-only sync of pending local resolved state.
+- Local sidecar user notes and unsynced replies must not be overwritten by remote comment re-import.
 
 ## Scope
 
