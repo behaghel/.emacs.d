@@ -122,6 +122,95 @@
 	 (should (search-forward ":ORG_COMMENTS_REMOTE_STATE: present" nil t))
 	 (should (search-forward "Remote reply." nil t)))))))
 
+(ert-deftest org-google-docs-comments-import-updates-remote-replies ()
+  "Re-import updates existing remote Google reply bodies and metadata."
+  (org-google-docs-comments-import-test--with-source
+   (let ((comments (list (list :backend 'google-docs
+			       :kind 'comment
+			       :remote-id "c-1"
+			       :body "Root body."
+			       :status "open"
+			       :replies
+			       (list (list :backend 'google-docs
+					   :kind 'reply
+					   :remote-id "r-1"
+					   :body "Updated remote reply."
+					   :author-name "Ada Lovelace"
+					   :updated-at "2026-07-03T12:00:00Z"))))))
+     (let ((report (org-google-docs-comments-import--import-list
+		    (list (list :backend 'google-docs
+				:kind 'comment
+				:remote-id "c-1"
+				:body "Root body."
+				:status "open"))
+		    nil buffer-file-name (current-buffer))))
+       (let ((sidecar (plist-get report :sidecar-file)))
+	 (with-temp-buffer
+	   (insert-file-contents sidecar)
+	   (goto-char (point-max))
+	   (insert "\n** OPEN Reply from old import\n")
+	   (insert ":PROPERTIES:\n")
+	   (insert ":ORG_COMMENTS_ID: google-docs-reply:r-1\n")
+	   (insert ":ORG_COMMENTS_BACKEND: google-docs\n")
+	   (insert ":ORG_COMMENTS_SYNC_KIND: reply\n")
+	   (insert ":ORG_COMMENTS_REMOTE_ID: r-1\n")
+	   (insert ":ORG_COMMENTS_REMOTE_PARENT_ID: c-1\n")
+	   (insert ":ORG_COMMENTS_REMOTE_STATE: missing\n")
+	   (insert ":ORG_COMMENTS_REMOTE_MISSING_AT: 2026-07-03T00:00:00+0000\n")
+	   (insert ":END:\n\nOld remote reply.\n")
+	   (write-region (point-min) (point-max) sidecar nil 'silent))
+	 (let ((report (org-google-docs-comments-import--import-list
+			comments nil buffer-file-name (current-buffer))))
+	   (should (= (plist-get report :updated-replies) 1)))
+	 (with-temp-buffer
+	   (insert-file-contents sidecar)
+	   (should (= 1 (how-many ":ORG_COMMENTS_REMOTE_ID: r-1"
+				  (point-min) (point-max))))
+	   (should (search-forward ":ORG_COMMENTS_REMOTE_STATE: present" nil t))
+	   (should-not (search-forward ":ORG_COMMENTS_REMOTE_MISSING_AT:" nil t))
+	   (should (search-forward "Updated remote reply." nil t))))))))
+
+(ert-deftest org-google-docs-comments-import-marks-missing-remote-replies ()
+  "Re-import marks missing remote Google replies without touching local replies."
+  (org-google-docs-comments-import-test--with-source
+   (let ((comments (list (list :backend 'google-docs
+			       :kind 'comment
+			       :remote-id "c-1"
+			       :body "Root body."
+			       :status "open"
+			       :replies nil))))
+     (cl-letf (((symbol-function 'org-google-docs-comments-list)
+		(lambda (callback) (funcall callback comments))))
+       (let ((sidecar (org-google-docs-comments-import)))
+	 (with-temp-buffer
+	   (insert-file-contents sidecar)
+	   (goto-char (point-max))
+	   (insert "\n** OPEN Remote reply\n")
+	   (insert ":PROPERTIES:\n")
+	   (insert ":ORG_COMMENTS_ID: google-docs-reply:r-missing\n")
+	   (insert ":ORG_COMMENTS_BACKEND: google-docs\n")
+	   (insert ":ORG_COMMENTS_SYNC_KIND: reply\n")
+	   (insert ":ORG_COMMENTS_REMOTE_ID: r-missing\n")
+	   (insert ":ORG_COMMENTS_REMOTE_PARENT_ID: c-1\n")
+	   (insert ":ORG_COMMENTS_REMOTE_STATE: present\n")
+	   (insert ":END:\n\nRemote reply.\n")
+	   (insert "\n** OPEN Local unsynced reply\n")
+	   (insert ":PROPERTIES:\n")
+	   (insert ":ORG_COMMENTS_ID: local-reply\n")
+	   (insert ":ORG_COMMENTS_SYNC_KIND: reply\n")
+	   (insert ":ORG_COMMENTS_REMOTE_PARENT_ID: c-1\n")
+	   (insert ":END:\n\nLocal reply.\n")
+	   (write-region (point-min) (point-max) sidecar nil 'silent))
+	 (let ((report (org-google-docs-comments-import--import-list
+			comments nil buffer-file-name (current-buffer))))
+	   (should (= (plist-get report :remote-missing-replies) 1)))
+	 (with-temp-buffer
+	   (insert-file-contents sidecar)
+	   (should (search-forward ":ORG_COMMENTS_REMOTE_ID: r-missing" nil t))
+	   (should (search-forward ":ORG_COMMENTS_REMOTE_STATE: missing" nil t))
+	   (should (search-forward ":ORG_COMMENTS_REMOTE_MISSING_AT:" nil t))
+	   (should (search-forward ":ORG_COMMENTS_ID: local-reply" nil t))))))))
+
 (ert-deftest org-google-docs-comments-import-does-not-duplicate-remote-replies ()
   "Re-importing remote Google replies is idempotent."
   (org-google-docs-comments-import-test--with-source
