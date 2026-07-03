@@ -641,12 +641,7 @@ sidecar and include `:comments-file', `:comments-count',
 
 (defun org-confluence-sync--goto-sidecar-comment-id (comment-id)
   "Move point to sidecar COMMENT-ID heading and return non-nil when found."
-  (goto-char (point-min))
-  (let ((regexp (format "^[ \t]*:ORG_COMMENTS_ID:[ \t]+%s[ \t]*$"
-			(regexp-quote comment-id))))
-    (when (re-search-forward regexp nil t)
-      (org-back-to-heading t)
-      t)))
+  (org-comments-sidecar-goto-comment (list :id comment-id)))
 
 (defun org-confluence-sync--push-pending-comments (source-buffer &optional page-id)
   "Push pending sidecar comments for SOURCE-BUFFER to Confluence PAGE-ID."

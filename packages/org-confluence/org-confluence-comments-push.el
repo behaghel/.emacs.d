@@ -254,7 +254,7 @@ way that prevents computing Confluence's text selection match index."
 
 (defun org-confluence-comments-push-stamp-updated (comment seen-at)
   "Stamp current sidecar heading after remote COMMENT update at SEEN-AT."
-  (org-entry-delete nil "ORG_COMMENTS_LOCAL_UPDATED_AT")
+  (org-comments-sidecar-clear-local-body-dirty)
   (org-entry-put nil "ORG_COMMENTS_REMOTE_LAST_SEEN_AT" seen-at)
   (when-let* ((updated-at (org-confluence-comments-remote-updated-at comment)))
     (org-entry-put nil "ORG_COMMENTS_REMOTE_UPDATED_AT" updated-at))

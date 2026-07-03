@@ -159,6 +159,27 @@
 		   sidecar "same" :backend "google-docs")))
       (delete-directory dir t))))
 
+(ert-deftest org-comments-sidecar-goto-and-replace-body-uses-generic-helpers ()
+  "Generic sidecar helpers find comments and replace machine-owned body text."
+  (with-temp-buffer
+    (org-mode)
+    (insert "* OPEN Root\n:PROPERTIES:\n")
+    (insert ":ORG_COMMENTS_ID: local-1\n")
+    (insert ":ORG_COMMENTS_REMOTE_ID: r1\n")
+    (insert ":ORG_COMMENTS_LOCAL_UPDATED_AT: now\n")
+    (insert ":END:\n\nOld body.\n** OPEN Reply\n:PROPERTIES:\n")
+    (insert ":ORG_COMMENTS_ID: reply-1\n:ORG_COMMENTS_SYNC_KIND: reply\n")
+    (insert ":END:\n\nReply body.\n")
+    (should (org-comments-sidecar-goto-comment '(:remote-id "r1")))
+    (org-comments-sidecar-replace-entry-body "New body.")
+    (org-back-to-heading t)
+    (org-comments-sidecar-clear-local-body-dirty)
+    (should-not (org-entry-get nil "ORG_COMMENTS_LOCAL_UPDATED_AT"))
+    (goto-char (point-min))
+    (let ((end (save-excursion (org-end-of-subtree t t))))
+      (should (equal (org-comments-entry-body end) "New body.")))
+    (should (search-forward "Reply body." nil t))))
+
 (ert-deftest org-comments-sidecar-normalizes-status-dirty-as-pending-push ()
   "Local status dirty metadata becomes provider-neutral pending push state."
   (let ((record (org-comments--normalize-sidecar-record

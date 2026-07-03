@@ -150,27 +150,13 @@ SIDECAR-FILE, DOCUMENT-ID, and ACCOUNT are copied into the returned record."
        (list :provider "Google Docs" :pushed-statuses (length comments))))
     (list :pushed-statuses (length comments))))
 
-(defun org-google-docs-comments-backend--goto-sidecar-comment (comment)
-  "Move to COMMENT in its sidecar buffer and return non-nil when found."
-  (let ((comment-id (plist-get comment :id))
-	(remote-id (plist-get comment :remote-id)))
-    (goto-char (point-min))
-    (cl-loop while (re-search-forward org-heading-regexp nil t)
-	     do (goto-char (match-beginning 0))
-	     when (or (and comment-id
-			   (equal comment-id (org-entry-get nil "ORG_COMMENTS_ID")))
-		      (and remote-id
-			   (equal remote-id (org-entry-get nil "ORG_COMMENTS_REMOTE_ID"))))
-	     return t
-	     do (forward-line 1))))
-
 (defun org-google-docs-comments-backend--sidecar-entry-info (comment)
   "Return sidecar entry metadata for COMMENT, or nil when not found."
   (when-let* ((sidecar-file (plist-get comment :sidecar-file)))
     (with-temp-buffer
       (insert-file-contents sidecar-file)
       (org-mode)
-      (when (org-google-docs-comments-backend--goto-sidecar-comment comment)
+      (when (org-comments-sidecar-goto-comment comment)
 	(list :id (org-entry-get nil "ORG_COMMENTS_ID")
 	      :status (org-get-todo-state)
 	      :sync-kind (org-entry-get nil "ORG_COMMENTS_SYNC_KIND")
@@ -189,7 +175,7 @@ SIDECAR-FILE, DOCUMENT-ID, and ACCOUNT are copied into the returned record."
     (with-temp-buffer
       (insert-file-contents sidecar-file)
       (org-mode)
-      (unless (org-google-docs-comments-backend--goto-sidecar-comment comment)
+      (unless (org-comments-sidecar-goto-comment comment)
 	(user-error "Cannot find Google Docs comment in sidecar"))
       (let ((inhibit-message t)
 	    (org-log-done nil)
@@ -209,8 +195,7 @@ SIDECAR-FILE, DOCUMENT-ID, and ACCOUNT are copied into the returned record."
     (with-temp-buffer
       (insert-file-contents sidecar-file)
       (org-mode)
-      (unless (org-google-docs-comments-backend--goto-sidecar-comment
-	       (list :id comment-id))
+      (unless (org-comments-sidecar-goto-comment (list :id comment-id))
 	(user-error "Cannot find Google Docs reply in sidecar"))
       (unless (equal (org-entry-get nil "ORG_COMMENTS_SYNC_KIND") "reply")
 	(user-error "Google Docs remote reply push requires a sidecar reply"))
@@ -237,7 +222,7 @@ SIDECAR-FILE, DOCUMENT-ID, and ACCOUNT are copied into the returned record."
     (with-temp-buffer
       (insert-file-contents sidecar-file)
       (org-mode)
-      (when (org-google-docs-comments-backend--goto-sidecar-comment comment)
+      (when (org-comments-sidecar-goto-comment comment)
 	(org-comments-entry-body (save-excursion (org-end-of-subtree t t)))))))
 
 (defun org-google-docs-comments-backend--comment-content (comment)
@@ -334,8 +319,7 @@ is forwarded to upstream gdocs request helpers."
     (with-temp-buffer
       (insert-file-contents sidecar-file)
       (org-mode)
-      (unless (org-google-docs-comments-backend--goto-sidecar-comment
-	       (list :id comment-id))
+      (unless (org-comments-sidecar-goto-comment (list :id comment-id))
 	(user-error "Cannot find Google Docs reply in sidecar"))
       (org-entry-put nil "ORG_COMMENTS_REMOTE_ID" remote-id)
       (org-entry-put nil "ORG_COMMENTS_REMOTE_PARENT_ID"

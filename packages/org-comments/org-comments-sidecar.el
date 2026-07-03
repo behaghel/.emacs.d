@@ -306,6 +306,53 @@ missing.  Return the number of newly missing headings."
 	  (write-region (point-min) (point-max) sidecar-file nil 'silent))
 	missing-count))))
 
+(defun org-comments-sidecar-goto-comment (comment)
+  "Move point to sidecar COMMENT heading and return non-nil when found.
+COMMENT is a plist with optional `:id' and `:remote-id' keys.  Matching prefers
+`:id' but also accepts `:remote-id' for imported remote comments."
+  (let ((comment-id (plist-get comment :id))
+	(remote-id (plist-get comment :remote-id)))
+    (goto-char (point-min))
+    (cl-loop while (re-search-forward org-heading-regexp nil t)
+	     do (goto-char (match-beginning 0))
+	     when (or (and comment-id
+			   (equal comment-id (org-entry-get nil "ORG_COMMENTS_ID")))
+		      (and remote-id
+			   (equal remote-id (org-entry-get nil "ORG_COMMENTS_REMOTE_ID"))))
+	     return t
+	     do (forward-line 1))))
+
+(defun org-comments-sidecar-body-bounds (&optional subtree-end)
+  "Return current sidecar heading body bounds before child headings.
+SUBTREE-END defaults to the current subtree end."
+  (let ((end (or subtree-end (save-excursion (org-end-of-subtree t t))))
+	(level (org-outline-level)))
+    (save-excursion
+      (forward-line 1)
+      (when (looking-at-p "[[:space:]]*:PROPERTIES:[[:space:]]*$")
+	(unless (re-search-forward "^[[:space:]]*:END:[[:space:]]*$" end t)
+	  (user-error "Comment property drawer has no :END:"))
+	(forward-line 1))
+      (let ((start (point))
+	    (body-end (save-excursion
+			(if (re-search-forward org-heading-regexp end t)
+			    (let ((heading-start (match-beginning 0)))
+			      (goto-char heading-start)
+			      (if (> (org-outline-level) level) heading-start end))
+			  end))))
+	(cons start body-end)))))
+
+(defun org-comments-sidecar-replace-entry-body (body &optional subtree-end)
+  "Replace current sidecar heading body with BODY before SUBTREE-END."
+  (pcase-let ((`(,start . ,end) (org-comments-sidecar-body-bounds subtree-end)))
+    (delete-region start end)
+    (goto-char start)
+    (insert "\n" (string-trim-right (or body "")) "\n\n")))
+
+(defun org-comments-sidecar-clear-local-body-dirty ()
+  "Clear body-edit dirty metadata at the current sidecar heading."
+  (org-entry-delete nil "ORG_COMMENTS_LOCAL_UPDATED_AT"))
+
 (defun org-comments--parse-properties-at-heading ()
   "Return an alist of Org properties at point without inherited values."
   (org-entry-properties nil nil))
