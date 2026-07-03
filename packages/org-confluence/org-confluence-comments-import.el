@@ -497,57 +497,46 @@ Return plist with `:imported', `:seen-ids', `:parent-id', and `:complete'."
 		     do (forward-line 1))
 	(plist-put report :present-again (1+ (or (plist-get report :present-again) 0)))))))
 
-(defun org-confluence-comments-import-report-message (report fallback)
-  "Show concise import REPORT with FALLBACK message when it is empty."
-  (let* ((root-ids (reverse (plist-get report :imported-root-ids)))
-	 (reply-ids (reverse (plist-get report :imported-reply-ids)))
-	 (lines (delq nil
-		      (list
-		       (when (or root-ids reply-ids)
-			 (string-join
-			  (delq nil
-				(list
-				 (when root-ids
-				   (format "Imported roots: %s (%s)"
-					   (length root-ids) (string-join root-ids ", ")))
-				 (when reply-ids
-				   (format "replies: %s (%s)"
-					   (length reply-ids) (string-join reply-ids ", ")))))
-			  "; "))
-		       (unless (or root-ids reply-ids)
-			 (when-let* ((count (plist-get report :imported)))
-			   (when (> count 0)
-			     (let ((ids (reverse (plist-get report :imported-ids))))
-			       (if ids
-				   (format "Imported new: %s (%s)" count (string-join ids ", "))
-				 (format "Imported new: %s" count))))))
-		       (when-let* ((count (plist-get report :marked-missing)))
-			 (when (> count 0) (format "Remote missing: %s" count)))
-		       (when-let* ((count (plist-get report :present-again)))
-			 (when (> count 0) (format "Remote present again: %s" count)))
-		       (when-let* ((count (plist-get report :remote-resolved)))
-			 (when (> count 0) (format "Remote resolved locally: %s" count)))
-		       (when-let* ((count (plist-get report :remote-reopened)))
-			 (when (> count 0) (format "Remote reopened locally: %s" count)))
-		       (when-let* ((items (plist-get report :todo-resolved)))
-			 (when items (format "Local TODO closed by remote resolution: %s" (length items))))
-		       (when-let* ((items (plist-get report :todo-missing)))
-			 (when items (format "Local TODO now remote-missing: %s" (length items))))))))
-    (message "%s" (if lines (string-join lines "; ") fallback))
-    (when (or (plist-get report :todo-resolved)
-	      (plist-get report :todo-missing))
-      (with-current-buffer (get-buffer-create "*Confluence Comment Sync Report*")
-	(let ((inhibit-read-only t))
-	  (erase-buffer)
-	  (insert "Confluence comment sync report\n\n")
-	  (when-let* ((items (plist-get report :todo-resolved)))
-	    (insert "* TODO closed by remote resolution\n")
-	    (dolist (id (reverse items)) (insert "- " id "\n")))
-	  (when-let* ((items (plist-get report :todo-missing)))
-	    (insert "* TODO remote-missing\n")
-	    (dolist (id (reverse items)) (insert "- " id "\n")))
-	  (special-mode))))
-    report))
+(defun org-confluence-comments-import-generic-report (report)
+  "Return provider-neutral import report derived from Confluence REPORT."
+  (let* ((root-ids (plist-get report :imported-root-ids))
+	 (reply-ids (plist-get report :imported-reply-ids))
+	 (root-count (if root-ids
+			 (length root-ids)
+		       (max 0 (- (or (plist-get report :imported) 0)
+				 (length reply-ids))))))
+    (list :provider "Confluence"
+	  :added root-count
+	  :added-replies (length reply-ids)
+	  :updated 0
+	  :remote-resolved (or (plist-get report :remote-resolved) 0)
+	  :remote-reopened (or (plist-get report :remote-reopened) 0)
+	  :remote-missing (or (plist-get report :marked-missing) 0)
+	  :remote-present (or (plist-get report :present-again) 0)
+	  :preserved-local t)))
+
+(defun org-confluence-comments-import-report-details (report)
+  "Open detailed Confluence REPORT buffer for TODO-impacting changes."
+  (when (or (plist-get report :todo-resolved)
+	    (plist-get report :todo-missing))
+    (with-current-buffer (get-buffer-create "*Confluence Comment Sync Report*")
+      (let ((inhibit-read-only t))
+	(erase-buffer)
+	(insert "Confluence comment sync report\n\n")
+	(when-let* ((items (plist-get report :todo-resolved)))
+	  (insert "* TODO closed by remote resolution\n")
+	  (dolist (id (reverse items)) (insert "- " id "\n")))
+	(when-let* ((items (plist-get report :todo-missing)))
+	  (insert "* TODO remote-missing\n")
+	  (dolist (id (reverse items)) (insert "- " id "\n")))
+	(special-mode)))))
+
+(defun org-confluence-comments-import-report-message (report _fallback)
+  "Show provider-neutral import summary for Confluence REPORT."
+  (org-comments-import-report-message
+   (org-confluence-comments-import-generic-report report))
+  (org-confluence-comments-import-report-details report)
+  report)
 
 (defun org-confluence-comments-import-remote-comments
     (page-id endpoint body-format append-function &optional resolve-after report)

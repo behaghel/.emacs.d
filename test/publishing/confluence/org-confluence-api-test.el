@@ -598,7 +598,7 @@
       (delete-directory global-dir t))))
 
 (ert-deftest org-confluence-comments-import-report-message-includes-imported-ids ()
-  "Include imported remote IDs in non-zero import reports."
+  "Report imported counts through provider-neutral import reports."
   (let (reported)
     (cl-letf (((symbol-function 'message)
 	       (lambda (format-string &rest args)
@@ -606,10 +606,10 @@
       (org-confluence-comments-import-report-message
        '(:imported 2 :imported-ids ("i2" "i1"))
        "Imported 0 Confluence inline comments"))
-    (should (equal reported "Imported new: 2 (i1, i2)"))))
+    (should (equal reported "Confluence comments: added 2, updated 0; local content preserved"))))
 
 (ert-deftest org-confluence-comments-import-report-message-splits-roots-and-replies ()
-  "Report imported root and reply IDs separately when available."
+  "Report imported root and reply counts separately when available."
   (let (reported)
     (cl-letf (((symbol-function 'message)
 	       (lambda (format-string &rest args)
@@ -620,10 +620,10 @@
 		   :imported-root-ids ("i1")
 		   :imported-reply-ids ("r2" "r1"))
        "Imported 0 Confluence inline comments"))
-    (should (equal reported "Imported roots: 1 (i1); replies: 2 (r1, r2)"))))
+    (should (equal reported "Confluence comments: added 1, updated 0, added replies 2; local content preserved"))))
 
 (ert-deftest org-confluence-comments-import-report-message-omits-zero-counts ()
-  "Use the fallback message when import reports contain no non-zero counts."
+  "Use the generic no-change summary when reports contain no non-zero counts."
   (let (reported)
     (cl-letf (((symbol-function 'message)
 	       (lambda (format-string &rest args)
@@ -631,7 +631,7 @@
       (org-confluence-comments-import-report-message
        '(:imported 0 :imported-ids nil)
        "Imported 0 Confluence inline comments"))
-    (should (equal reported "Imported 0 Confluence inline comments"))))
+    (should (equal reported "Confluence comments: added 0, updated 0; local content preserved"))))
 
 (ert-deftest org-confluence-comments-open-current-opens-sidecar-comment-url ()
   "Open the remote comment URL for the current sidecar heading."
@@ -1776,8 +1776,8 @@
 			 '(:status 200 :body "{\"results\":[{\"id\":\"r1\",\"parentCommentId\":\"i1\",\"authorId\":\"acct-b\",\"createdAt\":\"2026-06-10T14:31:00.000Z\",\"body\":{\"storage\":{\"value\":\"<p>Reply body</p>\",\"representation\":\"storage\"}}}]}"))))
 	      (should (= 2 (org-confluence-comments-import-inline)))
 	      (should (= 0 (org-confluence-comments-import-inline))))
-	    (should (member "Imported roots: 1 (i1); replies: 1 (r1)" messages))
-	    (should (member "Imported 0 Confluence inline comments" messages)))
+	    (should (member "Confluence comments: added 1, updated 0, added replies 1; local content preserved" messages))
+	    (should (member "Confluence comments: added 0, updated 0; local content preserved" messages)))
 	  (with-temp-buffer
 	    (insert-file-contents sidecar)
 	    (should (search-forward "* OPEN [1 reply] acct-a" nil t))
@@ -2955,9 +2955,8 @@
 		       (lambda (format-string &rest args)
 			 (setq reported (apply #'format format-string args)))))
 	      (should (= 0 (org-confluence-comments-import-footer)))
-	      (should (string-match-p "Remote resolved locally: 1" reported))
-	      (should (string-match-p "Remote reopened locally: 1" reported))
-	      (should (string-match-p "Local TODO closed by remote resolution: 1" reported))))
+	      (should (string-match-p "remote resolved 1" reported))
+	      (should (string-match-p "remote reopened 1" reported))))
 	  (with-temp-buffer
 	    (insert-file-contents sidecar)
 	    (org-mode)
