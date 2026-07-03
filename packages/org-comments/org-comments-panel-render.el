@@ -188,7 +188,8 @@
 	 (replies (plist-get comment :replies))
 	 (stale (org-comments-panel-render--stale-comment-p comment))
 	 (remote-missing (org-comments-panel-render--remote-missing-p comment))
-	 (page-comment (org-comments-panel-render--page-comment-p comment)))
+	 (page-comment (org-comments-panel-render--page-comment-p comment))
+	 reply-regions)
     (insert (cond (stale "⚠")
 		  (remote-missing "⚠")
 		  (page-comment "👆")
@@ -220,7 +221,9 @@
 	  (insert (format "↳ %s repl%s\n"
 			  (length replies) (if (= (length replies) 1) "y" "ies")))
 	  (dolist (reply replies)
-	    (insert "  ↳ " (org-comments-panel-render-reply-summary reply) "\n")))))
+	    (let ((reply-start (point)))
+	      (insert "  ↳ " (org-comments-panel-render-reply-summary reply) "\n")
+	      (push (list reply-start (point) reply) reply-regions))))))
     (let ((row (copy-sequence comment)))
       (plist-put row :provider 'comments)
       (add-text-properties
@@ -228,7 +231,17 @@
        `(org-comments-comment ,row
 			      org-context-panel-item ,row
 			      mouse-face highlight
-			      help-echo "RET: jump, r: reply, e: edit, d: delete")))))
+			      help-echo "RET: jump, r: reply, e: edit, d: delete"))
+      (dolist (region reply-regions)
+	(pcase-let ((`(,reply-start ,reply-end ,reply) region))
+	  (let ((reply-row (copy-sequence reply)))
+	    (plist-put reply-row :provider 'comments)
+	    (add-text-properties
+	     reply-start reply-end
+	     `(org-comments-comment ,reply-row
+				    org-context-panel-item ,reply-row
+				    mouse-face highlight
+				    help-echo "RET: jump, U: push, e: edit"))))))))
 
 (defun org-comments-panel-render-insert-comments (comments heading)
   "Insert COMMENTS under HEADING."

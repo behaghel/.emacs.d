@@ -82,12 +82,27 @@
   (with-temp-buffer
     (org-comments-panel-render-buffer
      (current-buffer)
-     '((:type comment :status "OPEN" :body "Root body"
-	      :replies ((:type comment :status "OPEN" :body "Reply body"))))
+     '((:type comment :id "root" :status "OPEN" :body "Root body"
+	      :replies ((:type comment :id "reply" :status "OPEN" :body "Reply body"))))
      nil)
     (should (search-forward "↳ 1 reply" nil t))
     (should (search-forward "↳ unsynced — Reply body" nil t))
     (should-not (search-forward "↳ [OPEN]" nil t))))
+
+(ert-deftest org-comments-panel-render-overview-replies-carry-reply-property ()
+  "Overview reply rows expose the reply record, not the root comment record."
+  (with-temp-buffer
+    (org-comments-panel-render-buffer
+     (current-buffer)
+     '((:type comment :id "root" :status "OPEN" :body "Root body"
+	      :replies ((:type comment :id "reply" :sync-kind "reply" :body "Reply body"))))
+     nil)
+    (goto-char (point-min))
+    (search-forward "Reply body")
+    (let ((row (get-text-property (line-beginning-position)
+				  'org-comments-comment)))
+      (should (equal "reply" (plist-get row :id)))
+      (should (equal "reply" (plist-get row :sync-kind))))))
 
 (ert-deftest org-comments-panel-render-list-body-gets-wrap-prefix ()
   "Rendered list bodies set wrap-prefix on list lines."
