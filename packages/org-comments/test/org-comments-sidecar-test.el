@@ -223,6 +223,20 @@
 	    (should (search-forward "Reply" nil t))))
       (delete-directory dir t))))
 
+(ert-deftest org-comments-sidecar-stamps-properties ()
+  "Property stamping writes present sidecar properties."
+  (with-temp-buffer
+    (org-mode)
+    (insert "* OPEN Remote\n:PROPERTIES:\n")
+    (insert ":ORG_COMMENTS_TARGET_MATCH_COUNT: 1\n")
+    (insert ":END:\n\nBody\n")
+    (goto-char (point-min))
+    (org-comments-sidecar-stamp-properties
+     '(("ORG_COMMENTS_TARGET_MATCH_COUNT" . 2)
+       ("ORG_COMMENTS_TARGET_MATCH_INDEX" . 1)))
+    (should (equal (org-entry-get nil "ORG_COMMENTS_TARGET_MATCH_COUNT") "2"))
+    (should (equal (org-entry-get nil "ORG_COMMENTS_TARGET_MATCH_INDEX") "1"))))
+
 (ert-deftest org-comments-sidecar-stamps-properties-when-missing ()
   "Missing-only property stamping preserves existing sidecar properties."
   (with-temp-buffer

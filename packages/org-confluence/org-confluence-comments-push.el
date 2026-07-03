@@ -178,10 +178,9 @@ way that prevents computing Confluence's text selection match index."
 		     (org-confluence-comments-sidecar-source-file)
 		     (org-entry-get nil "ORG_COMMENTS_TARGET_TEXT")
 		     (org-confluence-comments-push-target-bounds))))
-    (org-entry-put nil "ORG_COMMENTS_TARGET_MATCH_COUNT"
-		   (number-to-string (plist-get match-info :count)))
-    (org-entry-put nil "ORG_COMMENTS_TARGET_MATCH_INDEX"
-		   (number-to-string (plist-get match-info :index)))))
+    (org-comments-sidecar-stamp-properties
+     `(("ORG_COMMENTS_TARGET_MATCH_COUNT" . ,(plist-get match-info :count))
+       ("ORG_COMMENTS_TARGET_MATCH_INDEX" . ,(plist-get match-info :index))))))
 
 (defun org-confluence-comments-push-endpoint-for-kind (sync-kind)
   "Return Confluence REST endpoint for SYNC-KIND at point."
