@@ -276,6 +276,13 @@ When LAST-SEEN-AT is non-nil, record it as `ORG_COMMENTS_REMOTE_LAST_SEEN_AT'."
   (when (and value (not (and (stringp value) (string-empty-p value))))
     (org-entry-put nil property (format "%s" value))))
 
+(defun org-comments-sidecar-put-property-when-missing (property value)
+  "Set sidecar PROPERTY to VALUE when VALUE is present and PROPERTY is missing."
+  (when (and value
+	     (not (and (stringp value) (string-empty-p value)))
+	     (not (org-entry-get nil property)))
+    (org-entry-put nil property (format "%s" value))))
+
 (defconst org-comments-sidecar-remote-metadata-properties
   '((:backend . "ORG_COMMENTS_BACKEND")
     (:source . "ORG_COMMENTS_SOURCE")
@@ -291,6 +298,13 @@ When LAST-SEEN-AT is non-nil, record it as `ORG_COMMENTS_REMOTE_LAST_SEEN_AT'."
     (:remote-last-seen-at . "ORG_COMMENTS_REMOTE_LAST_SEEN_AT")
     (:remote-resolution-status . "ORG_COMMENTS_REMOTE_RESOLUTION_STATUS"))
   "Mapping from normalized remote metadata keys to sidecar properties.")
+
+(defun org-comments-sidecar-stamp-remote-metadata-when-missing (metadata)
+  "Stamp current heading with normalized remote METADATA only when missing."
+  (dolist (entry org-comments-sidecar-remote-metadata-properties)
+    (let ((value (plist-get metadata (car entry))))
+      (when (and value (not (eq (car entry) :remote-state)))
+	(org-comments-sidecar-put-property-when-missing (cdr entry) value)))))
 
 (defun org-comments-sidecar-stamp-remote-metadata (metadata)
   "Stamp current heading with normalized remote METADATA plist.

@@ -223,6 +223,24 @@
 	    (should (search-forward "Reply" nil t))))
       (delete-directory dir t))))
 
+(ert-deftest org-comments-sidecar-stamps-missing-normalized-remote-metadata ()
+  "Missing-only remote metadata stamping preserves existing sidecar properties."
+  (with-temp-buffer
+    (org-mode)
+    (insert "* OPEN Remote\n:PROPERTIES:\n")
+    (insert ":ORG_COMMENTS_REMOTE_AUTHOR_DISPLAY_NAME: Local Alice\n")
+    (insert ":END:\n\nBody\n")
+    (goto-char (point-min))
+    (org-comments-sidecar-stamp-remote-metadata-when-missing
+     '(:remote-author-display-name "Remote Alice"
+				   :remote-author-id "acct-1"
+				   :remote-created-at "2026-07-01T00:00:00Z"))
+    (should (equal (org-entry-get nil "ORG_COMMENTS_REMOTE_AUTHOR_DISPLAY_NAME")
+		   "Local Alice"))
+    (should (equal (org-entry-get nil "ORG_COMMENTS_REMOTE_AUTHOR_ID") "acct-1"))
+    (should (equal (org-entry-get nil "ORG_COMMENTS_REMOTE_CREATED_AT")
+		   "2026-07-01T00:00:00Z"))))
+
 (ert-deftest org-comments-sidecar-stamps-normalized-remote-metadata ()
   "Remote metadata stamping writes provider-neutral sidecar properties."
   (with-temp-buffer

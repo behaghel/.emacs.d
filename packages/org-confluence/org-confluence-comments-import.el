@@ -74,10 +74,15 @@ When REPLY is non-nil, return a reply heading title."
 
 (defun org-confluence-comments-import-put-property-when-missing (property value)
   "Set Org PROPERTY to VALUE at point only when missing."
-  (when (and (stringp value)
-	     (not (string-empty-p (string-trim value)))
-	     (not (org-entry-get nil property)))
-    (org-entry-put nil property (string-trim value))))
+  (when (stringp value)
+    (org-comments-sidecar-put-property-when-missing property (string-trim value))))
+
+(defun org-confluence-comments-import-stamp-remote-author-metadata (comment)
+  "Stamp missing sidecar author metadata from remote COMMENT."
+  (org-comments-sidecar-stamp-remote-metadata-when-missing
+   (list :remote-author-id (org-confluence-comments-remote-author-id comment)
+	 :remote-author-display-name (org-confluence-comments-remote-author-name comment)
+	 :remote-created-at (org-confluence-comments-remote-created-at comment))))
 
 (defun org-confluence-comments-import-backfill-footer-metadata (sidecar-file comment)
   "Backfill missing sidecar metadata for existing remote footer COMMENT."
@@ -85,15 +90,8 @@ When REPLY is non-nil, return a reply heading title."
     (org-comments-sidecar-with-remote-heading
      sidecar-file remote-id
      (lambda ()
-       (let ((author-name (org-confluence-comments-remote-author-name comment))
-	     (author-id (org-confluence-comments-remote-author-id comment))
-	     (created-at (org-confluence-comments-remote-created-at comment)))
-	 (org-confluence-comments-import-put-property-when-missing "ORG_COMMENTS_REMOTE_AUTHOR_ID" author-id)
-	 (org-confluence-comments-import-put-property-when-missing
-	  "ORG_COMMENTS_REMOTE_AUTHOR_DISPLAY_NAME" author-name)
-	 (org-confluence-comments-import-put-property-when-missing
-	  "ORG_COMMENTS_REMOTE_CREATED_AT" created-at)
-	 t))
+       (org-confluence-comments-import-stamp-remote-author-metadata comment)
+       t)
      :source "confluence")))
 
 (defun org-confluence-comments-import-sync-timestamp ()
@@ -300,34 +298,27 @@ Update REPORT with any local status changes."
     (org-comments-sidecar-with-remote-heading
      sidecar-file remote-id
      (lambda ()
-       (let ((author-name (org-confluence-comments-remote-author-name comment))
-	     (author-id (org-confluence-comments-remote-author-id comment))
-	     (created-at (org-confluence-comments-remote-created-at comment)))
-	 (org-confluence-comments-import-put-property-when-missing "ORG_COMMENTS_REMOTE_AUTHOR_ID" author-id)
+       (org-confluence-comments-import-stamp-remote-author-metadata comment)
+       (when (equal "inline" (org-entry-get nil "ORG_COMMENTS_SYNC_KIND"))
 	 (org-confluence-comments-import-put-property-when-missing
-	  "ORG_COMMENTS_REMOTE_AUTHOR_DISPLAY_NAME" author-name)
-	 (org-confluence-comments-import-put-property-when-missing
-	  "ORG_COMMENTS_REMOTE_CREATED_AT" created-at)
-	 (when (equal "inline" (org-entry-get nil "ORG_COMMENTS_SYNC_KIND"))
+	  "ORG_COMMENTS_TARGET_TEXT"
+	  (org-confluence-comments-remote-inline-target-text comment))
+	 (when-let* ((count (org-confluence-comments-remote-inline-match-count comment)))
 	   (org-confluence-comments-import-put-property-when-missing
-	    "ORG_COMMENTS_TARGET_TEXT"
-	    (org-confluence-comments-remote-inline-target-text comment))
-	   (when-let* ((count (org-confluence-comments-remote-inline-match-count comment)))
-	     (org-confluence-comments-import-put-property-when-missing
-	      "ORG_COMMENTS_TARGET_MATCH_COUNT" (number-to-string count)))
-	   (when-let* ((index (org-confluence-comments-remote-inline-match-index comment)))
-	     (org-confluence-comments-import-put-property-when-missing
-	      "ORG_COMMENTS_TARGET_MATCH_INDEX" (number-to-string index)))
-	   (when-let* ((count (org-confluence-comments-remote-marker-occurrence-count comment)))
-	     (org-confluence-comments-import-put-property-when-missing
-	      "ORG_COMMENTS_REMOTE_MARKER_OCCURRENCE_COUNT" (number-to-string count)))
-	   (when-let* ((index (org-confluence-comments-remote-marker-occurrence-index comment)))
-	     (org-confluence-comments-import-put-property-when-missing
-	      "ORG_COMMENTS_REMOTE_MARKER_OCCURRENCE_INDEX" (number-to-string index))))
-	 (org-confluence-comments-import-set-remote-present-properties comment)
-	 (unless (equal "reply" (org-entry-get nil "ORG_COMMENTS_SYNC_KIND"))
-	   (org-confluence-comments-import-apply-remote-status comment report))
-	 t)))))
+	    "ORG_COMMENTS_TARGET_MATCH_COUNT" (number-to-string count)))
+	 (when-let* ((index (org-confluence-comments-remote-inline-match-index comment)))
+	   (org-confluence-comments-import-put-property-when-missing
+	    "ORG_COMMENTS_TARGET_MATCH_INDEX" (number-to-string index)))
+	 (when-let* ((count (org-confluence-comments-remote-marker-occurrence-count comment)))
+	   (org-confluence-comments-import-put-property-when-missing
+	    "ORG_COMMENTS_REMOTE_MARKER_OCCURRENCE_COUNT" (number-to-string count)))
+	 (when-let* ((index (org-confluence-comments-remote-marker-occurrence-index comment)))
+	   (org-confluence-comments-import-put-property-when-missing
+	    "ORG_COMMENTS_REMOTE_MARKER_OCCURRENCE_INDEX" (number-to-string index))))
+       (org-confluence-comments-import-set-remote-present-properties comment)
+       (unless (equal "reply" (org-entry-get nil "ORG_COMMENTS_SYNC_KIND"))
+	 (org-confluence-comments-import-apply-remote-status comment report))
+       t))))
 
 (defun org-confluence-comments-import-remote-replies
     (sidecar-file source-file parent-comment endpoint body-format report)

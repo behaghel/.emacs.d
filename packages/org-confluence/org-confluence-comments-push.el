@@ -120,9 +120,6 @@ Return the comment sync kind, one of `footer', `inline', or `reply'."
 SYNC-KIND is stored as `ORG_COMMENTS_SYNC_KIND'.  PARENT-ID, when non-nil, is
 stored as `ORG_COMMENTS_REMOTE_PARENT_ID'."
   (let ((remote-id (org-confluence-comments-remote-id comment))
-	(author-name (org-confluence-comments-remote-author-name comment))
-	(author-id (org-confluence-comments-remote-author-id comment))
-	(created-at (org-confluence-comments-remote-created-at comment))
 	(resolution-status (org-confluence-comments-remote-resolution-status comment)))
     (unless remote-id
       (user-error "Confluence create response did not include a comment id"))
@@ -136,10 +133,7 @@ stored as `ORG_COMMENTS_REMOTE_PARENT_ID'."
     (when (equal sync-kind "inline")
       (org-confluence-comments-push-stamp-inline-match-info)
       (org-confluence-comments-push-stamp-remote-inline-anchor-state comment))
-    (org-confluence-comments-import-put-property-when-missing "ORG_COMMENTS_REMOTE_AUTHOR_ID" author-id)
-    (org-confluence-comments-import-put-property-when-missing
-     "ORG_COMMENTS_REMOTE_AUTHOR_DISPLAY_NAME" author-name)
-    (org-confluence-comments-import-put-property-when-missing "ORG_COMMENTS_REMOTE_CREATED_AT" created-at)
+    (org-confluence-comments-import-stamp-remote-author-metadata comment)
     remote-id))
 
 (defun org-confluence-comments-push-target-bounds ()
