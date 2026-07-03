@@ -77,6 +77,18 @@
      nil)
     (should (search-forward "synced" nil t))))
 
+(ert-deftest org-comments-panel-render-overview-replies-omit-root-status ()
+  "Overview reply summaries show sync state rather than root comment status."
+  (with-temp-buffer
+    (org-comments-panel-render-buffer
+     (current-buffer)
+     '((:type comment :status "OPEN" :body "Root body"
+	      :replies ((:type comment :status "OPEN" :body "Reply body"))))
+     nil)
+    (should (search-forward "↳ 1 reply" nil t))
+    (should (search-forward "↳ unsynced — Reply body" nil t))
+    (should-not (search-forward "↳ [OPEN]" nil t))))
+
 (ert-deftest org-comments-panel-render-list-body-gets-wrap-prefix ()
   "Rendered list bodies set wrap-prefix on list lines."
   (with-temp-buffer

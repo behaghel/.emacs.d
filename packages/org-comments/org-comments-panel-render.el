@@ -169,6 +169,16 @@
 		   (format "— %s" body))))
      " ")))
 
+(defun org-comments-panel-render-reply-summary (reply)
+  "Return a one-line summary for REPLY without root-comment status."
+  (let ((body (org-comments-panel-render--compact (org-comments-panel-render--readable-body reply))))
+    (string-join
+     (delq nil
+	   (list (org-comments-sync-state-label reply)
+		 (unless (string-empty-p body)
+		   (format "— %s" body))))
+     " ")))
+
 (defun org-comments-panel-render-insert-comment (comment)
   "Insert rich COMMENT row at point."
   (let* ((start (point))
@@ -210,7 +220,7 @@
 	  (insert (format "↳ %s repl%s\n"
 			  (length replies) (if (= (length replies) 1) "y" "ies")))
 	  (dolist (reply replies)
-	    (insert "  ↳ " (org-comments-panel-render-comment-summary reply) "\n")))))
+	    (insert "  ↳ " (org-comments-panel-render-reply-summary reply) "\n")))))
     (let ((row (copy-sequence comment)))
       (plist-put row :provider 'comments)
       (add-text-properties
