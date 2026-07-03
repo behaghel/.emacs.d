@@ -88,7 +88,7 @@
     (goto-char (point-min))
     (org-comments-entry-mark-status-dirty "RESOLVED")
     (should (equal (org-entry-get nil "ORG_COMMENTS_LOCAL_STATUS_DIRTY") "status"))
-    (should (org-entry-get nil "ORG_COMMENTS_LOCAL_UPDATED_AT"))
+    (should-not (org-entry-get nil "ORG_COMMENTS_LOCAL_UPDATED_AT"))
     (org-entry-put nil "ORG_COMMENTS_REMOTE_RESOLUTION_STATUS" "resolved")
     (org-comments-entry-mark-status-dirty "RESOLVED")
     (should-not (org-entry-get nil "ORG_COMMENTS_LOCAL_STATUS_DIRTY"))))
@@ -158,6 +158,12 @@
 	  (should (org-comments-sidecar-remote-missing-p
 		   sidecar "same" :backend "google-docs")))
       (delete-directory dir t))))
+
+(ert-deftest org-comments-sidecar-normalizes-status-dirty-as-pending-push ()
+  "Local status dirty metadata becomes provider-neutral pending push state."
+  (let ((record (org-comments--normalize-sidecar-record
+		 '(:remote-id "r1" :local-status-dirty "status"))))
+    (should (equal (plist-get record :local-state) '(:pending-push)))))
 
 (ert-deftest org-comments-sidecar-delete-entry-removes-subtree ()
   "Deleting an entry removes its sidecar subtree."

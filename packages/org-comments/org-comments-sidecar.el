@@ -95,17 +95,15 @@ For example, article.org maps to article.comments.org."
 (defun org-comments-entry-mark-status-dirty (status)
   "Update current heading dirty metadata after setting local TODO STATUS.
 Remote-backed comments get `ORG_COMMENTS_LOCAL_STATUS_DIRTY' when STATUS differs
-from known remote state.  Matching or local-only comments clear that marker."
+from known remote state.  Matching or local-only comments clear that marker.
+Body edit metadata remains separate in `ORG_COMMENTS_LOCAL_UPDATED_AT'."
   (let ((remote-id (org-entry-get nil "ORG_COMMENTS_REMOTE_ID"))
 	(remote-status (org-entry-get nil "ORG_COMMENTS_REMOTE_RESOLUTION_STATUS"))
 	(target-remote-status (org-comments-remote-status-value status)))
     (if (and remote-id
 	     target-remote-status
 	     (not (equal remote-status target-remote-status)))
-	(progn
-	  (org-entry-put nil "ORG_COMMENTS_LOCAL_STATUS_DIRTY" "status")
-	  (org-entry-put nil "ORG_COMMENTS_LOCAL_UPDATED_AT"
-			 (org-comments-current-created-at)))
+	(org-entry-put nil "ORG_COMMENTS_LOCAL_STATUS_DIRTY" "status")
       (org-entry-delete nil "ORG_COMMENTS_LOCAL_STATUS_DIRTY"))))
 
 (defun org-comments-set-entry-status (status)
@@ -374,11 +372,12 @@ missing.  Return the number of newly missing headings."
 	(forward-line 1)))
     count))
 
-(defun org-comments--sidecar-local-state (remote-id local-updated-at)
-  "Return normalized local-state flags for REMOTE-ID and LOCAL-UPDATED-AT."
+(defun org-comments--sidecar-local-state (remote-id local-updated-at local-status-dirty)
+  "Return normalized local-state flags for remote and local dirty metadata."
   (delq nil
 	(list (unless remote-id :local-only)
-	      (when local-updated-at :edited))))
+	      (when local-updated-at :edited)
+	      (when local-status-dirty :pending-push))))
 
 (defun org-comments--normalize-sidecar-record (record)
   "Return sidecar RECORD with collaboration fields normalized."
@@ -395,7 +394,8 @@ missing.  Return the number of newly missing headings."
 	  (plist-put normalized :local-state
 		     (org-comments--sidecar-local-state
 		      (plist-get normalized :remote-id)
-		      (plist-get normalized :local-updated-at))))
+		      (plist-get normalized :local-updated-at)
+		      (plist-get normalized :local-status-dirty))))
     (org-comments-normalize-record normalized)))
 
 (defun org-comments--base-record (properties sidecar-file target-text start end body)
