@@ -159,6 +159,7 @@
   ;; Knowledge & writing.
   (require 'org/core)
   (require 'org/confluence)
+  (require 'org/google-docs)
   (require 'org/export-latex)
   (unless (getenv "HUB_CI_SKIP_OPTIONALS")
     (require 'notes/brain))

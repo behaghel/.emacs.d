@@ -189,6 +189,13 @@ domains:
           - packages/org-confluence/
           - test/publishing/confluence/
         spec: packages/org-confluence/
+      google-docs:
+        description: Google Docs publishing integration and reusable org-google-docs adapter package code.
+        code:
+          - modules/interactive/org/google-docs.el
+          - packages/org-google-docs/
+          - test/publishing/google-docs/
+        spec: packages/org-google-docs/
     language:
       - term: Publishing workflow
         meaning: Export or synchronization path from authored content to an external medium.
