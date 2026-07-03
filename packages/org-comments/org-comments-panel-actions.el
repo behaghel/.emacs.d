@@ -174,6 +174,21 @@
    (org-comments-current-comment)
    (org-comments-current-source-buffer)))
 
+(defun org-comments-remote-status-p (comment source-buffer status)
+  "Return non-nil when COMMENT STATUS should be handled by a remote backend.
+Only resolved-state propagation is enabled initially; local OPEN/TODO state
+remains sidecar-only until backends declare broader status semantics."
+  (let ((backend (org-comments-backend-detect source-buffer)))
+    (and (equal status "RESOLVED")
+	 (plist-get comment :remote-id)
+	 (org-comments-backend-capable-p backend :set-status))))
+
+(defun org-comments-set-remote-status (comment source-buffer status)
+  "Set COMMENT STATUS through SOURCE-BUFFER's detected remote backend."
+  (let* ((backend (org-comments-backend-detect source-buffer))
+	 (record (org-comments-comment-with-source-file comment source-buffer)))
+    (org-comments-backend-set-status backend record status)))
+
 (defun org-comments-panel--sidecar-jump-comment-p (comment)
   "Return non-nil when COMMENT should jump to its sidecar heading."
   (or (plist-get comment :page-comment)
@@ -340,12 +355,17 @@
 
 (defun org-comments-set-status-at-point (status)
   "Set the current comment at point to STATUS and refresh the UI."
-  (let ((comment (org-comments-current-comment)))
-    (with-current-buffer (org-comments-panel--goto-sidecar-heading comment)
-      (org-todo status)
-      (save-buffer))
+  (let* ((source-buffer (org-comments-current-source-buffer))
+	 (comment (org-comments-current-comment))
+	 (result (if (org-comments-remote-status-p comment source-buffer status)
+		     (org-comments-set-remote-status comment source-buffer status)
+		   (with-current-buffer (org-comments-panel--goto-sidecar-heading comment)
+		     (org-todo status)
+		     (save-buffer))
+		   (message "Marked comment %s %s" (plist-get comment :id) status)
+		   status)))
     (org-comments-refresh-current-ui)
-    (message "Marked comment %s %s" (plist-get comment :id) status)))
+    result))
 
 (defun org-comments-panel-set-status (status)
   "Set the current panel row's sidecar comment to STATUS and refresh."

@@ -288,6 +288,40 @@
      (should refreshed)
      (should (string-match-p "\\[RESOLVED\\]" (buffer-string))))))
 
+(ert-deftest org-comments-panel-actions-resolved-status-dispatches-remote-backend ()
+  "Resolved panel status propagates through capable remote backends."
+  (org-comments-panel-actions-test--with-comment
+   (let ((source-file (buffer-file-name org-comments-panel-source-buffer))
+	 called
+	 refreshed)
+     (setq-local org-comments-current-comment-function
+		 (lambda () '(:id "c1" :remote-id "remote-1" :sidecar-file "comments.org")))
+     (setq-local org-comments-current-source-buffer-function
+		 (lambda () org-comments-panel-source-buffer))
+     (setq-local org-comments-current-refresh-function
+		 (lambda () (setq refreshed t)))
+     (cl-letf (((symbol-function 'org-comments-backend-detect)
+		(lambda (&optional source-buffer)
+		  (setq called (list :detect-buffer source-buffer))
+		  'fake))
+	       ((symbol-function 'org-comments-backend-capable-p)
+		(lambda (id capability)
+		  (and (eq id 'fake) (eq capability :set-status))))
+	       ((symbol-function 'org-comments-backend-set-status)
+		(lambda (id comment status)
+		  (setq called (append called
+				       (list :status-id id
+					     :comment comment
+					     :status status)))
+		  '(:remote-status t))))
+       (should (equal (org-comments-mark-resolved-at-point)
+		      '(:remote-status t))))
+     (should refreshed)
+     (should (eq (plist-get called :status-id) 'fake))
+     (should (equal (plist-get called :status) "RESOLVED"))
+     (should (equal (plist-get (plist-get called :comment) :source-file)
+		    source-file)))))
+
 (ert-deftest org-comments-panel-actions-pull-dispatches-for-source ()
   "Pull dispatches through the detected backend for the panel source."
   (org-comments-panel-actions-test--with-comment

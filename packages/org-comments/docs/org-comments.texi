@@ -506,7 +506,7 @@ former personal metadata prefix.
 @node Org buffers
 @section Org buffers
 
-@float Table,orge557b8c
+@float Table,orga2ff6d7
 @multitable {aaaaaaaaaaa} {aaaaaaaaaaaaaaaaaaaaaaaaaaaa}
 @headitem Key
 @tab Command
@@ -549,7 +549,7 @@ former personal metadata prefix.
 @node Comment panel
 @section Comment panel
 
-@float Table,org14c180f
+@float Table,org3e1b291
 @multitable {aaaaa} {aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa}
 @headitem Key
 @tab Command

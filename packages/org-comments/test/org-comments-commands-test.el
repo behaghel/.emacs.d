@@ -168,6 +168,42 @@
 	       (lambda (status) (list :status status))))
       (should (equal (org-comments-mark-resolved) '(:status "RESOLVED"))))))
 
+(ert-deftest org-comments-commands-resolved-status-dispatches-to-remote-backend ()
+  "Resolved status propagates through capable remote backends."
+  (let* ((directory (make-temp-file "org-comments-remote-status" t))
+	 (source-file (expand-file-name "source.org" directory))
+	 called)
+    (unwind-protect
+	(progn
+	  (with-temp-file source-file
+	    (insert "#+title: Source\n\nBody\n"))
+	  (with-current-buffer (find-file-noselect source-file)
+	    (org-mode)
+	    (cl-letf (((symbol-function 'org-comments--comment-at-point)
+		       (lambda () '(:id "local-1" :remote-id "remote-1")))
+		      ((symbol-function 'org-comments-backend-detect)
+		       (lambda (&optional source-buffer)
+			 (setq called (list :detect-buffer source-buffer))
+			 'fake))
+		      ((symbol-function 'org-comments-backend-capable-p)
+		       (lambda (id capability)
+			 (and (eq id 'fake) (eq capability :set-status))))
+		      ((symbol-function 'org-comments-backend-set-status)
+		       (lambda (id comment status)
+			 (setq called (append called
+					      (list :status-id id
+						    :comment comment
+						    :status status)))
+			 '(:remote-status t))))
+	      (should (equal (org-comments-mark-resolved) '(:remote-status t))))))
+      (should (eq (plist-get called :status-id) 'fake))
+      (should (equal (plist-get called :status) "RESOLVED"))
+      (should (equal (plist-get (plist-get called :comment) :source-file)
+		     source-file))
+      (when-let* ((buffer (find-buffer-visiting source-file)))
+	(kill-buffer buffer))
+      (delete-directory directory t))))
+
 (ert-deftest org-comments-commands-edit-dwim-edits-panel-row ()
   "Edit delegates to the panel action when point is on a rendered row."
   (with-temp-buffer
