@@ -180,6 +180,7 @@ Only resolved-state propagation is enabled initially; local OPEN/TODO state
 remains sidecar-only until backends declare broader status semantics."
   (let ((backend (org-comments-backend-detect source-buffer)))
     (and (equal status "RESOLVED")
+	 (not (equal (plist-get comment :status) status))
 	 (plist-get comment :remote-id)
 	 (org-comments-backend-capable-p backend :set-status))))
 

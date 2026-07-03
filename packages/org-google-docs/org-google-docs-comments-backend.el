@@ -184,6 +184,14 @@ changing the resolved state.  CALLBACK receives the updated comment payload."
    :account account
    :body (json-encode `((content . ,content) (resolved . t)))))
 
+(defun org-google-docs-comments-backend--refresh-source-ui (comment)
+  "Refresh visible comments UI from COMMENT's source buffer when available."
+  (if-let* ((source-file (plist-get comment :source-file))
+	    (source-buffer (find-buffer-visiting source-file)))
+      (with-current-buffer source-buffer
+	(org-comments-ui-refresh))
+    (org-comments-ui-refresh)))
+
 (defun org-google-docs-comments-backend-set-status (comment status)
   "Set Google Docs COMMENT to STATUS.
 The initial backend only supports resolving remote comments."
@@ -200,7 +208,7 @@ The initial backend only supports resolving remote comments."
      (lambda (response)
        (setq result response)
        (org-google-docs-comments-backend--mark-sidecar-resolved comment)
-       (org-comments-ui-refresh)
+       (org-google-docs-comments-backend--refresh-source-ui comment)
        (message "Resolved Google Docs comment %s" remote-id))
      account)
     result))
