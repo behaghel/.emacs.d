@@ -57,20 +57,31 @@
      (org-google-docs-comments-import--property-line
       "ORG_COMMENTS_TARGET_TEXT" (plist-get comment :target-text))
      ":END:\n\n"
-     "#+begin_quote\n"
      (string-trim-right (or (plist-get comment :body) ""))
-     "\n#+end_quote\n")))
+     "\n")))
 
-(defun org-google-docs-comments-import--replace-quote (comment subtree-end)
-  "Replace current subtree machine-owned quote with COMMENT body before SUBTREE-END."
+(defun org-google-docs-comments-import--body-region (subtree-end)
+  "Return current heading body region before child headings and SUBTREE-END."
+  (save-excursion
+    (forward-line 1)
+    (when (looking-at-p "[	]*:PROPERTIES:[		]*$")
+      (unless (re-search-forward "^[	]*:END:[	]*$" subtree-end t)
+	(user-error "Google Docs comment property drawer has no :END:"))
+      (forward-line 1))
+    (let ((start (point))
+	  (end (save-excursion
+		 (if (re-search-forward org-heading-regexp subtree-end t)
+		     (match-beginning 0)
+		   subtree-end))))
+      (cons start end))))
+
+(defun org-google-docs-comments-import--replace-body (comment subtree-end)
+  "Replace current subtree machine-owned body with COMMENT body before SUBTREE-END."
   (let ((body (string-trim-right (or (plist-get comment :body) ""))))
-    (save-excursion
-      (when (re-search-forward "^[	]*#\\+begin_quote[	]*$" subtree-end t)
-	(let ((start (line-beginning-position)))
-	  (unless (re-search-forward "^[	]*#\\+end_quote[	]*$" subtree-end t)
-	    (user-error "Google Docs comment quote block has no #+end_quote"))
-	  (delete-region start (line-end-position))
-	  (insert "#+begin_quote\n" body "\n#+end_quote"))))))
+    (pcase-let ((`(,start . ,end) (org-google-docs-comments-import--body-region subtree-end)))
+      (delete-region start end)
+      (goto-char start)
+      (insert "\n" body "\n\n"))))
 
 (defun org-google-docs-comments-import--apply-anchor (comment source-buffer)
   "Set sidecar anchor properties for COMMENT by matching SOURCE-BUFFER text."
@@ -109,7 +120,7 @@
   (when-let* ((target-text (plist-get comment :target-text)))
     (org-entry-put nil "ORG_COMMENTS_TARGET_TEXT" target-text))
   (org-google-docs-comments-import--apply-anchor comment source-buffer)
-  (org-google-docs-comments-import--replace-quote
+  (org-google-docs-comments-import--replace-body
    comment (save-excursion (org-end-of-subtree t t))))
 
 (defun org-google-docs-comments-import--update-entry (sidecar-file remote-id comment source-buffer)

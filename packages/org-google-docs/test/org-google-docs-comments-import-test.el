@@ -55,8 +55,8 @@
 	 (should (search-forward ":ORG_COMMENTS_BACKEND: google-docs" nil t))
 	 (should (search-forward ":ORG_COMMENTS_REMOTE_ID: c-1" nil t))
 	 (should (search-forward ":ORG_COMMENTS_TARGET_TEXT: Body text" nil t))
-	 (should (search-forward "#+begin_quote" nil t))
-	 (should (search-forward "Please clarify." nil t)))))))
+	 (should (search-forward "Please clarify." nil t))
+	 (should-not (search-forward "#+begin_quote" nil t)))))))
 
 (ert-deftest org-google-docs-comments-import-skips-resolved-by-default ()
   "Resolved Google comments are not imported unless requested."
