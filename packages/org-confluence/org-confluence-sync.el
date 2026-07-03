@@ -7,6 +7,7 @@
 
 (require 'json)
 (require 'org)
+(require 'org-comments-core)
 (require 'org-comments-sidecar)
 (require 'seq)
 (require 'subr-x)
@@ -682,12 +683,12 @@ conflict, comments are not imported or pushed."
 	  (list :page page-result :comments-skipped 1))
       (with-current-buffer source-buffer
 	(let* ((comment-result (org-confluence-comments--sync id body-format))
-	       (imported (plist-get comment-result :comments-imported))
 	       (pushed (plist-get comment-result :comments-pushed))
 	       (errors (plist-get comment-result :comment-push-errors)))
-	  (message "Confluence sync complete: imported %s comments, pushed %s comments%s"
-		   imported pushed
-		   (if errors (format ", %s push errors" (length errors)) ""))
+	  (org-comments-sync-report-message
+	   (list :provider "Confluence"
+		 :pushed pushed
+		 :errors (length errors)))
 	  (append (list :page page-result) comment-result))))))
 
 (provide 'org-confluence-sync)

@@ -141,15 +141,20 @@ REPORT is a plist with optional `:provider', `:added', `:updated',
   "Return a concise provider-neutral summary for sync or push REPORT."
   (let* ((provider (or (plist-get report :provider) "Remote"))
 	 (parts nil))
-    (dolist (spec '((:pushed-replies . "pushed replies")
+    (dolist (spec '((:created . "created")
+		    (:updated . "updated")
+		    (:pushed . "pushed")
+		    (:pushed-replies . "pushed replies")
 		    (:resolved . "resolved")
 		    (:pushed-statuses . "pushed statuses")
 		    (:already-pushed . "already pushed")
+		    (:errors . "errors")
 		    (:no-op . "no changes")))
       (let ((count (org-comments-import-report--count report (car spec))))
 	(when (> count 0)
 	  (setq parts (append parts (list (format "%s %s" (cdr spec) count)))))))
-    (concat provider " comments: " (if parts (string-join parts ", ") "no changes"))))
+    (concat provider " comments: " (if parts (string-join parts ", ") "no changes")
+	    (when (plist-get report :url-copied) "; URL copied"))))
 
 (defun org-comments-sync-report-message (report)
   "Show and return a provider-neutral sync or push REPORT message."

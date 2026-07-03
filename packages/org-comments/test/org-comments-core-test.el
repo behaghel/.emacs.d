@@ -44,10 +44,15 @@
   "Sync report formatting is provider-neutral and concise."
   (should (equal (org-comments-sync-report-format
 		  '(:provider "Google Docs"
+			      :created 1
+			      :updated 1
+			      :pushed 3
 			      :pushed-replies 1
 			      :resolved 2
-			      :already-pushed 1))
-		 "Google Docs comments: pushed replies 1, resolved 2, already pushed 1")))
+			      :already-pushed 1
+			      :errors 1
+			      :url-copied t))
+		 "Google Docs comments: created 1, updated 1, pushed 3, pushed replies 1, resolved 2, already pushed 1, errors 1; URL copied")))
 
 (ert-deftest org-comments-sync-report-format-defaults-to-no-changes ()
   "Sync report formatting defaults to a no-change summary."

@@ -287,7 +287,6 @@ from the sidecar source Org file."
   (interactive)
   (let* ((sync-kind (org-confluence-comments-push-ensure-current-pushable))
 	 (sidecar-file buffer-file-name)
-	 (heading (org-get-heading t t t t))
 	 (body (org-confluence-comments-push-current-body))
 	 (storage (org-confluence-comments-push-body-to-storage body))
 	 (reply-info (when (equal sync-kind "reply")
@@ -327,9 +326,10 @@ from the sidecar source Org file."
       (org-comments-refresh-sidecar-headings sidecar-file)
       (org-comments-fold-sidecar-property-drawers)
       (kill-new url)
-      (message "%s Confluence %s comment %s for %s; URL copied: %s"
-	       (if (eq action :updated) "Updated" "Created")
-	       sync-kind remote-id heading url)
+      (org-comments-sync-report-message
+       (list :provider "Confluence"
+	     (if (eq action :updated) :updated :created) 1
+	     :url-copied t))
       (list action 1 :remote-id remote-id :sync-kind sync-kind
 	    :sidecar-file sidecar-file :url url))))
 

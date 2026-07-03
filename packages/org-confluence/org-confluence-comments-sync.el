@@ -8,6 +8,7 @@
 
 (require 'subr-x)
 
+(require 'org-comments-core)
 (require 'org-confluence-comments-context)
 
 (autoload 'org-confluence-comments-import "org-confluence-comments-import" nil nil)
@@ -24,9 +25,10 @@ and does not synchronize page content."
 	 (push-result (org-confluence-sync--push-pending-comments source-buffer id))
 	 (pushed (plist-get push-result :pushed))
 	 (errors (plist-get push-result :errors)))
-    (message "Confluence comment sync complete: imported %s comments, pushed %s comments%s"
-	     imported pushed
-	     (if errors (format "; push errors: %s" (string-join errors "; ")) ""))
+    (org-comments-sync-report-message
+     (list :provider "Confluence"
+	   :pushed pushed
+	   :errors (length errors)))
     (list :comments-imported imported
 	  :comments-pushed pushed
 	  :comment-push-errors errors)))
