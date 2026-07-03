@@ -57,7 +57,7 @@
 | =org-comments-panel-sync= | Synchronize comments through the detected backend for the panel source. |
 | =org-comments-previous= | Move to the previous source comment, wrapping at beginning of buffer. |
 | =org-comments-previous-item-at-point= | Move point to the previous rendered comment item, wrapping at beginning. |
-| =org-comments-pull= | Pull remote comments through the detected backend for the current buffer. |
+| =org-comments-pull= | Pull remote comments through the detected backend. |
 | =org-comments-push= | Push the current comment through the detected remote backend. |
 | =org-comments-push-at-point= | Push the current comment through the detected remote backend. |
 | =org-comments-rebuild-mode-map= | Rebuild `org-comments-mode-map' after changing `org-comments-keymap-prefix'. |
@@ -65,7 +65,7 @@
 | =org-comments-reply= | Create a reply using the best available comments UI. |
 | =org-comments-reply-at-point= | Reply to the current comment at point and refresh the UI. |
 | =org-comments-setup= | Enable `org-comments-mode' in Org buffers. |
-| =org-comments-sync= | Synchronize comments for the current Org source buffer. |
+| =org-comments-sync= | Synchronize comments for the current Org source or comments panel. |
 | =org-context-panel-buffer-mode= | Major mode for generic Org context side panel buffers. |
 | =org-context-panel-close= | Close the generic side context panel for the current source. |
 | =org-context-panel-close-bottom-view= | Close the generic bottom context view for the current source. |

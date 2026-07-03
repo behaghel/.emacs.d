@@ -21,7 +21,7 @@ Current implementation locations:
 - `packages/org-comments/`: generic sidecar storage/model/link/anchor logic, commands, overlays, panel rendering, and backend protocol.
 - `packages/org-comments/org-context-panel.el`: reusable provider-based Org context panel mechanics.
 - `modules/interactive/org/comments.el`: personal interactive command layer and Evil/Bépo bindings.
-- `modules/interactive/org/context-panel.el`: personal context-panel activation, UI adapters, visual-fill docking, and keybindings.
+- `modules/interactive/org/context-panel.el`: personal context-panel activation, UI adapters, visual-fill docking, and optional filter extensions.
 - `packages/org-confluence/`: Confluence publishing and remote comment sync through public package APIs/backend adapters.
 - `test/authoring/org/` and `packages/org-comments/test/`: integration and package-local tests for comments and context panels.
 
@@ -87,7 +87,7 @@ packages/org-comments/
     └── org-comments-compose-test.el
 ```
 
-Personal activation remains in `modules/interactive/org/` and should shrink to load-path setup, package requires, hooks, and personal keybindings.
+Personal activation remains in `modules/interactive/org/` and should stay limited to load-path setup, package requires, hooks, and personal extensions. Comments panel mode/keymaps are owned by `org-comments-panel-mode`.
 
 ## Backend Contract
 
@@ -207,7 +207,7 @@ Must not modify without a separate decision:
 the minor mode should provide the complete generic buffer-local comments
 experience without requiring personal configuration or a rich context panel:
 
-- Org-native command keybindings;
+- Org-native command keybindings and DWIM public commands that work from source buffers and comments panel rows;
 - inline target overlays and page-comment markers;
 - buffer-local refresh hooks for comment state that can be derived from local
   sidecars or registered backends;

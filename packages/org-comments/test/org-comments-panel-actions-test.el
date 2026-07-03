@@ -182,6 +182,14 @@
       (org-comments-help-current-ui)
       (should shown))))
 
+(ert-deftest org-comments-panel-actions-help-text-describes-dwim-commands ()
+  "Help text documents canonical panel keys and public DWIM commands."
+  (let ((help (org-comments-help-text)))
+    (should (string-match-p "o/O  open remote comment" help))
+    (should (string-match-p "U    push current row" help))
+    (should (string-match-p "Public commands are DWIM" help))
+    (should (string-match-p "org-comments-open-remote" help))))
+
 (ert-deftest org-comments-panel-actions-filter-commands-use-adapters ()
   "Current-UI filter commands delegate through filter adapters."
   (with-temp-buffer

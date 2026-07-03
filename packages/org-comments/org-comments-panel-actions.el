@@ -98,17 +98,32 @@
   (interactive)
   (funcall org-comments-current-close-function))
 
+(defun org-comments-help-text ()
+  "Return generic help text for the current Org comments UI."
+  (string-join
+   '("Org Comments"
+     ""
+     "RET  jump to source or sidecar"
+     "o/O  open remote comment"
+     "r    reply"
+     "U    push current row"
+     "D    pull remote comments"
+     "S    sync remote comments"
+     "e    edit"
+     "d    delete"
+     "m    status actions"
+     "z    filters"
+     "q    close"
+     ""
+     "Public commands are DWIM: org-comments-open-remote, org-comments-push,"
+     "org-comments-reply, org-comments-pull, org-comments-sync, and mark commands"
+     "work from both Org source buffers and comments panel rows.")
+   "\n"))
+
 (defun org-comments--help-current-ui ()
   "Show generic help for the current Org comments UI."
   (with-help-window "*Org Comments Help*"
-    (princ "Org Comments\n\n")
-    (princ "RET  jump to source\n")
-    (princ "r    reply\n")
-    (princ "e    edit\n")
-    (princ "d    delete\n")
-    (princ "m    status actions\n")
-    (princ "z    filters\n")
-    (princ "q    close\n")))
+    (princ (org-comments-help-text))))
 
 ;;;###autoload
 (defun org-comments-help-current-ui ()

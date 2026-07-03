@@ -238,6 +238,13 @@ by setting UI adapter variables.
    The package does not install Evil, leader-key, or layout-specific
 bindings.  Personal keybindings belong in user configuration.
 
+   User-facing commands such as ‘org-comments-open-remote’,
+‘org-comments-push’, ‘org-comments-reply’, ‘org-comments-pull’,
+‘org-comments-sync’, and the mark commands are DWIM: they operate on the
+current Org source comment when called from an Org source buffer, and on
+the current rendered row/source when called from
+‘org-comments-panel-mode’.
+
 
 File: org-comments.info,  Node: Backends,  Next: Confluence Backend,  Prev: Comment UI,  Up: Top
 
@@ -372,7 +379,7 @@ Command                                            Description
 ‘org-comments-panel-sync’                          Synchronize comments through the detected backend for the panel source.
 ‘org-comments-previous’                            Move to the previous source comment, wrapping at beginning of buffer.
 ‘org-comments-previous-item-at-point’              Move point to the previous rendered comment item, wrapping at beginning.
-‘org-comments-pull’                                Pull remote comments through the detected backend for the current buffer.
+‘org-comments-pull’                                Pull remote comments through the detected backend.
 ‘org-comments-push’                                Push the current comment through the detected remote backend.
 ‘org-comments-push-at-point’                       Push the current comment through the detected remote backend.
 ‘org-comments-rebuild-mode-map’                    Rebuild 'org-comments-mode-map' after changing 'org-comments-keymap-prefix'.
@@ -380,7 +387,7 @@ Command                                            Description
 ‘org-comments-reply’                               Create a reply using the best available comments UI.
 ‘org-comments-reply-at-point’                      Reply to the current comment at point and refresh the UI.
 ‘org-comments-setup’                               Enable 'org-comments-mode' in Org buffers.
-‘org-comments-sync’                                Synchronize comments for the current Org source buffer.
+‘org-comments-sync’                                Synchronize comments for the current Org source or comments panel.
 ‘org-context-panel-buffer-mode’                    Major mode for generic Org context side panel buffers.
 ‘org-context-panel-close’                          Close the generic side context panel for the current source.
 ‘org-context-panel-close-bottom-view’              Close the generic bottom context view for the current source.
@@ -471,22 +478,23 @@ File: org-comments.info,  Node: Comment panel,  Next: Page comments panel,  Prev
 Key     Command
 -----------------------------------------------------------
 ‘?’     ‘org-comments-help-current-ui’
-‘D’     ‘org-comments-panel-pull’
-‘O’     ‘org-comments-panel-open-remote’
+‘D’     ‘org-comments-pull’
+‘O’     ‘org-comments-open-remote’
 ‘RET’   ‘org-context-panel-jump-at-point’
-‘S’     ‘org-comments-panel-sync’
-‘U’     ‘org-comments-panel-push’
+‘S’     ‘org-comments-sync’
+‘U’     ‘org-comments-push’
 ‘[ c’   ‘org-comments-previous-item-at-point’
 ‘] c’   ‘org-comments-next-item-at-point’
 ‘d’     ‘org-comments-delete-at-point’
 ‘e’     ‘org-comments-edit-at-point’
 ‘g’     ‘org-comments-panel-refresh’
-‘m o’   ‘org-comments-panel-mark-open’
-‘m r’   ‘org-comments-panel-mark-resolved’
-‘m t’   ‘org-comments-panel-mark-todo’
+‘m o’   ‘org-comments-mark-open’
+‘m r’   ‘org-comments-mark-resolved’
+‘m t’   ‘org-comments-mark-todo’
+‘o’     ‘org-comments-open-remote’
 ‘p’     ‘org-comments-page-open-at-point’
 ‘q’     ‘org-comments-close-current-ui’
-‘r’     ‘org-comments-reply-at-point’
+‘r’     ‘org-comments-reply’
 ‘z ?’   ‘org-comments-filter-status-current-ui’
 ‘z r’   ‘org-comments-filter-toggle-resolved-current-ui’
 ‘z z’   ‘org-comments-filter-reset-current-ui’
@@ -590,24 +598,24 @@ Node: Page comments5586
 Node: Collaboration state5907
 Node: Local Org Sidecars6526
 Node: Comment UI7033
-Node: Backends7692
-Node: Identity resolution8495
-Node: Confluence Backend8981
-Node: Migration9558
-Node: Commands10041
-Node: Customization18893
-Node: Keybindings22530
-Node: Org buffers22730
-Ref: org6ca2b1e22852
-Node: Comment panel23683
-Ref: orge701e7623837
-Node: Page comments panel24938
-Node: Developer API25222
-Node: Troubleshooting25879
-Node: No comments appear26122
-Node: Legacy sidecar error26412
-Node: Remote operation is unsupported26724
-Node: Info manual is missing27112
+Node: Backends8063
+Node: Identity resolution8866
+Node: Confluence Backend9352
+Node: Migration9929
+Node: Commands10412
+Node: Customization19252
+Node: Keybindings22889
+Node: Org buffers23089
+Ref: org6e5a2e323211
+Node: Comment panel24042
+Ref: org7bc121f24196
+Node: Page comments panel25289
+Node: Developer API25573
+Node: Troubleshooting26230
+Node: No comments appear26473
+Node: Legacy sidecar error26763
+Node: Remote operation is unsupported27075
+Node: Info manual is missing27463
 
 End Tag Table
 

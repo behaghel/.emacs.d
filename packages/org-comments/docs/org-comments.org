@@ -140,6 +140,12 @@ variables.
 The package does not install Evil, leader-key, or layout-specific bindings.
 Personal keybindings belong in user configuration.
 
+User-facing commands such as =org-comments-open-remote=, =org-comments-push=,
+=org-comments-reply=, =org-comments-pull=, =org-comments-sync=, and the mark
+commands are DWIM: they operate on the current Org source comment when called
+from an Org source buffer, and on the current rendered row/source when called
+from =org-comments-panel-mode=.
+
 * Backends
 :PROPERTIES:
 :DESCRIPTION: Backend registry and operations.

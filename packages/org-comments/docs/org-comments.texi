@@ -238,6 +238,12 @@ variables.
 The package does not install Evil, leader-key, or layout-specific bindings.
 Personal keybindings belong in user configuration.
 
+User-facing commands such as @samp{org-comments-open-remote}, @samp{org-comments-push},
+@samp{org-comments-reply}, @samp{org-comments-pull}, @samp{org-comments-sync}, and the mark
+commands are DWIM: they operate on the current Org source comment when called
+from an Org source buffer, and on the current rendered row/source when called
+from @samp{org-comments-panel-mode}.
+
 @node Backends
 @chapter Backends
 
@@ -420,7 +426,7 @@ former personal metadata prefix.
 @item @samp{org-comments-previous-item-at-point}
 @tab Move point to the previous rendered comment item, wrapping at beginning.
 @item @samp{org-comments-pull}
-@tab Pull remote comments through the detected backend for the current buffer.
+@tab Pull remote comments through the detected backend.
 @item @samp{org-comments-push}
 @tab Push the current comment through the detected remote backend.
 @item @samp{org-comments-push-at-point}
@@ -436,7 +442,7 @@ former personal metadata prefix.
 @item @samp{org-comments-setup}
 @tab Enable `org-comments-mode' in Org buffers.
 @item @samp{org-comments-sync}
-@tab Synchronize comments for the current Org source buffer.
+@tab Synchronize comments for the current Org source or comments panel.
 @item @samp{org-context-panel-buffer-mode}
 @tab Major mode for generic Org context side panel buffers.
 @item @samp{org-context-panel-close}
@@ -546,7 +552,7 @@ former personal metadata prefix.
 @node Org buffers
 @section Org buffers
 
-@float Table,org6ca2b1e
+@float Table,org6e5a2e3
 @multitable {aaaaaaaaaaa} {aaaaaaaaaaaaaaaaaaaaaaaaaaaa}
 @headitem Key
 @tab Command
@@ -589,22 +595,22 @@ former personal metadata prefix.
 @node Comment panel
 @section Comment panel
 
-@float Table,orge701e76
+@float Table,org7bc121f
 @multitable {aaaaa} {aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa}
 @headitem Key
 @tab Command
 @item @samp{?}
 @tab @samp{org-comments-help-current-ui}
 @item @samp{D}
-@tab @samp{org-comments-panel-pull}
+@tab @samp{org-comments-pull}
 @item @samp{O}
-@tab @samp{org-comments-panel-open-remote}
+@tab @samp{org-comments-open-remote}
 @item @samp{RET}
 @tab @samp{org-context-panel-jump-at-point}
 @item @samp{S}
-@tab @samp{org-comments-panel-sync}
+@tab @samp{org-comments-sync}
 @item @samp{U}
-@tab @samp{org-comments-panel-push}
+@tab @samp{org-comments-push}
 @item @samp{[ c}
 @tab @samp{org-comments-previous-item-at-point}
 @item @samp{] c}
@@ -616,17 +622,19 @@ former personal metadata prefix.
 @item @samp{g}
 @tab @samp{org-comments-panel-refresh}
 @item @samp{m o}
-@tab @samp{org-comments-panel-mark-open}
+@tab @samp{org-comments-mark-open}
 @item @samp{m r}
-@tab @samp{org-comments-panel-mark-resolved}
+@tab @samp{org-comments-mark-resolved}
 @item @samp{m t}
-@tab @samp{org-comments-panel-mark-todo}
+@tab @samp{org-comments-mark-todo}
+@item @samp{o}
+@tab @samp{org-comments-open-remote}
 @item @samp{p}
 @tab @samp{org-comments-page-open-at-point}
 @item @samp{q}
 @tab @samp{org-comments-close-current-ui}
 @item @samp{r}
-@tab @samp{org-comments-reply-at-point}
+@tab @samp{org-comments-reply}
 @item @samp{z ?}
 @tab @samp{org-comments-filter-status-current-ui}
 @item @samp{z r}
