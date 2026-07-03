@@ -261,6 +261,70 @@
        (should (search-forward ":ORG_COMMENTS_REMOTE_RESOLUTION_STATUS: resolved" nil t))
        (should (search-forward "** Local notes" nil t))))))
 
+(ert-deftest org-google-docs-comments-import-marks-missing-remote-comments ()
+  "Re-import marks existing Google comments missing when absent remotely."
+  (org-google-docs-comments-import-test--with-source
+   (let ((sidecar (org-comments-sidecar-path buffer-file-name)))
+     (org-comments-ensure-sidecar-header sidecar buffer-file-name)
+     (with-temp-buffer
+       (insert-file-contents sidecar)
+       (goto-char (point-max))
+       (insert "* OPEN Existing Google Docs comment\n")
+       (insert ":PROPERTIES:\n")
+       (insert ":ORG_COMMENTS_ID: google-docs:c-missing\n")
+       (insert ":ORG_COMMENTS_BACKEND: google-docs\n")
+       (insert ":ORG_COMMENTS_REMOTE_ID: c-missing\n")
+       (insert ":ORG_COMMENTS_REMOTE_STATE: present\n")
+       (insert ":END:\n\nMissing body.\n\n")
+       (insert "* OPEN Local comment\n")
+       (insert ":PROPERTIES:\n")
+       (insert ":ORG_COMMENTS_ID: local-1\n")
+       (insert ":END:\n\nLocal body.\n")
+       (write-region (point-min) (point-max) sidecar nil 'silent))
+     (let ((report (org-google-docs-comments-import--import-list
+		    (list (list :backend 'google-docs
+				:remote-id "c-present"
+				:body "Present body."
+				:status "open"))
+		    nil buffer-file-name (current-buffer))))
+       (should (= (plist-get report :remote-missing) 1)))
+     (with-temp-buffer
+       (insert-file-contents sidecar)
+       (should (search-forward ":ORG_COMMENTS_REMOTE_ID: c-missing" nil t))
+       (should (search-forward ":ORG_COMMENTS_REMOTE_STATE: missing" nil t))
+       (should (search-forward ":ORG_COMMENTS_REMOTE_MISSING_AT:" nil t))
+       (goto-char (point-min))
+       (should (search-forward ":ORG_COMMENTS_REMOTE_ID: c-present" nil t))))))
+
+(ert-deftest org-google-docs-comments-import-clears-missing-when-seen-again ()
+  "Re-import marks a previously missing Google comment present when seen again."
+  (org-google-docs-comments-import-test--with-source
+   (let ((sidecar (org-comments-sidecar-path buffer-file-name)))
+     (org-comments-ensure-sidecar-header sidecar buffer-file-name)
+     (with-temp-buffer
+       (insert-file-contents sidecar)
+       (goto-char (point-max))
+       (insert "* OPEN Existing Google Docs comment\n")
+       (insert ":PROPERTIES:\n")
+       (insert ":ORG_COMMENTS_ID: google-docs:c-1\n")
+       (insert ":ORG_COMMENTS_BACKEND: google-docs\n")
+       (insert ":ORG_COMMENTS_REMOTE_ID: c-1\n")
+       (insert ":ORG_COMMENTS_REMOTE_STATE: missing\n")
+       (insert ":ORG_COMMENTS_REMOTE_MISSING_AT: 2026-07-03T00:00:00+0000\n")
+       (insert ":END:\n\nOld body.\n")
+       (write-region (point-min) (point-max) sidecar nil 'silent))
+     (org-google-docs-comments-import--import-list
+      (list (list :backend 'google-docs
+		  :remote-id "c-1"
+		  :body "Returned body."
+		  :status "open"))
+      nil buffer-file-name (current-buffer))
+     (with-temp-buffer
+       (insert-file-contents sidecar)
+       (should (search-forward ":ORG_COMMENTS_REMOTE_STATE: present" nil t))
+       (should-not (search-forward ":ORG_COMMENTS_REMOTE_MISSING_AT:" nil t))
+       (should (search-forward "Returned body." nil t))))))
+
 (ert-deftest org-google-docs-comments-import-updates-existing-remote-comment ()
   "Re-import updates remote-owned content while preserving local notes."
   (org-google-docs-comments-import-test--with-source
