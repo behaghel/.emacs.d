@@ -15,6 +15,8 @@
 
 (require 'org-google-docs-comments-backend)
 
+(defvar gdocs-api--drive-base-url)
+
 (ert-deftest org-google-docs-comments-backend-registers-backend ()
   "The Google Docs adapter registers an org-comments backend."
   (should (equal (org-comments-backend-name 'google-docs) "Google Docs"))
@@ -77,6 +79,29 @@
 		      '(:document-id "doc-123" :remote-id "c-1"))
 		     "https://docs.google.com/document/d/doc-123/edit?disco=c-1"))
       (should (equal opened "https://docs.google.com/document/d/doc-123/edit?disco=c-1")))))
+
+(ert-deftest org-google-docs-comments-backend-resolve-uses-drive-reply-action ()
+  "Google Docs comments are resolved by posting a Drive reply action."
+  (let (called
+	(gdocs-api--drive-base-url "https://www.googleapis.com/drive/v3/files"))
+    (cl-letf (((symbol-function 'require)
+	       (lambda (feature &optional _filename _noerror)
+		 (or (eq feature 'gdocs-api)
+		     (featurep feature))))
+	      ((symbol-function 'gdocs-api--request)
+	       (lambda (method url callback &rest args)
+		 (setq called (list :method method :url url :args args))
+		 (funcall callback '((id . "reply-1") (action . "resolve"))))))
+      (should (equal (org-google-docs-comments-backend--resolve-comment
+		      "doc-123" "c-1" "Root body" #'identity "personal")
+		     '((id . "reply-1") (action . "resolve"))))
+      (should (equal called
+		     (list :method 'post
+			   :url (concat "https://www.googleapis.com/drive/v3/files"
+					"/doc-123/comments/c-1"
+					"/replies?fields=id,action,content")
+			   :args (list :account "personal"
+				       :body (json-encode '((action . "resolve"))))))))))
 
 (ert-deftest org-google-docs-comments-backend-resolves-remote-comment ()
   "Resolving a Google Docs comment calls upstream API and updates the sidecar."

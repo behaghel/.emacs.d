@@ -19,6 +19,8 @@
 (require 'subr-x)
 (require 'url-util)
 
+(defvar gdocs-api--drive-base-url)
+
 (defun org-google-docs-comments-backend--source-file (record operation)
   "Return source file from RECORD for OPERATION or signal a user error."
   (or (plist-get record :source-file)
@@ -240,25 +242,26 @@ SIDECAR-FILE, DOCUMENT-ID, and ACCOUNT are copied into the returned record."
     content))
 
 (defun org-google-docs-comments-backend--resolve-url (document-id comment-id)
-  "Return Drive API URL for resolving COMMENT-ID on DOCUMENT-ID."
+  "Return Drive API replies URL for resolving COMMENT-ID on DOCUMENT-ID."
   (concat gdocs-api--drive-base-url "/"
 	  (url-hexify-string document-id)
 	  "/comments/"
 	  (url-hexify-string comment-id)
-	  "?fields=id,resolved,content"))
+	  "/replies?fields=id,action,content"))
 
 (defun org-google-docs-comments-backend--resolve-comment
-    (document-id comment-id content callback &optional account)
-  "Resolve COMMENT-ID on DOCUMENT-ID preserving required CONTENT.
-Google Drive's comments update endpoint requires `content' even when only
-changing the resolved state.  CALLBACK receives the updated comment payload."
+    (document-id comment-id _content callback &optional account)
+  "Resolve COMMENT-ID on DOCUMENT-ID by creating a Drive reply action.
+Google Drive's `comments.resolved' field is read-only; comments are resolved by
+posting a reply with action `resolve'.  CALLBACK receives the created reply
+payload."
   (org-google-docs-comments-backend--require-upstream-api)
   (gdocs-api--request
-   'patch
+   'post
    (org-google-docs-comments-backend--resolve-url document-id comment-id)
    callback
    :account account
-   :body (json-encode `((content . ,content) (resolved . t)))))
+   :body (json-encode '((action . "resolve")))))
 
 (defun org-google-docs-comments-backend--refresh-source-ui (comment)
   "Refresh visible comments UI from COMMENT's source buffer when available."
