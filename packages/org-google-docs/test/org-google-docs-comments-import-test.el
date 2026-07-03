@@ -58,6 +58,41 @@
 	 (should (search-forward "Please clarify." nil t))
 	 (should-not (search-forward "#+begin_quote" nil t)))))))
 
+(ert-deftest org-google-docs-comments-import-reports-added-updated-and-skipped ()
+  "Google Docs import returns provider-neutral feedback counts."
+  (org-google-docs-comments-import-test--with-source
+   (let ((sidecar (org-comments-sidecar-path buffer-file-name)))
+     (org-comments-ensure-sidecar-header sidecar buffer-file-name)
+     (with-temp-buffer
+       (insert-file-contents sidecar)
+       (goto-char (point-max))
+       (insert "* OPEN Existing Google Docs comment\n")
+       (insert ":PROPERTIES:\n")
+       (insert ":ORG_COMMENTS_ID: google-docs:c-1\n")
+       (insert ":ORG_COMMENTS_BACKEND: google-docs\n")
+       (insert ":ORG_COMMENTS_REMOTE_ID: c-1\n")
+       (insert ":END:\n\nOld body.\n")
+       (write-region (point-min) (point-max) sidecar nil 'silent))
+     (let ((report (org-google-docs-comments-import--import-list
+		    (list (list :backend 'google-docs
+				:remote-id "c-1"
+				:body "Updated body."
+				:status "open")
+			  (list :backend 'google-docs
+				:remote-id "c-2"
+				:body "New body."
+				:status "open")
+			  (list :backend 'google-docs
+				:remote-id "c-3"
+				:body "Resolved body."
+				:status "resolved"))
+		    nil buffer-file-name (current-buffer))))
+       (should (equal (plist-get report :provider) "Google Docs"))
+       (should (= (plist-get report :added) 1))
+       (should (= (plist-get report :updated) 1))
+       (should (= (plist-get report :skipped-resolved) 1))
+       (should (plist-get report :preserved-local))))))
+
 (ert-deftest org-google-docs-comments-import-skips-resolved-by-default ()
   "Resolved Google comments are not imported unless requested."
   (org-google-docs-comments-import-test--with-source

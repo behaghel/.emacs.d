@@ -10,6 +10,7 @@
 (require 'cl-lib)
 (require 'org)
 (require 'org-comments-anchors)
+(require 'org-comments-core)
 (require 'org-comments-sidecar)
 (require 'org-google-docs-comments)
 (require 'subr-x)
@@ -158,24 +159,34 @@ Return non-nil when an entry was updated."
 (defun org-google-docs-comments-import--import-list
     (comments include-resolved source-file source-buffer)
   "Import COMMENTS for SOURCE-FILE and SOURCE-BUFFER, optionally INCLUDE-RESOLVED.
-Return the sidecar file path."
-  (let ((sidecar-file (org-comments-sidecar-path source-file)))
+Return a provider-neutral import report plist."
+  (let ((sidecar-file (org-comments-sidecar-path source-file))
+	(report (list :provider "Google Docs"
+		      :added 0
+		      :updated 0
+		      :skipped-resolved 0
+		      :preserved-local t)))
     (org-comments-ensure-sidecar-header sidecar-file source-file)
     (dolist (comment comments)
-      (when (or include-resolved
-		(not (equal (plist-get comment :status) "resolved")))
+      (if (and (not include-resolved)
+	       (equal (plist-get comment :status) "resolved"))
+	  (plist-put report :skipped-resolved
+		     (1+ (or (plist-get report :skipped-resolved) 0)))
 	(let ((remote-id (plist-get comment :remote-id)))
-	  (unless (and remote-id
-		       (file-exists-p sidecar-file)
-		       (org-google-docs-comments-import--update-entry
-			sidecar-file remote-id comment source-buffer))
+	  (if (and remote-id
+		   (file-exists-p sidecar-file)
+		   (org-google-docs-comments-import--update-entry
+		    sidecar-file remote-id comment source-buffer))
+	      (plist-put report :updated (1+ (or (plist-get report :updated) 0)))
 	    (org-google-docs-comments-import--append-entry
 	     sidecar-file source-file
 	     (org-google-docs-comments-import--entry comment))
+	    (plist-put report :added (1+ (or (plist-get report :added) 0)))
 	    (when remote-id
 	      (org-google-docs-comments-import--update-entry
 	       sidecar-file remote-id comment source-buffer))))))
-    sidecar-file))
+    (plist-put report :sidecar-file sidecar-file)
+    report))
 
 ;;;###autoload
 (defun org-google-docs-comments-import (&optional include-resolved callback)
@@ -189,12 +200,13 @@ sidecar file path after import."
 	(source-buffer (current-buffer)))
     (org-google-docs-comments-list
      (lambda (comments)
-       (let ((sidecar-file (org-google-docs-comments-import--import-list
-			    comments include-resolved source-file source-buffer)))
+       (let* ((report (org-google-docs-comments-import--import-list
+		       comments include-resolved source-file source-buffer))
+	      (sidecar-file (plist-get report :sidecar-file)))
 	 (when callback
 	   (funcall callback sidecar-file))
 	 (when (called-interactively-p 'interactive)
-	   (message "Imported Google Docs comments into %s" sidecar-file))
+	   (org-comments-import-report-message report))
 	 sidecar-file)))))
 
 (provide 'org-google-docs-comments-import)

@@ -93,5 +93,28 @@ provider-specific identities without adding backend dependencies to
       (concat (substring text 0 length) "…")
     text))
 
+(defun org-comments-import-report--count (report key)
+  "Return numeric KEY count from import REPORT, defaulting to zero."
+  (or (plist-get report key) 0))
+
+(defun org-comments-import-report-format (report)
+  "Return a concise provider-neutral summary for import REPORT.
+REPORT is a plist with optional `:provider', `:added', `:updated',
+`:skipped-resolved', and `:preserved-local' keys."
+  (let* ((provider (or (plist-get report :provider) "Remote"))
+	 (parts (list
+		 (format "added %s" (org-comments-import-report--count report :added))
+		 (format "updated %s" (org-comments-import-report--count report :updated))))
+	 (skipped-resolved (org-comments-import-report--count report :skipped-resolved)))
+    (when (> skipped-resolved 0)
+      (setq parts (append parts (list (format "skipped resolved %s" skipped-resolved)))))
+    (concat provider " comments: " (string-join parts ", ")
+	    (when (plist-get report :preserved-local)
+	      "; local content preserved"))))
+
+(defun org-comments-import-report-message (report)
+  "Show and return a provider-neutral import REPORT message."
+  (message "%s" (org-comments-import-report-format report)))
+
 (provide 'org-comments-core)
 ;;; org-comments-core.el ends here

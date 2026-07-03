@@ -18,5 +18,20 @@
   (let ((org-comments-author "Alice"))
     (should (equal (org-comments-current-author) "Alice"))))
 
+(ert-deftest org-comments-import-report-format-summarizes-provider-counts ()
+  "Import report formatting is provider-neutral and concise."
+  (should (equal (org-comments-import-report-format
+		  '(:provider "Google Docs"
+			      :added 2
+			      :updated 3
+			      :skipped-resolved 1
+			      :preserved-local t))
+		 "Google Docs comments: added 2, updated 3, skipped resolved 1; local content preserved")))
+
+(ert-deftest org-comments-import-report-format-defaults-missing-counts ()
+  "Import report formatting defaults missing counters to zero."
+  (should (equal (org-comments-import-report-format '(:provider "Confluence"))
+		 "Confluence comments: added 0, updated 0")))
+
 (provide 'org-comments-core-test)
 ;;; org-comments-core-test.el ends here

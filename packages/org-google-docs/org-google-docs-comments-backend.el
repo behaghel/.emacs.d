@@ -155,7 +155,8 @@ The initial backend only supports resolving remote comments."
      document-id remote-id
      (lambda (response)
        (setq result response)
-       (org-google-docs-comments-backend--mark-sidecar-resolved comment))
+       (org-google-docs-comments-backend--mark-sidecar-resolved comment)
+       (message "Resolved Google Docs comment %s" remote-id))
      account)
     result))
 
@@ -216,7 +217,10 @@ anchored root comments is intentionally deferred."
      (plist-get payload :body)
      (lambda (response)
        (setq result response)
-       (org-google-docs-comments-backend--record-reply-remote-id payload response))
+       (org-google-docs-comments-backend--record-reply-remote-id payload response)
+       (message "Pushed Google Docs reply %s to comment %s"
+		(alist-get 'id response)
+		(plist-get payload :parent-remote-id)))
      account)
     result))
 
