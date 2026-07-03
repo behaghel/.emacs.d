@@ -7,6 +7,7 @@
 
 (require 'org)
 (require 'org-comments-collaboration)
+(require 'org-comments-core)
 (require 'org-comments-model)
 (require 'subr-x)
 
@@ -139,7 +140,8 @@
 			    (plist-get reply :remote-author-name)
 			    (plist-get reply :remote-author-display-name)
 			    (plist-get reply :created-at))))
-      (insert "\n↳ " (org-comments-panel-render--sync-badge reply))
+      (insert "\n↳ " (org-comments-panel-render--sync-badge reply)
+	      " " (org-comments-sync-state-label reply))
       (if has-metadata
 	  (progn
 	    (insert " ")

@@ -162,6 +162,7 @@
 				:id "reply-1"))
 			 (list :document-id "doc-123"
 			       :parent-remote-id "c-1"
+			       :remote-id nil
 			       :body "Thanks for the review."
 			       :sidecar-file sidecar-file
 			       :id "reply-1"))))
@@ -235,7 +236,42 @@
 	    (insert-file-contents sidecar-file)
 	    (should (search-forward ":ORG_COMMENTS_REMOTE_ID: r-1" nil t))
 	    (goto-char (point-min))
-	    (should (search-forward ":ORG_COMMENTS_REMOTE_PARENT_ID: c-1" nil t))))
+	    (should (search-forward ":ORG_COMMENTS_REMOTE_PARENT_ID: c-1" nil t))
+	    (should (search-forward ":ORG_COMMENTS_REMOTE_STATE: present" nil t))))
+      (delete-directory directory t))))
+
+(ert-deftest org-google-docs-comments-backend-does-not-push-reply-twice ()
+  "Pushing an already synced reply does not create a duplicate remote reply."
+  (let* ((directory (make-temp-file "org-google-docs-push-reply-dup" t))
+	 (sidecar-file (expand-file-name "source.comments.org" directory))
+	 called)
+    (unwind-protect
+	(progn
+	  (with-temp-file sidecar-file
+	    (insert "#+title: Comments for source.org\n")
+	    (insert "#+source: source.org\n")
+	    (insert "#+todo: OPEN TODO | RESOLVED\n\n")
+	    (insert "* OPEN Google Docs comment\n")
+	    (insert ":PROPERTIES:\n")
+	    (insert ":ORG_COMMENTS_ID: google-docs:c-1\n")
+	    (insert ":ORG_COMMENTS_REMOTE_ID: c-1\n")
+	    (insert ":END:\n\nRoot\n\n")
+	    (insert "** OPEN Reply\n")
+	    (insert ":PROPERTIES:\n")
+	    (insert ":ORG_COMMENTS_ID: reply-1\n")
+	    (insert ":ORG_COMMENTS_SYNC_KIND: reply\n")
+	    (insert ":ORG_COMMENTS_REMOTE_PARENT_ID: c-1\n")
+	    (insert ":ORG_COMMENTS_REMOTE_ID: r-1\n")
+	    (insert ":END:\n\nThanks for the review.\n"))
+	  (cl-letf (((symbol-function 'org-google-docs-comments-backend--create-reply)
+		     (lambda (&rest _args) (setq called t))))
+	    (should (equal (org-comments-backend-push
+			    'google-docs
+			    (list :document-id "doc-123"
+				  :sidecar-file sidecar-file
+				  :id "reply-1"))
+			   '(:already-pushed t :remote-id "r-1"))))
+	  (should-not called))
       (delete-directory directory t))))
 
 (ert-deftest org-google-docs-comments-backend-push-rejects-root-comment ()

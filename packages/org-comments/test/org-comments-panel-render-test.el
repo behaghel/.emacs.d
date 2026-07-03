@@ -64,7 +64,18 @@
 	      :replies ((:type comment :status "OPEN" :body "Reply body"))))
      nil)
     (should (search-forward "Root body" nil t))
+    (should (search-forward "unsynced" nil t))
     (should (search-forward "Reply body" nil t))))
+
+(ert-deftest org-comments-panel-render-labels-synced-replies ()
+  "Current comments distinguish synced remote replies from unsynced local replies."
+  (with-temp-buffer
+    (org-comments-panel-render-buffer
+     (current-buffer)
+     '((:type comment :status "OPEN" :body "Root body" :current t
+	      :replies ((:type comment :status "OPEN" :remote-id "r-1" :body "Reply body"))))
+     nil)
+    (should (search-forward "synced" nil t))))
 
 (ert-deftest org-comments-panel-render-list-body-gets-wrap-prefix ()
   "Rendered list bodies set wrap-prefix on list lines."

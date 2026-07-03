@@ -127,11 +127,13 @@ controls whether resolved comments are imported."
       (unless (equal (org-entry-get nil "ORG_COMMENTS_SYNC_KIND") "reply")
 	(user-error "Google Docs remote reply push requires a sidecar reply"))
       (let ((parent-remote-id (org-entry-get nil "ORG_COMMENTS_REMOTE_PARENT_ID"))
+	    (remote-id (org-entry-get nil "ORG_COMMENTS_REMOTE_ID"))
 	    (body (org-comments-entry-body (save-excursion (org-end-of-subtree t t)))))
 	(unless (and parent-remote-id (not (string-empty-p parent-remote-id)))
 	  (user-error "Google Docs reply has no remote parent comment id"))
 	(list :document-id document-id
 	      :parent-remote-id parent-remote-id
+	      :remote-id remote-id
 	      :body body
 	      :sidecar-file sidecar-file
 	      :id comment-id)))))
@@ -197,6 +199,7 @@ is forwarded to upstream gdocs request helpers."
       (org-entry-put nil "ORG_COMMENTS_REMOTE_ID" remote-id)
       (org-entry-put nil "ORG_COMMENTS_REMOTE_PARENT_ID"
 		     (plist-get payload :parent-remote-id))
+      (org-entry-put nil "ORG_COMMENTS_REMOTE_STATE" "present")
       (when-let* ((created-at (alist-get 'createdTime response)))
 	(org-entry-put nil "ORG_COMMENTS_REMOTE_CREATED_AT" created-at))
       (when-let* ((updated-at (alist-get 'modifiedTime response)))
@@ -208,21 +211,26 @@ is forwarded to upstream gdocs request helpers."
 The initial push implementation supports sidecar replies only.  Creating new
 anchored root comments is intentionally deferred."
   (let* ((payload (org-google-docs-comments-backend--reply-payload comment))
+	 (remote-id (plist-get payload :remote-id))
 	 (account (or (plist-get comment :account)
 		      (plist-get comment :gdocs-account)))
 	 result)
-    (org-google-docs-comments-backend--create-reply
-     (plist-get payload :document-id)
-     (plist-get payload :parent-remote-id)
-     (plist-get payload :body)
-     (lambda (response)
-       (setq result response)
-       (org-google-docs-comments-backend--record-reply-remote-id payload response)
-       (message "Pushed Google Docs reply %s to comment %s"
-		(alist-get 'id response)
-		(plist-get payload :parent-remote-id)))
-     account)
-    result))
+    (if (and remote-id (not (string-empty-p remote-id)))
+	(progn
+	  (message "Google Docs reply already pushed: %s" remote-id)
+	  (list :already-pushed t :remote-id remote-id))
+      (org-google-docs-comments-backend--create-reply
+       (plist-get payload :document-id)
+       (plist-get payload :parent-remote-id)
+       (plist-get payload :body)
+       (lambda (response)
+	 (setq result response)
+	 (org-google-docs-comments-backend--record-reply-remote-id payload response)
+	 (message "Pushed Google Docs reply %s to comment %s"
+		  (alist-get 'id response)
+		  (plist-get payload :parent-remote-id)))
+       account)
+      result)))
 
 (defun org-google-docs-comments-backend-detect (&optional source-buffer)
   "Return non-nil when SOURCE-BUFFER is linked to a Google Doc."

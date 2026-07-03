@@ -33,5 +33,13 @@
   (should (equal (org-comments-import-report-format '(:provider "Confluence"))
 		 "Confluence comments: added 0, updated 0")))
 
+(ert-deftest org-comments-sync-state-label-distinguishes-local-and-remote ()
+  "Sync state labels describe local-only and synced records generically."
+  (should (equal (org-comments-sync-state-label '(:body "Draft")) "unsynced"))
+  (should (equal (org-comments-sync-state-label '(:remote-id "r1")) "synced"))
+  (should (equal (org-comments-sync-state-label '(:remote-id "r1" :local-updated-at "now"))
+		 "edited locally"))
+  (should (equal (org-comments-sync-state-label '(:remote-state missing)) "remote missing")))
+
 (provide 'org-comments-core-test)
 ;;; org-comments-core-test.el ends here

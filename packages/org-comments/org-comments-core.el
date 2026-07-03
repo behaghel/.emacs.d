@@ -116,5 +116,21 @@ REPORT is a plist with optional `:provider', `:added', `:updated',
   "Show and return a provider-neutral import REPORT message."
   (message "%s" (org-comments-import-report-format report)))
 
+(defun org-comments-sync-state (comment)
+  "Return provider-neutral sync state for COMMENT."
+  (cond
+   ((eq (plist-get comment :remote-state) 'missing) 'remote-missing)
+   ((plist-get comment :local-updated-at) 'edited)
+   ((plist-get comment :remote-id) 'synced)
+   (t 'local-only)))
+
+(defun org-comments-sync-state-label (comment)
+  "Return a concise provider-neutral sync state label for COMMENT."
+  (pcase (org-comments-sync-state comment)
+    ('remote-missing "remote missing")
+    ('edited "edited locally")
+    ('synced "synced")
+    ('local-only "unsynced")))
+
 (provide 'org-comments-core)
 ;;; org-comments-core.el ends here
