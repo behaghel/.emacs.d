@@ -180,6 +180,28 @@
       (should (equal (org-comments-entry-body end) "New body.")))
     (should (search-forward "Reply body." nil t))))
 
+(ert-deftest org-comments-sidecar-append-child-under-remote-inserts-reply ()
+  "Generic append-child helper inserts child entries under remote parents."
+  (let* ((dir (make-temp-file "org-comments-sidecar-child-" t))
+	 (sidecar (expand-file-name "article.comments.org" dir)))
+    (unwind-protect
+	(progn
+	  (with-temp-file sidecar
+	    (insert "#+title: Comments\n\n")
+	    (insert "* OPEN Parent\n:PROPERTIES:\n")
+	    (insert ":ORG_COMMENTS_REMOTE_ID: parent-1\n")
+	    (insert ":ORG_COMMENTS_BACKEND: google-docs\n")
+	    (insert ":END:\n\nParent body\n"))
+	  (should (org-comments-sidecar-append-child-under-remote
+		   sidecar "parent-1"
+		   "** OPEN Reply\n:PROPERTIES:\n:ORG_COMMENTS_ID: reply-1\n:END:\n\nReply\n"
+		   :backend "google-docs"))
+	  (with-temp-buffer
+	    (insert-file-contents sidecar)
+	    (should (search-forward "** OPEN Reply" nil t))
+	    (should (search-forward "Reply" nil t))))
+      (delete-directory dir t))))
+
 (ert-deftest org-comments-sidecar-stamps-normalized-remote-metadata ()
   "Remote metadata stamping writes provider-neutral sidecar properties."
   (with-temp-buffer

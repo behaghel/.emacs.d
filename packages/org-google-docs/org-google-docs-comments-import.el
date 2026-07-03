@@ -171,17 +171,7 @@ Return non-nil when an entry was updated."
 
 (defun org-google-docs-comments-import--append-entry (sidecar-file source-file entry)
   "Append ENTRY to SIDECAR-FILE for SOURCE-FILE."
-  (org-comments-ensure-sidecar-header sidecar-file source-file)
-  (with-temp-buffer
-    (insert-file-contents sidecar-file)
-    (goto-char (point-max))
-    (unless (bolp) (insert "\n"))
-    (unless (save-excursion
-	      (forward-line -1)
-	      (looking-at-p "[[:space:]]*$"))
-      (insert "\n"))
-    (insert entry)
-    (write-region (point-min) (point-max) sidecar-file nil 'silent)))
+  (org-comments-sidecar-append-entry sidecar-file entry source-file))
 
 (defun org-google-docs-comments-import--update-reply-at-heading (reply parent-remote-id)
   "Update sidecar reply heading at point from normalized Google REPLY."
@@ -229,25 +219,10 @@ Return non-nil when the reply was appended."
     (when (and remote-id
 	       (not (org-comments-sidecar-has-remote-p
 		     sidecar-file remote-id)))
-      (with-temp-buffer
-	(insert-file-contents sidecar-file)
-	(org-mode)
-	(goto-char (point-min))
-	(unless (cl-loop while (re-search-forward org-heading-regexp nil t)
-			 do (goto-char (match-beginning 0))
-			 when (equal parent-remote-id
-				     (org-entry-get nil "ORG_COMMENTS_REMOTE_ID"))
-			 return t
-			 do (forward-line 1))
-	  (user-error "Cannot find Google Docs parent comment %s" parent-remote-id))
-	(goto-char (save-excursion (org-end-of-subtree t t)))
-	(unless (bolp) (insert "\n"))
-	(unless (save-excursion
-		  (forward-line -1)
-		  (looking-at-p "[[:space:]]*$"))
-	  (insert "\n"))
-	(insert (org-google-docs-comments-import--reply-entry reply parent-remote-id))
-	(write-region (point-min) (point-max) sidecar-file nil 'silent))
+      (unless (org-comments-sidecar-append-child-under-remote
+	       sidecar-file parent-remote-id
+	       (org-google-docs-comments-import--reply-entry reply parent-remote-id))
+	(user-error "Cannot find Google Docs parent comment %s" parent-remote-id))
       t)))
 
 (defun org-google-docs-comments-import--mark-missing-replies

@@ -228,17 +228,7 @@ BODY-FORMAT and SYNC-KIND describe imported comment metadata."
 
 (defun org-confluence-comments-import-append-entry (sidecar-file source-file entry)
   "Append remote comment ENTRY to SIDECAR-FILE for SOURCE-FILE."
-  (org-comments-ensure-sidecar-header sidecar-file source-file)
-  (with-temp-buffer
-    (insert-file-contents sidecar-file)
-    (goto-char (point-max))
-    (unless (bolp) (insert "\n"))
-    (unless (save-excursion
-	      (forward-line -1)
-	      (looking-at-p "[[:space:]]*$"))
-      (insert "\n"))
-    (insert entry)
-    (write-region (point-min) (point-max) sidecar-file nil 'silent)))
+  (org-comments-sidecar-append-entry sidecar-file entry source-file))
 
 (defun org-confluence-comments-import-append-footer (sidecar-file source-file comment body-format)
   "Append remote footer COMMENT to SIDECAR-FILE for SOURCE-FILE."
@@ -258,37 +248,16 @@ BODY-FORMAT and SYNC-KIND describe imported comment metadata."
     (sidecar-file source-file comment body-format parent-remote-id)
   "Append remote reply COMMENT under PARENT-REMOTE-ID in SIDECAR-FILE."
   (org-comments-ensure-sidecar-header sidecar-file source-file)
-  (with-temp-buffer
-    (insert-file-contents sidecar-file)
-    (org-mode)
-    (goto-char (point-min))
-    (unless (cl-loop while (re-search-forward org-heading-regexp nil t)
-		     do (goto-char (match-beginning 0))
-		     when (and (equal "confluence" (org-entry-get nil "ORG_COMMENTS_SOURCE"))
-			       (equal parent-remote-id (org-entry-get nil "ORG_COMMENTS_REMOTE_ID")))
-		     return (let ((end (save-excursion (org-end-of-subtree t t))))
-			      (goto-char end)
-			      (unless (bolp) (insert "\n"))
-			      (unless (save-excursion
-					(forward-line -1)
-					(looking-at-p "[[:space:]]*$"))
-				(insert "\n"))
-			      (insert (org-confluence-comments-import-reply-entry
-				       comment body-format parent-remote-id
-				       (file-name-directory sidecar-file)))
-			      t)
-		     do (forward-line 1))
+  (let ((entry (org-confluence-comments-import-reply-entry
+		comment body-format parent-remote-id
+		(file-name-directory sidecar-file))))
+    (unless (org-comments-sidecar-append-child-under-remote
+	     sidecar-file parent-remote-id entry :source "confluence")
       (org-confluence-comments-import-append-entry
        sidecar-file source-file
        (org-confluence-comments-import-orphan-thread-entry
 	parent-remote-id (file-name-directory sidecar-file)))
-      (goto-char (point-min))
-      (re-search-forward org-heading-regexp nil t)
-      (goto-char (point-max))
-      (insert (org-confluence-comments-import-reply-entry
-	       comment body-format parent-remote-id
-	       (file-name-directory sidecar-file))))
-    (write-region (point-min) (point-max) sidecar-file nil 'silent)))
+      (org-comments-sidecar-append-entry sidecar-file entry))))
 
 (defun org-confluence-comments-import-maybe-resolve-people (sidecar-file directory)
   "Resolve people for DIRECTORY and refresh SIDECAR-FILE headings when enabled."

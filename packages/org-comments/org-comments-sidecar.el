@@ -312,6 +312,47 @@ present marker and clears missing metadata."
      (org-comments-sidecar-put-property-when-present
       "ORG_COMMENTS_REMOTE_STATE" state))))
 
+(defun org-comments-sidecar--insert-with-spacing (entry)
+  "Insert ENTRY at point with sidecar-friendly surrounding spacing."
+  (unless (bolp) (insert "\n"))
+  (unless (save-excursion
+	    (forward-line -1)
+	    (looking-at-p "[[:space:]]*$"))
+    (insert "\n"))
+  (insert entry))
+
+(defun org-comments-sidecar-append-entry (sidecar-file entry &optional source-file)
+  "Append ENTRY to SIDECAR-FILE, creating its header for SOURCE-FILE when needed."
+  (when source-file
+    (org-comments-ensure-sidecar-header sidecar-file source-file))
+  (with-temp-buffer
+    (insert-file-contents sidecar-file)
+    (goto-char (point-max))
+    (org-comments-sidecar--insert-with-spacing entry)
+    (write-region (point-min) (point-max) sidecar-file nil 'silent)))
+
+(defun org-comments-sidecar-append-child-under-remote
+    (sidecar-file parent-remote-id entry &rest filters)
+  "Append child ENTRY under PARENT-REMOTE-ID in SIDECAR-FILE.
+FILTERS narrow the parent heading using the same keys as
+`org-comments-sidecar--filter-match-p'.  Return non-nil when the parent exists."
+  (with-temp-buffer
+    (insert-file-contents sidecar-file)
+    (org-mode)
+    (goto-char (point-min))
+    (when (cl-loop while (re-search-forward org-heading-regexp nil t)
+		   do (goto-char (match-beginning 0))
+		   when (and (equal parent-remote-id
+				    (org-entry-get nil "ORG_COMMENTS_REMOTE_ID"))
+			     (org-comments-sidecar--filter-match-p filters))
+		   return (progn
+			    (goto-char (save-excursion (org-end-of-subtree t t)))
+			    (org-comments-sidecar--insert-with-spacing entry)
+			    t)
+		   do (forward-line 1))
+      (write-region (point-min) (point-max) sidecar-file nil 'silent)
+      t)))
+
 (defun org-comments-sidecar-reconcile-missing (sidecar-file seen-ids &rest options)
   "Mark remote-linked sidecar entries absent from SEEN-IDS as missing.
 OPTIONS may include `:backend', `:source', `:sync-kind', `:parent-remote-id',
