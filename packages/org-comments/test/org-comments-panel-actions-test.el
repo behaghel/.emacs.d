@@ -78,6 +78,17 @@
   (should (eq (lookup-key org-comments-panel-mode-map (kbd "o"))
 	      #'org-comments-open-remote)))
 
+(ert-deftest org-comments-panel-actions-keymap-reload-updates-stale-bindings ()
+  "Panel key installation overwrites stale bindings in existing maps."
+  (define-key org-comments-panel-status-map (kbd "r")
+	      #'org-comments-panel-mark-resolved)
+  (unwind-protect
+      (progn
+	(org-comments-panel-install-default-keybindings)
+	(should (eq (lookup-key org-comments-panel-status-map (kbd "r"))
+		    #'org-comments-mark-resolved)))
+    (org-comments-panel-install-default-keybindings)))
+
 (ert-deftest org-comments-panel-actions-keymap-binds-push ()
   "Panel binds capital U to the public DWIM push command."
   (should (eq (lookup-key org-comments-panel-mode-map (kbd "U"))
