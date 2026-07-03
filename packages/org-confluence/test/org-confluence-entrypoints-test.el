@@ -46,6 +46,17 @@
       (org-confluence-mode -1)
       (should org-comments-mode))))
 
+(ert-deftest org-confluence-dispatch-labels-use-shared-ux-vocabulary ()
+  "Dispatch labels follow the shared remote comments UX vocabulary."
+  (should (equal (mapcar #'cadr org-confluence--dispatch-entries)
+		 '("Status: Sync status"
+		   "Sync: Sync page and comments"
+		   "Publish: Publish page"
+		   "Pull: Pull current file"
+		   "Open: Open remote page"
+		   "Comments: Import comments"
+		   "Navigate: Pull descendant"))))
+
 (ert-deftest org-confluence-mode-map-binds-dispatch-by-default ()
   "Confluence mode binds one package-native dispatch command by default."
   (let ((org-confluence-keymap-prefix "C-c C-x C"))

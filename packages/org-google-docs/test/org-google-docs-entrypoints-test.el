@@ -84,11 +84,24 @@
   "Dispatch prompts for an action and runs the selected command."
   (let (calls)
     (cl-letf (((symbol-function 'completing-read)
-	       (lambda (&rest _) "Doctor"))
+	       (lambda (&rest _) "Status: Doctor"))
 	      ((symbol-function 'org-google-docs-doctor)
 	       (lambda () (interactive) (push 'doctor calls))))
       (org-google-docs-dispatch)
       (should (equal calls '(doctor))))))
+
+(ert-deftest org-google-docs-dispatch-labels-use-shared-ux-vocabulary ()
+  "Dispatch labels follow the shared remote comments UX vocabulary."
+  (should (equal (mapcar #'car org-google-docs--dispatch-actions)
+		 '("Status: Doctor"
+		   "Status: Upstream gdocs status"
+		   "Sync: Sync current buffer"
+		   "Publish: Create Google Doc from buffer"
+		   "Publish: Push buffer to Google Docs"
+		   "Pull: Pull Google Doc into buffer"
+		   "Open: Open linked Google Doc in browser"
+		   "Comments: Import comments"
+		   "Account: Authenticate Google account"))))
 
 (ert-deftest org-google-docs-mode-map-binds-dispatch-by-default ()
   "Google Docs mode binds one package-native dispatch command by default."

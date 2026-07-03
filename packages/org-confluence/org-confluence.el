@@ -26,6 +26,7 @@
 (require 'org-confluence-people-store)
 (require 'org-confluence-sync-status-marker)
 
+(declare-function org-confluence-comments-import "org-confluence-comments-import" (&optional page-id body-format))
 (declare-function org-confluence-open-page "org-confluence-publish" ())
 (declare-function org-confluence-publish "org-confluence-publish" (&optional page-id subtreep visible-only body-only ext-plist))
 (declare-function org-confluence-pull "org-confluence-import" (&optional page-id))
@@ -118,12 +119,13 @@ Set this to nil to leave `org-confluence-mode-map' without a default binding."
       (setq org-confluence--empty-page-overlay overlay))))
 
 (defconst org-confluence--dispatch-entries
-  '((?s "sync status" org-confluence-sync-status)
-    (?y "sync page and comments" org-confluence-sync-current)
-    (?p "publish" org-confluence-publish)
-    (?P "pull current file" org-confluence-pull)
-    (?o "open remote page" org-confluence-open-page)
-    (?d "pull descendant" org-confluence-pull-child-page))
+  '((?s "Status: Sync status" org-confluence-sync-status)
+    (?y "Sync: Sync page and comments" org-confluence-sync-current)
+    (?p "Publish: Publish page" org-confluence-publish)
+    (?P "Pull: Pull current file" org-confluence-pull)
+    (?o "Open: Open remote page" org-confluence-open-page)
+    (?i "Comments: Import comments" org-confluence-comments-import)
+    (?d "Navigate: Pull descendant" org-confluence-pull-child-page))
   "Dispatch entries for `org-confluence-dispatch'.")
 
 (defun org-confluence--dispatch-command (key)
@@ -132,8 +134,8 @@ Set this to nil to leave `org-confluence-mode-map' without a default binding."
 
 (defun org-confluence--dispatch-fallback ()
   "Show a simple fallback dispatch menu for Confluence commands."
-  (let* ((prompt "Confluence: [s] status  [y] sync  [p] publish  [P] pull  [o] open  [d] descendant  [q] quit ")
-	 (key (read-char-choice prompt '(?s ?y ?p ?P ?o ?d ?q))))
+  (let* ((prompt "Confluence: [s] status  [y] sync  [p] publish  [P] pull  [o] open  [i] comments  [d] descendant  [q] quit ")
+	 (key (read-char-choice prompt '(?s ?y ?p ?P ?o ?i ?d ?q))))
     (unless (eq key ?q)
       (call-interactively (org-confluence--dispatch-command key)))))
 
@@ -141,12 +143,13 @@ Set this to nil to leave `org-confluence-mode-map' without a default binding."
   (transient-define-prefix org-confluence--dispatch-transient ()
 			   "Show Confluence commands for the current Org buffer."
 			   [["Confluence"
-			     ("s" "sync status" org-confluence-sync-status)
-			     ("y" "sync page and comments" org-confluence-sync-current)
-			     ("p" "publish" org-confluence-publish)
-			     ("P" "pull current file" org-confluence-pull)
-			     ("o" "open remote page" org-confluence-open-page)
-			     ("d" "pull descendant" org-confluence-pull-child-page)]]))
+			     ("s" "Status: sync status" org-confluence-sync-status)
+			     ("y" "Sync: page and comments" org-confluence-sync-current)
+			     ("p" "Publish: page" org-confluence-publish)
+			     ("P" "Pull: current file" org-confluence-pull)
+			     ("o" "Open: remote page" org-confluence-open-page)
+			     ("i" "Comments: import" org-confluence-comments-import)
+			     ("d" "Navigate: pull descendant" org-confluence-pull-child-page)]]))
 
 ;;;###autoload
 (defun org-confluence-dispatch ()
