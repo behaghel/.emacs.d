@@ -19,6 +19,7 @@ The current Org comments implementation works, but its reusable model is spread 
 Current implementation locations:
 
 - `packages/org-comments/`: generic sidecar storage/model/link/anchor logic, commands, overlays, panel rendering, and backend protocol.
+- `packages/org-comments/docs/ux-parity-audit.md`: UX parity contract and audit checklist for Confluence and Google Docs comment workflows.
 - `packages/org-comments/org-context-panel.el`: reusable provider-based Org context panel mechanics.
 - `modules/interactive/org/comments.el`: personal interactive command layer and Evil/Bépo bindings.
 - `modules/interactive/org/context-panel.el`: personal context-panel activation, UI adapters, visual-fill docking, and optional filter extensions.
@@ -88,6 +89,17 @@ packages/org-comments/
 ```
 
 Personal activation remains in `modules/interactive/org/` and should stay limited to load-path setup, package requires, hooks, and personal extensions. Comments panel mode/keymaps are owned by `org-comments-panel-mode`.
+
+## UX Parity Contract
+
+Remote comment providers should share the same author-facing command language,
+comments panel look'n'feel, report grammar, and capability-gated failure style.
+Confluence and Google Docs parity is tracked in
+[`docs/ux-parity-audit.md`](docs/ux-parity-audit.md), with the visual contract in
+[`docs/wireframes/provider-parity-panel.svg`](docs/wireframes/provider-parity-panel.svg).
+Provider API differences remain legitimate, but they should appear as clear
+capability limits inside the shared UX rather than as different interaction
+models.
 
 ## Backend Contract
 

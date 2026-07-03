@@ -1,0 +1,71 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="980" height="620" viewBox="0 0 980 620" role="img" aria-labelledby="title desc">
+  <title id="title">Org comments provider parity panel wireframe</title>
+  <desc id="desc">Wireframe for a provider-neutral Org source buffer, right comments panel, and bottom status/action area showing Confluence and Google Docs comments with the same visual grammar.</desc>
+  <defs>
+    <style>
+      .bg { fill: #f7f5ef; }
+      .chrome { fill: #ebe7dc; stroke: #c8c0af; stroke-width: 1; }
+      .source { fill: #fffdf8; stroke: #c8c0af; stroke-width: 1; }
+      .panel { fill: #fbfaf6; stroke: #aaa18f; stroke-width: 1.5; }
+      .status { fill: #efece4; stroke: #aaa18f; stroke-width: 1; }
+      .comment { fill: #ffffff; stroke: #b9b0a0; stroke-width: 1; }
+      .current { stroke: #5c7cfa; stroke-width: 2; }
+      .muted { fill: #817767; font: 13px monospace; }
+      .text { fill: #25211b; font: 14px monospace; }
+      .heading { fill: #25211b; font: bold 15px monospace; }
+      .tiny { fill: #5f574a; font: 12px monospace; }
+      .chip-open { fill: #e8f2ff; stroke: #8cb4ff; }
+      .chip-todo { fill: #fff3d6; stroke: #e1b64b; }
+      .chip-resolved { fill: #e6f6e8; stroke: #76b77d; }
+      .badge { fill: #f4f0e8; stroke: #d1c7b6; }
+      .warn { fill: #fff4e5; stroke: #e2a449; }
+    </style>
+  </defs>
+
+  <rect class="bg" x="0" y="0" width="980" height="620"/>
+
+  <rect class="chrome" x="20" y="20" width="940" height="34" rx="6"/>
+  <text class="heading" x="36" y="42">article.org — Org authoring buffer</text>
+  <text class="tiny" x="760" y="42">org-comments-mode  GDocs/Confluence</text>
+
+  <rect class="source" x="20" y="70" width="590" height="410" rx="6"/>
+  <text class="heading" x="42" y="102">* Draft section</text>
+  <text class="text" x="42" y="134">This paragraph has a reviewed phrase with an</text>
+  <rect class="warn" x="42" y="146" width="388" height="24" rx="3"/>
+  <text class="text" x="52" y="164">anchored comment target</text>
+  <text class="text" x="42" y="204">The source keeps clean Org text; comments live</text>
+  <text class="text" x="42" y="228">in the adjacent .comments.org sidecar.</text>
+  <rect class="badge" x="42" y="268" width="164" height="26" rx="4"/>
+  <text class="text" x="54" y="286">[2 PAGE comments]</text>
+  <text class="tiny" x="42" y="444">Source UX invariant: identical navigation, overlays, page marker, and panel focus across providers.</text>
+
+  <rect class="panel" x="630" y="70" width="330" height="410" rx="6"/>
+  <text class="heading" x="650" y="100">Comments</text>
+  <text class="tiny" x="810" y="100">za zd zm zr zx z?</text>
+  <line x1="650" y1="112" x2="940" y2="112" stroke="#d5cec1"/>
+
+  <rect class="comment current" x="650" y="128" width="290" height="106" rx="6"/>
+  <rect class="chip-open" x="666" y="144" width="54" height="22" rx="11"/>
+  <text class="tiny" x="678" y="160">OPEN</text>
+  <text class="text" x="730" y="160">💬 “anchored comment…” 🔗</text>
+  <text class="tiny" x="666" y="184">Alice · 2026-07-02</text>
+  <text class="text" x="666" y="210">Please clarify this phrasing.</text>
+
+  <rect class="comment" x="650" y="248" width="290" height="108" rx="6"/>
+  <rect class="chip-todo" x="666" y="264" width="54" height="22" rx="11"/>
+  <text class="tiny" x="678" y="280">TODO</text>
+  <text class="text" x="730" y="280">💬 “reviewed phrase” ✍️</text>
+  <text class="tiny" x="666" y="304">Bob · local draft reply pending</text>
+  <text class="text" x="666" y="330">↳ ✍️ pending reply preview…</text>
+
+  <rect class="comment" x="650" y="370" width="290" height="86" rx="6"/>
+  <rect class="chip-resolved" x="666" y="386" width="78" height="22" rx="11"/>
+  <text class="tiny" x="678" y="402">RESOLVED</text>
+  <text class="text" x="754" y="402">👆 PAGE 🔗</text>
+  <text class="tiny" x="666" y="426">Remote thread, collapsed by filter.</text>
+
+  <rect class="status" x="20" y="500" width="940" height="92" rx="6"/>
+  <text class="heading" x="42" y="528">Provider-neutral action bar / report</text>
+  <text class="text" x="42" y="554">RET jump · e edit · r reply · O open remote · U push · D pull · S sync · m status · z filters · ? help</text>
+  <text class="tiny" x="42" y="578">Report grammar: “Google Docs comments: added 1, pushed replies 1” and “Confluence comments: added 1, pushed replies 1”. Unsupported actions explain provider limits in-place.</text>
+</svg>
