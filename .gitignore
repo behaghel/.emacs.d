@@ -55,6 +55,7 @@ bookmarks
 /private/
 /.org-generic-id-locations
 /org-gcal/
+/gdocs/
 /persist/
 ## Keep versions tracked; ignore other straight content
 !/straight/versions/
