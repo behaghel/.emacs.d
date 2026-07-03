@@ -105,7 +105,10 @@ REPORT is a plist with optional `:provider', `:added', `:updated',
 	 (parts (list
 		 (format "added %s" (org-comments-import-report--count report :added))
 		 (format "updated %s" (org-comments-import-report--count report :updated))))
+	 (added-replies (org-comments-import-report--count report :added-replies))
 	 (skipped-resolved (org-comments-import-report--count report :skipped-resolved)))
+    (when (> added-replies 0)
+      (setq parts (append parts (list (format "added replies %s" added-replies)))))
     (when (> skipped-resolved 0)
       (setq parts (append parts (list (format "skipped resolved %s" skipped-resolved)))))
     (concat provider " comments: " (string-join parts ", ")

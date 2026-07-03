@@ -24,9 +24,10 @@
 		  '(:provider "Google Docs"
 			      :added 2
 			      :updated 3
+			      :added-replies 1
 			      :skipped-resolved 1
 			      :preserved-local t))
-		 "Google Docs comments: added 2, updated 3, skipped resolved 1; local content preserved")))
+		 "Google Docs comments: added 2, updated 3, added replies 1, skipped resolved 1; local content preserved")))
 
 (ert-deftest org-comments-import-report-format-defaults-missing-counts ()
   "Import report formatting defaults missing counters to zero."

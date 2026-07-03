@@ -93,6 +93,57 @@
        (should (= (plist-get report :skipped-resolved) 1))
        (should (plist-get report :preserved-local))))))
 
+(ert-deftest org-google-docs-comments-import-writes-remote-replies ()
+  "Import appends remote Google replies under their parent comment."
+  (org-google-docs-comments-import-test--with-source
+   (cl-letf (((symbol-function 'org-google-docs-comments-list)
+	      (lambda (callback)
+		(funcall callback
+			 (list (list :backend 'google-docs
+				     :kind 'comment
+				     :remote-id "c-1"
+				     :body "Root body."
+				     :status "open"
+				     :replies
+				     (list (list :backend 'google-docs
+						 :kind 'reply
+						 :remote-id "r-1"
+						 :body "Remote reply."
+						 :author-name "Grace Hopper"
+						 :created-at "2026-07-03T10:00:00Z"))))))))
+     (let ((sidecar (org-google-docs-comments-import)))
+       (with-temp-buffer
+	 (insert-file-contents sidecar)
+	 (should (search-forward "* OPEN Google Docs comment" nil t))
+	 (should (search-forward "** OPEN Reply from Grace Hopper" nil t))
+	 (should (search-forward ":ORG_COMMENTS_SYNC_KIND: reply" nil t))
+	 (should (search-forward ":ORG_COMMENTS_REMOTE_ID: r-1" nil t))
+	 (should (search-forward ":ORG_COMMENTS_REMOTE_PARENT_ID: c-1" nil t))
+	 (should (search-forward ":ORG_COMMENTS_REMOTE_STATE: present" nil t))
+	 (should (search-forward "Remote reply." nil t)))))))
+
+(ert-deftest org-google-docs-comments-import-does-not-duplicate-remote-replies ()
+  "Re-importing remote Google replies is idempotent."
+  (org-google-docs-comments-import-test--with-source
+   (let ((comments (list (list :backend 'google-docs
+			       :kind 'comment
+			       :remote-id "c-1"
+			       :body "Root body."
+			       :status "open"
+			       :replies
+			       (list (list :backend 'google-docs
+					   :kind 'reply
+					   :remote-id "r-1"
+					   :body "Remote reply."))))))
+     (cl-letf (((symbol-function 'org-google-docs-comments-list)
+		(lambda (callback) (funcall callback comments))))
+       (let ((sidecar (org-google-docs-comments-import)))
+	 (org-google-docs-comments-import)
+	 (with-temp-buffer
+	   (insert-file-contents sidecar)
+	   (should (= 1 (how-many ":ORG_COMMENTS_REMOTE_ID: r-1"
+				  (point-min) (point-max))))))))))
+
 (ert-deftest org-google-docs-comments-import-skips-resolved-by-default ()
   "Resolved Google comments are not imported unless requested."
   (org-google-docs-comments-import-test--with-source
