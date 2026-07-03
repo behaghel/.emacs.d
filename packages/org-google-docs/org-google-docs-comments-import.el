@@ -197,7 +197,8 @@ sidecar file path after import."
   (interactive "P")
   (let ((source-file (or buffer-file-name
 			 (user-error "Current buffer is not visiting a file")))
-	(source-buffer (current-buffer)))
+	(source-buffer (current-buffer))
+	(interactive-p (called-interactively-p 'interactive)))
     (org-google-docs-comments-list
      (lambda (comments)
        (let* ((report (org-google-docs-comments-import--import-list
@@ -205,7 +206,7 @@ sidecar file path after import."
 	      (sidecar-file (plist-get report :sidecar-file)))
 	 (when callback
 	   (funcall callback sidecar-file))
-	 (when (called-interactively-p 'interactive)
+	 (when interactive-p
 	   (org-comments-import-report-message report))
 	 sidecar-file)))))
 
