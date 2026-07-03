@@ -6,6 +6,8 @@
 | =O= | =org-comments-open-remote= |
 | =S= | =org-comments-sync= |
 | =U= | =org-comments-push= |
+| =d= | =org-comments-delete= |
+| =e= | =org-comments-edit= |
 | =g= | =org-comments-panel-refresh= |
 | =m o= | =org-comments-mark-open= |
 | =m r= | =org-comments-mark-resolved= |

@@ -168,6 +168,28 @@
 	       (lambda (status) (list :status status))))
       (should (equal (org-comments-mark-resolved) '(:status "RESOLVED"))))))
 
+(ert-deftest org-comments-commands-edit-dwim-edits-panel-row ()
+  "Edit delegates to the panel action when point is on a rendered row."
+  (with-temp-buffer
+    (insert "row")
+    (add-text-properties (point-min) (point-max)
+			 '(org-comments-comment (:id "c1")))
+    (goto-char (point-min))
+    (cl-letf (((symbol-function 'org-comments-edit-at-point)
+	       (lambda () 'edited)))
+      (should (eq (org-comments-edit) 'edited)))))
+
+(ert-deftest org-comments-commands-delete-dwim-deletes-panel-row ()
+  "Delete delegates to the panel action when point is on a rendered row."
+  (with-temp-buffer
+    (insert "row")
+    (add-text-properties (point-min) (point-max)
+			 '(org-comments-comment (:id "c1")))
+    (goto-char (point-min))
+    (cl-letf (((symbol-function 'org-comments-delete-at-point)
+	       (lambda () 'deleted)))
+      (should (eq (org-comments-delete) 'deleted)))))
+
 (ert-deftest org-comments-commands-open-remote-requires-file-backed-org-buffer ()
   "Open remote is only available from file-backed Org buffers or panel rows."
   (with-temp-buffer

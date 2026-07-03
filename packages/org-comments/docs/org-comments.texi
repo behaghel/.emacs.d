@@ -328,9 +328,9 @@ former personal metadata prefix.
 @item @samp{org-comments-create-from-region}
 @tab Create a sidecar comment for the active region.
 @item @samp{org-comments-delete}
-@tab Delete the comment at point from its sidecar.
+@tab Delete the current comment from its sidecar.
 @item @samp{org-comments-edit}
-@tab Jump to the body of the comment at point.
+@tab Jump to the current comment body.
 @item @samp{org-comments-filter-reset-current-ui}
 @tab Reset filters in the current comments UI@.
 @item @samp{org-comments-filter-status-current-ui}
@@ -371,10 +371,6 @@ former personal metadata prefix.
 @tab Refresh the standalone Org page comments panel.
 @item @samp{org-comments-panel-close}
 @tab Close the standalone Org comments panel.
-@item @samp{org-comments-panel-delete}
-@tab Delete the current panel row's sidecar comment and refresh the panel.
-@item @samp{org-comments-panel-edit}
-@tab Open the current panel row's sidecar comment body for editing.
 @item @samp{org-comments-panel-filter-reset}
 @tab Reset filters in the current Org comments panel.
 @item @samp{org-comments-panel-filter-toggle-resolved}
@@ -510,7 +506,7 @@ former personal metadata prefix.
 @node Org buffers
 @section Org buffers
 
-@float Table,org4e6b49d
+@float Table,orge557b8c
 @multitable {aaaaaaaaaaa} {aaaaaaaaaaaaaaaaaaaaaaaaaaaa}
 @headitem Key
 @tab Command
@@ -553,7 +549,7 @@ former personal metadata prefix.
 @node Comment panel
 @section Comment panel
 
-@float Table,org364d820
+@float Table,org14c180f
 @multitable {aaaaa} {aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa}
 @headitem Key
 @tab Command
@@ -567,6 +563,10 @@ former personal metadata prefix.
 @tab @samp{org-comments-sync}
 @item @samp{U}
 @tab @samp{org-comments-push}
+@item @samp{d}
+@tab @samp{org-comments-delete}
+@item @samp{e}
+@tab @samp{org-comments-edit}
 @item @samp{g}
 @tab @samp{org-comments-panel-refresh}
 @item @samp{m o}

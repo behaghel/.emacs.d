@@ -330,8 +330,8 @@ Command                                            Description
 ‘org-comments-compose-submit’                      Submit the current composed comment by saving it and closing compose.
 ‘org-comments-create’                              Create a sidecar comment for region START to END with BODY.
 ‘org-comments-create-from-region’                  Create a sidecar comment for the active region.
-‘org-comments-delete’                              Delete the comment at point from its sidecar.
-‘org-comments-edit’                                Jump to the body of the comment at point.
+‘org-comments-delete’                              Delete the current comment from its sidecar.
+‘org-comments-edit’                                Jump to the current comment body.
 ‘org-comments-filter-reset-current-ui’             Reset filters in the current comments UI.
 ‘org-comments-filter-status-current-ui’            Show filter status for the current comments UI.
 ‘org-comments-filter-toggle-resolved-current-ui’   Toggle resolved comments in the current comments UI.
@@ -352,8 +352,6 @@ Command                                            Description
 ‘org-comments-page-panel-open’                     Open or refresh the standalone page comments panel for the current source.
 ‘org-comments-page-panel-refresh’                  Refresh the standalone Org page comments panel.
 ‘org-comments-panel-close’                         Close the standalone Org comments panel.
-‘org-comments-panel-delete’                        Delete the current panel row's sidecar comment and refresh the panel.
-‘org-comments-panel-edit’                          Open the current panel row's sidecar comment body for editing.
 ‘org-comments-panel-filter-reset’                  Reset filters in the current Org comments panel.
 ‘org-comments-panel-filter-toggle-resolved’        Toggle display of resolved comments in the current panel.
 ‘org-comments-panel-jump’                          Jump from the current panel row to its source comment target.
@@ -461,6 +459,8 @@ Key     Command
 ‘O’     ‘org-comments-open-remote’
 ‘S’     ‘org-comments-sync’
 ‘U’     ‘org-comments-push’
+‘d’     ‘org-comments-delete’
+‘e’     ‘org-comments-edit’
 ‘g’     ‘org-comments-panel-refresh’
 ‘m o’   ‘org-comments-mark-open’
 ‘m r’   ‘org-comments-mark-resolved’
@@ -576,19 +576,19 @@ Node: Identity resolution8866
 Node: Confluence Backend9352
 Node: Migration9929
 Node: Commands10412
-Node: Customization16895
-Node: Keybindings20532
-Node: Org buffers20732
-Ref: org4e6b49d20854
-Node: Comment panel21685
-Ref: org364d82021839
-Node: Page comments panel22636
-Node: Developer API22920
-Node: Troubleshooting23577
-Node: No comments appear23820
-Node: Legacy sidecar error24110
-Node: Remote operation is unsupported24422
-Node: Info manual is missing24810
+Node: Customization16643
+Node: Keybindings20280
+Node: Org buffers20480
+Ref: orge557b8c20602
+Node: Comment panel21433
+Ref: org14c180f21587
+Node: Page comments panel22458
+Node: Developer API22742
+Node: Troubleshooting23399
+Node: No comments appear23642
+Node: Legacy sidecar error23932
+Node: Remote operation is unsupported24244
+Node: Info manual is missing24632
 
 End Tag Table
 

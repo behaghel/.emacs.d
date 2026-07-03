@@ -179,21 +179,29 @@ mode map with `org-comments-rebuild-mode-map'."
 
 ;;;###autoload
 (defun org-comments-edit ()
-  "Jump to the body of the comment at point."
+  "Jump to the current comment body.
+When point is on a comments UI row, edit that row.  Otherwise edit the source
+comment at point."
   (interactive)
-  (org-comments-goto-sidecar-body (org-comments--comment-at-point)))
+  (if (get-text-property (point) 'org-comments-comment)
+      (org-comments-edit-at-point)
+    (org-comments-goto-sidecar-body (org-comments--comment-at-point))))
 
 ;;;###autoload
 (defun org-comments-delete ()
-  "Delete the comment at point from its sidecar."
+  "Delete the current comment from its sidecar.
+When point is on a comments UI row, delete that row.  Otherwise delete the
+source-buffer comment at point."
   (interactive)
-  (let* ((comment (org-comments--comment-at-point))
-	 (sidecar-file (plist-get comment :sidecar-file))
-	 (comment-id (plist-get comment :id)))
-    (unless (and sidecar-file comment-id)
-      (user-error "Comment has no sidecar location"))
-    (org-comments-delete-entry sidecar-file comment-id)
-    (org-comments-refresh)))
+  (if (get-text-property (point) 'org-comments-comment)
+      (org-comments-delete-at-point)
+    (let* ((comment (org-comments--comment-at-point))
+	   (sidecar-file (plist-get comment :sidecar-file))
+	   (comment-id (plist-get comment :id)))
+      (unless (and sidecar-file comment-id)
+	(user-error "Comment has no sidecar location"))
+      (org-comments-delete-entry sidecar-file comment-id)
+      (org-comments-refresh))))
 
 (defun org-comments-set-status (status)
   "Set the sidecar status for the current comment to STATUS.

@@ -57,14 +57,14 @@
 	      #'org-context-panel-jump-at-point)))
 
 (ert-deftest org-comments-panel-actions-keymap-binds-delete ()
-  "Panel binds d directly to package delete-at-point."
+  "Panel binds d to the public DWIM delete command."
   (should (eq (lookup-key org-comments-panel-mode-map (kbd "d"))
-	      #'org-comments-delete-at-point)))
+	      #'org-comments-delete)))
 
 (ert-deftest org-comments-panel-actions-keymap-binds-edit ()
-  "Panel binds e directly to package edit-at-point."
+  "Panel binds e to the public DWIM edit command."
   (should (eq (lookup-key org-comments-panel-mode-map (kbd "e"))
-	      #'org-comments-edit-at-point)))
+	      #'org-comments-edit)))
 
 (ert-deftest org-comments-panel-actions-keymap-binds-reply ()
   "Panel binds r to the public DWIM reply command."

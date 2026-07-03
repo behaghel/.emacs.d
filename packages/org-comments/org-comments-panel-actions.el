@@ -255,10 +255,8 @@
       (user-error "No comment items"))
     (goto-char previous)))
 
-;;;###autoload
 (defun org-comments-panel-pull ()
   "Pull remote comments through the detected backend for the panel source."
-  (interactive)
   (let* ((source-buffer (org-comments-current-source-buffer))
 	 (result (org-comments-backend-pull
 		  (org-comments-backend-detect source-buffer)
@@ -266,10 +264,8 @@
     (org-comments-refresh-current-ui)
     result))
 
-;;;###autoload
 (defun org-comments-panel-sync ()
   "Synchronize comments through the detected backend for the panel source."
-  (interactive)
   (let* ((source-buffer (org-comments-current-source-buffer))
 	 (result (org-comments-backend-sync
 		  (org-comments-backend-detect source-buffer)
@@ -277,10 +273,8 @@
     (org-comments-refresh-current-ui)
     result))
 
-;;;###autoload
 (defun org-comments-push-at-point ()
   "Push the current comment through the detected remote backend."
-  (interactive)
   (let* ((source-buffer (org-comments-current-source-buffer))
 	 (comment (org-comments-comment-with-source-file
 		   (org-comments-current-comment) source-buffer))
@@ -290,16 +284,12 @@
     (org-comments-refresh-current-ui)
     result))
 
-;;;###autoload
 (defun org-comments-panel-push ()
   "Push the current panel row through the detected remote backend."
-  (interactive)
   (org-comments-push-at-point))
 
-;;;###autoload
 (defun org-comments-open-remote-at-point ()
   "Open the current comment through the detected remote backend."
-  (interactive)
   (let* ((source-buffer (org-comments-current-source-buffer))
 	 (comment (org-comments-comment-with-source-file
 		   (org-comments-current-comment) source-buffer)))
@@ -307,31 +297,23 @@
      (org-comments-backend-detect source-buffer)
      comment)))
 
-;;;###autoload
 (defun org-comments-panel-open-remote ()
   "Open the current panel row through the detected remote backend."
-  (interactive)
   (org-comments-open-remote-at-point))
 
-;;;###autoload
 (defun org-comments-reply-at-point ()
   "Reply to the current comment at point and refresh the UI."
-  (interactive)
   (let ((result (funcall org-comments-current-reply-function
 			 (org-comments-current-comment))))
     (org-comments-refresh-current-ui)
     result))
 
-;;;###autoload
 (defun org-comments-panel-reply ()
   "Prompt for a reply to the current panel row and refresh."
-  (interactive)
   (org-comments-reply-at-point))
 
-;;;###autoload
 (defun org-comments-edit-at-point ()
   "Open the current comment at point for editing in its sidecar."
-  (interactive)
   (let ((buffer (org-comments-panel--goto-sidecar-heading
 		 (org-comments-current-comment))))
     (pop-to-buffer buffer)
@@ -339,16 +321,12 @@
     (when (looking-at-p "[[:space:]]*$")
       (forward-line 1))))
 
-;;;###autoload
 (defun org-comments-panel-edit ()
   "Open the current panel row's sidecar comment body for editing."
-  (interactive)
   (org-comments-edit-at-point))
 
-;;;###autoload
 (defun org-comments-delete-at-point ()
   "Delete the current comment at point and refresh the UI."
-  (interactive)
   (let ((comment (org-comments-current-comment)))
     (pcase-let ((`(,sidecar-file . ,comment-id)
 		 (org-comments-panel--sidecar-location comment)))
@@ -356,10 +334,8 @@
       (org-comments-refresh-current-ui)
       (message "Deleted comment %s" comment-id))))
 
-;;;###autoload
 (defun org-comments-panel-delete ()
   "Delete the current panel row's sidecar comment and refresh the panel."
-  (interactive)
   (org-comments-delete-at-point))
 
 (defun org-comments-set-status-at-point (status)
@@ -375,40 +351,28 @@
   "Set the current panel row's sidecar comment to STATUS and refresh."
   (org-comments-set-status-at-point status))
 
-;;;###autoload
 (defun org-comments-mark-open-at-point ()
   "Mark the current comment at point OPEN."
-  (interactive)
   (org-comments-set-status-at-point "OPEN"))
 
-;;;###autoload
 (defun org-comments-mark-todo-at-point ()
   "Mark the current comment at point TODO."
-  (interactive)
   (org-comments-set-status-at-point "TODO"))
 
-;;;###autoload
 (defun org-comments-mark-resolved-at-point ()
   "Mark the current comment at point RESOLVED."
-  (interactive)
   (org-comments-set-status-at-point "RESOLVED"))
 
-;;;###autoload
 (defun org-comments-panel-mark-open ()
   "Mark the current panel row's comment open."
-  (interactive)
   (org-comments-mark-open-at-point))
 
-;;;###autoload
 (defun org-comments-panel-mark-todo ()
   "Mark the current panel row's comment TODO."
-  (interactive)
   (org-comments-mark-todo-at-point))
 
-;;;###autoload
 (defun org-comments-panel-mark-resolved ()
   "Mark the current panel row's comment resolved."
-  (interactive)
   (org-comments-mark-resolved-at-point))
 
 (provide 'org-comments-panel-actions)
