@@ -51,6 +51,25 @@ SPEC may contain :name, :capabilities, and operation keys such as :list,
   "Return non-nil when backend ID declares CAPABILITY."
   (memq capability (org-comments-backend-capabilities id)))
 
+(defun org-comments-backend-operation-label (operation)
+  "Return a human-readable label for backend OPERATION."
+  (let ((name (string-remove-prefix ":" (format "%s" operation))))
+    (string-replace "-" " " name)))
+
+(defun org-comments-backend-unsupported (backend operation &optional alternative)
+  "Signal a provider-neutral unsupported OPERATION error for BACKEND.
+BACKEND may be a backend id symbol or display string.  ALTERNATIVE, when
+non-nil, describes the supported next step."
+  (let ((provider (if (symbolp backend)
+		      (org-comments-backend-name backend)
+		    (format "%s" backend)))
+	(operation-label (org-comments-backend-operation-label operation)))
+    (user-error "%s does not support %s%s"
+		provider operation-label
+		(if (and alternative (not (string-empty-p alternative)))
+		    (format "; %s" alternative)
+		  ""))))
+
 (defun org-comments-register-backend-detector (id function)
   "Register FUNCTION as a source-buffer detector for backend ID."
   (unless (functionp function)
@@ -84,8 +103,7 @@ OPERATION is the plist key naming the backend function, for example :list or
   (let* ((backend (org-comments-backend id))
 	 (function (plist-get backend operation)))
     (unless (functionp function)
-      (user-error "Backend %s does not support %s"
-		  (org-comments-backend-name id) operation))
+      (org-comments-backend-unsupported id operation))
     (apply function args)))
 
 (defun org-comments-backend-list (id &optional source-buffer include-stale)

@@ -52,7 +52,21 @@
     (org-comments-register-backend
      'fake
      '(:name "Fake" :capabilities (:list-comments)))
-    (should-error (org-comments-backend-delete 'fake "local-1") :type 'user-error)))
+    (let ((error (should-error (org-comments-backend-delete 'fake "local-1")
+			       :type 'user-error)))
+      (should (string-match-p "Fake does not support delete"
+			      (error-message-string error))))))
+
+(ert-deftest org-comments-backend-unsupported-includes-alternative ()
+  "Unsupported helper can include a supported next step."
+  (let ((org-comments-backends (make-hash-table :test #'eq)))
+    (org-comments-register-backend 'fake '(:name "Fake"))
+    (let ((error (should-error
+		  (org-comments-backend-unsupported
+		   'fake :create-inline "reply to an existing remote thread")
+		  :type 'user-error)))
+      (should (equal (error-message-string error)
+		     "Fake does not support create inline; reply to an existing remote thread")))))
 
 (ert-deftest org-comments-backend-detects-default-backend ()
   "Backend detection falls back to `org-comments-default-backend'."

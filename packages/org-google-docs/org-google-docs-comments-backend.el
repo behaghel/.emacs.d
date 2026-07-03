@@ -269,7 +269,9 @@ payload."
   "Set Google Docs COMMENT to STATUS.
 The initial backend only supports resolving remote comments."
   (unless (equal status "RESOLVED")
-    (user-error "Google Docs comments backend only supports RESOLVED status for now"))
+    (org-comments-backend-unsupported
+     'google-docs "reopening Google Docs comments"
+     "mark imported roots RESOLVED to resolve them remotely; OPEN and TODO remain local states"))
   (org-google-docs-comments-backend--require-upstream-api)
   (let ((document-id (org-google-docs-comments-backend--document-id comment))
 	(remote-id (org-google-docs-comments-backend--comment-remote-id comment))
@@ -342,7 +344,9 @@ is forwarded to upstream gdocs request helpers."
 			    (plist-get info :remote-resolution-status))))
     (unless (equal sync-kind "reply")
       (unless (and remote-id (not (string-empty-p remote-id)))
-	(user-error "Google Docs root comment creation is not supported yet"))
+	(org-comments-backend-unsupported
+	 'google-docs "native anchored root comment creation"
+	 "import an existing Google Docs thread and reply or resolve it; unanchored Drive comments and inline-note substitutes are intentionally not used"))
       (cond
        ((and (equal status "RESOLVED")
 	     (equal status-dirty "status")

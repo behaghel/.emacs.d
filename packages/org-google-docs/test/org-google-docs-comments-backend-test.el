@@ -155,12 +155,16 @@
 
 (ert-deftest org-google-docs-comments-backend-rejects-unsupported-status ()
   "The initial Google Docs status backend only supports resolving comments."
-  (should-error
-   (org-comments-backend-set-status
-    'google-docs
-    '(:document-id "doc-123" :remote-id "c-1")
-    "OPEN")
-   :type 'user-error))
+  (let ((error (should-error
+		(org-comments-backend-set-status
+		 'google-docs
+		 '(:document-id "doc-123" :remote-id "c-1")
+		 "OPEN")
+		:type 'user-error)))
+    (should (string-match-p "Google Docs does not support reopening Google Docs comments"
+			    (error-message-string error)))
+    (should (string-match-p "OPEN and TODO remain local states"
+			    (error-message-string error)))))
 
 (ert-deftest org-google-docs-comments-backend-builds-reply-payload ()
   "Build a remote reply payload from a local sidecar reply."
@@ -440,13 +444,17 @@
 	    (insert ":PROPERTIES:\n")
 	    (insert ":ORG_COMMENTS_ID: local-root\n")
 	    (insert ":END:\n\nRoot body.\n"))
-	  (should-error
-	   (org-comments-backend-push
-	    'google-docs
-	    (list :document-id "doc-123"
-		  :sidecar-file sidecar-file
-		  :id "local-root"))
-	   :type 'user-error))
+	  (let ((error (should-error
+			(org-comments-backend-push
+			 'google-docs
+			 (list :document-id "doc-123"
+			       :sidecar-file sidecar-file
+			       :id "local-root"))
+			:type 'user-error)))
+	    (should (string-match-p "Google Docs does not support native anchored root comment creation"
+				    (error-message-string error)))
+	    (should (string-match-p "unanchored Drive comments"
+				    (error-message-string error)))))
       (delete-directory directory t))))
 
 (provide 'org-google-docs-comments-backend-test)
