@@ -196,19 +196,23 @@ mode map with `org-comments-rebuild-mode-map'."
     (org-comments-refresh)))
 
 (defun org-comments-set-status (status)
-  "Set the sidecar status for the comment at point to STATUS."
-  (let* ((comment (org-comments--comment-at-point))
-	 (sidecar-file (plist-get comment :sidecar-file))
-	 (comment-id (plist-get comment :id)))
-    (unless (and sidecar-file comment-id)
-      (user-error "Comment has no sidecar location"))
-    (with-current-buffer (find-file-noselect sidecar-file)
-      (org-mode)
-      (unless (org-comments-goto-id comment-id)
-	(user-error "Cannot find comment %s" comment-id))
-      (org-todo status)
-      (save-buffer))
-    (org-comments-refresh)))
+  "Set the sidecar status for the current comment to STATUS.
+When point is on a comments UI row, operate on that row.  Otherwise operate on
+the source-buffer comment at point."
+  (if (get-text-property (point) 'org-comments-comment)
+      (org-comments-set-status-at-point status)
+    (let* ((comment (org-comments--comment-at-point))
+	   (sidecar-file (plist-get comment :sidecar-file))
+	   (comment-id (plist-get comment :id)))
+      (unless (and sidecar-file comment-id)
+	(user-error "Comment has no sidecar location"))
+      (with-current-buffer (find-file-noselect sidecar-file)
+	(org-mode)
+	(unless (org-comments-goto-id comment-id)
+	  (user-error "Cannot find comment %s" comment-id))
+	(org-todo status)
+	(save-buffer))
+      (org-comments-refresh))))
 
 ;;;###autoload
 (defun org-comments-mark-open ()
@@ -230,37 +234,40 @@ mode map with `org-comments-rebuild-mode-map'."
 
 ;;;###autoload
 (defun org-comments-pull ()
-  "Pull remote comments through the detected backend for the current buffer.
-The current buffer selects the backend via `org-comments-backend-detect'.  This
-command is comments-only and passes only `:source-file' to the backend."
+  "Pull remote comments through the detected backend.
+When called from a comments panel, pull for that panel's source buffer.
+Otherwise, use the current Org source buffer."
   (interactive)
-  (unless (derived-mode-p 'org-mode)
-    (user-error "Org comments only work in Org buffers"))
-  (unless buffer-file-name
-    (user-error "Current buffer is not visiting a file"))
-  (let ((result (org-comments-backend-pull
-		 (org-comments-backend-detect (current-buffer))
-		 (list :source-file buffer-file-name))))
-    (org-comments-refresh)
-    result))
+  (if (derived-mode-p 'org-comments-panel-mode)
+      (org-comments-panel-pull)
+    (unless (derived-mode-p 'org-mode)
+      (user-error "Org comments only work in Org buffers or comments panels"))
+    (unless buffer-file-name
+      (user-error "Current buffer is not visiting a file"))
+    (let ((result (org-comments-backend-pull
+		   (org-comments-backend-detect (current-buffer))
+		   (list :source-file buffer-file-name))))
+      (org-comments-refresh)
+      result)))
 
 ;;;###autoload
 (defun org-comments-push ()
   "Push the current comment through the detected remote backend.
-The current buffer selects the backend via `org-comments-backend-detect'.  The
-comment record passed to the backend includes `:source-file' so backend adapters
-can resolve remote page metadata without generic package coupling."
+When point is on a comments UI row, push that row.  Otherwise, use the current
+Org source buffer and pass `:source-file' context to the backend adapter."
   (interactive)
-  (unless (derived-mode-p 'org-mode)
-    (user-error "Org comments only work in Org buffers"))
-  (unless buffer-file-name
-    (user-error "Current buffer is not visiting a file"))
-  (let ((result (org-comments-backend-push
-		 (org-comments-backend-detect (current-buffer))
-		 (append (org-comments--comment-at-point)
-			 (list :source-file buffer-file-name)))))
-    (org-comments-refresh)
-    result))
+  (if (get-text-property (point) 'org-comments-comment)
+      (org-comments-push-at-point)
+    (unless (derived-mode-p 'org-mode)
+      (user-error "Org comments only work in Org buffers or comments panels"))
+    (unless buffer-file-name
+      (user-error "Current buffer is not visiting a file"))
+    (let ((result (org-comments-backend-push
+		   (org-comments-backend-detect (current-buffer))
+		   (append (org-comments--comment-at-point)
+			   (list :source-file buffer-file-name)))))
+      (org-comments-refresh)
+      result)))
 
 ;;;###autoload
 (defun org-comments-open-remote ()
@@ -281,28 +288,34 @@ Org source buffer and pass `:source-file' context to the backend adapter."
 
 ;;;###autoload
 (defun org-comments-sync ()
-  "Synchronize comments for the current Org source buffer.
-The selected backend is inferred from the current buffer via
+  "Synchronize comments for the current Org source or comments panel.
+The selected backend is inferred from the source buffer via
 `org-comments-backend-detect'.  This command is comments-only; backends must not
 sync page content as a side effect of this operation."
   (interactive)
-  (unless (derived-mode-p 'org-mode)
-    (user-error "Org comments only work in Org buffers"))
-  (unless buffer-file-name
-    (user-error "Current buffer is not visiting a file"))
-  (let ((result (org-comments-backend-sync
-		 (org-comments-backend-detect (current-buffer))
-		 (list :source-file buffer-file-name))))
-    (org-comments-refresh)
-    result))
+  (if (derived-mode-p 'org-comments-panel-mode)
+      (org-comments-panel-sync)
+    (unless (derived-mode-p 'org-mode)
+      (user-error "Org comments only work in Org buffers or comments panels"))
+    (unless buffer-file-name
+      (user-error "Current buffer is not visiting a file"))
+    (let ((result (org-comments-backend-sync
+		   (org-comments-backend-detect (current-buffer))
+		   (list :source-file buffer-file-name))))
+      (org-comments-refresh)
+      result)))
 
 ;;;###autoload
 (defun org-comments-reply ()
-  "Create a reply using the best available comments UI."
+  "Create a reply using the best available comments UI.
+When point is on a comments UI row, reply to that row.  Otherwise, use the
+source-buffer comment at point."
   (interactive)
-  (org-comments-ui-compose-reply
-   (lambda ()
-     (org-comments-compose-reply (org-comments--comment-at-point)))))
+  (if (get-text-property (point) 'org-comments-comment)
+      (org-comments-reply-at-point)
+    (org-comments-ui-compose-reply
+     (lambda ()
+       (org-comments-compose-reply (org-comments--comment-at-point))))))
 
 (defun org-comments-build-mode-map ()
   "Return a fresh keymap for `org-comments-mode'."

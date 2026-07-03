@@ -67,21 +67,21 @@
 	      #'org-comments-edit-at-point)))
 
 (ert-deftest org-comments-panel-actions-keymap-binds-reply ()
-  "Panel binds r directly to package reply-at-point."
+  "Panel binds r to the public DWIM reply command."
   (should (eq (lookup-key org-comments-panel-mode-map (kbd "r"))
-	      #'org-comments-reply-at-point)))
+	      #'org-comments-reply)))
 
 (ert-deftest org-comments-panel-actions-keymap-binds-remote-open ()
-  "Panel binds o/O to remote-open for the current row."
+  "Panel binds o/O to the public DWIM remote-open command."
   (should (eq (lookup-key org-comments-panel-mode-map (kbd "O"))
-	      #'org-comments-panel-open-remote))
+	      #'org-comments-open-remote))
   (should (eq (lookup-key org-comments-panel-mode-map (kbd "o"))
-	      #'org-comments-panel-open-remote)))
+	      #'org-comments-open-remote)))
 
 (ert-deftest org-comments-panel-actions-keymap-binds-push ()
-  "Panel binds capital U to push the current row."
+  "Panel binds capital U to the public DWIM push command."
   (should (eq (lookup-key org-comments-panel-mode-map (kbd "U"))
-	      #'org-comments-panel-push)))
+	      #'org-comments-push)))
 
 (ert-deftest org-comments-panel-actions-keymap-binds-navigation ()
   "Panel binds ]c/[c directly to package item navigation."
@@ -96,11 +96,11 @@
 	      #'org-comments-page-open-at-point)))
 
 (ert-deftest org-comments-panel-actions-keymap-binds-pull-and-sync ()
-  "Panel binds capital D and S to source-buffer remote actions."
+  "Panel binds capital D and S to public DWIM remote actions."
   (should (eq (lookup-key org-comments-panel-mode-map (kbd "D"))
-	      #'org-comments-panel-pull))
+	      #'org-comments-pull))
   (should (eq (lookup-key org-comments-panel-mode-map (kbd "S"))
-	      #'org-comments-panel-sync)))
+	      #'org-comments-sync)))
 
 (ert-deftest org-comments-panel-actions-rendered-rows-carry-comment ()
   "Rendered panel rows expose the underlying comment record."

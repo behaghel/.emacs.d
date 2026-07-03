@@ -85,8 +85,16 @@
       (kill-buffer buffer))
     (delete-directory directory t)))
 
+(ert-deftest org-comments-commands-sync-dwim-syncs-panel-source ()
+  "Sync delegates to the panel action in comments panel buffers."
+  (with-temp-buffer
+    (org-comments-panel-mode)
+    (cl-letf (((symbol-function 'org-comments-panel-sync)
+	       (lambda () '(:synced t))))
+      (should (equal (org-comments-sync) '(:synced t))))))
+
 (ert-deftest org-comments-commands-sync-requires-file-backed-org-buffer ()
-  "Sync is only available from file-backed Org buffers."
+  "Sync is only available from file-backed Org buffers or comments panels."
   (with-temp-buffer
     (org-mode)
     (should-error (org-comments-sync) :type 'user-error)))
@@ -138,6 +146,28 @@
       (should (equal (org-comments-open-remote)
 		     "https://example.test/panel")))))
 
+(ert-deftest org-comments-commands-reply-dwim-replies-to-panel-row ()
+  "Reply delegates to the panel action when point is on a rendered row."
+  (with-temp-buffer
+    (insert "row")
+    (add-text-properties (point-min) (point-max)
+			 '(org-comments-comment (:id "c1")))
+    (goto-char (point-min))
+    (cl-letf (((symbol-function 'org-comments-reply-at-point)
+	       (lambda () 'reply-result)))
+      (should (eq (org-comments-reply) 'reply-result)))))
+
+(ert-deftest org-comments-commands-status-dwim-updates-panel-row ()
+  "Status commands delegate to the panel action when point is on a rendered row."
+  (with-temp-buffer
+    (insert "row")
+    (add-text-properties (point-min) (point-max)
+			 '(org-comments-comment (:id "c1")))
+    (goto-char (point-min))
+    (cl-letf (((symbol-function 'org-comments-set-status-at-point)
+	       (lambda (status) (list :status status))))
+      (should (equal (org-comments-mark-resolved) '(:status "RESOLVED"))))))
+
 (ert-deftest org-comments-commands-open-remote-requires-file-backed-org-buffer ()
   "Open remote is only available from file-backed Org buffers or panel rows."
   (with-temp-buffer
@@ -179,8 +209,19 @@
       (kill-buffer buffer))
     (delete-directory directory t)))
 
+(ert-deftest org-comments-commands-push-dwim-pushes-panel-row ()
+  "Push delegates to the panel action when point is on a rendered row."
+  (with-temp-buffer
+    (insert "row")
+    (add-text-properties (point-min) (point-max)
+			 '(org-comments-comment (:id "c1")))
+    (goto-char (point-min))
+    (cl-letf (((symbol-function 'org-comments-push-at-point)
+	       (lambda () '(:pushed t))))
+      (should (equal (org-comments-push) '(:pushed t))))))
+
 (ert-deftest org-comments-commands-push-requires-file-backed-org-buffer ()
-  "Push is only available from file-backed Org buffers."
+  "Push is only available from file-backed Org buffers or panel rows."
   (with-temp-buffer
     (org-mode)
     (should-error (org-comments-push) :type 'user-error)))
@@ -215,8 +256,16 @@
       (kill-buffer buffer))
     (delete-directory directory t)))
 
+(ert-deftest org-comments-commands-pull-dwim-pulls-panel-source ()
+  "Pull delegates to the panel action in comments panel buffers."
+  (with-temp-buffer
+    (org-comments-panel-mode)
+    (cl-letf (((symbol-function 'org-comments-panel-pull)
+	       (lambda () '(:pulled t))))
+      (should (equal (org-comments-pull) '(:pulled t))))))
+
 (ert-deftest org-comments-commands-pull-requires-file-backed-org-buffer ()
-  "Pull is only available from file-backed Org buffers."
+  "Pull is only available from file-backed Org buffers or comments panels."
   (with-temp-buffer
     (org-mode)
     (should-error (org-comments-pull) :type 'user-error)))
