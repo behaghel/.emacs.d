@@ -93,7 +93,8 @@ Personal activation remains in `modules/interactive/org/` and should stay limite
 ## UX Parity Contract
 
 Remote comment providers should share the same author-facing command language,
-comments panel look'n'feel, report grammar, and capability-gated failure style.
+comments panel look'n'feel, focused-row reply/thread rendering, report grammar,
+and capability-gated failure style.
 Confluence and Google Docs parity is tracked in
 [`docs/ux-parity-audit.md`](docs/ux-parity-audit.md), with the visual contract in
 [`docs/wireframes/provider-parity-panel.svg`](docs/wireframes/provider-parity-panel.svg).

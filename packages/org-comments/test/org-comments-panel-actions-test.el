@@ -199,7 +199,10 @@
     (should (string-match-p "o/O  open remote comment" help))
     (should (string-match-p "U    push current row" help))
     (should (string-match-p "Public commands are DWIM" help))
-    (should (string-match-p "org-comments-open-remote" help))))
+    (should (string-match-p "org-comments-open-remote" help))
+    (should (string-match-p "Badges: ✍️ local draft/edit, 🔗 remote-linked" help))
+    (should (string-match-p "Focused rows show the full thread" help))
+    (should (string-match-p "Provider limits are capability-gated" help))))
 
 (ert-deftest org-comments-panel-actions-filter-commands-use-adapters ()
   "Current-UI filter commands delegate through filter adapters."

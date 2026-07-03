@@ -115,9 +115,16 @@
      "z    filters"
      "q    close"
      ""
+     "Badges: ✍️ local draft/edit, 🔗 remote-linked, ⚠ missing/dangling, ❓ unconfirmed."
+     "Focused rows show the full thread: root body followed by ↳ replies with"
+     "the same badges, author/date metadata, and wrapping for all providers."
+     ""
      "Public commands are DWIM: org-comments-open-remote, org-comments-push,"
      "org-comments-reply, org-comments-pull, org-comments-sync, and mark commands"
-     "work from both Org source buffers and comments panel rows.")
+     "work from both Org source buffers and comments panel rows."
+     ""
+     "Provider limits are capability-gated: unsupported actions explain the"
+     "provider limit and the supported next step instead of changing the UI model.")
    "\n"))
 
 (defun org-comments--help-current-ui ()
