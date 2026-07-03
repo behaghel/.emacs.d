@@ -67,6 +67,37 @@
     (should (search-forward "unsynced" nil t))
     (should (search-forward "Reply body" nil t))))
 
+(ert-deftest org-comments-panel-render-focused-reply-thread-is-provider-neutral ()
+  "Focused reply threads render identically for normalized remote providers."
+  (let* ((thread '(:type comment :status "OPEN" :target-text "Alpha"
+			 :remote-id "root-1" :remote-author-display-name "Alice"
+			 :created-at "2026-07-02T10:00:00Z"
+			 :body "Root body" :current t
+			 :replies ((:type comment :status "OPEN" :remote-id "reply-1"
+					  :remote-author-display-name "Bob"
+					  :created-at "2026-07-02T10:05:00Z"
+					  :body "Remote reply")
+				   (:type comment :status "OPEN"
+					  :author "Carol"
+					  :created-at "2026-07-02T10:10:00Z"
+					  :body "Pending local reply"))))
+	 (source-buffer (current-buffer))
+	 (confluence-output
+	  (with-temp-buffer
+	    (org-comments-panel-render-buffer
+	     source-buffer (list (append thread '(:backend confluence))) nil)
+	    (buffer-substring-no-properties (point-min) (point-max))))
+	 (google-output
+	  (with-temp-buffer
+	    (org-comments-panel-render-buffer
+	     source-buffer (list (append thread '(:backend google-docs))) nil)
+	    (buffer-substring-no-properties (point-min) (point-max)))))
+    (should (equal confluence-output google-output))
+    (should (string-match-p "↳ 🔗 synced" confluence-output))
+    (should (string-match-p "↳ ✍️ unsynced" confluence-output))
+    (should (string-match-p "Remote reply" confluence-output))
+    (should (string-match-p "Pending local reply" confluence-output))))
+
 (ert-deftest org-comments-panel-render-labels-synced-replies ()
   "Current comments distinguish synced remote replies from unsynced local replies."
   (with-temp-buffer

@@ -33,8 +33,8 @@ The shared look'n'feel contract is:
 
 1. Source buffers remain clean Org text; visible comment affordances are overlays, highlighted anchors, and display-only page markers.
 2. The right comments panel is the canonical review surface for all providers.
-3. The detail view/panel contract is provider-neutral: overview rows stay compact, the focused/current thread expands into detail, and any bottom/detail panel uses the same full-thread rendering rules regardless of provider.
-4. Replies are displayed as a conversation, not as provider-specific artifacts: root context stays visible, replies are indented with `↳`, each reply carries its own sync badge/author/date/body, and local pending replies and remote replies use the same ordering and spacing for Confluence and Google Docs.
+3. The focused side-panel row contract is provider-neutral: overview rows stay compact, and the focused/current thread expands in-place into the full root body plus replies regardless of provider.
+4. Replies are displayed as a conversation in that focused row, not as provider-specific artifacts: root context stays visible, replies are indented with `↳`, each reply carries its own sync badge/author/date/body, and local pending replies and remote replies use the same ordering and spacing for Confluence and Google Docs.
 5. Cards use the same row grammar across providers:
    - icon: `💬` anchored/inline, `👆` page-level, `⚠` stale/missing;
    - status chip: `OPEN`, `TODO`, `RESOLVED`;
@@ -56,8 +56,8 @@ The shared look'n'feel contract is:
 | Generic comment commands | DWIM from source, sidecar, and panel rows. | Same generic `org-comments` commands for imported Google threads. | Good | Keep generic commands provider-neutral and capability-gated. |
 | Panel mode/keymap | Uses `org-comments-panel-mode` and generic actions. | Uses same panel for imported comments/replies. | Good | `org-comments-panel-mode` remains canonical; no provider-specific panel modes. |
 | Panel row visual grammar | Icons, status chips, badges, replies, filters. | Same renderer after import. | Good | Preserve shared renderer; provider metadata must normalize into the same row vocabulary. |
-| Reply display | Nested Confluence replies render under their root thread with shared reply summaries/detail rows. | Imported and local Google replies render under imported root threads through the same renderer. | Needs explicit verification | Reply order, indentation, badges, metadata, pending/remote distinction, and collapsed-vs-expanded behavior must match exactly. |
-| Detail view/panel | Focused panel rows and page/detail surfaces show the full root body plus replies. | Google rows use the same focused/detail renderer when normalized. | Needs explicit verification | The detail panel must not become provider-specific; both providers should use one full-thread rendering contract. |
+| Reply display | Nested Confluence replies render under their root thread with shared reply summaries and focused-row detail. | Imported and local Google replies render under imported root threads through the same renderer. | Needs explicit verification | Reply order, indentation, badges, metadata, pending/remote distinction, and collapsed-vs-expanded behavior must match exactly. |
+| Focused side-panel row | Current Confluence thread rows expand in-place to show the full root body plus replies. | Current Google Docs thread rows should expand in-place through the same renderer when normalized. | Needs explicit verification | Do not introduce a provider-specific detail panel; parity is about the focused side-panel row only. |
 | Filter UX | `z` filters, actionable/draft/current-user/resolved/missing toggles. | Same panel filter layer when Google comments are in sidecar. | Good with caveat | Google records need enough normalized metadata for current-user/actionable filters to be meaningful. |
 | Open remote | Focused Confluence URL. | Google Doc URL with `disco` comment focus where possible. | Good | Failure messages must explain when provider/browser cannot focus exact thread. |
 | Reply workflow | Local reply then push to Confluence. | Local reply then push to Drive replies API. | Good | Reports and sidecar headings should use same reply wording. |
@@ -73,7 +73,7 @@ The shared look'n'feel contract is:
 ## Acceptance Criteria
 
 - [ ] UX-1: Given a Confluence-linked or Google Docs-linked Org buffer, when the comments panel opens, then cards use the same icons, status chips, sync badges, target previews, metadata lines, body preview rules, reply indentation, and filter header grammar.
-- [ ] UX-1a: Given a root comment has replies, when it is shown in overview, focused detail, or a bottom/detail panel, then Confluence and Google Docs replies use the same ordering, indentation, sync badges, author/date metadata, body wrapping, and pending-vs-remote visual treatment.
+- [ ] UX-1a: Given a root comment has replies, when it is shown in overview or as the focused side-panel row, then Confluence and Google Docs replies use the same ordering, indentation, sync badges, author/date metadata, body wrapping, and pending-vs-remote visual treatment.
 - [ ] UX-2: Given point is in a source buffer, sidecar heading, or panel row, when the user invokes generic comment commands (`open remote`, `reply`, `push`, `pull`, `sync`, `mark status`, `edit`, `delete`), then the command uses the same DWIM behavior and either completes or explains provider capability limits.
 - [ ] UX-3: Given a provider does not support an operation, when that action is requested, then the user sees an actionable `user-error` that names the provider, the unsupported capability, and the supported alternative.
 - [ ] UX-4: Given a dispatch command for either provider, when the menu is shown, then shared verbs use shared labels/order and provider-specific verbs are grouped without hiding core comment actions.
@@ -100,8 +100,8 @@ For each fixture, verify:
 - [ ] status chips are uppercase and visually consistent;
 - [ ] badges are emoji-only and explained in help/docs;
 - [ ] focused/current comment expands body and replies while overview comments stay compact;
-- [ ] reply rendering is identical in overview, focused row detail, and any bottom/detail panel;
-- [ ] the detail panel displays the same full-thread hierarchy as the right panel's focused detail state;
+- [ ] reply rendering is identical for provider-normalized overview rows and focused side-panel rows;
+- [ ] no provider-specific current-thread detail panel is introduced; page/bottom panels remain separate page-comment UI only;
 - [ ] filters show active counts and reset hints consistently;
 - [ ] unsupported provider actions do not leave stale UI state after errors;
 - [ ] reports fit minibuffer/status-buffer usage without provider-specific jargon leaks.
@@ -121,11 +121,11 @@ Feature: Provider-neutral remote comments UX parity
     Then each comment row uses the shared icon, status chip, target preview, sync badge, metadata, body, and reply layout
     And provider-specific remote metadata does not change the card structure
 
-  Scenario: Reply threads use one detail rendering model
+  Scenario: Reply threads use one focused-row rendering model
     Given a Confluence thread and a Google Docs thread each contain remote replies and one pending local reply
-    When I view them in overview, focused detail, and the detail panel
+    When I view them in overview and as the focused side-panel row
     Then replies appear in the same order with the same indentation, badges, author/date metadata, and body wrapping
-    And the detail panel shows the same full-thread hierarchy as the focused side-panel detail view
+    And no provider-specific current-thread detail panel is required
 
   Scenario: Generic actions work from a panel row
     Given the comments panel is focused on a remote-linked comment row
@@ -150,9 +150,9 @@ Feature: Provider-neutral remote comments UX parity
 
 1. **Dispatch parity audit/fix**: align Confluence and Google Docs dispatch labels/order/grouping and add tests that assert the shared action labels.
 2. **Capability failure copy pass**: collect `user-error` strings for unsupported Google/Confluence comment operations and normalize them against UX-3/UX-7.
-3. **Reply/detail rendering parity**: add fixtures for Confluence and Google Docs threads with mixed remote and pending local replies, then assert the side panel focused state and detail panel use the same full-thread renderer.
+3. **Reply/focused-row rendering parity**: add fixtures for Confluence and Google Docs threads with mixed remote and pending local replies, then assert overview rows and focused side-panel rows use the same renderer and visual grammar.
 4. **Panel visual fixture**: add an ERT-rendered fixture or manual fixture command that produces the look'n'feel checklist states for both providers.
-5. **Help/docs pass**: update `org-comments-help-text`, generated docs, and provider READMEs with the visual contract, badge legend, reply display rules, detail-panel behavior, and provider capability table.
+5. **Help/docs pass**: update `org-comments-help-text`, generated docs, and provider READMEs with the visual contract, badge legend, reply display rules, focused-row behavior, and provider capability table.
 6. **Google Docs status affordance**: decide whether to add a lightweight Google status view comparable in look'n'feel to the Confluence status dashboard, or explicitly document body/status dashboard as upstream `gdocs` territory.
 
 ## Open Questions
@@ -161,4 +161,4 @@ Feature: Provider-neutral remote comments UX parity
 2. Should unsupported provider actions be visible in menus as disabled/explaining actions, or hidden unless invoked through generic commands?
 3. Do we want a provider-neutral status dashboard in `org-comments`, with Confluence and Google supplying provider detail rows, or should status dashboards remain provider-specific?
 4. Should the comments panel header include provider/source context when a buffer is linked to a remote backend?
-5. Should the detail panel be implemented as a strict reuse of the focused side-panel renderer, or as a separate view with golden tests proving equivalent reply/thread layout?
+5. If a future current-thread detail panel is proposed, should it be rejected by default unless it strictly reuses the focused side-panel renderer and gets separate user review?

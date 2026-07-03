@@ -1,6 +1,6 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="980" height="620" viewBox="0 0 980 620" role="img" aria-labelledby="title desc">
   <title id="title">Org comments provider parity panel wireframe</title>
-  <desc id="desc">Wireframe for a provider-neutral Org source buffer, right comments panel, and bottom detail/status/action area showing Confluence and Google Docs comments with the same visual grammar.</desc>
+  <desc id="desc">Wireframe for a provider-neutral Org source buffer, right comments panel, and bottom status/action area showing Confluence and Google Docs comments with the same visual grammar.</desc>
   <defs>
     <style>
       .bg { fill: #f7f5ef; }
@@ -65,7 +65,7 @@
   <text class="tiny" x="666" y="426">Remote thread, collapsed by filter.</text>
 
   <rect class="status" x="20" y="500" width="940" height="92" rx="6"/>
-  <text class="heading" x="42" y="528">Provider-neutral detail panel / action bar / report</text>
+  <text class="heading" x="42" y="528">Provider-neutral action bar / report</text>
   <text class="text" x="42" y="554">RET jump · e edit · r reply · O open remote · U push · D pull · S sync · m status · z filters · ? help</text>
-  <text class="tiny" x="42" y="578">Detail panel reuses focused full-thread layout: root body + ↳ replies with identical badges/order/wrapping. Reports share count grammar; unsupported actions explain provider limits.</text>
+  <text class="tiny" x="42" y="578">Focused side-panel row shows full-thread layout: root body + ↳ replies with identical badges/order/wrapping. Reports share count grammar; unsupported actions explain provider limits.</text>
 </svg>
