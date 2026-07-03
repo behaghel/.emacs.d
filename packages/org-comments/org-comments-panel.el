@@ -45,6 +45,7 @@
     (define-key map (kbd "m") org-comments-panel-status-map)
     (define-key map (kbd "D") #'org-comments-panel-pull)
     (define-key map (kbd "O") #'org-comments-panel-open-remote)
+    (define-key map (kbd "o") #'org-comments-panel-open-remote)
     (define-key map (kbd "p") #'org-comments-page-open-at-point)
     (define-key map (kbd "S") #'org-comments-panel-sync)
     (define-key map (kbd "U") #'org-comments-panel-push)

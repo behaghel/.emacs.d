@@ -126,8 +126,20 @@
       (kill-buffer buffer))
     (delete-directory directory t)))
 
+(ert-deftest org-comments-commands-open-remote-dwim-opens-panel-row ()
+  "Open remote delegates to the panel action when point is on a rendered row."
+  (with-temp-buffer
+    (insert "row")
+    (add-text-properties (point-min) (point-max)
+			 '(org-comments-comment (:id "c1")))
+    (goto-char (point-min))
+    (cl-letf (((symbol-function 'org-comments-open-remote-at-point)
+	       (lambda () "https://example.test/panel")))
+      (should (equal (org-comments-open-remote)
+		     "https://example.test/panel")))))
+
 (ert-deftest org-comments-commands-open-remote-requires-file-backed-org-buffer ()
-  "Open remote is only available from file-backed Org buffers."
+  "Open remote is only available from file-backed Org buffers or panel rows."
   (with-temp-buffer
     (org-mode)
     (should-error (org-comments-open-remote) :type 'user-error)))

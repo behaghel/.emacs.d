@@ -72,8 +72,10 @@
 	      #'org-comments-reply-at-point)))
 
 (ert-deftest org-comments-panel-actions-keymap-binds-remote-open ()
-  "Panel binds capital O to remote-open for the current row."
+  "Panel binds o/O to remote-open for the current row."
   (should (eq (lookup-key org-comments-panel-mode-map (kbd "O"))
+	      #'org-comments-panel-open-remote))
+  (should (eq (lookup-key org-comments-panel-mode-map (kbd "o"))
 	      #'org-comments-panel-open-remote)))
 
 (ert-deftest org-comments-panel-actions-keymap-binds-push ()

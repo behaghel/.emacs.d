@@ -265,18 +265,19 @@ can resolve remote page metadata without generic package coupling."
 ;;;###autoload
 (defun org-comments-open-remote ()
   "Open the current comment in the detected remote backend.
-The current buffer selects the backend via `org-comments-backend-detect'.  The
-comment record passed to the backend includes `:source-file' so backend adapters
-can resolve remote page metadata without generic package coupling."
+When point is on a comments UI row, open that row.  Otherwise, use the current
+Org source buffer and pass `:source-file' context to the backend adapter."
   (interactive)
-  (unless (derived-mode-p 'org-mode)
-    (user-error "Org comments only work in Org buffers"))
-  (unless buffer-file-name
-    (user-error "Current buffer is not visiting a file"))
-  (let ((comment (append (org-comments--comment-at-point)
-			 (list :source-file buffer-file-name))))
-    (org-comments-backend-open-remote
-     (org-comments-backend-detect (current-buffer)) comment)))
+  (if (get-text-property (point) 'org-comments-comment)
+      (org-comments-open-remote-at-point)
+    (unless (derived-mode-p 'org-mode)
+      (user-error "Org comments only work in Org buffers or comments panels"))
+    (unless buffer-file-name
+      (user-error "Current buffer is not visiting a file"))
+    (let ((comment (append (org-comments--comment-at-point)
+			   (list :source-file buffer-file-name))))
+      (org-comments-backend-open-remote
+       (org-comments-backend-detect (current-buffer)) comment))))
 
 ;;;###autoload
 (defun org-comments-sync ()
