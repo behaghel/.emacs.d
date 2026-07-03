@@ -230,6 +230,37 @@
 	 (should (search-forward ":ORG_COMMENTS_ANCHOR_STATE: ambiguous" nil t))
 	 (should (search-forward ":ORG_COMMENTS_ANCHOR_MATCH_COUNT: 2" nil t)))))))
 
+(ert-deftest org-google-docs-comments-import-updates-existing-resolved-comment ()
+  "Re-import marks an existing comment resolved when remote status is resolved."
+  (org-google-docs-comments-import-test--with-source
+   (let ((sidecar (org-comments-sidecar-path buffer-file-name)))
+     (org-comments-ensure-sidecar-header sidecar buffer-file-name)
+     (with-temp-buffer
+       (insert-file-contents sidecar)
+       (goto-char (point-max))
+       (insert "* OPEN Google Docs comment\n")
+       (insert ":PROPERTIES:\n")
+       (insert ":ORG_COMMENTS_ID: google-docs:c-1\n")
+       (insert ":ORG_COMMENTS_BACKEND: google-docs\n")
+       (insert ":ORG_COMMENTS_REMOTE_ID: c-1\n")
+       (insert ":ORG_COMMENTS_REMOTE_RESOLUTION_STATUS: open\n")
+       (insert ":END:\n\nBody.\n\n")
+       (insert "** Local notes\nKeep this note.\n")
+       (write-region (point-min) (point-max) sidecar nil 'silent))
+     (let ((report (org-google-docs-comments-import--import-list
+		    (list (list :backend 'google-docs
+				:remote-id "c-1"
+				:body "Body."
+				:status "resolved"))
+		    nil buffer-file-name (current-buffer))))
+       (should (= (plist-get report :updated) 1))
+       (should (= (plist-get report :remote-resolved) 1)))
+     (with-temp-buffer
+       (insert-file-contents sidecar)
+       (should (search-forward "* RESOLVED Google Docs comment" nil t))
+       (should (search-forward ":ORG_COMMENTS_REMOTE_RESOLUTION_STATUS: resolved" nil t))
+       (should (search-forward "** Local notes" nil t))))))
+
 (ert-deftest org-google-docs-comments-import-updates-existing-remote-comment ()
   "Re-import updates remote-owned content while preserving local notes."
   (org-google-docs-comments-import-test--with-source

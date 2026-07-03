@@ -137,25 +137,41 @@
 	 (org-entry-put nil "ORG_COMMENTS_ANCHOR_STATE" "ambiguous")
 	 (org-entry-put nil "ORG_COMMENTS_ANCHOR_MATCH_COUNT" (number-to-string count)))))))
 
+(defun org-google-docs-comments-import--apply-remote-status (comment)
+  "Apply COMMENT remote status to the current heading.
+Return `:remote-resolved' when this changes the local TODO state to RESOLVED."
+  (let ((status (plist-get comment :status))
+	(local (or (org-get-todo-state) "OPEN"))
+	(org-log-done nil)
+	(org-inhibit-logging t))
+    (when (and (equal status "resolved")
+	       (not (equal local "RESOLVED")))
+      (org-todo "RESOLVED")
+      :remote-resolved)))
+
 (defun org-google-docs-comments-import--update-at-heading (comment source-buffer)
-  "Update sidecar heading at point from normalized Google COMMENT and SOURCE-BUFFER."
-  (org-entry-put nil "ORG_COMMENTS_BACKEND" "google-docs")
-  (org-entry-put nil "ORG_COMMENTS_REMOTE_ID" (plist-get comment :remote-id))
-  (when-let* ((author (plist-get comment :author-name)))
-    (org-entry-put nil "ORG_COMMENTS_REMOTE_AUTHOR_DISPLAY_NAME" author))
-  (when-let* ((email (plist-get comment :author-email)))
-    (org-entry-put nil "ORG_COMMENTS_REMOTE_AUTHOR_EMAIL" email))
-  (when-let* ((created-at (plist-get comment :created-at)))
-    (org-entry-put nil "ORG_COMMENTS_REMOTE_CREATED_AT" created-at))
-  (when-let* ((updated-at (plist-get comment :updated-at)))
-    (org-entry-put nil "ORG_COMMENTS_REMOTE_UPDATED_AT" updated-at))
-  (when-let* ((status (plist-get comment :status)))
-    (org-entry-put nil "ORG_COMMENTS_REMOTE_RESOLUTION_STATUS" status))
-  (when-let* ((target-text (plist-get comment :target-text)))
-    (org-entry-put nil "ORG_COMMENTS_TARGET_TEXT" target-text))
-  (org-google-docs-comments-import--apply-anchor comment source-buffer)
-  (org-google-docs-comments-import--replace-body
-   comment (save-excursion (org-end-of-subtree t t))))
+  "Update sidecar heading at point from normalized Google COMMENT and SOURCE-BUFFER.
+Return `:remote-resolved' when remote state changed the local TODO state, or
+`:updated' otherwise."
+  (let ((status-change (org-google-docs-comments-import--apply-remote-status comment)))
+    (org-entry-put nil "ORG_COMMENTS_BACKEND" "google-docs")
+    (org-entry-put nil "ORG_COMMENTS_REMOTE_ID" (plist-get comment :remote-id))
+    (when-let* ((author (plist-get comment :author-name)))
+      (org-entry-put nil "ORG_COMMENTS_REMOTE_AUTHOR_DISPLAY_NAME" author))
+    (when-let* ((email (plist-get comment :author-email)))
+      (org-entry-put nil "ORG_COMMENTS_REMOTE_AUTHOR_EMAIL" email))
+    (when-let* ((created-at (plist-get comment :created-at)))
+      (org-entry-put nil "ORG_COMMENTS_REMOTE_CREATED_AT" created-at))
+    (when-let* ((updated-at (plist-get comment :updated-at)))
+      (org-entry-put nil "ORG_COMMENTS_REMOTE_UPDATED_AT" updated-at))
+    (when-let* ((status (plist-get comment :status)))
+      (org-entry-put nil "ORG_COMMENTS_REMOTE_RESOLUTION_STATUS" status))
+    (when-let* ((target-text (plist-get comment :target-text)))
+      (org-entry-put nil "ORG_COMMENTS_TARGET_TEXT" target-text))
+    (org-google-docs-comments-import--apply-anchor comment source-buffer)
+    (org-google-docs-comments-import--replace-body
+     comment (save-excursion (org-end-of-subtree t t)))
+    (or status-change :updated)))
 
 (defun org-google-docs-comments-import--update-entry (sidecar-file remote-id comment source-buffer)
   "Update existing REMOTE-ID entry in SIDECAR-FILE from COMMENT and SOURCE-BUFFER.
@@ -168,8 +184,9 @@ Return non-nil when an entry was updated."
       (while (and (not updated) (re-search-forward org-heading-regexp nil t))
 	(goto-char (match-beginning 0))
 	(when (equal remote-id (org-entry-get nil "ORG_COMMENTS_REMOTE_ID"))
-	  (org-google-docs-comments-import--update-at-heading comment source-buffer)
-	  (setq updated t))
+	  (setq updated
+		(org-google-docs-comments-import--update-at-heading
+		 comment source-buffer)))
 	(forward-line 1))
       (when updated
 	(write-region (point-min) (point-max) sidecar-file nil 'silent))
@@ -249,29 +266,38 @@ Return a provider-neutral import report plist."
 		      :added 0
 		      :added-replies 0
 		      :updated 0
+		      :remote-resolved 0
 		      :skipped-resolved 0
 		      :preserved-local t)))
     (org-comments-ensure-sidecar-header sidecar-file source-file)
     (dolist (comment comments)
-      (if (and (not include-resolved)
-	       (equal (plist-get comment :status) "resolved"))
-	  (plist-put report :skipped-resolved
-		     (1+ (or (plist-get report :skipped-resolved) 0)))
-	(let ((remote-id (plist-get comment :remote-id)))
-	  (if (and remote-id
-		   (file-exists-p sidecar-file)
-		   (org-google-docs-comments-import--update-entry
-		    sidecar-file remote-id comment source-buffer))
-	      (plist-put report :updated (1+ (or (plist-get report :updated) 0)))
-	    (org-google-docs-comments-import--append-entry
-	     sidecar-file source-file
-	     (org-google-docs-comments-import--entry comment))
-	    (plist-put report :added (1+ (or (plist-get report :added) 0)))
-	    (when remote-id
-	      (org-google-docs-comments-import--update-entry
-	       sidecar-file remote-id comment source-buffer)))
-	  (org-google-docs-comments-import--import-replies
-	   sidecar-file comment report))))
+      (let* ((remote-id (plist-get comment :remote-id))
+	     (existing (and remote-id
+			    (org-google-docs-comments-import--sidecar-has-remote-p
+			     sidecar-file remote-id))))
+	(if (and (not include-resolved)
+		 (equal (plist-get comment :status) "resolved")
+		 (not existing))
+	    (plist-put report :skipped-resolved
+		       (1+ (or (plist-get report :skipped-resolved) 0)))
+	  (let ((update-result (and existing
+				    (org-google-docs-comments-import--update-entry
+				     sidecar-file remote-id comment source-buffer))))
+	    (if update-result
+		(progn
+		  (plist-put report :updated (1+ (or (plist-get report :updated) 0)))
+		  (when (eq update-result :remote-resolved)
+		    (plist-put report :remote-resolved
+			       (1+ (or (plist-get report :remote-resolved) 0)))))
+	      (org-google-docs-comments-import--append-entry
+	       sidecar-file source-file
+	       (org-google-docs-comments-import--entry comment))
+	      (plist-put report :added (1+ (or (plist-get report :added) 0)))
+	      (when remote-id
+		(org-google-docs-comments-import--update-entry
+		 sidecar-file remote-id comment source-buffer)))
+	    (org-google-docs-comments-import--import-replies
+	     sidecar-file comment report)))))
     (plist-put report :sidecar-file sidecar-file)
     report))
 
