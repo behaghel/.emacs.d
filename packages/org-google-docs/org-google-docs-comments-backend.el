@@ -143,6 +143,46 @@ controls whether resolved comments are imported."
   (unless (require 'gdocs-api nil 'noerror)
     (user-error "Missing upstream gdocs-api; install and configure benthamite/gdocs")))
 
+(defun org-google-docs-comments-backend--sidecar-body (comment)
+  "Return COMMENT body from its sidecar metadata, or nil."
+  (when-let* ((sidecar-file (plist-get comment :sidecar-file)))
+    (with-temp-buffer
+      (insert-file-contents sidecar-file)
+      (org-mode)
+      (when (org-google-docs-comments-backend--goto-sidecar-comment comment)
+	(org-comments-entry-body (save-excursion (org-end-of-subtree t t)))))))
+
+(defun org-google-docs-comments-backend--comment-content (comment)
+  "Return non-empty Google Docs COMMENT content for update requests."
+  (let ((content (string-trim
+		  (or (plist-get comment :body)
+		      (org-google-docs-comments-backend--sidecar-body comment)
+		      ""))))
+    (unless (not (string-empty-p content))
+      (user-error "Google Docs comment content is required to resolve remotely"))
+    content))
+
+(defun org-google-docs-comments-backend--resolve-url (document-id comment-id)
+  "Return Drive API URL for resolving COMMENT-ID on DOCUMENT-ID."
+  (concat gdocs-api--drive-base-url "/"
+	  (url-hexify-string document-id)
+	  "/comments/"
+	  (url-hexify-string comment-id)
+	  "?fields=id,resolved,content"))
+
+(defun org-google-docs-comments-backend--resolve-comment
+    (document-id comment-id content callback &optional account)
+  "Resolve COMMENT-ID on DOCUMENT-ID preserving required CONTENT.
+Google Drive's comments update endpoint requires `content' even when only
+changing the resolved state.  CALLBACK receives the updated comment payload."
+  (org-google-docs-comments-backend--require-upstream-api)
+  (gdocs-api--request
+   'patch
+   (org-google-docs-comments-backend--resolve-url document-id comment-id)
+   callback
+   :account account
+   :body (json-encode `((content . ,content) (resolved . t)))))
+
 (defun org-google-docs-comments-backend-set-status (comment status)
   "Set Google Docs COMMENT to STATUS.
 The initial backend only supports resolving remote comments."
@@ -151,10 +191,11 @@ The initial backend only supports resolving remote comments."
   (org-google-docs-comments-backend--require-upstream-api)
   (let ((document-id (org-google-docs-comments-backend--document-id comment))
 	(remote-id (org-google-docs-comments-backend--comment-remote-id comment))
+	(content (org-google-docs-comments-backend--comment-content comment))
 	(account (org-google-docs-comments-backend--comment-account comment))
 	result)
-    (gdocs-api-resolve-comment
-     document-id remote-id
+    (org-google-docs-comments-backend--resolve-comment
+     document-id remote-id content
      (lambda (response)
        (setq result response)
        (org-google-docs-comments-backend--mark-sidecar-resolved comment)

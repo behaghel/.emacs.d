@@ -103,10 +103,11 @@
 		     (lambda (feature &optional _filename _noerror)
 		       (or (eq feature 'gdocs-api)
 			   (featurep feature))))
-		    ((symbol-function 'gdocs-api-resolve-comment)
-		     (lambda (file-id comment-id callback &optional account)
+		    ((symbol-function 'org-google-docs-comments-backend--resolve-comment)
+		     (lambda (file-id comment-id content callback &optional account)
 		       (setq called (list :file-id file-id
 					  :comment-id comment-id
+					  :content content
 					  :account account))
 		       (funcall callback '((id . "c-1") (resolved . t))))))
 	    (should (equal (org-comments-backend-set-status
@@ -119,6 +120,7 @@
 			   '((id . "c-1") (resolved . t)))))
 	  (should (equal called (list :file-id "doc-123"
 				      :comment-id "c-1"
+				      :content "Body"
 				      :account nil)))
 	  (with-temp-buffer
 	    (insert-file-contents sidecar-file)
