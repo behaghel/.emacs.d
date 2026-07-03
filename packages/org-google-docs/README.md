@@ -109,7 +109,11 @@ provider-neutral summaries such as `added replies 2`, `remote missing 1`,
 
 Current limitations:
 
-- local-only root comment creation/push is intentionally unsupported;
+- local-only root comment creation/push is intentionally unsupported until
+  Google offers public API support for Docs comments that render as native inline
+  anchored comments in the Google Docs UI;
+- unanchored Drive comments and comments-as-content/styled inline notes are
+  intentionally not used as substitutes for native anchored comments;
 - reopening Google comments is not implemented;
 - Google API visibility can make "missing" mean deleted, hidden by filtering, or
   otherwise absent from the current API payload;
@@ -132,7 +136,7 @@ the authoring and review loop this configuration supports today.
 | Open remote comment | Browser opens focused Confluence comment | Google Docs backend opens `?disco=COMMENT_ID` URL | Usable. |
 | Reply to reviewer | Local sidecar reply pushed to Confluence | Local replies under imported roots push to Drive replies API | Usable; duplicate pushes are skipped. |
 | Resolve comment | Status change pushed to Confluence | Imported roots resolve via Drive reply action; pending local `RESOLVED` state syncs | Usable; reopening is deferred. |
-| Create new anchored remote comment | Local sidecar draft pushed to Confluence | Not implemented | Harder; Google Drive comment anchoring is less predictable. |
+| Create new anchored remote comment | Local sidecar draft pushed to Confluence | Unsupported by policy until Google exposes reliable native Docs anchoring | Do not implement unanchored comments or comments-as-content as substitutes. |
 | Sync status dashboard | Confluence sync status report | Provider-neutral push/import feedback implemented for Google actions | Basic summaries usable; richer history/dirty-state remains deferred. |
 | Child pages/folders | Pull child pages | Upstream has Drive folder concepts | Lower priority for authoring parity. |
 | Suggestions/tracked changes | Out of current Confluence parity scope | Not implemented | Explicitly deferred. |
@@ -189,7 +193,7 @@ Verification:
 - Secrets must not be committed. OAuth client secrets belong in auth-source/pass or private untracked configuration.
 - Upstream `gdocs` remains the source of truth for document link/sync metadata in v1.
 - Manual sync is the default in this repository unless explicitly changed later.
-- Google comment root creation is deferred; imported remote roots are actionable, but local-only root comments cannot be pushed yet.
+- Google comment root creation is unsupported until Google exposes reliable public API support for native inline anchored Docs comments; imported remote roots are actionable, but local-only root comments cannot be pushed.
 - Google comment mutations stay explicit and command-driven: replies and resolves are never pushed implicitly except through comments-only sync of pending local resolved state.
 - Local sidecar user notes and unsynced replies must not be overwritten by remote comment re-import.
 

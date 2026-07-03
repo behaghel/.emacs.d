@@ -208,8 +208,10 @@ and unsynced local replies.
 Google Docs full-document body sync remains an upstream =gdocs= /
 =org-google-docs= responsibility.  =org-comments-sync= is comments-only and does
 not push or pull document body content.  Creating new Google Docs root comments
-from local-only sidecar roots is intentionally unsupported until anchoring
-semantics are specified.
+from local-only sidecar roots is unsupported until Google exposes reliable public
+API support for native inline anchored Docs comments.  Unanchored Drive comments
+and comments-as-content/styled inline notes are intentionally not used as
+substitutes.
 
 * Migration
 :PROPERTIES:

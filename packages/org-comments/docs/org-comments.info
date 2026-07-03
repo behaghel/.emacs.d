@@ -323,8 +323,10 @@ local replies.
    Google Docs full-document body sync remains an upstream ‘gdocs’ /
 ‘org-google-docs’ responsibility.  ‘org-comments-sync’ is comments-only
 and does not push or pull document body content.  Creating new Google
-Docs root comments from local-only sidecar roots is intentionally
-unsupported until anchoring semantics are specified.
+Docs root comments from local-only sidecar roots is unsupported until
+Google exposes reliable public API support for native inline anchored
+Docs comments.  Unanchored Drive comments and comments-as-content/styled
+inline notes are intentionally not used as substitutes.
 
 
 File: org-comments.info,  Node: Migration,  Next: Commands,  Prev: Google Docs Backend,  Up: Top
@@ -601,21 +603,21 @@ Node: Backends8142
 Node: Identity resolution8945
 Node: Confluence Backend9431
 Node: Google Docs Backend10018
-Node: Migration11223
-Node: Commands11707
-Node: Customization17940
-Node: Keybindings21577
-Node: Org buffers21777
-Ref: orge21cc4821899
-Node: Comment panel22730
-Ref: org94a6bc822884
-Node: Page comments panel23755
-Node: Developer API24039
-Node: Troubleshooting24696
-Node: No comments appear24939
-Node: Legacy sidecar error25229
-Node: Remote operation is unsupported25541
-Node: Info manual is missing25929
+Node: Migration11373
+Node: Commands11857
+Node: Customization18090
+Node: Keybindings21727
+Node: Org buffers21927
+Ref: org16f874e22049
+Node: Comment panel22880
+Ref: org161269923034
+Node: Page comments panel23905
+Node: Developer API24189
+Node: Troubleshooting24846
+Node: No comments appear25089
+Node: Legacy sidecar error25379
+Node: Remote operation is unsupported25691
+Node: Info manual is missing26079
 
 End Tag Table
 

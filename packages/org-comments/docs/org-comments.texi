@@ -313,8 +313,10 @@ and unsynced local replies.
 Google Docs full-document body sync remains an upstream @samp{gdocs} /
 @samp{org-google-docs} responsibility.  @samp{org-comments-sync} is comments-only and does
 not push or pull document body content.  Creating new Google Docs root comments
-from local-only sidecar roots is intentionally unsupported until anchoring
-semantics are specified.
+from local-only sidecar roots is unsupported until Google exposes reliable public
+API support for native inline anchored Docs comments.  Unanchored Drive comments
+and comments-as-content/styled inline notes are intentionally not used as
+substitutes.
 
 @node Migration
 @chapter Migration
@@ -528,7 +530,7 @@ former personal metadata prefix.
 @node Org buffers
 @section Org buffers
 
-@float Table,orge21cc48
+@float Table,org16f874e
 @multitable {aaaaaaaaaaa} {aaaaaaaaaaaaaaaaaaaaaaaaaaaa}
 @headitem Key
 @tab Command
@@ -571,7 +573,7 @@ former personal metadata prefix.
 @node Comment panel
 @section Comment panel
 
-@float Table,org94a6bc8
+@float Table,org1612699
 @multitable {aaaaa} {aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa}
 @headitem Key
 @tab Command
