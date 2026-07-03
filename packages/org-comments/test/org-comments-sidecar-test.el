@@ -180,6 +180,27 @@
       (should (equal (org-comments-entry-body end) "New body.")))
     (should (search-forward "Reply body." nil t))))
 
+(ert-deftest org-comments-sidecar-with-remote-heading-updates-matching-entry ()
+  "Remote heading helper updates the matching filtered sidecar entry."
+  (let* ((dir (make-temp-file "org-comments-sidecar-" t))
+	 (sidecar (expand-file-name "article.comments.org" dir)))
+    (unwind-protect
+	(progn
+	  (write-region
+	   "* OPEN Parent\n:PROPERTIES:\n:ORG_COMMENTS_REMOTE_ID: r1\n:ORG_COMMENTS_BACKEND: google-docs\n:END:\n\n"
+	   nil sidecar nil 'silent)
+	  (should
+	   (org-comments-sidecar-with-remote-heading
+	    sidecar "r1"
+	    (lambda ()
+	      (org-entry-put nil "ORG_COMMENTS_REMOTE_STATE" "present")
+	      t)
+	    :backend "google-docs"))
+	  (with-temp-buffer
+	    (insert-file-contents sidecar)
+	    (should (search-forward ":ORG_COMMENTS_REMOTE_STATE: present" nil t))))
+      (delete-directory dir t))))
+
 (ert-deftest org-comments-sidecar-append-child-under-remote-inserts-reply ()
   "Generic append-child helper inserts child entries under remote parents."
   (let* ((dir (make-temp-file "org-comments-sidecar-child-" t))

@@ -388,6 +388,27 @@ missing.  Return the number of newly missing headings."
 	  (write-region (point-min) (point-max) sidecar-file nil 'silent))
 	missing-count))))
 
+(defun org-comments-sidecar-with-remote-heading (sidecar-file remote-id function &rest filters)
+  "Call FUNCTION at REMOTE-ID heading in SIDECAR-FILE matching FILTERS.
+FUNCTION is called with point at the heading.  When FUNCTION returns non-nil,
+write the sidecar file and return that value.  Return nil when no heading is
+found."
+  (when (and remote-id (file-exists-p sidecar-file))
+    (with-temp-buffer
+      (insert-file-contents sidecar-file)
+      (org-mode)
+      (let (result)
+	(goto-char (point-min))
+	(while (and (not result) (re-search-forward org-heading-regexp nil t))
+	  (goto-char (match-beginning 0))
+	  (when (and (equal remote-id (org-entry-get nil "ORG_COMMENTS_REMOTE_ID"))
+		     (org-comments-sidecar--filter-match-p filters))
+	    (setq result (funcall function)))
+	  (forward-line 1))
+	(when result
+	  (write-region (point-min) (point-max) sidecar-file nil 'silent))
+	result))))
+
 (defun org-comments-sidecar-goto-comment (comment)
   "Move point to sidecar COMMENT heading and return non-nil when found.
 COMMENT is a plist with optional `:id' and `:remote-id' keys.  Matching prefers

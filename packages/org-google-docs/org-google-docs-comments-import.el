@@ -153,21 +153,10 @@ Return `:remote-resolved' when remote state changed the local TODO state, or
 (defun org-google-docs-comments-import--update-entry (sidecar-file remote-id comment source-buffer)
   "Update existing REMOTE-ID entry in SIDECAR-FILE from COMMENT and SOURCE-BUFFER.
 Return non-nil when an entry was updated."
-  (with-temp-buffer
-    (insert-file-contents sidecar-file)
-    (org-mode)
-    (let ((updated nil))
-      (goto-char (point-min))
-      (while (and (not updated) (re-search-forward org-heading-regexp nil t))
-	(goto-char (match-beginning 0))
-	(when (equal remote-id (org-entry-get nil "ORG_COMMENTS_REMOTE_ID"))
-	  (setq updated
-		(org-google-docs-comments-import--update-at-heading
-		 comment source-buffer)))
-	(forward-line 1))
-      (when updated
-	(write-region (point-min) (point-max) sidecar-file nil 'silent))
-      updated)))
+  (org-comments-sidecar-with-remote-heading
+   sidecar-file remote-id
+   (lambda ()
+     (org-google-docs-comments-import--update-at-heading comment source-buffer))))
 
 (defun org-google-docs-comments-import--append-entry (sidecar-file source-file entry)
   "Append ENTRY to SIDECAR-FILE for SOURCE-FILE."
@@ -192,24 +181,13 @@ Return non-nil when an entry was updated."
     (sidecar-file parent-remote-id reply)
   "Update existing remote REPLY in SIDECAR-FILE.
 Return non-nil when a reply was updated."
-  (let ((remote-id (plist-get reply :remote-id)))
-    (when (and remote-id (file-exists-p sidecar-file))
-      (with-temp-buffer
-	(insert-file-contents sidecar-file)
-	(org-mode)
-	(let ((updated nil))
-	  (goto-char (point-min))
-	  (while (and (not updated) (re-search-forward org-heading-regexp nil t))
-	    (goto-char (match-beginning 0))
-	    (when (and (equal remote-id (org-entry-get nil "ORG_COMMENTS_REMOTE_ID"))
-		       (equal (org-entry-get nil "ORG_COMMENTS_SYNC_KIND") "reply"))
-	      (org-google-docs-comments-import--update-reply-at-heading
-	       reply parent-remote-id)
-	      (setq updated t))
-	    (forward-line 1))
-	  (when updated
-	    (write-region (point-min) (point-max) sidecar-file nil 'silent))
-	  updated)))))
+  (when-let* ((remote-id (plist-get reply :remote-id)))
+    (org-comments-sidecar-with-remote-heading
+     sidecar-file remote-id
+     (lambda ()
+       (org-google-docs-comments-import--update-reply-at-heading reply parent-remote-id)
+       t)
+     :sync-kind "reply")))
 
 (defun org-google-docs-comments-import--append-reply
     (sidecar-file parent-remote-id reply)
