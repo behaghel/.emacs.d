@@ -38,6 +38,20 @@
   (should (equal (org-comments-import-report-format '(:provider "Confluence"))
 		 "Confluence comments: added 0, updated 0")))
 
+(ert-deftest org-comments-sync-report-format-summarizes-provider-counts ()
+  "Sync report formatting is provider-neutral and concise."
+  (should (equal (org-comments-sync-report-format
+		  '(:provider "Google Docs"
+			      :pushed-replies 1
+			      :resolved 2
+			      :already-pushed 1))
+		 "Google Docs comments: pushed replies 1, resolved 2, already pushed 1")))
+
+(ert-deftest org-comments-sync-report-format-defaults-to-no-changes ()
+  "Sync report formatting defaults to a no-change summary."
+  (should (equal (org-comments-sync-report-format '(:provider "Google Docs"))
+		 "Google Docs comments: no changes")))
+
 (ert-deftest org-comments-sync-state-label-distinguishes-local-and-remote ()
   "Sync state labels describe local-only and synced records generically."
   (should (equal (org-comments-sync-state-label '(:body "Draft")) "unsynced"))

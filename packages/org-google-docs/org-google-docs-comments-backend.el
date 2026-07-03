@@ -12,6 +12,7 @@
 (require 'json)
 (require 'org)
 (require 'org-comments-backend)
+(require 'org-comments-core)
 (require 'org-comments-sidecar)
 (require 'org-comments-ui)
 (require 'org-google-docs-comments)
@@ -140,11 +141,11 @@ SIDECAR-FILE, DOCUMENT-ID, and ACCOUNT are copied into the returned record."
   "Push pending local status changes for Google Docs SOURCE-FILE comments."
   (let ((comments (org-google-docs-comments-backend--pending-status-comments source-file)))
     (dolist (comment comments)
-      (org-google-docs-comments-backend-set-status comment "RESOLVED"))
+      (org-google-docs-comments-backend-set-status
+       (plist-put (copy-sequence comment) :suppress-report t) "RESOLVED"))
     (when comments
-      (message "Pushed %s pending Google Docs comment status change%s"
-	       (length comments)
-	       (if (= (length comments) 1) "" "s")))
+      (org-comments-sync-report-message
+       (list :provider "Google Docs" :pushed-statuses (length comments))))
     (list :pushed-statuses (length comments))))
 
 (defun org-google-docs-comments-backend--goto-sidecar-comment (comment)
@@ -186,7 +187,10 @@ SIDECAR-FILE, DOCUMENT-ID, and ACCOUNT are copied into the returned record."
       (org-mode)
       (unless (org-google-docs-comments-backend--goto-sidecar-comment comment)
 	(user-error "Cannot find Google Docs comment in sidecar"))
-      (org-todo "RESOLVED")
+      (let ((inhibit-message t)
+	    (org-log-done nil)
+	    (org-inhibit-logging t))
+	(org-todo "RESOLVED"))
       (org-entry-put nil "ORG_COMMENTS_REMOTE_RESOLUTION_STATUS" "resolved")
       (write-region (point-min) (point-max) sidecar-file nil 'silent))))
 
@@ -288,7 +292,9 @@ The initial backend only supports resolving remote comments."
        (setq result response)
        (org-google-docs-comments-backend--mark-sidecar-resolved comment)
        (org-google-docs-comments-backend--refresh-source-ui comment)
-       (message "Resolved Google Docs comment %s" remote-id))
+       (unless (plist-get comment :suppress-report)
+	 (org-comments-sync-report-message
+	  (list :provider "Google Docs" :resolved 1))))
      account)
     result))
 
@@ -358,10 +364,12 @@ is forwarded to upstream gdocs request helpers."
 	 "RESOLVED"))
        ((and (equal status "RESOLVED")
 	     (equal remote-status "resolved"))
-	(message "Google Docs comment already resolved: %s" remote-id)
+	(org-comments-sync-report-message
+	 (list :provider "Google Docs" :already-pushed 1))
 	(list :already-pushed t :remote-id remote-id :status "RESOLVED"))
        (t
-	(message "No pending Google Docs root comment changes: %s" remote-id)
+	(org-comments-sync-report-message
+	 (list :provider "Google Docs" :no-op 1))
 	(list :no-op t :remote-id remote-id))))))
 
 (defun org-google-docs-comments-backend-push (comment)
@@ -376,7 +384,8 @@ comments.  Creating new anchored root comments is intentionally deferred."
 	     result)
 	(if (and remote-id (not (string-empty-p remote-id)))
 	    (progn
-	      (message "Google Docs reply already pushed: %s" remote-id)
+	      (org-comments-sync-report-message
+	       (list :provider "Google Docs" :already-pushed 1))
 	      (list :already-pushed t :remote-id remote-id))
 	  (org-google-docs-comments-backend--create-reply
 	   (plist-get payload :document-id)
@@ -385,9 +394,8 @@ comments.  Creating new anchored root comments is intentionally deferred."
 	   (lambda (response)
 	     (setq result response)
 	     (org-google-docs-comments-backend--record-reply-remote-id payload response)
-	     (message "Pushed Google Docs reply %s to comment %s"
-		      (alist-get 'id response)
-		      (plist-get payload :parent-remote-id)))
+	     (org-comments-sync-report-message
+	      (list :provider "Google Docs" :pushed-replies 1)))
 	   account)
 	  result))))
 
