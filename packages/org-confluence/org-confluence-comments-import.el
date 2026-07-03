@@ -291,6 +291,23 @@ Update REPORT with any local status changes."
 		    (1+ (or (plist-get report :remote-reopened) 0)))
 	 (org-todo "OPEN"))))))
 
+(defun org-confluence-comments-import-stamp-inline-backfill-metadata (comment)
+  "Stamp missing Confluence inline backfill metadata from COMMENT."
+  (org-comments-sidecar-stamp-properties-when-missing
+   `(("ORG_COMMENTS_TARGET_TEXT" . ,(org-confluence-comments-remote-inline-target-text comment))
+     ("ORG_COMMENTS_TARGET_MATCH_COUNT"
+      . ,(when-let* ((count (org-confluence-comments-remote-inline-match-count comment)))
+	   (number-to-string count)))
+     ("ORG_COMMENTS_TARGET_MATCH_INDEX"
+      . ,(when-let* ((index (org-confluence-comments-remote-inline-match-index comment)))
+	   (number-to-string index)))
+     ("ORG_COMMENTS_REMOTE_MARKER_OCCURRENCE_COUNT"
+      . ,(when-let* ((count (org-confluence-comments-remote-marker-occurrence-count comment)))
+	   (number-to-string count)))
+     ("ORG_COMMENTS_REMOTE_MARKER_OCCURRENCE_INDEX"
+      . ,(when-let* ((index (org-confluence-comments-remote-marker-occurrence-index comment)))
+	   (number-to-string index))))))
+
 (defun org-confluence-comments-import-backfill-remote-metadata (sidecar-file comment &optional report)
   "Backfill/update sidecar metadata for existing remote COMMENT.
 +REPORT is updated for TODO-impacting status changes when non-nil."
@@ -300,21 +317,7 @@ Update REPORT with any local status changes."
      (lambda ()
        (org-confluence-comments-import-stamp-remote-author-metadata comment)
        (when (equal "inline" (org-entry-get nil "ORG_COMMENTS_SYNC_KIND"))
-	 (org-confluence-comments-import-put-property-when-missing
-	  "ORG_COMMENTS_TARGET_TEXT"
-	  (org-confluence-comments-remote-inline-target-text comment))
-	 (when-let* ((count (org-confluence-comments-remote-inline-match-count comment)))
-	   (org-confluence-comments-import-put-property-when-missing
-	    "ORG_COMMENTS_TARGET_MATCH_COUNT" (number-to-string count)))
-	 (when-let* ((index (org-confluence-comments-remote-inline-match-index comment)))
-	   (org-confluence-comments-import-put-property-when-missing
-	    "ORG_COMMENTS_TARGET_MATCH_INDEX" (number-to-string index)))
-	 (when-let* ((count (org-confluence-comments-remote-marker-occurrence-count comment)))
-	   (org-confluence-comments-import-put-property-when-missing
-	    "ORG_COMMENTS_REMOTE_MARKER_OCCURRENCE_COUNT" (number-to-string count)))
-	 (when-let* ((index (org-confluence-comments-remote-marker-occurrence-index comment)))
-	   (org-confluence-comments-import-put-property-when-missing
-	    "ORG_COMMENTS_REMOTE_MARKER_OCCURRENCE_INDEX" (number-to-string index))))
+	 (org-confluence-comments-import-stamp-inline-backfill-metadata comment))
        (org-confluence-comments-import-set-remote-present-properties comment)
        (unless (equal "reply" (org-entry-get nil "ORG_COMMENTS_SYNC_KIND"))
 	 (org-confluence-comments-import-apply-remote-status comment report))

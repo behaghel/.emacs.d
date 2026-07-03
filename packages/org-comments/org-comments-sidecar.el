@@ -299,6 +299,12 @@ When LAST-SEEN-AT is non-nil, record it as `ORG_COMMENTS_REMOTE_LAST_SEEN_AT'."
     (:remote-resolution-status . "ORG_COMMENTS_REMOTE_RESOLUTION_STATUS"))
   "Mapping from normalized remote metadata keys to sidecar properties.")
 
+(defun org-comments-sidecar-stamp-properties-when-missing (properties)
+  "Stamp sidecar PROPERTIES alist at point only when missing.
+Each element is a cons cell of Org property name and value."
+  (dolist (property properties)
+    (org-comments-sidecar-put-property-when-missing (car property) (cdr property))))
+
 (defun org-comments-sidecar-stamp-remote-metadata-when-missing (metadata)
   "Stamp current heading with normalized remote METADATA only when missing."
   (dolist (entry org-comments-sidecar-remote-metadata-properties)
