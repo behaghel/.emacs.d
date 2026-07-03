@@ -36,7 +36,9 @@ controls whether resolved comments are imported."
 
 (defun org-google-docs-comments-backend-sync (record)
   "Synchronize Google Docs comments for RECORD without syncing document body."
-  (org-google-docs-comments-backend-pull record))
+  (let ((source-file (org-google-docs-comments-backend--source-file record "sync")))
+    (org-google-docs-comments-backend--push-pending-statuses source-file)
+    (org-google-docs-comments-backend-pull record)))
 
 (defun org-google-docs-comments-backend--source-document-id (comment)
   "Return Google Docs document id from COMMENT's source file, or nil."
@@ -86,6 +88,63 @@ controls whether resolved comments are imported."
 	  (org-mode)
 	  (org-google-docs-comments-account)))))
 
+(defun org-google-docs-comments-backend--pending-status-comment
+    (source-file sidecar-file document-id account)
+  "Return pending resolved comment at point for SOURCE-FILE.
+SIDECAR-FILE, DOCUMENT-ID, and ACCOUNT are copied into the returned record."
+  (let ((status (org-get-todo-state))
+	(sync-kind (org-entry-get nil "ORG_COMMENTS_SYNC_KIND"))
+	(remote-id (org-entry-get nil "ORG_COMMENTS_REMOTE_ID"))
+	(remote-status (org-entry-get nil "ORG_COMMENTS_REMOTE_RESOLUTION_STATUS")))
+    (when (and (not (equal sync-kind "reply"))
+	       (equal status "RESOLVED")
+	       remote-id
+	       (not (string-empty-p remote-id))
+	       (not (equal remote-status "resolved")))
+      (list :source-file source-file
+	    :sidecar-file sidecar-file
+	    :document-id document-id
+	    :account account
+	    :id (org-entry-get nil "ORG_COMMENTS_ID")
+	    :remote-id remote-id
+	    :status status
+	    :remote-resolution-status remote-status
+	    :body (org-comments-entry-body
+		   (save-excursion (org-end-of-subtree t t)))))))
+
+(defun org-google-docs-comments-backend--pending-status-comments (source-file)
+  "Return Google Docs comments with local status pending push for SOURCE-FILE."
+  (let ((sidecar-file (org-comments-sidecar-path source-file)))
+    (when (file-exists-p sidecar-file)
+      (with-current-buffer (find-file-noselect source-file)
+	(org-mode)
+	(let ((document-id (org-google-docs-comments-document-id))
+	      (account (org-google-docs-comments-account)))
+	  (with-temp-buffer
+	    (insert-file-contents sidecar-file)
+	    (org-mode)
+	    (let (comments)
+	      (goto-char (point-min))
+	      (while (re-search-forward org-heading-regexp nil t)
+		(goto-char (match-beginning 0))
+		(when-let* ((comment
+			     (org-google-docs-comments-backend--pending-status-comment
+			      source-file sidecar-file document-id account)))
+		  (push comment comments))
+		(forward-line 1))
+	      (nreverse comments))))))))
+
+(defun org-google-docs-comments-backend--push-pending-statuses (source-file)
+  "Push pending local status changes for Google Docs SOURCE-FILE comments."
+  (let ((comments (org-google-docs-comments-backend--pending-status-comments source-file)))
+    (dolist (comment comments)
+      (org-google-docs-comments-backend-set-status comment "RESOLVED"))
+    (when comments
+      (message "Pushed %s pending Google Docs comment status change%s"
+	       (length comments)
+	       (if (= (length comments) 1) "" "s")))
+    (list :pushed-statuses (length comments))))
+
 (defun org-google-docs-comments-backend--goto-sidecar-comment (comment)
   "Move to COMMENT in its sidecar buffer and return non-nil when found."
   (let ((comment-id (plist-get comment :id))
@@ -99,6 +158,23 @@ controls whether resolved comments are imported."
 			   (equal remote-id (org-entry-get nil "ORG_COMMENTS_REMOTE_ID"))))
 	     return t
 	     do (forward-line 1))))
+
+(defun org-google-docs-comments-backend--sidecar-entry-info (comment)
+  "Return sidecar entry metadata for COMMENT, or nil when not found."
+  (when-let* ((sidecar-file (plist-get comment :sidecar-file)))
+    (with-temp-buffer
+      (insert-file-contents sidecar-file)
+      (org-mode)
+      (when (org-google-docs-comments-backend--goto-sidecar-comment comment)
+	(list :id (org-entry-get nil "ORG_COMMENTS_ID")
+	      :status (org-get-todo-state)
+	      :sync-kind (org-entry-get nil "ORG_COMMENTS_SYNC_KIND")
+	      :remote-id (org-entry-get nil "ORG_COMMENTS_REMOTE_ID")
+	      :remote-resolution-status
+	      (org-entry-get nil "ORG_COMMENTS_REMOTE_RESOLUTION_STATUS")
+	      :body (org-comments-entry-body
+		     (save-excursion (org-end-of-subtree t t))))))))
+
 
 (defun org-google-docs-comments-backend--mark-sidecar-resolved (comment)
   "Mark COMMENT's sidecar entry resolved when sidecar metadata is available."
@@ -257,31 +333,60 @@ is forwarded to upstream gdocs request helpers."
 	(org-entry-put nil "ORG_COMMENTS_REMOTE_UPDATED_AT" updated-at))
       (write-region (point-min) (point-max) sidecar-file nil 'silent))))
 
+(defun org-google-docs-comments-backend--push-root-status (comment)
+  "Push pending root COMMENT status changes, or return nil when not applicable."
+  (let* ((info (org-google-docs-comments-backend--sidecar-entry-info comment))
+	 (sync-kind (plist-get info :sync-kind))
+	 (remote-id (or (plist-get comment :remote-id)
+			(plist-get info :remote-id)))
+	 (status (or (plist-get comment :status) (plist-get info :status)))
+	 (remote-status (or (plist-get comment :remote-resolution-status)
+			    (plist-get info :remote-resolution-status))))
+    (unless (equal sync-kind "reply")
+      (unless (and remote-id (not (string-empty-p remote-id)))
+	(user-error "Google Docs root comment creation is not supported yet"))
+      (cond
+       ((and (equal status "RESOLVED")
+	     (not (equal remote-status "resolved")))
+	(org-google-docs-comments-backend-set-status
+	 (append comment
+		 (list :remote-id remote-id
+		       :body (or (plist-get comment :body) (plist-get info :body))))
+	 "RESOLVED"))
+       ((and (equal status "RESOLVED")
+	     (equal remote-status "resolved"))
+	(message "Google Docs comment already resolved: %s" remote-id)
+	(list :already-pushed t :remote-id remote-id :status "RESOLVED"))
+       (t
+	(message "No pending Google Docs root comment changes: %s" remote-id)
+	(list :no-op t :remote-id remote-id))))))
+
 (defun org-google-docs-comments-backend-push (comment)
   "Push local Google Docs COMMENT changes to the remote service.
-The initial push implementation supports sidecar replies only.  Creating new
-anchored root comments is intentionally deferred."
-  (let* ((payload (org-google-docs-comments-backend--reply-payload comment))
-	 (remote-id (plist-get payload :remote-id))
-	 (account (or (plist-get comment :account)
-		      (plist-get comment :gdocs-account)))
-	 result)
-    (if (and remote-id (not (string-empty-p remote-id)))
-	(progn
-	  (message "Google Docs reply already pushed: %s" remote-id)
-	  (list :already-pushed t :remote-id remote-id))
-      (org-google-docs-comments-backend--create-reply
-       (plist-get payload :document-id)
-       (plist-get payload :parent-remote-id)
-       (plist-get payload :body)
-       (lambda (response)
-	 (setq result response)
-	 (org-google-docs-comments-backend--record-reply-remote-id payload response)
-	 (message "Pushed Google Docs reply %s to comment %s"
-		  (alist-get 'id response)
-		  (plist-get payload :parent-remote-id)))
-       account)
-      result)))
+This supports local replies and pending local resolution of imported root
+comments.  Creating new anchored root comments is intentionally deferred."
+  (or (org-google-docs-comments-backend--push-root-status comment)
+      (let* ((payload (org-google-docs-comments-backend--reply-payload comment))
+	     (remote-id (plist-get payload :remote-id))
+	     (account (or (plist-get comment :account)
+			  (plist-get comment :gdocs-account)))
+	     result)
+	(if (and remote-id (not (string-empty-p remote-id)))
+	    (progn
+	      (message "Google Docs reply already pushed: %s" remote-id)
+	      (list :already-pushed t :remote-id remote-id))
+	  (org-google-docs-comments-backend--create-reply
+	   (plist-get payload :document-id)
+	   (plist-get payload :parent-remote-id)
+	   (plist-get payload :body)
+	   (lambda (response)
+	     (setq result response)
+	     (org-google-docs-comments-backend--record-reply-remote-id payload response)
+	     (message "Pushed Google Docs reply %s to comment %s"
+		      (alist-get 'id response)
+		      (plist-get payload :parent-remote-id)))
+	   account)
+	  result))))
 
 (defun org-google-docs-comments-backend-detect (&optional source-buffer)
   "Return non-nil when SOURCE-BUFFER is linked to a Google Doc."

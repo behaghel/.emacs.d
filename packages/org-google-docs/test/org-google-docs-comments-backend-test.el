@@ -242,6 +242,129 @@
 	    (should (search-forward ":ORG_COMMENTS_REMOTE_STATE: present" nil t))))
       (delete-directory directory t))))
 
+(ert-deftest org-google-docs-comments-backend-pushes-pending-root-resolution ()
+  "Pushing a locally resolved root comment resolves it remotely."
+  (let* ((directory (make-temp-file "org-google-docs-push-status" t))
+	 (sidecar-file (expand-file-name "source.comments.org" directory))
+	 called)
+    (unwind-protect
+	(progn
+	  (with-temp-file sidecar-file
+	    (insert "#+title: Comments for source.org\n")
+	    (insert "#+source: source.org\n")
+	    (insert "#+todo: OPEN TODO | RESOLVED\n\n")
+	    (insert "* RESOLVED Google Docs comment\n")
+	    (insert ":PROPERTIES:\n")
+	    (insert ":ORG_COMMENTS_ID: google-docs:c-1\n")
+	    (insert ":ORG_COMMENTS_REMOTE_ID: c-1\n")
+	    (insert ":ORG_COMMENTS_REMOTE_RESOLUTION_STATUS: open\n")
+	    (insert ":END:\n\nRoot body.\n"))
+	  (cl-letf (((symbol-function 'require)
+		     (lambda (feature &optional _filename _noerror)
+		       (or (eq feature 'gdocs-api)
+			   (featurep feature))))
+		    ((symbol-function 'org-google-docs-comments-backend--resolve-comment)
+		     (lambda (document-id comment-id content callback &optional account)
+		       (setq called (list :document-id document-id
+					  :comment-id comment-id
+					  :content content
+					  :account account))
+		       (funcall callback '((id . "c-1") (resolved . t))))))
+	    (should (equal (org-comments-backend-push
+			    'google-docs
+			    (list :document-id "doc-123"
+				  :account "personal"
+				  :sidecar-file sidecar-file
+				  :id "google-docs:c-1"))
+			   '((id . "c-1") (resolved . t)))))
+	  (should (equal called (list :document-id "doc-123"
+				      :comment-id "c-1"
+				      :content "Root body."
+				      :account "personal")))
+	  (with-temp-buffer
+	    (insert-file-contents sidecar-file)
+	    (should (search-forward ":ORG_COMMENTS_REMOTE_RESOLUTION_STATUS: resolved" nil t))))
+      (delete-directory directory t))))
+
+(ert-deftest org-google-docs-comments-backend-sync-pushes-pending-resolution ()
+  "Sync pushes pending local root resolution before importing remote comments."
+  (let* ((directory (make-temp-file "org-google-docs-sync-status" t))
+	 (source-file (expand-file-name "source.org" directory))
+	 (sidecar-file (expand-file-name "source.comments.org" directory))
+	 called imported)
+    (unwind-protect
+	(progn
+	  (with-temp-file source-file
+	    (insert ":PROPERTIES:\n:GDOCS_DOCUMENT_ID: doc-123\n:END:\n\nBody\n"))
+	  (with-temp-file sidecar-file
+	    (insert "#+title: Comments for source.org\n")
+	    (insert "#+source: source.org\n")
+	    (insert "#+todo: OPEN TODO | RESOLVED\n\n")
+	    (insert "* RESOLVED Google Docs comment\n")
+	    (insert ":PROPERTIES:\n")
+	    (insert ":ORG_COMMENTS_ID: google-docs:c-1\n")
+	    (insert ":ORG_COMMENTS_REMOTE_ID: c-1\n")
+	    (insert ":ORG_COMMENTS_REMOTE_RESOLUTION_STATUS: open\n")
+	    (insert ":END:\n\nRoot body.\n"))
+	  (cl-letf (((symbol-function 'require)
+		     (lambda (feature &optional _filename _noerror)
+		       (or (eq feature 'gdocs-api)
+			   (featurep feature))))
+		    ((symbol-function 'org-google-docs-comments-backend--resolve-comment)
+		     (lambda (document-id comment-id content callback &optional account)
+		       (setq called (list :document-id document-id
+					  :comment-id comment-id
+					  :content content
+					  :account account))
+		       (funcall callback '((id . "c-1") (resolved . t)))))
+		    ((symbol-function 'org-google-docs-comments-import)
+		     (lambda (&optional include-resolved callback)
+		       (setq imported (list :include-resolved include-resolved
+					    :buffer-file buffer-file-name))
+		       (when callback (funcall callback sidecar-file))
+		       sidecar-file)))
+	    (should (equal (org-comments-backend-sync
+			    'google-docs
+			    (list :source-file source-file))
+			   sidecar-file)))
+	  (should (equal called (list :document-id "doc-123"
+				      :comment-id "c-1"
+				      :content "Root body."
+				      :account nil)))
+	  (should (equal imported (list :include-resolved nil
+					:buffer-file source-file))))
+      (when-let* ((buffer (find-buffer-visiting source-file)))
+	(kill-buffer buffer))
+      (delete-directory directory t))))
+
+(ert-deftest org-google-docs-comments-backend-push-resolved-root-noops-when-synced ()
+  "Pushing an already remote-resolved root comment is a no-op."
+  (let* ((directory (make-temp-file "org-google-docs-push-status-noop" t))
+	 (sidecar-file (expand-file-name "source.comments.org" directory))
+	 called)
+    (unwind-protect
+	(progn
+	  (with-temp-file sidecar-file
+	    (insert "#+title: Comments for source.org\n")
+	    (insert "#+source: source.org\n")
+	    (insert "#+todo: OPEN TODO | RESOLVED\n\n")
+	    (insert "* RESOLVED Google Docs comment\n")
+	    (insert ":PROPERTIES:\n")
+	    (insert ":ORG_COMMENTS_ID: google-docs:c-1\n")
+	    (insert ":ORG_COMMENTS_REMOTE_ID: c-1\n")
+	    (insert ":ORG_COMMENTS_REMOTE_RESOLUTION_STATUS: resolved\n")
+	    (insert ":END:\n\nRoot body.\n"))
+	  (cl-letf (((symbol-function 'org-google-docs-comments-backend--resolve-comment)
+		     (lambda (&rest _args) (setq called t))))
+	    (should (equal (org-comments-backend-push
+			    'google-docs
+			    (list :document-id "doc-123"
+				  :sidecar-file sidecar-file
+				  :id "google-docs:c-1"))
+			   '(:already-pushed t :remote-id "c-1" :status "RESOLVED"))))
+	  (should-not called))
+      (delete-directory directory t))))
+
 (ert-deftest org-google-docs-comments-backend-does-not-push-reply-twice ()
   "Pushing an already synced reply does not create a duplicate remote reply."
   (let* ((directory (make-temp-file "org-google-docs-push-reply-dup" t))
@@ -276,13 +399,28 @@
 	  (should-not called))
       (delete-directory directory t))))
 
-(ert-deftest org-google-docs-comments-backend-push-rejects-root-comment ()
+(ert-deftest org-google-docs-comments-backend-push-rejects-local-root-comment ()
   "Google Docs push rejects new root comments until anchored creation is supported."
-  (should-error
-   (org-comments-backend-push
-    'google-docs
-    '(:document-id "doc-123" :remote-id "c-1" :id "google-docs:c-1"))
-   :type 'user-error))
+  (let* ((directory (make-temp-file "org-google-docs-push-root" t))
+	 (sidecar-file (expand-file-name "source.comments.org" directory)))
+    (unwind-protect
+	(progn
+	  (with-temp-file sidecar-file
+	    (insert "#+title: Comments for source.org\n")
+	    (insert "#+source: source.org\n")
+	    (insert "#+todo: OPEN TODO | RESOLVED\n\n")
+	    (insert "* OPEN Local root\n")
+	    (insert ":PROPERTIES:\n")
+	    (insert ":ORG_COMMENTS_ID: local-root\n")
+	    (insert ":END:\n\nRoot body.\n"))
+	  (should-error
+	   (org-comments-backend-push
+	    'google-docs
+	    (list :document-id "doc-123"
+		  :sidecar-file sidecar-file
+		  :id "local-root"))
+	   :type 'user-error))
+      (delete-directory directory t))))
 
 (provide 'org-google-docs-comments-backend-test)
 ;;; org-google-docs-comments-backend-test.el ends here
