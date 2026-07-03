@@ -126,14 +126,13 @@ stored as `ORG_COMMENTS_REMOTE_PARENT_ID'."
 	(resolution-status (org-confluence-comments-remote-resolution-status comment)))
     (unless remote-id
       (user-error "Confluence create response did not include a comment id"))
-    (org-entry-put nil "ORG_COMMENTS_REMOTE_ID" remote-id)
+    (org-comments-sidecar-stamp-remote-metadata
+     (list :sync-kind sync-kind
+	   :remote-id remote-id
+	   :remote-parent-id parent-id
+	   :remote-resolution-status resolution-status))
     (org-entry-put nil "ORG_COMMENTS_SOURCE" "confluence")
-    (org-entry-put nil "ORG_COMMENTS_SYNC_KIND" sync-kind)
-    (when parent-id
-      (org-entry-put nil "ORG_COMMENTS_REMOTE_PARENT_ID" parent-id))
     (org-entry-put nil "ORG_COMMENTS_REMOTE_LAST_SEEN_AT" seen-at)
-    (when resolution-status
-      (org-entry-put nil "ORG_COMMENTS_REMOTE_RESOLUTION_STATUS" resolution-status))
     (when (equal sync-kind "inline")
       (org-confluence-comments-push-stamp-inline-match-info)
       (org-confluence-comments-push-stamp-remote-inline-anchor-state comment))
@@ -255,11 +254,11 @@ way that prevents computing Confluence's text selection match index."
 (defun org-confluence-comments-push-stamp-updated (comment seen-at)
   "Stamp current sidecar heading after remote COMMENT update at SEEN-AT."
   (org-comments-sidecar-clear-local-body-dirty)
-  (org-entry-put nil "ORG_COMMENTS_REMOTE_LAST_SEEN_AT" seen-at)
-  (when-let* ((updated-at (org-confluence-comments-remote-updated-at comment)))
-    (org-entry-put nil "ORG_COMMENTS_REMOTE_UPDATED_AT" updated-at))
-  (when-let* ((status (org-confluence-comments-remote-resolution-status comment)))
-    (org-entry-put nil "ORG_COMMENTS_REMOTE_RESOLUTION_STATUS" status))
+  (org-comments-sidecar-stamp-remote-metadata
+   (list :remote-last-seen-at seen-at
+	 :remote-updated-at (org-confluence-comments-remote-updated-at comment)
+	 :remote-resolution-status
+	 (org-confluence-comments-remote-resolution-status comment)))
   (when (equal "inline" (org-entry-get nil "ORG_COMMENTS_SYNC_KIND"))
     (org-confluence-comments-push-stamp-remote-inline-anchor-state comment)))
 

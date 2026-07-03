@@ -321,14 +321,12 @@ is forwarded to upstream gdocs request helpers."
       (org-mode)
       (unless (org-comments-sidecar-goto-comment (list :id comment-id))
 	(user-error "Cannot find Google Docs reply in sidecar"))
-      (org-entry-put nil "ORG_COMMENTS_REMOTE_ID" remote-id)
-      (org-entry-put nil "ORG_COMMENTS_REMOTE_PARENT_ID"
-		     (plist-get payload :parent-remote-id))
-      (org-entry-put nil "ORG_COMMENTS_REMOTE_STATE" "present")
-      (when-let* ((created-at (alist-get 'createdTime response)))
-	(org-entry-put nil "ORG_COMMENTS_REMOTE_CREATED_AT" created-at))
-      (when-let* ((updated-at (alist-get 'modifiedTime response)))
-	(org-entry-put nil "ORG_COMMENTS_REMOTE_UPDATED_AT" updated-at))
+      (org-comments-sidecar-stamp-remote-metadata
+       (list :remote-id remote-id
+	     :remote-parent-id (plist-get payload :parent-remote-id)
+	     :remote-state "present"
+	     :remote-created-at (alist-get 'createdTime response)
+	     :remote-updated-at (alist-get 'modifiedTime response)))
       (write-region (point-min) (point-max) sidecar-file nil 'silent))))
 
 (defun org-google-docs-comments-backend--push-root-status (comment)

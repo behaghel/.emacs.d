@@ -180,6 +180,29 @@
       (should (equal (org-comments-entry-body end) "New body.")))
     (should (search-forward "Reply body." nil t))))
 
+(ert-deftest org-comments-sidecar-stamps-normalized-remote-metadata ()
+  "Remote metadata stamping writes provider-neutral sidecar properties."
+  (with-temp-buffer
+    (org-mode)
+    (insert "* OPEN Remote\n:PROPERTIES:\n")
+    (insert ":ORG_COMMENTS_ID: remote-1\n")
+    (insert ":ORG_COMMENTS_REMOTE_STATE: missing\n")
+    (insert ":ORG_COMMENTS_REMOTE_MISSING_AT: old\n")
+    (insert ":END:\n\nBody\n")
+    (goto-char (point-min))
+    (org-comments-sidecar-stamp-remote-metadata
+     '(:backend "google-docs"
+		:remote-id "r1"
+		:remote-state present
+		:remote-author-display-name "Alice"
+		:remote-author-email "alice@example.com"
+		:remote-resolution-status "open"))
+    (should (equal (org-entry-get nil "ORG_COMMENTS_BACKEND") "google-docs"))
+    (should (equal (org-entry-get nil "ORG_COMMENTS_REMOTE_ID") "r1"))
+    (should (equal (org-entry-get nil "ORG_COMMENTS_REMOTE_AUTHOR_DISPLAY_NAME") "Alice"))
+    (should-not (org-entry-get nil "ORG_COMMENTS_REMOTE_STATE"))
+    (should-not (org-entry-get nil "ORG_COMMENTS_REMOTE_MISSING_AT"))))
+
 (ert-deftest org-comments-sidecar-normalizes-status-dirty-as-pending-push ()
   "Local status dirty metadata becomes provider-neutral pending push state."
   (let ((record (org-comments--normalize-sidecar-record

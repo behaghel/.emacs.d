@@ -131,20 +131,16 @@ Return `:remote-resolved' when this changes the local TODO state to RESOLVED."
 Return `:remote-resolved' when remote state changed the local TODO state, or
 `:updated' otherwise."
   (let ((status-change (org-google-docs-comments-import--apply-remote-status comment)))
-    (org-entry-put nil "ORG_COMMENTS_BACKEND" "google-docs")
-    (org-entry-put nil "ORG_COMMENTS_REMOTE_ID" (plist-get comment :remote-id))
-    (org-entry-put nil "ORG_COMMENTS_REMOTE_STATE" "present")
-    (org-entry-delete nil "ORG_COMMENTS_REMOTE_MISSING_AT")
-    (when-let* ((author (plist-get comment :author-name)))
-      (org-entry-put nil "ORG_COMMENTS_REMOTE_AUTHOR_DISPLAY_NAME" author))
-    (when-let* ((email (plist-get comment :author-email)))
-      (org-entry-put nil "ORG_COMMENTS_REMOTE_AUTHOR_EMAIL" email))
-    (when-let* ((created-at (plist-get comment :created-at)))
-      (org-entry-put nil "ORG_COMMENTS_REMOTE_CREATED_AT" created-at))
-    (when-let* ((updated-at (plist-get comment :updated-at)))
-      (org-entry-put nil "ORG_COMMENTS_REMOTE_UPDATED_AT" updated-at))
+    (org-comments-sidecar-stamp-remote-metadata
+     (list :backend "google-docs"
+	   :remote-id (plist-get comment :remote-id)
+	   :remote-state "present"
+	   :remote-author-display-name (plist-get comment :author-name)
+	   :remote-author-email (plist-get comment :author-email)
+	   :remote-created-at (plist-get comment :created-at)
+	   :remote-updated-at (plist-get comment :updated-at)
+	   :remote-resolution-status (plist-get comment :status)))
     (when-let* ((status (plist-get comment :status)))
-      (org-entry-put nil "ORG_COMMENTS_REMOTE_RESOLUTION_STATUS" status)
       (when (equal (org-comments-remote-status-value (org-get-todo-state)) status)
 	(org-entry-delete nil "ORG_COMMENTS_LOCAL_STATUS_DIRTY")))
     (when-let* ((target-text (plist-get comment :target-text)))
@@ -189,20 +185,16 @@ Return non-nil when an entry was updated."
 
 (defun org-google-docs-comments-import--update-reply-at-heading (reply parent-remote-id)
   "Update sidecar reply heading at point from normalized Google REPLY."
-  (org-entry-put nil "ORG_COMMENTS_BACKEND" "google-docs")
-  (org-entry-put nil "ORG_COMMENTS_SYNC_KIND" "reply")
-  (org-entry-put nil "ORG_COMMENTS_REMOTE_ID" (plist-get reply :remote-id))
-  (org-entry-put nil "ORG_COMMENTS_REMOTE_PARENT_ID" parent-remote-id)
-  (org-entry-put nil "ORG_COMMENTS_REMOTE_STATE" "present")
-  (org-entry-delete nil "ORG_COMMENTS_REMOTE_MISSING_AT")
-  (when-let* ((author (plist-get reply :author-name)))
-    (org-entry-put nil "ORG_COMMENTS_REMOTE_AUTHOR_DISPLAY_NAME" author))
-  (when-let* ((email (plist-get reply :author-email)))
-    (org-entry-put nil "ORG_COMMENTS_REMOTE_AUTHOR_EMAIL" email))
-  (when-let* ((created-at (plist-get reply :created-at)))
-    (org-entry-put nil "ORG_COMMENTS_REMOTE_CREATED_AT" created-at))
-  (when-let* ((updated-at (plist-get reply :updated-at)))
-    (org-entry-put nil "ORG_COMMENTS_REMOTE_UPDATED_AT" updated-at))
+  (org-comments-sidecar-stamp-remote-metadata
+   (list :backend "google-docs"
+	 :sync-kind "reply"
+	 :remote-id (plist-get reply :remote-id)
+	 :remote-parent-id parent-remote-id
+	 :remote-state "present"
+	 :remote-author-display-name (plist-get reply :author-name)
+	 :remote-author-email (plist-get reply :author-email)
+	 :remote-created-at (plist-get reply :created-at)
+	 :remote-updated-at (plist-get reply :updated-at)))
   (org-comments-sidecar-replace-entry-body
    (plist-get reply :body) (save-excursion (org-end-of-subtree t t))))
 

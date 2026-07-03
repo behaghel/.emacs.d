@@ -271,6 +271,47 @@ When LAST-SEEN-AT is non-nil, record it as `ORG_COMMENTS_REMOTE_LAST_SEEN_AT'."
     (org-entry-put nil "ORG_COMMENTS_REMOTE_LAST_SEEN_AT"
 		   (org-comments-sidecar--timestamp-value last-seen-at))))
 
+(defun org-comments-sidecar-put-property-when-present (property value)
+  "Set sidecar PROPERTY to VALUE when VALUE is present."
+  (when (and value (not (and (stringp value) (string-empty-p value))))
+    (org-entry-put nil property (format "%s" value))))
+
+(defconst org-comments-sidecar-remote-metadata-properties
+  '((:backend . "ORG_COMMENTS_BACKEND")
+    (:source . "ORG_COMMENTS_SOURCE")
+    (:sync-kind . "ORG_COMMENTS_SYNC_KIND")
+    (:remote-id . "ORG_COMMENTS_REMOTE_ID")
+    (:remote-parent-id . "ORG_COMMENTS_REMOTE_PARENT_ID")
+    (:remote-state . "ORG_COMMENTS_REMOTE_STATE")
+    (:remote-author-id . "ORG_COMMENTS_REMOTE_AUTHOR_ID")
+    (:remote-author-display-name . "ORG_COMMENTS_REMOTE_AUTHOR_DISPLAY_NAME")
+    (:remote-author-email . "ORG_COMMENTS_REMOTE_AUTHOR_EMAIL")
+    (:remote-created-at . "ORG_COMMENTS_REMOTE_CREATED_AT")
+    (:remote-updated-at . "ORG_COMMENTS_REMOTE_UPDATED_AT")
+    (:remote-last-seen-at . "ORG_COMMENTS_REMOTE_LAST_SEEN_AT")
+    (:remote-resolution-status . "ORG_COMMENTS_REMOTE_RESOLUTION_STATUS"))
+  "Mapping from normalized remote metadata keys to sidecar properties.")
+
+(defun org-comments-sidecar-stamp-remote-metadata (metadata)
+  "Stamp current heading with normalized remote METADATA plist.
+Missing metadata values are ignored.  `:remote-state present' is treated as a
+present marker and clears missing metadata."
+  (dolist (entry org-comments-sidecar-remote-metadata-properties)
+    (let ((value (plist-get metadata (car entry))))
+      (when (and value (not (eq (car entry) :remote-state)))
+	(org-comments-sidecar-put-property-when-present (cdr entry) value))))
+  (pcase (plist-get metadata :remote-state)
+    ('present
+     (org-comments-sidecar-mark-present-at-heading
+      (plist-get metadata :remote-last-seen-at)))
+    ("present"
+     (org-comments-sidecar-mark-present-at-heading
+      (plist-get metadata :remote-last-seen-at))
+     (org-entry-put nil "ORG_COMMENTS_REMOTE_STATE" "present"))
+    (state
+     (org-comments-sidecar-put-property-when-present
+      "ORG_COMMENTS_REMOTE_STATE" state))))
+
 (defun org-comments-sidecar-reconcile-missing (sidecar-file seen-ids &rest options)
   "Mark remote-linked sidecar entries absent from SEEN-IDS as missing.
 OPTIONS may include `:backend', `:source', `:sync-kind', `:parent-remote-id',
