@@ -41,66 +41,6 @@
 (defvar-local hub/org-context-panel--visual-fill-state nil
   "Saved visual-fill-column state while context panel docks prose.")
 
-(defvar hub/org-context-panel-filter-map
-  (let ((map (make-sparse-keymap)))
-    (define-key map (kbd "z") #'org-comments-filter-reset-current-ui)
-    (define-key map (kbd "a") #'hub/org-context-panel-filter-toggle-actionable)
-    (define-key map (kbd "d") #'hub/org-context-panel-filter-toggle-drafts)
-    (define-key map (kbd "m") #'hub/org-context-panel-filter-toggle-mine)
-    (define-key map (kbd "r") #'org-comments-filter-toggle-resolved-current-ui)
-    (define-key map (kbd "x") #'hub/org-context-panel-filter-toggle-missing)
-    (define-key map (kbd "?") #'org-comments-filter-status-current-ui)
-    map)
-  "Prefix keymap for Org context panel filters.")
-
-(defvar hub/org-context-panel-status-map
-  (let ((map (make-sparse-keymap)))
-    (define-key map (kbd "o") #'org-comments-mark-open-at-point)
-    (define-key map (kbd "t") #'org-comments-mark-todo-at-point)
-    (define-key map (kbd "r") #'org-comments-mark-resolved-at-point)
-    map)
-  "Prefix keymap for Org context panel status changes.")
-
-(defvar hub/org-context-panel-buffer-mode-map
-  (let ((map (make-sparse-keymap)))
-    (define-key map (kbd "?") #'org-comments-help-current-ui)
-    (define-key map (kbd "C-c C-c") #'org-comments-push-at-point)
-    (define-key map (kbd "RET") #'org-context-panel-jump-at-point)
-    (define-key map (kbd "e") #'org-comments-edit-at-point)
-    (define-key map (kbd "m") hub/org-context-panel-status-map)
-    (define-key map (kbd "o") #'org-comments-open-remote-at-point)
-    (define-key map (kbd "p") #'org-comments-page-open-at-point)
-    (define-key map (kbd "q") #'org-comments-close-current-ui)
-    (define-key map (kbd "+") #'org-comments-reply-at-point)
-    (define-key map (kbd "x") #'org-comments-delete-at-point)
-    (define-key map (kbd "z") hub/org-context-panel-filter-map)
-    map)
-  "Keymap used in Org context panel buffers.")
-
-(with-eval-after-load 'evil
-  (evil-define-key 'normal hub/org-context-panel-buffer-mode-map
-		   (kbd "?") #'org-comments-help-current-ui
-		   (kbd "C-c C-c") #'org-comments-push-at-point
-		   (kbd "RET") #'org-context-panel-jump-at-point
-		   (kbd "e") #'org-comments-edit-at-point
-		   (kbd "m") hub/org-context-panel-status-map
-		   (kbd "o") #'org-comments-open-remote-at-point
-		   (kbd "p") #'org-comments-page-open-at-point
-		   (kbd "q") #'org-comments-close-current-ui
-		   (kbd "+") #'org-comments-reply-at-point
-		   (kbd "x") #'org-comments-delete-at-point
-		   (kbd "z") hub/org-context-panel-filter-map
-		   (kbd "]c") #'org-comments-next-item-at-point
-		   (kbd "[c") #'org-comments-previous-item-at-point))
-
-(define-derived-mode hub/org-context-panel-buffer-mode special-mode "Org-Context"
-  "Major mode for read-only Org context panel buffers."
-  (setq-local truncate-lines nil
-	      word-wrap t
-	      revert-buffer-function #'hub/org-context-panel-revert-buffer)
-  (visual-line-mode 1))
-
-;;;###autoload
 ;;;###autoload
 (defun hub/org-context-panel--visual-fill-total-margin (source-window)
   "Return total visual-fill-column margin for SOURCE-WINDOW."
@@ -256,6 +196,16 @@
   (interactive)
   (hub/org-context-panel--toggle-filter :show-missing))
 
+(with-eval-after-load 'org-comments-panel
+  (define-key org-comments-panel-filter-map (kbd "a")
+	      #'hub/org-context-panel-filter-toggle-actionable)
+  (define-key org-comments-panel-filter-map (kbd "d")
+	      #'hub/org-context-panel-filter-toggle-drafts)
+  (define-key org-comments-panel-filter-map (kbd "m")
+	      #'hub/org-context-panel-filter-toggle-mine)
+  (define-key org-comments-panel-filter-map (kbd "x")
+	      #'hub/org-context-panel-filter-toggle-missing))
+
 (defun hub/org-context-panel--pulse-current-line ()
   "Briefly highlight the current context panel line when possible."
   (when (fboundp 'pulse-momentary-highlight-one-line)
@@ -276,7 +226,7 @@
 (defun hub/org-context-panel--close-page-view (&optional source-buffer)
   "Close page-context window for SOURCE-BUFFER or current source."
   (let ((source (or source-buffer
-		    (if (derived-mode-p 'hub/org-context-panel-buffer-mode)
+		    (if (derived-mode-p 'org-comments-panel-mode 'org-context-panel-buffer-mode)
 			org-context-panel-source-buffer
 		      (current-buffer)))))
     (when (buffer-live-p source)
@@ -335,7 +285,7 @@ whether an empty page-context panel is shown when there are no page comments."
   (interactive)
   (let* ((panel-window (hub/org-context-panel--visible-window))
 	 (source-buffer (cond
-			 ((derived-mode-p 'hub/org-context-panel-buffer-mode)
+			 ((derived-mode-p 'org-comments-panel-mode 'org-context-panel-buffer-mode)
 			  org-context-panel-source-buffer)
 			 ((and (window-live-p panel-window)
 			       (buffer-live-p (window-buffer panel-window)))

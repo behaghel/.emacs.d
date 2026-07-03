@@ -43,7 +43,7 @@
 (ert-deftest org-context-panel-goto-item-key-selects-row ()
   "Jump to a context panel row by comment ID."
   (with-temp-buffer
-    (hub/org-context-panel-buffer-mode)
+    (org-comments-panel-mode)
     (let ((inhibit-read-only t)
 	  first-start second-start)
       (setq first-start (point))

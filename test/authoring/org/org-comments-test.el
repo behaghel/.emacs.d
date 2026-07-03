@@ -741,7 +741,7 @@
   (let ((buffer (generate-new-buffer " *page context navigation test*")))
     (unwind-protect
 	(with-current-buffer buffer
-	  (hub/org-context-panel-buffer-mode)
+	  (org-comments-panel-mode)
 	  (let ((inhibit-read-only t))
 	    (let ((first-start (point)))
 	      (insert "First\n")
@@ -764,7 +764,7 @@
 (ert-deftest org-context-panel-filter-keys-use-z-prefix ()
   "Context filters live under the z prefix and zz resets filters."
   (with-temp-buffer
-    (hub/org-context-panel-buffer-mode)
+    (org-comments-panel-mode)
     (should (eq (local-key-binding (kbd "zx"))
 		#'hub/org-context-panel-filter-toggle-missing))
     (should (eq (local-key-binding (kbd "zr"))
@@ -840,27 +840,26 @@
 					       (should (equal (plist-get comment :local-updated-at)
 							      "2026-06-19T20:00:00+0000"))))))
 
-(ert-deftest org-context-panel-action-keys-avoid-core-s-and-r ()
-  "Panel actions leave s and r unbound for core navigation."
+(ert-deftest org-context-panel-action-keys-live-in-package-panel-mode ()
+  "Panel actions are owned by `org-comments-panel-mode-map'."
   (with-temp-buffer
-    (hub/org-context-panel-buffer-mode)
+    (org-comments-panel-mode)
     (should (eq (local-key-binding (kbd "?")) #'org-comments-help-current-ui))
-    (should (eq (local-key-binding (kbd "C-c C-c")) #'org-comments-push-at-point))
+    (should (eq (local-key-binding (kbd "U")) #'org-comments-panel-push))
     (should (eq (local-key-binding (kbd "RET")) #'org-context-panel-jump-at-point))
-    (should (eq (local-key-binding (kbd "o")) #'org-comments-open-remote-at-point))
+    (should (eq (local-key-binding (kbd "o")) #'org-comments-panel-open-remote))
     (should (eq (local-key-binding (kbd "p")) #'org-comments-page-open-at-point))
     (should (eq (local-key-binding (kbd "q")) #'org-comments-close-current-ui))
-    (should (eq (local-key-binding (kbd "x")) #'org-comments-delete-at-point))
+    (should (eq (local-key-binding (kbd "d")) #'org-comments-delete-at-point))
     (should (eq (local-key-binding (kbd "e")) #'org-comments-edit-at-point))
-    (should (eq (lookup-key hub/org-context-panel-status-map (kbd "o"))
-		#'org-comments-mark-open-at-point))
-    (should (eq (lookup-key hub/org-context-panel-status-map (kbd "t"))
-		#'org-comments-mark-todo-at-point))
-    (should (eq (lookup-key hub/org-context-panel-status-map (kbd "r"))
-		#'org-comments-mark-resolved-at-point))
-    (should (eq (local-key-binding (kbd "+")) #'org-comments-reply-at-point))
-    (should-not (local-key-binding (kbd "s")))
-    (should-not (local-key-binding (kbd "r")))))
+    (should (eq (lookup-key org-comments-panel-status-map (kbd "o"))
+		#'org-comments-panel-mark-open))
+    (should (eq (lookup-key org-comments-panel-status-map (kbd "t"))
+		#'org-comments-panel-mark-todo))
+    (should (eq (lookup-key org-comments-panel-status-map (kbd "r"))
+		#'org-comments-panel-mark-resolved))
+    (should (eq (local-key-binding (kbd "r")) #'org-comments-reply-at-point))
+    (should-not (local-key-binding (kbd "s")))))
 
 (ert-deftest org-context-panel-uses-package-open-remote-at-point ()
   "Pressing open remote in the context panel opens the remote comment."
