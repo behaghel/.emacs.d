@@ -1,15 +1,15 @@
-From 3369b16f957c7f03eaf3bde5cd697ba2c762a9ee Mon Sep 17 00:00:00 2001
+From e3d75f307f5df7009e4a567ee33b66e89808af51 Mon Sep 17 00:00:00 2001
 From: Hubert Behaghel <behaghel@gmail.com>
 Date: Sat, 4 Jul 2026 16:11:31 +0200
 Subject: [PATCH] Include footnote runs in diff keys
 
 ---
- gdocs-diff.el           | 14 ++++++++++----
- test/gdocs-diff-test.el | 39 +++++++++++++++++++++++++++++++++++++++
- 2 files changed, 49 insertions(+), 4 deletions(-)
+ gdocs-diff.el           | 25 +++++++++++------
+ test/gdocs-diff-test.el | 61 +++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 78 insertions(+), 8 deletions(-)
 
 diff --git a/gdocs-diff.el b/gdocs-diff.el
-index b5489c8..b46c707 100644
+index b5489c8..1d2a064 100644
 --- a/gdocs-diff.el
 +++ b/gdocs-diff.el
 @@ -107,13 +107,16 @@ Concatenates all cell text across all rows."
@@ -48,8 +48,28 @@ index b5489c8..b46c707 100644
  
  (defun gdocs-diff--content-modification (old-elem new-elem range)
    "Generate delete+insert requests for a content change.
+@@ -753,12 +759,15 @@ tokens so that comment anchors on unchanged text survive."
+            (para-end (+ start new-text-len 1))
+            (style-reqs (gdocs-convert--make-paragraph-style-requests
+                         new-elem start para-end))
+-           (run-reqs (gdocs-convert--make-text-style-requests
+-                      (plist-get new-elem :contents) start))
++           (runs (plist-get new-elem :contents))
++           (run-reqs (gdocs-convert--make-text-style-requests runs start))
+            (list-reqs (gdocs-convert--make-list-requests
+-                       new-elem start para-end)))
++                       new-elem start para-end))
++           (footnote-reqs
++            (gdocs-convert--make-footnote-reference-requests runs start)))
+       (list :delete-reqs delete-reqs
+-            :insert-reqs (append insert-reqs style-reqs run-reqs list-reqs)
++            :insert-reqs (append insert-reqs style-reqs run-reqs list-reqs
++                                 footnote-reqs)
+             :style-reqs nil))))
+ 
+ (defun gdocs-diff--deleted-token-ranges (old-tokens old-kept start)
 diff --git a/test/gdocs-diff-test.el b/test/gdocs-diff-test.el
-index 76115c2..c14c4ba 100644
+index 76115c2..5e9b7e2 100644
 --- a/test/gdocs-diff-test.el
 +++ b/test/gdocs-diff-test.el
 @@ -56,6 +56,13 @@ ROWS is a list of lists of lists of run plists."
@@ -66,7 +86,7 @@ index 76115c2..c14c4ba 100644
  ;;;; LCS tests
  
  (ert-deftest gdocs-diff-test-lcs-identical ()
-@@ -87,6 +94,38 @@ ROWS is a list of lists of lists of run plists."
+@@ -87,6 +94,60 @@ ROWS is a list of lists of lists of run plists."
  
  ;;;; Element key tests
  
@@ -101,6 +121,28 @@ index 76115c2..c14c4ba 100644
 +         (result (gdocs-diff--formatting-only-modification new '(12 . 18))))
 +    (should (member '(:label "one" :index 16)
 +                    (plist-get result :style-reqs)))))
++
++(ert-deftest gdocs-diff-test-word-level-modification-emits-footnote-seams ()
++  "Text edits and added zero-width footnotes emit footnote seam requests."
++  (let* ((old (list :type 'paragraph
++                    :style 'normal
++                    :contents (list (gdocs-diff-test--plain-run "Text."))))
++         (new (list :type 'paragraph
++                    :style 'normal
++                    :contents (list (gdocs-diff-test--plain-run "Text")
++                                    (gdocs-diff-test--footnote-run "one")
++                                    (gdocs-diff-test--plain-run " and more")
++                                    (gdocs-diff-test--footnote-run "two")
++                                    (gdocs-diff-test--plain-run "."))))
++         (gdocs-convert-footnote-reference-handler
++          (lambda (run index)
++            (list (list :label (plist-get run :footnote-label)
++                        :index index))))
++         (result (gdocs-diff--word-level-paragraph-modification old new 12 18)))
++    (should (member '(:label "one" :index 16)
++                    (plist-get result :insert-reqs)))
++    (should (member '(:label "two" :index 25)
++                    (plist-get result :insert-reqs)))))
 +
  (ert-deftest gdocs-diff-test-element-key-paragraph ()
    "Paragraph key includes text and style."
