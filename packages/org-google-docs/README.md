@@ -28,6 +28,7 @@ This repository has a mature Org ↔ Confluence publishing and sync workflow, bu
 - `patches/gdocs-drive-raw-multipart-upload.patch` records the upstream upload fix needed for Drive media uploads to send raw multipart bodies with a final boundary.
 - `patches/gdocs-image-caption-text.patch` records the upstream conversion change that renders image captions as visible text after inserted images.
 - `patches/gdocs-image-caption-diff-key.patch` records the upstream diff change that treats image caption changes as semantic image changes.
+- `patches/gdocs-inline-image-pull-uri.patch` records the upstream conversion change that preserves Google Docs inline image source/content URIs on pull.
 - `docs/native-footnotes-smoke.md` records manual smoke-test scenarios for native footnote push/pull, including repeated references and UI caveats.
 - `docs/native-images-smoke.md` records manual smoke-test scenarios for standalone image and caption push, including debug-pipeline checkpoints.
 - The activation module prefers a local `~/ws/gdocs` checkout on branch `org-footnote-seam`; this makes the seam repeatable without mutating `straight/repos/gdocs` directly.

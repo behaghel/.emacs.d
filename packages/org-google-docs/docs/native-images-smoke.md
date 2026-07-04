@@ -75,6 +75,19 @@ not:
   [[file:~/Pictures/hubert-escobar-banner.png]]
 ```
 
+## Pull inline image preservation
+
+Starting from a Google Doc that contains inline images, run pull from the linked Org buffer.
+
+Expected Org source after pull:
+
+- each Google Docs inline image with exposed object metadata becomes an ordinary Org link to its `sourceUri` when available;
+- if `sourceUri` is absent but `contentUri` is available, the Org link uses `contentUri`;
+- the image is not silently dropped and does not degrade to only an opaque object id unless Google exposes no usable URI;
+- captions are not natively re-associated on pull in v1; visible caption text remains ordinary text.
+
+Manual result: pending.
+
 ## Pipeline trace checklist
 
 Before guessing from live Google Docs behavior, run:
