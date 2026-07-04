@@ -10,6 +10,7 @@ Org ↔ Google Docs body sync currently depends on upstream `benthamite/gdocs`, 
 - Upstream body sync lives in `straight/repos/gdocs/` and exposes an Org ↔ IR ↔ Google Docs request pipeline in `gdocs-convert.el`.
 - `gdocs-convert-org-buffer-to-ir` already parses Org with `org-element` and creates an intermediate representation.
 - The backend-neutral contract lives in `modules/org/typographic-semantics.md`, with a tracked specimen at `modules/org/specimens/typographic-semantics.org`.
+- `modules/org/typographic-semantics.el` audits Org buffers into a plain semantic inventory; `packages/org-google-docs/org-google-docs-semantics.el` classifies that inventory against current Google Docs support without depending on local `hub-*` helpers.
 - The sample and specimen currently reveal:
   - Org footnote references become literal text such as `[fn:1]` in paragraphs.
   - Footnote definitions become separate `:type 'footnote` IR elements, but push emits them as literal `[fn:N] body` text rather than native Google Docs footnotes.
