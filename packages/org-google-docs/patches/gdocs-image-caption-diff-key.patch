@@ -1,0 +1,71 @@
+From 64f1dbb834c107fb08344ee8b5edecca89e3d01b Mon Sep 17 00:00:00 2001
+From: Hubert Behaghel <behaghel@gmail.com>
+Date: Sat, 4 Jul 2026 18:57:25 +0200
+Subject: [PATCH] Include image captions in diff keys
+
+---
+ gdocs-diff.el           | 10 +++++++++-
+ test/gdocs-diff-test.el | 12 ++++++++++++
+ 2 files changed, 21 insertions(+), 1 deletion(-)
+
+diff --git a/gdocs-diff.el b/gdocs-diff.el
+index 1d2a064..908396e 100644
+--- a/gdocs-diff.el
++++ b/gdocs-diff.el
+@@ -72,7 +72,7 @@ identical keys."
+     ('table (gdocs-diff--table-key element))
+     ('horizontal-rule "horizontal-rule")
+     ('page-break "page-break")
+-    ('image (format "image:%s" (or (plist-get element :object-id) "")))
++    ('image (gdocs-diff--image-key element))
+     ('footnote (gdocs-diff--footnote-key element))
+     (_ (format "unknown:%s" (plist-get element :type)))))
+ 
+@@ -95,6 +95,14 @@ Concatenates all cell text across all rows."
+         (push (gdocs-convert--runs-to-plain-text cell) cell-texts)))
+     (format "table:%s" (s-join "|" (nreverse cell-texts)))))
+ 
++(defun gdocs-diff--image-key (element)
++  "Compute a content key for an image ELEMENT."
++  (format "image:%s:%s:%s:%s"
++          (or (plist-get element :object-id) "")
++          (or (plist-get element :path) "")
++          (or (plist-get element :source-uri) "")
++          (or (plist-get element :caption) "")))
++
+ (defun gdocs-diff--footnote-key (element)
+   "Compute a content key for a footnote ELEMENT."
+   (let ((label (or (plist-get element :label) ""))
+diff --git a/test/gdocs-diff-test.el b/test/gdocs-diff-test.el
+index 5e9b7e2..523a38c 100644
+--- a/test/gdocs-diff-test.el
++++ b/test/gdocs-diff-test.el
+@@ -50,6 +50,11 @@ ROWS is a list of lists of lists of run plists."
+   "Create an IR horizontal rule element with ID."
+   (list :type 'horizontal-rule :id id))
+ 
++(defun gdocs-diff-test--make-image (id &optional caption)
++  "Create an IR image element with ID and optional CAPTION."
++  (append (list :type 'image :path "img/logo.png" :id id)
++          (when caption (list :caption caption))))
++
+ (defun gdocs-diff-test--plain-run (text)
+   "Create a plain (unformatted) text run for TEXT."
+   (list :text text
+@@ -156,6 +161,13 @@ ROWS is a list of lists of lists of run plists."
+     (should (string-match-p "heading-1" key))
+     (should (string-match-p "hello" key))))
+ 
++(ert-deftest gdocs-diff-test-element-key-image-caption ()
++  "Image element key includes caption text."
++  (should-not (equal (gdocs-diff--element-key
++                      (gdocs-diff-test--make-image "img-1"))
++                     (gdocs-diff--element-key
++                      (gdocs-diff-test--make-image "img-1" "Logo")))))
++
+ (ert-deftest gdocs-diff-test-element-key-table ()
+   "Table key includes cell contents."
+   (let* ((runs (list (gdocs-diff-test--plain-run "cell1")))
+-- 
+2.51.2
+
