@@ -246,6 +246,14 @@ current Org source comment when called from an Org source buffer, and on
 the current rendered row/source when called from
 ‘org-comments-panel-mode’.
 
+   The panel UI is provider-neutral.  Rows use the same badge vocabulary
+for local and remote backends: ‘✍️’ for local draft/edit state, ‘🔗’ for
+remote-linked comments, ‘⚠’ for missing or dangling remote comments, and
+‘❓’ for unconfirmed anchors.  Focused rows show the full thread
+in-place: root body first, followed by wrapped ‘↳’ replies with the same
+author/date and sync-state presentation for Confluence, Google Docs, and
+local sidecars.
+
 
 File: org-comments.info,  Node: Backends,  Next: Confluence Backend,  Prev: Comment UI,  Up: Top
 
@@ -269,6 +277,18 @@ backend operation.
 document or page sync.  Provider packages may offer separate
 full-document synchronization commands outside the generic
 ‘org-comments’ backend contract.
+
+   Capabilities gate command behavior.  If a backend does not implement
+an operation, generic dispatch raises a clear ‘user-error’ that names
+the provider, the unsupported operation, and, when known, the supported
+next step.  Providers should not advertise capabilities that they cannot
+implement with native remote semantics.
+
+   Import and sync reports also use provider-neutral grammar.  Providers
+adapt remote API results into shared count plists, then call the generic
+report formatters so summaries differ only by provider label, for
+example ‘Google Docs comments: added 1, updated 0’ and ‘Confluence
+comments: pushed 1; URL copied’.
 
 * Menu:
 
@@ -599,25 +619,25 @@ Node: Page comments5665
 Node: Collaboration state5986
 Node: Local Org Sidecars6605
 Node: Comment UI7112
-Node: Backends8142
-Node: Identity resolution8945
-Node: Confluence Backend9431
-Node: Google Docs Backend10018
-Node: Migration11373
-Node: Commands11857
-Node: Customization18090
-Node: Keybindings21727
-Node: Org buffers21927
-Ref: org16f874e22049
-Node: Comment panel22880
-Ref: org161269923034
-Node: Page comments panel23905
-Node: Developer API24189
-Node: Troubleshooting24846
-Node: No comments appear25089
-Node: Legacy sidecar error25379
-Node: Remote operation is unsupported25691
-Node: Info manual is missing26079
+Node: Backends8620
+Node: Identity resolution10076
+Node: Confluence Backend10562
+Node: Google Docs Backend11149
+Node: Migration12504
+Node: Commands12988
+Node: Customization19221
+Node: Keybindings22858
+Node: Org buffers23058
+Ref: org6293e3923180
+Node: Comment panel24011
+Ref: org01c4bdb24165
+Node: Page comments panel25036
+Node: Developer API25320
+Node: Troubleshooting25977
+Node: No comments appear26220
+Node: Legacy sidecar error26510
+Node: Remote operation is unsupported26822
+Node: Info manual is missing27210
 
 End Tag Table
 

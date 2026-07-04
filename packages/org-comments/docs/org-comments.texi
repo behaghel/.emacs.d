@@ -245,6 +245,13 @@ commands are DWIM: they operate on the current Org source comment when called
 from an Org source buffer, and on the current rendered row/source when called
 from @samp{org-comments-panel-mode}.
 
+The panel UI is provider-neutral.  Rows use the same badge vocabulary for local
+and remote backends: @samp{✍️} for local draft/edit state, @samp{🔗} for remote-linked
+comments, @samp{⚠} for missing or dangling remote comments, and @samp{❓} for unconfirmed
+anchors.  Focused rows show the full thread in-place: root body first, followed
+by wrapped @samp{↳} replies with the same author/date and sync-state presentation for
+Confluence, Google Docs, and local sidecars.
+
 @node Backends
 @chapter Backends
 
@@ -270,6 +277,18 @@ sync comments.
 Backend @samp{:sync} is comments-only.  It must not perform a full document or page
 sync.  Provider packages may offer separate full-document synchronization
 commands outside the generic @samp{org-comments} backend contract.
+
+Capabilities gate command behavior.  If a backend does not implement an
+operation, generic dispatch raises a clear @samp{user-error} that names the provider,
+the unsupported operation, and, when known, the supported next step.  Providers
+should not advertise capabilities that they cannot implement with native remote
+semantics.
+
+Import and sync reports also use provider-neutral grammar.  Providers adapt
+remote API results into shared count plists, then call the generic report
+formatters so summaries differ only by provider label, for example
+@samp{Google Docs comments: added 1, updated 0} and
+@samp{Confluence comments: pushed 1; URL copied}.
 
 @menu
 * Identity resolution::
@@ -530,7 +549,7 @@ former personal metadata prefix.
 @node Org buffers
 @section Org buffers
 
-@float Table,org16f874e
+@float Table,org6293e39
 @multitable {aaaaaaaaaaa} {aaaaaaaaaaaaaaaaaaaaaaaaaaaa}
 @headitem Key
 @tab Command
@@ -573,7 +592,7 @@ former personal metadata prefix.
 @node Comment panel
 @section Comment panel
 
-@float Table,org1612699
+@float Table,org01c4bdb
 @multitable {aaaaa} {aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa}
 @headitem Key
 @tab Command
