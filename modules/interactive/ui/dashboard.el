@@ -8,6 +8,7 @@
 (require 'hub-denote)
 (require 'hub-utils)
 
+(require 'seq)
 (require 'ui/performance)
 
 (defgroup hub/dashboard nil
@@ -19,7 +20,7 @@
   :type '(repeat directory)
   :group 'hub/dashboard)
 
-(defcustom hub/dashboard-deferred-items '(denote agenda)
+(defcustom hub/dashboard-deferred-items '(personal-notes work-notes agenda)
   "Dashboard item identifiers to render after the first dashboard paint.
 These sections may load heavier dependencies such as Org agenda support.  Keep
 those dependencies inside their item generators so disabling dashboard, or
@@ -27,7 +28,8 @@ removing the item from `dashboard-items', also avoids loading them."
   :type '(repeat symbol)
   :group 'hub/dashboard)
 
-(defcustom hub/dashboard-deferred-item-delays '((denote . 1.0) (agenda . 5.0))
+(defcustom hub/dashboard-deferred-item-delays
+  '((personal-notes . 1.0) (work-notes . 1.5) (agenda . 5.0))
   "Idle delay per deferred dashboard item before refreshing it."
   :type '(alist :key-type symbol :value-type number)
   :group 'hub/dashboard)
@@ -43,6 +45,51 @@ removing the item from `dashboard-items', also avoids loading them."
 
 (defvar hub/org-background-agenda-render-p nil
   "Non-nil while dashboard renders Org agenda data in the background.")
+
+(defun hub/dashboard--path-under-directory-p (path directory)
+  "Return non-nil when PATH is inside DIRECTORY."
+  (when (and (stringp path) (stringp directory) (not (string-empty-p directory)))
+    (let ((file (expand-file-name path))
+	  (root (file-name-as-directory (expand-file-name directory))))
+      (string-prefix-p root file))))
+
+(defun hub/dashboard--note-directory-p (path)
+  "Return non-nil when PATH is under a configured Denote note directory."
+  (seq-some (lambda (directory)
+	      (hub/dashboard--path-under-directory-p path directory))
+	    (list hub/denote-directory hub/denote-work-directory)))
+
+(defun hub/dashboard--denote-related-file-p (path)
+  "Return non-nil when PATH is a Denote source note or generated sibling."
+  (let ((file (file-name-nondirectory path)))
+    (or (hub/denote-source-note-file-p path)
+	(string-suffix-p ".comments.org" file)
+	(string-match-p (rx string-start
+			    (= 8 digit) "T" (= 6 digit)
+			    (or "--" "=="))
+			file))))
+
+(defun hub/dashboard--hidden-or-generated-recent-p (path)
+  "Return non-nil when PATH is too noisy for dashboard recents."
+  (let ((file (file-name-nondirectory path)))
+    (or (member file '(".DS_Store" "TAGS"))
+	(string-prefix-p ".#" file)
+	(string-suffix-p "~" file)
+	(string-suffix-p ".elc" file)
+	(string-match-p (rx (or ".cache" "~undo-tree~" ".lost-") string-end) file))))
+
+(defun hub/dashboard--mail-path-p (path)
+  "Return non-nil when PATH is inside the local Maildir tree."
+  (when (stringp path)
+    (let ((mail-root (expand-file-name "Mail" (or (getenv "HOME") "~"))))
+      (hub/dashboard--path-under-directory-p path mail-root))))
+
+(defun hub/dashboard--exclude-recent-path-p (path)
+  "Return non-nil when PATH should be hidden from dashboard recents."
+  (or (hub/dashboard--mail-path-p path)
+      (hub/dashboard--hidden-or-generated-recent-p path)
+      (and (hub/dashboard--note-directory-p path)
+	   (hub/dashboard--denote-related-file-p path))))
 
 (defun hub/dashboard-seed-project-list ()
   "Ensure `project.el' knows workspace projects before dashboard renders."
@@ -154,7 +201,8 @@ removing the item from `dashboard-items', also avoids loading them."
 	dashboard-projects-backend 'project-el
 	dashboard-projects-switch-function 'project-switch-project
 	dashboard-filter-agenda-entry 'dashboard-filter-agenda-by-todo
-	dashboard-items '((recents . 8) (projects . 8) (bookmarks . 5) (denote . 5) (agenda . 5)))
+	dashboard-items '((recents . 8) (projects . 8) (bookmarks . 5)
+			  (personal-notes . 5) (work-notes . 5) (agenda . 5)))
   (let ((start-time (current-time)))
     (dashboard-setup-startup-hook)
     ;; We render the dashboard explicitly from `hub/dashboard-first-paint' before
@@ -235,16 +283,16 @@ removing the item from `dashboard-items', also avoids loading them."
 
   (setf (alist-get 'agenda dashboard-item-generators) #'hub/dashboard-insert-agenda-safe)
 
-  (defun hub/dashboard--denote-dirs ()
-    "Return existing denote directories, or nil when unavailable."
-    (when (boundp 'denote-directory)
-      (let* ((dirs (if (listp denote-directory) denote-directory (list denote-directory))))
-	(seq-filter #'file-directory-p dirs))))
+  (defun hub/dashboard--existing-dirs (dirs)
+    "Return existing directories from DIRS."
+    (let ((dirs (if (listp dirs) dirs (list dirs))))
+      (seq-filter #'file-directory-p dirs)))
 
-  (defun hub/dashboard--denote-note-records ()
-    "Return dashboard records for recent titled Denote source notes."
-    (let ((files (seq-filter #'hub/denote-source-note-file-p
-			     (denote-directory-files))))
+  (defun hub/dashboard--denote-note-records (dirs)
+    "Return dashboard records for recent titled Denote source notes in DIRS."
+    (let* ((denote-directory dirs)
+	   (files (seq-filter #'hub/denote-source-note-file-p
+			      (denote-directory-files))))
       (delq nil
 	    (mapcar (lambda (file)
 		      (when-let* ((title (denote-retrieve-title-value
@@ -255,39 +303,57 @@ removing the item from `dashboard-items', also avoids loading them."
 				 (lambda (x y) (string-lessp y x))
 				 files)))))
 
+  (defun hub/dashboard-insert-denote-section (section-name dirs list-size shortcut-id shortcut-char)
+    "Insert Denote SECTION-NAME from DIRS with LIST-SIZE items.
+SHORTCUT-ID and SHORTCUT-CHAR are forwarded to `dashboard-insert-section'."
+    (let ((records (and (require 'denote nil 'noerror)
+			(hub/dashboard--existing-dirs dirs)
+			(hub/dashboard--denote-note-records
+			 (hub/dashboard--existing-dirs dirs)))))
+      (when records
+	(insert (all-the-icons-octicon "repo" :height 1.2 :v-adjust 0.0 :face 'dashboard-heading))
+	(dashboard-insert-section section-name records list-size shortcut-id shortcut-char
+				  `(lambda (&rest ignore) (find-file-existing ,(plist-get el :path)))
+				  (propertize (plist-get el :title)
+					      'dashboard-path (plist-get el :path))))))
+
   (defun dashboard-insert-denote (list-size)
-    "Insert Denote dashboard section for LIST-SIZE items."
+    "Insert personal Denote dashboard section for LIST-SIZE items."
     (let ((start-time (current-time)))
       (unwind-protect
 	  (condition-case err
-	      (with-timeout (1.5 (error "Denote scan timed out"))
-		(let* ((dirs (hub/dashboard--denote-dirs))
-		       (denote-ok (and (require 'denote nil 'noerror) dirs)))
-		  (when denote-ok
-		    (let* ((denote-directory dirs)
-			   (recent-notes (hub/dashboard--denote-note-records)))
-		      (when recent-notes
-			(insert (all-the-icons-octicon "repo" :height 1.2 :v-adjust 0.0 :face 'dashboard-heading))
-			(dashboard-insert-section "Recent Personal Notes:" recent-notes list-size 'notes "n"
-						  `(lambda (&rest ignore) (find-file-existing ,(plist-get el :path)))
-						  (propertize (plist-get el :title)
-							      'dashboard-path (plist-get el :path))))))))
-	    (error (message "[dashboard] skipping denote section: %s" (error-message-string err))))
-	(hub/performance-log-startup-event "dashboard denote section" start-time))))
-  (add-to-list 'dashboard-item-generators '(denote . dashboard-insert-denote))
+	      (with-timeout (1.5 (error "Personal Denote scan timed out"))
+		(hub/dashboard-insert-denote-section
+		 "Recent Personal Notes:"
+		 hub/denote-directory list-size 'personal-notes "n"))
+	    (error (message "[dashboard] skipping personal Denote section: %s"
+			    (error-message-string err))))
+	(hub/performance-log-startup-event "dashboard personal denote section" start-time))))
+
+  (defun hub/dashboard-insert-work-denote (list-size)
+    "Insert work Denote dashboard section for LIST-SIZE items."
+    (let ((start-time (current-time)))
+      (unwind-protect
+	  (condition-case err
+	      (with-timeout (1.5 (error "Work Denote scan timed out"))
+		(hub/dashboard-insert-denote-section
+		 "Recent Work Notes:"
+		 hub/denote-work-directory list-size 'work-notes "w"))
+	    (error (message "[dashboard] skipping work Denote section: %s"
+			    (error-message-string err))))
+	(hub/performance-log-startup-event "dashboard work denote section" start-time))))
+
+  (add-to-list 'dashboard-item-generators '(personal-notes . dashboard-insert-denote))
+  (add-to-list 'dashboard-item-generators '(work-notes . hub/dashboard-insert-work-denote))
   (hub/dashboard-install-deferred-placeholders)
 
-  ;; Hide Maildir entries from the Recent Files section while keeping them in recentf.
-  (defun hub/dashboard--mail-path-p (path)
-    (when (stringp path)
-      (let ((mail-root (file-name-as-directory (expand-file-name "Mail" (or (getenv "HOME") "~")))))
-	(string-prefix-p mail-root (expand-file-name path)))))
-
+  ;; Hide noisy entries from the Recent Files section while keeping them in recentf.
   (defun hub/dashboard--filter-recents (paths)
-    (seq-remove #'hub/dashboard--mail-path-p paths))
+    "Return PATHS without entries represented elsewhere or generated by tooling."
+    (seq-remove #'hub/dashboard--exclude-recent-path-p paths))
 
-  (defun hub/dashboard-filter-mail-recents (orig-fn &rest args)
-    "Call ORIG-FN with ARGS after filtering Maildir recents."
+  (defun hub/dashboard-filter-recents-advice (orig-fn &rest args)
+    "Call ORIG-FN with ARGS after filtering noisy dashboard recents."
     (let* ((recentf-list (if (and (boundp 'recentf-list) (recentf-enabled-p))
 			     (hub/dashboard--filter-recents recentf-list)
 			   recentf-list)))
@@ -300,7 +366,7 @@ removing the item from `dashboard-items', also avoids loading them."
 	  (apply orig-fn args)
 	(hub/performance-log-startup-event "dashboard startupify lists" start-time))))
 
-  (advice-add 'dashboard-insert-startupify-lists :around #'hub/dashboard-filter-mail-recents)
+  (advice-add 'dashboard-insert-startupify-lists :around #'hub/dashboard-filter-recents-advice)
   (advice-add 'dashboard-insert-startupify-lists :around #'hub/dashboard-log-startupify-lists)
   (hub/performance-log-startup-event "dashboard config complete"))
 

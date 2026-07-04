@@ -5,21 +5,8 @@
 
 ;;; Code:
 
+(require 'hub-denote)
 (require 'hub-utils)
-
-(defgroup hub/notes nil
-  "Notes configuration for Denote."
-  :group 'denote)
-
-(defcustom hub/denote-directory (expand-file-name "~/ws/blog.behaghel.org/content-org/journal/")
-  "Default directory for Denote notes."
-  :type 'directory
-  :group 'hub/notes)
-
-(defcustom hub/denote-work-directory (expand-file-name "~/ws/veriff/my-docs/")
-  "Directory for work Denote notes."
-  :type 'directory
-  :group 'hub/notes)
 
 (defcustom hub/denote-work-known-keywords
   '("product" "engineering" "business" "culture" "organisation")
