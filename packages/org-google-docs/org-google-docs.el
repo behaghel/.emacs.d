@@ -8,7 +8,9 @@
 ;;; Code:
 
 (require 'pp)
+(require 'seq)
 (require 'subr-x)
+(require 'url-util)
 
 (autoload 'org-google-docs-comments-import "org-google-docs-comments-import" nil t)
 (require 'org-google-docs-comments-backend)
@@ -108,6 +110,31 @@ Set this to nil before rebuilding the map to leave the mode map unbound."
   (insert (org-google-docs--debug-pretty value))
   (insert "\n#+end_src\n"))
 
+(defun org-google-docs--debug-placeholder-uri (path)
+  "Return a non-fetching placeholder image URI for PATH."
+  (format "https://example.invalid/org-google-docs-debug/%s"
+	  (url-hexify-string (file-name-nondirectory path))))
+
+(defun org-google-docs--debug-enrich-image-ir (element images)
+  "Return ELEMENT enriched with placeholder image URIs from IMAGES."
+  (if (not (eq (plist-get element :type) 'image))
+      element
+    (if-let* ((image (seq-find (lambda (candidate)
+				 (equal (plist-get candidate :path)
+					(plist-get element :path)))
+			       images)))
+	(plist-put (copy-sequence element)
+		   :uri (org-google-docs--debug-placeholder-uri
+			 (plist-get image :path)))
+      element)))
+
+(defun org-google-docs--debug-enrich-ir-with-placeholder-uris (ir image-plan)
+  "Return IR with placeholder image URIs from IMAGE-PLAN for request tracing."
+  (mapcar (lambda (element)
+	    (org-google-docs--debug-enrich-image-ir
+	     element (plist-get image-plan :images)))
+	  ir))
+
 (defun org-google-docs--debug-local-snapshot ()
   "Return a local Google Docs pipeline diagnostic snapshot."
   (let* ((footnote-plan
@@ -120,13 +147,25 @@ Set this to nil before rebuilding the map to leave the mode map unbound."
 	  (when (fboundp 'gdocs-convert-org-buffer-to-ir)
 	    (org-google-docs--safe-diagnostic-value
 	     #'gdocs-convert-org-buffer-to-ir)))
+	 (local-ir-with-placeholder-image-uris
+	  (when (and local-ir
+		     (not (plist-get local-ir :error)))
+	    (org-google-docs--debug-enrich-ir-with-placeholder-uris
+	     local-ir image-plan)))
 	 (local-requests
 	  (when (and local-ir
 		     (not (plist-get local-ir :error))
 		     (fboundp 'gdocs-convert-ir-to-docs-requests))
 	    (org-google-docs--safe-diagnostic-value
 	     (lambda ()
-	       (gdocs-convert-ir-to-docs-requests local-ir))))))
+	       (gdocs-convert-ir-to-docs-requests local-ir)))))
+	 (local-requests-with-placeholder-image-uris
+	  (when (and local-ir-with-placeholder-image-uris
+		     (fboundp 'gdocs-convert-ir-to-docs-requests))
+	    (org-google-docs--safe-diagnostic-value
+	     (lambda ()
+	       (gdocs-convert-ir-to-docs-requests
+		local-ir-with-placeholder-image-uris))))))
     (list :buffer-name (buffer-name)
 	  :buffer-file buffer-file-name
 	  :default-directory default-directory
@@ -141,7 +180,11 @@ Set this to nil before rebuilding the map to leave the mode map unbound."
 	  :footnote-plan footnote-plan
 	  :image-plan image-plan
 	  :local-ir local-ir
-	  :local-requests local-requests)))
+	  :local-requests local-requests
+	  :local-requests-note
+	  "Raw local requests do not include image requests until upload adds fetchable URIs. Use :local-requests-with-placeholder-image-uris to inspect image and caption request generation without network upload."
+	  :local-requests-with-placeholder-image-uris
+	  local-requests-with-placeholder-image-uris)))
 
 (defun org-google-docs--debug-write-local (source-buffer snapshot include-remote)
   "Write local SNAPSHOT for SOURCE-BUFFER and INCLUDE-REMOTE flag."

@@ -131,6 +131,8 @@
 	      (let ((text (buffer-string)))
 		(should (string-match-p "Org Google Docs pipeline trace" text))
 		(should (string-match-p ":image-count 1" text))
+		(should (string-match-p
+			 "local-requests-with-placeholder-image-uris" text))
 		(should (string-match-p "Banner" text))))))
       (delete-file image-file))))
 
