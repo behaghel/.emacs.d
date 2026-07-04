@@ -42,6 +42,39 @@
 					      (should-not (plist-get plan :images))
 					      (should (plist-get plan :ready-p)))))
 
+(ert-deftest org-google-docs-images-enriches-image-ir-with-uploaded-uri ()
+  "Conversion advice adds uploaded image URIs to matching image IR."
+  (let ((org-google-docs-images--push-session
+	 (list :images (list (list :path "img/logo.png"
+				   :uri "https://drive.google.com/uc?export=download&id=file-1")))))
+    (cl-labels ((orig () (list (list :type 'image :path "img/logo.png"))))
+      (let ((ir (org-google-docs-images--around-org-buffer-to-ir #'orig)))
+	(should (equal (plist-get (car ir) :uri)
+		       "https://drive.google.com/uc?export=download&id=file-1"))
+	(should-not org-google-docs-images--push-session)))))
+
+(ert-deftest org-google-docs-images-upload-all-sets-public-drive-uris ()
+  "Image upload creates public permissions and stores direct Drive URIs."
+  (let ((org-google-docs-images-make-uploaded-files-public t)
+	calls)
+    (cl-letf (((symbol-function 'gdocs-api-upload-image)
+	       (lambda (file callback &optional account _folder-id)
+		 (push (list :upload file account) calls)
+		 (funcall callback '((id . "file-1")))))
+	      ((symbol-function 'gdocs-api-create-anyone-reader-permission)
+	       (lambda (file-id callback &optional account)
+		 (push (list :permission file-id account) calls)
+		 (funcall callback '((id . "perm-1"))))))
+      (org-google-docs-images--upload-all
+       (list (list :path "img/logo.png" :absolute-path "/tmp/logo.png"))
+       "acct"
+       (lambda (images)
+	 (should (equal (plist-get (car images) :uri)
+			"https://drive.google.com/uc?export=download&id=file-1"))))
+      (should (equal (nreverse calls)
+		     '((:upload "/tmp/logo.png" "acct")
+		       (:permission "file-1" "acct")))))))
+
 (ert-deftest org-google-docs-images-reports-missing-file ()
   "Missing standalone image files block before remote mutation."
   (org-google-docs-images-test--with-buffer "[[file:missing.png]]\n"

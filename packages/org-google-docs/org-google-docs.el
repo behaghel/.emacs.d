@@ -62,9 +62,6 @@ Set this to nil before rebuilding the map to leave the mode map unbound."
 		   (mapcar #'org-google-docs--diagnostic-message
 			   (plist-get plan :diagnostics))
 		   "; ")))
-    (when (plist-get plan :images)
-      (user-error "Google Docs image push is not wired yet; refusing to drop %d standalone image(s)"
-		  (length (plist-get plan :images))))
     plan))
 
 (defun org-google-docs--require-upstream-library (library)
@@ -123,13 +120,13 @@ Return a list of issue symbols."
   (interactive)
   (org-google-docs--call-upstream 'gdocs-create))
 
-;;;###autoload
-(defun org-google-docs-push ()
-  "Push the current Org buffer to its linked Google Doc via upstream gdocs.
-When named Org footnotes are present, preflight them and enable native Google
-Docs footnote creation through the local gdocs conversion seam."
-  (interactive)
-  (org-google-docs--preflight-images-for-push)
+(defun org-google-docs--current-gdocs-account ()
+  "Return current upstream gdocs account for this buffer, or nil."
+  (and (boundp 'gdocs-sync--account)
+       (symbol-value 'gdocs-sync--account)))
+
+(defun org-google-docs--push-after-image-upload ()
+  "Push current buffer after image upload/preparation has completed."
   (let ((plan (org-google-docs--preflight-footnotes-for-push)))
     (when (plist-get plan :references)
       (org-google-docs--require-upstream-library 'gdocs-convert)
@@ -138,8 +135,26 @@ Docs footnote creation through the local gdocs conversion seam."
     (condition-case err
 	(org-google-docs--call-upstream 'gdocs-push)
       ((error quit)
+       (org-google-docs-images-deactivate-session)
        (org-google-docs-footnotes--deactivate-session)
        (signal (car err) (cdr err))))))
+
+;;;###autoload
+(defun org-google-docs-push ()
+  "Push the current Org buffer to its linked Google Doc via upstream gdocs.
+When named Org footnotes are present, preflight them and enable native Google
+Docs footnote creation through the local gdocs conversion seam.  When standalone
+Org images are present, upload them first and enrich image IR with fetchable
+Google Drive URIs for native inline-image insertion."
+  (interactive)
+  (let ((image-plan (org-google-docs--preflight-images-for-push)))
+    (when (plist-get image-plan :images)
+      (org-google-docs--require-upstream-library 'gdocs-api)
+      (org-google-docs--require-upstream-library 'gdocs-convert))
+    (org-google-docs-images-begin-push
+     image-plan
+     #'org-google-docs--push-after-image-upload
+     (org-google-docs--current-gdocs-account))))
 
 ;;;###autoload
 (defun org-google-docs-pull ()

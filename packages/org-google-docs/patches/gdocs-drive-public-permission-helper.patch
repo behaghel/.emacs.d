@@ -1,0 +1,62 @@
+From 9ff00962511e52c1f1cc67efab3bb07a4858ebb2 Mon Sep 17 00:00:00 2001
+From: Hubert Behaghel <behaghel@gmail.com>
+Date: Sat, 4 Jul 2026 17:56:32 +0200
+Subject: [PATCH] Add Drive public permission helper
+
+---
+ gdocs-api.el           | 12 ++++++++++++
+ test/gdocs-api-test.el | 15 +++++++++++++++
+ 2 files changed, 27 insertions(+)
+
+diff --git a/gdocs-api.el b/gdocs-api.el
+index 0599b33..d6b5f5f 100644
+--- a/gdocs-api.el
++++ b/gdocs-api.el
+@@ -213,6 +213,18 @@ MIME-TYPE is the file's MIME type."
+     (base64-encode-region (point-min) (point-max) t)
+     (buffer-string)))
+ 
++(defun gdocs-api-create-anyone-reader-permission (file-id callback &optional account)
++  "Create an anyone-reader permission for Drive FILE-ID.
++CALLBACK is called with the parsed permission response.  ACCOUNT is an optional
++account name."
++  (gdocs-api--request
++   'post
++   (concat gdocs-api--drive-base-url "/" file-id "/permissions")
++   callback
++   :account account
++   :body (json-encode '((type . "anyone")
++                        (role . "reader")))))
++
+ (defun gdocs-api-rename-file (file-id new-name callback &optional account)
+   "Rename the Google Drive file FILE-ID to NEW-NAME.
+ CALLBACK is called with the parsed JSON response on success.
+diff --git a/test/gdocs-api-test.el b/test/gdocs-api-test.el
+index ef8761e..335b899 100644
+--- a/test/gdocs-api-test.el
++++ b/test/gdocs-api-test.el
+@@ -219,6 +219,21 @@
+   (let ((err (make-plz-error :message "network error" :response nil)))
+     (should-not (gdocs-api--extract-retry-after err))))
+ 
++;;;; Drive permissions
++
++(ert-deftest gdocs-api-test-create-anyone-reader-permission ()
++  "Anyone-reader permission uses Drive permissions.create endpoint."
++  (let (captured)
++    (cl-letf (((symbol-function 'gdocs-api--request)
++               (lambda (method url callback &rest args)
++                 (setq captured (list method url callback args)))))
++      (gdocs-api-create-anyone-reader-permission "file-1" #'ignore "acct")
++      (should (eq (nth 0 captured) 'post))
++      (should (string-match-p "/files/file-1/permissions\\'" (nth 1 captured)))
++      (should (equal (plist-get (nth 3 captured) :account) "acct"))
++      (should (equal (json-read-from-string (plist-get (nth 3 captured) :body))
++                     '((type . "anyone") (role . "reader")))))))
++
+ ;;;; Progress tracking
+ 
+ (ert-deftest gdocs-api-test-show-progress-increments-counter ()
+-- 
+2.51.2
+

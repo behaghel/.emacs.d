@@ -58,18 +58,24 @@
 	(should-error (org-google-docs-push) :type 'user-error)
 	(should-not calls)))))
 
-(ert-deftest org-google-docs-push-blocks-standalone-images-before-upstream ()
-  "Push refuses image-bearing buffers until native image insertion is wired."
+(ert-deftest org-google-docs-push-uploads-standalone-images-before-upstream ()
+  "Push prepares image-bearing buffers before invoking upstream gdocs."
   (let ((image-file (make-temp-file "org-google-docs-image" nil ".png"))
 	calls)
     (unwind-protect
-	(cl-letf (((symbol-function 'gdocs-push)
+	(cl-letf (((symbol-function 'org-google-docs--require-upstream-library)
+		   (lambda (_library) t))
+		  ((symbol-function 'org-google-docs-images-begin-push)
+		   (lambda (plan callback &optional _account)
+		     (push (length (plist-get plan :images)) calls)
+		     (funcall callback)))
+		  ((symbol-function 'gdocs-push)
 		   (lambda () (interactive) (push 'push calls))))
 	  (with-temp-buffer
 	    (insert (format "[[file:%s]]\n" image-file))
 	    (org-mode)
-	    (should-error (org-google-docs-push) :type 'user-error)
-	    (should-not calls)))
+	    (org-google-docs-push)
+	    (should (equal calls '(push 1)))))
       (delete-file image-file))))
 
 (ert-deftest org-google-docs-push-enables-native-footnote-session ()

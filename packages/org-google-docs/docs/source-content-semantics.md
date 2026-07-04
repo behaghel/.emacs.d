@@ -52,8 +52,8 @@ Org ↔ Google Docs body sync currently depends on upstream `benthamite/gdocs`, 
 - [x] AC-2a: Given a conventional Org footnotes section is converted to native Google Docs footnotes, when push-time IR is generated, then the `Footnotes`/`Notes de bas de page` heading and footnote-definition IR are omitted from the Google Docs body without modifying the source Org buffer.
 - [x] AC-2b: Given visible paragraph text changes and multiple zero-width footnote runs, when upstream diff generates requests, then it emits footnote-reference seam requests from the word-level modification path so native footnotes are not dropped.
 - [x] AC-3: Given a Google Doc with native footnotes, when converted by the local `gdocs` pull seam, then the Org buffer contains corresponding ordinary footnote references and definitions under a conventional `* Footnotes` section without losing surrounding paragraph text.
-- [ ] AC-4: Given a standalone local image link such as `[[./img/foo.png]]`, when pushed, then the Google Doc receives an inline image instead of literal `file:./img/foo.png` text. Initial upstream seam now preserves these as image IR rather than literal link text; mutation is still blocked until native insertion is wired.
-- [ ] AC-5: Given a standalone local image link with an Org caption, when pushed, then the caption is preserved as Org-visible semantic text or supported Google Docs image metadata; if no native mapping is reliable, the limitation is explicit and tested.
+- [x] AC-4: Given a standalone local image link such as `[[./img/foo.png]]`, when pushed, then the Google Doc receives an inline image instead of literal `file:./img/foo.png` text. The adapter uploads readable standalone images to Drive, grants an anyone-reader permission so Docs can fetch them, enriches image IR with a direct download URI, and relies on the upstream image request seam for `insertInlineImage`.
+- [ ] AC-5: Given a standalone local image link with an Org caption, when pushed, then the caption is preserved as Org-visible semantic text or supported Google Docs image metadata; if no native mapping is reliable, the limitation is explicit and tested. Captions are currently preserved in image IR but native caption mutation is not complete.
 - [ ] AC-6: Given a described image link such as `[[./img/foo.png][Open image]]`, when pushed, then it remains a normal link and is not treated as a standalone image upload.
 - [x] AC-7: Given an unsupported or missing local image file, when push preflight runs, then it fails before mutating the remote document with a clear actionable error.
 - [ ] AC-8: Given a source block with a language, when pushed and pulled, then code text and language identity survive; Google Docs code block building blocks are used when public APIs expose a reliable seam, and syntax highlighting is explicitly deferred.
@@ -95,7 +95,7 @@ Org ↔ Google Docs body sync currently depends on upstream `benthamite/gdocs`, 
 | --- | --- | --- |
 | AC-1, AC-2 | Unit tests over Org → IR/request adapter using sample footnote references/definitions, plus manual smoke checklist in `docs/native-footnotes-smoke.md` | Yes |
 | AC-3 | Upstream `gdocs-convert` fixture test over Docs JSON/native footnote payload → Org output | Yes |
-| AC-4, AC-6, AC-7 | Image classification/preflight tests modeled after Confluence image asset tests | Yes |
+| AC-4, AC-6, AC-7 | Image classification/preflight tests modeled after Confluence image asset tests plus upstream image IR/request tests | Yes |
 | AC-5 | Caption fixture test or documented limitation test | Yes |
 | AC-8 | Org → IR/request and IR/JSON → Org source-block fixture tests | Yes |
 | AC-9 | Semantic classification tests for dates and people links | Yes |

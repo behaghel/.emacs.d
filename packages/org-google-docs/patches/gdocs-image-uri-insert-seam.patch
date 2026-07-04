@@ -1,0 +1,74 @@
+From 7b43e98f799d92d0b208456ebf3e692f732ea3c9 Mon Sep 17 00:00:00 2001
+From: Hubert Behaghel <behaghel@gmail.com>
+Date: Sat, 4 Jul 2026 17:54:10 +0200
+Subject: [PATCH] Insert image IR from fetchable URIs
+
+---
+ gdocs-convert.el           | 17 ++++++++++++++++-
+ test/gdocs-convert-test.el | 20 ++++++++++++++++++++
+ 2 files changed, 36 insertions(+), 1 deletion(-)
+
+diff --git a/gdocs-convert.el b/gdocs-convert.el
+index c47dc2b..9bb6e05 100644
+--- a/gdocs-convert.el
++++ b/gdocs-convert.el
+@@ -2155,9 +2155,24 @@ Returns a plist (:requests LIST :index NEW-INDEX)."
+     ('table (gdocs-convert--table-to-requests element index))
+     ('horizontal-rule (gdocs-convert--horizontal-rule-to-requests index))
+     ('page-break (gdocs-convert--page-break-to-requests index))
+-    ('image (list :requests nil :index index))
++    ('image (gdocs-convert--image-to-requests element index))
+     ('footnote (gdocs-convert--footnote-to-requests element index))))
+ 
++;; ---------------------------------------------------------------------------
++;;; Image -> requests
++
++(defun gdocs-convert--image-to-requests (element index)
++  "Create insertInlineImage requests for image ELEMENT at INDEX.
++ELEMENT must contain `:uri' or `:source-uri'.  Images without a fetchable URI are
++left to adapter preflight code and produce no requests."
++  (if-let* ((uri (or (plist-get element :uri)
++                    (plist-get element :source-uri))))
++      (list :requests (list `((insertInlineImage
++                               . ((uri . ,uri)
++                                  (location . ((index . ,index)))))))
++            :index (1+ index))
++    (list :requests nil :index index)))
++
+ ;; ---------------------------------------------------------------------------
+ ;;; Paragraph -> requests
+ 
+diff --git a/test/gdocs-convert-test.el b/test/gdocs-convert-test.el
+index 19c6321..571391e 100644
+--- a/test/gdocs-convert-test.el
++++ b/test/gdocs-convert-test.el
+@@ -1326,6 +1326,26 @@
+                           :caption "Product logo")))))
+     (should (equal org "#+CAPTION: Product logo\n[[file:img/logo.png]]\n"))))
+ 
++(ert-deftest gdocs-convert-test-image-ir-to-requests ()
++  "Image IR with a fetchable URI emits an insertInlineImage request."
++  (let* ((result (gdocs-convert--image-to-requests
++                  (list :type 'image :uri "https://example.invalid/logo.png")
++                  12))
++         (requests (plist-get result :requests)))
++    (should (= (plist-get result :index) 13))
++    (should (equal requests
++                   '(((insertInlineImage
++                       . ((uri . "https://example.invalid/logo.png")
++                          (location . ((index . 12)))))))))))
++
++(ert-deftest gdocs-convert-test-image-ir-without-uri-noops ()
++  "Image IR without a fetchable URI is left to adapter preflight."
++  (let ((result (gdocs-convert--image-to-requests
++                 (list :type 'image :path "img/logo.png")
++                 12)))
++    (should-not (plist-get result :requests))
++    (should (= (plist-get result :index) 12))))
++
+ ;; ---------------------------------------------------------------------------
+ ;;; Src block conversion
+ 
+-- 
+2.51.2
+
