@@ -1,17 +1,26 @@
-From ac8117a50253b0af388375efd0960294e51f17e0 Mon Sep 17 00:00:00 2001
+From 9e92d6e23e9caa5792aa5edcf4c3e41e79de408c Mon Sep 17 00:00:00 2001
 From: Hubert Behaghel <behaghel@gmail.com>
 Date: Sat, 4 Jul 2026 18:27:58 +0200
 Subject: [PATCH] Send Drive uploads as raw multipart bodies
 
 ---
- gdocs-api.el | 19 +++++++++++--------
- 1 file changed, 11 insertions(+), 8 deletions(-)
+ gdocs-api.el           | 20 ++++++++++++--------
+ test/gdocs-api-test.el | 10 ++++++----
+ 2 files changed, 18 insertions(+), 12 deletions(-)
 
 diff --git a/gdocs-api.el b/gdocs-api.el
-index d6b5f5f..87f7cf3 100644
+index d6b5f5f..7d1db73 100644
 --- a/gdocs-api.el
 +++ b/gdocs-api.el
-@@ -196,14 +196,17 @@ the account name for error reporting."
+@@ -178,6 +178,7 @@ the account name for error reporting."
+           :headers `(("Authorization" . ,(concat "Bearer " token))
+                      ("Content-Type" . ,(concat "multipart/related; boundary=" boundary)))
+           :body body
++          :body-type 'binary
+           :as #'json-read
+           :then callback
+           :else (lambda (err)
+@@ -196,14 +197,17 @@ the account name for error reporting."
  BOUNDARY is the MIME boundary string.  METADATA is the JSON
  metadata part.  FILE-PATH is the path to the file to upload.
  MIME-TYPE is the file's MIME type."
@@ -37,6 +46,39 @@ index d6b5f5f..87f7cf3 100644
  
  (defun gdocs-api--file-to-base64 (file-path)
    "Read FILE-PATH and return its contents as a base64 string."
+diff --git a/test/gdocs-api-test.el b/test/gdocs-api-test.el
+index 335b899..1b1a70c 100644
+--- a/test/gdocs-api-test.el
++++ b/test/gdocs-api-test.el
+@@ -328,13 +328,13 @@
+       (should (equal 0 gdocs-api--active-requests))
+       (should (equal "" gdocs-api--modeline-string)))))
+ 
+-(ert-deftest gdocs-api-test-upload-image-hides-progress-with-finally ()
+-  "Image upload uses the plz finalizer to clear progress."
++(ert-deftest gdocs-api-test-upload-image-uses-binary-body-and-finally ()
++  "Image upload sends binary multipart data and clears progress via finalizer."
+   (let ((gdocs-api--active-requests 0)
+         (gdocs-api--modeline-string "")
+         (gdocs-accounts '(("acct")))
+         (temp-file (make-temp-file "gdocs-test-img" nil ".png"))
+-        captured-finally)
++        captured-body-type captured-finally)
+     (unwind-protect
+         (progn
+           (with-temp-file temp-file
+@@ -344,8 +344,10 @@
+                        (funcall callback "token")))
+                     ((symbol-function 'plz)
+                      (lambda (_method _url &rest args)
+-                       (setq captured-finally (plist-get args :finally)))))
++                       (setq captured-body-type (plist-get args :body-type)
++                             captured-finally (plist-get args :finally)))))
+             (gdocs-api-upload-image temp-file #'ignore "acct")
++            (should (eq captured-body-type 'binary))
+             (should (equal 1 gdocs-api--active-requests))
+             (should (functionp captured-finally))
+             (funcall captured-finally)
 -- 
 2.51.2
 
