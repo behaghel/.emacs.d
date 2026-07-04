@@ -1,0 +1,133 @@
+#+TITLE: Typographic Semantics Specimen
+#+SUBTITLE: Exhaustive authoring contract fixture
+#+AUTHOR: Hubert Behaghel
+#+DATE: <2026-07-03 Fri>
+#+LANGUAGE: en
+#+EXPORT_EYEBROW: Semantic specimen
+#+EXPORT_FOOTER_NOTE: Footer note used by renderers that support document-level notes.
+
+* Metadata and document structure
+
+This specimen is the living fixture for the typographic semantics contract in
+`modules/org/typographic-semantics.md`.  It should contain one canonical example
+of every authoring construct that PDF/LaTeX, Confluence, and Google Docs should
+classify as supported, degraded, deferred, or unsupported.
+
+** Inline semantics
+
+This paragraph[fn:ordinary] verifies /italic/, *bold*, _underline_,
++strike-through+, ~inline code~, =verbatim text=, an external link
+[[https://example.com][Example link]], an inline date <2026-07-03 Fri>, and a
+provisional people mention [[person:ada@example.com][Ada Lovelace]].
+
+** Tables
+
+| Name | Role     | Score |
+|------+----------+-------|
+| Ada  | Engineer |    10 |
+| Bo   | Reviewer |     8 |
+
+** Quote block
+
+#+begin_quote
+This quote carries quotation semantics.  Exact quote decoration is styling.
+
+It includes a second paragraph to verify block boundaries and spacing.
+#+end_quote
+
+** Info callout
+
+#+begin_callout
+This default callout should carry semantic admonition intent.
+#+end_callout
+
+** Warning callout with title
+
+#+ATTR_CALLOUT: :type warning :title "Acceptance warning"
+#+begin_callout
+This warning callout should preserve its type and title.
+#+end_callout
+
+** Standfirst block
+
+#+begin_standfirst
+This standfirst is a leading summary block for classes and targets that support
+standfirst semantics.
+#+end_standfirst
+
+** Source block
+
+#+begin_src emacs-lisp
+(defun hub/typographic-semantics-specimen ()
+  "Return a small specimen message."
+  (message "Typographic semantics are explicit"))
+#+end_src
+
+** Example block
+
+#+begin_example
+Preformatted example text should preserve whitespace
+  and indentation.
+#+end_example
+
+** Lists
+
+- First bullet[fn:forced-bottom]
+- Second bullet
+  - Nested bullet
+- [ ] Unchecked task
+- [X] Checked task
+- [-] Partial task
+
+1. First ordered item
+2. Second ordered item
+3. Third ordered item
+
+- Term 1 :: This is a definition-list term.
+- Term 2 :: This is another definition-list term.
+
+** Images and figures
+
+#+CAPTION: Logo image with a semantic caption.
+[[./veriff2026-logo.png]]
+
+A described image link should remain a normal hyperlink, not an embedded image:
+[[./img/image.png][Open the image file]].
+
+#+CAPTION: Nested image fixture.
+[[./img/image.png]]
+
+** Provider page metadata
+:PROPERTIES:
+:CONFLUENCE_PAGE_ID: 5929140417
+:GDOCS_DOCUMENT_ID: 1acPHzmzpAV48NkMufCO8fSpYrbVpv83Aup9UpeSPMPA
+:GDOCS_ACCOUNT: personal
+:END:
+
+Provider metadata is operational state, not typographic content, but exporters and
+sync adapters must avoid corrupting it.
+
+** Metric block
+
+#+begin_metric
+Metric blocks are semantic Veriff-style document components.
+#+end_metric
+
+** Graph block
+
+#+ATTR_LATEX: :float multicolumn
+#+begin_graph
+Graph blocks are semantic data-visualization placeholders.  Float and width are
+styling/layout decisions.
+#+end_graph
+
+* Footnotes
+
+[fn:ordinary] Ceci est une /note de pied de page/ that may render as a sidenote
+in `hub-article` LaTeX.
+
+[fn:forced-bottom]
+:PROPERTIES:
+:HUB_NOTE_KIND: footnote
+:END:
+This note explicitly requests bottom-footnote treatment where supported.

@@ -2,18 +2,21 @@
 
 ## Problem
 
-Org ↔ Google Docs body sync currently depends on upstream `benthamite/gdocs`, but real documents such as `/Users/hubertbehaghel/tmp/gdocs-test.org` expose semantic gaps for Org-native constructs. Styling differences are expected and out of scope for this epic. The goal is to preserve authoring semantics for footnotes, images, and quotes without forking unnecessarily or duplicating Confluence-specific behavior.
+Org ↔ Google Docs body sync currently depends on upstream `benthamite/gdocs`, but real documents such as `/Users/hubertbehaghel/tmp/gdocs-test.org` expose semantic gaps for the repository's typographic semantics contract. Styling differences are expected and out of scope for this epic. The goal is to preserve authoring semantics for footnotes, images, source blocks, dates, people mentions, and other Org-native constructs without forking unnecessarily or duplicating Confluence-specific behavior.
 
 ## Context
 
 - `packages/org-google-docs/` is the local adapter and should stay the home for wrapper/adaptation code.
 - Upstream body sync lives in `straight/repos/gdocs/` and exposes an Org ↔ IR ↔ Google Docs request pipeline in `gdocs-convert.el`.
 - `gdocs-convert-org-buffer-to-ir` already parses Org with `org-element` and creates an intermediate representation.
-- The sample file currently reveals:
+- The backend-neutral contract lives in `modules/org/typographic-semantics.md`, with a tracked specimen at `modules/org/specimens/typographic-semantics.org`.
+- The sample and specimen currently reveal:
   - Org footnote references become literal text such as `[fn:1]` in paragraphs.
   - Footnote definitions become separate `:type 'footnote` IR elements, but push emits them as literal `[fn:N] body` text rather than native Google Docs footnotes.
   - Plain local image links become plain text like `file:./veriff2026-logo.png`; imported Google Docs inline images become `:type 'image` IR elements that render back to empty Org text.
-  - Quote blocks become `:style 'quote` paragraph IR and round-trip to Org quote blocks, but Google Docs request generation maps unknown styles to normal text, so quote semantics are only local IR/Org semantics today.
+  - Source blocks must preserve code text and language identity; syntax highlighting is styling.
+  - Dates and people mentions need explicit semantic classification before deciding whether native smart chips or mentions are feasible.
+  - Quote blocks become `:style 'quote` paragraph IR and round-trip to Org quote blocks, but Google Docs request generation maps unknown styles to normal text. Visible quote decoration is therefore styling-deferred unless a reliable Docs semantic is found.
 - Confluence provides useful patterns, not a storage model to copy:
   - image asset discovery and path validation in `org-confluence-export.el`;
   - standalone image-link detection and captions;
@@ -27,10 +30,10 @@ Org ↔ Google Docs body sync currently depends on upstream `benthamite/gdocs`, 
 | Upstream strategy | Wrap first, add upstream seams second, fork only if blocked | Keeps `benthamite/gdocs` usable as transport/sync engine while allowing local progress. |
 | Primary package boundary | Put Google-specific semantic adapters in `packages/org-google-docs/` | Keeps activation thin and avoids editing vendored upstream until a seam is proven necessary. |
 | Reuse strategy | Extract tiny provider-neutral helpers only when Confluence and Google genuinely share Org-level semantics | Avoids forcing Google Docs into Confluence storage/XHTML concepts. |
-| Epic scope | Org-native semantics only: footnotes, standalone local images, quote blocks | Styling, callout visual design, exact spacing, typography, and rich layout are later epics. |
+| Epic scope | Typographic contract semantics: footnotes, standalone local images, source blocks, dates, people mentions, and explicit degradation for other specimen constructs | Styling, callout visual design, exact spacing, typography, and rich layout are later epics. |
 | Footnote target | Round-trip semantic preservation | Footnotes are a first-class Org semantic and native Google Docs footnotes exist. |
 | Image target | Publish-first for standalone local images; pull preservation only where the API exposes enough data | Google Docs image insertion/upload and reverse mapping are trickier than text semantics. |
-| Quote target | Round-trip quote-block preservation, with Google-visible quote formatting if feasible | Upstream already preserves Org quote IR; request generation is the likely gap. |
+| Quote target | Preserve quote-block boundaries on round trip; treat visible quote formatting as styling unless Google exposes a reliable semantic equivalent | Upstream already preserves Org quote IR; request generation is the likely styling gap. |
 | Upstream modifications | Prefer small, upstreamable hooks/IR extensions over large local monkey patches | The current IR pipeline is a natural extension point. |
 
 ## Acceptance Criteria
@@ -42,9 +45,10 @@ Org ↔ Google Docs body sync currently depends on upstream `benthamite/gdocs`, 
 - [ ] AC-5: Given a standalone local image link with an Org caption, when pushed, then the caption is preserved as Org-visible semantic text or supported Google Docs image metadata; if no native mapping is reliable, the limitation is explicit and tested.
 - [ ] AC-6: Given a described image link such as `[[./img/foo.png][Open image]]`, when pushed, then it remains a normal link and is not treated as a standalone image upload.
 - [ ] AC-7: Given an unsupported or missing local image file, when push preflight runs, then it fails before mutating the remote document with a clear actionable error.
-- [ ] AC-8: Given a `#+begin_quote` block with multiple paragraphs, when pushed and pulled, then the Org quote block boundary and paragraph text survive round trip.
-- [ ] AC-9: Given a quote block is pushed, then Google Docs receives a distinguishable quote/indented paragraph representation when feasible; if only marker-based round-trip is feasible initially, the limitation is documented and tested.
-- [ ] AC-10: Given the sample file `/Users/hubertbehaghel/tmp/gdocs-test.org`, when converted through the local semantic preflight/adapter tests, then footnotes, standalone images, and quote blocks are classified as supported or explicitly deferred with diagnostics.
+- [ ] AC-8: Given a source block with a language, when pushed and pulled, then code text and language identity survive; syntax highlighting is explicitly deferred.
+- [ ] AC-9: Given Org dates and provisional people links, when pushed or preflighted, then Google Docs classifies them as native, degraded, or deferred rather than silently flattening their meaning.
+- [ ] AC-10: Given a `#+begin_quote` block with multiple paragraphs, when pushed and pulled, then the Org quote block boundary and paragraph text survive round trip; visible quote decoration is styling-deferred unless a reliable semantic equivalent is implemented.
+- [ ] AC-11: Given the specimen `modules/org/specimens/typographic-semantics.org`, when converted through the local semantic preflight/adapter tests, then every contract construct is classified as supported, degraded, deferred, or unsupported with diagnostics.
 
 ## Invariants
 
@@ -61,6 +65,7 @@ Org ↔ Google Docs body sync currently depends on upstream `benthamite/gdocs`, 
 
 - `packages/org-google-docs/`
 - `packages/org-google-docs/test/`
+- `modules/org/typographic-semantics.md` and `modules/org/specimens/typographic-semantics.org`
 - tiny shared Org semantic helpers under `packages/` only if reused by both Confluence and Google Docs
 - upstream `straight/repos/gdocs/` only for minimal, well-isolated extension seams after wrapper feasibility is exhausted
 - docs/spec files for Google Docs source-content semantics
@@ -80,11 +85,15 @@ Org ↔ Google Docs body sync currently depends on upstream `benthamite/gdocs`, 
 | AC-3 | Fixture test over Docs JSON/native footnote payload → Org output | Yes |
 | AC-4, AC-6, AC-7 | Image classification/preflight tests modeled after Confluence image asset tests | Yes |
 | AC-5 | Caption fixture test or documented limitation test | Yes |
-| AC-8, AC-9 | Org → IR/request and IR/JSON → Org quote fixture tests | Yes |
-| AC-10 | Sample-file semantic audit test/report using `/Users/hubertbehaghel/tmp/gdocs-test.org` or a checked-in reduced fixture | Yes |
+| AC-8 | Org → IR/request and IR/JSON → Org source-block fixture tests | Yes |
+| AC-9 | Semantic classification tests for dates and people links | Yes |
+| AC-10 | Org → IR/request and IR/JSON → Org quote fixture tests | Yes |
+| AC-11 | Specimen semantic audit test/report using `modules/org/specimens/typographic-semantics.org` | Yes |
 
 ## References
 
+- Typographic contract: `modules/org/typographic-semantics.md`
+- Typographic specimen: `modules/org/specimens/typographic-semantics.org`
 - Sample file: `/Users/hubertbehaghel/tmp/gdocs-test.org`
 - Upstream conversion: `straight/repos/gdocs/gdocs-convert.el`
 - Upstream sync orchestration: `straight/repos/gdocs/gdocs-sync.el`
