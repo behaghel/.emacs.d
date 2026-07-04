@@ -12,6 +12,7 @@
 (add-to-list 'load-path (expand-file-name ".." (file-name-directory load-file-name)))
 (add-to-list 'load-path (expand-file-name "../../org-comments" (file-name-directory load-file-name)))
 
+(require 'org-comments-store)
 (require 'org-google-docs-comments-import)
 
 (defmacro org-google-docs-comments-import-test--with-source (&rest body)
@@ -53,7 +54,10 @@
 	 (should (search-forward "#+source: source.org" nil t))
 	 (should (search-forward "* OPEN Google Docs comment from Ada Lovelace" nil t))
 	 (should (search-forward ":ORG_COMMENTS_BACKEND: google-docs" nil t))
+	 (should (search-forward ":ORG_COMMENTS_SYNC_KIND: inline" nil t))
 	 (should (search-forward ":ORG_COMMENTS_REMOTE_ID: c-1" nil t))
+	 (should (search-forward ":ORG_COMMENTS_REMOTE_STATE: present" nil t))
+	 (goto-char (point-min))
 	 (should (search-forward ":ORG_COMMENTS_TARGET_TEXT: Body text" nil t))
 	 (should (search-forward "Please clarify." nil t))
 	 (should-not (search-forward "#+begin_quote" nil t)))))))
@@ -121,6 +125,42 @@
 	 (should (search-forward ":ORG_COMMENTS_REMOTE_PARENT_ID: c-1" nil t))
 	 (should (search-forward ":ORG_COMMENTS_REMOTE_STATE: present" nil t))
 	 (should (search-forward "Remote reply." nil t)))))))
+
+(ert-deftest org-google-docs-comments-import-collected-records-are-normalized ()
+  "Imported Google sidecars collect as normalized collaboration records."
+  (org-google-docs-comments-import-test--with-source
+   (cl-letf (((symbol-function 'org-google-docs-comments-list)
+	      (lambda (callback)
+		(funcall callback
+			 (list (list :backend 'google-docs
+				     :kind 'comment
+				     :remote-id "c-1"
+				     :body "Root body."
+				     :target-text "Body text"
+				     :author-name "Ada Lovelace"
+				     :created-at "2026-07-02T10:00:00Z"
+				     :status "open"
+				     :replies
+				     (list (list :backend 'google-docs
+						 :kind 'reply
+						 :remote-id "r-1"
+						 :body "Remote reply."
+						 :author-name "Grace Hopper"
+						 :created-at "2026-07-02T10:05:00Z"))))))))
+     (org-google-docs-comments-import)
+     (let* ((comment (car (org-comments-collect (current-buffer) t)))
+	    (reply (car (plist-get comment :replies))))
+       (should (eq (plist-get comment :backend) 'google-docs))
+       (should (eq (plist-get comment :remote-state) 'present))
+       (should (equal (plist-get comment :sync-kind) "inline"))
+       (should (equal (plist-get comment :remote-author-name) "Ada Lovelace"))
+       (should (equal (plist-get comment :created-at) "2026-07-02T10:00:00Z"))
+       (should (equal (plist-get comment :status) "OPEN"))
+       (should (eq (plist-get reply :backend) 'google-docs))
+       (should (eq (plist-get reply :remote-state) 'present))
+       (should (equal (plist-get reply :sync-kind) "reply"))
+       (should (equal (plist-get reply :remote-author-name) "Grace Hopper"))
+       (should (equal (plist-get reply :created-at) "2026-07-02T10:05:00Z"))))))
 
 (ert-deftest org-google-docs-comments-import-updates-remote-replies ()
   "Re-import updates existing remote Google reply bodies and metadata."

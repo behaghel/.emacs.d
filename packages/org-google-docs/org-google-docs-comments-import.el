@@ -43,8 +43,10 @@
      (org-google-docs-comments-import--property-line
       "ORG_COMMENTS_ID" (format "google-docs:%s" remote-id))
      ":ORG_COMMENTS_BACKEND: google-docs\n"
+     ":ORG_COMMENTS_SYNC_KIND: inline\n"
      (org-google-docs-comments-import--property-line
       "ORG_COMMENTS_REMOTE_ID" remote-id)
+     ":ORG_COMMENTS_REMOTE_STATE: present\n"
      (org-google-docs-comments-import--property-line
       "ORG_COMMENTS_REMOTE_AUTHOR_DISPLAY_NAME" (plist-get comment :author-name))
      (org-google-docs-comments-import--property-line
@@ -133,6 +135,7 @@ Return `:remote-resolved' when remote state changed the local TODO state, or
   (let ((status-change (org-google-docs-comments-import--apply-remote-status comment)))
     (org-comments-sidecar-stamp-remote-metadata
      (list :backend "google-docs"
+	   :sync-kind "inline"
 	   :remote-id (plist-get comment :remote-id)
 	   :remote-state "present"
 	   :remote-author-display-name (plist-get comment :author-name)

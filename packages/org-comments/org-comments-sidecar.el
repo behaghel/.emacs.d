@@ -577,11 +577,15 @@ SUBTREE-END defaults to the current subtree end."
 (defun org-comments--base-record (properties sidecar-file target-text start end body)
   "Return common normalized plist record from PROPERTIES and comment fields."
   (let ((remote-author-name
-	 (alist-get "ORG_COMMENTS_REMOTE_AUTHOR_DISPLAY_NAME" properties nil nil #'equal)))
+	 (alist-get "ORG_COMMENTS_REMOTE_AUTHOR_DISPLAY_NAME" properties nil nil #'equal))
+	(backend
+	 (when-let* ((name (alist-get "ORG_COMMENTS_BACKEND" properties nil nil #'equal)))
+	   (intern name))))
     (org-comments--normalize-sidecar-record
      (list :type 'comment
 	   :id (alist-get "ORG_COMMENTS_ID" properties nil nil #'equal)
 	   :kind 'comment
+	   :backend backend
 	   :status (org-comments--heading-status properties)
 	   :sidecar-file sidecar-file
 	   :author (alist-get "ORG_COMMENTS_AUTHOR" properties nil nil #'equal)
