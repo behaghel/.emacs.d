@@ -7,7 +7,9 @@
 
 ;;; Code:
 
+(require 'cl-lib)
 (require 'ert)
+(require 'seq)
 
 (add-to-list 'load-path (expand-file-name ".." (file-name-directory load-file-name)))
 
@@ -51,6 +53,36 @@
     (should-error
      (org-google-docs-footnotes-body-insert-requests references response)
      :type 'user-error)))
+
+(ert-deftest org-google-docs-footnotes-batch-advice-runs-two-phase-update ()
+  "Batch advice appends createFootnote and inserts bodies before main callback."
+  (let* ((session (list :references (vconcat (list (list :label "one"
+							 :ordinal 1
+							 :body "First body."
+							 :doc-index 12)))
+			:cursor 0
+			:previous-handler nil))
+	 (org-google-docs-footnotes--push-session session)
+	 calls callback-ran)
+    (cl-labels ((orig (_document-id requests callback &optional _account _on-error)
+		  (push requests calls)
+		  (funcall callback
+			   (if (seq-find (lambda (request)
+					   (alist-get 'createFootnote request))
+					 requests)
+			       '((replies . [nil ((createFootnote . ((footnoteId . "fn-a"))))]))
+			     '((replies . []))))))
+      (org-google-docs-footnotes--around-batch-update
+       #'orig "doc-1" '(((insertText . ((text . "Body")))))
+       (lambda (_response) (setq callback-ran t)))
+      (should callback-ran)
+      (should (= 2 (length calls)))
+      (should (seq-find (lambda (request) (alist-get 'createFootnote request))
+			(cadr calls)))
+      (should (equal (car calls)
+		     '(((insertText . ((text . "First body.")
+				       (location . ((segmentId . "fn-a")
+						    (index . 1))))))))))))
 
 (provide 'org-google-docs-footnotes-requests-test)
 ;;; org-google-docs-footnotes-requests-test.el ends here

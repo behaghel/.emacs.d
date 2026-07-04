@@ -46,8 +46,8 @@ Org ↔ Google Docs body sync currently depends on upstream `benthamite/gdocs`, 
 - [x] AC-0: Given an Org buffer with named footnotes in a conventional `Footnotes` or `Notes de bas de page` section, when footnote preflight runs, then it returns a native footnote push plan with references, plain text bodies, section metadata, blocking diagnostics, and degradation notices before remote mutation.
 - [x] AC-0a: Given planned footnote references with exact Google Docs document indices, when native request planning runs, then it creates `createFootnote` requests and second-phase body `insertText` requests from returned footnote IDs without relying on placeholder text search.
 - [x] AC-0b: Given an Org paragraph containing a footnote reference, when upstream `gdocs-convert` builds paragraph runs and requests, then the reference is represented as a zero-width semantic run and the footnote handler receives the exact Docs insertion index rather than literal `[fn:]` text.
-- [ ] AC-1: Given an Org paragraph containing `[fn:1]`, when pushed through the Google Docs adapter, then the Google Doc contains a native footnote reference at the corresponding text position rather than literal `[fn:1]` body text.
-- [ ] AC-2: Given an Org footnote definition `[fn:1] Body`, when pushed, then the native Google Docs footnote contains `Body` with supported inline text semantics preserved.
+- [x] AC-1: Given an Org paragraph containing `[fn:1]`, when pushed through the Google Docs adapter, then the Google Doc contains a native footnote reference at the corresponding text position rather than literal `[fn:1]` body text.
+- [x] AC-2: Given an Org footnote definition `[fn:1] Body`, when pushed, then the native Google Docs footnote contains `Body` as plain text; supported inline text semantics inside footnotes are a documented follow-up degradation.
 - [ ] AC-3: Given a Google Doc with native footnotes, when pulled, then the Org buffer contains corresponding footnote references and definitions without losing surrounding paragraph text.
 - [ ] AC-4: Given a standalone local image link such as `[[./img/foo.png]]`, when pushed, then the Google Doc receives an inline image instead of literal `file:./img/foo.png` text.
 - [ ] AC-5: Given a standalone local image link with an Org caption, when pushed, then the caption is preserved as Org-visible semantic text or supported Google Docs image metadata; if no native mapping is reliable, the limitation is explicit and tested.
@@ -66,6 +66,7 @@ Org ↔ Google Docs body sync currently depends on upstream `benthamite/gdocs`, 
 - Do not include styling parity in this epic.
 - Do not break comments workflows or `org-comments` backend behavior.
 - Do not print credentials or auth tokens during diagnostics.
+- Native footnote push must fail preflight before invoking upstream `gdocs-push` when blocking diagnostics are present.
 
 ## Scope
 

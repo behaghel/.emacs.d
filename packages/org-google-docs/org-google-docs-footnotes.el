@@ -13,6 +13,13 @@
 (require 'seq)
 (require 'subr-x)
 
+(defvar gdocs-convert-footnote-reference-handler)
+(declare-function gdocs-api-batch-update "gdocs-api"
+		  (document-id requests callback &optional account on-error))
+
+(defvar org-google-docs-footnotes--push-session nil
+  "Active native Google Docs footnote push session, or nil.")
+
 (defgroup org-google-docs-footnotes nil
   "Google Docs footnote semantic planning."
   :group 'org-google-docs)
@@ -281,6 +288,101 @@ these requests are intended for a second batchUpdate."
 				    (location . ((segmentId . ,footnote-id)
 						 (index . 1))))))))
 	       references replies)))
+
+(defun org-google-docs-footnotes--create-footnote-response (response)
+  "Return RESPONSE filtered to createFootnote replies only."
+  (let ((replies (seq-filter #'org-google-docs-footnotes--reply-footnote-id
+			     (org-google-docs-footnotes--response-replies response))))
+    `((replies . ,(vconcat replies)))))
+
+(defun org-google-docs-footnotes-seam-available-p ()
+  "Return non-nil when the loaded gdocs conversion seam is available."
+  (boundp 'gdocs-convert-footnote-reference-handler))
+
+(defun org-google-docs-footnotes--session-references (session)
+  "Return mutable reference vector from SESSION."
+  (plist-get session :references))
+
+(defun org-google-docs-footnotes--record-reference-index (session run index)
+  "Record Google Docs INDEX for footnote RUN in SESSION."
+  (let* ((references (org-google-docs-footnotes--session-references session))
+	 (cursor (plist-get session :cursor))
+	 (label (plist-get run :footnote-label))
+	 (reference (and (< cursor (length references))
+			 (aref references cursor))))
+    (unless (and reference (equal label (plist-get reference :label)))
+      (user-error "Unexpected Google Docs footnote reference label `%s'" label))
+    (aset references cursor (plist-put reference :doc-index index))
+    (plist-put session :cursor (1+ cursor))
+    nil))
+
+(defun org-google-docs-footnotes--activate-session (plan)
+  "Activate a native footnote push session for PLAN."
+  (unless (org-google-docs-footnotes-seam-available-p)
+    (user-error "Loaded gdocs does not expose `gdocs-convert-footnote-reference-handler'"))
+  (let ((session (list :references (vconcat (plist-get plan :references))
+		       :cursor 0
+		       :previous-handler gdocs-convert-footnote-reference-handler)))
+    (setq org-google-docs-footnotes--push-session session
+	  gdocs-convert-footnote-reference-handler
+	  (lambda (run index)
+	    (org-google-docs-footnotes--record-reference-index
+	     org-google-docs-footnotes--push-session run index)))
+    session))
+
+(defun org-google-docs-footnotes--deactivate-session ()
+  "Deactivate the active native footnote push session."
+  (when org-google-docs-footnotes--push-session
+    (setq gdocs-convert-footnote-reference-handler
+	  (plist-get org-google-docs-footnotes--push-session :previous-handler)
+	  org-google-docs-footnotes--push-session nil)))
+
+(defun org-google-docs-footnotes--session-reference-list (session)
+  "Return SESSION references as a list."
+  (append (org-google-docs-footnotes--session-references session) nil))
+
+(defun org-google-docs-footnotes--around-batch-update
+    (orig document-id requests callback &optional account on-error)
+  "Advise ORIG `gdocs-api-batch-update' for native footnote insertion.
+When a push session is active, append createFootnote requests to the main body
+update and send a second batchUpdate for footnote bodies before running CALLBACK."
+  (if (not org-google-docs-footnotes--push-session)
+      (funcall orig document-id requests callback account on-error)
+    (let* ((session org-google-docs-footnotes--push-session)
+	   (references (org-google-docs-footnotes--session-reference-list session))
+	   (create-requests (org-google-docs-footnotes-create-requests references))
+	   (wrapped-callback
+	    (lambda (response)
+	      (condition-case err
+		  (let* ((create-response
+			  (org-google-docs-footnotes--create-footnote-response response))
+			 (body-requests
+			  (org-google-docs-footnotes-body-insert-requests
+			   references create-response)))
+		    (if body-requests
+			(funcall orig document-id body-requests
+				 (lambda (_body-response)
+				   (org-google-docs-footnotes--deactivate-session)
+				   (funcall callback response))
+				 account on-error)
+		      (org-google-docs-footnotes--deactivate-session)
+		      (funcall callback response)))
+		((error quit)
+		 (org-google-docs-footnotes--deactivate-session)
+		 (signal (car err) (cdr err)))))))
+      (funcall orig document-id (append requests create-requests)
+	       wrapped-callback account on-error))))
+
+(defun org-google-docs-footnotes-enable-batch-update-advice ()
+  "Enable native footnote second-phase insertion around gdocs batch updates."
+  (when (fboundp 'gdocs-api-batch-update)
+    (advice-add 'gdocs-api-batch-update :around
+		#'org-google-docs-footnotes--around-batch-update)))
+
+(defun org-google-docs-footnotes-begin-push (plan)
+  "Begin native Google Docs footnote push for PLAN."
+  (org-google-docs-footnotes--activate-session plan)
+  (org-google-docs-footnotes-enable-batch-update-advice))
 
 ;;;###autoload
 (defun org-google-docs-footnotes-plan-buffer ()

@@ -11,6 +11,7 @@
 
 (autoload 'org-google-docs-comments-import "org-google-docs-comments-import" nil t)
 (require 'org-google-docs-comments-backend)
+(require 'org-google-docs-footnotes)
 
 (defgroup org-google-docs nil
   "Org-facing Google Docs publishing adapter."
@@ -34,6 +35,22 @@ Set this to nil before rebuilding the map to leave the mode map unbound."
 (defun org-google-docs--call-upstream (command)
   "Call upstream gdocs COMMAND interactively after checking it exists."
   (call-interactively (org-google-docs--upstream-command command)))
+
+(defun org-google-docs--footnote-diagnostic-message (diagnostic)
+  "Return a human-readable message for footnote DIAGNOSTIC."
+  (or (plist-get diagnostic :message)
+      (format "%s" (plist-get diagnostic :code))))
+
+(defun org-google-docs--preflight-footnotes-for-push ()
+  "Return a native footnote push plan or signal blocking diagnostics."
+  (let ((plan (org-google-docs-footnotes-plan-buffer)))
+    (when (plist-get plan :diagnostics)
+      (user-error "Google Docs footnote preflight failed: %s"
+		  (string-join
+		   (mapcar #'org-google-docs--footnote-diagnostic-message
+			   (plist-get plan :diagnostics))
+		   "; ")))
+    plan))
 
 (defun org-google-docs--require-upstream-library (library)
   "Require upstream gdocs LIBRARY or signal an actionable error."
@@ -93,9 +110,20 @@ Return a list of issue symbols."
 
 ;;;###autoload
 (defun org-google-docs-push ()
-  "Push the current Org buffer to its linked Google Doc via upstream gdocs."
+  "Push the current Org buffer to its linked Google Doc via upstream gdocs.
+When named Org footnotes are present, preflight them and enable native Google
+Docs footnote creation through the local gdocs conversion seam."
   (interactive)
-  (org-google-docs--call-upstream 'gdocs-push))
+  (let ((plan (org-google-docs--preflight-footnotes-for-push)))
+    (when (plist-get plan :references)
+      (org-google-docs--require-upstream-library 'gdocs-convert)
+      (org-google-docs--require-upstream-library 'gdocs-api)
+      (org-google-docs-footnotes-begin-push plan))
+    (condition-case err
+	(org-google-docs--call-upstream 'gdocs-push)
+      ((error quit)
+       (org-google-docs-footnotes--deactivate-session)
+       (signal (car err) (cdr err))))))
 
 ;;;###autoload
 (defun org-google-docs-pull ()

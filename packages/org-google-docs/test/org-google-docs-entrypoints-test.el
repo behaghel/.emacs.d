@@ -38,12 +38,40 @@
 	      ((symbol-function 'gdocs-status)
 	       (lambda () (interactive) (push 'status calls))))
       (org-google-docs-create)
-      (org-google-docs-push)
+      (with-temp-buffer
+	(org-mode)
+	(org-google-docs-push))
       (org-google-docs-pull)
       (org-google-docs-open)
       (org-google-docs-status)
       (should (equal (nreverse calls)
 		     '(create push pull open-in-browser status))))))
+
+(ert-deftest org-google-docs-push-blocks-invalid-footnotes-before-upstream ()
+  "Push rejects unsupported footnotes before invoking upstream gdocs."
+  (let (calls)
+    (cl-letf (((symbol-function 'gdocs-push)
+	       (lambda () (interactive) (push 'push calls))))
+      (with-temp-buffer
+	(insert "* Body\nMissing[fn:missing].\n")
+	(org-mode)
+	(should-error (org-google-docs-push) :type 'user-error)
+	(should-not calls)))))
+
+(ert-deftest org-google-docs-push-enables-native-footnote-session ()
+  "Push starts native footnote handling when a valid footnote plan exists."
+  (let (calls)
+    (cl-letf (((symbol-function 'org-google-docs--require-upstream-library)
+	       (lambda (_library) t))
+	      ((symbol-function 'org-google-docs-footnotes-begin-push)
+	       (lambda (plan) (push (length (plist-get plan :references)) calls)))
+	      ((symbol-function 'gdocs-push)
+	       (lambda () (interactive) (push 'push calls))))
+      (with-temp-buffer
+	(insert "* Body\nText[fn:one].\n\n* Footnotes\n\n[fn:one] Body.\n")
+	(org-mode)
+	(org-google-docs-push))
+      (should (equal calls '(push 1))))))
 
 (ert-deftest org-google-docs-sync-current-delegates-to-push-for-now ()
   "The initial sync-current wrapper uses upstream push as the body-sync action."
