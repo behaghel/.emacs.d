@@ -47,7 +47,7 @@ The goal is to let an author write one Org source consistently and export or syn
 | Emphasis | `/italic/`, `*bold*`, `_underline_`, `+strike-through+` | Semantic inline emphasis. Preserve when target supports rich text. |
 | Inline code | `~code~` and `=verbatim=` | Semantic literal text. Syntax color is styling. |
 | External link | `[[https://example.com][label]]` | Semantic link target plus label. |
-| Date mention | Org timestamp such as `<2026-07-03 Fri>` | Semantic date value. Smart chips are optional/native enhancements. |
+| Date mention | Org timestamps such as `<2026-07-03 Fri>` and inactive `[2026-07-03 Fri]` | Semantic date value. Remote dates imported from Confluence or Google Docs should become inactive Org timestamps by default so they do not pollute `org-agenda`. Smart chips are optional/native enhancements. |
 | Person mention | Provisional `[[person:email@example.com][Name]]` | Semantic person identity plus display name. Native mentions are optional/provider-specific. |
 | Footnote reference | `[fn:label]` | Semantic note anchor. Native footnotes are preferred where available. |
 
@@ -57,6 +57,7 @@ The goal is to let an author write one Org source consistently and export or syn
 | --- | --- | --- |
 | Ordinary note | `[fn:label] Body` | Semantic note body. In `hub-article` LaTeX, ordinary notes render as margin sidenotes. |
 | Forced bottom footnote | Footnote definition with `HUB_NOTE_KIND: footnote` metadata | Semantic override. Preserves bottom-footnote behavior in renderers that distinguish side notes and footnotes. |
+| Marginalia | Footnote definition with `HUB_NOTE_KIND: marginalia` metadata | Semantic marginal note. `packages/org-marginalia/` owns authoring helpers and metadata conventions. |
 | Review comment | Sidecar `*.comments.org` | Not typographic. Must not be encoded as an Org footnote. |
 
 ### Blocks
@@ -105,7 +106,7 @@ The goal is to let an author write one Org source consistently and export or syn
 - callout attributes;
 - standfirst placement validation;
 - class-owned image wrappers;
-- `hub-article` sidenotes and `HUB_NOTE_KIND: footnote` overrides;
+- `hub-article` sidenotes, `HUB_NOTE_KIND: footnote` overrides, and marginalia metadata conventions;
 - definition-list and checkbox rendering.
 
 ### Confluence

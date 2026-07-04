@@ -17,8 +17,9 @@ classify as supported, degraded, deferred, or unsupported.
 
 This paragraph[fn:ordinary] verifies /italic/, *bold*, _underline_,
 +strike-through+, ~inline code~, =verbatim text=, an external link
-[[https://example.com][Example link]], an inline date <2026-07-03 Fri>, and a
-provisional people mention [[person:ada@example.com][Ada Lovelace]].
+[[https://example.com][Example link]], an active inline date <2026-07-03 Fri>, an
+inactive remote-style date [2026-07-04 Sat], and a provisional people mention
+[[person:ada@example.com][Ada Lovelace]].
 
 ** Tables
 
@@ -72,16 +73,23 @@ Preformatted example text should preserve whitespace
 
 ** Lists
 
+*** Bullet and task lists
+
 - First bullet[fn:forced-bottom]
+- Marginalia bullet[fn:marginalia]
 - Second bullet
   - Nested bullet
 - [ ] Unchecked task
 - [X] Checked task
 - [-] Partial task
 
+*** Ordered list
+
 1. First ordered item
 2. Second ordered item
 3. Third ordered item
+
+*** Definition list
 
 - Term 1 :: This is a definition-list term.
 - Term 2 :: This is another definition-list term.
@@ -131,3 +139,9 @@ in `hub-article` LaTeX.
 :HUB_NOTE_KIND: footnote
 :END:
 This note explicitly requests bottom-footnote treatment where supported.
+
+[fn:marginalia]
+:PROPERTIES:
+:HUB_NOTE_KIND: marginalia
+:END:
+This note explicitly requests marginalia treatment where supported.

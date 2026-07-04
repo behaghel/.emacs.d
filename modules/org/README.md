@@ -17,6 +17,7 @@ last-reviewed: 2026-06-10
 
 - Author-facing semantics must stay separate from class-specific visual styling.
 - The backend-neutral typographic semantics contract lives in [`typographic-semantics.md`](typographic-semantics.md).
+- The semantic inventory/audit helper lives in `typographic-semantics.el` and provides `hub/org-typographic-semantics-audit-buffer` and `hub/org-typographic-semantics-audit-file`.
 - The tracked specimen for the contract lives in [`specimens/typographic-semantics.org`](specimens/typographic-semantics.org).
 - Export behavior should be testable from tracked specimens and textual assertions before relying on visual inspection.
 - Generated PDFs, TeX files, screenshots, and visual diff artifacts belong under runtime output locations, not tracked golden files.

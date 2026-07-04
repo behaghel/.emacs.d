@@ -15,7 +15,7 @@ Org ↔ Google Docs body sync currently depends on upstream `benthamite/gdocs`, 
   - Footnote definitions become separate `:type 'footnote` IR elements, but push emits them as literal `[fn:N] body` text rather than native Google Docs footnotes.
   - Plain local image links become plain text like `file:./veriff2026-logo.png`; imported Google Docs inline images become `:type 'image` IR elements that render back to empty Org text.
   - Source blocks must preserve code text and language identity; syntax highlighting is styling.
-  - Dates and people mentions need explicit semantic classification before deciding whether native smart chips or mentions are feasible.
+  - Dates and people mentions need explicit semantic classification before deciding whether native smart chips or mentions are feasible. Remote dates should import as inactive Org timestamps by default to avoid polluting `org-agenda`.
   - Quote blocks become `:style 'quote` paragraph IR and round-trip to Org quote blocks, but Google Docs request generation maps unknown styles to normal text. Visible quote decoration is therefore styling-deferred unless a reliable Docs semantic is found.
 - Confluence provides useful patterns, not a storage model to copy:
   - image asset discovery and path validation in `org-confluence-export.el`;
@@ -46,7 +46,7 @@ Org ↔ Google Docs body sync currently depends on upstream `benthamite/gdocs`, 
 - [ ] AC-6: Given a described image link such as `[[./img/foo.png][Open image]]`, when pushed, then it remains a normal link and is not treated as a standalone image upload.
 - [ ] AC-7: Given an unsupported or missing local image file, when push preflight runs, then it fails before mutating the remote document with a clear actionable error.
 - [ ] AC-8: Given a source block with a language, when pushed and pulled, then code text and language identity survive; syntax highlighting is explicitly deferred.
-- [ ] AC-9: Given Org dates and provisional people links, when pushed or preflighted, then Google Docs classifies them as native, degraded, or deferred rather than silently flattening their meaning.
+- [ ] AC-9: Given Org dates and provisional people links, when pushed or preflighted, then Google Docs classifies them as native, degraded, or deferred rather than silently flattening their meaning; pulled remote dates become inactive Org timestamps by default.
 - [ ] AC-10: Given a `#+begin_quote` block with multiple paragraphs, when pushed and pulled, then the Org quote block boundary and paragraph text survive round trip; visible quote decoration is styling-deferred unless a reliable semantic equivalent is implemented.
 - [ ] AC-11: Given the specimen `modules/org/specimens/typographic-semantics.org`, when converted through the local semantic preflight/adapter tests, then every contract construct is classified as supported, degraded, deferred, or unsupported with diagnostics.
 
@@ -65,7 +65,7 @@ Org ↔ Google Docs body sync currently depends on upstream `benthamite/gdocs`, 
 
 - `packages/org-google-docs/`
 - `packages/org-google-docs/test/`
-- `modules/org/typographic-semantics.md` and `modules/org/specimens/typographic-semantics.org`
+- `modules/org/typographic-semantics.md`, `modules/org/typographic-semantics.el`, and `modules/org/specimens/typographic-semantics.org`
 - tiny shared Org semantic helpers under `packages/` only if reused by both Confluence and Google Docs
 - upstream `straight/repos/gdocs/` only for minimal, well-isolated extension seams after wrapper feasibility is exhausted
 - docs/spec files for Google Docs source-content semantics
