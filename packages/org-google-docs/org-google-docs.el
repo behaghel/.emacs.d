@@ -7,6 +7,7 @@
 
 ;;; Code:
 
+(require 'org-comments)
 (require 'pp)
 (require 'seq)
 (require 'subr-x)
@@ -36,8 +37,16 @@ Set this to nil before rebuilding the map to leave the mode map unbound."
   :type '(choice (const :tag "No default binding" nil) string)
   :group 'org-google-docs)
 
+(defcustom org-google-docs-enable-org-comments-mode t
+  "Whether `org-google-docs-mode' also enables `org-comments-mode'."
+  :type 'boolean
+  :group 'org-google-docs)
+
 (defvar org-google-docs-mode-map (make-sparse-keymap)
   "Keymap for `org-google-docs-mode'.")
+
+(defvar-local org-google-docs--enabled-org-comments-mode nil
+  "Non-nil when `org-google-docs-mode' enabled `org-comments-mode'.")
 
 (defun org-google-docs--upstream-command (command)
   "Return upstream gdocs COMMAND symbol or signal an actionable error."
@@ -425,10 +434,38 @@ OAuth flow when a valid token already exists."
     (call-interactively command)))
 
 ;;;###autoload
+(defun org-google-docs-buffer-p (&optional buffer)
+  "Return non-nil when BUFFER is an Org buffer linked to Google Docs."
+  (with-current-buffer (or buffer (current-buffer))
+    (and (derived-mode-p 'org-mode)
+	 (org-google-docs-comments-document-id))))
+
+;;;###autoload
+(defun org-google-docs-mode-maybe ()
+  "Enable `org-google-docs-mode' for Org buffers with Google Docs metadata."
+  (when (org-google-docs-buffer-p)
+    (org-google-docs-mode 1)))
+
+;;;###autoload
 (define-minor-mode org-google-docs-mode
   "Minor mode for Org buffers linked to Google Docs."
   :lighter " GDocs"
-  :keymap org-google-docs-mode-map)
+  :keymap org-google-docs-mode-map
+  (cond
+   (org-google-docs-mode
+    (unless (derived-mode-p 'org-mode)
+      (setq org-google-docs-mode nil)
+      (user-error "org-google-docs-mode only works in Org buffers"))
+    (org-google-docs-comments-backend-register)
+    (when (and org-google-docs-enable-org-comments-mode
+	       (not (bound-and-true-p org-comments-mode)))
+      (org-comments-mode 1)
+      (setq org-google-docs--enabled-org-comments-mode t)))
+   (t
+    (when (and org-google-docs--enabled-org-comments-mode
+	       (bound-and-true-p org-comments-mode))
+      (org-comments-mode -1))
+    (setq org-google-docs--enabled-org-comments-mode nil))))
 
 (defun org-google-docs-rebuild-mode-map ()
   "Rebuild `org-google-docs-mode-map' from `org-google-docs-keymap-prefix'."

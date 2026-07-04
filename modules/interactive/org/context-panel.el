@@ -38,8 +38,16 @@
   :type 'boolean
   :group 'hub/org-context-panel)
 
+(defcustom hub/org-context-panel-refresh-idle-delay 0.25
+  "Idle delay before refreshing a visible Org context panel after commands."
+  :type 'number
+  :group 'hub/org-context-panel)
+
 (defvar-local hub/org-context-panel--visual-fill-state nil
   "Saved visual-fill-column state while context panel docks prose.")
+
+(defvar-local hub/org-context-panel--refresh-timer nil
+  "Pending idle timer for refreshing this buffer's context panel.")
 
 ;;;###autoload
 (defun hub/org-context-panel--visual-fill-total-margin (source-window)
@@ -98,16 +106,53 @@
 (add-hook 'org-context-panel-before-side-panel-close-hook
 	  #'hub/org-context-panel--restore-prose-docking)
 
+(defun hub/org-context-panel--cancel-refresh-timer ()
+  "Cancel this buffer's pending context-panel refresh timer."
+  (when (timerp hub/org-context-panel--refresh-timer)
+    (cancel-timer hub/org-context-panel--refresh-timer))
+  (setq hub/org-context-panel--refresh-timer nil))
+
+(defun hub/org-context-panel--visible-p (&optional source-buffer)
+  "Return non-nil when SOURCE-BUFFER has a visible context panel."
+  (let ((source (or source-buffer (current-buffer))))
+    (with-current-buffer source
+      (or (and (buffer-live-p org-context-panel-side-panel-buffer)
+	       (get-buffer-window org-context-panel-side-panel-buffer t))
+	  (and (buffer-live-p org-context-panel-bottom-panel-buffer)
+	       (get-buffer-window org-context-panel-bottom-panel-buffer t))))))
+
+(defun hub/org-context-panel--refresh-after-idle (source-buffer)
+  "Refresh visible context panels for SOURCE-BUFFER after Emacs becomes idle."
+  (when (buffer-live-p source-buffer)
+    (with-current-buffer source-buffer
+      (setq hub/org-context-panel--refresh-timer nil)
+      (when (and hub/org-context-panel-mode
+		 (hub/org-context-panel--visible-p source-buffer))
+	(save-selected-window
+	  (hub/org-context-panel--refresh-visible-panels source-buffer))))))
+
 (defun hub/org-context-panel--post-command-refresh ()
-  "Refresh a visible context panel after source-buffer commands."
-  (when hub/org-context-panel-mode
-    (org-comments-ui-refresh)))
+  "Schedule a visible context panel refresh after source-buffer commands."
+  (when (and hub/org-context-panel-mode
+	     (hub/org-context-panel--visible-p))
+    (hub/org-context-panel--cancel-refresh-timer)
+    (setq hub/org-context-panel--refresh-timer
+	  (run-with-idle-timer hub/org-context-panel-refresh-idle-delay nil
+			       #'hub/org-context-panel--refresh-after-idle
+			       (current-buffer)))))
 
 (defun hub/org-context-panel--enable-comments-provider ()
   "Enable package context providers with personal side-panel naming."
-  (let ((org-comments-panel-buffer-name hub/org-context-panel-buffer-name))
-    (org-comments-context-panel-enable)
-    (org-marginalia-context-panel-mode 1)))
+  (let ((org-comments-panel-buffer-name hub/org-context-panel-buffer-name)
+	(comments-provider (org-context-panel-registered-provider 'comments)))
+    (when (or (not comments-provider)
+	      (not (equal (plist-get comments-provider :side-panel-buffer-name)
+			  hub/org-context-panel-buffer-name)))
+      (org-comments-context-panel-enable))
+    (unless (org-context-panel-registered-provider 'marginalia)
+      (org-marginalia-context-panel-mode 1))
+    (unless org-context-panel-mode
+      (org-context-panel-mode 1))))
 
 (defun hub/org-context-panel--open-ui ()
   "Open the configured package context panel UI."
@@ -115,6 +160,7 @@
     (user-error "Org context panel only works in Org buffers"))
   (let ((source-buffer (current-buffer)))
     (hub/org-context-panel--enable-comments-provider)
+    (org-context-panel-refresh-source-overlays)
     (let ((panel (org-context-panel-open source-buffer)))
       (with-current-buffer source-buffer
 	(hub/org-context-panel--open-page-view nil nil))
@@ -129,6 +175,7 @@
   (unless (derived-mode-p 'org-mode)
     (user-error "Org context panel only works in Org buffers"))
   (hub/org-context-panel--enable-comments-provider)
+  (org-context-panel-refresh-source-overlays)
   (org-context-panel-refresh))
 
 (defun hub/org-context-panel--open-comment-ui (comment-id &optional jump-position)
@@ -259,7 +306,6 @@ whether an empty page-context panel is shown when there are no page comments."
   (when (buffer-live-p source)
     (with-current-buffer source
       (hub/org-context-panel--enable-comments-provider)
-      (org-context-panel-refresh-source-overlays)
       (when (and (buffer-live-p org-context-panel-side-panel-buffer)
 		 (get-buffer-window org-context-panel-side-panel-buffer t))
 	(org-context-panel-refresh))
@@ -339,6 +385,7 @@ motion."
 	(add-hook 'post-command-hook #'hub/org-context-panel--post-command-refresh nil t)
 	(org-comments-open))
     (remove-hook 'post-command-hook #'hub/org-context-panel--post-command-refresh t)
+    (hub/org-context-panel--cancel-refresh-timer)
     (hub/org-context-panel--close-ui)))
 
 (with-eval-after-load 'org-confluence-sync-status

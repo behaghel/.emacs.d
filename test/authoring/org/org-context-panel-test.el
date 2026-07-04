@@ -84,6 +84,41 @@
 	  (kill-buffer buffer)))
       (delete-directory dir t))))
 
+(ert-deftest org-context-panel-open-refreshes-source-comment-overlays ()
+  "Opening the context panel highlights comment targets in the source buffer."
+  (let* ((dir (make-temp-file "hub-context-panel-open-overlays-" t))
+	 (source-file (expand-file-name "article.org" dir))
+	 (source-buffer (find-file-noselect source-file)))
+    (unwind-protect
+	(progn
+	  (delete-other-windows)
+	  (switch-to-buffer source-buffer)
+	  (erase-buffer)
+	  (insert "Alpha selected text omega")
+	  (save-buffer)
+	  (org-mode)
+	  (let* ((start (progn
+			  (goto-char (point-min))
+			  (search-forward "selected text")
+			  (match-beginning 0)))
+		 (end (match-end 0)))
+	    (org-comments-append-to-sidecar
+	     (org-comments-create-record buffer-file-name start end
+					 "Please clarify." "local-open-overlay"))
+	    (org-comments-mode -1)
+	    (setq-local org-context-panel-providers
+			(list (org-comments-context-panel-provider)))
+	    (hub/org-context-panel--open-ui)
+	    (should (cl-some
+		     (lambda (overlay)
+		       (eq (overlay-get overlay 'face) 'org-comments-region-face))
+		     (overlays-at start)))))
+      (when-let* ((panel (get-buffer hub/org-context-panel-buffer-name)))
+	(kill-buffer panel))
+      (when (buffer-live-p source-buffer)
+	(kill-buffer source-buffer))
+      (delete-directory dir t))))
+
 (ert-deftest org-context-panel-renders-sidecar-comments ()
   "The panel renderer includes valid sidecar comments."
   (let* ((dir (make-temp-file "hub-context-panel-" t))

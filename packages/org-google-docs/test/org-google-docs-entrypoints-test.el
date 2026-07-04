@@ -201,6 +201,45 @@
 		   "Comments: Import comments"
 		   "Account: Authenticate Google account"))))
 
+(ert-deftest org-google-docs-mode-enables-org-comments-mode ()
+  "Google Docs mode enables `org-comments-mode' for linked Org buffers."
+  (with-temp-buffer
+    (org-mode)
+    (insert ":PROPERTIES:\n:GDOCS_DOCUMENT_ID: doc-123\n:END:\n\nBody\n")
+    (goto-char (point-min))
+    (let ((org-google-docs-enable-org-comments-mode t))
+      (org-google-docs-mode 1)
+      (should org-google-docs-mode)
+      (should org-comments-mode)
+      (should org-google-docs--enabled-org-comments-mode)
+      (org-google-docs-mode -1)
+      (should-not org-google-docs-mode)
+      (should-not org-comments-mode))))
+
+(ert-deftest org-google-docs-mode-maybe-detects-linked-org-buffer ()
+  "Google Docs mode auto-activation uses file-level gdocs metadata."
+  (with-temp-buffer
+    (org-mode)
+    (insert ":PROPERTIES:\n:GDOCS_DOCUMENT_ID: doc-123\n:END:\n\nBody\n")
+    (goto-char (point-min))
+    (let ((org-google-docs-enable-org-comments-mode nil))
+      (org-google-docs-mode-maybe)
+      (should org-google-docs-mode))))
+
+(ert-deftest org-google-docs-mode-does-not-disable-preexisting-org-comments-mode ()
+  "Google Docs mode leaves pre-existing `org-comments-mode' enabled."
+  (with-temp-buffer
+    (org-mode)
+    (insert ":PROPERTIES:\n:GDOCS_DOCUMENT_ID: doc-123\n:END:\n\nBody\n")
+    (goto-char (point-min))
+    (org-comments-mode 1)
+    (let ((org-google-docs-enable-org-comments-mode t))
+      (org-google-docs-mode 1)
+      (should org-comments-mode)
+      (should-not org-google-docs--enabled-org-comments-mode)
+      (org-google-docs-mode -1)
+      (should org-comments-mode))))
+
 (ert-deftest org-google-docs-mode-map-binds-dispatch-by-default ()
   "Google Docs mode binds one package-native dispatch command by default."
   (let ((org-google-docs-keymap-prefix "C-c C-x G"))
