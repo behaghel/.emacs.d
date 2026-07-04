@@ -1,0 +1,43 @@
+From 2fdcb3bd7a4bbd0f2506db71cb2f55efa821ca47 Mon Sep 17 00:00:00 2001
+From: Hubert Behaghel <behaghel@gmail.com>
+Date: Sat, 4 Jul 2026 23:59:16 +0200
+Subject: [PATCH] Cover marked captions in image diff ranges
+
+---
+ gdocs-convert.el           | 6 ++++--
+ test/gdocs-convert-test.el | 2 ++
+ 2 files changed, 6 insertions(+), 2 deletions(-)
+
+diff --git a/gdocs-convert.el b/gdocs-convert.el
+index 9ab749f..8ebf488 100644
+--- a/gdocs-convert.el
++++ b/gdocs-convert.el
+@@ -1652,8 +1652,10 @@ like `body', `title', `lists', and `namedRanges'."
+           (let ((image (copy-sequence (car result)))
+                 (caption (gdocs-convert--runs-to-plain-text
+                           (plist-get element :contents))))
+-            (setq result (cons (plist-put image :caption caption)
+-                               (cdr result))))
++            (plist-put image :caption caption)
++            (when-let* ((caption-end (plist-get element :doc-end)))
++              (plist-put image :doc-end caption-end))
++            (setq result (cons image (cdr result))))
+         (push element result)))
+     (nreverse result)))
+ 
+diff --git a/test/gdocs-convert-test.el b/test/gdocs-convert-test.el
+index 1dc2ce1..4c29829 100644
+--- a/test/gdocs-convert-test.el
++++ b/test/gdocs-convert-test.el
+@@ -457,6 +457,8 @@
+     (should (= (length ir) 1))
+     (should (eq (plist-get image :type) 'image))
+     (should (equal (plist-get image :caption) "Hubert banner"))
++    (should (= (plist-get image :doc-start) 1))
++    (should (= (plist-get image :doc-end) 16))
+     (should (equal (gdocs-convert-ir-to-org ir)
+                    "#+CAPTION: Hubert banner\n[[https://example.invalid/logo.png]]\n"))))
+ 
+-- 
+2.51.2
+

@@ -122,3 +122,4 @@ This appends remote Docs JSON, remote IR, and diff requests. The trace may conta
 - Upload callback resumed in the wrong buffer: fixed by resuming image push in the original source buffer.
 - Caption present in IR but absent from raw local requests: expected before upload; use placeholder-URI request tracing.
 - Caption changes ignored on repeated push: fixed by including image captions in upstream diff keys.
+- Caption duplicated on repeated push: fixed by extending the pulled image IR document range to include its marked caption paragraph, so replacements delete the old caption before inserting the new one.
