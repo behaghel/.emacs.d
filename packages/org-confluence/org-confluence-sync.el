@@ -680,10 +680,8 @@ conflict, comments are not imported or pushed."
 	(let* ((comment-result (org-confluence-comments--sync id body-format))
 	       (pushed (plist-get comment-result :comments-pushed))
 	       (errors (plist-get comment-result :comment-push-errors)))
-	  (org-comments-sync-report-message
-	   (list :provider "Confluence"
-		 :pushed pushed
-		 :errors (length errors)))
+	  (org-comments-sync-report-provider-message
+	   "Confluence" :pushed pushed :errors (length errors))
 	  (append (list :page page-result) comment-result))))))
 
 (provide 'org-confluence-sync)

@@ -318,10 +318,9 @@ from the sidecar source Org file."
       (org-comments-refresh-sidecar-headings sidecar-file)
       (org-comments-fold-sidecar-property-drawers)
       (kill-new url)
-      (org-comments-sync-report-message
-       (list :provider "Confluence"
-	     (if (eq action :updated) :updated :created) 1
-	     :url-copied t))
+      (org-comments-sync-report-provider-message
+       "Confluence" (if (eq action :updated) :updated :created) 1
+       :url-copied t)
       (list action 1 :remote-id remote-id :sync-kind sync-kind
 	    :sidecar-file sidecar-file :url url))))
 

@@ -25,10 +25,8 @@ and does not synchronize page content."
 	 (push-result (org-confluence-sync--push-pending-comments source-buffer id))
 	 (pushed (plist-get push-result :pushed))
 	 (errors (plist-get push-result :errors)))
-    (org-comments-sync-report-message
-     (list :provider "Confluence"
-	   :pushed pushed
-	   :errors (length errors)))
+    (org-comments-sync-report-provider-message
+     "Confluence" :pushed pushed :errors (length errors))
     (list :comments-imported imported
 	  :comments-pushed pushed
 	  :comment-push-errors errors)))
