@@ -87,6 +87,27 @@
      (org-google-docs-footnotes-body-insert-requests references response)
      :type 'user-error)))
 
+(ert-deftest org-google-docs-footnotes-batch-advice-skips-unindexed-references ()
+  "Batch advice still pushes body changes when no footnote index was emitted."
+  (let* ((session (list :references (vconcat (list (list :label "one" :body "Body.")))
+			:cursor 0
+			:previous-handler nil))
+	 (org-google-docs-footnotes--push-session session)
+	 (calls nil))
+    (cl-labels ((fake-batch
+		  (_document-id requests callback &optional _account _on-error)
+		  (push requests calls)
+		  (funcall callback '((replies . [])))))
+      (org-google-docs-footnotes--around-batch-update
+       #'fake-batch "doc" '((deleteContentRange . ((range . ((startIndex . 3))))))
+       (lambda (_response) (push :callback calls)))
+      (setq calls (nreverse calls))
+      (should (= 2 (length calls)))
+      (should (equal (car calls)
+		     '((deleteContentRange . ((range . ((startIndex . 3))))))))
+      (should (eq (cadr calls) :callback))
+      (should-not org-google-docs-footnotes--push-session))))
+
 (ert-deftest org-google-docs-footnotes-batch-advice-runs-two-phase-update ()
   "Batch advice appends createFootnote and inserts bodies before main callback."
   (let* ((session (list :references (vconcat (list (list :label "one"

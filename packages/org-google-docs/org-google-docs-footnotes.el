@@ -260,6 +260,10 @@ conversion seam that knows exact Google Docs UTF-16 insertion indices."
 	      `((createFootnote . ((location . ((index . ,index))))))))
 	  references))
 
+(defun org-google-docs-footnotes--indexed-references (references)
+  "Return REFERENCES that have a Google Docs document index."
+  (seq-filter (lambda (reference) (plist-get reference :doc-index)) references))
+
 (defun org-google-docs-footnotes--response-replies (response)
   "Return batchUpdate RESPONSE replies as a list."
   (let ((replies (alist-get 'replies response)))
@@ -381,23 +385,29 @@ update and send a second batchUpdate for footnote bodies before running CALLBACK
       (funcall orig document-id requests callback account on-error)
     (let* ((session org-google-docs-footnotes--push-session)
 	   (references (org-google-docs-footnotes--session-reference-list session))
-	   (create-requests (org-google-docs-footnotes-create-requests references))
+	   (indexed-references
+	    (org-google-docs-footnotes--indexed-references references))
+	   (create-requests
+	    (org-google-docs-footnotes-create-requests indexed-references))
 	   (wrapped-callback
 	    (lambda (response)
 	      (condition-case err
-		  (let* ((create-response
-			  (org-google-docs-footnotes--create-footnote-response response))
-			 (body-requests
-			  (org-google-docs-footnotes-body-insert-requests
-			   references create-response)))
-		    (if body-requests
-			(funcall orig document-id body-requests
-				 (lambda (_body-response)
-				   (org-google-docs-footnotes--deactivate-session)
-				   (funcall callback response))
-				 account on-error)
-		      (org-google-docs-footnotes--deactivate-session)
-		      (funcall callback response)))
+		  (if create-requests
+		      (let* ((create-response
+			      (org-google-docs-footnotes--create-footnote-response response))
+			     (body-requests
+			      (org-google-docs-footnotes-body-insert-requests
+			       indexed-references create-response)))
+			(if body-requests
+			    (funcall orig document-id body-requests
+				     (lambda (_body-response)
+				       (org-google-docs-footnotes--deactivate-session)
+				       (funcall callback response))
+				     account on-error)
+			  (org-google-docs-footnotes--deactivate-session)
+			  (funcall callback response)))
+		    (org-google-docs-footnotes--deactivate-session)
+		    (funcall callback response))
 		((error quit)
 		 (org-google-docs-footnotes--deactivate-session)
 		 (signal (car err) (cdr err)))))))
