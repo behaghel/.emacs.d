@@ -84,7 +84,9 @@ Expected Org source after pull:
 - each Google Docs inline image with exposed object metadata becomes an ordinary Org link to its `sourceUri` when available;
 - if `sourceUri` is absent but `contentUri` is available, the Org link uses `contentUri`;
 - the image is not silently dropped and does not degrade to only an opaque object id unless Google exposes no usable URI;
-- captions are not natively re-associated on pull in v1; visible caption text remains ordinary text.
+- captions pushed by the adapter are marked with a neutral `org-image-caption` semantic style name;
+- marked caption paragraphs are re-associated with the preceding image and rendered as `#+CAPTION:`;
+- visual caption styling is not applied by neutral upstream `gdocs`; users/adapters may style paragraphs identified by the marker.
 
 Manual result: pending.
 

@@ -1,0 +1,262 @@
+From 5a4dcf6d8f1e9c5231ada1a85e31803572fbb935 Mon Sep 17 00:00:00 2001
+From: Hubert Behaghel <behaghel@gmail.com>
+Date: Sat, 4 Jul 2026 23:29:14 +0200
+Subject: [PATCH] Mark image captions for round-trip pull
+
+---
+ gdocs-convert.el           | 109 ++++++++++++++++++++++++++++++++-----
+ test/gdocs-convert-test.el |  48 +++++++++++++++-
+ 2 files changed, 141 insertions(+), 16 deletions(-)
+
+diff --git a/gdocs-convert.el b/gdocs-convert.el
+index c81806b..f8baff6 100644
+--- a/gdocs-convert.el
++++ b/gdocs-convert.el
+@@ -46,6 +46,14 @@
+   :type '(repeat directory)
+   :group 'gdocs)
+ 
++(defcustom gdocs-image-caption-style-name "org-image-caption"
++  "Semantic style name declared for Org image caption markers.
++The converter records this name in caption marker metadata but does not apply
++visual styling.  Host adapters or users may use the marker to apply their own
++Google Docs styling policy."
++  :type 'string
++  :group 'gdocs)
++
+ (defvar gdocs-convert--link-context nil
+   "Plist with context for cross-document link resolution.
+ When non-nil, file: and id: links to org files with Google Doc
+@@ -1616,12 +1624,38 @@ like `body', `title', `lists', and `namedRanges'."
+               (plist-put ir :doc-start si)
+               (plist-put ir :doc-end ei))
+             (push ir result)))))
+-    (let ((ir (append (nreverse result)
+-                      (gdocs-convert--docs-footnotes-to-ir
+-                       (alist-get 'footnotes json) footnote-refs))))
++    (let ((ir (gdocs-convert--attach-image-caption-markers
++               (append (nreverse result)
++                       (gdocs-convert--docs-footnotes-to-ir
++                        (alist-get 'footnotes json) footnote-refs)))))
+       (gdocs-convert--assign-list-counters ir)
+       ir)))
+ 
++(defun gdocs-convert--image-caption-marker-p (marker)
++  "Return non-nil when MARKER marks an image caption."
++  (eq (plist-get marker :type) 'image-caption))
++
++(defun gdocs-convert--image-caption-paragraph-p (element)
++  "Return non-nil when ELEMENT is a marked image caption paragraph."
++  (and (eq (plist-get element :type) 'paragraph)
++       (seq-some #'gdocs-convert--image-caption-marker-p
++                 (plist-get element :gdocs-marker))))
++
++(defun gdocs-convert--attach-image-caption-markers (ir)
++  "Attach marked image caption paragraphs in IR to preceding image elements."
++  (let ((result nil))
++    (dolist (element ir)
++      (if (and (gdocs-convert--image-caption-paragraph-p element)
++               result
++               (eq (plist-get (car result) :type) 'image))
++          (let ((image (copy-sequence (car result)))
++                (caption (gdocs-convert--runs-to-plain-text
++                          (plist-get element :contents))))
++            (setq result (cons (plist-put image :caption caption)
++                               (cdr result))))
++        (push element result)))
++    (nreverse result)))
++
+ (defun gdocs-convert--structural-element-footnote-refs (element)
+   "Return footnote references found in Google Docs structural ELEMENT.
+ Each returned plist has `:id' and `:label' keys."
+@@ -1690,7 +1724,9 @@ INLINE-OBJECTS is the document's inline object metadata map."
+       (or (gdocs-convert--docs-special-paragraph-elements
+            paragraph inline-objects)
+           (gdocs-convert--docs-paragraph-to-ir
+-           paragraph lists-map markers))))
++           paragraph lists-map markers
++           (alist-get 'startIndex element)
++           (alist-get 'endIndex element)))))
+    ((alist-get 'table element)
+     (gdocs-convert--docs-table-to-ir (alist-get 'table element)))
+    ((alist-get 'sectionBreak element)
+@@ -1739,10 +1775,21 @@ element if found, nil otherwise."
+ ;; ---------------------------------------------------------------------------
+ ;;; Google Docs paragraph -> IR
+ 
+-(defun gdocs-convert--docs-paragraph-to-ir (paragraph lists-map _markers)
++(defun gdocs-convert--markers-for-range (markers start end)
++  "Return MARKERS that overlap the Google Docs range START to END."
++  (seq-filter (lambda (marker)
++                (let ((marker-start (plist-get marker :start))
++                      (marker-end (plist-get marker :end)))
++                  (and marker-start marker-end start end
++                       (< marker-start end)
++                       (> marker-end start))))
++              markers))
++
++(defun gdocs-convert--docs-paragraph-to-ir (paragraph lists-map markers
++                                                     &optional start end)
+   "Convert a Google Docs PARAGRAPH to an IR element.
+ LISTS-MAP is the document lists property.  MARKERS is parsed
+-named-range marker data."
++named-range marker data.  START and END are document indices."
+   (let* ((elements (alist-get 'elements paragraph))
+          (style-obj (alist-get 'paragraphStyle paragraph))
+          (named-style (alist-get 'namedStyleType style-obj))
+@@ -1760,7 +1807,10 @@ named-range marker data."
+                   :contents (or trimmed nil)
+                   :id (gdocs-convert--next-id))
+             (when list-info (list :list list-info))
+-            (when ir-alignment (list :alignment ir-alignment)))))
++            (when ir-alignment (list :alignment ir-alignment))
++            (when-let* ((paragraph-markers
++                         (gdocs-convert--markers-for-range markers start end)))
++              (list :gdocs-marker paragraph-markers)))))
+ 
+ (defun gdocs-convert--docs-alignment-to-ir (alignment)
+   "Convert a Google Docs ALIGNMENT string to an IR alignment symbol."
+@@ -2102,19 +2152,27 @@ adds 36pt, starting at 18pt for level 0."
+ Named ranges encode org-only metadata in the format
+ \"gdocs-org-marker:TYPE:ID\" or \"gdocs-org-marker:TYPE:ID:DATA\"
+ where TYPE is the marker kind (e.g. todo, tags) and ID links to
+-the IR element.  Returns an alist mapping element IDs to marker plists."
++the IR element.  Returns marker plists with range metadata when available."
+   (let ((result nil))
+     (when named-ranges
+       (dolist (entry named-ranges)
+         (let* ((name (if (consp entry) (symbol-name (car entry)) ""))
++               (named-range (cdr entry))
+                (parts (s-split ":" name)))
+           (when (and (>= (length parts) 3)
+                      (string= (car parts) "gdocs-org-marker"))
+-            (push (cons (nth 2 parts)
+-                        (list :type (intern (nth 1 parts))
+-                              :data (when (> (length parts) 3)
+-                                      (s-join ":" (nthcdr 3 parts)))))
+-                  result)))))
++            (seq-doseq (range-entry (alist-get 'namedRanges named-range))
++              (let* ((ranges (alist-get 'ranges range-entry))
++                     (range (if (vectorp ranges)
++                                (aref ranges 0)
++                              (car ranges))))
++                (push (list :type (intern (nth 1 parts))
++                            :id (nth 2 parts)
++                            :data (when (> (length parts) 3)
++                                    (s-join ":" (nthcdr 3 parts)))
++                            :start (alist-get 'startIndex range)
++                            :end (alist-get 'endIndex range))
++                      result)))))))
+     result))
+ 
+ ;; ---------------------------------------------------------------------------
+@@ -2201,17 +2259,38 @@ preservation."
+              (caption-len (if caption-text
+                               (gdocs-convert--string-to-utf16-length caption-text)
+                             0))
++             (caption-start (1+ index))
++             (caption-end (+ caption-start caption-len))
++             (caption-text-start (1+ caption-start))
++             (caption-text-end (1- caption-end))
+              (image-req `((insertInlineImage
+                            . ((uri . ,uri)
+                               (location . ((index . ,index)))))))
+              (caption-req (when caption-text
+                             (gdocs-convert--make-insert-text-request
+-                             caption-text (1+ index)))))
++                             caption-text caption-start)))
++             (caption-marker-reqs
++              (when caption-text
++                (gdocs-convert--make-image-caption-marker-requests
++                 element caption-text-start caption-text-end))))
+         (list :requests (append (list image-req)
+-                                (when caption-req (list caption-req)))
++                                (when caption-req (list caption-req))
++                                caption-marker-reqs)
+               :index (+ index 1 caption-len)))
+     (list :requests nil :index index)))
+ 
++(defun gdocs-convert--make-image-caption-marker-requests (element text-start text-end)
++  "Create semantic marker requests for image caption ELEMENT.
++TEXT-START and TEXT-END bound the visible caption text."
++  (let ((id (or (plist-get element :id)
++                (plist-get element :object-id)
++                (format "image-%s" text-start))))
++    (list `((createNamedRange
++             . ((name . ,(format "gdocs-org-marker:image-caption:%s:%s"
++                                  id gdocs-image-caption-style-name))
++                (range . ((startIndex . ,text-start)
++                          (endIndex . ,text-end)))))))))
++
+ ;; ---------------------------------------------------------------------------
+ ;;; Paragraph -> requests
+ 
+diff --git a/test/gdocs-convert-test.el b/test/gdocs-convert-test.el
+index 1890c2a..7506a99 100644
+--- a/test/gdocs-convert-test.el
++++ b/test/gdocs-convert-test.el
+@@ -418,6 +418,48 @@
+     (should (equal (plist-get image :title) "Logo"))
+     (should (equal (plist-get image :description) "Product logo"))))
+ 
++(ert-deftest gdocs-convert-test-docs-json-marked-image-caption ()
++  "Marked caption paragraphs attach to preceding image IR on pull."
++  (let* ((body-elements
++          (vector `((startIndex . 1)
++                    (endIndex . 2)
++                    (paragraph
++                     . ((elements
++                         . ,(vector '((inlineObjectElement
++                                      . ((inlineObjectId . "img-1"))))))
++                        (paragraphStyle
++                         . ((namedStyleType . "NORMAL_TEXT"))))))
++                  `((startIndex . 2)
++                    (endIndex . 16)
++                    (paragraph
++                     . ((elements
++                         . ,(vector '((textRun
++                                      . ((content . "Hubert banner\n")
++                                         (textStyle . ()))))))
++                        (paragraphStyle
++                         . ((namedStyleType . "NORMAL_TEXT"))))))))
++         (json `((body . ((content . ,body-elements)))
++                 (inlineObjects
++                  . ((img-1
++                      . ((inlineObjectProperties
++                          . ((embeddedObject
++                              . ((imageProperties
++                                  . ((sourceUri
++                                      . "https://example.invalid/logo.png")))))))))))
++                 (namedRanges
++                  . ((gdocs-org-marker:image-caption:img-1:org-image-caption
++                      . ((namedRanges
++                          . ,(vector `((ranges
++                                        . ,(vector '((startIndex . 2)
++                                                     (endIndex . 15)))))))))))))
++         (ir (gdocs-convert-docs-json-to-ir json))
++         (image (car ir)))
++    (should (= (length ir) 1))
++    (should (eq (plist-get image :type) 'image))
++    (should (equal (plist-get image :caption) "Hubert banner"))
++    (should (equal (gdocs-convert-ir-to-org ir)
++                   "#+CAPTION: Hubert banner\n[[https://example.invalid/logo.png]]\n"))))
++
+ (ert-deftest gdocs-convert-test-docs-json-native-footnotes ()
+   "Native Google Docs footnotes convert to Org references and definitions."
+   (let* ((body-elements
+@@ -1390,7 +1432,11 @@
+                        . ((uri . "https://example.invalid/logo.png")
+                           (location . ((index . 12))))))
+                      ((insertText . ((text . "\nProduct logo\n")
+-                                     (location . ((index . 13)))))))))))
++                                     (location . ((index . 13))))))
++                     ((createNamedRange
++                       . ((name . "gdocs-org-marker:image-caption:image-14:org-image-caption")
++                          (range . ((startIndex . 14)
++                                    (endIndex . 26)))))))))))
+ 
+ (ert-deftest gdocs-convert-test-image-ir-without-uri-noops ()
+   "Image IR without a fetchable URI is left to adapter preflight."
+-- 
+2.51.2
+

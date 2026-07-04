@@ -55,6 +55,7 @@ Org ↔ Google Docs body sync currently depends on upstream `benthamite/gdocs`, 
 - [x] AC-4: Given a standalone local image link such as `[[./img/foo.png]]`, when pushed, then the Google Doc receives an inline image instead of literal `file:./img/foo.png` text. The adapter uploads readable standalone images to Drive, grants an anyone-reader permission so Docs can fetch them, enriches image IR with a direct download URI, and relies on the upstream image request seam for `insertInlineImage`.
 - [x] AC-4a: Given a Google Doc with an inline image whose object metadata exposes `sourceUri` or `contentUri`, when pulled, then the Org buffer receives an ordinary Org link to that URI instead of losing the image or rendering only an opaque object id.
 - [x] AC-5: Given a standalone local image link with an Org caption, when pushed, then the caption is preserved as Org-visible semantic text after the inserted image. This is a v1 visible-text mapping rather than native Google Docs figure metadata.
+- [x] AC-5a: Given a pushed caption is marked with the neutral `org-image-caption` semantic style name, when pulled, then the marked caption paragraph is re-associated with the preceding image and rendered as `#+CAPTION:` without relying on visual styling heuristics.
 - [ ] AC-6: Given a described image link such as `[[./img/foo.png][Open image]]`, when pushed, then it remains a normal link and is not treated as a standalone image upload.
 - [x] AC-7: Given an unsupported or missing local image file, when push preflight runs, then it fails before mutating the remote document with a clear actionable error.
 - [ ] AC-8: Given a source block with a language, when pushed and pulled, then code text and language identity survive; Google Docs code block building blocks are used when public APIs expose a reliable seam, and syntax highlighting is explicitly deferred.
@@ -97,7 +98,7 @@ Org ↔ Google Docs body sync currently depends on upstream `benthamite/gdocs`, 
 | AC-1, AC-2 | Unit tests over Org → IR/request adapter using sample footnote references/definitions, plus manual smoke checklist in `docs/native-footnotes-smoke.md` | Yes |
 | AC-3 | Upstream `gdocs-convert` fixture test over Docs JSON/native footnote payload → Org output | Yes |
 | AC-4, AC-4a, AC-6, AC-7 | Image classification/preflight tests modeled after Confluence image asset tests plus upstream image IR/request/pull tests, plus manual smoke checklist in `docs/native-images-smoke.md` | Yes |
-| AC-5 | Caption fixture test and manual smoke checklist in `docs/native-images-smoke.md`; v1 preserves captions as visible text, not styled/native figure metadata | Yes |
+| AC-5, AC-5a | Caption fixture tests and manual smoke checklist in `docs/native-images-smoke.md`; v1 preserves captions as visible text, records a neutral semantic caption style marker, and reconstructs `#+CAPTION:` from that marker on pull | Yes |
 | AC-8 | Org → IR/request and IR/JSON → Org source-block fixture tests | Yes |
 | AC-9 | Semantic classification tests for dates and people links | Yes |
 | AC-10 | Org → IR/request and IR/JSON → Org quote fixture tests | Yes |
