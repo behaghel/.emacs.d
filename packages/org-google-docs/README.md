@@ -21,7 +21,8 @@ This repository has a mature Org ↔ Confluence publishing and sync workflow, bu
 - `org-google-docs-footnotes.el` extracts a native-footnote push plan for named Org footnotes before any Google Docs mutation, wires the `gdocs` footnote-reference seam into `org-google-docs-push`, filters Org-only footnote definitions out of push-time IR, and provides two-phase request helpers for descending-index `createFootnote` requests followed by body insertion into returned footnote segments.
 - `patches/gdocs-footnote-reference-seam.patch` records the minimal upstream `gdocs` seam needed to expose exact footnote-reference indices without placeholder text search.
 - `patches/gdocs-footnote-diff-seam.patch` records the complementary upstream diff change needed for zero-width footnote runs to count as semantic paragraph changes.
-- `docs/native-footnotes-smoke.md` records manual smoke-test scenarios for native footnote push, including repeated references and UI caveats.
+- `patches/gdocs-footnote-pull-seam.patch` records the upstream conversion change that imports native Google Docs footnotes as ordinary Org footnote references and definitions.
+- `docs/native-footnotes-smoke.md` records manual smoke-test scenarios for native footnote push/pull, including repeated references and UI caveats.
 - The activation module prefers a local `~/ws/gdocs` checkout on branch `org-footnote-seam`; this makes the seam repeatable without mutating `straight/repos/gdocs` directly.
 - This domain is supporting: specs are expected when the package boundary or integration contract changes, but the first implementation should stay small and reversible.
 

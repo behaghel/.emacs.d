@@ -102,6 +102,16 @@ Expected Google Doc:
 - body does not contain a visible `Notes de bas de page` section;
 - native footnote body contains `Corps.`.
 
+## Pull native footnotes
+
+Starting from a Google Doc that contains native footnotes, run pull from the linked Org buffer.
+
+Expected Org source after pull:
+
+- paragraph text contains ordinary Org references such as `[fn:1]`;
+- footnote definitions are appended as ordinary Org footnotes such as `[fn:1] Body.`;
+- native Google Docs footnotes are not imported as styled inline notes or comments.
+
 ## Known UI caveat
 
 Google Docs footnote markers created through the API may not look or behave like clickable links in all UI states. Treat the API JSON as authoritative: a correct native footnote has both a paragraph `footnoteReference` and a matching top-level `footnotes` entry.
