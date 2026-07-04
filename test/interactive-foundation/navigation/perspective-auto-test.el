@@ -6,6 +6,7 @@
 ;;; Code:
 
 (require 'ert)
+(require 'cl-lib)
 (require 'project)
 (unless (require 'perspective nil 'noerror)
   ;; Minimal stubs for perspective API used in tests
@@ -65,6 +66,42 @@
 							 (name2 (funcall hub/persp-name-function proj2)))
 						    (should (string= (persp-current-name) name2))
 						    (should (not (string= name1 name2))))))))
+
+(ert-deftest hub/persp-auto-does-not-open-treemacs-during-dashboard-startup ()
+  "Automatic project handling must not open Treemacs before dashboard first paint."
+  (let ((treemacs-calls 0)
+	(persp--current "main")
+	(persp--names '("main"))
+	(hub/persp-auto-open-treemacs t))
+    (cl-letf (((symbol-value 'after-init-time) nil)
+	      ((symbol-value 'command-line-args) '("emacs"))
+	      ((symbol-function 'display-graphic-p) (lambda (&optional _frame) t))
+	      ((symbol-function 'treemacs) (lambda ()
+					     (cl-incf treemacs-calls)
+					     (get-buffer-create "*Treemacs*"))))
+      (hub/with-temp-project "startup/file.txt"
+			     (hub/persp--visit-file-handler)
+			     (should (= treemacs-calls 0))))))
+
+(ert-deftest hub/persp-auto-mode-enable-ignores-loaded-module-during-init ()
+  "Enabling auto perspectives during init must not process the module load buffer."
+  (let ((persp--current "main")
+	(persp--names '("main"))
+	(root (make-temp-file "hub-proj-" t)))
+    (make-directory (expand-file-name ".git" root) t)
+    (let ((file (expand-file-name "modules/interactive/email/bookmarks.el" root)))
+      (make-directory (file-name-directory file) t)
+      (hub/persp-auto-project-mode -1)
+      (with-current-buffer (find-file-noselect file)
+	(switch-to-buffer (current-buffer))
+	(insert "test")
+	(save-buffer)
+	(cl-letf (((symbol-value 'after-init-time) nil))
+	  (unwind-protect
+	      (progn
+		(hub/persp-auto-project-mode 1)
+		(should (string= (persp-current-name) "main")))
+	    (hub/persp-auto-project-mode -1)))))))
 
 (provide 'perspective-auto-test)
 ;;; perspective-auto-test.el ends here

@@ -96,12 +96,32 @@
 	    (unless (hub/persp--ignored-root-p root)
 	      proj)))))))
 
+(defun hub/persp--dashboard-visible-p ()
+  "Return non-nil when the startup dashboard is displayed."
+  (let ((buffer (or (and (boundp 'dashboard-buffer-name) dashboard-buffer-name)
+		    "*dashboard*")))
+    (or (eq (current-buffer) (get-buffer buffer))
+	(get-buffer-window buffer t))))
+
+(defun hub/persp--dashboard-startup-p ()
+  "Return non-nil while startup is expected to show the dashboard."
+  (and (not after-init-time)
+       (display-graphic-p)
+       (< (length command-line-args) 2)))
+
+(defun hub/persp--suppress-treemacs-open-p ()
+  "Return non-nil when automatic Treemacs display would disrupt startup UI."
+  (or (hub/persp--dashboard-visible-p)
+      (hub/persp--dashboard-startup-p)))
+
 (defun hub/persp--treemacs-align-to-project (proj &optional ensure-visible)
   "Ensure Treemacs shows PROJ's root. When ENSURE-VISIBLE, open Treemacs first."
   (when proj
     (require 'treemacs nil 'noerror)
     (when (fboundp 'treemacs)
-      (let ((default-directory (car (project-roots proj))))
+      (let ((default-directory (car (project-roots proj)))
+	    (ensure-visible (and ensure-visible
+				 (not (hub/persp--suppress-treemacs-open-p)))))
 	(when ensure-visible
 	  ;; Make sure Treemacs is displayed before aligning.
 	  (ignore-errors (treemacs)))
@@ -181,8 +201,10 @@
       (progn
 	(add-hook 'find-file-hook #'hub/persp--visit-file-handler)
 	(add-hook 'persp-switch-hook #'hub/persp--align-treemacs-on-persp-switch)
-	;; Process current buffer immediately on enable to cover already-open files
-	(when (buffer-file-name (current-buffer))
+	;; Process current buffer immediately to cover already-open files, but not
+	;; while init is loading modules: during startup `current-buffer' is often the
+	;; file being loaded, and opening Treemacs there disrupts the dashboard.
+	(when (and after-init-time (buffer-file-name (current-buffer)))
 	  (hub/persp--visit-file-handler)))
     (remove-hook 'find-file-hook #'hub/persp--visit-file-handler)
     (remove-hook 'persp-switch-hook #'hub/persp--align-treemacs-on-persp-switch)))

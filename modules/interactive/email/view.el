@@ -110,6 +110,7 @@ Each entry is a cons of the form (:list-id . \"list.id\") or
     ("A" . mu4e-compose-wide-reply)
     ("F" . mu4e-compose-forward)
     ("à" . hub/mu4e-search-mark-refile)
+    ("ç" . hub/mu4e-search-mark-spam)
     ("T" . hub/mu4e-search-next-primary)
     ("S" . hub/mu4e-search-prev-primary)
     ("!" . hub/mu4e-search-mark-spam))
@@ -119,6 +120,11 @@ Each entry is a cons of the form (:list-id . \"list.id\") or
   '(("t" . hub/mu4e-search-next-unread)
     ("s" . hub/mu4e-search-prev-unread))
   "Shared mu4e unread bindings used under the `g' prefix.")
+
+(defconst hub/mu4e--view-traversal-bindings
+  '(("C-t" . mu4e-view-headers-next)
+    ("C-s" . mu4e-view-headers-prev))
+  "Direct traversal bindings that only exist in mu4e view buffers.")
 
 (defun hub/mu4e--apply-evil-normal-bindings (keymap bindings)
   "Apply BINDINGS to KEYMAP in Evil normal state."
@@ -462,7 +468,7 @@ Marks   à refile      À archive    d/D trash/delete   f flag   m move   % by-p
 Jump    T next-primary  S prev-primary  C-t/C-s next/prev msg  J maildir  g t/g s unread
 Thread  z! read-thr   zD del-thr   zà refile-thr      É mark-thread
 Toggle  zé threading  zÉ include-related  zê full-search
-Spam    ! spam(mark)  zS spam-from-sender
+Spam    ç/! spam(mark)  zS spam-from-sender
 Noise   n add-noise-rule
 Other   O org-capture a actions     gL log
 "
@@ -657,48 +663,33 @@ or nil when no matching message was found."
        docid)))
 
   (defun hub/mu4e--apply-view-navigation-keys ()
-    (let ((bindings (append
-		     (cl-remove-if-not
-		      (lambda (binding)
-			(member (car binding) '("T" "S")))
-		      hub/mu4e--shared-semantic-bindings)
-		     '(("\C-t" . mu4e-view-headers-next)
-		       ("\C-s" . mu4e-view-headers-prev)))))
+    "Reassert all shared direct bindings that mu4e view rendering may shadow."
+    (let ((bindings (append hub/mu4e--shared-semantic-bindings
+			    hub/mu4e--view-traversal-bindings)))
       (when (boundp 'mu4e-view-mode-map)
-	(dolist (binding bindings)
-	  (define-key mu4e-view-mode-map (kbd (car binding)) (cdr binding))))
-      (hub/mu4e--apply-evil-normal-bindings
-       mu4e-view-mode-map
-       (append (cl-remove-if-not
-		(lambda (binding)
-		  (member (car binding) '("T" "S")))
-		hub/mu4e--shared-semantic-bindings)
-	       '(("J" . mu4e~headers-jump-to-maildir)
-		 ("g t" . hub/mu4e-search-next-unread)
-		 ("g s" . hub/mu4e-search-prev-unread)
-		 ("C-t" . mu4e-view-headers-next)
-		 ("C-s" . mu4e-view-headers-prev))))
+	(hub/mu4e--define-keys mu4e-view-mode-map bindings)
+	(hub/mu4e--apply-evil-normal-bindings
+	 mu4e-view-mode-map
+	 (append bindings
+		 '(("J" . mu4e~headers-jump-to-maildir)
+		   ("g t" . hub/mu4e-search-next-unread)
+		   ("g s" . hub/mu4e-search-prev-unread)))))
       (when (boundp 'mu4e-search-minor-mode-map)
 	(let* ((existing (assoc 'mu4e-search-minor-mode minor-mode-overriding-map-alist))
 	       (map (or (cdr existing) (make-sparse-keymap))))
-	  (dolist (binding bindings)
-	    (define-key map (kbd (car binding)) (cdr binding)))
+	  (hub/mu4e--define-keys map bindings)
 	  (setq minor-mode-overriding-map-alist
 		(assq-delete-all 'mu4e-search-minor-mode minor-mode-overriding-map-alist))
 	  (push (cons 'mu4e-search-minor-mode map) minor-mode-overriding-map-alist)))))
 
   (defun hub/mu4e-view--apply-local-evil-navigation-keys ()
-    "Reassert mu4e view navigation in the current Evil normal buffer."
+    "Reassert shared mu4e view bindings in the current Evil normal buffer."
     (hub/mu4e--apply-evil-local-normal-bindings
-     (append (cl-remove-if-not
-	      (lambda (binding)
-		(member (car binding) '("F" "T" "S")))
-	      hub/mu4e--shared-semantic-bindings)
+     (append hub/mu4e--shared-semantic-bindings
+	     hub/mu4e--view-traversal-bindings
 	     '(("J" . mu4e~headers-jump-to-maildir)
 	       ("g t" . hub/mu4e-search-next-unread)
-	       ("g s" . hub/mu4e-search-prev-unread)
-	       ("C-t" . mu4e-view-headers-next)
-	       ("C-s" . mu4e-view-headers-prev)))))
+	       ("g s" . hub/mu4e-search-prev-unread)))))
 
   (hub/mu4e--apply-view-navigation-keys)
   (add-hook 'mu4e-view-mode-hook #'hub/mu4e--apply-view-navigation-keys)
@@ -901,7 +892,7 @@ code path as `gnus-article-press-button' on user click."
 
 Compose   ;c n new      ;c r reply      ;c a reply-all   ;c f forward
 Attach    ;f s save     ;f a part action
-Marks     ! spam        ;m s spam       ;m r refile      ;m f flag        ;m d subthread
+Marks     ç/! spam      ;m s spam       ;m r refile      ;m f flag        ;m d subthread
 Jump      T next-primary  S prev-primary  C-t/C-s next/prev msg  J maildir  g t/g s unread
 Noise     zS move→spam  ;n n add rule   ;n s move→spam
 Open      ;o b browser  ;o u visit URL  ;o f fetch URL   ;o s save URL
