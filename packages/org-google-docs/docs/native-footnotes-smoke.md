@@ -109,7 +109,8 @@ Starting from a Google Doc that contains native footnotes, run pull from the lin
 Expected Org source after pull:
 
 - paragraph text contains ordinary Org references such as `[fn:1]`;
-- footnote definitions are appended as ordinary Org footnotes such as `[fn:1] Body.`;
+- footnote definitions are collected once under a conventional `* Footnotes` section;
+- definitions are ordinary Org footnotes such as `[fn:1] Body.`;
 - native Google Docs footnotes are not imported as styled inline notes or comments.
 
 ## Known UI caveat
