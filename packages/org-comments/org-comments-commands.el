@@ -20,10 +20,11 @@
 (require 'seq)
 (require 'subr-x)
 
-(defcustom org-comments-keymap-prefix "C-c ;"
+(defcustom org-comments-keymap-prefix "C-c C-;"
   "Prefix key for `org-comments-mode' default bindings.
 Set this before loading `org-comments-commands' or customize it and reload the
-mode map with `org-comments-rebuild-mode-map'."
+mode map with `org-comments-rebuild-mode-map'.  The default avoids `C-c ;',
+which Org mode uses for `org-toggle-comment'."
   :type 'string
   :set (lambda (symbol value)
 	 (set-default symbol value)

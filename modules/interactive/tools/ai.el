@@ -5,6 +5,50 @@
 
 ;;; Code:
 
+(defgroup hub/ai nil
+  "Personal AI integration settings."
+  :group 'tools)
+
+(defcustom hub/gptel-cache-api-key t
+  "Whether to memoize the OpenAI API key for the current Emacs session."
+  :type 'boolean
+  :group 'hub/ai)
+
+(defvar hub/gptel--cached-api-key nil
+  "Cached OpenAI API key for gptel requests.")
+
+(defun hub/gptel-clear-api-key-cache ()
+  "Clear the cached OpenAI API key used by gptel."
+  (interactive)
+  (setq hub/gptel--cached-api-key nil)
+  (message "Cleared cached gptel API key"))
+
+(defun hub/gptel-api-key ()
+  "Return the OpenAI API key for gptel, optionally memoized."
+  (or (and hub/gptel-cache-api-key hub/gptel--cached-api-key)
+      (let ((secret (or (auth-source-pass-get
+			 'secret "veriff/api.openai.com/apikey")
+			(user-error
+			 "No OpenAI key in pass entry veriff/api.openai.com/apikey"))))
+	(when hub/gptel-cache-api-key
+	  (setq hub/gptel--cached-api-key secret))
+	secret)))
+
+(use-package gptel
+  :commands (gptel gptel-send gptel-request)
+  :init
+  (require 'auth-source-pass)
+  (auth-source-pass-enable)
+  (setq gptel-api-key #'hub/gptel-api-key))
+
+(with-eval-after-load 'org
+  (require 'org-copilot)
+  (add-hook 'org-mode-hook #'org-copilot-mode))
+
+(with-eval-after-load 'gptel
+  (require 'org-copilot-gptel)
+  (org-copilot-gptel-enable))
+
 (use-package codeium
   :straight '(:type git :host github :repo "Exafunction/codeium.el")
   :disabled t
