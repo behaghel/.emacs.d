@@ -86,7 +86,8 @@ Expected Org source after pull:
 - the image is not silently dropped and does not degrade to only an opaque object id unless Google exposes no usable URI;
 - captions pushed by the adapter are marked with a neutral `org-image-caption` semantic style name;
 - marked caption paragraphs are re-associated with the preceding image and rendered as `#+CAPTION:`;
-- visual caption styling is not applied by neutral upstream `gdocs`; users/adapters may style paragraphs identified by the marker.
+- visual caption styling is not applied by neutral upstream `gdocs`; users/adapters may style paragraphs identified by the marker;
+- image links are separated from surrounding paragraphs with blank lines in pulled Org output.
 
 Manual result: pending.
 

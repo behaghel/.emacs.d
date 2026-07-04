@@ -30,6 +30,7 @@ This repository has a mature Org ↔ Confluence publishing and sync workflow, bu
 - `patches/gdocs-image-caption-diff-key.patch` records the upstream diff change that treats image caption changes as semantic image changes.
 - `patches/gdocs-inline-image-pull-uri.patch` records the upstream conversion change that preserves Google Docs inline image source/content URIs on pull.
 - `patches/gdocs-image-caption-marker-pull.patch` records the upstream conversion change that marks pushed captions with a neutral semantic style name and reconstructs `#+CAPTION:` from that marker on pull.
+- `patches/gdocs-image-block-spacing.patch` records the upstream conversion change that keeps image blocks separated from surrounding paragraphs in pulled Org output.
 - `docs/native-footnotes-smoke.md` records manual smoke-test scenarios for native footnote push/pull, including repeated references and UI caveats.
 - `docs/native-images-smoke.md` records manual smoke-test scenarios for standalone image and caption push, including debug-pipeline checkpoints.
 - The activation module prefers a local `~/ws/gdocs` checkout on branch `org-footnote-seam`; this makes the seam repeatable without mutating `straight/repos/gdocs` directly.

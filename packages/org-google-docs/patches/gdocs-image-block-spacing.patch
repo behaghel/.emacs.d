@@ -1,0 +1,51 @@
+From 7f9a8afd71d018e1cdc39c11c137dc1ed5bac148 Mon Sep 17 00:00:00 2001
+From: Hubert Behaghel <behaghel@gmail.com>
+Date: Sat, 4 Jul 2026 23:49:25 +0200
+Subject: [PATCH] Separate image blocks in Org output
+
+---
+ gdocs-convert.el           |  1 +
+ test/gdocs-convert-test.el | 15 +++++++++++++++
+ 2 files changed, 16 insertions(+)
+
+diff --git a/gdocs-convert.el b/gdocs-convert.el
+index f8baff6..9ab749f 100644
+--- a/gdocs-convert.el
++++ b/gdocs-convert.el
+@@ -1251,6 +1251,7 @@ PREV-TYPE is the :type of the previous element."
+       (or (eq type 'table)
+           (eq type 'horizontal-rule)
+           (eq type 'footnote)
++          (eq type 'image)
+           (and (eq type 'paragraph)
+                (not list-info)
+                (not (eq prev-type 'horizontal-rule)))))))
+diff --git a/test/gdocs-convert-test.el b/test/gdocs-convert-test.el
+index 7506a99..1dc2ce1 100644
+--- a/test/gdocs-convert-test.el
++++ b/test/gdocs-convert-test.el
+@@ -1406,6 +1406,21 @@
+                           :source-uri "https://example.invalid/logo.png")))))
+     (should (equal org "[[https://example.invalid/logo.png]]\n"))))
+ 
++(ert-deftest gdocs-convert-test-image-block-spacing ()
++  "Image IR is separated from surrounding paragraphs by blank lines."
++  (let ((org (gdocs-convert-ir-to-org
++              (list (list :type 'paragraph
++                          :style 'normal
++                          :contents (list (list :text "Before.")))
++                    (list :type 'image
++                          :source-uri "https://example.invalid/logo.png"
++                          :caption "Product logo")
++                    (list :type 'paragraph
++                          :style 'normal
++                          :contents (list (list :text "After.")))))))
++    (should (equal org
++                   "Before.\n\n#+CAPTION: Product logo\n[[https://example.invalid/logo.png]]\n\nAfter.\n"))))
++
+ (ert-deftest gdocs-convert-test-image-ir-to-requests ()
+   "Image IR with a fetchable URI emits an insertInlineImage request."
+   (let* ((result (gdocs-convert--image-to-requests
+-- 
+2.51.2
+
