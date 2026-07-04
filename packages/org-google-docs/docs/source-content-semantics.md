@@ -50,6 +50,7 @@ Org ↔ Google Docs body sync currently depends on upstream `benthamite/gdocs`, 
 - [x] AC-1: Given an Org paragraph containing `[fn:1]`, when pushed through the Google Docs adapter, then the Google Doc contains a native footnote reference at the corresponding text position rather than literal `[fn:1]` body text.
 - [x] AC-2: Given an Org footnote definition `[fn:1] Body`, when pushed, then the native Google Docs footnote contains `Body` as plain text; supported inline text semantics inside footnotes are a documented follow-up degradation.
 - [x] AC-2a: Given a conventional Org footnotes section is converted to native Google Docs footnotes, when push-time IR is generated, then the `Footnotes`/`Notes de bas de page` heading and footnote-definition IR are omitted from the Google Docs body without modifying the source Org buffer.
+- [x] AC-2b: Given visible paragraph text changes and multiple zero-width footnote runs, when upstream diff generates requests, then it emits footnote-reference seam requests from the word-level modification path so native footnotes are not dropped.
 - [ ] AC-3: Given a Google Doc with native footnotes, when pulled, then the Org buffer contains corresponding footnote references and definitions without losing surrounding paragraph text.
 - [ ] AC-4: Given a standalone local image link such as `[[./img/foo.png]]`, when pushed, then the Google Doc receives an inline image instead of literal `file:./img/foo.png` text.
 - [ ] AC-5: Given a standalone local image link with an Org caption, when pushed, then the caption is preserved as Org-visible semantic text or supported Google Docs image metadata; if no native mapping is reliable, the limitation is explicit and tested.
@@ -92,7 +93,7 @@ Org ↔ Google Docs body sync currently depends on upstream `benthamite/gdocs`, 
 
 | Criterion | Method | Automated? |
 | --- | --- | --- |
-| AC-1, AC-2 | Unit tests over Org → IR/request adapter using sample footnote references/definitions | Yes |
+| AC-1, AC-2 | Unit tests over Org → IR/request adapter using sample footnote references/definitions, plus manual smoke checklist in `docs/native-footnotes-smoke.md` | Yes |
 | AC-3 | Fixture test over Docs JSON/native footnote payload → Org output | Yes |
 | AC-4, AC-6, AC-7 | Image classification/preflight tests modeled after Confluence image asset tests | Yes |
 | AC-5 | Caption fixture test or documented limitation test | Yes |
