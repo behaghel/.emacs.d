@@ -87,7 +87,7 @@ Expected Org source after pull:
 - captions pushed by the adapter are marked with a neutral `org-image-caption` semantic style name;
 - marked caption paragraphs are re-associated with the preceding image and rendered as `#+CAPTION:`;
 - visual caption styling is not applied by neutral upstream `gdocs`; users/adapters may style paragraphs identified by the marker;
-- image links are separated from surrounding paragraphs with blank lines in pulled Org output.
+- image links are separated from surrounding paragraphs with blank lines in pulled Org output, including the three-way merge pull path used after a shadow exists.
 
 Manual result: pending.
 

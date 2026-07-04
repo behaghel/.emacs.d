@@ -1,0 +1,52 @@
+From 436fabfd3a312201420c4a1d97d1f5d87768f710 Mon Sep 17 00:00:00 2001
+From: Hubert Behaghel <behaghel@gmail.com>
+Date: Sun, 5 Jul 2026 00:57:46 +0200
+Subject: [PATCH] Keep image spacing in merge pull segments
+
+---
+ gdocs-sync.el           |  7 ++++++-
+ test/gdocs-sync-test.el | 10 ++++++++++
+ 2 files changed, 16 insertions(+), 1 deletion(-)
+
+diff --git a/gdocs-sync.el b/gdocs-sync.el
+index a9ce646..d3467b7 100644
+--- a/gdocs-sync.el
++++ b/gdocs-sync.el
+@@ -811,7 +811,12 @@ heading line.  Includes a trailing newline."
+     (if (and drawer (gdocs-sync--heading-element-p element))
+         (concat (gdocs-sync--graft-drawer-into-heading org-text drawer)
+                 "\n")
+-      (concat org-text "\n"))))
++      (concat org-text
++              (if (gdocs-sync--block-element-p element) "\n\n" "\n")))))
++
++(defun gdocs-sync--block-element-p (element)
++  "Return non-nil when ELEMENT should be separated as an Org block."
++  (memq (plist-get element :type) '(image table horizontal-rule)))
+ 
+ (defun gdocs-sync--heading-element-p (element)
+   "Return non-nil if ELEMENT is a heading."
+diff --git a/test/gdocs-sync-test.el b/test/gdocs-sync-test.el
+index 1ab7f65..284425a 100644
+--- a/test/gdocs-sync-test.el
++++ b/test/gdocs-sync-test.el
+@@ -714,6 +714,16 @@ local modification, allowing the merge to detect the conflict."
+           (should (string-match-p ">>>> REMOTE" merged))
+           (should (string-match-p "Remote text" merged)))))))
+ 
++(ert-deftest gdocs-sync-test-ir-image-segment-keeps-block-spacing ()
++  "Image segments produced during merge keep following block spacing."
++  (let ((segment (gdocs-sync--ir-element-to-org-segment
++                  (list :type 'image
++                        :source-uri "https://example.invalid/logo.png"
++                        :caption "Logo")
++                  nil)))
++    (should (equal segment
++                   "#+CAPTION: Logo\n[[https://example.invalid/logo.png]]\n\n"))))
++
+ (ert-deftest gdocs-sync-test-three-way-merge-remote-insert ()
+   "Remote adds a new element not in shadow -> appears in merged output."
+   (gdocs-sync-test-with-org-buffer "First\n"
+-- 
+2.51.2
+
