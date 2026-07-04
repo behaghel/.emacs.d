@@ -23,6 +23,14 @@
   :type 'directory
   :group 'hub/org-google-docs)
 
+(defcustom hub/org-google-docs-gdocs-repository
+  (expand-file-name "~/ws/gdocs")
+  "Local gdocs fork checkout used by Straight.
+The expected branch is `org-footnote-seam', which carries the minimal upstream
+footnote-reference conversion seam required by `org-google-docs-footnotes'."
+  :type 'directory
+  :group 'hub/org-google-docs)
+
 (defcustom hub/org-google-docs-auth-source-accounts
   '(("personal"
      . ((client-id-host . "dev/emacs-gdocs/client-id")
@@ -102,10 +110,28 @@ return the configured account value, because it contains OAuth client secrets."
       (message "Configured %d Google Docs account(s) from auth-source" configured-count))
     configured-count))
 
+(defun hub/org-google-docs--gdocs-straight-recipe ()
+  "Return the Straight recipe for upstream gdocs.
+Prefer the local seam fork when `hub/org-google-docs-gdocs-repository' exists;
+fall back to upstream so base Google Docs commands still bootstrap before the
+local fork is cloned."
+  (if (file-directory-p hub/org-google-docs-gdocs-repository)
+      `(gdocs :type git
+	      :repo ,hub/org-google-docs-gdocs-repository
+	      :branch "org-footnote-seam"
+	      :local-repo "gdocs")
+    '(gdocs :type git :host github :repo "benthamite/gdocs")))
+
+(defun hub/org-google-docs--ensure-gdocs-package ()
+  "Install or register upstream gdocs through Straight when available."
+  (when (fboundp 'straight-use-package)
+    (straight-use-package (hub/org-google-docs--gdocs-straight-recipe))))
+
 (add-to-list 'load-path hub/org-google-docs-package-directory)
+(hub/org-google-docs--ensure-gdocs-package)
 
 (use-package gdocs
-  :straight (:type git :host github :repo "benthamite/gdocs")
+  :straight nil
   :commands (gdocs-authenticate
 	     gdocs-create
 	     gdocs-open
