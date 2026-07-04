@@ -16,6 +16,7 @@
 (defvar gdocs-convert-footnote-reference-handler)
 (declare-function gdocs-api-batch-update "gdocs-api"
 		  (document-id requests callback &optional account on-error))
+(declare-function gdocs-convert-org-buffer-to-ir "gdocs-convert" ())
 
 (defvar org-google-docs-footnotes--push-session nil
   "Active native Google Docs footnote push session, or nil.")
@@ -289,6 +290,36 @@ these requests are intended for a second batchUpdate."
 						 (index . 1))))))))
 	       references replies)))
 
+(defun org-google-docs-footnotes--runs-plain-text (runs)
+  "Return plain text for text RUNS."
+  (mapconcat (lambda (run) (or (plist-get run :text) "")) runs ""))
+
+(defun org-google-docs-footnotes--footnotes-heading-ir-p (element)
+  "Return non-nil when ELEMENT is a conventional footnotes heading IR node."
+  (and (eq (plist-get element :type) 'paragraph)
+       (memq (plist-get element :style)
+	     '(heading-1 heading-2 heading-3 heading-4 heading-5 heading-6))
+       (member (org-google-docs-footnotes--runs-plain-text
+		(plist-get element :contents))
+	       org-google-docs-footnotes-section-names)))
+
+(defun org-google-docs-footnotes-filter-native-footnote-ir (ir)
+  "Return IR without Org-only footnote definition elements.
+This removes the conventional footnotes section heading and footnote-definition
+IR nodes during native Google Docs footnote push.  The source Org buffer is not
+modified."
+  (seq-remove (lambda (element)
+		(or (eq (plist-get element :type) 'footnote)
+		    (org-google-docs-footnotes--footnotes-heading-ir-p element)))
+	      ir))
+
+(defun org-google-docs-footnotes--around-org-buffer-to-ir (orig)
+  "Advise ORIG `gdocs-convert-org-buffer-to-ir' during native footnote push."
+  (let ((ir (funcall orig)))
+    (if org-google-docs-footnotes--push-session
+	(org-google-docs-footnotes-filter-native-footnote-ir ir)
+      ir)))
+
 (defun org-google-docs-footnotes--create-footnote-response (response)
   "Return RESPONSE filtered to createFootnote replies only."
   (let ((replies (seq-filter #'org-google-docs-footnotes--reply-footnote-id
@@ -373,6 +404,12 @@ update and send a second batchUpdate for footnote bodies before running CALLBACK
       (funcall orig document-id (append requests create-requests)
 	       wrapped-callback account on-error))))
 
+(defun org-google-docs-footnotes-enable-conversion-advice ()
+  "Enable push-time native footnote filtering around gdocs conversion."
+  (when (fboundp 'gdocs-convert-org-buffer-to-ir)
+    (advice-add 'gdocs-convert-org-buffer-to-ir :around
+		#'org-google-docs-footnotes--around-org-buffer-to-ir)))
+
 (defun org-google-docs-footnotes-enable-batch-update-advice ()
   "Enable native footnote second-phase insertion around gdocs batch updates."
   (when (fboundp 'gdocs-api-batch-update)
@@ -382,6 +419,7 @@ update and send a second batchUpdate for footnote bodies before running CALLBACK
 (defun org-google-docs-footnotes-begin-push (plan)
   "Begin native Google Docs footnote push for PLAN."
   (org-google-docs-footnotes--activate-session plan)
+  (org-google-docs-footnotes-enable-conversion-advice)
   (org-google-docs-footnotes-enable-batch-update-advice))
 
 ;;;###autoload

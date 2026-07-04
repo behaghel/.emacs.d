@@ -15,6 +15,39 @@
 
 (require 'org-google-docs-footnotes)
 
+(ert-deftest org-google-docs-footnotes-filters-org-only-footnotes-from-ir ()
+  "Native footnote push removes Org-only definition section from body IR."
+  (let ((ir (list (list :type 'paragraph
+			:style 'normal
+			:contents (list (list :text "Text.")))
+		  (list :type 'paragraph
+			:style 'heading-1
+			:contents (list (list :text "Footnotes")))
+		  (list :type 'footnote
+			:label "one"
+			:contents (list (list :text "Body.")))
+		  (list :type 'paragraph
+			:style 'normal
+			:contents (list (list :text "After."))))))
+    (should (equal (mapcar (lambda (element)
+			     (org-google-docs-footnotes--runs-plain-text
+			      (plist-get element :contents)))
+			   (org-google-docs-footnotes-filter-native-footnote-ir ir))
+		   '("Text." "After.")))))
+
+(ert-deftest org-google-docs-footnotes-conversion-advice-filters-only-during-session ()
+  "Conversion advice filters footnote IR only while a push session is active."
+  (let ((ir (list (list :type 'paragraph
+			:style 'heading-1
+			:contents (list (list :text "Footnotes")))
+		  (list :type 'footnote :label "one"))))
+    (cl-labels ((orig () ir))
+      (let ((org-google-docs-footnotes--push-session nil))
+	(should (equal (org-google-docs-footnotes--around-org-buffer-to-ir #'orig)
+		       ir)))
+      (let ((org-google-docs-footnotes--push-session (list :references [])))
+	(should-not (org-google-docs-footnotes--around-org-buffer-to-ir #'orig))))))
+
 (ert-deftest org-google-docs-footnotes-builds-create-requests-at-doc-indices ()
   "Create native footnote requests from reference document indices."
   (let* ((references (list (list :label "one" :ordinal 1 :body "First body." :doc-index 12)
