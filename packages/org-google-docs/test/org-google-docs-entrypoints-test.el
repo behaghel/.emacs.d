@@ -58,6 +58,32 @@
 	(should-error (org-google-docs-push) :type 'user-error)
 	(should-not calls)))))
 
+(ert-deftest org-google-docs-push-resumes-in-source-buffer-after-image-upload ()
+  "Async image upload resumes gdocs push in the linked source buffer."
+  (let ((source-buffer (generate-new-buffer " *gdocs-source*"))
+	(other-buffer (generate-new-buffer " *gdocs-other*"))
+	callback-buffer)
+    (unwind-protect
+	(cl-letf (((symbol-function 'org-google-docs--require-upstream-library)
+		   (lambda (_library) t))
+		  ((symbol-function 'org-google-docs-images-begin-push)
+		   (lambda (_plan callback &optional _account)
+		     (with-current-buffer other-buffer
+		       (funcall callback))))
+		  ((symbol-function 'gdocs-push)
+		   (lambda ()
+		     (interactive)
+		     (setq callback-buffer (current-buffer)))))
+	  (with-current-buffer source-buffer
+	    (insert "Plain text.\n")
+	    (org-mode)
+	    (org-google-docs-push))
+	  (should (eq callback-buffer source-buffer)))
+      (when (buffer-live-p source-buffer)
+	(kill-buffer source-buffer))
+      (when (buffer-live-p other-buffer)
+	(kill-buffer other-buffer)))))
+
 (ert-deftest org-google-docs-push-uploads-standalone-images-before-upstream ()
   "Push prepares image-bearing buffers before invoking upstream gdocs."
   (let ((image-file (make-temp-file "org-google-docs-image" nil ".png"))

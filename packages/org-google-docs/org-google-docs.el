@@ -123,13 +123,20 @@ Return a list of issue symbols."
       (org-google-docs-footnotes-begin-push plan))))
 
 (defun org-google-docs--prepare-images-then (callback)
-  "Preflight and upload native images, then call CALLBACK."
-  (let ((image-plan (org-google-docs--preflight-images-for-push)))
+  "Preflight and upload native images, then call CALLBACK in this buffer."
+  (let ((image-plan (org-google-docs--preflight-images-for-push))
+	(buffer (current-buffer)))
     (when (plist-get image-plan :images)
       (org-google-docs--require-upstream-library 'gdocs-api)
       (org-google-docs--require-upstream-library 'gdocs-convert))
     (org-google-docs-images-begin-push
-     image-plan callback (org-google-docs--current-gdocs-account))))
+     image-plan
+     (lambda ()
+       (if (buffer-live-p buffer)
+	   (with-current-buffer buffer
+	     (funcall callback))
+	 (user-error "Google Docs image upload finished after source buffer was killed")))
+     (org-google-docs--current-gdocs-account))))
 
 ;;;###autoload
 (defun org-google-docs-create ()
