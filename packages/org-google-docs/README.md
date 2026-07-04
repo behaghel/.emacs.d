@@ -19,6 +19,7 @@ This repository has a mature Org ↔ Confluence publishing and sync workflow, bu
 - Source-content semantic gaps are tracked in [`docs/source-content-semantics.md`](docs/source-content-semantics.md); styling parity is intentionally a later epic.
 - `org-google-docs-semantics.el` classifies a typographic semantic audit into Google Docs `supported`, `degraded`, `unsupported`, and `deferred` buckets without depending on local `hub-*` modules.
 - `org-google-docs-footnotes.el` extracts a native-footnote push plan for named Org footnotes before any Google Docs mutation and provides two-phase request helpers for `createFootnote` followed by body insertion into returned footnote segments.
+- `patches/gdocs-footnote-reference-seam.patch` records the minimal upstream `gdocs` seam needed to expose exact footnote-reference indices without placeholder text search.
 - This domain is supporting: specs are expected when the package boundary or integration contract changes, but the first implementation should stay small and reversible.
 
 ## Decisions

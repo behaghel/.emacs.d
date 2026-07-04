@@ -1,0 +1,170 @@
+diff --git a/gdocs-convert.el b/gdocs-convert.el
+index be6fe09..9ff3441 100644
+--- a/gdocs-convert.el
++++ b/gdocs-convert.el
+@@ -70,6 +70,14 @@ Used during org-to-IR link resolution to append heading anchors.")
+ Reverse mapping of `gdocs-convert--heading-cache', used during
+ IR-to-org conversion to resolve heading anchors back to text.")
+ 
++(defvar gdocs-convert-footnote-reference-handler nil
++  "Function called for each semantic footnote reference during request generation.
++When non-nil, the function receives two arguments: the zero-width footnote RUN
++and its exact Google Docs UTF-16 INDEX in the body segment.  It may return
++additional batchUpdate requests or nil.  This is an extension seam for callers
++that need native Google Docs footnotes, whose bodies must be inserted in a
++second batchUpdate after `createFootnote' returns segment IDs.")
++
+ (defun gdocs-convert--read-file-property-gdocs-id (file-path)
+   "Read GDOCS_DOCUMENT_ID from FILE-PATH's file-level property drawer.
+ Reads only the head of the file (~1KB) and uses a regexp.
+@@ -794,11 +802,12 @@ INHERITED-PROPS carries parent formatting."
+     (list (gdocs-convert--make-run value new-props))))
+ 
+ (defun gdocs-convert--footnote-reference-to-runs (object inherited-props)
+-  "Convert a FOOTNOTE-REFERENCE OBJECT to text runs.
+-INHERITED-PROPS carries parent formatting."
+-  (let ((interpreted (org-element-interpret-data object)))
+-    (when (and interpreted (not (string-empty-p interpreted)))
+-      (list (gdocs-convert--make-run interpreted inherited-props)))))
++  "Convert a FOOTNOTE-REFERENCE OBJECT to a zero-width semantic run.
++INHERITED-PROPS carries parent formatting.  The visible native footnote marker
++is produced by Google Docs, not by literal Org text."
++  (list (plist-put (gdocs-convert--make-run "" inherited-props)
++                   :footnote-label
++                   (org-element-property :label object))))
+ 
+ (defun gdocs-convert--fallback-object-to-runs (object inherited-props)
+   "Handle an unknown OBJECT type by interpreting it as text.
+@@ -1647,7 +1656,9 @@ coarser run boundaries that org-element produces."
+               (plist-get b :foreground-color))
+        (equal (plist-get a :background-color)
+               (plist-get b :background-color))
+-       (eql (plist-get a :font-size) (plist-get b :font-size))))
++       (eql (plist-get a :font-size) (plist-get b :font-size))
++       (equal (plist-get a :footnote-label)
++              (plist-get b :footnote-label))))
+ 
+ (defun gdocs-convert--normalize-run-whitespace (runs)
+   "Normalize whitespace at boundaries of formatted RUNS.
+@@ -1656,8 +1667,12 @@ adjacent plain runs, so that run boundaries match the org-mode
+ emphasis model.  This prevents spurious diffs on round-trip."
+   (let ((result nil))
+     (dolist (run runs)
+-      (if (not (gdocs-convert--run-has-formatting-p run))
+-          (push run result)
++      (cond
++       ((plist-get run :footnote-label)
++        (push run result))
++       ((not (gdocs-convert--run-has-formatting-p run))
++        (push run result))
++       (t
+         (let ((text (plist-get run :text))
+               (leading "")
+               (trailing ""))
+@@ -1673,7 +1688,7 @@ emphasis model.  This prevents spurious diffs on round-trip."
+           (unless (string-empty-p text)
+             (push (plist-put (copy-sequence run) :text text) result))
+           (when (not (string-empty-p trailing))
+-            (push (gdocs-convert--make-plain-run trailing) result)))))
++            (push (gdocs-convert--make-plain-run trailing) result))))))
+     (nreverse result)))
+ 
+ (defun gdocs-convert--run-has-formatting-p (run)
+@@ -1688,7 +1703,8 @@ emphasis model.  This prevents spurious diffs on round-trip."
+       (plist-get run :superscript)
+       (plist-get run :foreground-color)
+       (plist-get run :background-color)
+-      (plist-get run :font-size)))
++      (plist-get run :font-size)
++      (plist-get run :footnote-label)))
+ 
+ (defun gdocs-convert--strip-vertical-tabs (text)
+   "Replace vertical tab characters in TEXT with newlines.
+@@ -2022,12 +2038,15 @@ clear any inherited formatting before per-run styles are applied."
+                                                        (+ index text-len)))
+          (marker-reqs (gdocs-convert--make-marker-requests
+                        element index (+ index text-len)))
++         (footnote-reqs (gdocs-convert--make-footnote-reference-requests
++                         (plist-get element :contents) index))
+          (all-requests (append (list insert-req)
+                                style-reqs
+                                (when reset-req (list reset-req))
+                                run-reqs
+                                list-reqs
+-                               marker-reqs)))
++                               marker-reqs
++                               footnote-reqs)))
+     (list :requests all-requests
+           :index (+ index text-len))))
+ 
+@@ -2086,6 +2105,24 @@ clear any inherited formatting before per-run styles are applied."
+     ('normal "NORMAL_TEXT")
+     (_ "NORMAL_TEXT")))
+ 
++(defun gdocs-convert--make-footnote-reference-requests (runs start-index)
++  "Create extension requests for semantic footnote RUNS at START-INDEX.
++When `gdocs-convert-footnote-reference-handler' is nil, no requests are emitted.
++The handler receives each zero-width footnote run and its exact body index."
++  (let ((requests nil)
++        (index start-index))
++    (dolist (run runs)
++      (let* ((text (plist-get run :text))
++             (len (gdocs-convert--string-to-utf16-length text)))
++        (when (and (plist-get run :footnote-label)
++                   gdocs-convert-footnote-reference-handler)
++          (setq requests
++                (append requests
++                        (funcall gdocs-convert-footnote-reference-handler
++                                 run index))))
++        (setq index (+ index len))))
++    requests))
++
+ (defun gdocs-convert--make-text-style-requests (runs start-index)
+   "Create updateTextStyle requests for formatted RUNS starting at START-INDEX.
+ Each run that has any formatting generates a request."
+diff --git a/test/gdocs-footnote-reference-seam-test.el b/test/gdocs-footnote-reference-seam-test.el
+new file mode 100644
+index 0000000..7202e51
+--- /dev/null
++++ b/test/gdocs-footnote-reference-seam-test.el
+@@ -0,0 +1,40 @@
++;;; gdocs-footnote-reference-seam-test.el --- Footnote reference seam tests -*- lexical-binding: t; -*-
++
++;;; Commentary:
++;; Tests for preserving Org footnote references as zero-width semantic runs and
++;; exposing their exact Google Docs UTF-16 insertion indices during request
++;; generation.
++
++;;; Code:
++
++(require 'ert)
++(require 'seq)
++(require 'gdocs-convert)
++
++(ert-deftest gdocs-convert-org-footnote-reference-becomes-semantic-run ()
++  "Org footnote references are not converted to literal [fn:] text."
++  (let* ((ir (gdocs-convert-org-string-to-ir "Text[fn:one].\n\n* Footnotes\n\n[fn:one] Body.\n"))
++         (paragraph (car ir))
++         (runs (plist-get paragraph :contents)))
++    (should (equal "Text." (gdocs-convert--runs-to-plain-text runs)))
++    (should (seq-find (lambda (run)
++                        (equal "one" (plist-get run :footnote-label)))
++                      runs))))
++
++(ert-deftest gdocs-convert-footnote-reference-handler-receives-doc-index ()
++  "Request generation reports exact footnote reference insertion indices."
++  (let* ((ir (gdocs-convert-org-string-to-ir "Text[fn:one].\n"))
++         (seen nil)
++         (gdocs-convert-footnote-reference-handler
++          (lambda (run index)
++            (push (list :label (plist-get run :footnote-label)
++                        :index index)
++                  seen)
++            nil))
++         (requests (gdocs-convert-ir-to-docs-requests ir 1)))
++    (should (equal (nreverse seen) '((:label "one" :index 5))))
++    (should (equal (alist-get 'text (alist-get 'insertText (car requests)))
++                   "Text.\n"))))
++
++(provide 'gdocs-footnote-reference-seam-test)
++;;; gdocs-footnote-reference-seam-test.el ends here
