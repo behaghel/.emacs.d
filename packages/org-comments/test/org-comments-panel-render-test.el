@@ -8,6 +8,59 @@
 (require 'ert)
 (require 'org-comments-panel-render)
 
+(defun org-comments-panel-render-test--with-backend (record backend)
+  "Return RECORD fixture annotated recursively with BACKEND."
+  (let ((copy (copy-sequence record)))
+    (plist-put copy :backend backend)
+    (when-let* ((replies (plist-get copy :replies)))
+      (plist-put copy :replies
+		 (mapcar (lambda (reply)
+			   (org-comments-panel-render-test--with-backend reply backend))
+			 replies)))
+    copy))
+
+(defun org-comments-panel-render-test--visual-fixture (backend)
+  "Return provider-neutral visual panel fixture for BACKEND."
+  (list
+   :inline
+   (mapcar
+    (lambda (record)
+      (org-comments-panel-render-test--with-backend record backend))
+    '((:type comment :status "OPEN" :target-text "selected paragraph"
+	     :remote-id "root-open" :remote-author-display-name "Alice"
+	     :created-at "2026-07-02T10:00:00Z" :body "Remote linked root."
+	     :current t
+	     :replies ((:type comment :status "OPEN" :remote-id "reply-remote"
+			      :remote-author-display-name "Bob"
+			      :created-at "2026-07-02T10:05:00Z"
+			      :body "Remote reply.")
+		       (:type comment :status "OPEN" :author "Carol"
+			      :local-updated-at "2026-07-02T10:10:00Z"
+			      :body "Pending local reply.")))
+      (:type comment :status "RESOLVED" :target-text "done paragraph"
+	     :remote-id "root-resolved" :body "Resolved remote-linked root.")
+      (:type comment :status "TODO" :target-text "stale paragraph"
+	     :remote-id "root-missing" :remote-state missing
+	     :remote-missing-at "2026-07-02T12:00:00Z"
+	     :body "Missing remote root.")
+      (:type comment :status "OPEN" :target-text "unconfirmed paragraph"
+	     :remote-anchor-state "unconfirmed" :body "Unconfirmed anchor.")))
+   :page
+   (mapcar
+    (lambda (record)
+      (org-comments-panel-render-test--with-backend record backend))
+    '((:type comment :status "OPEN" :page-comment t :remote-id "page-1"
+	     :body "Page/footer provider note.")))))
+
+(defun org-comments-panel-render-test--fixture-output (backend)
+  "Return rendered visual fixture output for BACKEND without text properties."
+  (let* ((fixture (org-comments-panel-render-test--visual-fixture backend))
+	 (source-buffer (current-buffer)))
+    (with-temp-buffer
+      (org-comments-panel-render-buffer
+       source-buffer (plist-get fixture :inline) (plist-get fixture :page))
+      (buffer-substring-no-properties (point-min) (point-max)))))
+
 (ert-deftest org-comments-panel-render-summary-includes-status-target-and-body ()
   "Comment summaries include the useful standalone panel fields."
   (should (equal (org-comments-panel-render-comment-summary
@@ -97,6 +150,23 @@
     (should (string-match-p "↳ ✍️ unsynced" confluence-output))
     (should (string-match-p "Remote reply" confluence-output))
     (should (string-match-p "Pending local reply" confluence-output))))
+
+(ert-deftest org-comments-panel-render-visual-fixture-is-provider-neutral ()
+  "Shared visual fixture covers provider-neutral panel parity states."
+  (let ((confluence-output
+	 (org-comments-panel-render-test--fixture-output 'confluence))
+	(google-output
+	 (org-comments-panel-render-test--fixture-output 'google-docs)))
+    (should (equal confluence-output google-output))
+    (dolist (expected '("💬 [OPEN] “selected paragraph” 🔗"
+			"↳ 🔗 synced Bob · "
+			"↳ ✍️ edited locally Carol"
+			"💬 [RESOLVED] “done paragraph” 🔗"
+			"⚠ [TODO] “stale paragraph” ⚠"
+			"💬 [OPEN] “unconfirmed paragrap…” ❓"
+			"👆 [OPEN] PAGE 🔗"
+			"Page/footer provider note."))
+      (should (string-match-p (regexp-quote expected) confluence-output)))))
 
 (ert-deftest org-comments-panel-render-labels-synced-replies ()
   "Current comments distinguish synced remote replies from unsynced local replies."
