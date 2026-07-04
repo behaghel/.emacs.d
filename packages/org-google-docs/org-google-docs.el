@@ -114,11 +114,31 @@ Return a list of issue symbols."
     (message "%s" (org-google-docs--doctor-message issues))
     issues))
 
+(defun org-google-docs--prepare-footnotes-for-body-write ()
+  "Preflight and activate native footnote support for a body write."
+  (let ((plan (org-google-docs--preflight-footnotes-for-push)))
+    (when (plist-get plan :references)
+      (org-google-docs--require-upstream-library 'gdocs-convert)
+      (org-google-docs--require-upstream-library 'gdocs-api)
+      (org-google-docs-footnotes-begin-push plan))))
+
+(defun org-google-docs--prepare-images-then (callback)
+  "Preflight and upload native images, then call CALLBACK."
+  (let ((image-plan (org-google-docs--preflight-images-for-push)))
+    (when (plist-get image-plan :images)
+      (org-google-docs--require-upstream-library 'gdocs-api)
+      (org-google-docs--require-upstream-library 'gdocs-convert))
+    (org-google-docs-images-begin-push
+     image-plan callback (org-google-docs--current-gdocs-account))))
+
 ;;;###autoload
 (defun org-google-docs-create ()
   "Create a Google Doc from the current Org buffer via upstream gdocs."
   (interactive)
-  (org-google-docs--call-upstream 'gdocs-create))
+  (org-google-docs--prepare-images-then
+   (lambda ()
+     (org-google-docs--prepare-footnotes-for-body-write)
+     (org-google-docs--call-upstream 'gdocs-create))))
 
 (defun org-google-docs--current-gdocs-account ()
   "Return current upstream gdocs account for this buffer, or nil."
@@ -127,17 +147,14 @@ Return a list of issue symbols."
 
 (defun org-google-docs--push-after-image-upload ()
   "Push current buffer after image upload/preparation has completed."
-  (let ((plan (org-google-docs--preflight-footnotes-for-push)))
-    (when (plist-get plan :references)
-      (org-google-docs--require-upstream-library 'gdocs-convert)
-      (org-google-docs--require-upstream-library 'gdocs-api)
-      (org-google-docs-footnotes-begin-push plan))
-    (condition-case err
-	(org-google-docs--call-upstream 'gdocs-push)
-      ((error quit)
-       (org-google-docs-images-deactivate-session)
-       (org-google-docs-footnotes--deactivate-session)
-       (signal (car err) (cdr err))))))
+  (condition-case err
+      (progn
+	(org-google-docs--prepare-footnotes-for-body-write)
+	(org-google-docs--call-upstream 'gdocs-push))
+    ((error quit)
+     (org-google-docs-images-deactivate-session)
+     (org-google-docs-footnotes--deactivate-session)
+     (signal (car err) (cdr err)))))
 
 ;;;###autoload
 (defun org-google-docs-push ()
@@ -147,14 +164,8 @@ Docs footnote creation through the local gdocs conversion seam.  When standalone
 Org images are present, upload them first and enrich image IR with fetchable
 Google Drive URIs for native inline-image insertion."
   (interactive)
-  (let ((image-plan (org-google-docs--preflight-images-for-push)))
-    (when (plist-get image-plan :images)
-      (org-google-docs--require-upstream-library 'gdocs-api)
-      (org-google-docs--require-upstream-library 'gdocs-convert))
-    (org-google-docs-images-begin-push
-     image-plan
-     #'org-google-docs--push-after-image-upload
-     (org-google-docs--current-gdocs-account))))
+  (org-google-docs--prepare-images-then
+   #'org-google-docs--push-after-image-upload))
 
 ;;;###autoload
 (defun org-google-docs-pull ()

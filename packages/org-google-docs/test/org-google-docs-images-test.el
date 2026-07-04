@@ -21,6 +21,11 @@
      (goto-char (point-min))
      ,@body))
 
+(ert-deftest org-google-docs-images-expands-tilde-paths ()
+  "Image preflight expands tilde paths before readability checks."
+  (should (equal (org-google-docs-images--absolute-path "~/Pictures/example.png")
+		 (expand-file-name "~/Pictures/example.png"))))
+
 (ert-deftest org-google-docs-images-plans-readable-standalone-image ()
   "Readable standalone local image links become image plan entries."
   (let ((image-file (make-temp-file "org-google-docs-image" nil ".png")))

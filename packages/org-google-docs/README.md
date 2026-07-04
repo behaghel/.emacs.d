@@ -25,6 +25,7 @@ This repository has a mature Org ↔ Confluence publishing and sync workflow, bu
 - `patches/gdocs-standalone-image-ir-seam.patch` records the upstream conversion change that preserves standalone Org image links as image IR instead of literal file-link text.
 - `patches/gdocs-image-uri-insert-seam.patch` records the upstream conversion change that emits `insertInlineImage` requests for image IR with fetchable URIs.
 - `patches/gdocs-drive-public-permission-helper.patch` records the upstream API helper used to make uploaded Drive image files fetchable by Google Docs.
+- `patches/gdocs-drive-raw-multipart-upload.patch` records the upstream upload fix needed for Drive media uploads to send raw multipart bodies with a final boundary.
 - `docs/native-footnotes-smoke.md` records manual smoke-test scenarios for native footnote push/pull, including repeated references and UI caveats.
 - The activation module prefers a local `~/ws/gdocs` checkout on branch `org-footnote-seam`; this makes the seam repeatable without mutating `straight/repos/gdocs` directly.
 - This domain is supporting: specs are expected when the package boundary or integration contract changes, but the first implementation should stay small and reversible.

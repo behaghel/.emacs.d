@@ -1,0 +1,42 @@
+From ac8117a50253b0af388375efd0960294e51f17e0 Mon Sep 17 00:00:00 2001
+From: Hubert Behaghel <behaghel@gmail.com>
+Date: Sat, 4 Jul 2026 18:27:58 +0200
+Subject: [PATCH] Send Drive uploads as raw multipart bodies
+
+---
+ gdocs-api.el | 19 +++++++++++--------
+ 1 file changed, 11 insertions(+), 8 deletions(-)
+
+diff --git a/gdocs-api.el b/gdocs-api.el
+index d6b5f5f..87f7cf3 100644
+--- a/gdocs-api.el
++++ b/gdocs-api.el
+@@ -196,14 +196,17 @@ the account name for error reporting."
+ BOUNDARY is the MIME boundary string.  METADATA is the JSON
+ metadata part.  FILE-PATH is the path to the file to upload.
+ MIME-TYPE is the file's MIME type."
+-  (concat "--" boundary "\r\n"
+-          "Content-Type: application/json; charset=UTF-8\r\n\r\n"
+-          metadata "\r\n"
+-          "--" boundary "\r\n"
+-          "Content-Type: " mime-type "\r\n"
+-          "Content-Transfer-Encoding: base64\r\n\r\n"
+-          (gdocs-api--file-to-base64 file-path) "\r\n"
+-          "--" boundary "--"))
++  (with-temp-buffer
++    (set-buffer-multibyte nil)
++    (insert "--" boundary "\r\n")
++    (insert "Content-Type: application/json; charset=UTF-8\r\n\r\n")
++    (insert metadata "\r\n")
++    (insert "--" boundary "\r\n")
++    (insert "Content-Type: " mime-type "\r\n\r\n")
++    (insert-file-contents-literally file-path)
++    (goto-char (point-max))
++    (insert "\r\n--" boundary "--\r\n")
++    (buffer-string)))
+ 
+ (defun gdocs-api--file-to-base64 (file-path)
+   "Read FILE-PATH and return its contents as a base64 string."
+-- 
+2.51.2
+

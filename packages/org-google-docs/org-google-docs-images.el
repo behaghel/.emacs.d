@@ -69,11 +69,9 @@ set this to nil only if your environment provides another fetchable URI path."
 
 (defun org-google-docs-images--absolute-path (path)
   "Return absolute file PATH for an Org image link."
-  (if (file-name-absolute-p path)
-      path
-    (expand-file-name path (or (and buffer-file-name
-				    (file-name-directory buffer-file-name))
-			       default-directory))))
+  (expand-file-name path (or (and buffer-file-name
+				  (file-name-directory buffer-file-name))
+			     default-directory)))
 
 (defun org-google-docs-images--caption (paragraph)
   "Return PARAGRAPH caption text, or nil."
