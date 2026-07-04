@@ -237,6 +237,51 @@ one of these definitions-only sections."
 	  :begin (org-element-property :begin reference)
 	  :end (org-element-property :end reference))))
 
+(defun org-google-docs-footnotes--reference-doc-index (reference)
+  "Return Google Docs document index for planned footnote REFERENCE."
+  (or (plist-get reference :doc-index)
+      (user-error "Missing Google Docs footnote document index for label `%s'"
+		  (plist-get reference :label))))
+
+(defun org-google-docs-footnotes-create-requests (references)
+  "Return native createFootnote requests for planned REFERENCES.
+Each reference must contain `:doc-index', supplied by the future upstream
+conversion seam that knows exact Google Docs UTF-16 insertion indices."
+  (mapcar (lambda (reference)
+	    (let ((index (org-google-docs-footnotes--reference-doc-index reference)))
+	      `((createFootnote . ((location . ((index . ,index))))))))
+	  references))
+
+(defun org-google-docs-footnotes--response-replies (response)
+  "Return batchUpdate RESPONSE replies as a list."
+  (let ((replies (alist-get 'replies response)))
+    (cond
+     ((vectorp replies) (append replies nil))
+     ((listp replies) replies)
+     (t nil))))
+
+(defun org-google-docs-footnotes--reply-footnote-id (reply)
+  "Return created footnote ID from createFootnote REPLY."
+  (alist-get 'footnoteId (alist-get 'createFootnote reply)))
+
+(defun org-google-docs-footnotes-body-insert-requests (references response)
+  "Return insertText requests for REFERENCES using createFootnote RESPONSE.
+Google Docs returns the created footnote segment IDs from the first batchUpdate;
+these requests are intended for a second batchUpdate."
+  (let ((replies (org-google-docs-footnotes--response-replies response)))
+    (unless (= (length references) (length replies))
+      (user-error "Expected %d createFootnote replies, got %d"
+		  (length references) (length replies)))
+    (cl-mapcar (lambda (reference reply)
+		 (let ((footnote-id (org-google-docs-footnotes--reply-footnote-id reply)))
+		   (unless footnote-id
+		     (user-error "Missing createFootnote footnoteId for label `%s'"
+				 (plist-get reference :label)))
+		   `((insertText . ((text . ,(or (plist-get reference :body) ""))
+				    (location . ((segmentId . ,footnote-id)
+						 (index . 1))))))))
+	       references replies)))
+
 ;;;###autoload
 (defun org-google-docs-footnotes-plan-buffer ()
   "Return a native Google Docs footnote push plan for the current Org buffer.

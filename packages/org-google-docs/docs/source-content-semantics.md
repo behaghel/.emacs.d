@@ -12,6 +12,7 @@ Org ↔ Google Docs body sync currently depends on upstream `benthamite/gdocs`, 
 - The backend-neutral contract lives in `modules/org/typographic-semantics.md`, with a tracked specimen at `modules/org/specimens/typographic-semantics.org`.
 - `modules/org/typographic-semantics.el` audits Org buffers into a plain semantic inventory; `packages/org-google-docs/org-google-docs-semantics.el` classifies that inventory against current Google Docs support without depending on local `hub-*` helpers.
 - `packages/org-google-docs/org-google-docs-footnotes.el` extracts a push-safe native-footnote plan before any remote mutation. It supports named definitions in a conventional footnotes section, reports rich-body/repeated-reference degradations, and blocks unsupported forms such as anonymous inline footnotes, missing definitions, marginalia, mixed footnotes-section content, or definitions outside the conventional section.
+- Native Google Docs footnote mutation needs two batchUpdate phases: first `createFootnote` at exact UTF-16 document indices, then `insertText` into the returned footnote segment IDs. The local request helpers implement this choreography once an upstream conversion seam supplies exact reference indices.
 - The sample and specimen currently reveal:
   - Org footnote references become literal text such as `[fn:1]` in paragraphs.
   - Footnote definitions become separate `:type 'footnote` IR elements, but push emits them as literal `[fn:N] body` text rather than native Google Docs footnotes.
@@ -36,11 +37,12 @@ Org ↔ Google Docs body sync currently depends on upstream `benthamite/gdocs`, 
 | Footnote target | Round-trip semantic preservation | Footnotes are a first-class Org semantic and native Google Docs footnotes exist. |
 | Image target | Publish-first for standalone local images; pull preservation only where the API exposes enough data | Google Docs image insertion/upload and reverse mapping are trickier than text semantics. |
 | Quote target | Preserve quote-block boundaries on round trip; treat visible quote formatting as styling unless Google exposes a reliable semantic equivalent | Upstream already preserves Org quote IR; request generation is the likely styling gap. |
-| Upstream modifications | Prefer small, upstreamable hooks/IR extensions over large local monkey patches | The current IR pipeline is a natural extension point. |
+| Upstream modifications | Prefer small, upstreamable hooks/IR extensions over large local monkey patches | The current IR pipeline is a natural extension point; exact footnote reference indices should come from conversion/diff, not placeholder searches. |
 
 ## Acceptance Criteria
 
 - [x] AC-0: Given an Org buffer with named footnotes in a conventional `Footnotes` or `Notes de bas de page` section, when footnote preflight runs, then it returns a native footnote push plan with references, plain text bodies, section metadata, blocking diagnostics, and degradation notices before remote mutation.
+- [x] AC-0a: Given planned footnote references with exact Google Docs document indices, when native request planning runs, then it creates `createFootnote` requests and second-phase body `insertText` requests from returned footnote IDs without relying on placeholder text search.
 - [ ] AC-1: Given an Org paragraph containing `[fn:1]`, when pushed through the Google Docs adapter, then the Google Doc contains a native footnote reference at the corresponding text position rather than literal `[fn:1]` body text.
 - [ ] AC-2: Given an Org footnote definition `[fn:1] Body`, when pushed, then the native Google Docs footnote contains `Body` with supported inline text semantics preserved.
 - [ ] AC-3: Given a Google Doc with native footnotes, when pulled, then the Org buffer contains corresponding footnote references and definitions without losing surrounding paragraph text.
