@@ -16,6 +16,7 @@ This repository has a mature Org ↔ Confluence publishing and sync workflow, bu
 - `packages/org-comments/` owns the generic sidecar comment model and backend protocol. Google Docs comments should eventually integrate through that protocol.
 - Upstream [`benthamite/gdocs`](https://github.com/benthamite/gdocs) already provides Org ↔ Google Docs body sync, OAuth, linking, push/pull, status, conflict handling, and comment-aware push preservation.
 - Upstream `gdocs` currently does not provide this repository's Confluence-like `org-comments` sidecar UX.
+- Source-content semantic gaps for footnotes, images, and quotes are tracked in [`docs/source-content-semantics.md`](docs/source-content-semantics.md); styling parity is intentionally a later epic.
 - This domain is supporting: specs are expected when the package boundary or integration contract changes, but the first implementation should stay small and reversible.
 
 ## Decisions
