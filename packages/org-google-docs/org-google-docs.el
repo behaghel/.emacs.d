@@ -12,6 +12,7 @@
 (autoload 'org-google-docs-comments-import "org-google-docs-comments-import" nil t)
 (require 'org-google-docs-comments-backend)
 (require 'org-google-docs-footnotes)
+(require 'org-google-docs-images)
 
 (defgroup org-google-docs nil
   "Org-facing Google Docs publishing adapter."
@@ -36,8 +37,8 @@ Set this to nil before rebuilding the map to leave the mode map unbound."
   "Call upstream gdocs COMMAND interactively after checking it exists."
   (call-interactively (org-google-docs--upstream-command command)))
 
-(defun org-google-docs--footnote-diagnostic-message (diagnostic)
-  "Return a human-readable message for footnote DIAGNOSTIC."
+(defun org-google-docs--diagnostic-message (diagnostic)
+  "Return a human-readable message for DIAGNOSTIC."
   (or (plist-get diagnostic :message)
       (format "%s" (plist-get diagnostic :code))))
 
@@ -47,9 +48,23 @@ Set this to nil before rebuilding the map to leave the mode map unbound."
     (when (plist-get plan :diagnostics)
       (user-error "Google Docs footnote preflight failed: %s"
 		  (string-join
-		   (mapcar #'org-google-docs--footnote-diagnostic-message
+		   (mapcar #'org-google-docs--diagnostic-message
 			   (plist-get plan :diagnostics))
 		   "; ")))
+    plan))
+
+(defun org-google-docs--preflight-images-for-push ()
+  "Return a native image push plan or signal blocking diagnostics."
+  (let ((plan (org-google-docs-images-plan-buffer)))
+    (when (plist-get plan :diagnostics)
+      (user-error "Google Docs image preflight failed: %s"
+		  (string-join
+		   (mapcar #'org-google-docs--diagnostic-message
+			   (plist-get plan :diagnostics))
+		   "; ")))
+    (when (plist-get plan :images)
+      (user-error "Google Docs image push is not wired yet; refusing to drop %d standalone image(s)"
+		  (length (plist-get plan :images))))
     plan))
 
 (defun org-google-docs--require-upstream-library (library)
@@ -114,6 +129,7 @@ Return a list of issue symbols."
 When named Org footnotes are present, preflight them and enable native Google
 Docs footnote creation through the local gdocs conversion seam."
   (interactive)
+  (org-google-docs--preflight-images-for-push)
   (let ((plan (org-google-docs--preflight-footnotes-for-push)))
     (when (plist-get plan :references)
       (org-google-docs--require-upstream-library 'gdocs-convert)

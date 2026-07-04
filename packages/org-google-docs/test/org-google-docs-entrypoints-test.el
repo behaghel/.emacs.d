@@ -58,6 +58,20 @@
 	(should-error (org-google-docs-push) :type 'user-error)
 	(should-not calls)))))
 
+(ert-deftest org-google-docs-push-blocks-standalone-images-before-upstream ()
+  "Push refuses image-bearing buffers until native image insertion is wired."
+  (let ((image-file (make-temp-file "org-google-docs-image" nil ".png"))
+	calls)
+    (unwind-protect
+	(cl-letf (((symbol-function 'gdocs-push)
+		   (lambda () (interactive) (push 'push calls))))
+	  (with-temp-buffer
+	    (insert (format "[[file:%s]]\n" image-file))
+	    (org-mode)
+	    (should-error (org-google-docs-push) :type 'user-error)
+	    (should-not calls)))
+      (delete-file image-file))))
+
 (ert-deftest org-google-docs-push-enables-native-footnote-session ()
   "Push starts native footnote handling when a valid footnote plan exists."
   (let (calls)
