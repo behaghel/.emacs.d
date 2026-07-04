@@ -59,6 +59,29 @@
   (should (equal (org-comments-sync-report-format '(:provider "Google Docs"))
 		 "Google Docs comments: no changes")))
 
+(ert-deftest org-comments-report-format-grammar-is-provider-neutral ()
+  "Import and sync report grammar differs only by provider label."
+  (let ((import-counts '(:added 1 :updated 2 :added-replies 1
+				:remote-missing 1 :preserved-local t))
+	(sync-counts '(:created 1 :updated 2 :pushed-replies 1
+				:errors 1 :url-copied t)))
+    (should (equal (replace-regexp-in-string
+		    "\\`Google Docs" "Provider"
+		    (org-comments-import-report-format
+		     (append '(:provider "Google Docs") import-counts)))
+		   (replace-regexp-in-string
+		    "\\`Confluence" "Provider"
+		    (org-comments-import-report-format
+		     (append '(:provider "Confluence") import-counts)))))
+    (should (equal (replace-regexp-in-string
+		    "\\`Google Docs" "Provider"
+		    (org-comments-sync-report-format
+		     (append '(:provider "Google Docs") sync-counts)))
+		   (replace-regexp-in-string
+		    "\\`Confluence" "Provider"
+		    (org-comments-sync-report-format
+		     (append '(:provider "Confluence") sync-counts)))))))
+
 (ert-deftest org-comments-sync-state-label-distinguishes-local-and-remote ()
   "Sync state labels describe local-only and synced records generically."
   (should (equal (org-comments-sync-state-label '(:body "Draft")) "unsynced"))
