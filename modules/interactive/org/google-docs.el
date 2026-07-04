@@ -32,8 +32,8 @@
 (defcustom hub/org-google-docs-gdocs-repository
   (expand-file-name "~/ws/gdocs")
   "Local gdocs fork checkout used by Straight.
-The expected branch is `org-footnote-seam', which carries the minimal upstream
-footnote-reference conversion seam required by `org-google-docs-footnotes'."
+The expected branch is `org-image-seam', which carries the upstreamable seams
+required by `org-google-docs' for native footnotes and image semantics."
   :type 'directory
   :group 'hub/org-google-docs)
 
@@ -124,7 +124,7 @@ local fork is cloned."
   (if (file-directory-p hub/org-google-docs-gdocs-repository)
       `(gdocs :type git
 	      :repo ,hub/org-google-docs-gdocs-repository
-	      :branch "org-footnote-seam"
+	      :branch "org-image-seam"
 	      :local-repo "gdocs")
     '(gdocs :type git :host github :repo "benthamite/gdocs")))
 
