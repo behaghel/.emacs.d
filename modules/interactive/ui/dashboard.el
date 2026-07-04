@@ -5,6 +5,7 @@
 
 ;;; Code:
 
+(require 'hub-denote)
 (require 'hub-utils)
 
 (require 'ui/performance)
@@ -240,6 +241,20 @@ removing the item from `dashboard-items', also avoids loading them."
       (let* ((dirs (if (listp denote-directory) denote-directory (list denote-directory))))
 	(seq-filter #'file-directory-p dirs))))
 
+  (defun hub/dashboard--denote-note-records ()
+    "Return dashboard records for recent titled Denote source notes."
+    (let ((files (seq-filter #'hub/denote-source-note-file-p
+			     (denote-directory-files))))
+      (delq nil
+	    (mapcar (lambda (file)
+		      (when-let* ((title (denote-retrieve-title-value
+					  file (denote-filetype-heuristics file)))
+				  ((not (string-empty-p title))))
+			(list :path file :title title)))
+		    (seq-sort-by #'file-name-nondirectory
+				 (lambda (x y) (string-lessp y x))
+				 files)))))
+
   (defun dashboard-insert-denote (list-size)
     "Insert Denote dashboard section for LIST-SIZE items."
     (let ((start-time (current-time)))
@@ -250,15 +265,13 @@ removing the item from `dashboard-items', also avoids loading them."
 		       (denote-ok (and (require 'denote nil 'noerror) dirs)))
 		  (when denote-ok
 		    (let* ((denote-directory dirs)
-			   (recent-notes (seq-sort-by #'file-name-nondirectory
-						      (lambda (x y) (string-lessp y x))
-						      (denote-directory-files))))
+			   (recent-notes (hub/dashboard--denote-note-records)))
 		      (when recent-notes
 			(insert (all-the-icons-octicon "repo" :height 1.2 :v-adjust 0.0 :face 'dashboard-heading))
-			(dashboard-insert-section "Recent Notes:" recent-notes list-size 'notes "n"
-						  `(lambda (&rest ignore) (find-file-existing ,el))
-						  (or (denote-retrieve-title-value el (denote-filetype-heuristics el))
-						      (file-name-base el))))))))
+			(dashboard-insert-section "Recent Personal Notes:" recent-notes list-size 'notes "n"
+						  `(lambda (&rest ignore) (find-file-existing ,(plist-get el :path)))
+						  (propertize (plist-get el :title)
+							      'dashboard-path (plist-get el :path))))))))
 	    (error (message "[dashboard] skipping denote section: %s" (error-message-string err))))
 	(hub/performance-log-startup-event "dashboard denote section" start-time))))
   (add-to-list 'dashboard-item-generators '(denote . dashboard-insert-denote))
