@@ -253,12 +253,23 @@ one of these definitions-only sections."
 
 (defun org-google-docs-footnotes-create-requests (references)
   "Return native createFootnote requests for planned REFERENCES.
-Each reference must contain `:doc-index', supplied by the future upstream
-conversion seam that knows exact Google Docs UTF-16 insertion indices."
+Each reference must contain `:doc-index', supplied by the upstream conversion
+seam that knows exact Google Docs UTF-16 insertion indices.  Callers should pass
+references in descending document-index order so earlier footnote insertions do
+not shift later insertion points."
   (mapcar (lambda (reference)
 	    (let ((index (org-google-docs-footnotes--reference-doc-index reference)))
 	      `((createFootnote . ((location . ((index . ,index))))))))
 	  references))
+
+(defun org-google-docs-footnotes--sort-references-for-mutation (references)
+  "Return REFERENCES sorted for stable Google Docs mutation order.
+Native footnote markers are inserted from highest document index to lowest so
+that each request uses the index captured before the batch mutation begins."
+  (sort (copy-sequence references)
+	(lambda (a b)
+	  (> (org-google-docs-footnotes--reference-doc-index a)
+	     (org-google-docs-footnotes--reference-doc-index b)))))
 
 (defun org-google-docs-footnotes--indexed-references (references)
   "Return REFERENCES that have a Google Docs document index."
@@ -387,8 +398,11 @@ update and send a second batchUpdate for footnote bodies before running CALLBACK
 	   (references (org-google-docs-footnotes--session-reference-list session))
 	   (indexed-references
 	    (org-google-docs-footnotes--indexed-references references))
+	   (mutation-references
+	    (org-google-docs-footnotes--sort-references-for-mutation
+	     indexed-references))
 	   (create-requests
-	    (org-google-docs-footnotes-create-requests indexed-references))
+	    (org-google-docs-footnotes-create-requests mutation-references))
 	   (wrapped-callback
 	    (lambda (response)
 	      (condition-case err
@@ -397,7 +411,7 @@ update and send a second batchUpdate for footnote bodies before running CALLBACK
 			      (org-google-docs-footnotes--create-footnote-response response))
 			     (body-requests
 			      (org-google-docs-footnotes-body-insert-requests
-			       indexed-references create-response)))
+			       mutation-references create-response)))
 			(if body-requests
 			    (funcall orig document-id body-requests
 				     (lambda (_body-response)

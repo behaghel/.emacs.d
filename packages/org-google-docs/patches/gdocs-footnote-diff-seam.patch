@@ -1,0 +1,110 @@
+From 3369b16f957c7f03eaf3bde5cd697ba2c762a9ee Mon Sep 17 00:00:00 2001
+From: Hubert Behaghel <behaghel@gmail.com>
+Date: Sat, 4 Jul 2026 16:11:31 +0200
+Subject: [PATCH] Include footnote runs in diff keys
+
+---
+ gdocs-diff.el           | 14 ++++++++++----
+ test/gdocs-diff-test.el | 39 +++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 49 insertions(+), 4 deletions(-)
+
+diff --git a/gdocs-diff.el b/gdocs-diff.el
+index b5489c8..b46c707 100644
+--- a/gdocs-diff.el
++++ b/gdocs-diff.el
+@@ -107,13 +107,16 @@ Concatenates all cell text across all rows."
+ 
+ (defun gdocs-diff--run-formatting-key (run)
+   "Produce a formatting fingerprint string for RUN."
+-  (format "%s%s%s%s%s%s"
++  (format "%s%s%s%s%s%s%s"
+           (if (plist-get run :bold) "B" "")
+           (if (plist-get run :italic) "I" "")
+           (if (plist-get run :underline) "U" "")
+           (if (plist-get run :strikethrough) "S" "")
+           (if (plist-get run :code) "C" "")
+-          (if (plist-get run :link) (format "L(%s)" (plist-get run :link)) "")))
++          (if (plist-get run :link) (format "L(%s)" (plist-get run :link)) "")
++          (if (plist-get run :footnote-label)
++              (format "F(%s)" (plist-get run :footnote-label))
++            "")))
+ 
+ (defun gdocs-diff--list-key (list-info)
+   "Produce a key fragment for LIST-INFO, or empty string if nil."
+@@ -562,11 +565,14 @@ followed by per-run style requests for the new formatting."
+                       (gdocs-convert--make-text-style-reset-request
+                        start reset-end)))
+          (runs (plist-get new-elem :contents))
+-         (style-reqs (gdocs-convert--make-text-style-requests runs start)))
++         (style-reqs (gdocs-convert--make-text-style-requests runs start))
++         (footnote-reqs
++          (gdocs-convert--make-footnote-reference-requests runs start)))
+     (list :delete-reqs nil
+           :insert-reqs nil
+           :style-reqs (append (when reset-req (list reset-req))
+-                              style-reqs))))
++                              style-reqs
++                              footnote-reqs))))
+ 
+ (defun gdocs-diff--content-modification (old-elem new-elem range)
+   "Generate delete+insert requests for a content change.
+diff --git a/test/gdocs-diff-test.el b/test/gdocs-diff-test.el
+index 76115c2..c14c4ba 100644
+--- a/test/gdocs-diff-test.el
++++ b/test/gdocs-diff-test.el
+@@ -56,6 +56,13 @@ ROWS is a list of lists of lists of run plists."
+         :bold nil :italic nil :underline nil
+         :strikethrough nil :code nil :link nil))
+ 
++(defun gdocs-diff-test--footnote-run (label)
++  "Create a zero-width semantic footnote run for LABEL."
++  (list :text ""
++        :bold nil :italic nil :underline nil
++        :strikethrough nil :code nil :link nil
++        :footnote-label label))
++
+ ;;;; LCS tests
+ 
+ (ert-deftest gdocs-diff-test-lcs-identical ()
+@@ -87,6 +94,38 @@ ROWS is a list of lists of lists of run plists."
+ 
+ ;;;; Element key tests
+ 
++(ert-deftest gdocs-diff-test-paragraph-key-includes-footnote-runs ()
++  "Zero-width footnote reference runs are semantically meaningful in diff keys."
++  (let ((without-footnote
++         (list :type 'paragraph
++               :style 'normal
++               :contents (list (gdocs-diff-test--plain-run "Text"))))
++        (with-footnote
++         (list :type 'paragraph
++               :style 'normal
++               :contents (list (gdocs-diff-test--plain-run "Text")
++                               (gdocs-diff-test--footnote-run "one")))))
++    (should-not (equal (gdocs-diff--element-key without-footnote)
++                       (gdocs-diff--element-key with-footnote)))))
++
++(ert-deftest gdocs-diff-test-formatting-only-modification-emits-footnote-seam ()
++  "Adding a zero-width footnote to identical text emits a footnote seam request."
++  (let* ((old (list :type 'paragraph
++                    :style 'normal
++                    :contents (list (gdocs-diff-test--plain-run "Text."))))
++         (new (list :type 'paragraph
++                    :style 'normal
++                    :contents (list (gdocs-diff-test--plain-run "Text")
++                                    (gdocs-diff-test--footnote-run "one")
++                                    (gdocs-diff-test--plain-run "."))))
++         (gdocs-convert-footnote-reference-handler
++          (lambda (run index)
++            (list (list :label (plist-get run :footnote-label)
++                        :index index))))
++         (result (gdocs-diff--formatting-only-modification new '(12 . 18))))
++    (should (member '(:label "one" :index 16)
++                    (plist-get result :style-reqs)))))
++
+ (ert-deftest gdocs-diff-test-element-key-paragraph ()
+   "Paragraph key includes text and style."
+   (let* ((elem (gdocs-diff-test--make-paragraph "e1" "hello" 'heading-1))
+-- 
+2.51.2
+

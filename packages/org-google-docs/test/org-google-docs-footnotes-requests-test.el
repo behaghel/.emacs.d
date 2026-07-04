@@ -57,6 +57,18 @@
 		   '(((createFootnote . ((location . ((index . 12))))))
 		     ((createFootnote . ((location . ((index . 34)))))))))))
 
+(ert-deftest org-google-docs-footnotes-sorts-create-requests-descending ()
+  "Sort native footnote requests from high to low indices for stable mutation."
+  (let* ((references (list (list :label "one" :ordinal 1 :body "First body." :doc-index 12)
+			   (list :label "two" :ordinal 2 :body "Second body." :doc-index 34)))
+	 (sorted (org-google-docs-footnotes--sort-references-for-mutation references))
+	 (requests (org-google-docs-footnotes-create-requests sorted)))
+    (should (equal (mapcar (lambda (reference) (plist-get reference :label)) sorted)
+		   '("two" "one")))
+    (should (equal requests
+		   '(((createFootnote . ((location . ((index . 34))))))
+		     ((createFootnote . ((location . ((index . 12)))))))))))
+
 (ert-deftest org-google-docs-footnotes-rejects-create-request-without-doc-index ()
   "Native footnote creation requires explicit document indices."
   (should-error
@@ -107,6 +119,45 @@
 		     '((deleteContentRange . ((range . ((startIndex . 3))))))))
       (should (eq (cadr calls) :callback))
       (should-not org-google-docs-footnotes--push-session))))
+
+(ert-deftest org-google-docs-footnotes-batch-advice-mutates-in-descending-index-order ()
+  "Batch advice keeps create replies aligned with descending mutation order."
+  (let* ((session (list :references (vconcat (list (list :label "one"
+							 :ordinal 1
+							 :body "First body."
+							 :doc-index 12)
+						   (list :label "two"
+							 :ordinal 2
+							 :body "Second body."
+							 :doc-index 34)))
+			:cursor 0
+			:previous-handler nil))
+	 (org-google-docs-footnotes--push-session session)
+	 calls)
+    (cl-labels ((orig (_document-id requests callback &optional _account _on-error)
+		  (push requests calls)
+		  (funcall callback
+			   (if (seq-find (lambda (request)
+					   (alist-get 'createFootnote request))
+					 requests)
+			       '((replies . [nil
+					     ((createFootnote . ((footnoteId . "fn-two"))))
+					     ((createFootnote . ((footnoteId . "fn-one"))))]))
+			     '((replies . []))))))
+      (org-google-docs-footnotes--around-batch-update
+       #'orig "doc-1" '(((insertText . ((text . "Body")))))
+       #'ignore)
+      (should (equal (cadr calls)
+		     '(((insertText . ((text . "Body"))))
+		       ((createFootnote . ((location . ((index . 34))))))
+		       ((createFootnote . ((location . ((index . 12)))))))))
+      (should (equal (car calls)
+		     '(((insertText . ((text . "Second body.")
+				       (location . ((segmentId . "fn-two")
+						    (index . 1))))))
+		       ((insertText . ((text . "First body.")
+				       (location . ((segmentId . "fn-one")
+						    (index . 1))))))))))))
 
 (ert-deftest org-google-docs-footnotes-batch-advice-runs-two-phase-update ()
   "Batch advice appends createFootnote and inserts bodies before main callback."
