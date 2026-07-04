@@ -69,6 +69,9 @@ marginalia footnotes and sidecar review comments.
   missing or dangling remote comments, and `❓` for unconfirmed inline anchors.
 - Overview cards are intentionally compact.  When source point is inside a
   comment target, the panel focuses that comment and shows the full wrapped body.
+  Focused side-panel rows show the full thread in place: root body first, then
+  wrapped `↳` replies with the same badge, author/date, and sync-state layout for
+  Confluence, Google Docs, and local sidecar comments.
 
 ### Navigation and actions inside the panel
 
@@ -121,9 +124,9 @@ When filters differ from defaults, panels show a compact header with active filt
 - `,cC` opens the current Org file's sidecar comments file when it exists; when no sidecar exists it reports that in the minibuffer and leaves the source buffer unchanged.
 - Sidecar headings are readable summaries like `* OPEN Alice · “selected target” — Comment body preview` for anchored/inline comments and `* OPEN Page · Alice — Comment body preview` for page comments; IDs and sync metadata stay in properties.
 - Confluence reply conversations are stored as nested child headings under the root comment, for example `** Reply · Alice · 2026-06-10 14:31 — Reply preview`; root headings show a derived `[N replies]` marker immediately after the TODO status.
-- `M-x hub/org-comment-refresh-sidecar-headings` recomputes existing sidecar headings from properties, body text, and the Confluence people directory while preserving TODO states and body/properties.
-- `M-x hub/org-comment-compact-sidecar-metadata` removes obsolete or derivable sidecar properties such as old target hashes, duplicate parent IDs, default storage body format, raw remote target JSON, explicit remote-present state, and duplicate local author/date fields on remote-linked comments.
-- `M-x hub/org-comment-anchor-imported-inline-comments` tries to anchor imported Confluence inline comments by exact normalized target-text matching; unique matches get normal anchor metadata, while missing or ambiguous matches are recorded with `HUB_COMMENT_ANCHOR_STATE`.
+- `M-x org-comments-refresh-sidecar-headings-command` recomputes existing sidecar headings from properties, body text, and the Confluence people directory while preserving TODO states and body/properties.
+- `M-x org-comments-compact-sidecar-metadata` removes obsolete or derivable sidecar properties such as old target hashes, duplicate parent IDs, default storage body format, raw remote target JSON, explicit remote-present state, and duplicate local author/date fields on remote-linked comments.
+- `M-x org-comments-anchor-imported-inline-comments` tries to anchor imported Confluence inline comments by exact normalized target-text matching; unique matches get normal anchor metadata, while missing or ambiguous matches are recorded with `ORG_COMMENTS_ANCHOR_STATE`.
 - `,cj` jumps from the active commented region to its sidecar heading.
 - `,ce` edits the active sidecar comment body narrowed to its subtree.
 - `,cx` deletes the active source comment, or the current sidecar comment heading when visiting a `.comments.org` file, after confirmation.
@@ -174,7 +177,7 @@ representation for remote review threads.
 - Confluence footer comments map to page-level sidecar entries without a source
   region, or to a future explicit page-comment section.
 - Confluence inline comments map to region-targeted sidecar entries.
-- Local sidecar comments carry canonical `HUB_COMMENT_AUTHOR` and `HUB_COMMENT_CREATED_AT` metadata. Remote comments preserve remote identity and audit fields without duplicating them into canonical local author fields, for example `HUB_COMMENT_REMOTE_ID`, `HUB_COMMENT_SOURCE`, `HUB_COMMENT_REMOTE_AUTHOR_ID`, `HUB_COMMENT_REMOTE_AUTHOR_DISPLAY_NAME`, `HUB_COMMENT_REMOTE_CREATED_AT`, and future sync/version properties.
+- Local sidecar comments carry canonical `ORG_COMMENTS_AUTHOR` and `ORG_COMMENTS_CREATED_AT` metadata. Remote comments preserve remote identity and audit fields without duplicating them into canonical local author fields, for example `ORG_COMMENTS_REMOTE_ID`, `ORG_COMMENTS_SOURCE`, `ORG_COMMENTS_REMOTE_AUTHOR_ID`, `ORG_COMMENTS_REMOTE_AUTHOR_DISPLAY_NAME`, `ORG_COMMENTS_REMOTE_CREATED_AT`, and future sync/version properties.
 - Confluence people mappings live in plain Org `confluence-people.org` files. Lookup prefers a local file next to the source document, then the global file under `org-confluence-people-store-directory`; imports conservatively cache encountered account IDs and any display names Confluence already provides.
 - Mark the current user in a people entry with `ORG_CONFLUENCE_ME: t`; context/page-context cards highlight that author name using the current-author face. Local entries without the marker do not suppress a global marker for the same account.
 - `M-x org-confluence-people-mark-current-user` fetches the authenticated Confluence user, caches it in the global people file, and marks it with `ORG_CONFLUENCE_ME: t` without overwriting manual display names.
@@ -198,7 +201,7 @@ representation for remote review threads.
 - `M-x org-confluence-publish` checks the live Confluence inline comments for every page it would update, including recursive subpages, before uploading page storage.
 - The preflight imports/updates inline comment sidecars first, then opens `*Org Confluence Publish Preflight*` when it finds active anchored inline comments, dangling comments, or remote-missing comments relevant to the publish.
 - Active anchored inline comments block publishing because replacing Confluence storage can orphan their markers and show them remotely as deleted-content comments.
-- Dangling or `HUB_COMMENT_REMOTE_STATE: missing` inline comments are reported as non-blocking because they are already detached remotely; publishing cannot make their anchor state worse.
+- Dangling or `ORG_COMMENTS_REMOTE_STATE: missing` inline comments are reported as non-blocking because they are already detached remotely; publishing cannot make their anchor state worse.
 - Report entries use clickable `org-comment:` links.  `TAB` moves to the next report link; use `C-c C-o` or `M-x org-open-at-point` to open the link if Evil normal-state `RET` is not configured to follow Org links.
 - `C-u M-x org-confluence-publish` and `M-x org-confluence-publish-force` still run the preflight/import/report path, then continue despite blockers.  Use force only when accepting possible inline-anchor loss.
 
@@ -269,7 +272,7 @@ remote thread is resolved.
   sidecars and display-only UI projections.
 - Sidecar root headings use `OPEN TODO | RESOLVED`; replies are nested child
   headings without TODO keywords.
-- A comment becomes Confluence-controlled when it has `HUB_COMMENT_REMOTE_ID`,
+- A comment becomes Confluence-controlled when it has `ORG_COMMENTS_REMOTE_ID`,
   regardless of whether it was imported from Confluence or created locally first
   and later pushed/synced.
 - Existing Confluence imports are scoped by comment kind: footer/page comments
@@ -282,10 +285,10 @@ remote thread is resolved.
 
 | Decision | Choice | Rationale |
 | --- | --- | --- |
-| Remote control signal | Presence of `HUB_COMMENT_REMOTE_ID` | Covers imported comments and local comments that later gained a remote identity. |
-| Remote state metadata | Omit `HUB_COMMENT_REMOTE_STATE` for present comments; use `HUB_COMMENT_REMOTE_STATE: missing`, `HUB_COMMENT_REMOTE_LAST_SEEN_AT`, and `HUB_COMMENT_REMOTE_MISSING_AT` only when needed | Keeps sidecars compact while preserving missing-sync health without overloading workflow status. |
-| Missing timestamp semantics | `HUB_COMMENT_REMOTE_MISSING_AT` records the first missing time and is not overwritten by later missing imports | Preserves "missing since" history. |
-| Present timestamp semantics | `HUB_COMMENT_REMOTE_LAST_SEEN_AT` updates whenever the remote comment is seen | Enables diagnostics and later stale-sync checks. |
+| Remote control signal | Presence of `ORG_COMMENTS_REMOTE_ID` | Covers imported comments and local comments that later gained a remote identity. |
+| Remote state metadata | Omit `ORG_COMMENTS_REMOTE_STATE` for present comments; use `ORG_COMMENTS_REMOTE_STATE: missing`, `ORG_COMMENTS_REMOTE_LAST_SEEN_AT`, and `ORG_COMMENTS_REMOTE_MISSING_AT` only when needed | Keeps sidecars compact while preserving missing-sync health without overloading workflow status. |
+| Missing timestamp semantics | `ORG_COMMENTS_REMOTE_MISSING_AT` records the first missing time and is not overwritten by later missing imports | Preserves "missing since" history. |
+| Present timestamp semantics | `ORG_COMMENTS_REMOTE_LAST_SEEN_AT` updates whenever the remote comment is seen | Enables diagnostics and later stale-sync checks. |
 | Missing reconciliation scope | Only reconcile kinds that were completely and successfully fetched | Prevents partial fetches, network errors, or one-kind imports from producing false missing markers. |
 | Reply reconciliation | Track present/missing for replies only when that parent thread's children were successfully fetched | Keeps conversation history auditable without treating failed child fetches as deletions. |
 | Root workflow derivation | Root TODO keyword is derived only from known Confluence `resolutionStatus` or explicit boolean `resolved`, with the `TODO` exception below | Remote-linked root comment status reflects Confluence resolution source of truth; Confluence `status` such as `current` is content lifecycle metadata, not resolution. |
@@ -293,25 +296,25 @@ remote thread is resolved.
 | Reopening rule | Local `RESOLVED` becomes `OPEN` when remote is open/unresolved | A closed local thread must reopen when Confluence reopens or remains open. |
 | Unknown remote resolution | Preserve local TODO keyword and store no misleading resolution status | Confluence payload shape may vary; unknown is not a status change.  A payload with only `status` and no `resolutionStatus` is unknown for workflow purposes. |
 | Remote missing workflow | Preserve current local TODO keyword when a remote-linked comment is missing | Missing/deleted/permission-filtered is not the same as resolved. |
-| Local-only comments | Comments without `HUB_COMMENT_REMOTE_ID` are untouched by remote reconciliation | Local authoring comments must not be affected by Confluence imports. |
-| Context panel overview marker | For remote-missing comments, show only a warning sign and strike the status token | Space is limited; detailed text belongs in focused view. |
-| Context panel focused marker | Show explicit `⚠ remote missing since <date>` in detail/focused view | The full state should be discoverable when reading the card. |
-| Sidecar metadata UX | Property drawers in comments sidecars fold by default and are refolded after sync/update commands; obsolete derivable metadata can be removed with `hub/org-comment-compact-sidecar-metadata` | Remote metadata is verbose and should not dominate sidecar reading. |
+| Local-only comments | Comments without `ORG_COMMENTS_REMOTE_ID` are untouched by remote reconciliation | Local authoring comments must not be affected by Confluence imports. |
+| Comments panel overview marker | For remote-missing comments, show only a warning sign and strike the status token | Space is limited; detailed text belongs in the focused row. |
+| Focused side-panel row marker | Show explicit `⚠ remote missing since <date>` in focused row | The full state should be discoverable when reading the card. |
+| Sidecar metadata UX | Property drawers in comments sidecars fold by default and are refolded after sync/update commands; obsolete derivable metadata can be removed with `org-comments-compact-sidecar-metadata` | Remote metadata is verbose and should not dominate sidecar reading. |
 | Run reporting | Omit zero-count report lines; show a diagnostic buffer only for TODO-impacting events | Keeps routine imports concise while surfacing important workflow changes. |
 
 ### Acceptance Criteria
 
 - [ ] AC-1: Given a remote-linked root comment is seen during a complete import
       for its kind, when reconciliation runs, then the sidecar has an updated
-      `HUB_COMMENT_REMOTE_LAST_SEEN_AT`, no `HUB_COMMENT_REMOTE_STATE`, and no
-      `HUB_COMMENT_REMOTE_MISSING_AT`.
+      `ORG_COMMENTS_REMOTE_LAST_SEEN_AT`, no `ORG_COMMENTS_REMOTE_STATE`, and no
+      `ORG_COMMENTS_REMOTE_MISSING_AT`.
 - [ ] AC-2: Given a remote-linked root comment is absent from a complete import
       for its kind, when reconciliation runs, then the sidecar is kept, its TODO
-      keyword is unchanged, `HUB_COMMENT_REMOTE_STATE: missing` is stored, and
-      `HUB_COMMENT_REMOTE_MISSING_AT` records the first missing timestamp.
+      keyword is unchanged, `ORG_COMMENTS_REMOTE_STATE: missing` is stored, and
+      `ORG_COMMENTS_REMOTE_MISSING_AT` records the first missing timestamp.
 - [ ] AC-3: Given a previously missing remote-linked comment reappears, when it
-      is imported successfully, then `HUB_COMMENT_REMOTE_STATE` and
-      `HUB_COMMENT_REMOTE_MISSING_AT` are removed, and the run report includes a
+      is imported successfully, then `ORG_COMMENTS_REMOTE_STATE` and
+      `ORG_COMMENTS_REMOTE_MISSING_AT` are removed, and the run report includes a
       non-zero "present again" count.
 - [ ] AC-4: Given an import command fetches only footer comments, when
       reconciliation runs, then inline comments are not marked missing; the same
@@ -332,13 +335,13 @@ remote thread is resolved.
 - [ ] AC-9: Given remote resolution status is absent or unrecognized in the
       Confluence payload, when sync runs, then the local TODO keyword is
       preserved and no misleading remote resolution status is stored.
-- [ ] AC-10: Given a local-only comment has no `HUB_COMMENT_REMOTE_ID`, when any
+- [ ] AC-10: Given a local-only comment has no `ORG_COMMENTS_REMOTE_ID`, when any
       Confluence import/reconciliation runs, then the comment's TODO keyword and
       properties remain untouched by remote present/missing/status logic.
-- [ ] AC-11: Given a remote-missing comment appears in the context panel overview,
+- [ ] AC-11: Given a remote-missing comment appears in the comments panel overview,
       when rendered, then it shows a warning sign and a struck-through status
       token without the words "remote missing".
-- [ ] AC-12: Given a remote-missing comment is focused in the context panel, when
+- [ ] AC-12: Given a remote-missing comment is focused in the comments panel, when
       rendered, then it shows explicit text `remote missing since <date>`.
 - [ ] AC-13: Given a comments sidecar is opened or updated by comment sync/update
       commands, when displayed, then `:PROPERTIES:` drawers are folded by default
@@ -422,8 +425,8 @@ comments into normal remote-linked comments governed by the existing sync model.
 - Footer and inline remote comments can be listed, imported, reconciled, and
   diagnosed without network calls in tests.
 - Sidecar comments have compact metadata and folded drawers.
-- Remote-linked comments are identified by `HUB_COMMENT_REMOTE_ID` and preserve
-  `HUB_COMMENT_SOURCE` so future sources such as Google Docs can coexist.
+- Remote-linked comments are identified by `ORG_COMMENTS_REMOTE_ID` and preserve
+  `ORG_COMMENTS_SOURCE` so future sources such as Google Docs can coexist.
 - Confluence `resolutionStatus`, not Confluence content `status`, controls local
   workflow derivation for remote-linked root comments.
 
@@ -449,18 +452,18 @@ comments into normal remote-linked comments governed by the existing sync model.
    - Push one selected local page/footer sidecar comment to Confluence from inside
      the `.comments.org` sidecar via `M-x org-confluence-comments-push-current`.
    - A local page/footer comment is explicitly marked with
-     `HUB_COMMENT_SYNC_KIND: footer` before it has a remote ID; absence of target
+     `ORG_COMMENTS_SYNC_KIND: footer` before it has a remote ID; absence of target
      metadata is not inferred as push intent.
-   - Store `HUB_COMMENT_REMOTE_ID`, `HUB_COMMENT_SOURCE: confluence`,
-     `HUB_COMMENT_SYNC_KIND: footer`, remote audit fields returned by the API,
-     and `HUB_COMMENT_REMOTE_LAST_SEEN_AT`.
+   - Store `ORG_COMMENTS_REMOTE_ID`, `ORG_COMMENTS_SOURCE: confluence`,
+     `ORG_COMMENTS_SYNC_KIND: footer`, remote audit fields returned by the API,
+     and `ORG_COMMENTS_REMOTE_LAST_SEEN_AT`.
    - Convert the sidecar Org body to conservative Confluence storage XHTML using
      escaped plain paragraphs only.
    - Leave source Org unchanged and preserve the sidecar body, canonical local
      author/creation metadata, and current `OPEN`/`TODO` keyword.
 
 2. **Push reporting and idempotency**
-   - Refuse to push comments that already have `HUB_COMMENT_REMOTE_ID` unless an
+   - Refuse to push comments that already have `ORG_COMMENTS_REMOTE_ID` unless an
      explicit update command exists later.
    - Report created, skipped, and failed comments without zero-count noise.
 
@@ -468,18 +471,18 @@ comments into normal remote-linked comments governed by the existing sync model.
    - Push one selected anchored local region comment as a Confluence inline
      comment using existing target metadata.
    - New local region comments are explicitly marked with
-     `HUB_COMMENT_SYNC_KIND: inline`; older target-bearing comments without a
+     `ORG_COMMENTS_SYNC_KIND: inline`; older target-bearing comments without a
      sync kind may still be treated as inline for push compatibility.
    - Create payloads use Confluence REST v2 `inlineCommentProperties` with
      `textSelection`, `textSelectionMatchCount`, and `textSelectionMatchIndex`.
    - Inline push requires a valid local anchor; stale anchors are refused before
      any network call.
-   - Store local target match diagnostics with `HUB_COMMENT_TARGET_MATCH_COUNT`
-     and `HUB_COMMENT_TARGET_MATCH_INDEX`.
+   - Store local target match diagnostics with `ORG_COMMENTS_TARGET_MATCH_COUNT`
+     and `ORG_COMMENTS_TARGET_MATCH_INDEX`.
    - If Confluence accepts the create response but does not return inline anchor
-     confirmation properties, store `HUB_COMMENT_REMOTE_ANCHOR_STATE:
+     confirmation properties, store `ORG_COMMENTS_REMOTE_ANCHOR_STATE:
      unconfirmed`; if it reports `resolutionStatus: dangling`, store
-     `HUB_COMMENT_REMOTE_ANCHOR_STATE: dangling`.
+     `ORG_COMMENTS_REMOTE_ANCHOR_STATE: dangling`.
    - If Confluence rejects the inline target, keep the local comment unlinked and
      report the failure without data loss.
 
@@ -500,7 +503,7 @@ comments into normal remote-linked comments governed by the existing sync model.
 - Updating existing remote comment bodies.
 - Resolving or reopening Confluence comments from local status changes.
 - Solving advanced marker-ref based inline targeting.
-- Supporting Google Docs push; `HUB_COMMENT_SOURCE` is preserved only to keep the
+- Supporting Google Docs push; `ORG_COMMENTS_SOURCE` is preserved only to keep the
   model source-extensible.
 
 ### Future Architecture Note
