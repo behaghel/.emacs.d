@@ -7,6 +7,7 @@
 
 (require 'org)
 (require 'ol)
+(require 'org-sync-assets)
 (require 'ox)
 (require 'seq)
 (require 'subr-x)
@@ -97,9 +98,6 @@ storage-format images."
   :type 'integer
   :group 'org-export)
 
-(defconst org-confluence--image-extensions '("png" "jpg" "jpeg" "gif" "webp" "svg")
-  "File extensions exported as Confluence attachment images.")
-
 (defvar org-confluence--root-headline-begin nil
   "Buffer position of the root headline for the current subtree export.")
 
@@ -110,12 +108,7 @@ storage-format images."
 
 (defun org-confluence--local-image-link-p (link)
   "Return non-nil when LINK is a plain local image link."
-  (let ((path (org-element-property :path link)))
-    (and (string= (or (org-element-property :type link) "") "file")
-	 (not (org-element-contents link))
-	 (stringp path)
-	 (member (downcase (or (file-name-extension path) ""))
-		 org-confluence--image-extensions))))
+  (org-sync-assets-image-link-p link))
 
 (defun org-confluence--status (colour title)
   "Return Confluence storage XHTML for a status macro with COLOUR and TITLE."
@@ -161,14 +154,7 @@ storage-format images."
 
 (defun org-confluence--standalone-image-link (paragraph)
   "Return PARAGRAPH's standalone local image link, or nil."
-  (let ((contents (seq-remove (lambda (element)
-				(when (stringp element)
-				  (string-empty-p (string-trim element))))
-			      (org-element-contents paragraph))))
-    (when (and (= (length contents) 1)
-	       (eq (org-element-type (car contents)) 'link)
-	       (org-confluence--local-image-link-p (car contents)))
-      (car contents))))
+  (org-sync-assets-standalone-image-link paragraph))
 
 (defun org-confluence--caption (element info)
   "Return ELEMENT caption text using INFO, or nil."
@@ -177,49 +163,36 @@ storage-format images."
 
 (defun org-confluence--resolve-image-path (path)
   "Resolve local image PATH for the current Org buffer."
-  (let ((absolute-path
-	 (if (file-name-absolute-p path)
-	     (expand-file-name path)
-	   (unless buffer-file-name
-	     (user-error "Cannot resolve relative Confluence image path in unsaved Org buffer: %s" path))
-	   (expand-file-name path (file-name-directory buffer-file-name)))))
-    (unless (file-exists-p absolute-path)
-      (user-error "Missing Confluence image file: %s" absolute-path))
-    absolute-path))
+  (org-sync-assets-resolve-local-image path nil 'require-buffer-file))
 
 (defun org-confluence--maybe-resolve-image-path (path)
   "Resolve local image PATH, or return nil when it does not exist."
-  (condition-case nil
-      (org-confluence--resolve-image-path path)
-    (user-error nil)))
+  (org-sync-assets-maybe-resolve-local-image path nil 'require-buffer-file))
 
 (defun org-confluence--hashed-attachment-filename-p (filename)
   "Return non-nil when FILENAME looks like a generated Confluence attachment."
-  (string-match-p "-[0-9a-f]\\{12\\}\\.[^.]+\\'" filename))
+  (org-sync-assets-hashed-filename-p filename))
 
 (defun org-confluence--hashed-image-filename (path)
   "Return a content-hashed Confluence attachment filename for PATH."
-  (let* ((extension (file-name-extension path t))
-	 (stem (file-name-sans-extension (file-name-nondirectory path)))
-	 (hash (substring (secure-hash 'sha256 path) 0 12)))
-    (format "%s-%s%s" stem hash extension)))
+  (org-sync-assets-hashed-filename path))
 
 (defun org-confluence--image-asset (link)
   "Return an upload asset plist for image LINK."
-  (let* ((source-link (org-element-property :path link))
-	 (source-path (org-confluence--maybe-resolve-image-path source-link))
-	 (basename (file-name-nondirectory source-link))
-	 (imported-attachment-p (org-confluence--hashed-attachment-filename-p basename))
-	 (filename (cond
-		    (imported-attachment-p basename)
-		    (source-path (org-confluence--hashed-image-filename source-path))
-		    (t (org-confluence--resolve-image-path source-link)))))
-    (append (list :path source-path
-		  :source-path source-path
-		  :source-link source-link
-		  :filename filename)
-	    (when (and imported-attachment-p (not source-path))
-	      (list :missing-source t)))))
+  (org-sync-assets-entry
+   (org-element-lineage link '(paragraph) t)
+   link
+   (list :reuse-imported-missing-source t
+	 :require-buffer-file-for-relative t)))
+
+(defun org-confluence--normalize-image-asset (asset)
+  "Return Confluence-compatible image ASSET plist shape."
+  (append (list :path (plist-get asset :source-path)
+		:source-path (plist-get asset :source-path)
+		:source-link (plist-get asset :source-link)
+		:filename (plist-get asset :filename))
+	  (when (plist-get asset :missing-source)
+	    (list :missing-source t))))
 
 (defun org-confluence--validate-image-assets (assets)
   "Validate Confluence image ASSETS and return them.
@@ -242,16 +215,16 @@ single generated attachment filename maps to different source files."
 When SUBTREEP is non-nil, inspect only the current Org subtree.  Each asset is
 a plist with `:path' as an absolute source file and `:filename' as the
 Confluence attachment basename."
-  (org-confluence--validate-image-assets
-   (save-restriction
-     (when subtreep
-       (unless (org-at-heading-p)
-	 (org-back-to-heading))
-       (org-narrow-to-subtree))
-     (org-element-map (org-element-parse-buffer) 'paragraph
-		      (lambda (paragraph)
-			(when-let* ((link (org-confluence--standalone-image-link paragraph)))
-			  (org-confluence--image-asset link)))))))
+  (let* ((plan (org-sync-assets-plan-buffer
+		(list :subtreep subtreep
+		      :reuse-imported-missing-source t
+		      :require-buffer-file-for-relative t)))
+	 (diagnostics (plist-get plan :diagnostics)))
+    (when diagnostics
+      (user-error "%s" (plist-get (car diagnostics) :message)))
+    (org-confluence--validate-image-assets
+     (mapcar #'org-confluence--normalize-image-asset
+	     (plist-get plan :assets)))))
 
 (defun org-confluence--compact-list-contents (contents)
   "Return CONTENTS formatted for inclusion in an XHTML list item."

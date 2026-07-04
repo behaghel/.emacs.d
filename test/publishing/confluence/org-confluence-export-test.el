@@ -15,6 +15,7 @@
 				     "domains.yaml"))))
   (add-to-list 'load-path (expand-file-name "modules" root))
   (add-to-list 'load-path (expand-file-name "modules/org" root))
+  (add-to-list 'load-path (expand-file-name "packages/org-sync" root))
   (add-to-list 'load-path (expand-file-name "packages/org-confluence" root))
   (add-to-list 'load-path (expand-file-name "lisp" root))
   (add-to-list 'load-path (expand-file-name "core" root)))

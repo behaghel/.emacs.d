@@ -56,24 +56,30 @@
   (when-let* ((caption (org-element-property :caption paragraph)))
     (string-trim (org-element-interpret-data caption))))
 
-(defun org-sync-assets-absolute-path (path &optional base-directory)
-  "Return absolute file PATH using BASE-DIRECTORY or current buffer context."
-  (expand-file-name path (or base-directory
-			     (and buffer-file-name
-				  (file-name-directory buffer-file-name))
-			     default-directory)))
+(defun org-sync-assets-absolute-path (path &optional base-directory require-buffer-file)
+  "Return absolute file PATH using BASE-DIRECTORY or current buffer context.
+When REQUIRE-BUFFER-FILE is non-nil, relative paths in unsaved buffers signal a
+`user-error' instead of falling back to `default-directory'."
+  (cond
+   ((file-name-absolute-p path) (expand-file-name path))
+   (base-directory (expand-file-name path base-directory))
+   (buffer-file-name (expand-file-name path (file-name-directory buffer-file-name)))
+   (require-buffer-file
+    (user-error "Cannot resolve relative image path in unsaved Org buffer: %s" path))
+   (t (expand-file-name path default-directory))))
 
-(defun org-sync-assets-resolve-local-image (path &optional base-directory)
+(defun org-sync-assets-resolve-local-image (path &optional base-directory require-buffer-file)
   "Resolve local image PATH or signal a clear `user-error'."
-  (let ((absolute-path (org-sync-assets-absolute-path path base-directory)))
+  (let ((absolute-path (org-sync-assets-absolute-path
+			path base-directory require-buffer-file)))
     (unless (file-readable-p absolute-path)
       (user-error "Image file is not readable: %s" path))
     absolute-path))
 
-(defun org-sync-assets-maybe-resolve-local-image (path &optional base-directory)
+(defun org-sync-assets-maybe-resolve-local-image (path &optional base-directory require-buffer-file)
   "Resolve local image PATH, or return nil when it is unreadable."
   (condition-case nil
-      (org-sync-assets-resolve-local-image path base-directory)
+      (org-sync-assets-resolve-local-image path base-directory require-buffer-file)
     (user-error nil)))
 
 (defun org-sync-assets-hashed-filename-p (filename)
@@ -94,7 +100,9 @@ incremental migration compatibility."
 OPTIONS is a plist.  `:reuse-imported-missing-source' marks generated/imported
 filenames with missing local sources as reusable instead of failing."
   (let* ((source-link (org-element-property :path link))
-	 (source-path (org-sync-assets-maybe-resolve-local-image source-link))
+	 (source-path (org-sync-assets-maybe-resolve-local-image
+		       source-link nil
+		       (plist-get options :require-buffer-file-for-relative)))
 	 (basename (file-name-nondirectory source-link))
 	 (imported-p (org-sync-assets-hashed-filename-p basename))
 	 (reuse-imported (plist-get options :reuse-imported-missing-source))
@@ -106,7 +114,10 @@ filenames with missing local sources as reusable instead of failing."
 		      :path source-path
 		      :source-path source-path
 		      :absolute-path (or source-path
-					 (org-sync-assets-absolute-path source-link))
+					 (org-sync-assets-absolute-path
+					  source-link nil
+					  (plist-get options
+						     :require-buffer-file-for-relative)))
 		      :filename filename
 		      :begin (org-element-property :begin paragraph)
 		      :end (org-element-property :end paragraph))))
@@ -131,19 +142,25 @@ filenames with missing local sources as reusable instead of failing."
 ;;;###autoload
 (defun org-sync-assets-plan-buffer (&optional options)
   "Return standalone image asset plan for the current Org buffer.
-OPTIONS is passed to `org-sync-assets-entry'."
+OPTIONS is passed to `org-sync-assets-entry'.  When `:subtreep' is non-nil,
+inspect only the current Org subtree."
   (unless (derived-mode-p 'org-mode)
     (org-mode))
-  (let* ((tree (org-element-parse-buffer))
-	 (assets (org-element-map tree 'paragraph
-				  (lambda (paragraph)
-				    (when-let* ((link (org-sync-assets-standalone-image-link
-						       paragraph)))
-				      (org-sync-assets-entry paragraph link options)))))
-	 (diagnostics (org-sync-assets-missing-diagnostics assets)))
-    (list :ready-p (null diagnostics)
-	  :assets assets
-	  :diagnostics diagnostics)))
+  (save-restriction
+    (when (plist-get options :subtreep)
+      (unless (org-at-heading-p)
+	(org-back-to-heading))
+      (org-narrow-to-subtree))
+    (let* ((tree (org-element-parse-buffer))
+	   (assets (org-element-map tree 'paragraph
+				    (lambda (paragraph)
+				      (when-let* ((link (org-sync-assets-standalone-image-link
+							 paragraph)))
+					(org-sync-assets-entry paragraph link options)))))
+	   (diagnostics (org-sync-assets-missing-diagnostics assets)))
+      (list :ready-p (null diagnostics)
+	    :assets assets
+	    :diagnostics diagnostics))))
 
 (provide 'org-sync-assets)
 ;;; org-sync-assets.el ends here
