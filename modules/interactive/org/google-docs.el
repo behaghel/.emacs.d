@@ -133,6 +133,7 @@ local fork is cloned."
   (when (fboundp 'straight-use-package)
     (straight-use-package (hub/org-google-docs--gdocs-straight-recipe))))
 
+(add-to-list 'load-path (expand-file-name "packages/org-sync" user-emacs-directory))
 (add-to-list 'load-path hub/org-google-docs-package-directory)
 (hub/org-google-docs--ensure-gdocs-package)
 

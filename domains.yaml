@@ -195,6 +195,12 @@ domains:
           - packages/org-confluence/
           - test/publishing/confluence/
         spec: packages/org-confluence/
+      org-sync:
+        description: Provider-neutral Org synchronization helpers shared by bidirectional publishing providers.
+        type: shared-kernel
+        code:
+          - packages/org-sync/
+        spec: packages/org-sync/
       google-docs:
         description: Google Docs publishing integration and reusable org-google-docs adapter package code.
         code:

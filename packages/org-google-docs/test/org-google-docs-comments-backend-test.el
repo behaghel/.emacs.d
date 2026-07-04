@@ -11,6 +11,8 @@
 (require 'org-comments-backend)
 
 (add-to-list 'load-path (expand-file-name ".." (file-name-directory load-file-name)))
+(add-to-list 'load-path (expand-file-name "../../org-sync"
+					  (file-name-directory load-file-name)))
 (add-to-list 'load-path (expand-file-name "../../org-comments" (file-name-directory load-file-name)))
 
 (require 'org-google-docs-comments-backend)
