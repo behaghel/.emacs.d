@@ -12,6 +12,33 @@
 (defvar-local org-context-panel-test--marker-overlay nil
   "Top marker overlay used by context-panel tests.")
 
+(ert-deftest org-context-panel-protect-window-defends-panel-buffer ()
+  "Protected panel windows restore their panel and redirect document buffers."
+  (let ((source (generate-new-buffer " *org context source*"))
+	(panel (generate-new-buffer " *org context panel*"))
+	(document (generate-new-buffer " *org context document*"))
+	panel-window)
+    (unwind-protect
+	(progn
+	  (set-window-buffer (selected-window) source)
+	  (setq panel-window (split-window-right))
+	  (set-window-buffer panel-window panel)
+	  (org-context-panel-protect-window panel-window panel source)
+	  (should (window-dedicated-p panel-window))
+	  (should (window-parameter panel-window 'no-other-window))
+	  (should (window-parameter panel-window 'no-delete-other-windows))
+	  (set-window-dedicated-p panel-window nil)
+	  (set-window-buffer panel-window document)
+	  (org-context-panel--repair-protected-window panel-window)
+	  (should (eq (window-buffer panel-window) panel))
+	  (should (eq (window-buffer (selected-window)) document))
+	  (should (window-dedicated-p panel-window)))
+      (when (window-live-p panel-window)
+	(delete-window panel-window))
+      (dolist (buffer (list source panel document))
+	(when (buffer-live-p buffer)
+	  (kill-buffer buffer))))))
+
 (ert-deftest org-context-panel-registers-buffer-local-providers ()
   "Providers are registered buffer-locally by name."
   (with-temp-buffer

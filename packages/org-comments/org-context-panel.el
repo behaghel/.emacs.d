@@ -69,6 +69,9 @@
 (defvar org-context-panel--following nil
   "Non-nil while `org-context-panel' is following selected windows.")
 
+(defvar org-context-panel--repairing-window nil
+  "Non-nil while restoring a protected context-panel window.")
+
 (defvar org-context-panel-current-source-buffer nil
   "Source buffer dynamically bound while running side-panel lifecycle hooks.")
 
@@ -386,6 +389,51 @@ Return the destination position, or nil when KEY is not visible."
     (while (< (line-number-at-pos) row)
       (insert "\n"))))
 
+(defun org-context-panel-protect-window (window panel-buffer source-buffer)
+  "Protect WINDOW as a context panel for PANEL-BUFFER and SOURCE-BUFFER.
+Protected context-panel windows are skipped by normal window navigation,
+resist `delete-other-windows', and are repaired if a document buffer replaces
+their panel buffer."
+  (when (window-live-p window)
+    (set-window-parameter window 'org-context-panel-protected t)
+    (set-window-parameter window 'org-context-panel-panel-buffer panel-buffer)
+    (set-window-parameter window 'org-context-panel-source-buffer source-buffer)
+    (set-window-parameter window 'no-other-window t)
+    (set-window-parameter window 'no-delete-other-windows t)
+    (set-window-dedicated-p window t)))
+
+(defun org-context-panel--protected-window-p (window)
+  "Return non-nil when WINDOW is a protected context-panel window."
+  (and (window-live-p window)
+       (window-parameter window 'org-context-panel-protected)))
+
+(defun org-context-panel--repair-protected-window (window)
+  "Restore protected context-panel WINDOW if its buffer was replaced."
+  (when (and (not org-context-panel--repairing-window)
+	     (org-context-panel--protected-window-p window))
+    (let* ((expected (window-parameter window 'org-context-panel-panel-buffer))
+	   (source (window-parameter window 'org-context-panel-source-buffer))
+	   (actual (window-buffer window)))
+      (when (and (buffer-live-p expected)
+		 (not (eq actual expected)))
+	(let ((org-context-panel--repairing-window t)
+	      (source-window (and (buffer-live-p source)
+				  (get-buffer-window source t))))
+	  (set-window-dedicated-p window nil)
+	  (set-window-buffer window expected)
+	  (org-context-panel-protect-window window expected source)
+	  (when (and (buffer-live-p actual)
+		     (window-live-p source-window)
+		     (not (eq source-window window)))
+	    (set-window-buffer source-window actual)))))))
+
+(defun org-context-panel--window-buffer-changed (&rest _args)
+  "Repair protected context-panel windows after buffer changes."
+  (walk-windows #'org-context-panel--repair-protected-window nil t))
+
+(add-hook 'window-buffer-change-functions
+	  #'org-context-panel--window-buffer-changed)
+
 (defun org-context-panel--render-composed-side-panel (source-buffer items providers)
   "Render merged provider ITEMS for SOURCE-BUFFER using PROVIDERS."
   (dolist (item (org-context-panel--sort-items items providers))
@@ -454,7 +502,11 @@ visible viewport rows."
 			 panel-buffer
 			 `((side . right)
 			   (slot . 1)
-			   (window-width . ,width)))))
+			   (window-width . ,width)
+			   (window-parameters
+			    . ((no-other-window . t)
+			       (no-delete-other-windows . t)))))))
+      (org-context-panel-protect-window panel-window panel-buffer source)
       (org-context-panel--run-side-panel-hook
        'org-context-panel-after-side-panel-open-hook
        source panel-buffer source-window panel-window))
@@ -587,7 +639,10 @@ visible viewport rows."
 	  (if (org-context-panel--followable-source-p source-buffer)
 	      (let ((panel-buffer (org-context-panel-open source-buffer)))
 		(unless (eq (get-buffer-window panel-buffer) panel-window)
-		  (set-window-buffer panel-window panel-buffer))
+		  (set-window-dedicated-p panel-window nil)
+		  (set-window-buffer panel-window panel-buffer)
+		  (org-context-panel-protect-window
+		   panel-window panel-buffer source-buffer))
 		(unless (eq panel-buffer old-panel-buffer)
 		  (org-context-panel--close-side-panel-buffer old-panel-buffer)))
 	    (org-context-panel--close-side-panel-buffer old-panel-buffer)))))))
@@ -613,11 +668,16 @@ visible viewport rows."
       (org-context-panel-render-bottom-view source view))
     (with-current-buffer source
       (setq org-context-panel-bottom-panel-buffer panel-buffer))
-    (display-buffer-in-side-window
-     panel-buffer
-     `((side . bottom)
-       (slot . 1)
-       (window-height . ,height)))
+    (org-context-panel-protect-window
+     (display-buffer-in-side-window
+      panel-buffer
+      `((side . bottom)
+	(slot . 1)
+	(window-height . ,height)
+	(window-parameters
+	 . ((no-other-window . t)
+	    (no-delete-other-windows . t)))))
+     panel-buffer source)
     panel-buffer))
 
 ;;;###autoload
