@@ -150,6 +150,14 @@
 - When introducing mutable paths, route them through `var/` or `etc/` according to whether they are runtime state or static assets.
 - Before handoff, run the most relevant load/test commands for the touched area and mention any checks you could not run.
 
+## Google Docs Publishing Discipline
+- Treat Org ↔ Google Docs work as a multi-stage pipeline: Org source classification, preflight, Org → IR, upload/enrichment, remote Docs JSON → IR, diff, batchUpdate requests, and async callback context.
+- Before debugging by live trial-and-error, run or extend `M-x org-google-docs-debug-pipeline`. With a prefix argument it may fetch the linked Google Doc and append remote JSON, remote IR, and diff requests; never print OAuth tokens or credential payloads.
+- Add fixture-level integration tests for every new semantic feature across the full local flow, not only unit tests for individual helpers. Cover create and push paths, repeated push/diff behavior, and async callback buffer/account preservation when uploads or network callbacks are involved.
+- Keep upstream `benthamite/gdocs` work PR-ready: one feature branch per concern, small commits with tests in the same commit, and refreshed patch records under `packages/org-google-docs/patches/` after each upstream commit.
+- Prefer fail-closed semantics for document fidelity: if a recognized semantic construct cannot be preserved yet, block before remote mutation with an actionable diagnostic instead of silently dropping it, emitting literal fallback text, or relying on styling-only approximations.
+- For each semantic feature, do not call it done until the live smoke checklist has passed: create new doc, push existing linked doc, modify and push again, pull back when supported, and inspect pipeline trace/requests when behavior is surprising.
+
 ## Common Pitfalls
 - Do not add interactive-only requires to always-on files unless they are guarded for batch safety.
 - Do not put new tracked content under `settings/`; use `modules/`, `lisp/`, `etc/`, `var/`, or `private/setup.el` as appropriate.

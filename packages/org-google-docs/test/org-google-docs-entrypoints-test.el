@@ -119,6 +119,27 @@
 	(org-google-docs-push))
       (should (equal calls '(push 1))))))
 
+(ert-deftest org-google-docs-debug-pipeline-writes-local-snapshot ()
+  "Pipeline debug writes local preflight details without requiring the network."
+  (let ((image-file (make-temp-file "org-google-docs-image" nil ".png")))
+    (unwind-protect
+	(with-temp-buffer
+	  (insert (format "#+CAPTION: Banner\n[[file:%s]]\n" image-file))
+	  (org-mode)
+	  (let ((debug-buffer (org-google-docs-debug-pipeline)))
+	    (with-current-buffer debug-buffer
+	      (let ((text (buffer-string)))
+		(should (string-match-p "Org Google Docs pipeline trace" text))
+		(should (string-match-p ":image-count 1" text))
+		(should (string-match-p "Banner" text))))))
+      (delete-file image-file))))
+
+(ert-deftest org-google-docs-debug-pipeline-remote-requires-linked-buffer ()
+  "Remote pipeline debug fails clearly when the buffer is not linked."
+  (with-temp-buffer
+    (org-mode)
+    (should-error (org-google-docs-debug-pipeline t) :type 'user-error)))
+
 (ert-deftest org-google-docs-sync-current-delegates-to-push-for-now ()
   "The initial sync-current wrapper uses upstream push as the body-sync action."
   (let (calls)
@@ -169,6 +190,7 @@
   (should (equal (mapcar #'car org-google-docs--dispatch-actions)
 		 '("Status: Doctor"
 		   "Status: Upstream gdocs status"
+		   "Debug: Pipeline trace"
 		   "Sync: Sync current buffer"
 		   "Publish: Create Google Doc from buffer"
 		   "Publish: Push buffer to Google Docs"

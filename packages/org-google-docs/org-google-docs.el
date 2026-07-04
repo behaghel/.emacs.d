@@ -7,12 +7,22 @@
 
 ;;; Code:
 
+(require 'pp)
 (require 'subr-x)
 
 (autoload 'org-google-docs-comments-import "org-google-docs-comments-import" nil t)
 (require 'org-google-docs-comments-backend)
 (require 'org-google-docs-footnotes)
 (require 'org-google-docs-images)
+
+(declare-function gdocs-api-get-document "gdocs-api"
+		  (document-id callback &optional account on-error))
+(declare-function gdocs-convert-docs-json-to-ir "gdocs-convert" (json))
+(declare-function gdocs-convert-ir-to-docs-requests "gdocs-convert"
+		  (ir &optional start-index))
+(declare-function gdocs-convert-org-buffer-to-ir "gdocs-convert" ())
+(declare-function gdocs-diff-generate "gdocs-diff"
+		  (old-ir new-ir &optional start-index))
 
 (defgroup org-google-docs nil
   "Org-facing Google Docs publishing adapter."
@@ -69,9 +79,152 @@ Set this to nil before rebuilding the map to leave the mode map unbound."
   (unless (require library nil 'noerror)
     (user-error "Missing upstream gdocs library `%s'; install and configure benthamite/gdocs" library)))
 
+(defconst org-google-docs-debug-buffer-name "*org-google-docs-debug*"
+  "Buffer name used for Google Docs pipeline traces.")
+
+(defun org-google-docs--safe-diagnostic-value (thunk)
+  "Return diagnostic value produced by THUNK, or an error plist."
+  (condition-case err
+      (funcall thunk)
+    ((error quit)
+     (list :error (error-message-string err)))))
+
+(defun org-google-docs--bound-value (symbol)
+  "Return SYMBOL value when bound, otherwise nil."
+  (and (boundp symbol) (symbol-value symbol)))
+
+(defun org-google-docs--debug-pretty (value)
+  "Return a pretty printable representation of VALUE."
+  (with-temp-buffer
+    (let ((print-length nil)
+	  (print-level nil))
+      (pp value (current-buffer)))
+    (string-trim-right (buffer-string))))
+
+(defun org-google-docs--debug-insert-section (title value)
+  "Insert debug section TITLE containing VALUE at point."
+  (insert (format "\n* %s\n\n" title))
+  (insert "#+begin_src emacs-lisp\n")
+  (insert (org-google-docs--debug-pretty value))
+  (insert "\n#+end_src\n"))
+
+(defun org-google-docs--debug-local-snapshot ()
+  "Return a local Google Docs pipeline diagnostic snapshot."
+  (let* ((footnote-plan
+	  (org-google-docs--safe-diagnostic-value
+	   #'org-google-docs-footnotes-plan-buffer))
+	 (image-plan
+	  (org-google-docs--safe-diagnostic-value
+	   #'org-google-docs-images-plan-buffer))
+	 (local-ir
+	  (when (fboundp 'gdocs-convert-org-buffer-to-ir)
+	    (org-google-docs--safe-diagnostic-value
+	     #'gdocs-convert-org-buffer-to-ir)))
+	 (local-requests
+	  (when (and local-ir
+		     (not (plist-get local-ir :error))
+		     (fboundp 'gdocs-convert-ir-to-docs-requests))
+	    (org-google-docs--safe-diagnostic-value
+	     (lambda ()
+	       (gdocs-convert-ir-to-docs-requests local-ir))))))
+    (list :buffer-name (buffer-name)
+	  :buffer-file buffer-file-name
+	  :default-directory default-directory
+	  :major-mode major-mode
+	  :document-id (org-google-docs--bound-value 'gdocs-sync--document-id)
+	  :account (org-google-docs--current-gdocs-account)
+	  :push-in-progress (org-google-docs--bound-value
+			     'gdocs-sync--push-in-progress)
+	  :push-queued (org-google-docs--bound-value 'gdocs-sync--push-queued)
+	  :footnote-count (length (plist-get footnote-plan :references))
+	  :image-count (length (plist-get image-plan :images))
+	  :footnote-plan footnote-plan
+	  :image-plan image-plan
+	  :local-ir local-ir
+	  :local-requests local-requests)))
+
+(defun org-google-docs--debug-write-local (source-buffer snapshot include-remote)
+  "Write local SNAPSHOT for SOURCE-BUFFER and INCLUDE-REMOTE flag."
+  (let ((debug-buffer (get-buffer-create org-google-docs-debug-buffer-name)))
+    (with-current-buffer debug-buffer
+      (let ((inhibit-read-only t))
+	(erase-buffer)
+	(insert "#+title: Org Google Docs pipeline trace\n")
+	(insert (format "#+date: %s\n"
+			(format-time-string "%Y-%m-%d %H:%M:%S %z")))
+	(insert (format "#+source-buffer: %s\n"
+			(buffer-name source-buffer)))
+	(insert (format "#+remote-fetch-requested: %S\n" include-remote))
+	(org-google-docs--debug-insert-section "Local snapshot" snapshot)
+	(special-mode)))
+    debug-buffer))
+
+(defun org-google-docs--debug-append-remote (debug-buffer remote-snapshot)
+  "Append REMOTE-SNAPSHOT to DEBUG-BUFFER."
+  (with-current-buffer debug-buffer
+    (let ((inhibit-read-only t))
+      (goto-char (point-max))
+      (org-google-docs--debug-insert-section "Remote snapshot" remote-snapshot))))
+
+(defun org-google-docs--debug-remote-snapshot (json local-ir)
+  "Return remote pipeline snapshot from document JSON and LOCAL-IR."
+  (let* ((remote-ir
+	  (when (fboundp 'gdocs-convert-docs-json-to-ir)
+	    (org-google-docs--safe-diagnostic-value
+	     (lambda () (gdocs-convert-docs-json-to-ir json)))))
+	 (diff-requests
+	  (when (and remote-ir
+		     local-ir
+		     (not (plist-get remote-ir :error))
+		     (not (plist-get local-ir :error))
+		     (fboundp 'gdocs-diff-generate))
+	    (org-google-docs--safe-diagnostic-value
+	     (lambda () (gdocs-diff-generate remote-ir local-ir))))))
+    (list :remote-json json
+	  :remote-ir remote-ir
+	  :diff-requests diff-requests)))
+
+;;;###autoload
+(defun org-google-docs-debug-pipeline (&optional include-remote)
+  "Write a Google Docs push/pull pipeline trace for the current Org buffer.
+With prefix argument INCLUDE-REMOTE, also fetch the linked Google Doc and append
+remote JSON, remote IR, and local-vs-remote diff requests asynchronously.  The
+trace intentionally avoids authentication token data; it may contain document
+content from the local buffer and fetched Google Doc."
+  (interactive "P")
+  (require 'gdocs-convert nil 'noerror)
+  (require 'gdocs-diff nil 'noerror)
+  (let* ((source-buffer (current-buffer))
+	 (snapshot (org-google-docs--debug-local-snapshot))
+	 (debug-buffer (org-google-docs--debug-write-local
+			source-buffer snapshot include-remote))
+	 (document-id (plist-get snapshot :document-id))
+	 (account (plist-get snapshot :account))
+	 (local-ir (plist-get snapshot :local-ir)))
+    (if include-remote
+	(progn
+	  (unless document-id
+	    (user-error "Buffer is not linked to a Google Doc"))
+	  (org-google-docs--require-upstream-library 'gdocs-api)
+	  (org-google-docs--require-upstream-library 'gdocs-convert)
+	  (org-google-docs--require-upstream-library 'gdocs-diff)
+	  (gdocs-api-get-document
+	   document-id
+	   (lambda (json)
+	     (org-google-docs--debug-append-remote
+	      debug-buffer
+	      (org-google-docs--debug-remote-snapshot json local-ir))
+	     (display-buffer debug-buffer)
+	     (message "Org Google Docs pipeline trace updated with remote state"))
+	   account))
+      (display-buffer debug-buffer)
+      (message "Org Google Docs pipeline trace written"))
+    debug-buffer))
+
 (defconst org-google-docs--dispatch-actions
   '(("Status: Doctor" . org-google-docs-doctor)
     ("Status: Upstream gdocs status" . org-google-docs-status)
+    ("Debug: Pipeline trace" . org-google-docs-debug-pipeline)
     ("Sync: Sync current buffer" . org-google-docs-sync-current)
     ("Publish: Create Google Doc from buffer" . org-google-docs-create)
     ("Publish: Push buffer to Google Docs" . org-google-docs-push)
