@@ -47,8 +47,9 @@ The goal is to let an author write one Org source consistently and export or syn
 | Emphasis | `/italic/`, `*bold*`, `_underline_`, `+strike-through+` | Semantic inline emphasis. Preserve when target supports rich text. |
 | Inline code | `~code~` and `=verbatim=` | Semantic literal text. Syntax color is styling. |
 | External link | `[[https://example.com][label]]` | Semantic link target plus label. |
-| Date mention | Org timestamps such as `<2026-07-03 Fri>` and inactive `[2026-07-03 Fri]` | Semantic date value. Remote dates imported from Confluence or Google Docs should become inactive Org timestamps by default so they do not pollute `org-agenda`. Smart chips are optional/native enhancements. |
-| Person mention | Provisional `[[person:email@example.com][Name]]` | Semantic person identity plus display name. Native mentions are optional/provider-specific. |
+| Date mention | Org timestamps such as `<2026-07-03 Fri>` and inactive `[2026-07-03 Fri]` | Semantic date value. Remote dates imported from Confluence or Google Docs should become inactive Org timestamps by default so they do not pollute `org-agenda`. Google Docs date smart chips are the native target where available. |
+| Person mention | Provisional `[[person:email@example.com][Name]]` | Semantic person identity plus display name. Google Docs people smart chips are the native target where available. |
+| Status mention | Provisional `[[status:blocked][Blocked]]` | Semantic status value plus display label. Google Docs dropdown smart chips are the native target where available. |
 | Footnote reference | `[fn:label]` | Semantic note anchor. Native footnotes are preferred where available. |
 
 ### Notes
@@ -64,7 +65,7 @@ The goal is to let an author write one Org source consistently and export or syn
 
 | Semantic | Canonical Org source | Contract |
 | --- | --- | --- |
-| Source block | `#+begin_src LANG ... #+end_src` | Semantic code block with language. Syntax highlighting and line-number styling are renderer-specific. |
+| Source block | `#+begin_src LANG ... #+end_src` | Semantic code block with language. Google Docs code block building blocks are the native target where available. Syntax highlighting and line-number styling are renderer-specific. |
 | Example block | `#+begin_example ... #+end_example` | Semantic preformatted block. |
 | Quote block | `#+begin_quote ... #+end_quote` | Semantic quotation boundary and text. Visual quote styling is deferred per renderer. |
 | Callout | `#+begin_callout` plus optional `#+ATTR_CALLOUT:` | Semantic admonition with type/title. Visual panel treatment is styling. |
@@ -120,8 +121,8 @@ Google Docs should implement this contract as far as its public APIs allow. Curr
 1. classify all specimen constructs without silent loss;
 2. preserve native footnotes where possible;
 3. publish standalone local images as inline images;
-4. preserve source-code block text and language identity, with syntax styling deferred;
-5. preserve date/person semantics as explicit links/text first, with smart chips or native mentions as later enhancements;
+4. preserve source-code block text and language identity, targeting native Google Docs code block building blocks where public APIs expose them, with syntax styling deferred;
+5. preserve date/person/status semantics as explicit links/text first, importing remote dates as inactive Org timestamps, with smart chips or native mentions/dropdowns as native targets;
 6. treat quote-block visible decoration as styling unless a reliable semantic round-trip is available.
 
 ## Specimen

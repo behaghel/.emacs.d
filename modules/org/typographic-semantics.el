@@ -112,6 +112,10 @@
 				(and (equal (org-element-property :type element) "fuzzy")
 				     (string-prefix-p "person:" (or (org-element-property :path element) ""))))
 			    (hub/org-typographic-semantics--inc inline 'person-links))
+			   ((or (equal (org-element-property :type element) "status")
+				(and (equal (org-element-property :type element) "fuzzy")
+				     (string-prefix-p "status:" (or (org-element-property :path element) ""))))
+			    (hub/org-typographic-semantics--inc inline 'status-links))
 			   ((member (org-element-property :type element) '("http" "https"))
 			    (hub/org-typographic-semantics--inc inline 'external-links))))
 			 ('footnote-definition

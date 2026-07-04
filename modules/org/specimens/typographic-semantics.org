@@ -18,8 +18,9 @@ classify as supported, degraded, deferred, or unsupported.
 This paragraph[fn:ordinary] verifies /italic/, *bold*, _underline_,
 +strike-through+, ~inline code~, =verbatim text=, an external link
 [[https://example.com][Example link]], an active inline date <2026-07-03 Fri>, an
-inactive remote-style date [2026-07-04 Sat], and a provisional people mention
-[[person:ada@example.com][Ada Lovelace]].
+inactive remote-style date [2026-07-04 Sat], a provisional people mention
+[[person:ada@example.com][Ada Lovelace]], and a provisional status mention
+[[status:blocked][Blocked]].
 
 ** Tables
 

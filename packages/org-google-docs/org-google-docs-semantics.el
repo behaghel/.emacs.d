@@ -32,12 +32,12 @@
 (defconst org-google-docs-semantics--degraded
   '((source-blocks
      :categories ((:blocks source))
-     :reason "Upstream body sync can preserve code text, but language identity and block semantics are not yet native."
-     :target "Preserve source text and language identity; syntax highlighting is styling-deferred.")
+     :reason "Google Docs has native code block building blocks, but the public Docs API seam is not implemented in this adapter yet."
+     :target "Map Org source blocks to native Google Docs code block building blocks when public APIs expose a reliable seam; syntax styling is deferred.")
     (dates
      :categories ((:inline active-dates inactive-dates))
-     :reason "Dates currently survive as text, but provider-native date semantics are not mapped yet."
-     :target "Pull remote dates as inactive Org timestamps by default to avoid org-agenda pollution."))
+     :reason "Google Docs has native date smart chips, but provider-native date semantics are not mapped yet."
+     :target "Pull remote dates as inactive Org timestamps by default to avoid org-agenda pollution; use date smart chips when public APIs expose a reliable seam."))
   "Semantic groups currently treated as degraded by Google Docs.")
 
 (defconst org-google-docs-semantics--unsupported
@@ -68,6 +68,10 @@
      :categories ((:inline person-links))
      :reason "Native Google Docs people smart chips/mentions need a separate provider-specific design."
      :target "Preserve person identity and display text first; smart chips are a later enhancement.")
+    (status-links
+     :categories ((:inline status-links))
+     :reason "Native Google Docs dropdown smart chips are a good status target, but need a separate provider-specific design."
+     :target "Preserve status value and display text first; dropdown smart chips are a later enhancement.")
     (document-chrome
      :categories ((:blocks standfirst metric graph) (:metadata eyebrow footer-note))
      :reason "Document chrome/layout blocks are renderer-specific styling/layout semantics."

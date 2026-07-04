@@ -34,6 +34,7 @@
     (should (= 1 (hub/org-typographic-semantics-test--count audit :inline 'verbatim)))
     (should (= 1 (hub/org-typographic-semantics-test--count audit :inline 'external-links)))
     (should (= 1 (hub/org-typographic-semantics-test--count audit :inline 'person-links)))
+    (should (= 1 (hub/org-typographic-semantics-test--count audit :inline 'status-links)))
     (should (= 1 (hub/org-typographic-semantics-test--count audit :inline 'active-dates)))
     (should (= 1 (hub/org-typographic-semantics-test--count audit :inline 'inactive-dates)))
     (should (= 3 (hub/org-typographic-semantics-test--count audit :inline 'footnote-references)))))

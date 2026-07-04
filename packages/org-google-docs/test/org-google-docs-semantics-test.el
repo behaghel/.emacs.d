@@ -58,6 +58,8 @@
     (should (member 'quote-blocks
 		    (org-google-docs-semantics-test--names classification :deferred)))
     (should (member 'person-links
+		    (org-google-docs-semantics-test--names classification :deferred)))
+    (should (member 'status-links
 		    (org-google-docs-semantics-test--names classification :deferred)))))
 
 (ert-deftest org-google-docs-semantics-preserves-counts-and-reasons ()
@@ -90,7 +92,8 @@
     (should (string-match-p "Unsupported:" report))
     (should (string-match-p "footnotes (3)" report))
     (should (string-match-p "Deferred:" report))
-    (should (string-match-p "person links (1)" report))))
+    (should (string-match-p "person links (1)" report))
+    (should (string-match-p "status links (1)" report))))
 
 (provide 'org-google-docs-semantics-test)
 ;;; org-google-docs-semantics-test.el ends here
