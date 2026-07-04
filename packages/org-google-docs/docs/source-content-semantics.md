@@ -11,6 +11,7 @@ Org ↔ Google Docs body sync currently depends on upstream `benthamite/gdocs`, 
 - `gdocs-convert-org-buffer-to-ir` already parses Org with `org-element` and creates an intermediate representation.
 - The backend-neutral contract lives in `modules/org/typographic-semantics.md`, with a tracked specimen at `modules/org/specimens/typographic-semantics.org`.
 - `modules/org/typographic-semantics.el` audits Org buffers into a plain semantic inventory; `packages/org-google-docs/org-google-docs-semantics.el` classifies that inventory against current Google Docs support without depending on local `hub-*` helpers.
+- `packages/org-google-docs/org-google-docs-footnotes.el` extracts a push-safe native-footnote plan before any remote mutation. It supports named definitions in a conventional footnotes section, reports rich-body/repeated-reference degradations, and blocks unsupported forms such as anonymous inline footnotes, missing definitions, marginalia, mixed footnotes-section content, or definitions outside the conventional section.
 - The sample and specimen currently reveal:
   - Org footnote references become literal text such as `[fn:1]` in paragraphs.
   - Footnote definitions become separate `:type 'footnote` IR elements, but push emits them as literal `[fn:N] body` text rather than native Google Docs footnotes.
@@ -39,6 +40,7 @@ Org ↔ Google Docs body sync currently depends on upstream `benthamite/gdocs`, 
 
 ## Acceptance Criteria
 
+- [x] AC-0: Given an Org buffer with named footnotes in a conventional `Footnotes` or `Notes de bas de page` section, when footnote preflight runs, then it returns a native footnote push plan with references, plain text bodies, section metadata, blocking diagnostics, and degradation notices before remote mutation.
 - [ ] AC-1: Given an Org paragraph containing `[fn:1]`, when pushed through the Google Docs adapter, then the Google Doc contains a native footnote reference at the corresponding text position rather than literal `[fn:1]` body text.
 - [ ] AC-2: Given an Org footnote definition `[fn:1] Body`, when pushed, then the native Google Docs footnote contains `Body` with supported inline text semantics preserved.
 - [ ] AC-3: Given a Google Doc with native footnotes, when pulled, then the Org buffer contains corresponding footnote references and definitions without losing surrounding paragraph text.
