@@ -1,0 +1,76 @@
+From 8892176105225b677b44dcd82d80056a7dcb2bfe Mon Sep 17 00:00:00 2001
+From: Hubert Behaghel <behaghel@gmail.com>
+Date: Sat, 4 Jul 2026 18:48:26 +0200
+Subject: [PATCH] Render image captions as visible text
+
+---
+ gdocs-convert.el           | 23 ++++++++++++++++++-----
+ test/gdocs-convert-test.el | 16 ++++++++++++++++
+ 2 files changed, 34 insertions(+), 5 deletions(-)
+
+diff --git a/gdocs-convert.el b/gdocs-convert.el
+index 9bb6e05..258c914 100644
+--- a/gdocs-convert.el
++++ b/gdocs-convert.el
+@@ -2164,13 +2164,26 @@ Returns a plist (:requests LIST :index NEW-INDEX)."
+ (defun gdocs-convert--image-to-requests (element index)
+   "Create insertInlineImage requests for image ELEMENT at INDEX.
+ ELEMENT must contain `:uri' or `:source-uri'.  Images without a fetchable URI are
+-left to adapter preflight code and produce no requests."
++left to adapter preflight code and produce no requests.  When ELEMENT has a
++`:caption', insert it as visible text in the following paragraph for v1 semantic
++preservation."
+   (if-let* ((uri (or (plist-get element :uri)
+                     (plist-get element :source-uri))))
+-      (list :requests (list `((insertInlineImage
+-                               . ((uri . ,uri)
+-                                  (location . ((index . ,index)))))))
+-            :index (1+ index))
++      (let* ((caption (plist-get element :caption))
++             (caption-text (and caption (not (string-empty-p caption))
++                                (concat "\n" caption "\n")))
++             (caption-len (if caption-text
++                              (gdocs-convert--string-to-utf16-length caption-text)
++                            0))
++             (image-req `((insertInlineImage
++                           . ((uri . ,uri)
++                              (location . ((index . ,index)))))))
++             (caption-req (when caption-text
++                            (gdocs-convert--make-insert-text-request
++                             caption-text (1+ index)))))
++        (list :requests (append (list image-req)
++                                (when caption-req (list caption-req)))
++              :index (+ index 1 caption-len)))
+     (list :requests nil :index index)))
+ 
+ ;; ---------------------------------------------------------------------------
+diff --git a/test/gdocs-convert-test.el b/test/gdocs-convert-test.el
+index 571391e..a32901c 100644
+--- a/test/gdocs-convert-test.el
++++ b/test/gdocs-convert-test.el
+@@ -1338,6 +1338,22 @@
+                        . ((uri . "https://example.invalid/logo.png")
+                           (location . ((index . 12)))))))))))
+ 
++(ert-deftest gdocs-convert-test-captioned-image-ir-to-requests ()
++  "Captioned image IR emits inline image plus visible caption text."
++  (let* ((result (gdocs-convert--image-to-requests
++                  (list :type 'image
++                        :uri "https://example.invalid/logo.png"
++                        :caption "Product logo")
++                  12))
++         (requests (plist-get result :requests)))
++    (should (= (plist-get result :index) 27))
++    (should (equal requests
++                   '(((insertInlineImage
++                       . ((uri . "https://example.invalid/logo.png")
++                          (location . ((index . 12))))))
++                     ((insertText . ((text . "\nProduct logo\n")
++                                     (location . ((index . 13)))))))))))
++
+ (ert-deftest gdocs-convert-test-image-ir-without-uri-noops ()
+   "Image IR without a fetchable URI is left to adapter preflight."
+   (let ((result (gdocs-convert--image-to-requests
+-- 
+2.51.2
+
