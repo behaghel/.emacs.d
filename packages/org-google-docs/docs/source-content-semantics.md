@@ -95,8 +95,8 @@ Org ↔ Google Docs body sync currently depends on upstream `benthamite/gdocs`, 
 | --- | --- | --- |
 | AC-1, AC-2 | Unit tests over Org → IR/request adapter using sample footnote references/definitions, plus manual smoke checklist in `docs/native-footnotes-smoke.md` | Yes |
 | AC-3 | Upstream `gdocs-convert` fixture test over Docs JSON/native footnote payload → Org output | Yes |
-| AC-4, AC-6, AC-7 | Image classification/preflight tests modeled after Confluence image asset tests plus upstream image IR/request tests | Yes |
-| AC-5 | Caption fixture test or documented limitation test | Yes |
+| AC-4, AC-6, AC-7 | Image classification/preflight tests modeled after Confluence image asset tests plus upstream image IR/request tests, plus manual smoke checklist in `docs/native-images-smoke.md` | Yes |
+| AC-5 | Caption fixture test and manual smoke checklist in `docs/native-images-smoke.md`; v1 preserves captions as visible text, not styled/native figure metadata | Yes |
 | AC-8 | Org → IR/request and IR/JSON → Org source-block fixture tests | Yes |
 | AC-9 | Semantic classification tests for dates and people links | Yes |
 | AC-10 | Org → IR/request and IR/JSON → Org quote fixture tests | Yes |
@@ -110,5 +110,6 @@ Org ↔ Google Docs body sync currently depends on upstream `benthamite/gdocs`, 
 - Upstream conversion: `straight/repos/gdocs/gdocs-convert.el`
 - Upstream sync orchestration: `straight/repos/gdocs/gdocs-sync.el`
 - Google Docs adapter facade: `packages/org-google-docs/org-google-docs.el`
+- Native image smoke checklist: `packages/org-google-docs/docs/native-images-smoke.md`
 - Confluence image/quote/footnote exporter inspiration: `packages/org-confluence/org-confluence-export.el`
 - Confluence exporter tests: `test/publishing/confluence/org-confluence-export-test.el`
