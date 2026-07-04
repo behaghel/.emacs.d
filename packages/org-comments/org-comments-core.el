@@ -160,6 +160,12 @@ REPORT is a plist with optional `:provider', `:added', `:updated',
   "Show and return a provider-neutral sync or push REPORT message."
   (message "%s" (org-comments-sync-report-format report)))
 
+(defun org-comments-sync-report-provider-message (provider &rest report)
+  "Show and return sync REPORT message for PROVIDER.
+REPORT is a plist of provider-neutral counters accepted by
+`org-comments-sync-report-format'."
+  (org-comments-sync-report-message (append (list :provider provider) report)))
+
 (defun org-comments-sync-state (comment)
   "Return provider-neutral sync state for COMMENT."
   (cond

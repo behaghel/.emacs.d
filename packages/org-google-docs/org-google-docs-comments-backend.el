@@ -146,8 +146,8 @@ SIDECAR-FILE, DOCUMENT-ID, and ACCOUNT are copied into the returned record."
       (org-google-docs-comments-backend-set-status
        (plist-put (copy-sequence comment) :suppress-report t) "RESOLVED"))
     (when comments
-      (org-comments-sync-report-message
-       (list :provider "Google Docs" :pushed-statuses (length comments))))
+      (org-comments-sync-report-provider-message
+       "Google Docs" :pushed-statuses (length comments)))
     (list :pushed-statuses (length comments))))
 
 (defun org-google-docs-comments-backend--sidecar-entry-info (comment)
@@ -285,8 +285,7 @@ The initial backend only supports resolving remote comments."
        (org-google-docs-comments-backend--mark-sidecar-resolved comment)
        (org-google-docs-comments-backend--refresh-source-ui comment)
        (unless (plist-get comment :suppress-report)
-	 (org-comments-sync-report-message
-	  (list :provider "Google Docs" :resolved 1))))
+	 (org-comments-sync-report-provider-message "Google Docs" :resolved 1)))
      account)
     result))
 
@@ -358,12 +357,10 @@ is forwarded to upstream gdocs request helpers."
 	 "RESOLVED"))
        ((and (equal status "RESOLVED")
 	     (equal remote-status "resolved"))
-	(org-comments-sync-report-message
-	 (list :provider "Google Docs" :already-pushed 1))
+	(org-comments-sync-report-provider-message "Google Docs" :already-pushed 1)
 	(list :already-pushed t :remote-id remote-id :status "RESOLVED"))
        (t
-	(org-comments-sync-report-message
-	 (list :provider "Google Docs" :no-op 1))
+	(org-comments-sync-report-provider-message "Google Docs" :no-op 1)
 	(list :no-op t :remote-id remote-id))))))
 
 (defun org-google-docs-comments-backend-push (comment)
@@ -378,8 +375,7 @@ comments.  Creating new anchored root comments is intentionally deferred."
 	     result)
 	(if (and remote-id (not (string-empty-p remote-id)))
 	    (progn
-	      (org-comments-sync-report-message
-	       (list :provider "Google Docs" :already-pushed 1))
+	      (org-comments-sync-report-provider-message "Google Docs" :already-pushed 1)
 	      (list :already-pushed t :remote-id remote-id))
 	  (org-google-docs-comments-backend--create-reply
 	   (plist-get payload :document-id)
@@ -388,8 +384,7 @@ comments.  Creating new anchored root comments is intentionally deferred."
 	   (lambda (response)
 	     (setq result response)
 	     (org-google-docs-comments-backend--record-reply-remote-id payload response)
-	     (org-comments-sync-report-message
-	      (list :provider "Google Docs" :pushed-replies 1)))
+	     (org-comments-sync-report-provider-message "Google Docs" :pushed-replies 1))
 	   account)
 	  result))))
 

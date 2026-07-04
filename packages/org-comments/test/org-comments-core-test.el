@@ -59,6 +59,13 @@
   (should (equal (org-comments-sync-report-format '(:provider "Google Docs"))
 		 "Google Docs comments: no changes")))
 
+(ert-deftest org-comments-sync-report-provider-message-adds-provider ()
+  "Provider-specific callers can pass only neutral sync counters."
+  (let (message-log-max)
+    (should (equal (org-comments-sync-report-provider-message
+		    "Google Docs" :pushed-replies 1)
+		   "Google Docs comments: pushed replies 1"))))
+
 (ert-deftest org-comments-report-format-grammar-is-provider-neutral ()
   "Import and sync report grammar differs only by provider label."
   (let ((import-counts '(:added 1 :updated 2 :added-replies 1
