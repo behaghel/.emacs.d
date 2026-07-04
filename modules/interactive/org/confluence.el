@@ -17,8 +17,14 @@
   "Personal Confluence integration activation."
   :group 'org)
 
+(defun hub/org-confluence--repository-root ()
+  "Return repository root for resolving the local Confluence package."
+  (or (locate-dominating-file (or load-file-name buffer-file-name default-directory)
+			      "packages")
+      user-emacs-directory))
+
 (defcustom hub/org-confluence-export-directory
-  (expand-file-name "packages/org-confluence" user-emacs-directory)
+  (expand-file-name "packages/org-confluence" (hub/org-confluence--repository-root))
   "Directory containing the Org Confluence exporter package files."
   :type 'directory
   :group 'hub/org-confluence)
@@ -54,6 +60,10 @@
 (autoload 'org-confluence-comments-push-current "org-confluence-comments-push" nil t)
 (autoload 'org-confluence-people-mark-current-user "org-confluence-people" nil t)
 (autoload 'org-confluence-people-resolve "org-confluence-people" nil t)
+
+(require 'org-confluence)
+
+(add-hook 'org-mode-hook #'org-confluence-mode-maybe)
 
 (with-eval-after-load 'general
   (hub/define-leaders)

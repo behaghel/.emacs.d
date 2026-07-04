@@ -17,8 +17,14 @@
   "Personal Google Docs integration activation."
   :group 'org)
 
+(defun hub/org-google-docs--repository-root ()
+  "Return repository root for resolving the local Google Docs package."
+  (or (locate-dominating-file (or load-file-name buffer-file-name default-directory)
+			      "packages")
+      user-emacs-directory))
+
 (defcustom hub/org-google-docs-package-directory
-  (expand-file-name "packages/org-google-docs" user-emacs-directory)
+  (expand-file-name "packages/org-google-docs" (hub/org-google-docs--repository-root))
   "Directory containing the Org Google Docs adapter package files."
   :type 'directory
   :group 'hub/org-google-docs)
@@ -149,6 +155,8 @@ local fork is cloned."
   (hub/org-google-docs-configure-accounts-from-auth-source 'noerror))
 
 (require 'org-google-docs)
+
+(add-hook 'org-mode-hook #'org-google-docs-mode-maybe)
 
 (provide 'org/google-docs)
 ;;; google-docs.el ends here
