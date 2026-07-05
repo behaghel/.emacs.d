@@ -138,6 +138,28 @@ removing the item from `dashboard-items', also avoids loading them."
     (when-let ((generator (alist-get item hub/dashboard--full-item-generators)))
       (setf (alist-get item dashboard-item-generators) generator))))
 
+(defun hub/dashboard--window-state (buffer)
+  "Return visible window point/start state for BUFFER."
+  (mapcar (lambda (window)
+	    (list window (window-point window) (window-start window)))
+	  (get-buffer-window-list buffer nil t)))
+
+(defun hub/dashboard--restore-window-state (state)
+  "Restore dashboard window STATE after a refresh."
+  (dolist (entry state)
+    (pcase-let ((`(,window ,point ,start) entry))
+      (when (window-live-p window)
+	(set-window-point window (min point (point-max)))
+	(set-window-start window (min start (point-max)) t)))))
+
+(defun hub/dashboard-insert-startupify-lists-preserving-position ()
+  "Refresh the current dashboard buffer without moving point or scroll state."
+  (let ((point (point))
+	(state (hub/dashboard--window-state (current-buffer))))
+    (dashboard-insert-startupify-lists t)
+    (goto-char (min point (point-max)))
+    (hub/dashboard--restore-window-state state)))
+
 (defun hub/dashboard-refresh-deferred-items (items)
   "Refresh dashboard after restoring deferred section ITEMS."
   (when (and hub/dashboard--full-item-generators (get-buffer dashboard-buffer-name))
@@ -148,13 +170,11 @@ removing the item from `dashboard-items', also avoids loading them."
       (hub/dashboard--restore-deferred-items items)
       (condition-case err
 	  (progn
-	    (when window
-	      (with-selected-window window
-		(dashboard-insert-startupify-lists t)
-		(goto-char (point-min))))
-	    (unless window
+	    (if window
+		(with-selected-window window
+		  (hub/dashboard-insert-startupify-lists-preserving-position))
 	      (with-current-buffer dashboard-buffer-name
-		(dashboard-insert-startupify-lists t)))
+		(hub/dashboard-insert-startupify-lists-preserving-position)))
 	    (hub/performance-log-startup-event label start-time))
 	(error
 	 (message "[dashboard] deferred refresh failed: %s" (error-message-string err)))))))
@@ -306,10 +326,10 @@ removing the item from `dashboard-items', also avoids loading them."
   (defun hub/dashboard-insert-denote-section (section-name dirs list-size shortcut-id shortcut-char)
     "Insert Denote SECTION-NAME from DIRS with LIST-SIZE items.
 SHORTCUT-ID and SHORTCUT-CHAR are forwarded to `dashboard-insert-section'."
-    (let ((records (and (require 'denote nil 'noerror)
-			(hub/dashboard--existing-dirs dirs)
-			(hub/dashboard--denote-note-records
-			 (hub/dashboard--existing-dirs dirs)))))
+    (let* ((existing-dirs (hub/dashboard--existing-dirs dirs))
+	   (records (and existing-dirs
+			 (require 'denote nil 'noerror)
+			 (hub/dashboard--denote-note-records existing-dirs))))
       (when records
 	(insert (all-the-icons-octicon "repo" :height 1.2 :v-adjust 0.0 :face 'dashboard-heading))
 	(dashboard-insert-section section-name records list-size shortcut-id shortcut-char
