@@ -89,7 +89,7 @@ Expected Org source after pull:
 - visual caption styling is not applied by neutral upstream `gdocs`; users/adapters may style paragraphs identified by the marker;
 - image links are separated from surrounding paragraphs with blank lines in pulled Org output, including the three-way merge pull path used after a shadow exists.
 
-Manual result: pending.
+Manual result: passed. Live round-trip preserved standalone image links, semantic caption markers, `#+CAPTION:` reconstruction, and blank-line separation in pulled Org output.
 
 ## Pipeline trace checklist
 
@@ -131,9 +131,14 @@ Expected Org source:
 - existing `#+CAPTION:` lines remain intact;
 - later pushes use the regular local-image upload path.
 
-If a remote URL is no longer fetchable, the command fails with an actionable fetch error and does not use provider credentials or print tokens.
+Known limitations:
 
-Manual result: pending.
+- cached remote images are local snapshots; changing the image in Google Docs does not automatically invalidate an existing local cached file;
+- re-running the command only sees remaining standalone remote HTTP(S) links, not links already rewritten to `file:`;
+- cache filenames are stable for a given remote URL and hint, so repeated downloads of the same URL/hint target the same path;
+- if Google exposes only a short-lived or no-longer-fetchable URL, the command fails with an actionable fetch error and does not use provider credentials or print tokens.
+
+Manual result: passed. Pulled remote image links cached locally under the document-specific asset directory, used caption-derived filenames with hash suffixes, preserved captions, and were ready for the normal local-image push path.
 
 ## Failure modes already encountered
 
