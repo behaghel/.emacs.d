@@ -31,6 +31,26 @@ This is an authoring policy layered over neutral gdocs logical styles."
      :paragraph (:spacing-mode never-collapse
 			       :space-above 0
 			       :space-below 0))
+    (gdocs-source-block-first
+     :parent normal
+     :paragraph (:spacing-mode never-collapse
+			       :space-above 6
+			       :space-below 0))
+    (gdocs-source-block-line
+     :parent normal
+     :paragraph (:spacing-mode never-collapse
+			       :space-above 0
+			       :space-below 0))
+    (gdocs-source-block-last
+     :parent normal
+     :paragraph (:spacing-mode never-collapse
+			       :space-above 0
+			       :space-below 6))
+    (gdocs-source-block-single
+     :parent normal
+     :paragraph (:spacing-mode never-collapse
+			       :space-above 6
+			       :space-below 6))
     (gdocs-image-caption
      :parent normal
      :paragraph (:alignment center)
