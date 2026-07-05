@@ -136,12 +136,19 @@ return the configured account value, because it contains OAuth client secrets."
 
 (defun hub/org-google-docs-apply-style-definitions ()
   "Apply personal Google Docs logical style definitions when available."
+  (interactive)
+  (when (fboundp 'hub/org-google-docs-style-definitions)
+    (setq hub/org-google-docs-style-definitions
+	  (hub/org-google-docs-style-definitions)))
   (when (and hub/org-google-docs-style-definitions
 	     (boundp 'gdocs-style-definitions))
     (setq gdocs-style-definitions
 	  (hub/org-google-docs--merge-style-definitions
 	   hub/org-google-docs-style-definitions
-	   gdocs-style-definitions))))
+	   gdocs-style-definitions))
+    (when (called-interactively-p 'interactive)
+      (message "Applied %d Google Docs logical style override(s)"
+	       (length hub/org-google-docs-style-definitions)))))
 
 (defun hub/org-google-docs--gdocs-straight-recipe ()
   "Return the Straight recipe for upstream gdocs.
