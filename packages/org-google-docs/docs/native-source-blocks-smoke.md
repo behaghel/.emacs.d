@@ -37,8 +37,9 @@ Expected Google Doc v1 behavior:
 
 - the code text is visible in the Google Doc;
 - code text uses the late-bound logical `gdocs-code` style;
-- each source line is an explicit Google Docs paragraph using the logical `gdocs-source-block` style;
-- blank source lines are preserved as empty styled paragraphs;
+- each source line is rendered as an explicit Google Docs paragraph using a block-line role style;
+- in IR and diffing, the whole source block is one semantic element, so repeated pushes replace/sync the block atomically rather than accumulating nearby blank paragraphs;
+- blank source lines are preserved as empty styled paragraphs inside that semantic block;
 - the source block language is stored in semantic markers named like `gdocs-org-marker:src-block:<id>:emacs-lisp`;
 - native Google Docs code block building-block visuals are not required for v1.
 
