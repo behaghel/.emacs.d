@@ -36,8 +36,10 @@ After.
 Expected Google Doc v1 behavior:
 
 - the code text is visible in the Google Doc;
-- code text uses monospace text styling;
-- the source block language is stored in a semantic marker named like `gdocs-org-marker:src-block:<id>:emacs-lisp`;
+- code text uses the late-bound logical `gdocs-code` style;
+- each source line is an explicit Google Docs paragraph using the logical `gdocs-source-block` style;
+- blank source lines are preserved as empty styled paragraphs;
+- the source block language is stored in semantic markers named like `gdocs-org-marker:src-block:<id>:emacs-lisp`;
 - native Google Docs code block building-block visuals are not required for v1.
 
 Expected Org source after pull:
@@ -60,3 +62,4 @@ Manual result: pending.
 - Syntax highlighting is styling and is deferred.
 - Native Google Docs code block building blocks are deferred until the public API exposes a reliable creation/update seam.
 - If the semantic marker is deleted in Google Docs, pulled monospace paragraphs may fall back to an example block rather than an Org source block with language.
+- Visual spacing around source blocks comes from the authoring style policy, not from literal Org blank lines around the block.
