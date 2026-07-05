@@ -58,6 +58,17 @@
       (should (equal (org-element-property :raw-link link)
 		     "https://example.invalid/logo.png")))))
 
+(ert-deftest org-sync-assets-response-header-parses-url-buffer ()
+  "Response headers are parsed from a URL buffer without internal variables."
+  (with-temp-buffer
+    (insert "HTTP/1.1 200 OK\r\nContent-Type: image/png\r\n\r\nbody")
+    (let ((url-http-end-of-headers (save-excursion
+				     (goto-char (point-min))
+				     (re-search-forward "\r\n\r\n")
+				     (point))))
+      (should (equal (org-sync-assets--response-header "content-type")
+		     "image/png")))))
+
 (ert-deftest org-sync-assets-cache-filename-uses-content-type ()
   "Remote cache filenames use stable URL hashes and content types."
   (should (string-match-p

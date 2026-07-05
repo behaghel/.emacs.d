@@ -169,7 +169,18 @@ filenames with missing local sources as reusable instead of failing."
 
 (defun org-sync-assets--response-header (header)
   "Return response HEADER value from the current URL buffer."
-  (cdr (assoc-string header url-http-response-headers t)))
+  (save-excursion
+    (goto-char (point-min))
+    (let ((case-fold-search t)
+	  (end (or (and (boundp 'url-http-end-of-headers)
+			url-http-end-of-headers)
+		   (save-excursion
+		     (re-search-forward "\r?\n\r?\n" nil 'move)
+		     (point)))))
+      (when (re-search-forward
+	     (format "^%s:[[:space:]]*\\(.*\\)$" (regexp-quote header))
+	     end t)
+	(string-trim-right (match-string 1))))))
 
 (defun org-sync-assets-cache-remote-url (url directory)
   "Download URL into DIRECTORY and return the local file path.
