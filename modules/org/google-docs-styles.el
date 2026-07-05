@@ -72,7 +72,7 @@ This is an authoring policy layered over neutral gdocs logical styles."
 			       :space-above 0
 			       :space-below 0
 			       :indent-start 36
-			       :indent-first-line 0
+			       :indent-first-line 36
 			       :background-color ,hub/org-google-docs-quote-block-background-color))
     (gdocs-quote-block-first
      :parent normal
@@ -80,7 +80,7 @@ This is an authoring policy layered over neutral gdocs logical styles."
 			       :space-above 6
 			       :space-below 0
 			       :indent-start 36
-			       :indent-first-line 0
+			       :indent-first-line 36
 			       :background-color ,hub/org-google-docs-quote-block-background-color))
     (gdocs-quote-block-line
      :parent normal
@@ -88,7 +88,7 @@ This is an authoring policy layered over neutral gdocs logical styles."
 			       :space-above 0
 			       :space-below 0
 			       :indent-start 36
-			       :indent-first-line 0
+			       :indent-first-line 36
 			       :background-color ,hub/org-google-docs-quote-block-background-color))
     (gdocs-quote-block-last
      :parent normal
@@ -96,7 +96,7 @@ This is an authoring policy layered over neutral gdocs logical styles."
 			       :space-above 0
 			       :space-below 6
 			       :indent-start 36
-			       :indent-first-line 0
+			       :indent-first-line 36
 			       :background-color ,hub/org-google-docs-quote-block-background-color))
     (gdocs-quote-block-single
      :parent normal
@@ -104,7 +104,7 @@ This is an authoring policy layered over neutral gdocs logical styles."
 			       :space-above 6
 			       :space-below 6
 			       :indent-start 36
-			       :indent-first-line 0
+			       :indent-first-line 36
 			       :background-color ,hub/org-google-docs-quote-block-background-color))
     (gdocs-image-caption
      :parent normal

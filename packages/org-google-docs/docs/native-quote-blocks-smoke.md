@@ -36,7 +36,7 @@ The local authoring policy defines:
 Current style intent:
 
 - light gray paragraph background;
-- left indentation via `indentStart` plus `indentFirstLine = 0`;
+- left indentation via both `indentStart` and `indentFirstLine` set to the same value;
 - symmetric spacing around the whole block;
 - no literal blank paragraphs for spacing;
 - no italic/foreground-color quote styling, because those are text-run styles and would pull back as Org emphasis or other content-level formatting.
