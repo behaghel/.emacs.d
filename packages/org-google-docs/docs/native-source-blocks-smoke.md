@@ -8,6 +8,7 @@ Evaluate from the linked Org buffer:
 
 ```elisp
 (progn
+  (load-file "/Users/hubertbehaghel/ws/gdocs/gdocs-api.el")
   (load-file "/Users/hubertbehaghel/ws/gdocs/gdocs-convert.el")
   (load-file "/Users/hubertbehaghel/ws/gdocs/gdocs-diff.el")
   (load-file "/Users/hubertbehaghel/ws/gdocs/gdocs-sync.el")
