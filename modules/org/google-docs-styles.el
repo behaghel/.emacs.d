@@ -22,6 +22,11 @@ This is an authoring policy layered over neutral gdocs logical styles."
   :type 'string
   :group 'hub/org-google-docs-styles)
 
+(defcustom hub/org-google-docs-code-block-background-color "#f5f5f5"
+  "Background color used for Google Docs source block paragraphs."
+  :type 'string
+  :group 'hub/org-google-docs-styles)
+
 (defun hub/org-google-docs-style-definitions ()
   "Return personal logical style definitions for Google Docs publishing."
   `((gdocs-code
@@ -30,27 +35,32 @@ This is an authoring policy layered over neutral gdocs logical styles."
      :parent normal
      :paragraph (:spacing-mode never-collapse
 			       :space-above 0
-			       :space-below 0))
+			       :space-below 0
+			       :background-color ,hub/org-google-docs-code-block-background-color))
     (gdocs-source-block-first
      :parent normal
      :paragraph (:spacing-mode never-collapse
 			       :space-above 6
-			       :space-below 0))
+			       :space-below 0
+			       :background-color ,hub/org-google-docs-code-block-background-color))
     (gdocs-source-block-line
      :parent normal
      :paragraph (:spacing-mode never-collapse
 			       :space-above 0
-			       :space-below 0))
+			       :space-below 0
+			       :background-color ,hub/org-google-docs-code-block-background-color))
     (gdocs-source-block-last
      :parent normal
      :paragraph (:spacing-mode never-collapse
 			       :space-above 0
-			       :space-below 6))
+			       :space-below 6
+			       :background-color ,hub/org-google-docs-code-block-background-color))
     (gdocs-source-block-single
      :parent normal
      :paragraph (:spacing-mode never-collapse
 			       :space-above 6
-			       :space-below 6))
+			       :space-below 6
+			       :background-color ,hub/org-google-docs-code-block-background-color))
     (gdocs-image-caption
      :parent normal
      :paragraph (:alignment center)
