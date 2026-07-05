@@ -179,6 +179,18 @@
 	(should (member :missing-gdocs issues))
 	(should (member :missing-accounts issues))))))
 
+(ert-deftest org-google-docs-restyle-revision-annotates-typographic-blocks ()
+  "Restyle revision metadata applies to source and quote blocks."
+  (let* ((org-google-docs--restyle-revision "revision")
+	 (ir (list (list :type 'source-block :lines '("code"))
+		   (list :type 'quote-block
+			 :paragraphs (list (list :text "quote")))
+		   (list :type 'paragraph :contents (list :text "plain"))))
+	 (annotated (org-google-docs--annotate-restyle-revision ir)))
+    (should (equal (plist-get (nth 0 annotated) :style-revision) "revision"))
+    (should (equal (plist-get (nth 1 annotated) :style-revision) "revision"))
+    (should-not (plist-get (nth 2 annotated) :style-revision))))
+
 (ert-deftest org-google-docs-dispatch-runs-selected-action ()
   "Dispatch prompts for an action and runs the selected command."
   (let (calls)
@@ -198,7 +210,7 @@
 		   "Sync: Sync current buffer"
 		   "Publish: Create Google Doc from buffer"
 		   "Publish: Push buffer to Google Docs"
-		   "Publish: Restyle source blocks"
+		   "Publish: Restyle typographic blocks"
 		   "Pull: Pull Google Doc into buffer"
 		   "Images: Cache pulled remote images"
 		   "Open: Open linked Google Doc in browser"

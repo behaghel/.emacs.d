@@ -27,6 +27,11 @@ This is an authoring policy layered over neutral gdocs logical styles."
   :type 'string
   :group 'hub/org-google-docs-styles)
 
+(defcustom hub/org-google-docs-quote-block-color "#666666"
+  "Foreground color used for Google Docs quote block text."
+  :type 'string
+  :group 'hub/org-google-docs-styles)
+
 (defun hub/org-google-docs-style-definitions ()
   "Return personal logical style definitions for Google Docs publishing."
   `((gdocs-code
@@ -61,6 +66,46 @@ This is an authoring policy layered over neutral gdocs logical styles."
 			       :space-above 6
 			       :space-below 6
 			       :background-color ,hub/org-google-docs-code-block-background-color))
+    (gdocs-quote-block
+     :parent normal
+     :paragraph (:spacing-mode never-collapse
+			       :space-above 0
+			       :space-below 0
+			       :indent-start 36)
+     :text (:italic t
+		    :foreground-color ,hub/org-google-docs-quote-block-color))
+    (gdocs-quote-block-first
+     :parent normal
+     :paragraph (:spacing-mode never-collapse
+			       :space-above 6
+			       :space-below 0
+			       :indent-start 36)
+     :text (:italic t
+		    :foreground-color ,hub/org-google-docs-quote-block-color))
+    (gdocs-quote-block-line
+     :parent normal
+     :paragraph (:spacing-mode never-collapse
+			       :space-above 0
+			       :space-below 0
+			       :indent-start 36)
+     :text (:italic t
+		    :foreground-color ,hub/org-google-docs-quote-block-color))
+    (gdocs-quote-block-last
+     :parent normal
+     :paragraph (:spacing-mode never-collapse
+			       :space-above 0
+			       :space-below 6
+			       :indent-start 36)
+     :text (:italic t
+		    :foreground-color ,hub/org-google-docs-quote-block-color))
+    (gdocs-quote-block-single
+     :parent normal
+     :paragraph (:spacing-mode never-collapse
+			       :space-above 6
+			       :space-below 6
+			       :indent-start 36)
+     :text (:italic t
+		    :foreground-color ,hub/org-google-docs-quote-block-color))
     (gdocs-image-caption
      :parent normal
      :paragraph (:alignment center)

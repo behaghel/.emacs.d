@@ -22,7 +22,7 @@ Org ↔ Google Docs body sync currently depends on upstream `benthamite/gdocs`, 
   - Plain local image links become plain text like `file:./veriff2026-logo.png`; imported Google Docs inline images become `:type 'image` IR elements that render back to empty Org text.
   - Source blocks must preserve code text and language identity. Current v1 support stores the source block language in a semantic named-range marker and attaches logical `gdocs-code` / `gdocs-source-block` styles before late-binding them to Google Docs properties. Image captions use the same logical-style path via `gdocs-image-caption`. Google Docs code block building blocks remain the native visual target only if public APIs expose a reliable seam. Syntax highlighting is styling.
   - Dates, people mentions, and statuses need explicit semantic classification before deciding whether native smart chips, mentions, or dropdowns are feasible. Remote dates should import as inactive Org timestamps by default to avoid polluting `org-agenda`.
-  - Quote blocks become `:style 'quote` paragraph IR and round-trip to Org quote blocks, but Google Docs request generation maps unknown styles to normal text. Visible quote decoration is therefore styling-deferred unless a reliable Docs semantic is found.
+  - Quote blocks now use semantic `quote-block` IR with per-paragraph semantic markers. Request generation renders each quoted paragraph through reusable `gdocs-quote-block-first` / `gdocs-quote-block-line` / `gdocs-quote-block-last` / `gdocs-quote-block-single` logical styles, and pull groups marked paragraphs back into one Org quote block.
 - Confluence provides useful patterns, not a storage model to copy:
   - image asset discovery and path validation in `org-confluence-export.el`;
   - standalone image-link detection and captions;
@@ -39,10 +39,10 @@ Org ↔ Google Docs body sync currently depends on upstream `benthamite/gdocs`, 
 | Epic scope | Typographic contract semantics: footnotes, standalone local images, source blocks, dates, people mentions, statuses, and explicit degradation for other specimen constructs | Styling, callout visual design, exact spacing, typography, and rich layout are later epics. |
 | Footnote target | Round-trip semantic preservation | Footnotes are a first-class Org semantic and native Google Docs footnotes exist. |
 | Image target | Publish-first for standalone local images; pull preservation only where the API exposes enough data | Google Docs image insertion/upload and reverse mapping are trickier than text semantics. |
-| Quote target | Preserve quote-block boundaries on round trip; treat visible quote formatting as styling unless Google exposes a reliable semantic equivalent | Upstream already preserves Org quote IR; request generation is the likely styling gap. |
+| Quote target | Preserve quote-block boundaries on round trip using semantic markers and logical block-line styles | Google Docs has no stable native quote-block object in the public Docs API. A marker-backed semantic block preserves Org meaning while authoring-owned styles provide indentation, color, italics, spacing, or future borders/shading. |
 | Upstream modifications | Prefer small, upstreamable hooks/IR extensions over large local monkey patches | The current IR pipeline is a natural extension point; exact footnote reference indices should come from conversion/diff, not placeholder searches. |
 | Style architecture | Emit logical style names in `gdocs` and resolve them late to Google Docs properties | Google Docs exposes only fixed named styles, not arbitrary custom style names. Semantic conversion must not hardcode personal typography; local authoring modules such as `modules/org/google-docs-styles.el` override logical style definitions. Multi-paragraph typographic blocks use reusable line-role styles such as `<base>-first`, `<base>-line`, `<base>-last`, and `<base>-single` for symmetric spacing without literal blank paragraphs. |
-| Style restyling | Provide explicit restyle pushes during style-policy tuning | Once content is unchanged, normal diff may have no reason to touch an already-synced block after visual policy changes. The adapter exposes `org-google-docs-push-restyle-current` to add a one-shot style revision to source-block IR so blocks are restyled intentionally without making every normal push rewrite stable content. |
+| Style restyling | Provide explicit restyle pushes during style-policy tuning | Once content is unchanged, normal diff may have no reason to touch an already-synced block after visual policy changes. The adapter exposes `org-google-docs-push-restyle-current` to add a one-shot style revision to typographic block IR so source and quote blocks are restyled intentionally without making every normal push rewrite stable content. |
 
 ## Acceptance Criteria
 
@@ -62,7 +62,7 @@ Org ↔ Google Docs body sync currently depends on upstream `benthamite/gdocs`, 
 - [x] AC-7: Given an unsupported or missing local image file, when push preflight runs, then it fails before mutating the remote document with a clear actionable error.
 - [x] AC-8: Given a source block with a language, when pushed and pulled, then code text and language identity survive via semantic markers; Google Docs code block building blocks are used only when public APIs expose a reliable seam, and syntax highlighting is explicitly deferred.
 - [ ] AC-9: Given Org dates, provisional people links, and provisional status links, when pushed or preflighted, then Google Docs classifies them as native, degraded, or deferred rather than silently flattening their meaning; pulled remote dates become inactive Org timestamps by default.
-- [ ] AC-10: Given a `#+begin_quote` block with multiple paragraphs, when pushed and pulled, then the Org quote block boundary and paragraph text survive round trip; visible quote decoration is styling-deferred unless a reliable semantic equivalent is implemented.
+- [x] AC-10: Given a `#+begin_quote` block with multiple paragraphs, when pushed and pulled, then the Org quote block boundary and paragraph text survive round trip via semantic named-range markers and quote block IR.
 - [ ] AC-11: Given the specimen `modules/org/specimens/typographic-semantics.org`, when converted through the local semantic preflight/adapter tests, then every contract construct is classified as supported, degraded, deferred, or unsupported with diagnostics.
 
 ## Invariants
@@ -103,7 +103,7 @@ Org ↔ Google Docs body sync currently depends on upstream `benthamite/gdocs`, 
 | AC-5, AC-5a | Caption fixture tests and manual smoke checklist in `docs/native-images-smoke.md`; v1 preserves captions as visible text, records a neutral semantic caption style marker, and reconstructs `#+CAPTION:` from that marker on pull | Yes |
 | AC-8 | Org → IR/request and IR/JSON → Org source-block fixture tests, plus manual live smoke before declaring native visual parity | Yes |
 | AC-9 | Semantic classification tests for dates and people links | Yes |
-| AC-10 | Org → IR/request and IR/JSON → Org quote fixture tests | Yes |
+| AC-10 | Org → IR/request and IR/JSON → Org quote fixture tests; live smoke checklist to validate visual policy | Yes |
 | AC-11 | Specimen semantic audit test/report using `modules/org/specimens/typographic-semantics.org` | Yes |
 
 ## References
@@ -115,5 +115,6 @@ Org ↔ Google Docs body sync currently depends on upstream `benthamite/gdocs`, 
 - Upstream sync orchestration: `straight/repos/gdocs/gdocs-sync.el`
 - Google Docs adapter facade: `packages/org-google-docs/org-google-docs.el`
 - Native image smoke checklist: `packages/org-google-docs/docs/native-images-smoke.md`
+- Native quote block smoke checklist: `packages/org-google-docs/docs/native-quote-blocks-smoke.md`
 - Confluence image/quote/footnote exporter inspiration: `packages/org-confluence/org-confluence-export.el`
 - Confluence exporter tests: `test/publishing/confluence/org-confluence-export-test.el`
