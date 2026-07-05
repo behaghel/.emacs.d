@@ -48,7 +48,7 @@
     (should (member 'tables
 		    (org-google-docs-semantics-test--names classification :supported)))
     (should (member 'source-blocks
-		    (org-google-docs-semantics-test--names classification :degraded)))
+		    (org-google-docs-semantics-test--names classification :supported)))
     (should (member 'dates
 		    (org-google-docs-semantics-test--names classification :degraded)))
     (should (member 'footnotes

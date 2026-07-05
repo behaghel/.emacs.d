@@ -20,7 +20,7 @@ Org ↔ Google Docs body sync currently depends on upstream `benthamite/gdocs`, 
   - Org footnote references become literal text such as `[fn:1]` in paragraphs.
   - Footnote definitions become separate `:type 'footnote` IR elements, but push emits them as literal `[fn:N] body` text rather than native Google Docs footnotes.
   - Plain local image links become plain text like `file:./veriff2026-logo.png`; imported Google Docs inline images become `:type 'image` IR elements that render back to empty Org text.
-  - Source blocks must preserve code text and language identity; Google Docs code block building blocks are the native target where public APIs expose a reliable seam. Syntax highlighting is styling.
+  - Source blocks must preserve code text and language identity. Current v1 support stores the source block language in a semantic named-range marker and renders code text as monospace visible text. Google Docs code block building blocks remain the native visual target only if public APIs expose a reliable seam. Syntax highlighting is styling.
   - Dates, people mentions, and statuses need explicit semantic classification before deciding whether native smart chips, mentions, or dropdowns are feasible. Remote dates should import as inactive Org timestamps by default to avoid polluting `org-agenda`.
   - Quote blocks become `:style 'quote` paragraph IR and round-trip to Org quote blocks, but Google Docs request generation maps unknown styles to normal text. Visible quote decoration is therefore styling-deferred unless a reliable Docs semantic is found.
 - Confluence provides useful patterns, not a storage model to copy:
@@ -58,7 +58,7 @@ Org ↔ Google Docs body sync currently depends on upstream `benthamite/gdocs`, 
 - [x] AC-5a: Given a pushed caption is marked with the neutral `org-image-caption` semantic style name, when pulled, then the marked caption paragraph is re-associated with the preceding image and rendered as `#+CAPTION:` without relying on visual styling heuristics.
 - [ ] AC-6: Given a described image link such as `[[./img/foo.png][Open image]]`, when pushed, then it remains a normal link and is not treated as a standalone image upload.
 - [x] AC-7: Given an unsupported or missing local image file, when push preflight runs, then it fails before mutating the remote document with a clear actionable error.
-- [ ] AC-8: Given a source block with a language, when pushed and pulled, then code text and language identity survive; Google Docs code block building blocks are used when public APIs expose a reliable seam, and syntax highlighting is explicitly deferred.
+- [x] AC-8: Given a source block with a language, when pushed and pulled, then code text and language identity survive via semantic markers; Google Docs code block building blocks are used only when public APIs expose a reliable seam, and syntax highlighting is explicitly deferred.
 - [ ] AC-9: Given Org dates, provisional people links, and provisional status links, when pushed or preflighted, then Google Docs classifies them as native, degraded, or deferred rather than silently flattening their meaning; pulled remote dates become inactive Org timestamps by default.
 - [ ] AC-10: Given a `#+begin_quote` block with multiple paragraphs, when pushed and pulled, then the Org quote block boundary and paragraph text survive round trip; visible quote decoration is styling-deferred unless a reliable semantic equivalent is implemented.
 - [ ] AC-11: Given the specimen `modules/org/specimens/typographic-semantics.org`, when converted through the local semantic preflight/adapter tests, then every contract construct is classified as supported, degraded, deferred, or unsupported with diagnostics.
@@ -99,7 +99,7 @@ Org ↔ Google Docs body sync currently depends on upstream `benthamite/gdocs`, 
 | AC-3 | Upstream `gdocs-convert` fixture test over Docs JSON/native footnote payload → Org output | Yes |
 | AC-4, AC-4a, AC-6, AC-7 | Image classification/preflight tests modeled after Confluence image asset tests plus upstream image IR/request/pull tests, plus manual smoke checklist in `docs/native-images-smoke.md` | Yes |
 | AC-5, AC-5a | Caption fixture tests and manual smoke checklist in `docs/native-images-smoke.md`; v1 preserves captions as visible text, records a neutral semantic caption style marker, and reconstructs `#+CAPTION:` from that marker on pull | Yes |
-| AC-8 | Org → IR/request and IR/JSON → Org source-block fixture tests | Yes |
+| AC-8 | Org → IR/request and IR/JSON → Org source-block fixture tests, plus manual live smoke before declaring native visual parity | Yes |
 | AC-9 | Semantic classification tests for dates and people links | Yes |
 | AC-10 | Org → IR/request and IR/JSON → Org quote fixture tests | Yes |
 | AC-11 | Specimen semantic audit test/report using `modules/org/specimens/typographic-semantics.org` | Yes |

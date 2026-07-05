@@ -26,15 +26,15 @@
     (tables
      :categories ((:structure tables))
      :reason "Google Docs supports tables."
-     :target "Preserve grid structure and cell text."))
+     :target "Preserve grid structure and cell text.")
+    (source-blocks
+     :categories ((:blocks source))
+     :reason "Google Docs sync preserves source block text and language identity through semantic markers; native code block building blocks are styling-deferred until a reliable API seam exists."
+     :target "Round-trip Org source block boundaries, language identity, and code text; defer syntax highlighting and native code-block visuals."))
   "Semantic groups currently treated as supported by Google Docs.")
 
 (defconst org-google-docs-semantics--degraded
-  '((source-blocks
-     :categories ((:blocks source))
-     :reason "Google Docs has native code block building blocks, but the public Docs API seam is not implemented in this adapter yet."
-     :target "Map Org source blocks to native Google Docs code block building blocks when public APIs expose a reliable seam; syntax styling is deferred.")
-    (dates
+  '((dates
      :categories ((:inline active-dates inactive-dates))
      :reason "Google Docs has native date smart chips, but provider-native date semantics are not mapped yet."
      :target "Pull remote dates as inactive Org timestamps by default to avoid org-agenda pollution; use date smart chips when public APIs expose a reliable seam."))

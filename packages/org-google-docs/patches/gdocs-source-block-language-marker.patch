@@ -1,0 +1,124 @@
+From 54a5595a4331259abf4916c4875a7cd31510c97c Mon Sep 17 00:00:00 2001
+From: Hubert Behaghel <behaghel@gmail.com>
+Date: Sun, 5 Jul 2026 13:35:02 +0200
+Subject: [PATCH] Preserve source block languages in markers
+
+---
+ gdocs-convert.el           | 18 +++++++++-------
+ test/gdocs-convert-test.el | 43 +++++++++++++++++++++++++++++++++++---
+ 2 files changed, 51 insertions(+), 10 deletions(-)
+
+diff --git a/gdocs-convert.el b/gdocs-convert.el
+index 8ebf488..84a3766 100644
+--- a/gdocs-convert.el
++++ b/gdocs-convert.el
+@@ -978,8 +978,7 @@ Skips horizontal rule rows."
+           :contents (list (gdocs-convert--make-run display-text
+                                                    (list :code t)))
+           :gdocs-marker (list (list :type 'src-block
+-                                    :data (list :language language
+-                                                :value value)))
++                                    :data language))
+           :id (gdocs-convert--next-id))))
+ 
+ (defun gdocs-convert--lines-to-monospace-ir (lines)
+@@ -1284,7 +1283,7 @@ PREV-TYPE is the :type of the previous element."
+      ((eq style 'quote)
+       (format "#+BEGIN_QUOTE\n%s\n#+END_QUOTE" text))
+      ((when-let* ((data (gdocs-convert--extract-marker-field marker 'src-block)))
+-        (gdocs-convert--format-src-block data)))
++        (gdocs-convert--format-src-block data element)))
+      ((when-let* ((data (gdocs-convert--extract-marker-field marker 'keyword)))
+         (format "#+%s: %s" (plist-get data :key) (plist-get data :value))))
+      ((gdocs-convert--extract-marker-field marker 'verse-block)
+@@ -1365,10 +1364,15 @@ indent continuation lines to keep them inside the list item."
+                 "- [X] "
+               "- [ ] "))))
+ 
+-(defun gdocs-convert--format-src-block (data)
+-  "Format a src block from its marker DATA plist."
+-  (let* ((language (plist-get data :language))
+-         (value (plist-get data :value)))
++(defun gdocs-convert--format-src-block (data element)
++  "Format a src block from marker DATA and paragraph ELEMENT."
++  (let* ((legacy-data-p (listp data))
++         (language (if legacy-data-p
++                       (plist-get data :language)
++                     data))
++         (value (if legacy-data-p
++                    (plist-get data :value)
++                  (concat (gdocs-convert--plain-text element) "\n"))))
+     (concat "#+BEGIN_SRC" (if (s-present? language)
+                               (concat " " language)
+                             "")
+diff --git a/test/gdocs-convert-test.el b/test/gdocs-convert-test.el
+index 4c29829..c778f19 100644
+--- a/test/gdocs-convert-test.el
++++ b/test/gdocs-convert-test.el
+@@ -462,6 +462,32 @@
+     (should (equal (gdocs-convert-ir-to-org ir)
+                    "#+CAPTION: Hubert banner\n[[https://example.invalid/logo.png]]\n"))))
+ 
++(ert-deftest gdocs-convert-test-docs-json-marked-src-block ()
++  "Marked source-block paragraphs pull back to Org source blocks."
++  (let* ((body-elements
++          (vector `((startIndex . 1)
++                    (endIndex . 10)
++                    (paragraph
++                     . ((elements
++                         . ,(vector '((textRun
++                                      . ((content . "print(1)\n")
++                                         (textStyle
++                                          . ((weightedFontFamily
++                                              . ((fontFamily . "Courier New"))))))))))
++                        (paragraphStyle
++                         . ((namedStyleType . "NORMAL_TEXT"))))))))
++         (json `((body . ((content . ,body-elements)))
++                 (namedRanges
++                  . ((gdocs-org-marker:src-block:elem-001:python
++                      . ((namedRanges
++                          . ,(vector `((ranges
++                                        . ,(vector '((startIndex . 1)
++                                                     (endIndex . 9)))))))))))))
++         (ir (gdocs-convert-docs-json-to-ir json))
++         (org (gdocs-convert-ir-to-org ir)))
++    (should (string= (s-trim org)
++                     "#+BEGIN_SRC python\nprint(1)\n#+END_SRC"))))
++
+ (ert-deftest gdocs-convert-test-docs-json-native-footnotes ()
+   "Native Google Docs footnotes convert to Org references and definitions."
+   (let* ((body-elements
+@@ -657,7 +683,7 @@
+     (should marker)
+     (should (listp marker))
+     (should (eq (plist-get (car marker) :type) 'src-block))
+-    (should (string= (plist-get (plist-get (car marker) :data) :language) "python"))))
++    (should (string= (plist-get (car marker) :data) "python"))))
+ 
+ ;; ---------------------------------------------------------------------------
+ ;;; Priority markers
+@@ -1482,8 +1508,19 @@
+     ;; The marker should record it as a src-block with the language
+     (should marker)
+     (should (eq (plist-get (car marker) :type) 'src-block))
+-    (should (string= (plist-get (plist-get (car marker) :data) :language)
+-                      "emacs-lisp"))))
++    (should (string= (plist-get (car marker) :data)
++                     "emacs-lisp"))))
++
++(ert-deftest gdocs-convert-test-src-block-requests-mark-language ()
++  "Source block requests create a marker named range with the language."
++  (let* ((ir (gdocs-convert-org-string-to-ir
++              "#+begin_src emacs-lisp\n(message \"hello\")\n#+end_src"))
++         (requests (gdocs-convert-ir-to-docs-requests ir)))
++    (should (member '((createNamedRange
++                       . ((name . "gdocs-org-marker:src-block:elem-001:emacs-lisp")
++                          (range . ((startIndex . 1)
++                                    (endIndex . 18))))))
++                    requests))))
+ 
+ ;; ---------------------------------------------------------------------------
+ ;;; Round-trip stability for complex documents
+-- 
+2.51.2
+
