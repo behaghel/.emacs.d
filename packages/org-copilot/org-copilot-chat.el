@@ -41,6 +41,11 @@ assistant message, or a plist with `:message' and optional `:comments'.  Normal
   :type 'boolean
   :group 'org-copilot)
 
+(defcustom org-copilot-chat-window-height 18
+  "Height of the Org Copilot chat bottom window."
+  :type 'natnum
+  :group 'org-copilot)
+
 (defvar-local org-copilot-chat-source-buffer nil
   "Source buffer associated with the current Org Copilot chat buffer.")
 
@@ -389,6 +394,37 @@ assistant message, or a plist with `:message' and optional `:comments'.  Normal
 	 (list :type 'comment :comment-id (org-copilot-comment-id comment)))
 	comment))))
 
+(defun org-copilot-chat-render-bottom-view (source-buffer _view)
+  "Render the Org Copilot bottom chat view for SOURCE-BUFFER."
+  (setq org-copilot-chat-source-buffer source-buffer)
+  (setq org-context-panel-source-buffer source-buffer)
+  (setq org-context-panel-view-id 'copilot-chat)
+  (org-copilot-chat-render source-buffer))
+
+(defun org-copilot-chat-bottom-views (_source-buffer)
+  "Return Org Copilot bottom view descriptors."
+  (list (list :id 'copilot-chat
+	      :buffer-name org-copilot-chat-buffer-name
+	      :mode 'org-copilot-chat-mode
+	      :height org-copilot-chat-window-height
+	      :render #'org-copilot-chat-render-bottom-view)))
+
+(defun org-copilot-chat--open-bottom-view (source-buffer)
+  "Open the Org Copilot bottom chat view for SOURCE-BUFFER."
+  (with-current-buffer source-buffer
+    (org-copilot-mode 1))
+  (let* ((buffer (org-context-panel-open-bottom-view 'copilot-chat source-buffer))
+	 (window (get-buffer-window buffer t)))
+    (org-copilot-chat-sync-diff source-buffer)
+    (when (window-live-p window)
+      (select-window window)
+      (with-current-buffer buffer
+	(org-copilot-chat-goto-prompt))
+      (set-window-point window
+			(with-current-buffer buffer
+			  org-copilot-chat--prompt-start)))
+    buffer))
+
 ;;;###autoload
 (defun org-copilot-chat-full-document ()
   "Open Org Copilot chat in full-document context.
@@ -398,20 +434,7 @@ prompt active.  Source target overlays remain visible as dim context markers."
   (let ((source (org-copilot-chat--source-buffer)))
     (org-copilot-chat--set-context source '(:type full-document))
     (org-copilot-chat--refresh-source-ui source)
-    (let ((buffer (org-copilot-chat--buffer source)))
-      (let ((window (display-buffer-in-side-window
-		     buffer
-		     '((side . bottom)
-		       (slot . 1)
-		       (window-height . 12)
-		       (window-parameters
-			. ((no-other-window . t)
-			   (no-delete-other-windows . t)))))))
-	(org-copilot-chat--protect-window window buffer source)
-	(select-window window)
-	(with-current-buffer buffer
-	  (org-copilot-chat-goto-prompt)))
-      buffer)))
+    (org-copilot-chat--open-bottom-view source)))
 
 ;;;###autoload
 (defun org-copilot-chat-section ()
@@ -422,20 +445,7 @@ prompt active.  Source target overlays remain visible as dim context markers."
 		    (org-copilot-chat--section-context-at-point))))
     (org-copilot-chat--set-context source context)
     (org-copilot-chat--refresh-source-ui source)
-    (let ((buffer (org-copilot-chat--buffer source)))
-      (let ((window (display-buffer-in-side-window
-		     buffer
-		     '((side . bottom)
-		       (slot . 1)
-		       (window-height . 12)
-		       (window-parameters
-			. ((no-other-window . t)
-			   (no-delete-other-windows . t)))))))
-	(org-copilot-chat--protect-window window buffer source)
-	(select-window window)
-	(with-current-buffer buffer
-	  (org-copilot-chat-goto-prompt)))
-      buffer)))
+    (org-copilot-chat--open-bottom-view source)))
 
 (defun org-copilot-chat--refresh-source-ui (source-buffer)
   "Refresh source overlays and visible side panel for SOURCE-BUFFER."
@@ -530,23 +540,9 @@ prompt active.  Source target overlays remain visible as dim context markers."
   "Open the Org Copilot bottom chat for the current source buffer."
   (interactive)
   (let* ((source (org-copilot-chat--source-buffer))
-	 (comment (org-copilot-chat--comment-at-point))
-	 (buffer (progn
-		   (org-copilot-chat--focus-comment source comment)
-		   (org-copilot-chat--buffer source))))
-    (let ((window (display-buffer-in-side-window
-		   buffer
-		   '((side . bottom)
-		     (slot . 1)
-		     (window-height . 12)
-		     (window-parameters
-		      . ((no-other-window . t)
-			 (no-delete-other-windows . t)))))))
-      (org-copilot-chat--protect-window window buffer source)
-      (select-window window)
-      (with-current-buffer buffer
-	(org-copilot-chat-goto-prompt)))
-    buffer))
+	 (comment (org-copilot-chat--comment-at-point)))
+    (org-copilot-chat--focus-comment source comment)
+    (org-copilot-chat--open-bottom-view source)))
 
 (defun org-copilot-chat--adapter-message (response)
   "Return assistant message content from adapter RESPONSE, or nil."
@@ -638,6 +634,132 @@ prompt active.  Source target overlays remain visible as dim context markers."
     (org-copilot-chat--set-context source-buffer '(:type full-document)))
   (org-copilot-chat--after-focused-action source-buffer))
 
+(defun org-copilot-chat--doctor-value (value)
+  "Return VALUE formatted for the Org Copilot doctor report."
+  (cond
+   ((null value) "no")
+   ((eq value t) "yes")
+   ((symbolp value) (symbol-name value))
+   ((functionp value) (format "%S" value))
+   ((bufferp value) (buffer-name value))
+   (t (format "%S" value))))
+
+(defun org-copilot-chat--doctor-check (label ok &optional detail)
+  "Return a formatted doctor check line for LABEL, OK, and DETAIL."
+  (format "- %s: %s%s"
+	  label
+	  (if ok "OK" "WARN")
+	  (if detail (format " (%s)" detail) "")))
+
+(defun org-copilot-chat--doctor-report (source-buffer)
+  "Return a deep Org Copilot health report for SOURCE-BUFFER."
+  (let* ((chat-buffer (get-buffer org-copilot-chat-buffer-name))
+	 (chat-window (and chat-buffer (get-buffer-window chat-buffer t)))
+	 (source-live (buffer-live-p source-buffer))
+	 (source-mode (and source-live
+			   (with-current-buffer source-buffer major-mode)))
+	 (comments (and source-live
+			(with-current-buffer source-buffer
+			  (org-copilot-comments))))
+	 (messages (and source-live
+			(with-current-buffer source-buffer
+			  (org-copilot-chat-messages))))
+	 (pending-count (cl-count-if
+			 (lambda (message)
+			   (eq (plist-get message :role) 'pending))
+			 messages))
+	 (chat-function org-copilot-chat-function)
+	 (review-function (and (boundp 'org-copilot-review-function)
+			       org-copilot-review-function))
+	 (gptel-loaded (featurep 'gptel))
+	 (gptel-request-present (fboundp 'gptel-request))
+	 (gptel-adapter-loaded (featurep 'org-copilot-gptel))
+	 (gptel-chat-enabled (eq chat-function 'org-copilot-gptel-chat))
+	 (gptel-review-enabled (eq review-function 'org-copilot-gptel-review)))
+    (string-join
+     (list
+      "Org Copilot Doctor"
+      ""
+      "Source"
+      (org-copilot-chat--doctor-check
+       "source buffer live" source-live (org-copilot-chat--doctor-value source-buffer))
+      (org-copilot-chat--doctor-check
+       "source buffer is org-mode" (and source-live (eq source-mode 'org-mode))
+       (org-copilot-chat--doctor-value source-mode))
+      (format "- source file: %s"
+	      (or (and source-live
+		       (with-current-buffer source-buffer buffer-file-name))
+		  "<none>"))
+      ""
+      "Chat UI"
+      (org-copilot-chat--doctor-check
+       "chat buffer exists" chat-buffer (org-copilot-chat--doctor-value chat-buffer))
+      (org-copilot-chat--doctor-check
+       "chat window visible" chat-window (org-copilot-chat--doctor-value chat-window))
+      (org-copilot-chat--doctor-check
+       "prompt marker valid"
+       (and chat-buffer
+	    (with-current-buffer chat-buffer
+	      (markerp org-copilot-chat--prompt-start))))
+      ""
+      "Session"
+      (format "- comments: %d" (length comments))
+      (format "- chat messages: %d" (length messages))
+      (format "- pending assistant messages: %d" pending-count)
+      (format "- focused comment id: %s"
+	      (or (and source-live
+		       (with-current-buffer source-buffer
+			 org-copilot-chat-focus-comment-id))
+		  "<none>"))
+      ""
+      "Adapters"
+      (org-copilot-chat--doctor-check
+       "chat adapter configured" chat-function
+       (org-copilot-chat--doctor-value chat-function))
+      (org-copilot-chat--doctor-check
+       "review adapter configured" review-function
+       (org-copilot-chat--doctor-value review-function))
+      (org-copilot-chat--doctor-check "gptel feature loaded" gptel-loaded)
+      (org-copilot-chat--doctor-check "gptel-request available" gptel-request-present)
+      (org-copilot-chat--doctor-check "org-copilot-gptel loaded" gptel-adapter-loaded)
+      (org-copilot-chat--doctor-check "gptel chat adapter enabled" gptel-chat-enabled)
+      (org-copilot-chat--doctor-check "gptel review adapter enabled" gptel-review-enabled)
+      (format "- gptel model: %s"
+	      (if (boundp 'gptel-model)
+		  (org-copilot-chat--doctor-value gptel-model)
+		"<unbound>"))
+      (format "- gptel backend: %s"
+	      (if (boundp 'gptel-backend)
+		  (org-copilot-chat--doctor-value gptel-backend)
+		"<unbound>"))
+      (format "- gptel api key configured: %s"
+	      (if (and (boundp 'gptel-api-key) gptel-api-key) "yes" "no"))
+      ""
+      "Likely fixes"
+      (cond
+       ((not chat-function)
+	"- No chat adapter is configured. Load/enable an adapter, e.g. `org-copilot-gptel-enable'.")
+       ((and gptel-chat-enabled (not gptel-request-present))
+	"- gptel adapter is selected, but `gptel-request' is unavailable; load gptel.")
+       ((> pending-count 0)
+	"- A request is pending. Check *Messages* for gptel callback errors or network/auth failures.")
+       (t
+	"- No obvious local configuration problem detected. If requests still hang, inspect *Messages* and gptel backend logs.")))
+     "\n")))
+
+(defun org-copilot-chat-doctor (source-buffer)
+  "Append an Org Copilot health report for SOURCE-BUFFER to the chat."
+  (let ((report (org-copilot-chat--doctor-report source-buffer))
+	(context-id (with-current-buffer source-buffer
+		      (org-copilot-chat--context-id org-copilot-chat-context)))
+	(comment-id (with-current-buffer source-buffer
+		      org-copilot-chat-focus-comment-id)))
+    (with-current-buffer source-buffer
+      (org-copilot-add-chat-message 'assistant report comment-id context-id))
+    (org-copilot-chat--buffer source-buffer)
+    (org-copilot-chat-scroll-to-last-message source-buffer 'assistant)
+    report))
+
 ;;;###autoload
 (defun org-copilot-chat-dismiss-focused-comment-at-point ()
   "Dismiss the current Org Copilot chat focus."
@@ -648,6 +770,7 @@ prompt active.  Source target overlays remain visible as dim context markers."
 (defconst org-copilot-chat-slash-commands
   '(("/accept" . "Accept focused suggestion")
     ("/dismiss" . "Dismiss focused comment")
+    ("/doctor" . "Run Org Copilot health check")
     ("/next" . "Focus next comment")
     ("/prev" . "Focus previous comment")
     ("/undo" . "Undo accepted suggestion"))
@@ -664,6 +787,7 @@ prompt active.  Source target overlays remain visible as dim context markers."
   "Return non-nil when slash COMMAND is available for SOURCE-BUFFER."
   (let ((comment (org-copilot-chat--focused-comment source-buffer)))
     (pcase command
+      ("/doctor" t)
       ("/next" (org-copilot-chat--navigable-comments source-buffer))
       ("/prev" (org-copilot-chat--navigable-comments source-buffer))
       ("/accept" (and comment
@@ -710,6 +834,9 @@ prompt active.  Source target overlays remain visible as dim context markers."
   (pcase (string-trim message)
     ("/accept"
      (org-copilot-chat-accept-focused-suggestion source-buffer)
+     t)
+    ("/doctor"
+     (org-copilot-chat-doctor source-buffer)
      t)
     ("/dismiss"
      (org-copilot-chat-dismiss-focused-comment source-buffer)

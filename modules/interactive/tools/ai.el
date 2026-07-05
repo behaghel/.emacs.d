@@ -41,13 +41,23 @@
   (auth-source-pass-enable)
   (setq gptel-api-key #'hub/gptel-api-key))
 
+(defun hub/org-copilot-enable-gptel ()
+  "Configure Org Copilot to use the gptel provider when available."
+  (if (not (require 'org-copilot-gptel nil 'noerror))
+      (message "Org Copilot: gptel provider unavailable")
+    (condition-case err
+	(org-copilot-gptel-enable)
+      (error
+       (message "Org Copilot: failed to enable gptel provider: %s"
+		(error-message-string err))))))
+
 (with-eval-after-load 'org
   (require 'org-copilot)
-  (add-hook 'org-mode-hook #'org-copilot-mode))
+  (add-hook 'org-mode-hook #'org-copilot-mode)
+  (hub/org-copilot-enable-gptel))
 
 (with-eval-after-load 'gptel
-  (require 'org-copilot-gptel)
-  (org-copilot-gptel-enable))
+  (hub/org-copilot-enable-gptel))
 
 (use-package codeium
   :straight '(:type git :host github :repo "Exafunction/codeium.el")

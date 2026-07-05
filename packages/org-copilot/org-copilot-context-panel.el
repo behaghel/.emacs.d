@@ -275,6 +275,7 @@ previous overlay already claimed the focused face."
 	:collect-side-items #'org-copilot-context-panel-collect-side-items
 	:render-side-item #'org-copilot-context-panel-render-side-item
 	:jump-side-item #'org-copilot-context-panel-jump-side-item
+	:collect-bottom-views #'org-copilot-chat-bottom-views
 	:side-panel-mode #'org-copilot-panel-mode
 	:side-panel-buffer-name org-copilot-panel-buffer-name
 	:side-panel-width org-copilot-panel-width))

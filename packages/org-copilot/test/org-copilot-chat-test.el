@@ -414,7 +414,8 @@
   "Slash command completion only exposes commands valid for current focus."
   (with-temp-buffer
     (org-mode)
-    (should-not (org-copilot-chat--available-slash-commands (current-buffer)))
+    (should (assoc "/doctor" (org-copilot-chat--available-slash-commands
+			      (current-buffer))))
     (org-copilot-add-comment (list :id "ai-1" :status 'active))
     (should (assoc "/next" (org-copilot-chat--available-slash-commands
 			    (current-buffer))))
@@ -448,14 +449,20 @@
     (should (assoc "/undo" (org-copilot-chat--available-slash-commands
 			    (current-buffer))))))
 
-(ert-deftest org-copilot-chat-slash-completion-errors-without-available-command ()
-  "Typing slash in an empty prompt errors when no command is available."
+(ert-deftest org-copilot-chat-doctor-command-appends-health-report ()
+  "The /doctor command appends a local Org Copilot health report."
   (with-temp-buffer
     (org-mode)
     (let ((source (current-buffer)))
       (with-current-buffer (org-copilot-chat--buffer source)
-	(should-error (org-copilot-chat-slash-or-complete)
-		      :type 'user-error)))))
+	(org-copilot-chat-send "/doctor"))
+      (let ((messages (org-copilot-chat-messages)))
+	(should (= (length messages) 1))
+	(should (eq (plist-get (car messages) :role) 'assistant))
+	(should (string-match-p "Org Copilot Doctor"
+				(plist-get (car messages) :content)))
+	(should (string-match-p "chat adapter configured"
+				(plist-get (car messages) :content)))))))
 
 (ert-deftest org-copilot-chat-slash-completion-executes-selected-command ()
   "Typing slash in an empty prompt completes and executes a slash command."
@@ -485,6 +492,8 @@
   (should (equal (org-copilot-chat--slash-command-annotation "/accept")
 		 "  Accept focused suggestion"))
   (should (assoc "/dismiss" org-copilot-chat-slash-commands))
+  (should (equal (org-copilot-chat--slash-command-annotation "/doctor")
+		 "  Run Org Copilot health check"))
   (should-not (assoc "/help" org-copilot-chat-slash-commands)))
 
 (ert-deftest org-copilot-chat-mode-defines-action-keys ()

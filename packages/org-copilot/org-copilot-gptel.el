@@ -204,19 +204,7 @@ fallback anchoring."
   "Open the general Org Copilot chat for SOURCE-BUFFER."
   (with-current-buffer source-buffer
     (org-copilot-chat--set-context source-buffer '(:type full-document))
-    (let* ((buffer (org-copilot-chat--buffer source-buffer))
-	   (window (display-buffer-in-side-window
-		    buffer
-		    '((side . bottom)
-		      (slot . 1)
-		      (window-height . 12)
-		      (window-parameters
-		       . ((no-other-window . t)
-			  (no-delete-other-windows . t)))))))
-      (when (fboundp 'org-context-panel-protect-window)
-	(org-context-panel-protect-window window buffer source-buffer))
-      (with-current-buffer buffer
-	(set-window-point window (point-min))))))
+    (org-copilot-chat--open-bottom-view source-buffer)))
 
 (defun org-copilot-gptel--review-count-summary (comments)
   "Return a local review count summary for COMMENTS."

@@ -28,6 +28,18 @@
     (org-copilot-mode -1)
     (should-not (org-context-panel-registered-provider 'copilot))))
 
+(ert-deftest org-copilot-context-panel-provider-exposes-chat-bottom-view ()
+  "Org Copilot chat is exposed as a context-panel bottom view with height."
+  (with-temp-buffer
+    (org-mode)
+    (let ((org-copilot-chat-window-height 18))
+      (org-copilot-mode 1)
+      (let ((view (org-context-panel-bottom-view 'copilot-chat (current-buffer))))
+	(should view)
+	(should (eq (plist-get view :provider) 'copilot))
+	(should (eq (plist-get view :mode) 'org-copilot-chat-mode))
+	(should (= (plist-get view :height) 18))))))
+
 (ert-deftest org-copilot-context-panel-collects-visible-items ()
   "The context-panel provider exposes active AI comments as side items."
   (with-temp-buffer
