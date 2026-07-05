@@ -198,6 +198,7 @@
 		   "Sync: Sync current buffer"
 		   "Publish: Create Google Doc from buffer"
 		   "Publish: Push buffer to Google Docs"
+		   "Publish: Restyle source blocks"
 		   "Pull: Pull Google Doc into buffer"
 		   "Images: Cache pulled remote images"
 		   "Open: Open linked Google Doc in browser"

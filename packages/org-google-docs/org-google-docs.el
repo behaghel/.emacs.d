@@ -26,6 +26,7 @@
 (declare-function gdocs-convert-org-buffer-to-ir "gdocs-convert" ())
 (declare-function gdocs-diff-generate "gdocs-diff"
 		  (old-ir new-ir &optional start-index))
+(declare-function gdocs-sync-push "gdocs-sync" ())
 
 (defgroup org-google-docs nil
   "Org-facing Google Docs publishing adapter."
@@ -47,6 +48,9 @@ Set this to nil before rebuilding the map to leave the mode map unbound."
 
 (defvar-local org-google-docs--enabled-org-comments-mode nil
   "Non-nil when `org-google-docs-mode' enabled `org-comments-mode'.")
+
+(defvar-local org-google-docs--restyle-revision nil
+  "One-shot style revision marker used to force source block restyling.")
 
 (defun org-google-docs--upstream-command (command)
   "Return upstream gdocs COMMAND symbol or signal an actionable error."
@@ -273,6 +277,52 @@ content from the local buffer and fetched Google Doc."
       (message "Org Google Docs pipeline trace written"))
     debug-buffer))
 
+(defun org-google-docs--annotate-restyle-revision (ir)
+  "Annotate source block elements in IR with the current restyle revision."
+  (if (not org-google-docs--restyle-revision)
+      ir
+    (mapcar (lambda (element)
+	      (if (eq (plist-get element :type) 'source-block)
+		  (plist-put (copy-sequence element)
+			     :style-revision org-google-docs--restyle-revision)
+		element))
+	    ir)))
+
+(defun org-google-docs--around-convert-org-buffer-to-ir (orig &rest args)
+  "Advise ORIG to add one-shot style revision metadata."
+  (org-google-docs--annotate-restyle-revision (apply orig args)))
+
+(defun org-google-docs--clear-restyle-revision (&rest _args)
+  "Clear one-shot source block restyle state after push completion."
+  (setq org-google-docs--restyle-revision nil))
+
+(defun org-google-docs-enable-restyle-advice ()
+  "Enable source-block restyle advice for upstream gdocs."
+  (when (fboundp 'gdocs-convert-org-buffer-to-ir)
+    (advice-add 'gdocs-convert-org-buffer-to-ir
+		:around #'org-google-docs--around-convert-org-buffer-to-ir))
+  (when (fboundp 'gdocs-sync--handle-push-success)
+    (advice-add 'gdocs-sync--handle-push-success
+		:after #'org-google-docs--clear-restyle-revision))
+  (when (fboundp 'gdocs-sync--handle-push-error)
+    (advice-add 'gdocs-sync--handle-push-error
+		:after #'org-google-docs--clear-restyle-revision)))
+
+;;;###autoload
+(defun org-google-docs-push-restyle-current ()
+  "Push current buffer while forcing source block style reapplication.
+This is intended for style-policy tuning.  It marks local source-block IR with a
+one-shot style revision so the diff replaces/restyles those blocks even when
+code text has not changed."
+  (interactive)
+  (org-google-docs--require-upstream-library 'gdocs-convert)
+  (org-google-docs--require-upstream-library 'gdocs-diff)
+  (org-google-docs--require-upstream-library 'gdocs-sync)
+  (org-google-docs-enable-restyle-advice)
+  (setq org-google-docs--restyle-revision
+	(format-time-string "%Y%m%dT%H%M%S%z"))
+  (org-google-docs-push))
+
 (defconst org-google-docs--dispatch-actions
   '(("Status: Doctor" . org-google-docs-doctor)
     ("Status: Upstream gdocs status" . org-google-docs-status)
@@ -280,6 +330,7 @@ content from the local buffer and fetched Google Doc."
     ("Sync: Sync current buffer" . org-google-docs-sync-current)
     ("Publish: Create Google Doc from buffer" . org-google-docs-create)
     ("Publish: Push buffer to Google Docs" . org-google-docs-push)
+    ("Publish: Restyle source blocks" . org-google-docs-push-restyle-current)
     ("Pull: Pull Google Doc into buffer" . org-google-docs-pull)
     ("Images: Cache pulled remote images" . org-google-docs-images-cache-remote-images)
     ("Open: Open linked Google Doc in browser" . org-google-docs-open)

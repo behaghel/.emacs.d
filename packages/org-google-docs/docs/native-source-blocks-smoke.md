@@ -58,9 +58,20 @@ After.
 
 Manual result: pending.
 
+## Restyle during style-policy tuning
+
+When changing only logical style definitions, use:
+
+```elisp
+M-x org-google-docs-push-restyle-current
+```
+
+This intentionally adds a one-shot style revision to local source-block IR so the diff re-applies source-block rendering even if the code text is unchanged. It is mainly for style iteration, not everyday sync.
+
 ## Known limitations
 
 - Syntax highlighting is styling and is deferred.
 - Native Google Docs code block building blocks are deferred until the public API exposes a reliable creation/update seam.
 - If the semantic marker is deleted in Google Docs, pulled monospace paragraphs may fall back to an example block rather than an Org source block with language.
 - Visual spacing around source blocks comes from the authoring style policy, not from literal Org blank lines around the block.
+- Paragraph block shading requires the Google Docs field mask `shading.backgroundColor`; using only `shading` was observed not to render the expected background in live smoke testing.

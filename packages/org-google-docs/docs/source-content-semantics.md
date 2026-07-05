@@ -42,6 +42,7 @@ Org ↔ Google Docs body sync currently depends on upstream `benthamite/gdocs`, 
 | Quote target | Preserve quote-block boundaries on round trip; treat visible quote formatting as styling unless Google exposes a reliable semantic equivalent | Upstream already preserves Org quote IR; request generation is the likely styling gap. |
 | Upstream modifications | Prefer small, upstreamable hooks/IR extensions over large local monkey patches | The current IR pipeline is a natural extension point; exact footnote reference indices should come from conversion/diff, not placeholder searches. |
 | Style architecture | Emit logical style names in `gdocs` and resolve them late to Google Docs properties | Google Docs exposes only fixed named styles, not arbitrary custom style names. Semantic conversion must not hardcode personal typography; local authoring modules such as `modules/org/google-docs-styles.el` override logical style definitions. Multi-paragraph typographic blocks use reusable line-role styles such as `<base>-first`, `<base>-line`, `<base>-last`, and `<base>-single` for symmetric spacing without literal blank paragraphs. |
+| Style restyling | Provide explicit restyle pushes during style-policy tuning | Once content is unchanged, normal diff may have no reason to touch an already-synced block after visual policy changes. The adapter exposes `org-google-docs-push-restyle-current` to add a one-shot style revision to source-block IR so blocks are restyled intentionally without making every normal push rewrite stable content. |
 
 ## Acceptance Criteria
 
