@@ -281,6 +281,7 @@ content from the local buffer and fetched Google Doc."
     ("Publish: Create Google Doc from buffer" . org-google-docs-create)
     ("Publish: Push buffer to Google Docs" . org-google-docs-push)
     ("Pull: Pull Google Doc into buffer" . org-google-docs-pull)
+    ("Images: Cache pulled remote images" . org-google-docs-images-cache-remote-images)
     ("Open: Open linked Google Doc in browser" . org-google-docs-open)
     ("Comments: Import comments" . org-google-docs-comments-import)
     ("Account: Authenticate Google account" . org-google-docs-authenticate))

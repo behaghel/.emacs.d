@@ -13,6 +13,8 @@
 (require 'org-element)
 (require 'seq)
 (require 'subr-x)
+(require 'url)
+(require 'url-http)
 
 (defgroup org-sync-assets nil
   "Shared Org synchronization asset helpers."
@@ -24,6 +26,11 @@
   :type '(repeat string)
   :group 'org-sync-assets)
 
+(defcustom org-sync-assets-cache-directory "assets/org-sync"
+  "Default relative directory used to cache remote Org sync assets."
+  :type 'directory
+  :group 'org-sync-assets)
+
 (defun org-sync-assets-diagnostic (code message &rest properties)
   "Return an asset diagnostic with CODE, MESSAGE, and PROPERTIES."
   (append (list :code code :message message) properties))
@@ -31,6 +38,13 @@
 (defun org-sync-assets-blank-string-p (object)
   "Return non-nil when OBJECT is only whitespace text."
   (and (stringp object) (string-blank-p object)))
+
+(defun org-sync-assets-http-link-p (object)
+  "Return non-nil when OBJECT is an undescribed HTTP(S) link."
+  (and (not (stringp object))
+       (eq (org-element-type object) 'link)
+       (member (org-element-property :type object) '("http" "https"))
+       (null (org-element-contents object))))
 
 (defun org-sync-assets-image-link-p (object)
   "Return non-nil when OBJECT is an undescribed local image link."
@@ -43,13 +57,21 @@
 			     ""))
 	       org-sync-assets-image-extensions)))
 
-(defun org-sync-assets-standalone-image-link (paragraph)
-  "Return PARAGRAPH's standalone image link, or nil."
+(defun org-sync-assets-standalone-link (paragraph predicate)
+  "Return PARAGRAPH's standalone link matching PREDICATE, or nil."
   (let ((objects (seq-remove #'org-sync-assets-blank-string-p
 			     (org-element-contents paragraph))))
     (when (and (= (length objects) 1)
-	       (org-sync-assets-image-link-p (car objects)))
+	       (funcall predicate (car objects)))
       (car objects))))
+
+(defun org-sync-assets-standalone-image-link (paragraph)
+  "Return PARAGRAPH's standalone local image link, or nil."
+  (org-sync-assets-standalone-link paragraph #'org-sync-assets-image-link-p))
+
+(defun org-sync-assets-standalone-remote-link (paragraph)
+  "Return PARAGRAPH's standalone remote HTTP(S) link, or nil."
+  (org-sync-assets-standalone-link paragraph #'org-sync-assets-http-link-p))
 
 (defun org-sync-assets-caption (paragraph)
   "Return PARAGRAPH caption text, or nil."
@@ -126,6 +148,51 @@ filenames with missing local sources as reusable instead of failing."
     (when (and imported-p reuse-imported (not source-path))
       (setq entry (append entry (list :missing-source t))))
     entry))
+
+(defun org-sync-assets--content-type-extension (content-type url)
+  "Return file extension for CONTENT-TYPE or URL."
+  (or (cdr (assoc (car (split-string (or content-type "") ";"))
+		  '(("image/png" . ".png")
+		    ("image/jpeg" . ".jpg")
+		    ("image/gif" . ".gif")
+		    ("image/webp" . ".webp")
+		    ("image/svg+xml" . ".svg"))))
+      (when-let* ((extension (file-name-extension
+			      (url-filename (url-generic-parse-url url)))))
+	(concat "." extension))
+      ".img"))
+
+(defun org-sync-assets-cache-filename (url content-type)
+  "Return stable cache filename for URL and CONTENT-TYPE."
+  (concat "remote-" (substring (secure-hash 'sha256 url) 0 12)
+	  (org-sync-assets--content-type-extension content-type url)))
+
+(defun org-sync-assets--response-header (header)
+  "Return response HEADER value from the current URL buffer."
+  (cdr (assoc-string header url-http-response-headers t)))
+
+(defun org-sync-assets-cache-remote-url (url directory)
+  "Download URL into DIRECTORY and return the local file path.
+This generic helper does not add provider credentials.  Callers should pass URLs
+that are already fetchable by Emacs."
+  (let ((buffer (url-retrieve-synchronously url t t 30)))
+    (unless buffer
+      (user-error "Could not fetch remote asset: %s" url))
+    (unwind-protect
+	(with-current-buffer buffer
+	  (unless (and (boundp 'url-http-response-status)
+		       (<= 200 url-http-response-status 299))
+	    (user-error "Could not fetch remote asset %s: HTTP %s"
+			url url-http-response-status))
+	  (let* ((content-type (org-sync-assets--response-header "content-type"))
+		 (filename (org-sync-assets-cache-filename url content-type))
+		 (path (expand-file-name filename directory)))
+	    (make-directory directory t)
+	    (goto-char (point-min))
+	    (re-search-forward "\r?\n\r?\n" nil 'move)
+	    (write-region (point) (point-max) path nil 'silent)
+	    path))
+      (kill-buffer buffer))))
 
 (defun org-sync-assets-missing-diagnostics (assets)
   "Return missing-file diagnostics for ASSETS."

@@ -116,6 +116,25 @@ C-u M-x org-google-docs-debug-pipeline
 
 This appends remote Docs JSON, remote IR, and diff requests. The trace may contain document content but must not contain OAuth tokens or credential payloads.
 
+## Cache pulled remote images locally
+
+After pulling a Google Doc with inline images, run:
+
+```elisp
+M-x org-google-docs-images-cache-remote-images
+```
+
+Expected Org source:
+
+- standalone remote image links are downloaded below `assets/google-docs/<document-id>/` relative to the Org file;
+- image links are rewritten from `[[https://...]]` to `[[file:assets/google-docs/<document-id>/remote-<hash>.<ext>]]`;
+- existing `#+CAPTION:` lines remain intact;
+- later pushes use the regular local-image upload path.
+
+If a remote URL is no longer fetchable, the command fails with an actionable fetch error and does not use provider credentials or print tokens.
+
+Manual result: pending.
+
 ## Failure modes already encountered
 
 - Missing end boundary in multipart upload: fixed by sending Drive multipart uploads as raw binary bodies.

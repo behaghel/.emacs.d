@@ -199,6 +199,7 @@
 		   "Publish: Create Google Doc from buffer"
 		   "Publish: Push buffer to Google Docs"
 		   "Pull: Pull Google Doc into buffer"
+		   "Images: Cache pulled remote images"
 		   "Open: Open linked Google Doc in browser"
 		   "Comments: Import comments"
 		   "Account: Authenticate Google account"))))

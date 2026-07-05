@@ -32,8 +32,9 @@ Confluence and Google Docs both synchronize Org buffers with remote document pro
 - [x] Given a described image link, when image assets are planned, then it is ignored as a normal link.
 - [x] Given a missing non-imported local image, when strict path resolution is requested, then org-sync reports a clear error.
 - [x] Given a generated/imported image filename with no local source, when image assets are planned with imported reuse enabled, then the asset is marked `:missing-source` instead of failing.
-- [ ] Given Google Docs image preflight runs, when it detects standalone images, then it uses org-sync asset planning for Org-level detection/path/caption behavior.
+- [x] Given Google Docs image preflight runs, when it detects standalone images, then it uses org-sync asset planning for Org-level detection/path/caption behavior.
 - [x] Given Confluence image asset behavior is migrated, when existing Confluence tests run, then generated filenames and missing-source semantics remain unchanged.
+- [x] Given a pulled Google Docs remote image link, when the provider cache command runs, then org-sync downloads the fetchable URL to a stable local cache filename and the provider rewrites the Org link to `file:`.
 
 ## Verification
 

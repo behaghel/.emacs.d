@@ -82,6 +82,27 @@
 		     '((:upload "/tmp/logo.png" "acct")
 		       (:permission "file-1" "acct")))))))
 
+(ert-deftest org-google-docs-images-caches-remote-image-links ()
+  "Remote standalone image links are cached and rewritten as local file links."
+  (let ((local-file (make-temp-file "org-google-docs-cached" nil ".png"))
+	(default-directory temporary-file-directory)
+	cached-url)
+    (unwind-protect
+	(org-google-docs-images-test--with-buffer
+	 "#+CAPTION: Logo\n[[https://example.invalid/logo.png]]\n"
+	 (setq buffer-file-name (expand-file-name "doc.org" temporary-file-directory))
+	 (cl-letf (((symbol-function 'org-sync-assets-cache-remote-url)
+		    (lambda (url _directory)
+		      (setq cached-url url)
+		      local-file)))
+	   (should (= (org-google-docs-images-cache-remote-images) 1))
+	   (should (equal cached-url "https://example.invalid/logo.png"))
+	   (should (string-match-p
+		    (regexp-quote (format "[[file:%s]]"
+					  (file-relative-name local-file temporary-file-directory)))
+		    (buffer-string)))))
+      (delete-file local-file))))
+
 (ert-deftest org-google-docs-images-reports-missing-file ()
   "Missing standalone image files block before remote mutation."
   (org-google-docs-images-test--with-buffer "[[file:missing.png]]\n"

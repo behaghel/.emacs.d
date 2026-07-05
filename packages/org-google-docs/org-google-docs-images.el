@@ -10,6 +10,7 @@
 (require 'cl-lib)
 (require 'org-sync-assets)
 (require 'seq)
+(require 'subr-x)
 
 (declare-function gdocs-api-upload-image "gdocs-api"
 		  (file-path callback &optional account folder-id))
@@ -24,6 +25,11 @@
   "Google Docs image semantic planning."
   :group 'org-google-docs)
 
+(defcustom org-google-docs-images-cache-directory "assets/google-docs"
+  "Directory, relative to the Org file, used to cache pulled remote images."
+  :type 'directory
+  :group 'org-google-docs-images)
+
 (defcustom org-google-docs-images-make-uploaded-files-public t
   "Whether uploaded images should receive an anyone-reader Drive permission.
 Google Docs `insertInlineImage' fetches image bytes from a URI, so uploaded
@@ -35,6 +41,62 @@ set this to nil only if your environment provides another fetchable URI path."
 (defun org-google-docs-images--absolute-path (path)
   "Return absolute file PATH for an Org image link."
   (org-sync-assets-absolute-path path))
+
+(defun org-google-docs-images--document-cache-directory ()
+  "Return local cache directory for the current Google Docs buffer."
+  (let ((base (if buffer-file-name
+		  (file-name-directory buffer-file-name)
+		default-directory))
+	(doc-id (and (boundp 'gdocs-sync--document-id)
+		     (symbol-value 'gdocs-sync--document-id))))
+    (expand-file-name (if doc-id
+			  (expand-file-name doc-id org-google-docs-images-cache-directory)
+			org-google-docs-images-cache-directory)
+		      base)))
+
+(defun org-google-docs-images--remote-image-paragraphs ()
+  "Return standalone remote image paragraph/link pairs in reverse buffer order."
+  (let ((tree (org-element-parse-buffer))
+	entries)
+    (org-element-map tree 'paragraph
+		     (lambda (paragraph)
+		       (when-let* ((link (org-sync-assets-standalone-remote-link paragraph)))
+			 (push (cons paragraph link) entries))))
+    entries))
+
+(defun org-google-docs-images--replace-link-with-local-file (link local-path)
+  "Replace remote LINK with LOCAL-PATH relative to current buffer."
+  (let* ((begin (org-element-property :begin link))
+	 (end (org-element-property :end link))
+	 (relative (file-relative-name
+		    local-path
+		    (or (and buffer-file-name (file-name-directory buffer-file-name))
+			default-directory))))
+    (goto-char begin)
+    (delete-region begin end)
+    (insert (format "[[file:%s]]" relative))))
+
+;;;###autoload
+(defun org-google-docs-images-cache-remote-images ()
+  "Cache standalone remote image links in the current Org buffer locally.
+Pulled Google Docs images are initially represented as remote Org links.  This
+command downloads those links into `org-google-docs-images-cache-directory' and
+rewrites them as local `file:' links so Org inline image display and later push
+use the normal local-asset path."
+  (interactive)
+  (unless (derived-mode-p 'org-mode)
+    (org-mode))
+  (let ((directory (org-google-docs-images--document-cache-directory))
+	(count 0))
+    (save-excursion
+      (dolist (entry (org-google-docs-images--remote-image-paragraphs))
+	(let* ((link (cdr entry))
+	       (url (org-element-property :raw-link link))
+	       (local-path (org-sync-assets-cache-remote-url url directory)))
+	  (org-google-docs-images--replace-link-with-local-file link local-path)
+	  (cl-incf count))))
+    (message "Cached %d Google Docs remote image(s)" count)
+    count))
 
 (defun org-google-docs-images--drive-download-uri (file-id)
   "Return a direct Drive download URI for FILE-ID."

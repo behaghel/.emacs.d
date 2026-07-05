@@ -46,6 +46,25 @@
       (should (eq (plist-get diagnostic :code) :missing-image-file))
       (should (equal (plist-get diagnostic :path) "missing.png")))))
 
+(ert-deftest org-sync-assets-detects-standalone-remote-link ()
+  "Standalone remote links are detectable for provider cache commands."
+  (with-temp-buffer
+    (insert "#+CAPTION: Logo\n[[https://example.invalid/logo.png]]\n")
+    (org-mode)
+    (let* ((tree (org-element-parse-buffer))
+	   (paragraph (car (org-element-map tree 'paragraph #'identity)))
+	   (link (org-sync-assets-standalone-remote-link paragraph)))
+      (should link)
+      (should (equal (org-element-property :raw-link link)
+		     "https://example.invalid/logo.png")))))
+
+(ert-deftest org-sync-assets-cache-filename-uses-content-type ()
+  "Remote cache filenames use stable URL hashes and content types."
+  (should (string-match-p
+	   "\\`remote-[0-9a-f]\\{12\\}\\.png\\'"
+	   (org-sync-assets-cache-filename
+	    "https://example.invalid/image" "image/png"))))
+
 (ert-deftest org-sync-assets-reuses-imported-missing-source ()
   "Generated imported filenames can be marked reusable without local source."
   (with-temp-buffer
