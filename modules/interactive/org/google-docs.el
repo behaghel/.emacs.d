@@ -37,6 +37,14 @@ required by `org-google-docs' for native footnotes and image semantics."
   :type 'directory
   :group 'hub/org-google-docs)
 
+(defcustom hub/org-google-docs-style-definitions nil
+  "Personal logical style definitions layered over upstream `gdocs'.
+These definitions are intentionally kept outside the neutral `gdocs' package.
+Each entry overrides or extends `gdocs-style-definitions' after `gdocs-convert'
+loads.  Leave nil to use upstream defaults."
+  :type '(alist :key-type symbol :value-type plist)
+  :group 'hub/org-google-docs)
+
 (defcustom hub/org-google-docs-auth-source-accounts
   '(("personal"
      . ((client-id-host . "dev/emacs-gdocs/client-id")
@@ -116,6 +124,23 @@ return the configured account value, because it contains OAuth client secrets."
       (message "Configured %d Google Docs account(s) from auth-source" configured-count))
     configured-count))
 
+(defun hub/org-google-docs--merge-style-definitions (overrides base)
+  "Return BASE logical style definitions with OVERRIDES applied by name."
+  (let ((result (copy-sequence base)))
+    (dolist (override overrides)
+      (setq result (assq-delete-all (car override) result))
+      (push override result))
+    (nreverse result)))
+
+(defun hub/org-google-docs-apply-style-definitions ()
+  "Apply personal Google Docs logical style definitions when available."
+  (when (and hub/org-google-docs-style-definitions
+	     (boundp 'gdocs-style-definitions))
+    (setq gdocs-style-definitions
+	  (hub/org-google-docs--merge-style-definitions
+	   hub/org-google-docs-style-definitions
+	   gdocs-style-definitions))))
+
 (defun hub/org-google-docs--gdocs-straight-recipe ()
   "Return the Straight recipe for upstream gdocs.
 Prefer the local seam fork when `hub/org-google-docs-gdocs-repository' exists;
@@ -153,6 +178,8 @@ local fork is cloned."
 	gdocs-auto-pull-on-open nil)
   (hub/org-google-docs-configure-accounts-from-auth-source 'noerror)
   :config
+  (with-eval-after-load 'gdocs-convert
+    (hub/org-google-docs-apply-style-definitions))
   (hub/org-google-docs-configure-accounts-from-auth-source 'noerror))
 
 (require 'org-google-docs)

@@ -20,7 +20,7 @@ Org ↔ Google Docs body sync currently depends on upstream `benthamite/gdocs`, 
   - Org footnote references become literal text such as `[fn:1]` in paragraphs.
   - Footnote definitions become separate `:type 'footnote` IR elements, but push emits them as literal `[fn:N] body` text rather than native Google Docs footnotes.
   - Plain local image links become plain text like `file:./veriff2026-logo.png`; imported Google Docs inline images become `:type 'image` IR elements that render back to empty Org text.
-  - Source blocks must preserve code text and language identity. Current v1 support stores the source block language in a semantic named-range marker and renders code text as monospace visible text. Google Docs code block building blocks remain the native visual target only if public APIs expose a reliable seam. Syntax highlighting is styling.
+  - Source blocks must preserve code text and language identity. Current v1 support stores the source block language in a semantic named-range marker and attaches logical `gdocs-code` / `gdocs-source-block` styles before late-binding them to Google Docs properties. Google Docs code block building blocks remain the native visual target only if public APIs expose a reliable seam. Syntax highlighting is styling.
   - Dates, people mentions, and statuses need explicit semantic classification before deciding whether native smart chips, mentions, or dropdowns are feasible. Remote dates should import as inactive Org timestamps by default to avoid polluting `org-agenda`.
   - Quote blocks become `:style 'quote` paragraph IR and round-trip to Org quote blocks, but Google Docs request generation maps unknown styles to normal text. Visible quote decoration is therefore styling-deferred unless a reliable Docs semantic is found.
 - Confluence provides useful patterns, not a storage model to copy:
@@ -41,6 +41,7 @@ Org ↔ Google Docs body sync currently depends on upstream `benthamite/gdocs`, 
 | Image target | Publish-first for standalone local images; pull preservation only where the API exposes enough data | Google Docs image insertion/upload and reverse mapping are trickier than text semantics. |
 | Quote target | Preserve quote-block boundaries on round trip; treat visible quote formatting as styling unless Google exposes a reliable semantic equivalent | Upstream already preserves Org quote IR; request generation is the likely styling gap. |
 | Upstream modifications | Prefer small, upstreamable hooks/IR extensions over large local monkey patches | The current IR pipeline is a natural extension point; exact footnote reference indices should come from conversion/diff, not placeholder searches. |
+| Style architecture | Emit logical style names in `gdocs` and resolve them late to Google Docs properties | Google Docs exposes only fixed named styles, not arbitrary custom style names. Semantic conversion must not hardcode personal typography; local authoring modules can override logical style definitions. |
 
 ## Acceptance Criteria
 
