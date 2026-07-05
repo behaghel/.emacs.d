@@ -11,6 +11,7 @@
 (require 'auth-source)
 (require 'auth-source-pass nil 'noerror)
 (require 'hub-utils)
+(require 'org/google-docs-styles)
 (require 'subr-x)
 
 (defgroup hub/org-google-docs nil
@@ -37,7 +38,8 @@ required by `org-google-docs' for native footnotes and image semantics."
   :type 'directory
   :group 'hub/org-google-docs)
 
-(defcustom hub/org-google-docs-style-definitions nil
+(defcustom hub/org-google-docs-style-definitions
+  (hub/org-google-docs-style-definitions)
   "Personal logical style definitions layered over upstream `gdocs'.
 These definitions are intentionally kept outside the neutral `gdocs' package.
 Each entry overrides or extends `gdocs-style-definitions' after `gdocs-convert'
