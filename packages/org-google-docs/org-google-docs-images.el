@@ -90,9 +90,11 @@ use the normal local-asset path."
 	(count 0))
     (save-excursion
       (dolist (entry (org-google-docs-images--remote-image-paragraphs))
-	(let* ((link (cdr entry))
+	(let* ((paragraph (car entry))
+	       (link (cdr entry))
 	       (url (org-element-property :raw-link link))
-	       (local-path (org-sync-assets-cache-remote-url url directory)))
+	       (hint (org-sync-assets-caption paragraph))
+	       (local-path (org-sync-assets-cache-remote-url url directory hint)))
 	  (org-google-docs-images--replace-link-with-local-file link local-path)
 	  (cl-incf count))))
     (message "Cached %d Google Docs remote image(s)" count)

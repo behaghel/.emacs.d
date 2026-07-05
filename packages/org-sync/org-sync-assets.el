@@ -162,9 +162,27 @@ filenames with missing local sources as reusable instead of failing."
 	(concat "." extension))
       ".img"))
 
-(defun org-sync-assets-cache-filename (url content-type)
-  "Return stable cache filename for URL and CONTENT-TYPE."
-  (concat "remote-" (substring (secure-hash 'sha256 url) 0 12)
+(defun org-sync-assets--url-filename-stem (url)
+  "Return a useful filename stem from URL, or nil."
+  (let* ((path (url-filename (url-generic-parse-url url)))
+	 (basename (and path (file-name-nondirectory path)))
+	 (stem (and basename (file-name-sans-extension basename))))
+    (unless (string-blank-p (or stem ""))
+      stem)))
+
+(defun org-sync-assets-safe-filename-stem (hint &optional fallback)
+  "Return filesystem-safe filename stem from HINT or FALLBACK."
+  (let* ((raw (string-trim (or hint fallback "image")))
+	 (downcased (downcase raw))
+	 (safe (replace-regexp-in-string "[^[:alnum:]]+" "-" downcased))
+	 (trimmed (string-trim safe "-+" "-+")))
+    (if (string-empty-p trimmed) "image" trimmed)))
+
+(defun org-sync-assets-cache-filename (url content-type &optional hint)
+  "Return stable cache filename for URL, CONTENT-TYPE, and optional HINT."
+  (concat (org-sync-assets-safe-filename-stem
+	   hint (org-sync-assets--url-filename-stem url))
+	  "-" (substring (secure-hash 'sha256 url) 0 12)
 	  (org-sync-assets--content-type-extension content-type url)))
 
 (defun org-sync-assets--response-header (header)
@@ -182,10 +200,11 @@ filenames with missing local sources as reusable instead of failing."
 	     end t)
 	(string-trim-right (match-string 1))))))
 
-(defun org-sync-assets-cache-remote-url (url directory)
+(defun org-sync-assets-cache-remote-url (url directory &optional hint)
   "Download URL into DIRECTORY and return the local file path.
 This generic helper does not add provider credentials.  Callers should pass URLs
-that are already fetchable by Emacs."
+that are already fetchable by Emacs.  HINT, when non-nil, is used to build a
+human-readable filename stem."
   (let ((buffer (url-retrieve-synchronously url t t 30)))
     (unless buffer
       (user-error "Could not fetch remote asset: %s" url))
@@ -196,7 +215,7 @@ that are already fetchable by Emacs."
 	    (user-error "Could not fetch remote asset %s: HTTP %s"
 			url url-http-response-status))
 	  (let* ((content-type (org-sync-assets--response-header "content-type"))
-		 (filename (org-sync-assets-cache-filename url content-type))
+		 (filename (org-sync-assets-cache-filename url content-type hint))
 		 (path (expand-file-name filename directory)))
 	    (make-directory directory t)
 	    (goto-char (point-min))
@@ -220,8 +239,8 @@ that are already fetchable by Emacs."
 ;;;###autoload
 (defun org-sync-assets-plan-buffer (&optional options)
   "Return standalone image asset plan for the current Org buffer.
-OPTIONS is passed to `org-sync-assets-entry'.  When `:subtreep' is non-nil,
-inspect only the current Org subtree."
+  OPTIONS is passed to `org-sync-assets-entry'.  When `:subtreep' is non-nil,
+  inspect only the current Org subtree."
   (unless (derived-mode-p 'org-mode)
     (org-mode))
   (save-restriction

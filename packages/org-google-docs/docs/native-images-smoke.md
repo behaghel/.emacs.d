@@ -127,7 +127,7 @@ M-x org-google-docs-images-cache-remote-images
 Expected Org source:
 
 - standalone remote image links are downloaded below `assets/google-docs/<document-id>/` relative to the Org file;
-- image links are rewritten from `[[https://...]]` to `[[file:assets/google-docs/<document-id>/remote-<hash>.<ext>]]`;
+- image links are rewritten from `[[https://...]]` to `[[file:assets/google-docs/<document-id>/<caption-or-url-stem>-<hash>.<ext>]]`;
 - existing `#+CAPTION:` lines remain intact;
 - later pushes use the regular local-image upload path.
 

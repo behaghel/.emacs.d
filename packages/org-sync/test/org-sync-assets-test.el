@@ -72,9 +72,23 @@
 (ert-deftest org-sync-assets-cache-filename-uses-content-type ()
   "Remote cache filenames use stable URL hashes and content types."
   (should (string-match-p
-	   "\\`remote-[0-9a-f]\\{12\\}\\.png\\'"
+	   "\\`image-[0-9a-f]\\{12\\}\\.png\\'"
 	   (org-sync-assets-cache-filename
 	    "https://example.invalid/image" "image/png"))))
+
+(ert-deftest org-sync-assets-cache-filename-prefers-readable-hint ()
+  "Remote cache filenames prefer readable hint stems before the hash."
+  (should (string-match-p
+	   "\\`hubert-banner-[0-9a-f]\\{12\\}\\.png\\'"
+	   (org-sync-assets-cache-filename
+	    "https://example.invalid/image" "image/png" "Hubert banner"))))
+
+(ert-deftest org-sync-assets-cache-filename-falls-back-to-url-stem ()
+  "Remote cache filenames fall back to URL filename stems."
+  (should (string-match-p
+	   "\\`logo-[0-9a-f]\\{12\\}\\.jpg\\'"
+	   (org-sync-assets-cache-filename
+	    "https://example.invalid/path/logo.jpg" nil nil))))
 
 (ert-deftest org-sync-assets-reuses-imported-missing-source ()
   "Generated imported filenames can be marked reusable without local source."
