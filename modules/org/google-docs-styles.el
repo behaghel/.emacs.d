@@ -27,8 +27,8 @@ This is an authoring policy layered over neutral gdocs logical styles."
   :type 'string
   :group 'hub/org-google-docs-styles)
 
-(defcustom hub/org-google-docs-quote-block-color "#666666"
-  "Foreground color used for Google Docs quote block text."
+(defcustom hub/org-google-docs-quote-block-background-color "#f5f5f5"
+  "Background color used for Google Docs quote block paragraphs."
   :type 'string
   :group 'hub/org-google-docs-styles)
 
@@ -71,41 +71,41 @@ This is an authoring policy layered over neutral gdocs logical styles."
      :paragraph (:spacing-mode never-collapse
 			       :space-above 0
 			       :space-below 0
-			       :indent-start 36)
-     :text (:italic t
-		    :foreground-color ,hub/org-google-docs-quote-block-color))
+			       :indent-start 36
+			       :indent-first-line 0
+			       :background-color ,hub/org-google-docs-quote-block-background-color))
     (gdocs-quote-block-first
      :parent normal
      :paragraph (:spacing-mode never-collapse
 			       :space-above 6
 			       :space-below 0
-			       :indent-start 36)
-     :text (:italic t
-		    :foreground-color ,hub/org-google-docs-quote-block-color))
+			       :indent-start 36
+			       :indent-first-line 0
+			       :background-color ,hub/org-google-docs-quote-block-background-color))
     (gdocs-quote-block-line
      :parent normal
      :paragraph (:spacing-mode never-collapse
 			       :space-above 0
 			       :space-below 0
-			       :indent-start 36)
-     :text (:italic t
-		    :foreground-color ,hub/org-google-docs-quote-block-color))
+			       :indent-start 36
+			       :indent-first-line 0
+			       :background-color ,hub/org-google-docs-quote-block-background-color))
     (gdocs-quote-block-last
      :parent normal
      :paragraph (:spacing-mode never-collapse
 			       :space-above 0
 			       :space-below 6
-			       :indent-start 36)
-     :text (:italic t
-		    :foreground-color ,hub/org-google-docs-quote-block-color))
+			       :indent-start 36
+			       :indent-first-line 0
+			       :background-color ,hub/org-google-docs-quote-block-background-color))
     (gdocs-quote-block-single
      :parent normal
      :paragraph (:spacing-mode never-collapse
 			       :space-above 6
 			       :space-below 6
-			       :indent-start 36)
-     :text (:italic t
-		    :foreground-color ,hub/org-google-docs-quote-block-color))
+			       :indent-start 36
+			       :indent-first-line 0
+			       :background-color ,hub/org-google-docs-quote-block-background-color))
     (gdocs-image-caption
      :parent normal
      :paragraph (:alignment center)

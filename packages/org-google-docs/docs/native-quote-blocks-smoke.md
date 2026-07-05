@@ -35,20 +35,26 @@ The local authoring policy defines:
 
 Current style intent:
 
-- italic text;
-- gray foreground;
-- left indentation;
+- light gray paragraph background;
+- left indentation via `indentStart` plus `indentFirstLine = 0`;
 - symmetric spacing around the whole block;
-- no literal blank paragraphs for spacing.
+- no literal blank paragraphs for spacing;
+- no italic/foreground-color quote styling, because those are text-run styles and would pull back as Org emphasis or other content-level formatting.
 
 ## Live checklist
 
 - [ ] Create a new Google Doc from an Org buffer containing single- and multi-paragraph quote blocks.
-- [ ] Confirm quote blocks render indented/italic/gray according to local style policy.
+- [ ] Confirm quote blocks render indented with a light gray paragraph background according to local style policy.
 - [ ] Push again without content changes and confirm no duplication.
 - [ ] Run `M-x org-google-docs-push-restyle-current` after changing quote style policy and confirm restyling applies.
 - [ ] Pull back and confirm Org quote block boundaries and paragraph text survive.
 
 ## Notes
 
-Google Docs does not expose a stable arbitrary custom quote-block semantic object through the public Docs API. The v1 approach therefore preserves semantics with named-range markers and renders visual styling through logical paragraph/text styles.
+Google Docs does not expose a stable arbitrary custom quote-block semantic object through the public Docs API. The v1 approach therefore preserves semantics with named-range markers and renders visual styling through logical paragraph styles.
+
+Web/API notes:
+
+- Paragraph indentation is applied with `updateParagraphStyle` fields `indentStart` and `indentFirstLine`.
+- The field mask should include `indentStart,indentFirstLine` (field names only).
+- Quote visual styling intentionally avoids text-run `italic` and `foregroundColor`, because pulled Google Docs text styles are interpreted as Org emphasis and can create merge/conflict noise.
