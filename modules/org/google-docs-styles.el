@@ -50,6 +50,7 @@ This is an authoring policy layered over neutral gdocs logical styles."
 					   :space-below 4
 					   :indent-start 0
 					   :indent-first-line 0
+					   :border-padding 6
 					   :background-color ,hub/org-google-docs-callout-block-background-color)
 		 :text (:bold t))
 		(,(intern (format "%s-first" base))
@@ -59,6 +60,7 @@ This is an authoring policy layered over neutral gdocs logical styles."
 					   :space-below 0
 					   :indent-start 0
 					   :indent-first-line 0
+					   :border-padding 6
 					   :background-color ,hub/org-google-docs-callout-block-background-color))
 		(,(intern (format "%s-line" base))
 		 :parent normal
@@ -67,6 +69,7 @@ This is an authoring policy layered over neutral gdocs logical styles."
 					   :space-below 0
 					   :indent-start 0
 					   :indent-first-line 0
+					   :border-padding 6
 					   :background-color ,hub/org-google-docs-callout-block-background-color))
 		(,(intern (format "%s-last" base))
 		 :parent normal
@@ -75,6 +78,7 @@ This is an authoring policy layered over neutral gdocs logical styles."
 					   :space-below 10
 					   :indent-start 0
 					   :indent-first-line 0
+					   :border-padding 6
 					   :background-color ,hub/org-google-docs-callout-block-background-color))
 		(,(intern (format "%s-single" base))
 		 :parent normal
@@ -83,6 +87,7 @@ This is an authoring policy layered over neutral gdocs logical styles."
 					   :space-below 10
 					   :indent-start 0
 					   :indent-first-line 0
+					   :border-padding 6
 					   :background-color ,hub/org-google-docs-callout-block-background-color)))))
 	  '("info" "note" "warning" "tip" "important"))))
 
