@@ -120,7 +120,8 @@ whose stored target no longer validates against the source buffer."
     (org-comments--ensure-native-sidecar sidecar-file)
     (with-temp-buffer
       (insert-file-contents sidecar-file)
-      (org-mode)
+      (delay-mode-hooks
+	(org-mode))
       (goto-char (point-min))
       (cl-loop while (re-search-forward org-heading-regexp nil t)
 	       do (goto-char (match-beginning 0))
@@ -133,7 +134,8 @@ whose stored target no longer validates against the source buffer."
   (org-comments--ensure-native-sidecar sidecar-file)
   (with-temp-buffer
     (insert-file-contents sidecar-file)
-    (org-mode)
+    (delay-mode-hooks
+      (org-mode))
     (let (comments)
       (goto-char (point-min))
       (while (re-search-forward org-heading-regexp nil t)
