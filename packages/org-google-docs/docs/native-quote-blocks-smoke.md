@@ -56,5 +56,5 @@ Google Docs does not expose a stable arbitrary custom quote-block semantic objec
 Web/API notes:
 
 - Google Docs exposes the UI's paragraph padding through `ParagraphBorder.padding` on `borderTop`, `borderBottom`, `borderLeft`, `borderRight`, and `borderBetween`.
-- Paragraph border updates must provide complete border objects. The current v1 emits 1pt white borders with 6pt padding, plus paragraph shading.
+- Paragraph border updates must provide complete border objects. The current v1 emits 1pt borders matching the paragraph shading color with 6pt padding, plus paragraph shading.
 - Quote visual styling intentionally avoids text-run `italic` and `foregroundColor`, because pulled Google Docs text styles are interpreted as Org emphasis and can create merge/conflict noise.
