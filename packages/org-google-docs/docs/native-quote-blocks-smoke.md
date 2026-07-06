@@ -36,7 +36,7 @@ The local authoring policy defines:
 Current style intent:
 
 - light gray paragraph background;
-- left indentation via both `indentStart` and `indentFirstLine` set to the same value;
+- 6pt paragraph border padding for breathing room inside the shaded block;
 - symmetric spacing around the whole block;
 - no literal blank paragraphs for spacing;
 - no italic/foreground-color quote styling, because those are text-run styles and would pull back as Org emphasis or other content-level formatting.
@@ -55,6 +55,6 @@ Google Docs does not expose a stable arbitrary custom quote-block semantic objec
 
 Web/API notes:
 
-- Paragraph indentation is applied with `updateParagraphStyle` fields `indentStart` and `indentFirstLine`.
-- The field mask should include `indentStart,indentFirstLine` (field names only).
+- Google Docs exposes the UI's paragraph padding through `ParagraphBorder.padding` on `borderTop`, `borderBottom`, `borderLeft`, `borderRight`, and `borderBetween`.
+- Paragraph border updates must provide complete border objects. The current v1 emits 0pt white borders with 6pt padding, plus paragraph shading.
 - Quote visual styling intentionally avoids text-run `italic` and `foregroundColor`, because pulled Google Docs text styles are interpreted as Org emphasis and can create merge/conflict noise.
