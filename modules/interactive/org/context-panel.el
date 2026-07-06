@@ -350,6 +350,16 @@ whether an empty page-context panel is shown when there are no page comments."
     (when (window-live-p panel-window)
       (delete-window panel-window))))
 
+;;;###autoload
+(defun hub/org-context-panel-toggle-open ()
+  "Open the context panel, or close it when already visible."
+  (interactive)
+  (unless (derived-mode-p 'org-mode)
+    (user-error "Org context panel only works in Org buffers"))
+  (if (hub/org-context-panel--visible-p)
+      (hub/org-context-panel--close-ui)
+    (org-comments-open)))
+
 (defun hub/org-context-panel--comment-at-point ()
   "Return sidecar comment at point in the current source buffer, or nil."
   (get-char-property (point) 'org-comments-comment))

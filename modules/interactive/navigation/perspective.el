@@ -145,6 +145,7 @@ overwriting intentional uppercase bindings that target other spaces."
 	  ("O" perspective "org")
 	  ("i" file ,(lambda () (concat org-directory "inbox.org")) "org")
 	  ("h" file ,(lambda () (concat org-directory "hubert.org")) "org")
+	  ("b" command hub/herbert "Herbert")
 	  ("m" command mu4e-sidebar "mails")
 	  ("d" perspective "main")
 	  ("f" command elfeed "feeds")

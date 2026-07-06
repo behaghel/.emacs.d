@@ -76,7 +76,7 @@ native behavior."
 			      ",ce" #'hub/org-comment-edit
 			      ",cj" #'hub/org-comment-jump-to-sidecar
 			      ",cl" #'org-confluence-comments-open-current
-			      ",cc" #'org-comments-open
+			      ",cc" #'hub/org-context-panel-toggle-open
 			      ",cM" #'hub/org-context-panel-mode
 			      ",cO" #'org-confluence-open-page
 			      ",cf" #'hub/org-page-comment-create

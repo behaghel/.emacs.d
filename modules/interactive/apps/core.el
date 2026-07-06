@@ -8,6 +8,7 @@
 (require 'apps/elfeed)
 (require 'apps/restclient)
 (require 'apps/edit-server)
+(require 'apps/herbert)
 
 (provide 'apps/core)
 ;;; core.el ends here
