@@ -193,7 +193,7 @@ This package-level mode registers the Confluence `org-comments' backend and,
 when `org-confluence-enable-org-comments-mode' is non-nil, enables
 `org-comments-mode' for local comment commands and overlays.  The mode does not
 install personal leader, Evil, or layout-specific bindings."
-  :lighter " Conf"
+  :lighter " Cfl"
   (cond
    (org-confluence-mode
     (unless (derived-mode-p 'org-mode)
