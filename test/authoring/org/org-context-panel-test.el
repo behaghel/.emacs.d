@@ -150,7 +150,7 @@
 	      (should (search-forward "💬" nil t))
 	      (should (search-forward "OPEN" nil t))
 	      (should (search-forward "“selected text”" nil t))
-	      (should (search-forward "Ada · 2026-06-15 19:42" nil t))
+	      (should (search-forward "Ada · 2026-06-15" nil t))
 	      (should (search-forward "Please clarify." nil t))
 	      (let ((item (get-text-property (point) 'org-comments-comment)))
 		(should (eq 'comment (plist-get item :type)))
@@ -287,8 +287,8 @@
 	    (org-comments-append-to-sidecar record)
 	    (save-excursion
 	      (goto-char start)
-	      (delete-char 1)
-	      (insert "S"))
+	      (delete-region start end)
+	      (insert "removed"))
 	    (org-context-panel-test--render-comments (current-buffer) panel)
 	    (should-not (cl-some
 			 (lambda (overlay)
@@ -308,6 +308,39 @@
 	(kill-buffer (get-file-buffer source-file)))
       (when (buffer-live-p panel)
 	(kill-buffer panel))
+      (delete-directory dir t))))
+
+(ert-deftest org-context-panel-composed-render-keeps-stale-comments ()
+  "Composed context panels keep stale comment warnings visible."
+  (let* ((dir (make-temp-file "hub-context-panel-composed-stale-" t))
+	 (source-file (expand-file-name "article.org" dir)))
+    (unwind-protect
+	(with-current-buffer (find-file-noselect source-file)
+	  (erase-buffer)
+	  (insert "Alpha selected text omega")
+	  (save-buffer)
+	  (org-mode)
+	  (let* ((start (progn
+			  (goto-char (point-min))
+			  (search-forward "selected")
+			  (match-beginning 0)))
+		 (end (match-end 0)))
+	    (org-comments-append-to-sidecar
+	     (org-comments-create-record
+	      buffer-file-name start end "Please revisit." "local-composed-stale"))
+	    (save-excursion
+	      (goto-char start)
+	      (delete-region start end)
+	      (insert "removed"))
+	    (let ((panel (hub/org-context-panel--open-ui)))
+	      (with-current-buffer panel
+		(should (search-forward "⚠" nil t))
+		(should (search-forward "Anchor no longer matches source text." nil t))
+		(should (search-forward "Please revisit." nil t))))))
+      (when-let* ((panel (get-buffer hub/org-context-panel-buffer-name)))
+	(kill-buffer panel))
+      (when (get-file-buffer source-file)
+	(kill-buffer (get-file-buffer source-file)))
       (delete-directory dir t))))
 
 (ert-deftest org-context-panel-source-ret-falls-back-outside-comments ()

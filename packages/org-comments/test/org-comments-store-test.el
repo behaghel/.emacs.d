@@ -39,6 +39,34 @@
 						 (should (equal (plist-get (car comments) :target-text) "selected"))
 						 (should (equal (plist-get (car comments) :anchor-pos) start))))))
 
+(ert-deftest org-comments-store-recovers-drifted-anchor-by-target-text ()
+  "Collect recovers a unique text anchor when stored positions drift."
+  (let* ((dir (make-temp-file "org-comments-store-recover-" t))
+	 (source (expand-file-name "article.org" dir))
+	 (sidecar (org-comments-sidecar-path source)))
+    (unwind-protect
+	(progn
+	  (write-region "X Alpha selected text omega" nil source nil 'silent)
+	  (with-temp-file sidecar
+	    (insert "#+title: Comments\n#+source: article.org\n\n")
+	    (insert "* OPEN Drifted\n")
+	    (insert ":PROPERTIES:\n")
+	    (insert ":ORG_COMMENTS_ID: local-1\n")
+	    (insert ":ORG_COMMENTS_SYNC_KIND: inline\n")
+	    (insert ":ORG_COMMENTS_TARGET: 8 21\n")
+	    (insert ":ORG_COMMENTS_TARGET_TEXT: selected text\n")
+	    (insert ":END:\n\nBody\n"))
+	  (with-current-buffer (find-file-noselect source)
+	    (org-mode)
+	    (let ((comment (car (org-comments-collect (current-buffer) t))))
+	      (should (eq (plist-get comment :anchor-state) 'recovered))
+	      (should (equal (plist-get comment :target-start) 9))
+	      (should (equal (plist-get comment :target-end) 22))
+	      (should (equal (plist-get comment :anchor-pos) 9)))))
+      (when-let* ((buffer (find-buffer-visiting source)))
+	(kill-buffer buffer))
+      (delete-directory dir t))))
+
 (ert-deftest org-comments-store-normalizes-collaboration-fields ()
   "Collected sidecar records include normalized collaboration fields."
   (let* ((dir (make-temp-file "org-comments-store-" t))

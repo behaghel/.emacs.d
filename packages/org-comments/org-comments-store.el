@@ -29,6 +29,60 @@
 			(buffer-substring-no-properties start end))
 		       (org-comments-normalize-target-text target-text)))))))
 
+(defun org-comments--normalized-buffer-with-map ()
+  "Return normalized buffer text and source position map for current buffer."
+  (let ((position (point-min))
+	(text nil)
+	(map nil)
+	(pending-space nil))
+    (while (< position (point-max))
+      (let ((char (char-after position)))
+	(if (and char (string-match-p "[[:space:]]" (char-to-string char)))
+	    (let ((start position))
+	      (while (and (< position (point-max))
+			  (string-match-p "[[:space:]]" (char-to-string (char-after position))))
+		(setq position (1+ position)))
+	      (setq pending-space (cons start position)))
+	  (when pending-space
+	    (unless (null text)
+	      (push ?\s text)
+	      (push pending-space map))
+	    (setq pending-space nil))
+	  (push char text)
+	  (push (cons position (1+ position)) map)
+	  (setq position (1+ position)))))
+    (cons (apply #'string (nreverse text)) (nreverse map))))
+
+(defun org-comments--source-match-from-normalized (map start end)
+  "Return source buffer cons from normalized MAP START END positions."
+  (cons (car (nth start map))
+	(cdr (nth (1- end) map))))
+
+(defun org-comments--anchor-matches-for-text (source-buffer target-text)
+  "Return source-buffer matches for normalized TARGET-TEXT."
+  (let ((target (org-comments-normalize-target-text (or target-text ""))))
+    (unless (string-empty-p target)
+      (with-current-buffer source-buffer
+	(let* ((normalized (org-comments--normalized-buffer-with-map))
+	       (source (car normalized))
+	       (map (cdr normalized))
+	       (start 0)
+	       matches)
+	  (while (string-match (regexp-quote target) source start)
+	    (let ((match-start (match-beginning 0))
+		  (match-end (match-end 0)))
+	      (push (org-comments--source-match-from-normalized map match-start match-end)
+		    matches)
+	      (setq start (max (1+ match-start) match-end))))
+	  (nreverse matches))))))
+
+(defun org-comments--recovered-anchor-bounds (source-buffer properties)
+  "Return recovered source bounds for PROPERTIES in SOURCE-BUFFER, or nil."
+  (let* ((target-text (alist-get "ORG_COMMENTS_TARGET_TEXT" properties nil nil #'equal))
+	 (matches (org-comments--anchor-matches-for-text source-buffer target-text)))
+    (when (= (length matches) 1)
+      (car matches))))
+
 (defun org-comments--reply-records-at-heading (sidecar-file)
   "Return direct reply child records under heading at point in SIDECAR-FILE."
   (let ((level (org-outline-level))
@@ -91,11 +145,22 @@ whose stored target no longer validates against the source buffer."
 		      (list :anchor-line (line-number-at-pos start t)
 			    :anchor-pos start
 			    :jump-pos start)))
-	  (when include-stale
-	    (append record
-		    (list :anchor-state 'stale
-			  :stale t
-			  :anchor-line most-positive-fixnum))))))))
+	  (if-let* ((recovered (org-comments--recovered-anchor-bounds
+				source-buffer properties)))
+	      (with-current-buffer source-buffer
+		(let ((recovered-record (copy-sequence record)))
+		  (plist-put recovered-record :target-start (car recovered))
+		  (plist-put recovered-record :target-end (cdr recovered))
+		  (append recovered-record
+			  (list :anchor-line (line-number-at-pos (car recovered) t)
+				:anchor-pos (car recovered)
+				:jump-pos (car recovered)
+				:anchor-state 'recovered))))
+	    (when include-stale
+	      (append record
+		      (list :anchor-state 'stale
+			    :stale t
+			    :anchor-line most-positive-fixnum)))))))))
 
 (defun org-comments-goto-id (comment-id)
   "Move point to sidecar heading with COMMENT-ID and return non-nil when found."

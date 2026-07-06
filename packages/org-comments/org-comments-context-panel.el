@@ -79,15 +79,19 @@
    org-comments-page-comment-overlay
    (lambda () (org-comments-collect-page (current-buffer)))))
 
-(defun org-comments-context-panel--inline-comment-p (comment)
-  "Return non-nil when COMMENT should have a source region overlay."
+(defun org-comments-context-panel--source-comment-p (comment)
+  "Return non-nil when COMMENT belongs in source-context side panels."
   (and (eq (plist-get comment :type) 'comment)
-       (not (plist-get comment :page-comment))
+       (not (plist-get comment :page-comment))))
+
+(defun org-comments-context-panel--anchored-inline-comment-p (comment)
+  "Return non-nil when COMMENT should have a source region overlay."
+  (and (org-comments-context-panel--source-comment-p comment)
        (not (eq (plist-get comment :anchor-state) 'stale))))
 
 (defun org-comments-context-panel-collect-side-items (source-buffer)
   "Collect side items for SOURCE-BUFFER."
-  (cl-remove-if-not #'org-comments-context-panel--inline-comment-p
+  (cl-remove-if-not #'org-comments-context-panel--source-comment-p
 		    (org-comments-collect source-buffer t)))
 
 (defun org-comments-context-panel-collect-top-markers (source-buffer)
@@ -181,7 +185,9 @@ comments renderer keeps using the existing source-buffer-scoped filter pipeline.
 (defun org-comments-context-panel-refresh-source-overlays ()
   "Refresh Org comments source range overlays in the current Org buffer."
   (org-comments-context-panel--delete-range-overlays)
-  (dolist (comment (org-comments-context-panel-collect-side-items (current-buffer)))
+  (dolist (comment (cl-remove-if-not
+		    #'org-comments-context-panel--anchored-inline-comment-p
+		    (org-comments-context-panel-collect-side-items (current-buffer))))
     (let ((start (plist-get comment :target-start))
 	  (end (plist-get comment :target-end)))
       (when-let* ((overlay (org-context-panel-make-range-overlay
