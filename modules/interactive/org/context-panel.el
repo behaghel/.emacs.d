@@ -49,6 +49,9 @@
 (defvar-local hub/org-context-panel--refresh-timer nil
   "Pending idle timer for refreshing this buffer's context panel.")
 
+(defvar-local hub/org-context-panel--refresh-signature nil
+  "Last viewport/content signature used for context-panel refresh.")
+
 ;;;###autoload
 (defun hub/org-context-panel--visual-fill-total-margin (source-window)
   "Return total visual-fill-column margin for SOURCE-WINDOW."
@@ -131,15 +134,30 @@
 	(save-selected-window
 	  (hub/org-context-panel--refresh-visible-panels source-buffer))))))
 
+(defun hub/org-context-panel--refresh-signature (&optional source-buffer)
+  "Return context-panel refresh signature for SOURCE-BUFFER."
+  (let* ((source (or source-buffer (current-buffer)))
+	 (window (get-buffer-window source t)))
+    (when (window-live-p window)
+      (list (window-start window)
+	    (window-end window t)
+	    (window-body-width window)
+	    (window-body-height window)
+	    (with-current-buffer source
+	      (buffer-chars-modified-tick))))))
+
 (defun hub/org-context-panel--post-command-refresh ()
   "Schedule a visible context panel refresh after source-buffer commands."
   (when (and hub/org-context-panel-mode
 	     (hub/org-context-panel--visible-p))
-    (hub/org-context-panel--cancel-refresh-timer)
-    (setq hub/org-context-panel--refresh-timer
-	  (run-with-idle-timer hub/org-context-panel-refresh-idle-delay nil
-			       #'hub/org-context-panel--refresh-after-idle
-			       (current-buffer)))))
+    (let ((signature (hub/org-context-panel--refresh-signature)))
+      (unless (equal signature hub/org-context-panel--refresh-signature)
+	(setq hub/org-context-panel--refresh-signature signature)
+	(hub/org-context-panel--cancel-refresh-timer)
+	(setq hub/org-context-panel--refresh-timer
+	      (run-with-idle-timer hub/org-context-panel-refresh-idle-delay nil
+				   #'hub/org-context-panel--refresh-after-idle
+				   (current-buffer)))))))
 
 (defun hub/org-context-panel--enable-comments-provider ()
   "Enable package context providers with personal side-panel naming."
@@ -161,6 +179,8 @@
   (let ((source-buffer (current-buffer)))
     (hub/org-context-panel--enable-comments-provider)
     (org-context-panel-refresh-source-overlays)
+    (setq hub/org-context-panel--refresh-signature
+	  (hub/org-context-panel--refresh-signature source-buffer))
     (let ((panel (org-context-panel-open source-buffer)))
       (with-current-buffer source-buffer
 	(hub/org-context-panel--open-page-view nil nil))
@@ -176,6 +196,8 @@
     (user-error "Org context panel only works in Org buffers"))
   (hub/org-context-panel--enable-comments-provider)
   (org-context-panel-refresh-source-overlays)
+  (setq hub/org-context-panel--refresh-signature
+	(hub/org-context-panel--refresh-signature))
   (org-context-panel-refresh))
 
 (defun hub/org-context-panel--open-comment-ui (comment-id &optional jump-position)
@@ -396,6 +418,7 @@ motion."
 	(org-comments-open))
     (remove-hook 'post-command-hook #'hub/org-context-panel--post-command-refresh t)
     (hub/org-context-panel--cancel-refresh-timer)
+    (setq hub/org-context-panel--refresh-signature nil)
     (hub/org-context-panel--close-ui)))
 
 (with-eval-after-load 'org-confluence-sync-status
