@@ -90,8 +90,19 @@
 (defvar org-context-panel-before-side-panel-close-hook nil
   "Hook run before closing a side context panel.")
 
+(defvar org-context-panel-auxiliary-mode-map
+  (let ((map (make-sparse-keymap)))
+    (define-key map (kbd "q") #'org-context-panel-close-current-window)
+    map)
+  "Shared keymap for dismissible Org context-panel auxiliary views.")
+
 (define-derived-mode org-context-panel-buffer-mode special-mode "Org-Context"
   "Major mode for generic Org context side panel buffers.")
+
+(defun org-context-panel-close-current-window ()
+  "Close the current context-panel auxiliary window."
+  (interactive)
+  (quit-window t))
 
 (defun org-context-panel--refresh-after-save ()
   "Refresh context-panel source overlays after saving the current buffer."
@@ -159,6 +170,10 @@ copied and annotated with its provider name in `:provider'."
       (plist-get item :reference-pos)
       (plist-get item :anchor-pos)))
 
+(defun org-context-panel-position-hidden-p (position)
+  "Return non-nil when POSITION is hidden by text invisibility."
+  (and position (invisible-p position)))
+
 (defun org-context-panel-position-row (position window)
   "Return visible row for POSITION in WINDOW, or nil.
 The primary path uses redisplay coordinates so visual wrapping and partial
@@ -166,6 +181,7 @@ scrolling follow the live window.  A logical-line fallback keeps the helper
 usable in batch tests and non-redisplayed windows."
   (when (and (window-live-p window)
 	     position
+	     (not (org-context-panel-position-hidden-p position))
 	     (<= (window-start window) position)
 	     (< position (window-end window t)))
     (or (when-let* ((posn (posn-at-point position window))
@@ -275,19 +291,86 @@ Return the destination position, or nil when KEY is not visible."
     (with-current-buffer source
       (org-context-panel-registered-provider (plist-get item :provider)))))
 
-;;;###autoload
-(defun org-context-panel-jump-at-point ()
-  "Jump from the current context-panel row using its provider."
-  (interactive)
-  (let* ((item (or (org-context-panel-item-at-point)
-		   (user-error "No context-panel item at point")))
-	 (source (org-context-panel--source-buffer))
+(defun org-context-panel-jump-to-item (item &optional source-buffer)
+  "Jump to context-panel ITEM using its provider.
+When SOURCE-BUFFER is nil, infer it from the current context."
+  (let* ((source (or source-buffer (org-context-panel--source-buffer)))
 	 (provider (or (org-context-panel-item-provider item source)
 		       (user-error "No provider for context-panel item")))
 	 (jump (or (plist-get provider :jump-side-item)
 		   (user-error "Provider %s does not support row jumps"
 			       (plist-get provider :name)))))
     (funcall jump source item)))
+
+;;;###autoload
+(defun org-context-panel-jump-at-point ()
+  "Jump from the current context-panel row using its provider."
+  (interactive)
+  (let ((item (or (org-context-panel-item-at-point)
+		  (user-error "No context-panel item at point"))))
+    (org-context-panel-jump-to-item item)))
+
+(defun org-context-panel--source-navigation-items (source-buffer)
+  "Return navigable context-panel items for SOURCE-BUFFER."
+  (with-current-buffer source-buffer
+    (let ((providers (org-context-panel-registered-providers)))
+      (org-context-panel--sort-items
+       (cl-remove-if-not
+	(lambda (item)
+	  (let ((position (org-context-panel-item-anchor-position item)))
+	    (and position
+		 (not (org-context-panel-position-hidden-p position)))))
+	(org-context-panel-collect-side-items source-buffer))
+       providers))))
+
+(defun org-context-panel--sync-visible-side-panel (source-buffer item)
+  "Refresh SOURCE-BUFFER's visible side panel and focus ITEM when possible."
+  (when-let* ((panel-buffer (buffer-local-value
+			     'org-context-panel-side-panel-buffer source-buffer))
+	      (panel-window (and (buffer-live-p panel-buffer)
+				 (get-buffer-window panel-buffer t))))
+    (with-current-buffer panel-buffer
+      (org-context-panel-render-side-panel
+       source-buffer (get-buffer-window source-buffer t))
+      (when-let* ((key (org-context-panel-item-key item)))
+	(org-context-panel-goto-item-key key)))
+    (set-window-buffer panel-window panel-buffer)))
+
+(defun org-context-panel--goto-source-navigation-item (item source-buffer)
+  "Jump to source navigation ITEM in SOURCE-BUFFER and refresh panel state."
+  (org-context-panel-jump-to-item item source-buffer)
+  (org-context-panel--sync-visible-side-panel source-buffer item)
+  item)
+
+(defun org-context-panel--source-navigation-step (step)
+  "Move to the next context-panel source item by STEP."
+  (let* ((source (org-context-panel--source-buffer))
+	 (position (with-current-buffer source (point)))
+	 (items (org-context-panel--source-navigation-items source))
+	 (ordered (if (> step 0) items (reverse items)))
+	 (next (or (cl-find-if
+		    (lambda (item)
+		      (let ((anchor (org-context-panel-item-anchor-position item)))
+			(if (> step 0)
+			    (> anchor position)
+			  (< anchor position))))
+		    ordered)
+		   (car ordered))))
+    (unless next
+      (user-error "No context-panel items in this buffer"))
+    (org-context-panel--goto-source-navigation-item next source)))
+
+;;;###autoload
+(defun org-context-panel-next-item ()
+  "Jump to the next context-panel item in the source buffer."
+  (interactive)
+  (org-context-panel--source-navigation-step 1))
+
+;;;###autoload
+(defun org-context-panel-previous-item ()
+  "Jump to the previous context-panel item in the source buffer."
+  (interactive)
+  (org-context-panel--source-navigation-step -1))
 
 (defun org-context-panel--provider-items (provider items)
   "Return ITEMS owned by PROVIDER."

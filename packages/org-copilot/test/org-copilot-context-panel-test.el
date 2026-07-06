@@ -238,6 +238,10 @@
 	      #'org-copilot-chat-section))
   (should (eq (lookup-key org-copilot-mode-map (kbd "C-c C-x / c"))
 	      #'org-copilot-chat))
+  (should (eq (lookup-key org-copilot-mode-map (kbd "C-c C-x / n"))
+	      #'org-context-panel-next-item))
+  (should (eq (lookup-key org-copilot-mode-map (kbd "C-c C-x / p"))
+	      #'org-context-panel-previous-item))
   (should (eq (lookup-key org-copilot-mode-map (kbd "C-c C-x / o"))
 	      #'org-copilot-open-panels)))
 

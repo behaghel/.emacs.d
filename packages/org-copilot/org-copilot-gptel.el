@@ -77,129 +77,6 @@
 	  (plist-get request :scope)
 	  (plist-get request :text)))
 
-(defun org-copilot-gptel--symbol (value fallback)
-  "Return VALUE converted to a symbol, or FALLBACK when VALUE is nil."
-  (cond
-   ((null value) fallback)
-   ((symbolp value) value)
-   ((stringp value) (intern value))
-   (t fallback)))
-
-(defun org-copilot-gptel--optional-string (value)
-  "Return VALUE as a non-empty string, or nil."
-  (when (and (stringp value)
-	     (not (string-empty-p (string-trim value))))
-    value))
-
-(defun org-copilot-gptel--comment-from-json (comment)
-  "Return normalized AI comment plist from parsed JSON COMMENT."
-  (org-copilot-normalize-comment
-   (list :id (plist-get comment :id)
-	 :type (org-copilot-gptel--symbol (plist-get comment :type) 'inline)
-	 :status (org-copilot-gptel--symbol (plist-get comment :status) 'active)
-	 :source-start (plist-get comment :source_start)
-	 :source-end (plist-get comment :source_end)
-	 :target-text (plist-get comment :target_text)
-	 :line-start (plist-get comment :line_start)
-	 :line-end (plist-get comment :line_end)
-	 :summary (plist-get comment :summary)
-	 :body (plist-get comment :body)
-	 :suggestion (org-copilot-gptel--optional-string
-		      (plist-get comment :suggestion))
-	 :rationale (plist-get comment :rationale)
-	 :metadata (plist-get comment :metadata))))
-
-(defun org-copilot-gptel--summary-list (summary key label)
-  "Return formatted SUMMARY list at KEY with LABEL, or nil."
-  (when-let* ((items (plist-get summary key)))
-    (concat label "\n"
-	    (mapconcat (lambda (item) (format "- %s" item)) items "\n"))))
-
-(defun org-copilot-gptel--summary-message (summary)
-  "Return a readable summary message from parsed SUMMARY plist."
-  (when summary
-    (string-join
-     (delq nil
-	   (list (org-copilot-gptel--optional-string
-		  (plist-get summary :message))
-		 (org-copilot-gptel--summary-list summary :strengths "Strengths")
-		 (org-copilot-gptel--summary-list summary :risks "Risks")
-		 (org-copilot-gptel--summary-list summary :next_steps "Next steps")))
-     "\n\n")))
-
-(defun org-copilot-gptel-parse-review-result (response)
-  "Parse strict JSON review RESPONSE into summary and comments."
-  (let* ((parsed (json-parse-string response
-				    :object-type 'plist
-				    :array-type 'list
-				    :null-object nil
-				    :false-object nil))
-	 (comments (plist-get parsed :comments)))
-    (list :summary (org-copilot-gptel--summary-message
-		    (plist-get parsed :summary))
-	  :comments (mapcar #'org-copilot-gptel--comment-from-json comments))))
-
-(defun org-copilot-gptel-parse-review-response (response)
-  "Parse strict JSON review RESPONSE into normalized AI comments."
-  (plist-get (org-copilot-gptel-parse-review-result response) :comments))
-
-(defun org-copilot-gptel--anchor-comment-exact (comment)
-  "Return COMMENT anchored by exact target text in the current buffer."
-  (let ((target-text (plist-get comment :target-text)))
-    (when (and target-text (not (string-empty-p target-text)))
-      (save-excursion
-	(goto-char (point-min))
-	(when (search-forward target-text nil t)
-	  (let ((copy (copy-sequence comment)))
-	    (setq copy (plist-put copy :source-start (match-beginning 0)))
-	    (plist-put copy :source-end (match-end 0))))))))
-
-(defun org-copilot-gptel--request-line-range (request line-start line-end)
-  "Return source bounds for REQUEST-relative LINE-START and LINE-END."
-  (when (and request line-start line-end)
-    (let ((request-start (or (plist-get request :start) (point-min)))
-	  (request-end (or (plist-get request :end) (point-max))))
-      (save-excursion
-	(goto-char request-start)
-	(forward-line (max 0 (1- line-start)))
-	(let ((start (point)))
-	  (goto-char request-start)
-	  (forward-line (max 0 (1- line-end)))
-	  (end-of-line)
-	  (let ((end (min (point) request-end)))
-	    (when (and (<= request-start start)
-		       (<= start end)
-		       (<= end request-end))
-	      (cons start end))))))))
-
-(defun org-copilot-gptel--anchor-comment-by-lines (comment request)
-  "Return COMMENT anchored by REQUEST-relative line hints, or nil."
-  (when-let* ((bounds (org-copilot-gptel--request-line-range
-		       request
-		       (plist-get comment :line-start)
-		       (plist-get comment :line-end))))
-    (let ((copy (copy-sequence comment)))
-      (setq copy (plist-put copy :source-start (car bounds)))
-      (plist-put copy :source-end (cdr bounds)))))
-
-(defun org-copilot-gptel--anchored-comment (comment &optional request)
-  "Return COMMENT anchored in the current buffer.
-Prefer exact `:target-text' matching.  Fall back to REQUEST-relative line hints
-when exact matching fails."
-  (or (and (plist-get comment :source-start) comment)
-      (org-copilot-gptel--anchor-comment-exact comment)
-      (org-copilot-gptel--anchor-comment-by-lines comment request)
-      comment))
-
-(defun org-copilot-gptel-anchor-comments (source-buffer comments &optional request)
-  "Return COMMENTS anchored in SOURCE-BUFFER.
-When REQUEST is non-nil, use its `:start' and `:end' bounds for line-range
-fallback anchoring."
-  (with-current-buffer source-buffer
-    (mapcar (lambda (comment)
-	      (org-copilot-gptel--anchored-comment comment request))
-	    comments)))
-
 (defun org-copilot-gptel--open-general-chat (source-buffer)
   "Open the general Org Copilot chat for SOURCE-BUFFER."
   (with-current-buffer source-buffer
@@ -227,12 +104,12 @@ fallback anchoring."
 (defun org-copilot-gptel--install-response (source-buffer response &optional request)
   "Install gptel review RESPONSE into SOURCE-BUFFER's session.
 REQUEST supplies reviewed source bounds for line-range fallback anchoring."
-  (let* ((result (org-copilot-gptel-parse-review-result response))
+  (let* ((result (org-copilot-llm-parse-review-result response))
 	 (comments (plist-get result :comments))
 	 (summary (org-copilot-gptel--review-chat-summary
 		   comments
 		   (plist-get result :summary)))
-	 (anchored (org-copilot-gptel-anchor-comments source-buffer comments request)))
+	 (anchored (org-copilot-llm-anchor-comments source-buffer comments request)))
     (message "Org Copilot: installing %d gptel comment(s)" (length anchored))
     (with-current-buffer source-buffer
       (org-copilot-chat--set-context source-buffer '(:type full-document))
@@ -281,14 +158,17 @@ REQUEST supplies reviewed source bounds for line-range fallback anchoring."
 	 (focused-context (org-copilot-gptel--format-focused-comment focused-comment)))
     (format (concat "You are an AI writing partner for an Org author.\n"
 		    "Answer the user's question concisely and concretely.\n"
-		    "When a focused comment is present, help iterate on its replacement suggestion.\n"
-		    "For focused comments, return strict JSON only: "
-		    "{\"message\":\"brief explanation\",\"suggestion\":\"revised literal replacement text\"}.\n"
-		    "The suggestion must be replacement text for the target, not advice.\n"
+		    "Return strict JSON only, with no Markdown fences.\n"
+		    "The JSON shape is {\"message\":\"brief answer\",\"suggestion\":\"optional broad rewrite\",\"heading_line\":\"optional exact target heading line\",\"section_title\":\"optional exact target title\",\"section_path\":[\"optional\",\"outline path\"],\"comments\":[...]} .\n"
+		    "Use `comments' only when the user clearly asks for review, critique, edits, improvements, suggestions, issues, or targeted comments; otherwise return an empty comments array.\n"
+		    "Each comment has optional id, type (`inline' or `scope'), summary, body, target_text, suggestion, line_start, and line_end.\n"
+		    "Inline comments must include exact target_text copied from the document; comment suggestions must be literal replacements for target_text only.\n"
+		    "At most one scope comment is useful. Prefer no more than 8 comments total.\n"
+		    "Do not combine a broad top-level suggestion with targeted comments unless the user explicitly asks for both a rewrite and review comments. This is exceptional because broad rewrites and targeted suggestions can contradict each other. If both seem necessary, ask for confirmation in `message' and return no top-level suggestion.\n"
+		    "When a focused comment is present, help iterate on its replacement suggestion. The top-level suggestion must be replacement text for the focused target, not advice.\n"
 		    "For full-document chat without a focused comment, use the source content and conversation history; do not infer hidden AI comments.\n"
-		    "For section chat, use the full source content as context, but keep the named section as the focus for any analysis or suggestion.\n"
-		    "For full-document and section chat, plain text is acceptable. If you provide a suggestion, return strict JSON: {\"message\":\"brief explanation\",\"suggestion\":\"suggested text\",\"heading_line\":\"optional exact target heading line\",\"section_title\":\"optional exact target title\",\"section_path\":[\"optional\",\"outline path\"]}.\n"
-		    "For section suggestions, `suggestion' must be replacement content for the body below the target heading. Do not repeat the target section's own heading line. You may include subsections or lower-level headings inside the replacement body when appropriate. Omit anchor fields when the active section is the target.\n\n"
+		    "For section chat, use the full source content as context, but generated comments must target only the focused section unless the user explicitly switches to full-document chat.\n"
+		    "For section suggestions, the top-level `suggestion' must be replacement content for the body below the target heading. Do not repeat the target section's own heading line. You may include subsections or lower-level headings inside the replacement body when appropriate. Omit anchor fields when the active section is the target.\n\n"
 		    "Buffer: %s\n"
 		    "Focused comment id: %s\n\n"
 		    "Full source content:\n%s\n\n"
@@ -303,29 +183,6 @@ REQUEST supplies reviewed source bounds for line-range fallback anchoring."
 	    (or focused-context "<none>")
 	    (if (string-empty-p history) "<none>" history)
 	    (plist-get request :message))))
-
-(defun org-copilot-gptel--parse-chat-response (response)
-  "Return normalized chat response plist from RESPONSE."
-  (condition-case nil
-      (let ((parsed (json-parse-string response
-				       :object-type 'plist
-				       :array-type 'list
-				       :null-object nil
-				       :false-object nil)))
-	(list :message (or (org-copilot-gptel--optional-string
-			    (plist-get parsed :message))
-			   response)
-	      :suggestion (org-copilot-gptel--optional-string
-			   (plist-get parsed :suggestion))
-	      :summary (org-copilot-gptel--optional-string
-			(plist-get parsed :summary))
-	      :heading-line (org-copilot-gptel--optional-string
-			     (plist-get parsed :heading_line))
-	      :section-title (org-copilot-gptel--optional-string
-			      (plist-get parsed :section_title))
-	      :section-path (plist-get parsed :section_path)))
-    (error
-     (list :message response :suggestion nil))))
 
 (defun org-copilot-gptel--update-focused-suggestion (source-buffer comment-id suggestion)
   "Update COMMENT-ID in SOURCE-BUFFER with revised SUGGESTION."
@@ -379,7 +236,17 @@ chat viewport."
 	     (message "Org Copilot: gptel chat completed status=%S"
 		      (plist-get info :status))
 	     (when (and response (buffer-live-p source-buffer))
-	       (let ((parsed (org-copilot-gptel--parse-chat-response response)))
+	       (let* ((parsed (org-copilot-llm-parse-chat-response response))
+		      (install-result
+		       (unless comment-id
+			 (org-copilot-install-chat-comments
+			  source-buffer
+			  (plist-get parsed :comments)
+			  request
+			  (plist-get request :message))))
+		      (message (org-copilot-llm-append-chat-install-summary
+				(plist-get parsed :message)
+				install-result)))
 		 (if comment-id
 		     (org-copilot-gptel--update-focused-suggestion
 		      source-buffer comment-id (plist-get parsed :suggestion))
@@ -388,7 +255,7 @@ chat viewport."
 		 (with-current-buffer source-buffer
 		   (org-copilot-remove-pending-chat-message comment-id context-id)
 		   (org-copilot-add-chat-message
-		    'assistant (plist-get parsed :message) comment-id context-id)))
+		    'assistant message comment-id context-id)))
 	       (org-copilot-gptel--render-chat-buffer source-buffer 'assistant)))
 	 (error
 	  (message "Org Copilot: gptel chat failed error=%S response=%S"

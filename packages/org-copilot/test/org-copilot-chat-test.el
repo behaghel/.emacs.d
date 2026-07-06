@@ -584,6 +584,29 @@
       (when (buffer-live-p source)
 	(kill-buffer source)))))
 
+(ert-deftest org-copilot-chat-scrolls-assistant-content-to-window-top ()
+  "Assistant response scrolling starts at the first answer line."
+  (let ((source (generate-new-buffer " *org copilot assistant scroll source*"))
+	(chat-window nil))
+    (unwind-protect
+	(with-current-buffer source
+	  (org-mode)
+	  (org-copilot-add-chat-message 'user "Explain this")
+	  (org-copilot-add-chat-message 'assistant "First answer line.\nSecond answer line.")
+	  (setq chat-window
+		(display-buffer (org-copilot-chat--buffer source)))
+	  (org-copilot-chat-scroll-to-last-message source 'assistant)
+	  (with-current-buffer (window-buffer chat-window)
+	    (goto-char (window-start chat-window))
+	    (should (eq (get-text-property (point)
+					   'org-copilot-chat-message-role)
+			'assistant))
+	    (should (looking-at-p "  First answer line\\."))))
+      (when (window-live-p chat-window)
+	(delete-window chat-window))
+      (when (buffer-live-p source)
+	(kill-buffer source)))))
+
 (ert-deftest org-copilot-chat-send-adds-pending-message-for-async-adapter ()
   "Async chat adapters produce a pending Copilot message."
   (with-temp-buffer

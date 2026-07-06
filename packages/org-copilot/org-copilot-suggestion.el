@@ -34,15 +34,15 @@
 (defvar-local org-copilot-suggestion-kind nil
   "Kind of suggestion displayed in the current preview buffer.")
 
+(defvar org-copilot-suggestion-mode-map
+  (let ((map (make-sparse-keymap)))
+    (set-keymap-parent map org-context-panel-auxiliary-mode-map)
+    map)
+  "Keymap for Org Copilot suggestion preview buffers.")
+
 (define-derived-mode org-copilot-suggestion-mode org-mode "Org-Copilot-Suggestion"
   "Major mode for read-only Org Copilot suggestion previews."
   (setq buffer-read-only t))
-
-(defun org-copilot-suggestion--protect-window (window panel-buffer source-buffer)
-  "Protect WINDOW for PANEL-BUFFER and SOURCE-BUFFER when supported."
-  (when (and (window-live-p window)
-	     (fboundp 'org-context-panel-protect-window))
-    (org-context-panel-protect-window window panel-buffer source-buffer)))
 
 (defun org-copilot-suggestion-normalize-section-body (suggestion)
   "Normalize section body SUGGESTION for insertion."
@@ -79,11 +79,7 @@ preview window; otherwise preserve the current selected window."
 		   buffer
 		   '((side . left)
 		     (slot . 1)
-		     (window-width . 0.38)
-		     (window-parameters
-		      . ((no-other-window . t)
-			 (no-delete-other-windows . t)))))))
-      (org-copilot-suggestion--protect-window window buffer source-buffer)
+		     (window-width . 0.38)))))
       (cond
        (select (select-window window))
        ((window-live-p selected-window) (select-window selected-window))))

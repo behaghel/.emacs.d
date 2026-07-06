@@ -59,6 +59,30 @@
       (when (get-buffer org-copilot-suggestion-buffer-name)
 	(kill-buffer org-copilot-suggestion-buffer-name)))))
 
+(ert-deftest org-copilot-suggestion-mode-uses-shared-close-key ()
+  "Suggestion previews bind q through the shared context auxiliary map."
+  (should (eq (lookup-key org-copilot-suggestion-mode-map (kbd "q"))
+	      #'org-context-panel-close-current-window)))
+
+(ert-deftest org-copilot-suggestion-window-is-deletable-from-source ()
+  "Suggestion previews do not resist `delete-other-windows' from source."
+  (let ((source (generate-new-buffer " *org copilot source*")))
+    (unwind-protect
+	(progn
+	  (delete-other-windows)
+	  (set-window-buffer (selected-window) source)
+	  (org-copilot-suggestion-open source "🌐 Full document" "Try this."
+				       'full-document)
+	  (should (get-buffer-window org-copilot-suggestion-buffer-name t))
+	  (select-window (get-buffer-window source t))
+	  (delete-other-windows)
+	  (should-not (get-buffer-window org-copilot-suggestion-buffer-name t)))
+      (delete-other-windows)
+      (when (buffer-live-p source)
+	(kill-buffer source))
+      (when (get-buffer org-copilot-suggestion-buffer-name)
+	(kill-buffer org-copilot-suggestion-buffer-name)))))
+
 (ert-deftest org-copilot-view-suggestion-at-point-reopens-section-preview ()
   "Section suggestion rows can reopen the left preview."
   (with-temp-buffer

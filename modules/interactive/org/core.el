@@ -87,8 +87,8 @@ native behavior."
 			      ",cmr" #'hub/org-comment-mark-resolved
 			      ",cx" #'hub/org-comment-delete
 			      ",ov" #'hub/org-insert-veriff-template
-			      "]c" #'hub/org-comment-next
-			      "[c" #'hub/org-comment-previous)
+			      "]c" #'org-context-panel-next-item
+			      "[c" #'org-context-panel-previous-item)
   (evil-define-key 'visual org-mode-map (kbd ",cA") #'hub/org-comment-reanchor-from-region)
   (evil-define-key 'visual org-mode-map (kbd ",cc") #'hub/org-comment-create-from-region)
   (evil-define-key 'normal org-mode-map (kbd "RET") #'hub/org-comments-source-ret-dwim)

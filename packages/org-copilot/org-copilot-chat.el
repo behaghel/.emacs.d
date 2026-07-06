@@ -282,8 +282,17 @@ assistant message, or a plist with `:message' and optional `:comments'.  Normal
 			 '(org-copilot-chat-message t))
     (put-text-property start (point) 'org-copilot-chat-message-role role)))
 
-(defun org-copilot-chat--last-message-position (role)
-  "Return the last rendered chat message position for ROLE."
+(defun org-copilot-chat--message-content-position (position)
+  "Return the first content line position for message at POSITION."
+  (save-excursion
+    (goto-char position)
+    (forward-line 1)
+    (point)))
+
+(defun org-copilot-chat--last-message-position (role &optional content)
+  "Return the last rendered chat message position for ROLE.
+When CONTENT is non-nil, return the first content line instead of the role
+label line."
   (let ((position nil)
 	(cursor (point-min)))
     (while (< cursor (point-max))
@@ -292,16 +301,21 @@ assistant message, or a plist with `:message' and optional `:comments'.  Normal
       (setq cursor (or (next-single-property-change
 			cursor 'org-copilot-chat-message-role nil (point-max))
 		       (point-max))))
-    position))
+    (if (and content position)
+	(org-copilot-chat--message-content-position position)
+      position)))
 
 (defun org-copilot-chat-scroll-to-last-message (source-buffer role)
-  "Scroll visible SOURCE-BUFFER chat windows to the last message with ROLE."
+  "Scroll visible SOURCE-BUFFER chat windows to the last message with ROLE.
+The first content line is placed at the top of the viewport so completed
+assistant responses start where the user begins reading."
   (when-let* ((buffer (get-buffer org-copilot-chat-buffer-name)))
     (with-current-buffer buffer
       (when (eq org-copilot-chat-source-buffer source-buffer)
-	(when-let* ((position (org-copilot-chat--last-message-position role)))
+	(when-let* ((position (org-copilot-chat--last-message-position role t)))
 	  (dolist (window (get-buffer-window-list buffer nil t))
-	    (set-window-start window position t)))))))
+	    (set-window-point window position)
+	    (set-window-start window position)))))))
 
 (defun org-copilot-chat--visible-messages (source-buffer)
   "Return chat messages visible for SOURCE-BUFFER's current chat context."

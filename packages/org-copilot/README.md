@@ -53,7 +53,7 @@ The core UX principle is:
 | Section suggestions | Accept-capable AI comments replacing section body only | Preserves Org structure while allowing concrete section rewrites. |
 | Full-document suggestions | Left-side preview only | Avoids dangerous whole-buffer apply semantics before they are explicitly designed. |
 | LLM integration | Adapter protocol, with `gptel` as the first real adapter | Keeps core testable and avoids a hard dependency. |
-| Initial response format | Adapter-defined; strict JSON for structured `gptel` suggestions | Structured enough for comments/suggestions, but not a public durable format. |
+| Structured response protocol | Adapter-neutral Org Copilot JSON protocol, with `gptel` as one transport | Review/chat comments and suggestions should not be coupled to one provider. |
 
 ## User-Facing Scope
 
@@ -116,11 +116,11 @@ Panel actions for AI comments include:
 
 The prompt is prefixed with the same context marker, for example `🌐 You:` or `§ You:`. Sending to an async adapter scrolls the pending/new Copilot response to the top of the chat viewport. `M-<up>` recalls the last submitted prompt in the current context.
 
-Follow-up chat can modify the visible AI comment list only through explicit user intent or command flow, never automatically because the model decided to do so. Structured section suggestions are an exception only in the sense that they become review artifacts, not source mutations.
+Follow-up chat can modify the visible AI comment list only through explicit user intent or command flow, never automatically because the model decided to do so. Structured section suggestions and chat-generated review comments are exceptions only in the sense that they become review artifacts, not source mutations.
 
-### Section and full-document suggestions
+### Structured chat responses
 
-In section or full-document chat, a `gptel` response may include JSON:
+Adapter responses use Org Copilot's structured JSON protocol. In section or full-document chat, a response may include:
 
 ```json
 {
@@ -128,11 +128,24 @@ In section or full-document chat, a `gptel` response may include JSON:
   "suggestion": "suggested text",
   "heading_line": "optional exact target heading line",
   "section_title": "optional exact target title",
-  "section_path": ["optional", "outline path"]
+  "section_path": ["optional", "outline path"],
+  "comments": [
+    {
+      "type": "inline",
+      "summary": "short panel label",
+      "body": "review explanation",
+      "target_text": "exact source text",
+      "suggestion": "literal replacement for target_text",
+      "line_start": 3,
+      "line_end": 3
+    }
+  ]
 }
 ```
 
-If a section anchor is present, or if chat is already in section context, the suggestion becomes an accept-capable AI comment for that section body. The target section heading is preserved; the suggestion replaces only the body below that heading. Suggestions may include subsections or lower-level headings inside the replacement body.
+The top-level `suggestion` remains the broad section/full-document suggestion path. Combining a broad top-level suggestion with targeted comments is exceptional because the two can contradict each other; adapters should ask for confirmation before returning both unless the user explicitly requested a rewrite plus review comments. If a section anchor is present, or if chat is already in section context, the suggestion becomes an accept-capable AI comment for that section body. The target section heading is preserved; the suggestion replaces only the body below that heading. Suggestions may include subsections or lower-level headings inside the replacement body.
+
+`comments` creates normal review artifacts when the user clearly asked for review, critique, edits, improvements, suggestions, issues, or targeted comments. Inline chat comments must include exact `target_text`; line ranges are only fallback metadata. Section chat installs comments only inside the active section. Chat-generated comment ids are rewritten locally, comments are capped by `org-copilot-chat-max-comments`, and skipped/unanchored comments are reported in a factual footer appended to the chat answer.
 
 Unanchored full-document suggestions open a read-only left-side preview and are preview-only; they do not create side-panel rows and cannot be accepted yet.
 
@@ -198,8 +211,8 @@ Responsibilities:
 - `org-copilot-diff.el`: diff buffer rendering and safe suggestion application.
 - `org-copilot-suggestion.el`: left-side previews and section suggestion anchoring.
 - `org-copilot-chat.el`: source-buffer chat UI and context switching.
-- `org-copilot-llm.el`: adapter protocol and normalized review request/response API.
-- `org-copilot-gptel.el`: optional `gptel` adapter.
+- `org-copilot-llm.el`: adapter protocol, structured response parsing, comment anchoring, and normalized review request/response API.
+- `org-copilot-gptel.el`: optional `gptel` transport adapter and provider-specific prompts/callbacks.
 - `org-copilot.el`: public entry point and commands.
 
 ## Data Model
@@ -272,6 +285,6 @@ Anchoring uses both approximate line/range and quoted target text. Emacs verifie
 - Accept/apply for unanchored full-document suggestions.
 - Inline ghost-text or in-place diff overlays.
 - Ediff integration.
-- Automatic chat-driven mutation of the AI comment list.
+- Chat-driven mutation of the AI comment list without explicit review/edit/suggestion intent.
 - Remote collaboration or publishing of AI comments.
 - Personal activation policy, Evil/Bépo bindings, or leader-key integration.

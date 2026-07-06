@@ -63,20 +63,6 @@
     (should (string-match-p "thesis strength" prompt))
     (should (string-match-p "JSON" prompt))))
 
-(ert-deftest org-copilot-gptel-parses-review-summary ()
-  "Strict JSON review responses may include a general summary."
-  (let* ((result (org-copilot-gptel-parse-review-result
-		  (concat "{\"summary\":{\"message\":\"Overall: promising.\","
-			  "\"strengths\":[\"Clear goal\"],"
-			  "\"risks\":[\"Weak evidence\"],"
-			  "\"next_steps\":[\"Add examples\"]},"
-			  "\"comments\":[{\"id\":\"ai-1\",\"body\":\"Tighten.\"}]}")))
-	 (summary (plist-get result :summary)))
-    (should (string-match-p "Overall: promising" summary))
-    (should (string-match-p "Strengths" summary))
-    (should (string-match-p "Clear goal" summary))
-    (should (= (length (plist-get result :comments)) 1))))
-
 (ert-deftest org-copilot-gptel-review-chat-summary-counts-comments-and-suggestions ()
   "Review chat summaries include local comment and suggestion counts."
   (let ((summary (org-copilot-gptel--review-chat-summary
@@ -85,24 +71,6 @@
 		  "Overall review.")))
     (should (string-match-p "2 comments, 1 suggestion" summary))
     (should (string-match-p "Overall review" summary))))
-
-(ert-deftest org-copilot-gptel-empty-suggestion-normalizes-to-nil ()
-  "Empty suggestion strings are treated as absent suggestions."
-  (let ((comments (org-copilot-gptel-parse-review-response
-		   "{\"comments\":[{\"id\":\"ai-1\",\"body\":\"Tighten.\",\"suggestion\":\"   \"}]}")))
-    (should-not (plist-get (car comments) :suggestion))))
-
-(ert-deftest org-copilot-gptel-parses-json-comments ()
-  "Strict JSON responses parse to normalized AI comments."
-  (let ((comments (org-copilot-gptel-parse-review-response
-		   "{\"comments\":[{\"id\":\"ai-1\",\"type\":\"inline\",\"summary\":\"Too soft?\",\"body\":\"Tighten.\",\"target_text\":\"Alpha sentence.\",\"suggestion\":\"Alpha.\",\"line_start\":1,\"line_end\":1}]}")))
-    (should (= (length comments) 1))
-    (should (equal (plist-get (car comments) :id) "ai-1"))
-    (should (eq (plist-get (car comments) :type) 'inline))
-    (should (eq (plist-get (car comments) :status) 'active))
-    (should (equal (plist-get (car comments) :summary) "Too soft?"))
-    (should (equal (plist-get (car comments) :target-text) "Alpha sentence."))
-    (should (equal (plist-get (car comments) :line-start) 1))))
 
 (ert-deftest org-copilot-gptel-builds-chat-prompt ()
   "Chat prompts include user message, history, and focused comment context."
@@ -146,6 +114,34 @@
 	(should (eq (plist-get (car messages) :role) 'assistant))
 	(should (equal (plist-get (car messages) :content) "Assistant answer."))))))
 
+(ert-deftest org-copilot-gptel-chat-installs-structured-comments ()
+  "Chat callback comments become normal Org Copilot review artifacts."
+  (with-temp-buffer
+    (org-mode)
+    (insert "Alpha sentence.\n")
+    (let ((org-copilot-chat-open-panel-on-comments nil))
+      (cl-letf (((symbol-function 'gptel-request)
+		 (lambda (_prompt &rest args)
+		   (let ((callback (plist-get args :callback)))
+		     (funcall callback
+			      "{\"message\":\"I added one comment.\",\"comments\":[{\"body\":\"Tighten this.\",\"target_text\":\"Alpha sentence.\",\"suggestion\":\"Alpha.\"}]}"
+			      (list :status 'success))))))
+	(org-copilot-gptel-chat
+	 (list :source-buffer (current-buffer)
+	       :buffer-name (buffer-name)
+	       :message "Find weak lines"
+	       :messages nil
+	       :chat-context '(:type full-document)
+	       :focus-comment-id nil))
+	(let ((comments (org-copilot-comments))
+	      (message (car (org-copilot-chat-messages))))
+	  (should (= (length comments) 1))
+	  (should (equal (plist-get (car comments) :target-text)
+			 "Alpha sentence."))
+	  (should (equal (plist-get (car comments) :suggestion) "Alpha."))
+	  (should (string-match-p "Installed 1 comment"
+				  (plist-get message :content))))))))
+
 (ert-deftest org-copilot-gptel-section-chat-keeps-context-id ()
   "Section chat callback messages remain visible in section context."
   (with-temp-buffer
@@ -174,7 +170,7 @@
 
 (ert-deftest org-copilot-gptel-parses-chat-section-suggestion-fields ()
   "Chat JSON can carry section suggestion anchors."
-  (let ((parsed (org-copilot-gptel--parse-chat-response
+  (let ((parsed (org-copilot-llm-parse-chat-response
 		 "{\"message\":\"Try this.\",\"suggestion\":\"New body.\",\"section_title\":\"Intro\",\"section_path\":[\"Doc\",\"Intro\"]}")))
     (should (equal (plist-get parsed :message) "Try this."))
     (should (equal (plist-get parsed :suggestion) "New body."))
@@ -234,36 +230,6 @@
 	    (message (car (org-copilot-chat-messages))))
 	(should (equal (plist-get comment :suggestion) "Direct alpha."))
 	(should (equal (plist-get message :content) "I made it more direct."))))))
-
-(ert-deftest org-copilot-gptel-anchors-comments-by-target-text ()
-  "Parsed comments are anchored by exact target text in the source buffer."
-  (with-temp-buffer
-    (org-mode)
-    (insert "* Draft\n\nAlpha sentence.\n")
-    (let* ((comments (org-copilot-gptel-parse-review-response
-		      "{\"comments\":[{\"id\":\"ai-1\",\"body\":\"Tighten.\",\"target_text\":\"Alpha sentence.\"}]}"))
-	   (anchored (org-copilot-gptel-anchor-comments (current-buffer) comments))
-	   (comment (car anchored)))
-      (should (equal (plist-get comment :source-start) 10))
-      (should (equal (plist-get comment :source-end) 25)))))
-
-(ert-deftest org-copilot-gptel-anchors-comments-by-line-range-fallback ()
-  "Comments fall back to request-relative line ranges when target text fails."
-  (with-temp-buffer
-    (org-mode)
-    (insert "* Draft\n\nAlpha sentence.\nBeta sentence.\n")
-    (let* ((request (list :start (point-min)
-			  :end (point-max)
-			  :text (buffer-string)))
-	   (comments (org-copilot-gptel-parse-review-response
-		      "{\"comments\":[{\"id\":\"ai-1\",\"body\":\"Tighten.\",\"target_text\":\"Missing text\",\"line_start\":3,\"line_end\":3}]}"))
-	   (anchored (org-copilot-gptel-anchor-comments
-		      (current-buffer) comments request))
-	   (comment (car anchored)))
-      (should (equal (buffer-substring-no-properties
-		      (plist-get comment :source-start)
-		      (plist-get comment :source-end))
-		     "Alpha sentence.")))))
 
 (ert-deftest org-copilot-gptel-review-installs-callback-comments ()
   "The gptel adapter installs parsed callback comments into the source session."

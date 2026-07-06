@@ -96,6 +96,41 @@
       (when (buffer-live-p buffer)
 	(kill-buffer buffer)))))
 
+(ert-deftest org-context-panel-items-for-window-skips-folded-org-items ()
+  "Items hidden by Org folding are not surfaced as visible side rows."
+  (let ((buffer (generate-new-buffer " *org context folded test*")))
+    (unwind-protect
+	(with-current-buffer buffer
+	  (org-mode)
+	  (insert "* Visible\nShown body.\n* Folded\nHidden body.\n")
+	  (let ((shown-pos (save-excursion
+			     (goto-char (point-min))
+			     (forward-line 1)
+			     (point)))
+		(hidden-pos (save-excursion
+			      (goto-char (point-min))
+			      (search-forward "Hidden body")
+			      (match-beginning 0))))
+	    (goto-char hidden-pos)
+	    (org-back-to-heading t)
+	    (if (fboundp 'org-fold-hide-subtree)
+		(org-fold-hide-subtree)
+	      (outline-hide-subtree))
+	    (org-context-panel-register-provider
+	     (list :name 'test
+		   :collect-side-items
+		   (lambda (_source-buffer)
+		     (list (list :id "shown" :source-start shown-pos)
+			   (list :id "hidden" :source-start hidden-pos)))))
+	    (set-window-buffer (selected-window) buffer)
+	    (set-window-start (selected-window) (point-min))
+	    (let ((items (org-context-panel-items-for-window (selected-window)
+							     buffer)))
+	      (should (equal (mapcar (lambda (item) (plist-get item :id)) items)
+			     '("shown"))))))
+      (when (buffer-live-p buffer)
+	(kill-buffer buffer)))))
+
 (ert-deftest org-context-panel-renders-composed-provider-items-in-order ()
   "Composable providers render merged side items by source position and priority."
   (let ((source-buffer (generate-new-buffer " *org context composed source*")))
@@ -155,6 +190,83 @@
 	       (org-context-panel-registered-providers)))
 	    (should (equal (split-string (buffer-string) "\n" nil)
 			   '("" "" "three" "" "" "six" "")))))
+      (when (buffer-live-p source-buffer)
+	(kill-buffer source-buffer)))))
+
+(ert-deftest org-context-panel-source-navigation-jumps-between-provider-items ()
+  "Source navigation moves between registered provider items."
+  (let ((source-buffer (generate-new-buffer " *org context source nav*")))
+    (unwind-protect
+	(with-current-buffer source-buffer
+	  (org-mode)
+	  (insert "One\nTwo\nThree\n")
+	  (let ((one (point-min))
+		(two (save-excursion
+		       (goto-char (point-min))
+		       (forward-line 1)
+		       (point)))
+		(three (save-excursion
+			 (goto-char (point-min))
+			 (forward-line 2)
+			 (point))))
+	    (org-context-panel-register-provider
+	     (list :name 'test
+		   :collect-side-items
+		   (lambda (_source)
+		     (list (list :id "one" :source-start one)
+			   (list :id "two" :source-start two)
+			   (list :id "three" :source-start three)))
+		   :jump-side-item
+		   (lambda (source item)
+		     (with-current-buffer source
+		       (goto-char (plist-get item :source-start))))))
+	    (goto-char one)
+	    (org-context-panel-next-item)
+	    (should (= (point) two))
+	    (org-context-panel-next-item)
+	    (should (= (point) three))
+	    (org-context-panel-next-item)
+	    (should (= (point) one))
+	    (org-context-panel-previous-item)
+	    (should (= (point) three))))
+      (when (buffer-live-p source-buffer)
+	(kill-buffer source-buffer)))))
+
+(ert-deftest org-context-panel-source-navigation-skips-folded-items ()
+  "Source navigation skips context items hidden by Org folding."
+  (let ((source-buffer (generate-new-buffer " *org context folded nav*")))
+    (unwind-protect
+	(with-current-buffer source-buffer
+	  (org-mode)
+	  (insert "* Visible\nShown body.\n* Folded\nHidden body.\n")
+	  (let ((shown-pos (save-excursion
+			     (goto-char (point-min))
+			     (forward-line 1)
+			     (point)))
+		(hidden-pos (save-excursion
+			      (goto-char (point-min))
+			      (search-forward "Hidden body")
+			      (match-beginning 0))))
+	    (goto-char hidden-pos)
+	    (org-back-to-heading t)
+	    (if (fboundp 'org-fold-hide-subtree)
+		(org-fold-hide-subtree)
+	      (outline-hide-subtree))
+	    (org-context-panel-register-provider
+	     (list :name 'test
+		   :collect-side-items
+		   (lambda (_source)
+		     (list (list :id "shown" :source-start shown-pos)
+			   (list :id "hidden" :source-start hidden-pos)))
+		   :jump-side-item
+		   (lambda (source item)
+		     (with-current-buffer source
+		       (goto-char (plist-get item :source-start))))))
+	    (goto-char (point-min))
+	    (org-context-panel-next-item)
+	    (should (= (point) shown-pos))
+	    (org-context-panel-next-item)
+	    (should (= (point) shown-pos))))
       (when (buffer-live-p source-buffer)
 	(kill-buffer source-buffer)))))
 
