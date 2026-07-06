@@ -14,6 +14,7 @@
 					  (file-name-directory load-file-name)))
 (add-to-list 'load-path (expand-file-name "../../org-comments" (file-name-directory load-file-name)))
 
+(require 'org-comments)
 (require 'org-comments-store)
 (require 'org-google-docs-comments-import)
 
@@ -63,6 +64,27 @@
 	 (should (search-forward ":ORG_COMMENTS_TARGET_TEXT: Body text" nil t))
 	 (should (search-forward "Please clarify." nil t))
 	 (should-not (search-forward "#+begin_quote" nil t)))))))
+
+(ert-deftest org-google-docs-comments-import-refreshes-source-overlays ()
+  "Import refreshes source overlays when `org-comments-mode' is active."
+  (org-google-docs-comments-import-test--with-source
+   (org-comments-mode 1)
+   (cl-letf (((symbol-function 'org-google-docs-comments-list)
+	      (lambda (callback)
+		(funcall callback
+			 (list (list :backend 'google-docs
+				     :kind 'comment
+				     :remote-id "c-1"
+				     :body "Please clarify."
+				     :target-text "Body text"
+				     :status "open"))))))
+     (org-google-docs-comments-import)
+     (goto-char (point-min))
+     (search-forward "Body text")
+     (should (cl-some
+	      (lambda (overlay)
+		(eq (overlay-get overlay 'face) 'org-comments-region-face))
+	      (overlays-at (match-beginning 0)))))))
 
 (ert-deftest org-google-docs-comments-import-reports-added-updated-and-skipped ()
   "Google Docs import returns provider-neutral feedback counts."

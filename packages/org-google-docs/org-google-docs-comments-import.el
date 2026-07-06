@@ -11,6 +11,7 @@
 (require 'org)
 (require 'org-comments-anchors)
 (require 'org-comments-core)
+(require 'org-comments-overlays)
 (require 'org-comments-sidecar)
 (require 'org-google-docs-comments)
 (require 'subr-x)
@@ -318,6 +319,10 @@ sidecar file path after import."
        (let* ((report (org-google-docs-comments-import--import-list
 		       comments include-resolved source-file source-buffer))
 	      (sidecar-file (plist-get report :sidecar-file)))
+	 (when (buffer-live-p source-buffer)
+	   (with-current-buffer source-buffer
+	     (when (bound-and-true-p org-comments-mode)
+	       (org-comments-overlays-refresh))))
 	 (when callback
 	   (funcall callback sidecar-file))
 	 (when interactive-p
