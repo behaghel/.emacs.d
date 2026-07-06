@@ -180,16 +180,19 @@
 	(should (member :missing-accounts issues))))))
 
 (ert-deftest org-google-docs-restyle-revision-annotates-typographic-blocks ()
-  "Restyle revision metadata applies to source and quote blocks."
+  "Restyle revision metadata applies to typographic blocks."
   (let* ((org-google-docs--restyle-revision "revision")
 	 (ir (list (list :type 'source-block :lines '("code"))
 		   (list :type 'quote-block
 			 :paragraphs (list (list :text "quote")))
+		   (list :type 'callout-block
+			 :paragraphs (list (list :text "callout")))
 		   (list :type 'paragraph :contents (list :text "plain"))))
 	 (annotated (org-google-docs--annotate-restyle-revision ir)))
     (should (equal (plist-get (nth 0 annotated) :style-revision) "revision"))
     (should (equal (plist-get (nth 1 annotated) :style-revision) "revision"))
-    (should-not (plist-get (nth 2 annotated) :style-revision))))
+    (should (equal (plist-get (nth 2 annotated) :style-revision) "revision"))
+    (should-not (plist-get (nth 3 annotated) :style-revision))))
 
 (ert-deftest org-google-docs-dispatch-runs-selected-action ()
   "Dispatch prompts for an action and runs the selected command."

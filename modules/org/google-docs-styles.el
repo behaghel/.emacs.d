@@ -32,6 +32,60 @@ This is an authoring policy layered over neutral gdocs logical styles."
   :type 'string
   :group 'hub/org-google-docs-styles)
 
+(defcustom hub/org-google-docs-callout-block-background-color "#f5f5f5"
+  "Background color used for Google Docs callout block paragraphs."
+  :type 'string
+  :group 'hub/org-google-docs-styles)
+
+(defun hub/org-google-docs--callout-style-definitions ()
+  "Return personal Google Docs logical style definitions for callouts."
+  (apply #'append
+	 (mapcar
+	  (lambda (type)
+	    (let ((base (format "gdocs-callout-%s" type)))
+	      `((,(intern (format "%s-label" base))
+		 :parent normal
+		 :paragraph (:spacing-mode never-collapse
+					   :space-above 6
+					   :space-below 0
+					   :indent-start 36
+					   :indent-first-line 36
+					   :background-color ,hub/org-google-docs-callout-block-background-color)
+		 :text (:bold t))
+		(,(intern (format "%s-first" base))
+		 :parent normal
+		 :paragraph (:spacing-mode never-collapse
+					   :space-above 0
+					   :space-below 0
+					   :indent-start 36
+					   :indent-first-line 36
+					   :background-color ,hub/org-google-docs-callout-block-background-color))
+		(,(intern (format "%s-line" base))
+		 :parent normal
+		 :paragraph (:spacing-mode never-collapse
+					   :space-above 0
+					   :space-below 0
+					   :indent-start 36
+					   :indent-first-line 36
+					   :background-color ,hub/org-google-docs-callout-block-background-color))
+		(,(intern (format "%s-last" base))
+		 :parent normal
+		 :paragraph (:spacing-mode never-collapse
+					   :space-above 0
+					   :space-below 6
+					   :indent-start 36
+					   :indent-first-line 36
+					   :background-color ,hub/org-google-docs-callout-block-background-color))
+		(,(intern (format "%s-single" base))
+		 :parent normal
+		 :paragraph (:spacing-mode never-collapse
+					   :space-above 0
+					   :space-below 6
+					   :indent-start 36
+					   :indent-first-line 36
+					   :background-color ,hub/org-google-docs-callout-block-background-color)))))
+	  '("info" "note" "warning" "tip" "important"))))
+
 (defun hub/org-google-docs-style-definitions ()
   "Return personal logical style definitions for Google Docs publishing."
   `((gdocs-code
@@ -106,6 +160,7 @@ This is an authoring policy layered over neutral gdocs logical styles."
 			       :indent-start 36
 			       :indent-first-line 36
 			       :background-color ,hub/org-google-docs-quote-block-background-color))
+    ,@(hub/org-google-docs--callout-style-definitions)
     (gdocs-image-caption
      :parent normal
      :paragraph (:alignment center)

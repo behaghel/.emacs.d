@@ -282,7 +282,8 @@ content from the local buffer and fetched Google Doc."
   (if (not org-google-docs--restyle-revision)
       ir
     (mapcar (lambda (element)
-	      (if (memq (plist-get element :type) '(source-block quote-block))
+	      (if (memq (plist-get element :type)
+			'(source-block quote-block callout-block))
 		  (plist-put (copy-sequence element)
 			     :style-revision org-google-docs--restyle-revision)
 		element))

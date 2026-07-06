@@ -1,0 +1,52 @@
+# Native callout smoke checklist
+
+## Status
+
+Automated fixture support is implemented; live smoke is pending.
+
+## Canonical Org syntax
+
+```org
+#+ATTR_CALLOUT: :type warning :title "Heads up"
+#+BEGIN_CALLOUT
+Body with *bold*, /italic/, and ~code~.
+#+END_CALLOUT
+```
+
+Supported types:
+
+- `info`
+- `note`
+- `warning`
+- `tip`
+- `important`
+
+Missing `:type` defaults to `info`.
+
+## Expected Google Docs rendering
+
+A callout renders as:
+
+```text
+Warning — Heads up
+Body with bold, italic, and code.
+```
+
+The label paragraph is generated chrome. It is marked separately from body paragraphs and is dropped from the Org body on pull. Body paragraphs remain editable remote content and should pull back into the Org callout body.
+
+## Live checklist
+
+- [ ] Create or push an Org buffer containing info, warning, and titled callouts.
+- [ ] Confirm the generated label paragraph is visible.
+- [ ] Confirm callout body text remains editable ordinary Docs text.
+- [ ] Edit body text remotely, pull, and confirm the Org callout body updates.
+- [ ] Confirm the generated label does not appear in the pulled Org body.
+- [ ] Run `M-x org-google-docs-push-restyle-current` after a style tweak and confirm callouts restyle with source/quote blocks.
+- [ ] Confirm unsupported callout types fail before remote mutation.
+
+## Design notes
+
+- The visible label is derived from marker metadata and ignored on pull in v1.
+- Label markers and body markers both store type/title metadata.
+- Label-only callouts preserve an empty callout; body-only callouts preserve the wrapper and recreate the label on next push.
+- Per-type logical styles are present from v1 so the branding pass can tune colors/spacing later without changing semantics.
