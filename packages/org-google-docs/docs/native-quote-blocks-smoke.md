@@ -44,7 +44,7 @@ Current style intent:
 ## Live checklist
 
 - [ ] Create a new Google Doc from an Org buffer containing single- and multi-paragraph quote blocks.
-- [ ] Confirm quote blocks render indented with a light gray paragraph background according to local style policy.
+- [ ] Confirm quote blocks render with a light gray paragraph background and padded text according to local style policy.
 - [ ] Push again without content changes and confirm no duplication.
 - [ ] Run `M-x org-google-docs-push-restyle-current` after changing quote style policy and confirm restyling applies.
 - [ ] Pull back and confirm Org quote block boundaries and paragraph text survive.
@@ -56,5 +56,5 @@ Google Docs does not expose a stable arbitrary custom quote-block semantic objec
 Web/API notes:
 
 - Google Docs exposes the UI's paragraph padding through `ParagraphBorder.padding` on `borderTop`, `borderBottom`, `borderLeft`, `borderRight`, and `borderBetween`.
-- Paragraph border updates must provide complete border objects. The current v1 emits 0pt white borders with 6pt padding, plus paragraph shading.
+- Paragraph border updates must provide complete border objects. The current v1 emits 1pt white borders with 6pt padding, plus paragraph shading.
 - Quote visual styling intentionally avoids text-run `italic` and `foregroundColor`, because pulled Google Docs text styles are interpreted as Org emphasis and can create merge/conflict noise.
