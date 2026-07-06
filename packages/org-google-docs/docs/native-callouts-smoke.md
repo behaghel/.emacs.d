@@ -50,4 +50,4 @@ The label paragraph is generated chrome. It is marked separately from body parag
 - Label markers and body markers both store type/title metadata.
 - Label-only callouts preserve an empty callout; body-only callouts preserve the wrapper and recreate the label on next push.
 - Per-type logical styles are present from v1 so the branding pass can tune colors/spacing later without changing semantics.
-- Callouts intentionally do not use the quote indentation style. They use full-width paragraph shading with vertical spacing above the generated label and below the final body paragraph so adjacent callouts are visually distinct.
+- Callouts intentionally do not use the quote indentation style. They use full-width paragraph shading. Rendering also inserts an unmarked empty separator paragraph after each callout because Google Docs paragraph shading can visually merge adjacent shaded paragraphs despite spacing properties.
