@@ -46,10 +46,10 @@ This is an authoring policy layered over neutral gdocs logical styles."
 	      `((,(intern (format "%s-label" base))
 		 :parent normal
 		 :paragraph (:spacing-mode never-collapse
-					   :space-above 6
+					   :space-above 10
 					   :space-below 0
-					   :indent-start 36
-					   :indent-first-line 36
+					   :indent-start 0
+					   :indent-first-line 0
 					   :background-color ,hub/org-google-docs-callout-block-background-color)
 		 :text (:bold t))
 		(,(intern (format "%s-first" base))
@@ -57,32 +57,32 @@ This is an authoring policy layered over neutral gdocs logical styles."
 		 :paragraph (:spacing-mode never-collapse
 					   :space-above 0
 					   :space-below 0
-					   :indent-start 36
-					   :indent-first-line 36
+					   :indent-start 0
+					   :indent-first-line 0
 					   :background-color ,hub/org-google-docs-callout-block-background-color))
 		(,(intern (format "%s-line" base))
 		 :parent normal
 		 :paragraph (:spacing-mode never-collapse
 					   :space-above 0
 					   :space-below 0
-					   :indent-start 36
-					   :indent-first-line 36
+					   :indent-start 0
+					   :indent-first-line 0
 					   :background-color ,hub/org-google-docs-callout-block-background-color))
 		(,(intern (format "%s-last" base))
 		 :parent normal
 		 :paragraph (:spacing-mode never-collapse
 					   :space-above 0
-					   :space-below 6
-					   :indent-start 36
-					   :indent-first-line 36
+					   :space-below 10
+					   :indent-start 0
+					   :indent-first-line 0
 					   :background-color ,hub/org-google-docs-callout-block-background-color))
 		(,(intern (format "%s-single" base))
 		 :parent normal
 		 :paragraph (:spacing-mode never-collapse
 					   :space-above 0
-					   :space-below 6
-					   :indent-start 36
-					   :indent-first-line 36
+					   :space-below 10
+					   :indent-start 0
+					   :indent-first-line 0
 					   :background-color ,hub/org-google-docs-callout-block-background-color)))))
 	  '("info" "note" "warning" "tip" "important"))))
 
