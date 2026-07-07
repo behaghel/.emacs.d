@@ -51,3 +51,4 @@ The label paragraph is generated chrome. It is marked separately from body parag
 - Label-only callouts preserve an empty callout; body-only callouts preserve the wrapper and recreate the label on next push.
 - Per-type logical styles are present from v1 so the branding pass can tune colors/spacing later without changing semantics.
 - Callouts intentionally do not use the quote indentation style. They use full-width paragraph shading, 6pt paragraph border padding for breathing room inside the shaded block, a small gap below the generated label, and an unmarked empty separator paragraph after each callout because Google Docs paragraph shading can visually merge adjacent shaded paragraphs despite spacing properties.
+- The generated separator paragraph is semantic chrome. Pull conversion includes one immediately following empty paragraph in the owning callout block range so normal and restyle pushes replace the whole generated shape instead of accumulating blank lines.
