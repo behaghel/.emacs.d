@@ -33,9 +33,10 @@ This repository has a mature Org ↔ Confluence publishing and sync workflow, bu
 - `patches/gdocs-image-block-spacing.patch` records the upstream conversion change that keeps image blocks separated from surrounding paragraphs in pulled Org output.
 - `patches/gdocs-image-caption-diff-range.patch` records the upstream conversion fix that makes a marked caption paragraph part of the image element's document range so repeated pushes replace rather than duplicate captions.
 - `patches/gdocs-image-merge-segment-spacing.patch` records the upstream sync fix that preserves image block spacing when pull uses the three-way merge segment path.
+- Patch files are audit/export artifacts for upstream review; current active seam work is developed and tested directly on the local `~/ws/gdocs` branch.
 - `docs/native-footnotes-smoke.md` records manual smoke-test scenarios for native footnote push/pull, including repeated references and UI caveats.
 - `docs/native-images-smoke.md` records manual smoke-test scenarios for standalone image and caption push, including debug-pipeline checkpoints.
-- The activation module prefers a local `~/ws/gdocs` checkout on branch `org-footnote-seam`; this makes the seam repeatable without mutating `straight/repos/gdocs` directly.
+- The activation module prefers a local `~/ws/gdocs` checkout on branch `org-image-seam`; this makes the seam repeatable without mutating `straight/repos/gdocs` directly.
 - This domain is supporting: specs are expected when the package boundary or integration contract changes, but the first implementation should stay small and reversible.
 
 ## Decisions
