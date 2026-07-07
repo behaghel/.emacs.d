@@ -47,7 +47,7 @@ This is an authoring policy layered over neutral gdocs logical styles."
 		 :parent normal
 		 :paragraph (:spacing-mode never-collapse
 					   :space-above 10
-					   :space-below 4
+					   :space-below 0
 					   :indent-start 0
 					   :indent-first-line 0
 					   :border-padding 6
