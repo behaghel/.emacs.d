@@ -47,6 +47,16 @@ loads.  Leave nil to use upstream defaults."
   :type '(alist :key-type symbol :value-type plist)
   :group 'hub/org-google-docs)
 
+(defcustom hub/org-google-docs-callout-labels
+  '(("info" . "ℹ️ Info")
+    ("note" . "📝 Note")
+    ("warning" . "⚠️ Warning")
+    ("tip" . "💡 Tip")
+    ("important" . "❗ Important"))
+  "Personal visible labels used for Google Docs semantic callouts."
+  :type '(alist :key-type string :value-type string)
+  :group 'hub/org-google-docs)
+
 (defcustom hub/org-google-docs-auth-source-accounts
   '(("personal"
      . ((client-id-host . "dev/emacs-gdocs/client-id")
@@ -140,6 +150,8 @@ return the configured account value, because it contains OAuth client secrets."
   (when (fboundp 'hub/org-google-docs-style-definitions)
     (setq hub/org-google-docs-style-definitions
 	  (hub/org-google-docs-style-definitions)))
+  (when (boundp 'gdocs-callout-labels)
+    (setq gdocs-callout-labels hub/org-google-docs-callout-labels))
   (when (and hub/org-google-docs-style-definitions
 	     (boundp 'gdocs-style-definitions))
     (setq gdocs-style-definitions
