@@ -115,43 +115,66 @@
 				 :border-color ,border
 				 :background-color ,background)))))
 
+(defun hub/org-google-docs--quote-block-borders (theme)
+  "Return quote border style for THEME."
+  (when (hub/org-google-docs--theme-role theme 'quote-left-border-only)
+    (let ((surface (hub/org-google-docs--theme-color theme 'quote-surface))
+	  (accent (hub/org-google-docs--theme-color theme 'quote-border))
+	  (padding (hub/org-google-docs--theme-role theme 'quote-border-padding))
+	  (accent-width (hub/org-google-docs--theme-role theme 'quote-border-width))
+	  (muted-width (hub/org-google-docs--theme-role
+			theme 'quote-muted-border-width)))
+      `((left :color ,accent :width ,accent-width :padding ,padding)
+	(top :color ,surface :width ,muted-width :padding ,padding)
+	(bottom :color ,surface :width ,muted-width :padding ,padding)
+	(right :color ,surface :width ,muted-width :padding ,padding)))))
+
 (defun hub/org-google-docs--quote-block-paragraph (theme space-above space-below)
   "Return quote block paragraph style for THEME and spacing values."
-  `(:spacing-mode never-collapse
-		  :space-above ,space-above
-		  :space-below ,space-below
-		  :indent-start ,(hub/org-google-docs--theme-role
-				  theme 'quote-indent-start)
-		  :indent-first-line 0
-		  :border-padding ,(hub/org-google-docs--theme-role
-				    theme 'quote-border-padding)
-		  :border-color ,(hub/org-google-docs--theme-color
-				  theme 'quote-border)
-		  :background-color ,(hub/org-google-docs--theme-color
-				      theme 'quote-surface)))
+  (append
+   `(:spacing-mode never-collapse
+		   :space-above ,space-above
+		   :space-below ,space-below
+		   :indent-start ,(hub/org-google-docs--theme-role
+				   theme 'quote-indent-start)
+		   :indent-first-line 0
+		   :border-padding ,(hub/org-google-docs--theme-role
+				     theme 'quote-border-padding)
+		   :border-color ,(hub/org-google-docs--theme-color
+				   theme 'quote-border)
+		   :background-color ,(hub/org-google-docs--theme-color
+				       theme 'quote-surface))
+   (when-let* ((borders (hub/org-google-docs--quote-block-borders theme)))
+     (list :borders borders))))
+
+(defun hub/org-google-docs--quote-block-text (theme)
+  "Return quote text style for THEME."
+  `(:font-family ,(hub/org-google-docs--theme-role theme 'body-font)
+		 :foreground-color ,(hub/org-google-docs--theme-color theme 'body-text)
+		 :italic t))
 
 (defun hub/org-google-docs--quote-block-style-definitions (theme)
   "Return quote block style definitions for THEME."
   `((gdocs-quote-block
      :parent normal
      :paragraph ,(hub/org-google-docs--quote-block-paragraph theme 0 0)
-     :text (:italic t))
+     :text ,(hub/org-google-docs--quote-block-text theme))
     (gdocs-quote-block-first
      :parent normal
      :paragraph ,(hub/org-google-docs--quote-block-paragraph theme 6 0)
-     :text (:italic t))
+     :text ,(hub/org-google-docs--quote-block-text theme))
     (gdocs-quote-block-line
      :parent normal
      :paragraph ,(hub/org-google-docs--quote-block-paragraph theme 0 0)
-     :text (:italic t))
+     :text ,(hub/org-google-docs--quote-block-text theme))
     (gdocs-quote-block-last
      :parent normal
      :paragraph ,(hub/org-google-docs--quote-block-paragraph theme 0 6)
-     :text (:italic t))
+     :text ,(hub/org-google-docs--quote-block-text theme))
     (gdocs-quote-block-single
      :parent normal
      :paragraph ,(hub/org-google-docs--quote-block-paragraph theme 6 6)
-     :text (:italic t))))
+     :text ,(hub/org-google-docs--quote-block-text theme))))
 
 (defun hub/org-google-docs--callout-color (theme type suffix fallback)
   "Return THEME callout color for TYPE and SUFFIX, falling back to FALLBACK."
@@ -173,6 +196,18 @@
 		  :background-color ,(hub/org-google-docs--callout-color
 				      theme type "surface" 'callout-surface)))
 
+(defun hub/org-google-docs--callout-body-text (theme)
+  "Return callout body text style for THEME."
+  `(:font-family ,(hub/org-google-docs--theme-role theme 'body-font)
+		 :foreground-color ,(hub/org-google-docs--theme-color theme 'body-text)))
+
+(defun hub/org-google-docs--callout-label-text (theme type)
+  "Return callout label text style for THEME and TYPE."
+  `(:font-family ,(hub/org-google-docs--theme-role theme 'body-font)
+		 :bold t
+		 :foreground-color ,(hub/org-google-docs--callout-color
+				     theme type "label" 'callout-label)))
+
 (defun hub/org-google-docs--callout-style-definitions (theme)
   "Return Google Docs logical style definitions for callouts under THEME."
   (apply #'append
@@ -183,30 +218,27 @@
 		 :parent normal
 		 :paragraph ,(hub/org-google-docs--callout-paragraph
 			      theme type 10 0)
-		 :text (:bold t
-			      :foreground-color ,(hub/org-google-docs--callout-color
-						  theme type "label" 'callout-label)))
+		 :text ,(hub/org-google-docs--callout-label-text theme type))
 		(,(intern (format "%s-first" base))
 		 :parent normal
-		 :paragraph ,(hub/org-google-docs--callout-paragraph theme type 0 0)
-		 :text (:foreground-color ,(hub/org-google-docs--theme-color
-					    theme 'body-text)))
+		 :paragraph ,(hub/org-google-docs--callout-paragraph
+			      theme type 0 0)
+		 :text ,(hub/org-google-docs--callout-body-text theme))
 		(,(intern (format "%s-line" base))
 		 :parent normal
-		 :paragraph ,(hub/org-google-docs--callout-paragraph theme type 0 0)
-		 :text (:foreground-color ,(hub/org-google-docs--theme-color
-					    theme 'body-text)))
+		 :paragraph ,(hub/org-google-docs--callout-paragraph
+			      theme type 0 0)
+		 :text ,(hub/org-google-docs--callout-body-text theme))
 		(,(intern (format "%s-last" base))
 		 :parent normal
-		 :paragraph ,(hub/org-google-docs--callout-paragraph theme type 0 10)
-		 :text (:foreground-color ,(hub/org-google-docs--theme-color
-					    theme 'body-text)))
+		 :paragraph ,(hub/org-google-docs--callout-paragraph
+			      theme type 0 10)
+		 :text ,(hub/org-google-docs--callout-body-text theme))
 		(,(intern (format "%s-single" base))
 		 :parent normal
 		 :paragraph ,(hub/org-google-docs--callout-paragraph
 			      theme type 0 10)
-		 :text (:foreground-color ,(hub/org-google-docs--theme-color
-					    theme 'body-text))))))
+		 :text ,(hub/org-google-docs--callout-body-text theme)))))
 	  '("info" "note" "warning" "tip" "important"))))
 
 (defun hub/org-google-docs-style-definitions (&optional theme-id)
