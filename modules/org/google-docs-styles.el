@@ -137,7 +137,8 @@
 		   :space-below ,space-below
 		   :indent-start ,(hub/org-google-docs--theme-role
 				   theme 'quote-indent-start)
-		   :indent-first-line 0
+		   :indent-first-line ,(hub/org-google-docs--theme-role
+					theme 'quote-indent-first-line)
 		   :border-padding ,(hub/org-google-docs--theme-role
 				     theme 'quote-border-padding)
 		   :border-color ,(hub/org-google-docs--theme-color
