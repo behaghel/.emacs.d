@@ -32,13 +32,13 @@ Warning — Heads up
 Body with bold, italic, and code.
 ```
 
-The label paragraph is generated chrome. It is marked separately from body paragraphs and is dropped from the Org body on pull. Body paragraphs and simple list items remain editable remote content and should pull back into the Org callout body.
+The label paragraph is generated chrome. It is marked separately from body paragraphs and is dropped from the Org body on pull. Body paragraphs and list items remain editable remote content and should pull back into the Org callout body. Callouts compose paragraph/list content only; nested blocks inside callouts are intentionally unsupported and must fail before remote mutation.
 
 ## Live checklist
 
 - [ ] Create or push an Org buffer containing info, warning, and titled callouts.
 - [ ] Confirm the generated label paragraph is visible.
-- [ ] Confirm callout body text and simple unordered list items remain editable ordinary Docs text.
+- [ ] Confirm callout body paragraphs and native list items remain editable ordinary Docs text.
 - [ ] Edit body text remotely, pull, and confirm the Org callout body updates.
 - [ ] Confirm the generated label does not appear in the pulled Org body.
 - [ ] Run `M-x org-google-docs-push-restyle-current` after a style tweak and confirm callouts restyle with source/quote blocks.
@@ -51,5 +51,6 @@ The label paragraph is generated chrome. It is marked separately from body parag
 - Label-only callouts preserve an empty callout; body-only callouts preserve the wrapper and recreate the label on next push.
 - Per-type logical styles are present from v1 so the branding pass can tune colors/spacing later without changing semantics.
 - Lists inside callout bodies are preserved as body paragraph elements with list metadata, including unordered, ordered, and nested list levels. This is intentionally built on the same paragraph/list IR foundations as top-level lists rather than a callout-specific list model.
+- Callout composition is deliberately limited to paragraphs and lists. Nested blocks such as tables, source blocks, and quote blocks are rejected fail-closed; blocks do not compose inside blocks.
 - Callouts intentionally do not use the quote indentation style. They use full-width paragraph shading, 6pt paragraph border padding for breathing room inside the shaded block, a small gap below the generated label, and an unmarked empty separator paragraph after each callout because Google Docs paragraph shading can visually merge adjacent shaded paragraphs despite spacing properties.
 - The generated separator paragraph is semantic chrome. Pull conversion includes one immediately following empty paragraph in the owning callout block range so normal and restyle pushes replace the whole generated shape instead of accumulating blank lines.
