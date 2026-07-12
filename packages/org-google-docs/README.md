@@ -36,6 +36,7 @@ This repository has a mature Org ↔ Confluence publishing and sync workflow, bu
 - Patch files are audit/export artifacts for upstream review; current active seam work is developed and tested directly on the local `~/ws/gdocs` branch.
 - `docs/native-footnotes-smoke.md` records manual smoke-test scenarios for native footnote push/pull, including repeated references and UI caveats.
 - `docs/native-images-smoke.md` records manual smoke-test scenarios for standalone image and caption push, including debug-pipeline checkpoints.
+- `docs/deep-semantic-smoke.org` is a live end-to-end smoke document for mixed semantic content, Veriff theme styling, generated callout chrome, footnotes, images, lists, tables, and pull-back ownership checks.
 - The activation module prefers a local `~/ws/gdocs` checkout on branch `org-image-seam`; this makes the seam repeatable without mutating `straight/repos/gdocs` directly.
 - This domain is supporting: specs are expected when the package boundary or integration contract changes, but the first implementation should stay small and reversible.
 

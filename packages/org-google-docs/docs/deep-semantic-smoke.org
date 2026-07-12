@@ -1,0 +1,178 @@
+#+TITLE: Google Docs Deep Semantic Smoke
+#+SUBTITLE: Org ↔ Google Docs semantic and Veriff theme validation
+#+AUTHOR: Google Docs smoke fixture
+#+DATE: <2026-07-12 Sun>
+#+LANGUAGE: en
+#+GDOCS_THEME: veriff-working
+
+* Smoke protocol
+
+Use this document as a live end-to-end smoke target for the Google Docs adapter.
+It intentionally mixes structure, inline semantics, native Google Docs features,
+and Veriff working-doc styling in one collaboration-shaped document.
+
+** Expected validation flow
+
+1. Create or link a Google Doc from this Org buffer.
+2. Run a normal push.
+3. Run =M-x org-google-docs-push-restyle-current= after style changes.
+4. Inspect the Google Doc visually.
+5. Pull back into Org, or run the debug pipeline with a prefix argument, and
+   verify that generated visual chrome does not become author-owned Org content.
+
+** High-value visual checks
+
+- Body text uses Inter on a white page.
+- Title, H1, and H2 use the Veriff teal heading treatment.
+- Quotes have a teal left border, pale teal background, and a modest indent.
+- Source blocks use monospace code text and the source-block surface.
+- Callout labels have emoji labels and a small gap before body content.
+- Only the important callout has a visible border.
+- Lists inside callouts remain native Google Docs bullets/numbers.
+- Captions remain captions, not body paragraphs with lost semantic ownership.
+- Footnotes are native Google Docs footnotes.
+
+* Executive summary
+
+This paragraph verifies ordinary prose with /emphasis/, *strong emphasis*,
+_underline_, +strike-through+, ~inline code~, =verbatim text=, a link to
+[[https://developers.google.com/docs/api][the Google Docs API]], an active Org date
+<2026-07-12 Sun>, and an inactive planning date [2026-07-13 Mon].  It also has a
+native footnote reference[fn:overview] and a second reference[fn:style-note] so
+we can inspect multiple footnotes in one pushed document.
+
+#+BEGIN_QUOTE
+A quote block is semantic quotation, not just italic gray text.
+
+This second paragraph verifies that multi-paragraph quote blocks keep one visual
+panel, one generated separator, and stable pull/push behavior.
+#+END_QUOTE
+
+* Callout matrix
+
+#+BEGIN_CALLOUT
+The default callout should be treated as an info callout.  In Google Docs the
+label should read “ℹ️ Info”, followed by a small visual gap before this body.
+#+END_CALLOUT
+
+#+ATTR_CALLOUT: :type note :title "Decision record"
+#+BEGIN_CALLOUT
+This note callout has a title.  It should render as “📝 Note — Decision record”
+and preserve inline *bold*, /italic/, ~code~, and [[https://example.com][links]].
+#+END_CALLOUT
+
+#+ATTR_CALLOUT: :type tip :title "Composable native lists"
+#+BEGIN_CALLOUT
+This tip callout intentionally mixes paragraphs and lists.
+
+- Native bullet one
+- Native bullet two with *bold* text
+  - Nested bullet stays a native nested Google Docs bullet
+  - Another nested bullet with ~inline code~
+
+1. Ordered step one
+2. Ordered step two
+   1. Nested ordered step
+   2. Another nested ordered step
+
+The paragraph after the lists verifies that callout body composition is stable.
+#+END_CALLOUT
+
+#+ATTR_CALLOUT: :type warning :title "No visible border expected"
+#+BEGIN_CALLOUT
+Warning callouts should be visually distinct through label/background/accent
+policy, but they should not have a visible full border in the Veriff working
+theme.
+#+END_CALLOUT
+
+#+ATTR_CALLOUT: :type important :title "Visible border expected"
+#+BEGIN_CALLOUT
+Important callouts are the only callouts that should have a visible border.  This
+one exists to catch regressions where every callout suddenly gains a border, or
+where important loses its special emphasis.
+#+END_CALLOUT
+
+* Source and preformatted content
+
+The following source block should remain a semantic source block, with code text
+remaining monospace even though surrounding document text uses Inter.
+
+#+BEGIN_SRC emacs-lisp
+(defun smoke-google-docs-callout-summary (type title)
+  "Return a compact smoke-test callout label for TYPE and TITLE."
+  (format "%s — %s" type title))
+#+END_SRC
+
+The following example block is a whitespace-preservation check.
+
+#+BEGIN_EXAMPLE
+plain example text
+  indented example text
+    deeper indentation
+#+END_EXAMPLE
+
+* Lists outside callouts
+
+- Top-level bullet with inline /formatting/
+- Top-level bullet with a footnote[fn:list-note]
+  - Nested bullet A
+  - Nested bullet B
+- [ ] Unchecked task
+- [X] Checked task
+- [-] Partial task
+
+1. First ordered item
+2. Second ordered item
+   1. Nested ordered item
+   2. Another nested ordered item
+3. Third ordered item
+
+* Tables
+
+| Area     | Expected Google Docs behavior            | Status |
+|----------+------------------------------------------+--------|
+| Footnote | Native Docs footnote                     | Smoke  |
+| Quote    | Styled semantic block with separator     | Smoke  |
+| Callout  | Marker-owned label/body/separator chrome | Smoke  |
+| Source   | Semantic source block with monospace     | Smoke  |
+| Image    | Image plus semantic caption marker       | Smoke  |
+
+* Images and captions
+
+#+CAPTION: Veriff logo fixture with a semantic caption.
+[[../../../modules/org/specimens/veriff2026-logo.png]]
+
+A described image link should remain a normal hyperlink instead of becoming an
+embedded image: [[../../../modules/org/specimens/veriff2026-logo.png][Open the logo file]].
+
+* Collaboration edit probes
+
+After the first push, try these remote edits in Google Docs before pulling back:
+
+- Edit this sentence remotely by changing the word “remote” to “collaborative”.
+- Add one bullet under this list remotely.
+- Edit the body of the tip callout without changing its generated label.
+- Add a comment to this paragraph and verify comment import separately.
+
+* Pull-back ownership checks
+
+After pulling back, the Org buffer should still contain semantic source forms:
+
+- callouts should remain =#+BEGIN_CALLOUT= blocks with =#+ATTR_CALLOUT= metadata;
+- quote blocks should remain =#+BEGIN_QUOTE= blocks;
+- source blocks should remain =#+BEGIN_SRC= blocks;
+- generated callout labels and generated blank separators should not appear as
+  literal authored Org paragraphs;
+- image captions should remain =#+CAPTION:= lines;
+- footnotes should remain Org footnote definitions.
+
+* Footnotes
+
+[fn:overview] This native footnote verifies ordinary footnote creation and pull
+reconstruction.  It includes /italic/, *bold*, and ~inline code~.
+
+[fn:style-note] This footnote explains that visual policy is late-bound through
+logical Google Docs styles, not hardcoded in Org source.
+
+[fn:list-note] This footnote is referenced from a list item to verify offsets and
+native footnote insertion around list content.
