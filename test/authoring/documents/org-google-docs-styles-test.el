@@ -104,7 +104,7 @@
     (should (equal (plist-get paragraph :border-color) "#9DF5EA"))
     (should (= (plist-get paragraph :indent-start) 54))
     (should (= (plist-get paragraph :indent-first-line) 54))
-    (should (= (plist-get (cdr (cadr (plist-get paragraph :borders))) :width) 0))
+    (should (= (plist-get (cdr (cadr (plist-get paragraph :borders))) :width) 1))
     (should (= (plist-get (cdr (car (plist-get paragraph :borders))) :width) 4))
     (should (equal (plist-get text :font-family) "Inter"))
     (should (eq (plist-get text :italic) t))))
@@ -189,7 +189,7 @@
 			 4)
 		      (= (alist-get 'magnitude
 				    (alist-get 'width (alist-get 'borderTop style)))
-			 0))))
+			 1))))
 	     requests))
     (should (seq-some
 	     (lambda (request)
