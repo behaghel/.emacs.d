@@ -37,14 +37,23 @@
 
 (put 'denote-org-front-matter 'safe-local-variable #'stringp)
 
-(defun hub/denote-work ()
-  "Create a Denote note in `hub/denote-work-directory'."
-  (interactive)
+(defun hub/denote-work--with-settings (command)
+  "Call Denote COMMAND with work-note settings."
   (make-directory hub/denote-work-directory t)
   (let ((denote-directory hub/denote-work-directory)
 	(denote-known-keywords hub/denote-work-known-keywords)
 	(denote-org-front-matter hub/denote--work-org-front-matter))
-    (call-interactively #'denote)))
+    (call-interactively command)))
+
+(defun hub/denote-work ()
+  "Open or create a Denote note in `hub/denote-work-directory'."
+  (interactive)
+  (hub/denote-work--with-settings #'denote-open-or-create))
+
+(defun hub/denote-work-create ()
+  "Create a Denote note in `hub/denote-work-directory'."
+  (interactive)
+  (hub/denote-work--with-settings #'denote))
 
 (defun hub/denote--configure-org-capture ()
   "Configure Org capture templates that create Denote notes."
@@ -91,6 +100,7 @@
   (evil-global-set-key 'normal ",no" #'denote-open-or-create)
   (evil-global-set-key 'normal ",nn" #'denote)
   (evil-global-set-key 'normal ",nw" #'hub/denote-work)
+  (evil-global-set-key 'normal ",nW" #'hub/denote-work-create)
   (evil-global-set-key 'normal ",nt" #'denote-type)
   (evil-global-set-key 'normal ",nd" #'denote-date)
   (evil-global-set-key 'normal ",ns" #'denote-subdirectory)

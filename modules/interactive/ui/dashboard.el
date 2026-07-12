@@ -71,8 +71,10 @@ removing the item from `dashboard-items', also avoids loading them."
 
 (defun hub/dashboard--hidden-or-generated-recent-p (path)
   "Return non-nil when PATH is too noisy for dashboard recents."
-  (let ((file (file-name-nondirectory path)))
-    (or (member file '(".DS_Store" "TAGS"))
+  (let ((file (file-name-nondirectory path))
+	(expanded (expand-file-name path)))
+    (or (member file '(".DS_Store" "TAGS" "cookies.el"))
+	(string-suffix-p "/treemacs/persist.org" expanded)
 	(string-prefix-p ".#" file)
 	(string-suffix-p "~" file)
 	(string-suffix-p ".elc" file)
@@ -86,7 +88,9 @@ removing the item from `dashboard-items', also avoids loading them."
 
 (defun hub/dashboard--exclude-recent-path-p (path)
   "Return non-nil when PATH should be hidden from dashboard recents."
-  (or (hub/dashboard--mail-path-p path)
+  (or (not (file-exists-p path))
+      (file-directory-p path)
+      (hub/dashboard--mail-path-p path)
       (hub/dashboard--hidden-or-generated-recent-p path)
       (and (hub/dashboard--note-directory-p path)
 	   (hub/dashboard--denote-related-file-p path))))
