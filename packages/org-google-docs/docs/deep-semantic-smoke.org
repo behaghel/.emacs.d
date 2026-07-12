@@ -1,5 +1,8 @@
 #+TITLE: Google Docs Deep Semantic Smoke
 #+SUBTITLE: Org ↔ Google Docs semantic and Veriff theme validation
+#+AUTHOR: Google Docs smoke fixture
+#+DATE: <2026-07-12 Sun>
+#+LANGUAGE: en
 #+GDOCS_THEME: veriff-working
 
 * Smoke protocol
