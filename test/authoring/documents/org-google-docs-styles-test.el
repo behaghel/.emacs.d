@@ -53,6 +53,18 @@
     (should (equal (hub/org-google-docs-theme-role theme 'code-font)
 		   "Roboto Mono"))))
 
+(ert-deftest hub/org-google-docs-theme-resolves-veriff-working-roles ()
+  "Veriff working theme inherits brand palette and semantic roles."
+  (let ((theme (hub/org-google-docs-theme-resolve 'veriff-working)))
+    (should (equal (hub/org-google-docs-theme-color theme 'body-text)
+		   "#03140F"))
+    (should (equal (hub/org-google-docs-theme-color theme 'heading-brand)
+		   "#0C3035"))
+    (should (equal (hub/org-google-docs-theme-color theme 'quote-border)
+		   "#9DF5EA"))
+    (should (equal (hub/org-google-docs-theme-color theme 'callout-warning-label)
+		   "#42081D"))))
+
 (ert-deftest hub/org-google-docs-buffer-theme-rejects-duplicates ()
   "Duplicate GDOCS_THEME keywords fail before style generation."
   (with-temp-buffer
@@ -65,20 +77,78 @@
     (insert "#+GDOCS_THEME: missing-theme\n")
     (should-error (hub/org-google-docs-buffer-theme-id) :type 'user-error)))
 
-(ert-deftest hub/org-google-docs-quote-styles-keep-visual-quote-treatment ()
-  "Quote logical styles keep background, indentation, padding, and italic text."
+(ert-deftest hub/org-google-docs-legacy-quote-styles-preserve-visual-treatment ()
+  "Legacy quote logical styles keep the pre-theme visual treatment."
   (dolist (style '(gdocs-quote-block
 		   gdocs-quote-block-first
 		   gdocs-quote-block-line
 		   gdocs-quote-block-last
 		   gdocs-quote-block-single))
-    (let* ((definition (alist-get style (hub/org-google-docs-style-definitions)))
+    (let* ((definition (alist-get style (hub/org-google-docs-style-definitions
+					 'legacy-neutral)))
 	   (paragraph (plist-get definition :paragraph))
 	   (text (plist-get definition :text)))
       (should (equal (plist-get paragraph :background-color) "#f5f5f5"))
       (should (= (plist-get paragraph :indent-start) 18))
       (should (= (plist-get paragraph :border-padding) 6))
       (should (eq (plist-get text :italic) t)))))
+
+(ert-deftest hub/org-google-docs-veriff-quote-styles-use-brand-treatment ()
+  "Veriff quote styles use neutral surface and teal border accents."
+  (let* ((definition (alist-get 'gdocs-quote-block-single
+				(hub/org-google-docs-style-definitions
+				 'veriff-working)))
+	 (paragraph (plist-get definition :paragraph))
+	 (text (plist-get definition :text)))
+    (should (equal (plist-get paragraph :background-color) "#F6FDFC"))
+    (should (equal (plist-get paragraph :border-color) "#9DF5EA"))
+    (should (= (plist-get paragraph :indent-start) 18))
+    (should (eq (plist-get text :italic) t))))
+
+(ert-deftest hub/org-google-docs-veriff-callout-styles-use-semantic-colors ()
+  "Veriff callout styles use semantic surfaces, borders, and label colors."
+  (let* ((definitions (hub/org-google-docs-style-definitions 'veriff-working))
+	 (warning-label (alist-get 'gdocs-callout-warning-label definitions))
+	 (warning-body (alist-get 'gdocs-callout-warning-single definitions))
+	 (tip-label (alist-get 'gdocs-callout-tip-label definitions)))
+    (should (equal (plist-get (plist-get warning-label :paragraph)
+			      :background-color)
+		   "#FBEDE8"))
+    (should (equal (plist-get (plist-get warning-label :paragraph)
+			      :border-color)
+		   "#FFAF97"))
+    (should (equal (plist-get (plist-get warning-label :text)
+			      :foreground-color)
+		   "#42081D"))
+    (should (equal (plist-get (plist-get warning-body :text)
+			      :foreground-color)
+		   "#03140F"))
+    (should (equal (plist-get (plist-get tip-label :paragraph)
+			      :background-color)
+		   "#FAFEEA"))))
+
+(ert-deftest hub/org-google-docs-body-and-heading-requests-use-veriff-theme ()
+  "Body and heading requests use Inter and Veriff heading colors."
+  (let ((requests (hub/org-google-docs-styles-test--requests
+		   "#+TITLE: Branded doc\n\n* Heading one\n\nBody text.")))
+    (should (seq-some
+	     (lambda (request)
+	       (let* ((update (alist-get 'updateTextStyle request))
+		      (style (alist-get 'textStyle update))
+		      (font (alist-get 'weightedFontFamily style)))
+		 (and (equal (alist-get 'fontFamily font) "Inter")
+		      (= (or (alist-get 'weight font) 0) 800)
+		      (alist-get 'foregroundColor style))))
+	     requests))
+    (should (seq-some
+	     (lambda (request)
+	       (let* ((update (alist-get 'updateTextStyle request))
+		      (style (alist-get 'textStyle update))
+		      (font (alist-get 'weightedFontFamily style)))
+		 (and (equal (alist-get 'fontFamily font) "Inter")
+		      (not (alist-get 'weight font))
+		      (alist-get 'foregroundColor style))))
+	     requests))))
 
 (ert-deftest hub/org-google-docs-titled-callout-request-includes-title ()
   "Titled callouts render generated label text with title in Docs requests."
