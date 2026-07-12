@@ -130,46 +130,51 @@ This is an authoring policy layered over neutral gdocs logical styles."
      :paragraph (:spacing-mode never-collapse
 			       :space-above 0
 			       :space-below 0
-			       :indent-start 0
+			       :indent-start 18
 			       :indent-first-line 0
 			       :border-padding 6
-			       :background-color ,hub/org-google-docs-quote-block-background-color))
+			       :background-color ,hub/org-google-docs-quote-block-background-color)
+     :text (:italic t))
     (gdocs-quote-block-first
      :parent normal
      :paragraph (:spacing-mode never-collapse
 			       :space-above 6
 			       :space-below 0
-			       :indent-start 0
+			       :indent-start 18
 			       :indent-first-line 0
 			       :border-padding 6
-			       :background-color ,hub/org-google-docs-quote-block-background-color))
+			       :background-color ,hub/org-google-docs-quote-block-background-color)
+     :text (:italic t))
     (gdocs-quote-block-line
      :parent normal
      :paragraph (:spacing-mode never-collapse
 			       :space-above 0
 			       :space-below 0
-			       :indent-start 0
+			       :indent-start 18
 			       :indent-first-line 0
 			       :border-padding 6
-			       :background-color ,hub/org-google-docs-quote-block-background-color))
+			       :background-color ,hub/org-google-docs-quote-block-background-color)
+     :text (:italic t))
     (gdocs-quote-block-last
      :parent normal
      :paragraph (:spacing-mode never-collapse
 			       :space-above 0
 			       :space-below 6
-			       :indent-start 0
+			       :indent-start 18
 			       :indent-first-line 0
 			       :border-padding 6
-			       :background-color ,hub/org-google-docs-quote-block-background-color))
+			       :background-color ,hub/org-google-docs-quote-block-background-color)
+     :text (:italic t))
     (gdocs-quote-block-single
      :parent normal
      :paragraph (:spacing-mode never-collapse
 			       :space-above 6
 			       :space-below 6
-			       :indent-start 0
+			       :indent-start 18
 			       :indent-first-line 0
 			       :border-padding 6
-			       :background-color ,hub/org-google-docs-quote-block-background-color))
+			       :background-color ,hub/org-google-docs-quote-block-background-color)
+     :text (:italic t))
     ,@(hub/org-google-docs--callout-style-definitions)
     (gdocs-image-caption
      :parent normal
