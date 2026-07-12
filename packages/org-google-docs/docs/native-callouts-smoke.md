@@ -28,9 +28,11 @@ Missing `:type` defaults to `info`.
 A callout renders as:
 
 ```text
-Warning — Heads up
+⚠️ Warning — Heads up
 Body with bold, italic, and code.
 ```
+
+Generated labels use emoji plus text for scanability/accessibility: `ℹ️ Info`, `📝 Note`, `💡 Tip`, `⚠️ Warning`, and `❗ Important`.
 
 The label paragraph is generated chrome. It is marked separately from body paragraphs and is dropped from the Org body on pull. Body paragraphs and list items remain editable remote content and should pull back into the Org callout body. Callouts compose paragraph/list content only; nested blocks inside callouts are intentionally unsupported and must fail before remote mutation.
 

@@ -116,6 +116,8 @@
 	 (warning-body (alist-get 'gdocs-callout-warning-single definitions))
 	 (tip-label (alist-get 'gdocs-callout-tip-label definitions))
 	 (important-label (alist-get 'gdocs-callout-important-label definitions)))
+    (should (= (plist-get (plist-get warning-label :paragraph) :space-below)
+	       4))
     (should (equal (plist-get (plist-get warning-label :paragraph)
 			      :background-color)
 		   "#FBEDE8"))
@@ -167,7 +169,7 @@
     (should (seq-some
 	     (lambda (request)
 	       (hub/org-google-docs-styles-test--insert-text-p
-		request "Tip — Composition\n"))
+		request "💡 Tip — Composition\n"))
 	     requests))))
 
 (ert-deftest hub/org-google-docs-quote-requests-keep-visual-treatment ()

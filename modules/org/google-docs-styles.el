@@ -218,7 +218,7 @@
 	      `((,(intern (format "%s-label" base))
 		 :parent normal
 		 :paragraph ,(hub/org-google-docs--callout-paragraph
-			      theme type 10 0)
+			      theme type 10 4)
 		 :text ,(hub/org-google-docs--callout-label-text theme type))
 		(,(intern (format "%s-first" base))
 		 :parent normal
