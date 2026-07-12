@@ -82,8 +82,8 @@ Documents may override this with `#+GDOCS_THEME: THEME-ID'."
 	     (quote-left-border-only . t)
 	     (quote-border-width . 4)
 	     (quote-muted-border-width . 1)
-	     (quote-indent-start . 54)
-	     (quote-indent-first-line . 54)
+	     (quote-indent-start . 23.04)
+	     (quote-indent-first-line . 23.04)
 	     (quote-border-padding . 6)
 	     (callout-border-padding . 6)))
     (veriff-working
