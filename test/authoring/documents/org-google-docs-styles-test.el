@@ -18,6 +18,7 @@
 (when (file-directory-p hub/org-google-docs-styles-test--gdocs-directory)
   (add-to-list 'load-path hub/org-google-docs-styles-test--gdocs-directory))
 
+(load-file "modules/org/google-docs-themes.el")
 (load-file "modules/org/google-docs-styles.el")
 (condition-case nil
     (require 'gdocs-convert nil 'noerror)
@@ -44,6 +45,26 @@
   "Return non-nil when REQUEST inserts TEXT."
   (equal (alist-get 'text (alist-get 'insertText request)) text))
 
+(ert-deftest hub/org-google-docs-theme-resolves-legacy-neutral-roles ()
+  "Legacy neutral theme exposes semantic roles used by style generation."
+  (let ((theme (hub/org-google-docs-theme-resolve 'legacy-neutral)))
+    (should (equal (hub/org-google-docs-theme-color theme 'quote-surface)
+		   "#f5f5f5"))
+    (should (equal (hub/org-google-docs-theme-role theme 'code-font)
+		   "Roboto Mono"))))
+
+(ert-deftest hub/org-google-docs-buffer-theme-rejects-duplicates ()
+  "Duplicate GDOCS_THEME keywords fail before style generation."
+  (with-temp-buffer
+    (insert "#+GDOCS_THEME: legacy-neutral\n#+GDOCS_THEME: legacy-neutral\n")
+    (should-error (hub/org-google-docs-buffer-theme-id) :type 'user-error)))
+
+(ert-deftest hub/org-google-docs-buffer-theme-rejects-unknown-theme ()
+  "Unknown GDOCS_THEME values fail before style generation."
+  (with-temp-buffer
+    (insert "#+GDOCS_THEME: missing-theme\n")
+    (should-error (hub/org-google-docs-buffer-theme-id) :type 'user-error)))
+
 (ert-deftest hub/org-google-docs-quote-styles-keep-visual-quote-treatment ()
   "Quote logical styles keep background, indentation, padding, and italic text."
   (dolist (style '(gdocs-quote-block
@@ -54,8 +75,7 @@
     (let* ((definition (alist-get style (hub/org-google-docs-style-definitions)))
 	   (paragraph (plist-get definition :paragraph))
 	   (text (plist-get definition :text)))
-      (should (equal (plist-get paragraph :background-color)
-		     hub/org-google-docs-quote-block-background-color))
+      (should (equal (plist-get paragraph :background-color) "#f5f5f5"))
       (should (= (plist-get paragraph :indent-start) 18))
       (should (= (plist-get paragraph :border-padding) 6))
       (should (eq (plist-get text :italic) t)))))
