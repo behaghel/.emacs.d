@@ -129,12 +129,15 @@
 	(bottom :color ,surface :width ,muted-width :padding ,padding)
 	(right :color ,surface :width ,muted-width :padding ,padding)))))
 
-(defun hub/org-google-docs--quote-block-paragraph (theme space-above space-below)
+(defun hub/org-google-docs--quote-block-paragraph
+    (theme space-above space-below keep-with-next)
   "Return quote block paragraph style for THEME and spacing values."
   (append
    `(:spacing-mode never-collapse
 		   :space-above ,space-above
 		   :space-below ,space-below
+		   :keep-lines-together t
+		   ,@(when keep-with-next (list :keep-with-next t))
 		   :indent-start ,(hub/org-google-docs--theme-role
 				   theme 'quote-indent-start)
 		   :indent-first-line ,(hub/org-google-docs--theme-role
@@ -158,23 +161,23 @@
   "Return quote block style definitions for THEME."
   `((gdocs-quote-block
      :parent normal
-     :paragraph ,(hub/org-google-docs--quote-block-paragraph theme 0 0)
+     :paragraph ,(hub/org-google-docs--quote-block-paragraph theme 0 0 nil)
      :text ,(hub/org-google-docs--quote-block-text theme))
     (gdocs-quote-block-first
      :parent normal
-     :paragraph ,(hub/org-google-docs--quote-block-paragraph theme 6 0)
+     :paragraph ,(hub/org-google-docs--quote-block-paragraph theme 6 0 nil)
      :text ,(hub/org-google-docs--quote-block-text theme))
     (gdocs-quote-block-line
      :parent normal
-     :paragraph ,(hub/org-google-docs--quote-block-paragraph theme 0 0)
+     :paragraph ,(hub/org-google-docs--quote-block-paragraph theme 0 0 t)
      :text ,(hub/org-google-docs--quote-block-text theme))
     (gdocs-quote-block-last
      :parent normal
-     :paragraph ,(hub/org-google-docs--quote-block-paragraph theme 0 6)
+     :paragraph ,(hub/org-google-docs--quote-block-paragraph theme 0 6 nil)
      :text ,(hub/org-google-docs--quote-block-text theme))
     (gdocs-quote-block-single
      :parent normal
-     :paragraph ,(hub/org-google-docs--quote-block-paragraph theme 6 6)
+     :paragraph ,(hub/org-google-docs--quote-block-paragraph theme 6 6 nil)
      :text ,(hub/org-google-docs--quote-block-text theme))))
 
 (defun hub/org-google-docs--callout-color (theme type suffix fallback)
@@ -183,11 +186,14 @@
     (or (hub/org-google-docs-theme-color theme role)
 	(hub/org-google-docs-theme-color theme fallback))))
 
-(defun hub/org-google-docs--callout-paragraph (theme type space-above space-below)
+(defun hub/org-google-docs--callout-paragraph
+    (theme type space-above space-below keep-with-next)
   "Return callout paragraph style for THEME, TYPE, and spacing values."
   `(:spacing-mode never-collapse
 		  :space-above ,space-above
 		  :space-below ,space-below
+		  :keep-lines-together t
+		  ,@(when keep-with-next (list :keep-with-next t))
 		  :indent-start 0
 		  :indent-first-line 0
 		  :border-padding ,(hub/org-google-docs--theme-role
@@ -218,27 +224,27 @@
 	      `((,(intern (format "%s-label" base))
 		 :parent normal
 		 :paragraph ,(hub/org-google-docs--callout-paragraph
-			      theme type 10 4)
+			      theme type 10 4 nil)
 		 :text ,(hub/org-google-docs--callout-label-text theme type))
 		(,(intern (format "%s-first" base))
 		 :parent normal
 		 :paragraph ,(hub/org-google-docs--callout-paragraph
-			      theme type 0 0)
+			      theme type 0 0 t)
 		 :text ,(hub/org-google-docs--callout-body-text theme))
 		(,(intern (format "%s-line" base))
 		 :parent normal
 		 :paragraph ,(hub/org-google-docs--callout-paragraph
-			      theme type 0 0)
+			      theme type 0 0 t)
 		 :text ,(hub/org-google-docs--callout-body-text theme))
 		(,(intern (format "%s-last" base))
 		 :parent normal
 		 :paragraph ,(hub/org-google-docs--callout-paragraph
-			      theme type 0 10)
+			      theme type 0 10 nil)
 		 :text ,(hub/org-google-docs--callout-body-text theme))
 		(,(intern (format "%s-single" base))
 		 :parent normal
 		 :paragraph ,(hub/org-google-docs--callout-paragraph
-			      theme type 0 10)
+			      theme type 0 10 nil)
 		 :text ,(hub/org-google-docs--callout-body-text theme)))))
 	  '("info" "note" "warning" "tip" "important"))))
 
