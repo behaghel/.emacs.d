@@ -25,6 +25,7 @@
 (require 'org-confluence-commands)
 (require 'org-confluence-people-store)
 (require 'org-confluence-sync-status-marker)
+(require 'org-sync nil 'noerror)
 
 (declare-function org-confluence-comments-import "org-confluence-comments-import" (&optional page-id body-format))
 (declare-function org-confluence-open-page "org-confluence-publish" ())
@@ -224,6 +225,65 @@ install personal leader, Evil, or layout-specific bindings."
 	       (bound-and-true-p org-comments-mode))
       (org-comments-mode -1))
     (setq org-confluence--enabled-org-comments-mode nil))))
+
+(defun org-confluence-remote--url-title (url)
+  "Return a Confluence-ish title from URL."
+  (when (string-match "/pages/[0-9]+/\\([^?#]+\\)" url)
+    (string-trim (url-unhex-string (replace-regexp-in-string "+" " " (match-string 1 url))))))
+
+(defun org-confluence-remote-describe-url (url)
+  "Return org-sync descriptor for Confluence URL, or nil."
+  (let ((trimmed (string-trim url)))
+    (when (string-match "/pages/\\([0-9]+\\)" trimmed)
+      (list :kind "confluence"
+	    :id (match-string 1 trimmed)
+	    :url trimmed
+	    :title (org-confluence-remote--url-title trimmed)
+	    :supports '(:pull t :activity t :comments t)))))
+
+(defun org-confluence-remote-pull (page-id local-path &rest options)
+  "Pull Confluence PAGE-ID to LOCAL-PATH and return normalized metadata."
+  (require 'org-confluence-sync)
+  (let ((result (apply #'org-confluence-pull-to-file page-id local-path options)))
+    (list :kind "confluence"
+	  :id page-id
+	  :local-path (plist-get result :file)
+	  :baseline (list :version (plist-get result :remote-version)
+			  :pulled-at (format-time-string "%FT%TZ" nil t))
+	  :raw result)))
+
+(defun org-confluence-remote-scan (page-id baseline &rest _options)
+  "Scan Confluence PAGE-ID against BASELINE and return normalized activity."
+  (require 'org-confluence-sync)
+  (let* ((page (org-confluence-api--get-page page-id "storage"))
+	 (remote-version (org-confluence-sync--page-version-value page))
+	 (local-version (or (plist-get baseline :version)
+			    (plist-get baseline :remote-version)))
+	 (updated-at (or (alist-get 'createdAt (alist-get 'version page))
+			 (alist-get 'created-at (alist-get 'version page))))
+	 (author (or (alist-get 'displayName (alist-get 'author (alist-get 'version page)))
+		     (alist-get 'publicName (alist-get 'author (alist-get 'version page)))
+		     "unknown"))
+	 (signals nil))
+    (when (and remote-version local-version (> remote-version (string-to-number (format "%s" local-version))))
+      (setq signals
+	    (list (list :id (format "confluence-page:%s:v%s" page-id remote-version)
+			:kind "remote-update"
+			:remote-at (or updated-at "")
+			:author author
+			:summary (format "Remote page version %s is newer than local version %s."
+					 remote-version local-version)))))
+    (list :kind "confluence"
+	  :id page-id
+	  :remote (list :version remote-version :updated-at updated-at :author author)
+	  :signals signals)))
+
+(when (fboundp 'org-sync-remote-register-provider)
+  (org-sync-remote-register-provider
+   :kind "confluence"
+   :describe-url #'org-confluence-remote-describe-url
+   :pull #'org-confluence-remote-pull
+   :scan #'org-confluence-remote-scan))
 
 (provide 'org-confluence)
 ;;; org-confluence.el ends here

@@ -15,6 +15,7 @@
 
 (autoload 'org-google-docs-comments-import "org-google-docs-comments-import" nil t)
 (require 'org-google-docs-comments-backend)
+(require 'org-sync nil 'noerror)
 (require 'org-google-docs-footnotes)
 (require 'org-google-docs-images)
 
@@ -529,6 +530,175 @@ OAuth flow when a valid token already exists."
 		#'org-google-docs-dispatch)))
 
 (org-google-docs-rebuild-mode-map)
+
+(defun org-google-docs-remote--await-document (document-id &optional timeout)
+  "Return Google Docs API document for DOCUMENT-ID, waiting up to TIMEOUT seconds."
+  (unless (fboundp 'gdocs-api-get-document)
+    (user-error "gdocs-api-get-document is not available"))
+  (let ((done nil)
+	(doc nil)
+	(error-message nil))
+    (gdocs-api-get-document
+     document-id
+     (lambda (json)
+       (setq doc json)
+       (setq done t))
+     nil
+     (lambda (message)
+       (setq error-message message)
+       (setq done t)))
+    (let ((deadline (+ (float-time) (or timeout 5.0))))
+      (while (and (not done) (< (float-time) deadline))
+	(accept-process-output nil 0.05)))
+    (cond
+     (doc doc)
+     (error-message (user-error "Google Docs metadata failed: %s" error-message))
+     (t (user-error "Google Docs metadata timed out for %s" document-id)))))
+
+(defun org-google-docs-remote--document-title (doc)
+  "Return title from Google Docs API DOC."
+  (or (alist-get 'title doc)
+      (cdr (assoc 'title doc))
+      (and (hash-table-p doc) (gethash "title" doc))))
+
+(defun org-google-docs-remote-describe-url (url)
+  "Return org-sync descriptor for Google Docs URL, or nil."
+  (let ((trimmed (string-trim url)))
+    (when (string-match "docs\\.google\\.com/document/d/\\([^/?#]+\\)" trimmed)
+      (let* ((id (match-string 1 trimmed))
+	     (title (ignore-errors
+		      (org-google-docs-remote--document-title
+		       (org-google-docs-remote--await-document id 5.0)))))
+	(list :kind "google-docs"
+	      :id id
+	      :url trimmed
+	      :title title
+	      :supports '(:pull t :activity nil :comments nil))))))
+
+(defun org-google-docs-remote-pull (document-id local-path &rest _options)
+  "Pull Google Docs DOCUMENT-ID to LOCAL-PATH and return normalized metadata."
+  (unless (fboundp 'org-google-docs-pull)
+    (user-error "org-google-docs-pull is not available"))
+  (let ((target-file (expand-file-name local-path))
+	pulled-revision)
+    (make-directory (file-name-directory target-file) t)
+    (with-current-buffer (find-file-noselect target-file)
+      (erase-buffer)
+      (org-mode)
+      (insert "#+TITLE: Google Doc\n")
+      (insert ":PROPERTIES:\n")
+      (insert (format ":GDOCS_DOCUMENT_ID: %s\n" document-id))
+      (insert ":END:\n\n")
+      (save-buffer)
+      (cond
+       ((fboundp 'gdocs-sync--init-from-properties)
+	(gdocs-sync--init-from-properties))
+       ((boundp 'gdocs-sync--document-id)
+	(setq-local gdocs-sync--document-id document-id)))
+      (when (and (fboundp 'gdocs-mode) (not (bound-and-true-p gdocs-mode)))
+	(let ((gdocs-auto-pull-on-open nil))
+	  (gdocs-mode 1)))
+      (when (and (boundp 'gdocs-sync--document-id)
+		 (not (bound-and-true-p gdocs-sync--document-id)))
+	(setq-local gdocs-sync--document-id document-id))
+      (org-google-docs-pull)
+      (setq pulled-revision (and (boundp 'gdocs-sync--revision-id) gdocs-sync--revision-id))
+      (save-buffer))
+    (list :kind "google-docs"
+	  :id document-id
+	  :local-path target-file
+	  :baseline (list :revision pulled-revision
+			  :pulled-at (format-time-string "%FT%TZ" nil t)))))
+
+(defun org-google-docs-remote--await-file-metadata (document-id &optional timeout)
+  "Return Google Drive metadata for DOCUMENT-ID, waiting up to TIMEOUT seconds."
+  (unless (fboundp 'gdocs-api-get-file-metadata)
+    (user-error "gdocs-api-get-file-metadata is not available"))
+  (let ((done nil)
+	(metadata nil)
+	(error-message nil))
+    (gdocs-api-get-file-metadata
+     document-id
+     (lambda (json)
+       (setq metadata json)
+       (setq done t))
+     nil)
+    (let ((deadline (+ (float-time) (or timeout 5.0))))
+      (while (and (not done) (< (float-time) deadline))
+	(accept-process-output nil 0.05)))
+    (cond
+     (metadata metadata)
+     (error-message (user-error "Google Drive metadata failed: %s" error-message))
+     (t (user-error "Google Drive metadata timed out for %s" document-id)))))
+
+(defun org-google-docs-remote--metadata-value (key metadata)
+  "Return KEY from Google Drive METADATA alist or hash table."
+  (or (alist-get key metadata)
+      (cdr (assoc key metadata))
+      (and (hash-table-p metadata) (gethash (symbol-name key) metadata))))
+
+(defun org-google-docs-remote--local-file-keyword (path key)
+  "Return Org file-level property KEY from PATH, or nil."
+  (when (and path (file-exists-p path))
+    (with-temp-buffer
+      (insert-file-contents path)
+      (org-mode)
+      (goto-char (point-min))
+      (org-entry-get nil key))))
+
+(defun org-google-docs-remote--time-after-p (a b)
+  "Return non-nil when timestamp A is after timestamp B."
+  (when (and a b)
+    (condition-case nil
+	(time-less-p (date-to-time b) (date-to-time a))
+      (error (not (equal a b))))))
+
+(defun org-google-docs-remote-scan (document-id baseline &rest options)
+  "Scan Google Docs DOCUMENT-ID against BASELINE and return normalized activity."
+  (let* ((metadata (org-google-docs-remote--await-file-metadata document-id 5.0))
+	 (remote-revision (org-google-docs-remote--metadata-value 'headRevisionId metadata))
+	 (remote-modified-at (org-google-docs-remote--metadata-value 'modifiedTime metadata))
+	 (remote-name (org-google-docs-remote--metadata-value 'name metadata))
+	 (local-path (plist-get options :local-path))
+	 (local-revision (or (plist-get baseline :revision)
+			     (plist-get baseline :remote-revision)
+			     (org-google-docs-remote--local-file-keyword local-path "GDOCS_REVISION_ID")))
+	 (local-modified-at (or (plist-get baseline :modified-at)
+				(plist-get baseline :remote-modified-at)))
+	 (local-pulled-at (plist-get baseline :pulled-at))
+	 (changed (cond
+		   ((and remote-revision local-revision)
+		    (not (equal remote-revision local-revision)))
+		   ((and remote-modified-at local-modified-at)
+		    (org-google-docs-remote--time-after-p remote-modified-at local-modified-at))
+		   ((and remote-modified-at local-pulled-at)
+		    (org-google-docs-remote--time-after-p remote-modified-at local-pulled-at))
+		   (t nil)))
+	 (signal-id (or (and remote-revision (format "google-docs:%s:rev:%s" document-id remote-revision))
+			(and remote-modified-at (format "google-docs:%s:modified:%s" document-id remote-modified-at))))
+	 (signals nil))
+    (when (and changed signal-id)
+      (setq signals
+	    (list (list :id signal-id
+			:kind "remote-update"
+			:remote-at (or remote-modified-at "")
+			:author "unknown"
+			:summary (if remote-name
+				     (format "Google Doc '%s' changed remotely." remote-name)
+				   "Google Doc changed remotely.")))))
+    (list :kind "google-docs"
+	  :id document-id
+	  :remote (list :revision remote-revision
+			:modified-at remote-modified-at
+			:title remote-name)
+	  :signals signals)))
+
+(when (fboundp 'org-sync-remote-register-provider)
+  (org-sync-remote-register-provider
+   :kind "google-docs"
+   :describe-url #'org-google-docs-remote-describe-url
+   :pull #'org-google-docs-remote-pull
+   :scan #'org-google-docs-remote-scan))
 
 (provide 'org-google-docs)
 ;;; org-google-docs.el ends here
