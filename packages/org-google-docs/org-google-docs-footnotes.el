@@ -14,6 +14,7 @@
 (require 'subr-x)
 
 (defvar gdocs-convert-footnote-reference-handler)
+(defvar gdocs-convert-native-date-elements)
 (declare-function gdocs-api-batch-update "gdocs-api"
 		  (document-id requests callback &optional account on-error))
 (declare-function gdocs-convert-org-buffer-to-ir "gdocs-convert" ())
@@ -275,6 +276,14 @@ that each request uses the index captured before the batch mutation begins."
   "Return REFERENCES that have a Google Docs document index."
   (seq-filter (lambda (reference) (plist-get reference :doc-index)) references))
 
+(defun org-google-docs-footnotes--missing-index-labels (references)
+  "Return labels for REFERENCES without a Google Docs document index."
+  (delq nil
+	(mapcar (lambda (reference)
+		  (unless (plist-get reference :doc-index)
+		    (plist-get reference :label)))
+		references)))
+
 (defun org-google-docs-footnotes--response-replies (response)
   "Return batchUpdate RESPONSE replies as a list."
   (let ((replies (alist-get 'replies response)))
@@ -330,7 +339,8 @@ modified."
 
 (defun org-google-docs-footnotes--around-org-buffer-to-ir (orig)
   "Advise ORIG `gdocs-convert-org-buffer-to-ir' during native footnote push."
-  (let ((ir (funcall orig)))
+  (let ((ir (let ((gdocs-convert-native-date-elements nil))
+	      (funcall orig))))
     (if org-google-docs-footnotes--push-session
 	(org-google-docs-footnotes-filter-native-footnote-ir ir)
       ir)))
@@ -396,6 +406,8 @@ update and send a second batchUpdate for footnote bodies before running CALLBACK
       (funcall orig document-id requests callback account on-error)
     (let* ((session org-google-docs-footnotes--push-session)
 	   (references (org-google-docs-footnotes--session-reference-list session))
+	   (missing-labels
+	    (org-google-docs-footnotes--missing-index-labels references))
 	   (indexed-references
 	    (org-google-docs-footnotes--indexed-references references))
 	   (mutation-references
@@ -425,6 +437,10 @@ update and send a second batchUpdate for footnote bodies before running CALLBACK
 		((error quit)
 		 (org-google-docs-footnotes--deactivate-session)
 		 (signal (car err) (cdr err)))))))
+      (when missing-labels
+	(org-google-docs-footnotes--deactivate-session)
+	(user-error "Google Docs footnote push could not locate reference(s): %s"
+		    (string-join missing-labels ", ")))
       (funcall orig document-id (append requests create-requests)
 	       wrapped-callback account on-error))))
 

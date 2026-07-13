@@ -114,7 +114,7 @@ plain example text
 * Lists outside callouts
 
 - Top-level bullet with inline /formatting/
-- Top-level bullet with a footnote[fn:list-note]
+- Top-level bullet with plain text
   - Nested bullet A
   - Nested bullet B
 - [ ] Unchecked task
@@ -126,6 +126,9 @@ plain example text
    1. Nested ordered item
    2. Another nested ordered item
 3. Third ordered item
+
+A standalone paragraph after the list carries another footnote[fn:list-note] so
+native footnote placement is tested outside list conversion boundaries.
 
 * Tables
 

@@ -101,8 +101,8 @@
      (org-google-docs-footnotes-body-insert-requests references response)
      :type 'user-error)))
 
-(ert-deftest org-google-docs-footnotes-batch-advice-skips-unindexed-references ()
-  "Batch advice still pushes body changes when no footnote index was emitted."
+(ert-deftest org-google-docs-footnotes-batch-advice-rejects-unindexed-references ()
+  "Batch advice fails closed when a footnote reference index was not emitted."
   (let* ((session (list :references (vconcat (list (list :label "one" :body "Body.")))
 			:cursor 0
 			:previous-handler nil))
@@ -112,14 +112,12 @@
 		  (_document-id requests callback &optional _account _on-error)
 		  (push requests calls)
 		  (funcall callback '((replies . [])))))
-      (org-google-docs-footnotes--around-batch-update
-       #'fake-batch "doc" '((deleteContentRange . ((range . ((startIndex . 3))))))
-       (lambda (_response) (push :callback calls)))
-      (setq calls (nreverse calls))
-      (should (= 2 (length calls)))
-      (should (equal (car calls)
-		     '((deleteContentRange . ((range . ((startIndex . 3))))))))
-      (should (eq (cadr calls) :callback))
+      (should-error
+       (org-google-docs-footnotes--around-batch-update
+	#'fake-batch "doc" '((deleteContentRange . ((range . ((startIndex . 3))))))
+	(lambda (_response) (push :callback calls)))
+       :type 'user-error)
+      (should-not calls)
       (should-not org-google-docs-footnotes--push-session))))
 
 (ert-deftest org-google-docs-footnotes-batch-advice-mutates-in-descending-index-order ()
