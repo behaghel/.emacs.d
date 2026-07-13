@@ -17,6 +17,14 @@
 
 (require 'org-google-docs-footnotes)
 
+(defun org-google-docs-footnotes-test--document-with-text (start content)
+  "Return minimal Google Docs JSON with text run CONTENT at START."
+  (let* ((text-element (list (cons 'startIndex start)
+			     (cons 'textRun (list (cons 'content content)))))
+	 (paragraph (list (cons 'paragraph
+				(list (cons 'elements (vector text-element)))))))
+    (list (cons 'body (list (cons 'content (vector paragraph)))))))
+
 (ert-deftest org-google-docs-footnotes-filters-org-only-footnotes-from-ir ()
   "Native footnote push removes Org-only definition section from body IR."
   (let ((ir (list (list :type 'paragraph
@@ -101,38 +109,45 @@
      (org-google-docs-footnotes-body-insert-requests references response)
      :type 'user-error)))
 
-(ert-deftest org-google-docs-footnotes-batch-advice-rejects-unindexed-references ()
-  "Batch advice fails closed when a footnote reference index was not emitted."
-  (let* ((session (list :references (vconcat (list (list :label "one" :body "Body.")))
-			:cursor 0
-			:previous-handler nil))
-	 (org-google-docs-footnotes--push-session session)
-	 (calls nil))
-    (cl-labels ((fake-batch
-		  (_document-id requests callback &optional _account _on-error)
-		  (push requests calls)
-		  (funcall callback '((replies . [])))))
-      (should-error
-       (org-google-docs-footnotes--around-batch-update
-	#'fake-batch "doc" '((deleteContentRange . ((range . ((startIndex . 3))))))
-	(lambda (_response) (push :callback calls)))
-       :type 'user-error)
-      (should-not calls)
-      (should-not org-google-docs-footnotes--push-session))))
+(ert-deftest org-google-docs-footnotes-locates-sentinels-in-doc-json ()
+  "Sentinel lookup returns exact UTF-16 document indices."
+  (let* ((text-element (list (cons 'startIndex 10)
+			     (cons 'textRun
+				   '((content . "A 😀 ⟦GDOCS_FN:1:one⟧.")))))
+	 (paragraph (list (cons 'paragraph
+				(list (cons 'elements (vector text-element))))))
+	 (document (list (cons 'body
+			       (list (cons 'content (vector paragraph))))))
+	 (location (org-google-docs-footnotes--locate-sentinel
+		    document "⟦GDOCS_FN:1:one⟧")))
+    (should (equal location '(:start 15 :end 31)))))
+
+(ert-deftest org-google-docs-footnotes-builds-sentinel-create-requests ()
+  "Sentinel footnote creation deletes anchor text before creating footnote."
+  (let ((requests (org-google-docs-footnotes-sentinel-create-requests
+		   (list (list :label "one"
+			       :sentinel-start 12
+			       :sentinel-end 30)))))
+    (should (equal requests
+		   '(((deleteContentRange
+		       . ((range . ((startIndex . 12) (endIndex . 30))))))
+		     ((createFootnote . ((location . ((index . 12)))))))))))
 
 (ert-deftest org-google-docs-footnotes-batch-advice-mutates-in-descending-index-order ()
-  "Batch advice keeps create replies aligned with descending mutation order."
+  "Batch advice locates sentinels and creates footnotes high to low."
   (let* ((session (list :references (vconcat (list (list :label "one"
 							 :ordinal 1
 							 :body "First body."
-							 :doc-index 12)
+							 :sentinel "⟦GDOCS_FN:1:one⟧")
 						   (list :label "two"
 							 :ordinal 2
 							 :body "Second body."
-							 :doc-index 34)))
+							 :sentinel "⟦GDOCS_FN:2:two⟧")))
 			:cursor 0
 			:previous-handler nil))
 	 (org-google-docs-footnotes--push-session session)
+	 (document (org-google-docs-footnotes-test--document-with-text
+		    1 "A ⟦GDOCS_FN:1:one⟧ B ⟦GDOCS_FN:2:two⟧."))
 	 calls)
     (cl-labels ((orig (_document-id requests callback &optional _account _on-error)
 		  (push requests calls)
@@ -142,15 +157,22 @@
 					 requests)
 			       '((replies . [nil
 					     ((createFootnote . ((footnoteId . "fn-two"))))
+					     nil
 					     ((createFootnote . ((footnoteId . "fn-one"))))]))
 			     '((replies . []))))))
-      (org-google-docs-footnotes--around-batch-update
-       #'orig "doc-1" '(((insertText . ((text . "Body")))))
-       #'ignore)
-      (should (equal (cadr calls)
-		     '(((insertText . ((text . "Body"))))
-		       ((createFootnote . ((location . ((index . 34))))))
-		       ((createFootnote . ((location . ((index . 12)))))))))
+      (cl-letf (((symbol-function 'gdocs-api-get-document)
+		 (lambda (_document-id callback &optional _account _on-error)
+		   (funcall callback document))))
+	(org-google-docs-footnotes--around-batch-update
+	 #'orig "doc-1" '(((insertText . ((text . "Body")))))
+	 #'ignore))
+      (should (equal (nth 1 calls)
+		     '(((deleteContentRange
+			 . ((range . ((startIndex . 22) (endIndex . 38))))))
+		       ((createFootnote . ((location . ((index . 22))))))
+		       ((deleteContentRange
+			 . ((range . ((startIndex . 3) (endIndex . 19))))))
+		       ((createFootnote . ((location . ((index . 3)))))))))
       (should (equal (car calls)
 		     '(((insertText . ((text . "Second body.")
 				       (location . ((segmentId . "fn-two")
@@ -159,15 +181,17 @@
 				       (location . ((segmentId . "fn-one")
 						    (index . 1))))))))))))
 
-(ert-deftest org-google-docs-footnotes-batch-advice-runs-two-phase-update ()
-  "Batch advice appends createFootnote and inserts bodies before main callback."
+(ert-deftest org-google-docs-footnotes-batch-advice-runs-post-body-update ()
+  "Batch advice replaces sentinels and inserts bodies before main callback."
   (let* ((session (list :references (vconcat (list (list :label "one"
 							 :ordinal 1
 							 :body "First body."
-							 :doc-index 12)))
+							 :sentinel "⟦GDOCS_FN:1:one⟧")))
 			:cursor 0
 			:previous-handler nil))
 	 (org-google-docs-footnotes--push-session session)
+	 (document (org-google-docs-footnotes-test--document-with-text
+		    1 "Body ⟦GDOCS_FN:1:one⟧"))
 	 calls callback-ran)
     (cl-labels ((orig (_document-id requests callback &optional _account _on-error)
 		  (push requests calls)
@@ -177,13 +201,14 @@
 					 requests)
 			       '((replies . [nil ((createFootnote . ((footnoteId . "fn-a"))))]))
 			     '((replies . []))))))
-      (org-google-docs-footnotes--around-batch-update
-       #'orig "doc-1" '(((insertText . ((text . "Body")))))
-       (lambda (_response) (setq callback-ran t)))
+      (cl-letf (((symbol-function 'gdocs-api-get-document)
+		 (lambda (_document-id callback &optional _account _on-error)
+		   (funcall callback document))))
+	(org-google-docs-footnotes--around-batch-update
+	 #'orig "doc-1" '(((insertText . ((text . "Body")))))
+	 (lambda (_response) (setq callback-ran t))))
       (should callback-ran)
-      (should (= 2 (length calls)))
-      (should (seq-find (lambda (request) (alist-get 'createFootnote request))
-			(cadr calls)))
+      (should (= 3 (length calls)))
       (should (equal (car calls)
 		     '(((insertText . ((text . "First body.")
 				       (location . ((segmentId . "fn-a")

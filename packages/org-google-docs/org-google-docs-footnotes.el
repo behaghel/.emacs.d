@@ -14,9 +14,11 @@
 (require 'subr-x)
 
 (defvar gdocs-convert-footnote-reference-handler)
-(defvar gdocs-convert-native-date-elements)
+(defvar gdocs-convert-footnote-reference-text-function)
 (declare-function gdocs-api-batch-update "gdocs-api"
 		  (document-id requests callback &optional account on-error))
+(declare-function gdocs-api-get-document "gdocs-api"
+		  (document-id callback &optional account on-error))
 (declare-function gdocs-convert-org-buffer-to-ir "gdocs-convert" ())
 
 (defvar org-google-docs-footnotes--push-session nil
@@ -284,6 +286,97 @@ that each request uses the index captured before the batch mutation begins."
 		    (plist-get reference :label)))
 		references)))
 
+(defun org-google-docs-footnotes--sentinel-for (reference)
+  "Return unique body sentinel text for planned footnote REFERENCE."
+  (format "⟦GDOCS_FN:%s:%s⟧"
+	  (plist-get reference :ordinal)
+	  (plist-get reference :label)))
+
+(defun org-google-docs-footnotes--reference-by-label (session label)
+  "Return next planned reference from SESSION matching LABEL."
+  (let* ((references (org-google-docs-footnotes--session-references session))
+	 (cursor (plist-get session :cursor))
+	 (reference (and (< cursor (length references))
+			 (aref references cursor))))
+    (unless (and reference (equal label (plist-get reference :label)))
+      (user-error "Unexpected Google Docs footnote reference label `%s'" label))
+    (aset references cursor
+	  (plist-put reference :sentinel
+		     (org-google-docs-footnotes--sentinel-for reference)))
+    (plist-put session :cursor (1+ cursor))
+    (aref references cursor)))
+
+(defun org-google-docs-footnotes--utf16-prefix-length (string end)
+  "Return UTF-16 length of STRING before character position END."
+  (let ((units 0))
+    (dotimes (index end units)
+      (setq units (+ units
+		     (if (> (aref string index) #xffff) 2 1))))))
+
+(defun org-google-docs-footnotes--text-run-locations (document)
+  "Return text run location plists from Google Docs DOCUMENT."
+  (let (locations)
+    (dolist (element (append (alist-get 'content (alist-get 'body document)) nil))
+      (when-let* ((paragraph (alist-get 'paragraph element)))
+	(dolist (part (append (alist-get 'elements paragraph) nil))
+	  (when-let* ((text-run (alist-get 'textRun part))
+		      (content (alist-get 'content text-run)))
+	    (push (list :start (alist-get 'startIndex part)
+			:content content)
+		  locations)))))
+    (nreverse locations)))
+
+(defun org-google-docs-footnotes--locate-sentinel (document sentinel)
+  "Return start/end index plist for SENTINEL in Google Docs DOCUMENT."
+  (let (matches)
+    (dolist (location (org-google-docs-footnotes--text-run-locations document))
+      (let ((start (plist-get location :start))
+	    (content (plist-get location :content))
+	    (offset 0))
+	(while (string-match (regexp-quote sentinel) content offset)
+	  (let* ((match-start (match-beginning 0))
+		 (match-end (match-end 0))
+		 (doc-start (+ start
+			       (org-google-docs-footnotes--utf16-prefix-length
+				content match-start)))
+		 (doc-end (+ start
+			     (org-google-docs-footnotes--utf16-prefix-length
+			      content match-end))))
+	    (push (list :start doc-start :end doc-end) matches)
+	    (setq offset match-end)))))
+    (pcase (length matches)
+      (1 (car matches))
+      (0 (user-error "Google Docs footnote sentinel missing: %s" sentinel))
+      (_ (user-error "Google Docs footnote sentinel duplicated: %s" sentinel)))))
+
+(defun org-google-docs-footnotes--locate-sentinels (references document)
+  "Return REFERENCES annotated with sentinel locations from DOCUMENT."
+  (mapcar (lambda (reference)
+	    (let* ((sentinel (or (plist-get reference :sentinel)
+				 (org-google-docs-footnotes--sentinel-for reference)))
+		   (location (org-google-docs-footnotes--locate-sentinel
+			      document sentinel)))
+	      (append reference
+		      (list :sentinel sentinel
+			    :sentinel-start (plist-get location :start)
+			    :sentinel-end (plist-get location :end)
+			    :doc-index (plist-get location :start)))))
+	  references))
+
+(defun org-google-docs-footnotes-sentinel-create-requests (references)
+  "Return delete-sentinel/createFootnote requests for REFERENCES."
+  (apply #'append
+	 (mapcar (lambda (reference)
+		   (let ((start (plist-get reference :sentinel-start))
+			 (end (plist-get reference :sentinel-end)))
+		     (unless (and start end)
+		       (user-error "Missing Google Docs footnote sentinel location for `%s'"
+				   (plist-get reference :label)))
+		     `(((deleteContentRange
+			 . ((range . ((startIndex . ,start) (endIndex . ,end))))))
+		       ((createFootnote . ((location . ((index . ,start)))))))))
+		 references)))
+
 (defun org-google-docs-footnotes--response-replies (response)
   "Return batchUpdate RESPONSE replies as a list."
   (let ((replies (alist-get 'replies response)))
@@ -339,8 +432,7 @@ modified."
 
 (defun org-google-docs-footnotes--around-org-buffer-to-ir (orig)
   "Advise ORIG `gdocs-convert-org-buffer-to-ir' during native footnote push."
-  (let ((ir (let ((gdocs-convert-native-date-elements nil))
-	      (funcall orig))))
+  (let ((ir (funcall orig)))
     (if org-google-docs-footnotes--push-session
 	(org-google-docs-footnotes-filter-native-footnote-ir ir)
       ir)))
@@ -353,7 +445,8 @@ modified."
 
 (defun org-google-docs-footnotes-seam-available-p ()
   "Return non-nil when the loaded gdocs conversion seam is available."
-  (boundp 'gdocs-convert-footnote-reference-handler))
+  (and (boundp 'gdocs-convert-footnote-reference-handler)
+       (boundp 'gdocs-convert-footnote-reference-text-function)))
 
 (defun org-google-docs-footnotes--session-references (session)
   "Return mutable reference vector from SESSION."
@@ -372,18 +465,26 @@ modified."
     (plist-put session :cursor (1+ cursor))
     nil))
 
+(defun org-google-docs-footnotes--sentinel-text-for-object (object)
+  "Return and record sentinel text for Org footnote reference OBJECT."
+  (let* ((label (org-google-docs-footnotes--reference-label object))
+	 (reference (org-google-docs-footnotes--reference-by-label
+		     org-google-docs-footnotes--push-session label)))
+    (plist-get reference :sentinel)))
+
 (defun org-google-docs-footnotes--activate-session (plan)
   "Activate a native footnote push session for PLAN."
   (unless (org-google-docs-footnotes-seam-available-p)
-    (user-error "Loaded gdocs does not expose `gdocs-convert-footnote-reference-handler'"))
+    (user-error "Loaded gdocs does not expose native footnote conversion seams"))
   (let ((session (list :references (vconcat (plist-get plan :references))
 		       :cursor 0
-		       :previous-handler gdocs-convert-footnote-reference-handler)))
+		       :previous-handler gdocs-convert-footnote-reference-handler
+		       :previous-text-function
+		       gdocs-convert-footnote-reference-text-function)))
     (setq org-google-docs-footnotes--push-session session
-	  gdocs-convert-footnote-reference-handler
-	  (lambda (run index)
-	    (org-google-docs-footnotes--record-reference-index
-	     org-google-docs-footnotes--push-session run index)))
+	  gdocs-convert-footnote-reference-handler nil
+	  gdocs-convert-footnote-reference-text-function
+	  #'org-google-docs-footnotes--sentinel-text-for-object)
     session))
 
 (defun org-google-docs-footnotes--deactivate-session ()
@@ -391,58 +492,78 @@ modified."
   (when org-google-docs-footnotes--push-session
     (setq gdocs-convert-footnote-reference-handler
 	  (plist-get org-google-docs-footnotes--push-session :previous-handler)
+	  gdocs-convert-footnote-reference-text-function
+	  (plist-get org-google-docs-footnotes--push-session
+		     :previous-text-function)
 	  org-google-docs-footnotes--push-session nil)))
 
 (defun org-google-docs-footnotes--session-reference-list (session)
   "Return SESSION references as a list."
   (append (org-google-docs-footnotes--session-references session) nil))
 
+(defun org-google-docs-footnotes--finish-sentinel-push
+    (orig document-id response callback account on-error)
+  "Replace footnote sentinels in DOCUMENT-ID, then run CALLBACK with RESPONSE."
+  (condition-case err
+      (let ((references (org-google-docs-footnotes--session-reference-list
+			 org-google-docs-footnotes--push-session)))
+	(if (null references)
+	    (progn
+	      (org-google-docs-footnotes--deactivate-session)
+	      (funcall callback response))
+	  (gdocs-api-get-document
+	   document-id
+	   (lambda (document)
+	     (condition-case err
+		 (let* ((located-references
+			 (org-google-docs-footnotes--sort-references-for-mutation
+			  (org-google-docs-footnotes--locate-sentinels
+			   references document)))
+			(create-requests
+			 (org-google-docs-footnotes-sentinel-create-requests
+			  located-references)))
+		   (funcall
+		    orig document-id create-requests
+		    (lambda (create-response)
+		      (condition-case err
+			  (let ((body-requests
+				 (org-google-docs-footnotes-body-insert-requests
+				  located-references
+				  (org-google-docs-footnotes--create-footnote-response
+				   create-response))))
+			    (if body-requests
+				(funcall orig document-id body-requests
+					 (lambda (_body-response)
+					   (org-google-docs-footnotes--deactivate-session)
+					   (funcall callback response))
+					 account on-error)
+			      (org-google-docs-footnotes--deactivate-session)
+			      (funcall callback response)))
+			((error quit)
+			 (org-google-docs-footnotes--deactivate-session)
+			 (signal (car err) (cdr err)))))
+		    account on-error))
+	       ((error quit)
+		(org-google-docs-footnotes--deactivate-session)
+		(signal (car err) (cdr err)))))
+	   account on-error)))
+    ((error quit)
+     (org-google-docs-footnotes--deactivate-session)
+     (signal (car err) (cdr err)))))
+
 (defun org-google-docs-footnotes--around-batch-update
     (orig document-id requests callback &optional account on-error)
   "Advise ORIG `gdocs-api-batch-update' for native footnote insertion.
-When a push session is active, append createFootnote requests to the main body
-update and send a second batchUpdate for footnote bodies before running CALLBACK."
+When a push session is active, body updates first insert unique sentinel text.
+After the body update completes, the remote document is fetched, sentinels are
+replaced with native footnotes, and footnote bodies are inserted before CALLBACK."
   (if (not org-google-docs-footnotes--push-session)
       (funcall orig document-id requests callback account on-error)
-    (let* ((session org-google-docs-footnotes--push-session)
-	   (references (org-google-docs-footnotes--session-reference-list session))
-	   (missing-labels
-	    (org-google-docs-footnotes--missing-index-labels references))
-	   (indexed-references
-	    (org-google-docs-footnotes--indexed-references references))
-	   (mutation-references
-	    (org-google-docs-footnotes--sort-references-for-mutation
-	     indexed-references))
-	   (create-requests
-	    (org-google-docs-footnotes-create-requests mutation-references))
-	   (wrapped-callback
-	    (lambda (response)
-	      (condition-case err
-		  (if create-requests
-		      (let* ((create-response
-			      (org-google-docs-footnotes--create-footnote-response response))
-			     (body-requests
-			      (org-google-docs-footnotes-body-insert-requests
-			       mutation-references create-response)))
-			(if body-requests
-			    (funcall orig document-id body-requests
-				     (lambda (_body-response)
-				       (org-google-docs-footnotes--deactivate-session)
-				       (funcall callback response))
-				     account on-error)
-			  (org-google-docs-footnotes--deactivate-session)
-			  (funcall callback response)))
-		    (org-google-docs-footnotes--deactivate-session)
-		    (funcall callback response))
-		((error quit)
-		 (org-google-docs-footnotes--deactivate-session)
-		 (signal (car err) (cdr err)))))))
-      (when missing-labels
-	(org-google-docs-footnotes--deactivate-session)
-	(user-error "Google Docs footnote push could not locate reference(s): %s"
-		    (string-join missing-labels ", ")))
-      (funcall orig document-id (append requests create-requests)
-	       wrapped-callback account on-error))))
+    (funcall orig document-id requests
+	     (lambda (response)
+	       (org-google-docs-footnotes--finish-sentinel-push
+		orig document-id response callback account on-error))
+	     account on-error)))
 
 (defun org-google-docs-footnotes-enable-conversion-advice ()
   "Enable push-time native footnote filtering around gdocs conversion."
