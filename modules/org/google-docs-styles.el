@@ -129,15 +129,12 @@
 	(bottom :color ,surface :width ,muted-width :padding ,padding)
 	(right :color ,surface :width ,muted-width :padding ,padding)))))
 
-(defun hub/org-google-docs--quote-block-paragraph
-    (theme space-above space-below keep-with-next)
+(defun hub/org-google-docs--quote-block-paragraph (theme space-above space-below)
   "Return quote block paragraph style for THEME and spacing values."
   (append
    `(:spacing-mode never-collapse
 		   :space-above ,space-above
 		   :space-below ,space-below
-		   :keep-lines-together t
-		   :keep-with-next ,keep-with-next
 		   :indent-start ,(hub/org-google-docs--theme-role
 				   theme 'quote-indent-start)
 		   :indent-first-line ,(hub/org-google-docs--theme-role
@@ -161,23 +158,23 @@
   "Return quote block style definitions for THEME."
   `((gdocs-quote-block
      :parent normal
-     :paragraph ,(hub/org-google-docs--quote-block-paragraph theme 0 0 nil)
+     :paragraph ,(hub/org-google-docs--quote-block-paragraph theme 0 0)
      :text ,(hub/org-google-docs--quote-block-text theme))
     (gdocs-quote-block-first
      :parent normal
-     :paragraph ,(hub/org-google-docs--quote-block-paragraph theme 6 0 t)
+     :paragraph ,(hub/org-google-docs--quote-block-paragraph theme 6 0)
      :text ,(hub/org-google-docs--quote-block-text theme))
     (gdocs-quote-block-line
      :parent normal
-     :paragraph ,(hub/org-google-docs--quote-block-paragraph theme 0 0 t)
+     :paragraph ,(hub/org-google-docs--quote-block-paragraph theme 0 0)
      :text ,(hub/org-google-docs--quote-block-text theme))
     (gdocs-quote-block-last
      :parent normal
-     :paragraph ,(hub/org-google-docs--quote-block-paragraph theme 0 6 nil)
+     :paragraph ,(hub/org-google-docs--quote-block-paragraph theme 0 6)
      :text ,(hub/org-google-docs--quote-block-text theme))
     (gdocs-quote-block-single
      :parent normal
-     :paragraph ,(hub/org-google-docs--quote-block-paragraph theme 6 6 nil)
+     :paragraph ,(hub/org-google-docs--quote-block-paragraph theme 6 6)
      :text ,(hub/org-google-docs--quote-block-text theme))))
 
 (defun hub/org-google-docs--callout-color (theme type suffix fallback)
@@ -186,14 +183,11 @@
     (or (hub/org-google-docs-theme-color theme role)
 	(hub/org-google-docs-theme-color theme fallback))))
 
-(defun hub/org-google-docs--callout-paragraph
-    (theme type space-above space-below keep-with-next)
+(defun hub/org-google-docs--callout-paragraph (theme type space-above space-below)
   "Return callout paragraph style for THEME, TYPE, and spacing values."
   `(:spacing-mode never-collapse
 		  :space-above ,space-above
 		  :space-below ,space-below
-		  :keep-lines-together t
-		  :keep-with-next ,keep-with-next
 		  :indent-start 0
 		  :indent-first-line 0
 		  :border-padding ,(hub/org-google-docs--theme-role
@@ -224,27 +218,27 @@
 	      `((,(intern (format "%s-label" base))
 		 :parent normal
 		 :paragraph ,(hub/org-google-docs--callout-paragraph
-			      theme type 10 4 t)
+			      theme type 10 4)
 		 :text ,(hub/org-google-docs--callout-label-text theme type))
 		(,(intern (format "%s-first" base))
 		 :parent normal
 		 :paragraph ,(hub/org-google-docs--callout-paragraph
-			      theme type 0 0 t)
+			      theme type 0 0)
 		 :text ,(hub/org-google-docs--callout-body-text theme))
 		(,(intern (format "%s-line" base))
 		 :parent normal
 		 :paragraph ,(hub/org-google-docs--callout-paragraph
-			      theme type 0 0 t)
+			      theme type 0 0)
 		 :text ,(hub/org-google-docs--callout-body-text theme))
 		(,(intern (format "%s-last" base))
 		 :parent normal
 		 :paragraph ,(hub/org-google-docs--callout-paragraph
-			      theme type 0 10 nil)
+			      theme type 0 10)
 		 :text ,(hub/org-google-docs--callout-body-text theme))
 		(,(intern (format "%s-single" base))
 		 :parent normal
 		 :paragraph ,(hub/org-google-docs--callout-paragraph
-			      theme type 0 10 nil)
+			      theme type 0 10)
 		 :text ,(hub/org-google-docs--callout-body-text theme)))))
 	  '("info" "note" "warning" "tip" "important"))))
 
