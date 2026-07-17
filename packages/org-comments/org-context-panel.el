@@ -209,10 +209,12 @@ annotated with `:anchor-line' viewport rows."
       (delq nil
 	    (mapcar
 	     (lambda (item)
-	       (when-let* ((row (org-context-panel-position-row
-				 (org-context-panel-item-anchor-position item)
-				 window)))
-		 (org-context-panel-item-with-viewport-row item row)))
+	       (let ((position (org-context-panel-item-anchor-position item)))
+		 (if position
+		     (when-let* ((row (org-context-panel-position-row
+				       position window)))
+		       (org-context-panel-item-with-viewport-row item row))
+		   item)))
 	     (org-context-panel-collect-side-items buffer))))))
 
 (defun org-context-panel--source-buffer ()

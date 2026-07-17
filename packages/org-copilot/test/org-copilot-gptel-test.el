@@ -34,6 +34,30 @@
       (should (eq org-copilot-review-function #'org-copilot-gptel-review))
       (should (eq org-copilot-chat-function #'org-copilot-gptel-chat)))))
 
+(ert-deftest org-copilot-gptel-use-openai-oauth-sets-copilot-backend ()
+  "OpenAI OAuth setup sets both global and Org Copilot gptel backends."
+  (let ((gptel-model nil)
+	(gptel-backend nil)
+	(org-copilot-gptel-model nil)
+	(org-copilot-gptel-backend nil)
+	(org-copilot-review-function nil)
+	(org-copilot-chat-function nil))
+    (cl-letf (((symbol-function 'require)
+	       (lambda (feature &optional _filename _noerror)
+		 (or (eq feature 'gptel-openai-oauth)
+		     (require feature))))
+	      ((symbol-function 'gptel-make-openai-oauth)
+	       (lambda (name) (list :oauth-backend name)))
+	      ((symbol-function 'gptel-request)
+	       (lambda (&rest _args) nil)))
+      (org-copilot-gptel-use-openai-oauth 'gpt-5.5)
+      (should (eq gptel-model 'gpt-5.5))
+      (should (eq org-copilot-gptel-model 'gpt-5.5))
+      (should (equal gptel-backend '(:oauth-backend "OpenAI-sub")))
+      (should (equal org-copilot-gptel-backend
+		     '(:oauth-backend "OpenAI-sub")))
+      (should (eq org-copilot-chat-function #'org-copilot-gptel-chat)))))
+
 (ert-deftest org-copilot-gptel-builds-review-prompt ()
   "Review prompts include configurable instructions, JSON schema, and source."
   (let ((prompt (org-copilot-gptel-review-prompt
@@ -47,6 +71,9 @@
     (should (string-match-p "anchored inline" prompt))
     (should (string-match-p "literal replacement text" prompt))
     (should (string-match-p "For every inline comment" prompt))
+    (should (string-match-p "insertion" prompt))
+    (should (string-match-p "anchor_text" prompt))
+    (should (string-match-p "placement" prompt))
     (should (string-match-p "Omit suggestion only" prompt))
     (should (string-match-p "clarity" prompt))
     (should (string-match-p "Alpha sentence" prompt))))
@@ -83,6 +110,39 @@
     (should (string-match-p "Earlier question" prompt))
     (should (string-match-p "ai-1" prompt))))
 
+(ert-deftest org-copilot-gptel-chat-prompt-hardens-references-and-suggestions ()
+  "Chat prompts require precise references and replacement-only suggestions."
+  (let ((prompt (org-copilot-gptel-chat-prompt
+		 (list :message "donne moi des références précises"
+		       :messages nil
+		       :source-content "Draft"
+		       :focus-comment-id nil))))
+    (should (string-match-p "author, title, year" prompt))
+    (should (string-match-p "anchor_text" prompt))
+    (should (string-match-p "type (`inline', `insertion', or `scope')" prompt))
+    (should (string-match-p "never put advice" prompt))
+    (should (string-match-p "reference lists.*message" prompt))))
+
+(ert-deftest org-copilot-gptel-chat-prompt-announces-web-tools ()
+  "Chat prompts tell the model when live web tools are enabled."
+  (let ((prompt (org-copilot-gptel-chat-prompt
+		 (list :message "donne moi des références précises"
+		       :messages nil
+		       :source-content "Draft"
+		       :web-tools-enabled t
+		       :focus-comment-id nil))))
+    (should (string-match-p "Live web tools are available" prompt))
+    (should (string-match-p "Use WebSearch first" prompt))))
+
+(ert-deftest org-copilot-gptel-chat-prompt-announces-missing-web-tools ()
+  "Chat prompts are honest when live web tools are unavailable."
+  (let ((prompt (org-copilot-gptel-chat-prompt
+		 (list :message "donne moi des références précises"
+		       :messages nil
+		       :source-content "Draft"
+		       :focus-comment-id nil))))
+    (should (string-match-p "No live web search tool" prompt))))
+
 (ert-deftest org-copilot-gptel-full-document-chat-prompt-includes-source-content ()
   "Full-document chat prompts include source content, not focused comments."
   (let ((prompt (org-copilot-gptel-chat-prompt
@@ -93,6 +153,30 @@
     (should (string-match-p "full-document chat" prompt))
     (should (string-match-p "\\* Heading" prompt))
     (should (string-match-p "Focused comment id: none" prompt))))
+
+(ert-deftest org-copilot-gptel-chat-accumulates-streaming-oauth-response ()
+  "The gptel chat adapter requests and accumulates streaming OAuth responses."
+  (with-temp-buffer
+    (org-mode)
+    (let (captured-stream)
+      (cl-letf (((symbol-function 'gptel-openai-oauth-p)
+		 (lambda (_backend) t))
+		((symbol-function 'gptel-request)
+		 (lambda (_prompt &rest args)
+		   (setq captured-stream (plist-get args :stream))
+		   (let ((callback (plist-get args :callback)))
+		     (funcall callback "{\"message\":" (list :status 'streaming))
+		     (funcall callback "\"Assistant answer.\"}" (list :status 'streaming))
+		     (funcall callback t (list :status 'success))))))
+	(org-copilot-gptel-chat
+	 (list :source-buffer (current-buffer)
+	       :buffer-name (buffer-name)
+	       :message "Explain this"
+	       :messages nil
+	       :focus-comment-id nil))
+	(should captured-stream)
+	(should (equal (plist-get (car (org-copilot-chat-messages)) :content)
+		       "Assistant answer."))))))
 
 (ert-deftest org-copilot-gptel-chat-appends-callback-response ()
   "The gptel chat adapter appends assistant callback text to source chat state."
@@ -177,6 +261,130 @@
     (should (equal (plist-get parsed :section-title) "Intro"))
     (should (equal (plist-get parsed :section-path) '("Doc" "Intro")))))
 
+(ert-deftest org-copilot-gptel-available-web-tools-loads-provider ()
+  "Available web tools attempt to load optional gptel-agent tools."
+  (let (loaded)
+    (cl-letf (((symbol-function 'require)
+	       (lambda (feature &optional _filename _noerror)
+		 (when (eq feature 'gptel-agent)
+		   (setq loaded t))))
+	      ((symbol-function 'gptel-agent-update)
+	       #'ignore)
+	      ((symbol-function 'gptel-get-tool)
+	       (lambda (name) (intern (concat "tool-" name)))))
+      (should (equal (org-copilot-gptel--available-web-tools)
+		     '(tool-WebSearch tool-WebFetch)))
+      (should loaded))))
+
+(ert-deftest org-copilot-gptel-web-tools-require-tool-capable-model ()
+  "Web tools are not exposed when the active model lacks tool-use."
+  (cl-letf (((symbol-function 'gptel--model-capable-p) #'ignore)
+	    ((symbol-function 'gptel-get-tool)
+	     (lambda (name) (intern (concat "tool-" name)))))
+    (should-not
+     (org-copilot-gptel--web-tools-for-request
+      (list :message "donne moi des références précises")))))
+
+(ert-deftest org-copilot-gptel-chat-enables-web-tools-for-reference-qa ()
+  "Reference-style chat requests expose configured gptel web tools."
+  (with-temp-buffer
+    (org-mode)
+    (let (captured-tools captured-use-tools)
+      (cl-letf (((symbol-function 'gptel-get-tool)
+		 (lambda (name) (intern (concat "tool-" name))))
+		((symbol-function 'gptel-request)
+		 (lambda (_prompt &rest args)
+		   (setq captured-tools gptel-tools)
+		   (setq captured-use-tools gptel-use-tools)
+		   (let ((callback (plist-get args :callback)))
+		     (funcall callback
+			      "{\"message\":\"Found sources.\"}"
+			      (list :status 'success))))))
+	(org-copilot-gptel-chat
+	 (list :source-buffer (current-buffer)
+	       :buffer-name (buffer-name)
+	       :message "donne moi des références précises"
+	       :messages nil
+	       :chat-context '(:type full-document)
+	       :focus-comment-id nil))
+	(should captured-use-tools)
+	(should (memq 'tool-WebSearch captured-tools))
+	(should (memq 'tool-WebFetch captured-tools))))))
+
+(ert-deftest org-copilot-gptel-chat-ignores-tool-callback-events ()
+  "Chat callback ignores intermediate gptel tool events and waits for text."
+  (with-temp-buffer
+    (org-mode)
+    (cl-letf (((symbol-function 'gptel-get-tool)
+	       (lambda (name) (intern (concat "tool-" name))))
+	      ((symbol-function 'gptel-request)
+	       (lambda (_prompt &rest args)
+		 (let ((callback (plist-get args :callback)))
+		   (funcall callback '(tool-call . nil) (list :status 'tool-call))
+		   (funcall callback
+			    "{\"message\":\"Final answer.\"}"
+			    (list :status 'success))))))
+      (org-copilot-gptel-chat
+       (list :source-buffer (current-buffer)
+	     :buffer-name (buffer-name)
+	     :message "references with web search"
+	     :messages nil
+	     :chat-context '(:type full-document)
+	     :focus-comment-id nil))
+      (should (= (length (org-copilot-chat-messages)) 1))
+      (should (equal (plist-get (car (org-copilot-chat-messages)) :content)
+		     "Final answer.")))))
+
+(ert-deftest org-copilot-gptel-chat-drops-section-suggestion-for-reference-qa ()
+  "Reference Q&A cannot install section replacement suggestions."
+  (with-temp-buffer
+    (org-mode)
+    (insert "* Préface\nOriginal body.\n")
+    (goto-char (point-min))
+    (let* ((context (org-copilot-chat--section-context-at-point))
+	   (context-id (org-copilot-chat--context-id context)))
+      (cl-letf (((symbol-function 'gptel-request)
+		 (lambda (_prompt &rest args)
+		   (let ((callback (plist-get args :callback)))
+		     (funcall callback
+			      "{\"message\":\"No web.\",\"suggestion\":\"This is advice, not replacement.\"}"
+			      (list :status 'success))))))
+	(org-copilot-gptel-chat
+	 (list :source-buffer (current-buffer)
+	       :buffer-name (buffer-name)
+	       :message "Peux-tu me donner des références utiles ? Utilise l'outil de recherche web."
+	       :messages nil
+	       :chat-context context
+	       :context-id context-id
+	       :focus-comment-id nil))
+	(should-not (org-copilot-comments))
+	(should-not (get-buffer org-copilot-suggestion-buffer-name))
+	(should (equal (plist-get (car (org-copilot-chat-messages)) :content)
+		       "No web."))))))
+
+(ert-deftest org-copilot-gptel-chat-ignores-suggestion-for-reference-qa ()
+  "Chat ignores top-level suggestions unless the user asked for a rewrite."
+  (with-temp-buffer
+    (org-mode)
+    (insert "* Intro\nOriginal body.\n")
+    (cl-letf (((symbol-function 'gptel-request)
+	       (lambda (_prompt &rest args)
+		 (let ((callback (plist-get args :callback)))
+		   (funcall callback
+			    "{\"message\":\"Here are references.\",\"suggestion\":\"I can classify them by usage.\"}"
+			    (list :status 'success))))))
+      (org-copilot-gptel-chat
+       (list :source-buffer (current-buffer)
+	     :buffer-name (buffer-name)
+	     :message "donne moi des références précises"
+	     :messages nil
+	     :chat-context '(:type full-document)
+	     :focus-comment-id nil))
+      (should-not (org-copilot-comments))
+      (should-not (get-buffer org-copilot-suggestion-buffer-name))
+      (should (equal (plist-get (car (org-copilot-chat-messages)) :content)
+		     "Here are references.")))))
+
 (ert-deftest org-copilot-gptel-section-chat-installs-section-suggestion ()
   "Section chat suggestions become AI comments and preview buffers."
   (with-temp-buffer
@@ -230,6 +438,29 @@
 	    (message (car (org-copilot-chat-messages))))
 	(should (equal (plist-get comment :suggestion) "Direct alpha."))
 	(should (equal (plist-get message :content) "I made it more direct."))))))
+
+(ert-deftest org-copilot-gptel-review-accumulates-streaming-oauth-response ()
+  "The gptel review adapter requests and accumulates streaming OAuth responses."
+  (with-temp-buffer
+    (org-mode)
+    (insert "Alpha sentence.\n")
+    (let (captured-stream)
+      (cl-letf (((symbol-function 'gptel-openai-oauth-p)
+		 (lambda (_backend) t))
+		((symbol-function 'gptel-request)
+		 (lambda (_prompt &rest args)
+		   (setq captured-stream (plist-get args :stream))
+		   (let ((callback (plist-get args :callback)))
+		     (funcall callback "{\"comments\":[{" (list :status 'streaming))
+		     (funcall callback "\"id\":\"ai-1\",\"body\":\"Tighten.\",\"target_text\":\"Alpha sentence.\"}]}" (list :status 'streaming))
+		     (funcall callback t (list :status 'success))))))
+	(org-copilot-gptel-review
+	 (list :source-buffer (current-buffer)
+	       :buffer-name (buffer-name)
+	       :scope 'buffer
+	       :text (buffer-string)))
+	(should captured-stream)
+	(should (= (length (org-copilot-comments)) 1))))))
 
 (ert-deftest org-copilot-gptel-review-installs-callback-comments ()
   "The gptel adapter installs parsed callback comments into the source session."

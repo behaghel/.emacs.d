@@ -43,6 +43,58 @@
 		       "Alpha sentence."))
 	(should (equal (plist-get accepted :accepted-text) "Alpha."))))))
 
+(ert-deftest org-copilot-accept-recovers-shifted-target-text ()
+  "Accepting recovers unique target text when stored positions drift."
+  (with-temp-buffer
+    (org-mode)
+    (insert "Prefix. Alpha sentence.\n")
+    (let ((comment (org-copilot-add-comment
+		    (list :id "ai-1"
+			  :source-start (point-min)
+			  :source-end (+ (point-min) (length "Alpha sentence."))
+			  :target-text "Alpha sentence."
+			  :suggestion "Alpha."
+			  :status 'active))))
+      (org-copilot-accept-comment comment (current-buffer))
+      (should (equal (buffer-string) "Prefix. Alpha.\n"))
+      (let ((accepted (org-copilot-find-comment "ai-1")))
+	(should (eq (plist-get accepted :status) 'accepted))
+	(should (equal (plist-get accepted :source-start)
+		       (+ (point-min) (length "Prefix. "))))))))
+
+(ert-deftest org-copilot-accept-recovers-unanchored-target-text ()
+  "Accepting can anchor an unpositioned comment by unique target text."
+  (with-temp-buffer
+    (org-mode)
+    (insert "Alpha sentence.\n")
+    (let ((comment (org-copilot-add-comment
+		    (list :id "ai-1"
+			  :target-text "Alpha sentence."
+			  :suggestion "Alpha."
+			  :status 'active))))
+      (org-copilot-accept-comment comment (current-buffer))
+      (should (equal (buffer-string) "Alpha.\n"))
+      (should (eq (plist-get (org-copilot-find-comment "ai-1") :status)
+		  'accepted)))))
+
+(ert-deftest org-copilot-accept-insertion-inserts-suggestion-at-anchor ()
+  "Accepting an insertion comment inserts its suggestion at the anchor point."
+  (with-temp-buffer
+    (org-mode)
+    (insert "Intro.\nConclusion.\n")
+    (let ((comment (org-copilot-add-comment
+		    (list :id "ai-1"
+			  :type 'insertion
+			  :source-start 7
+			  :source-end 7
+			  :anchor-text "Intro."
+			  :placement 'after
+			  :suggestion "\nBridge."))))
+      (org-copilot-accept-comment comment (current-buffer))
+      (should (equal (buffer-string) "Intro.\nBridge.\nConclusion.\n"))
+      (should (eq (plist-get (org-copilot-find-comment "ai-1") :status)
+		  'accepted)))))
+
 (ert-deftest org-copilot-accept-marks-comment-accepted ()
   "Accepting a valid suggestion marks the AI comment accepted."
   (with-temp-buffer

@@ -9,6 +9,7 @@
 (require 'org)
 (require 'org-copilot)
 (require 'org-copilot-context-panel)
+(require 'org-copilot-suggestion)
 
 (ert-deftest org-copilot-highlight-faces-keep-foreground-unspecified ()
   "Org Copilot highlight faces only force background colors."
@@ -63,6 +64,53 @@
 	(should (= (length items) 1))
 	(should (equal (plist-get (car items) :id) "ai-1"))
 	(should (eq (plist-get (car items) :provider) 'copilot))))))
+
+(ert-deftest org-copilot-context-panel-renders-unanchored-scope-items ()
+  "The side panel surfaces scope AI comments without source anchors."
+  (let ((source-buffer (generate-new-buffer " *org copilot scope source*"))
+	(panel-buffer (generate-new-buffer " *org copilot scope panel*")))
+    (unwind-protect
+	(with-current-buffer source-buffer
+	  (org-mode)
+	  (insert "Alpha sentence.\n")
+	  (set-window-buffer (selected-window) source-buffer)
+	  (org-copilot-mode 1)
+	  (org-copilot-add-comment
+	   (list :id "ai-1"
+		 :type 'scope
+		 :status 'active
+		 :summary "Clarifier le pacte de lecture"
+		 :body "Clarifier."))
+	  (with-current-buffer panel-buffer
+	    (org-copilot-panel-mode)
+	    (org-context-panel-render-side-panel
+	     source-buffer (get-buffer-window source-buffer t))
+	    (should (string-match-p "Clarifier le pacte de lecture"
+				    (buffer-string)))))
+      (when (buffer-live-p panel-buffer)
+	(kill-buffer panel-buffer))
+      (when (buffer-live-p source-buffer)
+	(kill-buffer source-buffer)))))
+
+(ert-deftest org-copilot-context-panel-jump-unanchored-scope-focuses-comment ()
+  "Jumping to an unanchored scope row focuses the comment without error."
+  (let ((source-buffer (generate-new-buffer " *org copilot jump scope source*")))
+    (unwind-protect
+	(with-current-buffer source-buffer
+	  (org-mode)
+	  (insert "Alpha sentence.\n")
+	  (org-copilot-mode 1)
+	  (org-copilot-add-comment
+	   (list :id "ai-1"
+		 :type 'scope
+		 :status 'active
+		 :summary "Scope note"
+		 :body "Verbose scope note."))
+	  (org-copilot-context-panel-jump-side-item
+	   source-buffer (car (org-copilot-comments)))
+	  (should (equal org-copilot-chat-focus-comment-id "ai-1")))
+      (when (buffer-live-p source-buffer)
+	(kill-buffer source-buffer)))))
 
 (ert-deftest org-copilot-refresh-overlays-creates-dim-target-overlay-by-default ()
   "Refreshing overlays dims anchored AI comment target ranges by default."
@@ -298,6 +346,53 @@
 	(kill-buffer org-copilot-panel-buffer-name))
       (when (get-buffer org-copilot-chat-buffer-name)
 	(kill-buffer org-copilot-chat-buffer-name)))))
+
+(ert-deftest org-copilot-suggestion-buffer-is-auxiliary-not-source ()
+  "Suggestion previews do not become workspace source buffers."
+  (let ((source (generate-new-buffer " *org copilot source*"))
+	(suggestion (generate-new-buffer " *org copilot suggestion*")))
+    (unwind-protect
+	(progn
+	  (with-current-buffer source
+	    (org-mode)
+	    (org-copilot-mode 1))
+	  (with-current-buffer suggestion
+	    (org-copilot-suggestion-mode)
+	    (setq org-copilot-suggestion-source-buffer source)
+	    (should (org-copilot--auxiliary-buffer-p (current-buffer)))
+	    (should (eq (org-copilot--active-source-buffer) source))))
+      (when (buffer-live-p source)
+	(kill-buffer source))
+      (when (buffer-live-p suggestion)
+	(kill-buffer suggestion)))))
+
+(ert-deftest org-copilot-open-panels-from-suggestion-keeps-source-chat ()
+  "Opening panels from a suggestion preview uses its source buffer."
+  (let ((source (generate-new-buffer " *org copilot source*"))
+	(suggestion (generate-new-buffer " *org copilot suggestion*"))
+	called-source)
+    (unwind-protect
+	(progn
+	  (with-current-buffer source
+	    (org-mode)
+	    (insert "* Source\n"))
+	  (with-current-buffer suggestion
+	    (org-copilot-suggestion-mode)
+	    (setq org-copilot-suggestion-source-buffer source)
+	    (cl-letf (((symbol-function 'org-context-panel-open)
+		       (lambda (buffer) (setq called-source buffer)))
+		      ((symbol-function 'org-copilot-chat-full-document)
+		       (lambda ()
+			 (setq called-source
+			       (cons called-source (current-buffer))))))
+	      (org-copilot-open-panels)))
+	  (should (equal called-source (cons source source)))
+	  (should (buffer-local-value 'org-copilot-mode source))
+	  (should-not (buffer-local-value 'org-copilot-mode suggestion)))
+      (when (buffer-live-p source)
+	(kill-buffer source))
+      (when (buffer-live-p suggestion)
+	(kill-buffer suggestion)))))
 
 (ert-deftest org-copilot-closes-visible-panels-for-non-copilot-source ()
   "Org Copilot panels close when selected source lacks Copilot mode."

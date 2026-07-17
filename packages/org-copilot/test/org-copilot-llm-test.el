@@ -142,6 +142,27 @@
 			    :message)
 		 "Plain answer.")))
 
+(ert-deftest org-copilot-llm-installs-insertion-chat-comments ()
+  "Insertion comments anchor by anchor text and install as review artifacts."
+  (with-temp-buffer
+    (org-mode)
+    (insert "Intro.\nConclusion.\n")
+    (let* ((org-copilot-chat-open-panel-on-comments nil)
+	   (parsed (org-copilot-llm-parse-chat-response
+		    "{\"comments\":[{\"type\":\"insertion\",\"body\":\"Add bridge.\",\"anchor_text\":\"Intro.\",\"placement\":\"after\",\"suggestion\":\"Bridge.\"}]}"))
+	   (result (org-copilot-install-chat-comments
+		    (current-buffer)
+		    (plist-get parsed :comments)
+		    (list :chat-context '(:type full-document))
+		    "Add missing bridge"))
+	   (comment (org-copilot-find-comment "ai-1")))
+      (should (= (plist-get result :installed) 1))
+      (should comment)
+      (should (eq (plist-get comment :type) 'insertion))
+      (should (equal (plist-get comment :anchor-text) "Intro."))
+      (should (eq (plist-get comment :placement) 'after))
+      (should (= (plist-get comment :source-start) 7)))))
+
 (ert-deftest org-copilot-llm-installs-chat-comments-with-local-ids ()
   "Chat comments are anchored, installed, and assigned local ids."
   (with-temp-buffer
@@ -164,6 +185,24 @@
 		     "model-1"))
       (should (eq (plist-get (plist-get comment :metadata) :source) 'chat)))))
 
+(ert-deftest org-copilot-llm-skips-invalid-inline-review-comments ()
+  "Review install rejects inline comments without resolved target anchors."
+  (with-temp-buffer
+    (org-mode)
+    (insert "* Draft\nAlpha sentence.\n")
+    (org-copilot-install-review-comments
+     (list (list :id "ai-1"
+		 :type 'inline
+		 :status 'active
+		 :body "Missing target.")
+	   (list :id "ai-2"
+		 :type 'scope
+		 :status 'active
+		 :body "Scope note.")))
+    (let ((comments (org-copilot-comments)))
+      (should (= (length comments) 1))
+      (should (equal (plist-get (car comments) :id) "ai-2")))))
+
 (ert-deftest org-copilot-llm-skips-unanchored-chat-comments ()
   "Chat comments without reliable inline anchors are skipped."
   (with-temp-buffer
@@ -180,6 +219,32 @@
       (should (= (plist-get result :installed) 0))
       (should (= (plist-get result :skipped-unanchored) 2))
       (should-not (org-copilot-comments)))))
+
+(ert-deftest org-copilot-llm-chat-install-result-reports-reachability ()
+  "Chat install results include a receipt for session-reachable comments."
+  (with-temp-buffer
+    (org-mode)
+    (insert "Alpha sentence.\n")
+    (let* ((org-copilot-chat-open-panel-on-comments nil)
+	   (parsed (org-copilot-llm-parse-chat-response
+		    "{\"comments\":[{\"body\":\"Tighten.\",\"target_text\":\"Alpha sentence.\",\"suggestion\":\"Alpha.\"}]}"))
+	   (result (org-copilot-install-chat-comments
+		    (current-buffer)
+		    (plist-get parsed :comments)
+		    (list :chat-context '(:type full-document))
+		    "Review this")))
+      (should (= (plist-get result :installed) 1))
+      (should (= (plist-get result :reachable) 1))
+      (should (= (plist-get result :hidden) 0)))))
+
+(ert-deftest org-copilot-llm-chat-install-summary-reports-hidden-comments ()
+  "Chat install summaries do not present hidden comments as plain success."
+  (let ((summary (org-copilot-llm-append-chat-install-summary
+		  "Done."
+		  '(:installed 2 :reachable 1 :hidden 1
+			       :skipped-unanchored 0 :skipped-limit 0))))
+    (should (string-match-p "Installed 1 reachable comment" summary))
+    (should (string-match-p "1 hidden" summary))))
 
 (ert-deftest org-copilot-llm-limits-chat-comments ()
   "Chat comment installation enforces the configured per-response limit."

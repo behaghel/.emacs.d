@@ -289,16 +289,16 @@
 							      "2026-06-16T10:00:00.000Z"))))))
 
 (ert-deftest org-comments-collects-stale-comments-when-requested ()
-  "Comment collection can include unanchored records whose targets drifted."
+  "Comment collection can include records whose targets cannot be recovered."
   (hub/org-comments-test--with-file-buffer "article.org" "Alpha selected text omega"
 					   (let* ((start (progn (goto-char (point-min)) (search-forward "selected") (match-beginning 0)))
 						  (end (match-end 0))
 						  (record (org-comments-create-record buffer-file-name start end "Drifted." "local-stale")))
 					     (org-comments-append-to-sidecar record)
 					     (save-excursion
+					       (delete-region start end)
 					       (goto-char start)
-					       (delete-char 1)
-					       (insert "S"))
+					       (insert "changed"))
 					     (should-not (org-comments-collect (current-buffer)))
 					     (let ((comments (org-comments-collect (current-buffer) t)))
 					       (should (= 1 (length comments)))
@@ -306,8 +306,8 @@
 					       (should-not (plist-get (car comments) :jump-pos))
 					       (should (equal "local-stale" (plist-get (car comments) :id)))))))
 
-(ert-deftest org-comments-collects-only-matching-offset-comments ()
-  "Comment collection ignores sidecar records whose target offsets drifted."
+(ert-deftest org-comments-collects-recovers-matching-offset-comments ()
+  "Comment collection recovers sidecar records whose target offsets drifted."
   (hub/org-comments-test--with-file-buffer "article.org" "Alpha selected text omega"
 					   (let* ((start (progn (goto-char (point-min)) (search-forward "selected") (match-beginning 0)))
 						  (end (match-end 0))
@@ -318,10 +318,13 @@
 					       (should (equal "local-good" (plist-get (car comments) :id)))
 					       (should (= start (plist-get (car comments) :jump-pos))))
 					     (save-excursion
-					       (goto-char start)
-					       (delete-char 1)
-					       (insert "S"))
-					     (should-not (org-comments-collect (current-buffer))))))
+					       (goto-char (point-min))
+					       (insert "Prefix "))
+					     (let ((comments (org-comments-collect (current-buffer))))
+					       (should (= 1 (length comments)))
+					       (should (equal "local-good" (plist-get (car comments) :id)))
+					       (should (= (+ start (length "Prefix "))
+							  (plist-get (car comments) :jump-pos)))))))
 
 (ert-deftest org-comments-create-command-writes-sidecar-and-opens-body ()
   "The interactive command writes a sidecar comment and opens its body."
@@ -350,9 +353,9 @@
 					     (org-comments-append-to-sidecar
 					      (org-comments-create-record buffer-file-name old-start old-end "Repair." "local-single"))
 					     (save-excursion
+					       (delete-region old-start old-end)
 					       (goto-char old-start)
-					       (delete-char 1)
-					       (insert "S"))
+					       (insert "changed"))
 					     (let ((new-start (progn
 								(goto-char (point-min))
 								(search-forward "text")
@@ -383,12 +386,12 @@
 					     (org-comments-append-to-sidecar
 					      (org-comments-create-record buffer-file-name omega-start omega-end "Second." "local-second"))
 					     (save-excursion
-					       (goto-char selected-start)
-					       (delete-char 1)
-					       (insert "S")
+					       (delete-region omega-start omega-end)
 					       (goto-char omega-start)
-					       (delete-char 1)
-					       (insert "O"))
+					       (insert "altered")
+					       (delete-region selected-start selected-end)
+					       (goto-char selected-start)
+					       (insert "changed"))
 					     (let ((new-start (progn
 								(goto-char (point-min))
 								(search-forward "tail")
@@ -931,6 +934,71 @@
 					     (should (string-match-p
 						      "\\[1 PAGE comment\\]"
 						      (overlay-get org-comments-page-comment-overlay 'after-string))))))
+
+(ert-deftest hub/org-context-panel-toggle-opens-side-when-only-bottom-visible ()
+  "Toggling with only a bottom view visible opens side instead of closing chat."
+  (with-temp-buffer
+    (org-mode)
+    (let (opened closed)
+      (cl-letf (((symbol-function 'hub/org-context-panel--side-visible-p)
+		 (lambda (&optional _source) nil))
+		((symbol-function 'hub/org-context-panel--enable-comments-provider)
+		 #'ignore)
+		((symbol-function 'org-context-panel-refresh-source-overlays)
+		 #'ignore)
+		((symbol-function 'hub/org-context-panel--refresh-signature)
+		 #'ignore)
+		((symbol-function 'hub/org-context-panel--open-page-view)
+		 #'ignore)
+		((symbol-function 'org-context-panel-open)
+		 (lambda (_source) (setq opened t)))
+		((symbol-function 'hub/org-context-panel--close-ui)
+		 (lambda () (setq closed t)))
+		((symbol-function 'hub/org-context-panel--copilot-chat-session-p)
+		 #'ignore))
+	(hub/org-context-panel-toggle-open)
+	(should opened)
+	(should-not closed)))))
+
+(ert-deftest hub/org-context-panel-toggle-closes-all-when-side-visible ()
+  "Toggling with side visible closes the context UI."
+  (with-temp-buffer
+    (org-mode)
+    (let (opened closed)
+      (cl-letf (((symbol-function 'hub/org-context-panel--side-visible-p)
+		 (lambda (&optional _source) t))
+		((symbol-function 'org-comments-open)
+		 (lambda () (setq opened t)))
+		((symbol-function 'hub/org-context-panel--close-ui)
+		 (lambda () (setq closed t))))
+	(hub/org-context-panel-toggle-open)
+	(should closed)
+	(should-not opened)))))
+
+(ert-deftest hub/org-context-panel-toggle-surfaces-pending-copilot-chat ()
+  "Opening context UI also surfaces a pending Org Copilot chat session."
+  (with-temp-buffer
+    (org-mode)
+    (let (opened chatted)
+      (cl-letf (((symbol-function 'hub/org-context-panel--side-visible-p)
+		 (lambda (&optional _source) nil))
+		((symbol-function 'hub/org-context-panel--enable-comments-provider)
+		 #'ignore)
+		((symbol-function 'org-context-panel-refresh-source-overlays)
+		 #'ignore)
+		((symbol-function 'hub/org-context-panel--refresh-signature)
+		 #'ignore)
+		((symbol-function 'hub/org-context-panel--open-page-view)
+		 #'ignore)
+		((symbol-function 'org-context-panel-open)
+		 (lambda (_source) (setq opened t)))
+		((symbol-function 'hub/org-context-panel--copilot-chat-session-p)
+		 (lambda () t))
+		((symbol-function 'org-copilot-chat)
+		 (lambda () (setq chatted (current-buffer)))))
+	(hub/org-context-panel-toggle-open)
+	(should opened)
+	(should (eq chatted (current-buffer)))))))
 
 (ert-deftest org-comments-overlays-mode-persists-overlays-after-panel-close ()
   "Persistent comment overlays survive closing the context panel."

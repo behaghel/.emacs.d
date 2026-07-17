@@ -21,7 +21,7 @@
 (defconst org-copilot-comment-statuses '(active accepted dismissed stale)
   "Valid lifecycle statuses for Org Copilot AI comments.")
 
-(defconst org-copilot-comment-types '(inline scope)
+(defconst org-copilot-comment-types '(inline scope insertion)
   "Valid AI comment types for Org Copilot.")
 
 (defun org-copilot-valid-comment-status-p (status)

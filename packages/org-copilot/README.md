@@ -116,6 +116,8 @@ Panel actions for AI comments include:
 
 The prompt is prefixed with the same context marker, for example `🌐 You:` or `§ You:`. Sending to an async adapter scrolls the pending/new Copilot response to the top of the chat viewport. `M-<up>` recalls the last submitted prompt in the current context.
 
+The chat view is the canonical surface for verbose scope comments. Its bottom status line must remain visible while editing the prompt and summarize the current comment inventory compactly, for example `5 comments · 5 scope · ai-2`. This status belongs in fixed window chrome such as `mode-line-format`, not in scrollable transcript text or a header that can disappear when the prompt is selected.
+
 Follow-up chat can modify the visible AI comment list only through explicit user intent or command flow, never automatically because the model decided to do so. Structured section suggestions and chat-generated review comments are exceptions only in the sense that they become review artifacts, not source mutations.
 
 ### Structured chat responses
@@ -138,6 +140,14 @@ Adapter responses use Org Copilot's structured JSON protocol. In section or full
       "suggestion": "literal replacement for target_text",
       "line_start": 3,
       "line_end": 3
+    },
+    {
+      "type": "insertion",
+      "summary": "short panel label",
+      "body": "why to add text here",
+      "anchor_text": "exact source text near insertion point",
+      "placement": "before",
+      "suggestion": "literal text to insert"
     }
   ]
 }
@@ -145,7 +155,9 @@ Adapter responses use Org Copilot's structured JSON protocol. In section or full
 
 The top-level `suggestion` remains the broad section/full-document suggestion path. Combining a broad top-level suggestion with targeted comments is exceptional because the two can contradict each other; adapters should ask for confirmation before returning both unless the user explicitly requested a rewrite plus review comments. If a section anchor is present, or if chat is already in section context, the suggestion becomes an accept-capable AI comment for that section body. The target section heading is preserved; the suggestion replaces only the body below that heading. Suggestions may include subsections or lower-level headings inside the replacement body.
 
-`comments` creates normal review artifacts when the user clearly asked for review, critique, edits, improvements, suggestions, issues, or targeted comments. Inline chat comments must include exact `target_text`; line ranges are only fallback metadata. Section chat installs comments only inside the active section. Chat-generated comment ids are rewritten locally, comments are capped by `org-copilot-chat-max-comments`, and skipped/unanchored comments are reported in a factual footer appended to the chat answer.
+`comments` creates normal review artifacts when the user clearly asked for review, critique, edits, improvements, suggestions, issues, or targeted comments. Inline chat comments must include exact `target_text`; line ranges are only fallback metadata. Insertion comments are for adding text at a specific location and must include exact `anchor_text`, `placement` (`before` or `after`), and literal insertion `suggestion`. Scope comments may omit `target_text` only when they are broad document/section observations with no executable edit location, and they should not carry executable suggestions. Section chat installs comments only inside the active section. Chat-generated comment ids are rewritten locally, comments are capped by `org-copilot-chat-max-comments`, and skipped/unanchored comments are reported in a factual footer appended to the chat answer.
+
+Side-panel surfacing is intentionally compact. Anchored inline comments and insertion comments appear as spatial side-panel rows. Scope comments are discoverable through the chat status line and chat navigation; the side panel may show compact scope indicators but must not be the only place where verbose scope comments are readable.
 
 Unanchored full-document suggestions open a read-only left-side preview and are preview-only; they do not create side-panel rows and cannot be accepted yet.
 

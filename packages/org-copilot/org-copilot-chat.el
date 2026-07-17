@@ -79,7 +79,7 @@ assistant message, or a plist with `:message' and optional `:comments'.  Normal
 
 (defvar org-copilot-chat-mode-map
   (let ((map (make-sparse-keymap)))
-    (define-key map (kbd "RET") #'org-copilot-chat-send-current-input)
+    (define-key map (kbd "RET") #'org-copilot-chat-return-dwim)
     (define-key map (kbd "C-c C-c") #'org-copilot-chat-send-current-input)
     (define-key map (kbd "/") #'org-copilot-chat-slash-or-complete)
     (define-key map (kbd "C-c C-f") #'org-copilot-chat-goto-prompt)
@@ -103,9 +103,36 @@ assistant message, or a plist with `:message' and optional `:comments'.  Normal
     map)
   "Keymap used in Org Copilot chat buffers.")
 
+(defun org-copilot-chat--status-line ()
+  "Return compact bottom status text for the current chat buffer."
+  (let* ((source (and (buffer-live-p org-context-panel-source-buffer)
+		      org-context-panel-source-buffer))
+	 (comments (and source
+			(with-current-buffer source
+			  (cl-remove-if
+			   (lambda (comment)
+			     (eq (org-copilot-comment-status comment) 'dismissed))
+			   (org-copilot-comments)))))
+	 (total (length comments))
+	 (scope-count (cl-count-if
+		       (lambda (comment)
+			 (eq (plist-get comment :type) 'scope))
+		       comments))
+	 (focus-id (and source
+			(with-current-buffer source
+			  org-copilot-chat-focus-comment-id))))
+    (string-join
+     (delq nil
+	   (list (format "%d comment%s" total (if (= total 1) "" "s"))
+		 (when (> scope-count 0)
+		   (format "%d scope" scope-count))
+		 focus-id))
+     " · ")))
+
 (define-derived-mode org-copilot-chat-mode fundamental-mode "Org-Copilot-Chat"
   "Major mode for Org Copilot bottom chat buffers."
   (setq buffer-read-only nil)
+  (setq-local mode-line-format '(" " (:eval (org-copilot-chat--status-line))))
   (when (fboundp 'evil-insert-state)
     (evil-insert-state)))
 
@@ -120,6 +147,9 @@ assistant message, or a plist with `:message' and optional `:comments'.  Normal
   (cond
    ((buffer-live-p org-copilot-chat-source-buffer)
     org-copilot-chat-source-buffer)
+   ((and (boundp 'org-copilot-suggestion-source-buffer)
+	 (buffer-live-p org-copilot-suggestion-source-buffer))
+    org-copilot-suggestion-source-buffer)
    ((buffer-live-p org-context-panel-source-buffer)
     org-context-panel-source-buffer)
    ((derived-mode-p 'org-mode)
@@ -922,6 +952,15 @@ Slash command completion is offered only when the prompt field is empty."
   (let ((message (org-copilot-chat--prompt-text)))
     (unless (string-empty-p message)
       (org-copilot-chat-send message))))
+
+;;;###autoload
+(defun org-copilot-chat-return-dwim ()
+  "Send input from the prompt, or move to the prompt from transcript text."
+  (interactive)
+  (if (and (markerp org-copilot-chat--prompt-start)
+	   (>= (point) org-copilot-chat--prompt-start))
+      (org-copilot-chat-send-current-input)
+    (org-copilot-chat-goto-prompt)))
 
 ;;;###autoload
 (defun org-copilot-chat-send (message)

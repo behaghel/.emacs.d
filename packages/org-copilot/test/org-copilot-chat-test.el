@@ -9,6 +9,7 @@
 (require 'org)
 (require 'org-copilot)
 (require 'org-copilot-chat)
+(require 'org-copilot-suggestion)
 
 (ert-deftest org-copilot-chat-opens-bottom-view-for-source ()
   "Opening chat creates a bottom-view buffer associated with the source."
@@ -28,6 +29,37 @@
 	      (should (string-match-p "Org Copilot Chat" (buffer-string)))
 	      (should (string-match-p "Ask Copilot about the full document"
 				      (buffer-string))))))
+      (when (buffer-live-p source)
+	(kill-buffer source)))))
+
+(ert-deftest org-copilot-chat-status-line-summarizes-comments ()
+  "Chat status line compactly summarizes active source comments."
+  (let ((source (generate-new-buffer " *org copilot chat status source*")))
+    (unwind-protect
+	(progn
+	  (with-current-buffer source
+	    (org-mode)
+	    (org-copilot-add-comment
+	     (list :id "ai-1" :type 'scope :status 'active :body "Scope."))
+	    (org-copilot-add-comment
+	     (list :id "ai-2" :type 'inline :status 'active :body "Inline."))
+	    (setq org-copilot-chat-focus-comment-id "ai-1"))
+	  (with-temp-buffer
+	    (org-copilot-chat-mode)
+	    (setq org-context-panel-source-buffer source)
+	    (should (equal (org-copilot-chat--status-line)
+			   "2 comments · 1 scope · ai-1"))))
+      (when (buffer-live-p source)
+	(kill-buffer source)))))
+
+(ert-deftest org-copilot-chat-source-buffer-uses-suggestion-source ()
+  "Chat commands from suggestion previews keep the associated Org source."
+  (let ((source (generate-new-buffer " *org copilot source*")))
+    (unwind-protect
+	(with-temp-buffer
+	  (org-copilot-suggestion-mode)
+	  (setq org-copilot-suggestion-source-buffer source)
+	  (should (eq (org-copilot-chat--source-buffer) source)))
       (when (buffer-live-p source)
 	(kill-buffer source)))))
 
@@ -166,6 +198,22 @@
       (should (eq (plist-get (org-copilot-find-comment "ai-1") :status)
 		  'active)))))
 
+(ert-deftest org-copilot-chat-accept-command-recovers-unanchored-suggestion ()
+  "The /accept chat command applies uniquely anchorable unpositioned suggestions."
+  (with-temp-buffer
+    (org-mode)
+    (insert "Alpha sentence.\n")
+    (org-copilot-add-comment
+     (list :id "ai-1"
+	   :target-text "Alpha sentence."
+	   :suggestion "Alpha."
+	   :status 'active))
+    (setq org-copilot-chat-focus-comment-id "ai-1")
+    (org-copilot-chat-send "/accept")
+    (should (equal (buffer-string) "Alpha.\n"))
+    (should (eq (plist-get (org-copilot-find-comment "ai-1") :status)
+		'accepted))))
+
 (ert-deftest org-copilot-chat-accept-key-accepts-focused-suggestion ()
   "Direct chat accept command accepts the focused comment suggestion."
   (with-temp-buffer
@@ -238,6 +286,29 @@
 	(org-copilot-chat-send-current-input)
 	(should (string-match-p "You\n  Explain this" (buffer-string)))
 	(should (string-suffix-p "🌐 You: " (buffer-string))))
+      (should (equal (plist-get (car (org-copilot-chat-messages)) :content)
+		     "Explain this")))))
+
+(ert-deftest org-copilot-chat-ret-outside-prompt-moves-to-prompt ()
+  "RET outside the prompt field moves point to the editable prompt."
+  (with-temp-buffer
+    (org-mode)
+    (let ((source (current-buffer)))
+      (with-current-buffer (org-copilot-chat--buffer source)
+	(goto-char (point-min))
+	(org-copilot-chat-return-dwim)
+	(should (= (point) org-copilot-chat--prompt-start)))
+      (should-not (org-copilot-chat-messages)))))
+
+(ert-deftest org-copilot-chat-ret-inside-prompt-sends-input ()
+  "RET inside the prompt field sends the current input."
+  (with-temp-buffer
+    (org-mode)
+    (let ((source (current-buffer)))
+      (with-current-buffer (org-copilot-chat--buffer source)
+	(insert "Explain this")
+	(org-copilot-chat-return-dwim)
+	(should (string-match-p "You\n  Explain this" (buffer-string))))
       (should (equal (plist-get (car (org-copilot-chat-messages)) :content)
 		     "Explain this")))))
 
@@ -499,7 +570,7 @@
 (ert-deftest org-copilot-chat-mode-defines-action-keys ()
   "Org Copilot chat mode defines send, focus, and action keys."
   (should (eq (lookup-key org-copilot-chat-mode-map (kbd "RET"))
-	      #'org-copilot-chat-send-current-input))
+	      #'org-copilot-chat-return-dwim))
   (should (eq (lookup-key org-copilot-chat-mode-map (kbd "C-c C-c"))
 	      #'org-copilot-chat-send-current-input))
   (should (eq (lookup-key org-copilot-chat-mode-map (kbd "/"))

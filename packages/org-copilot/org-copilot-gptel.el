@@ -24,26 +24,57 @@
 
 (require 'gptel nil 'noerror)
 
+(declare-function gptel--model-capable-p "gptel-request")
+(declare-function gptel-agent-update "gptel-agent")
+(declare-function gptel-get-tool "gptel")
+(declare-function gptel-openai-oauth-p "gptel-openai-oauth")
 (declare-function gptel-request "gptel")
+
+(defvar gptel-backend nil)
+(defvar gptel-model nil)
+(defvar gptel-tools nil)
+(defvar gptel-use-tools nil)
 
 (defcustom org-copilot-gptel-review-instructions
   (string-join
    '("You are a balanced, high-impact AI reviewer for an Org document."
      "Prefer specific anchored inline comments over broad scope comments."
      "For inline comments, copy the exact reviewed source span into target_text."
+     "For comments proposing text to add at a specific location, use type insertion with exact anchor_text, placement before or after, and suggestion."
      "Use scope comments only for issues that apply to the whole reviewed subtree or document."
      "Prioritize clarity, argument strength, structure, evidence/support, and outcome fit."
      "If the text states a goal, intended audience, or desired outcome, judge feedback against that outcome."
      "Avoid low-value nitpicks; focus on changes likely to improve the document's effectiveness."
      "Use summary for a sharp marginal note, max 72 characters; provocative questions are welcome when useful."
      "Use body for the fuller explanation behind the marginal note."
-     "Use suggestion only for literal replacement text that should replace target_text exactly."
+     "Use suggestion only for executable text: literal replacement text for inline comments or inserted text for insertion comments."
      "For every inline comment that recommends a textual change, include suggestion."
+     "For every insertion comment, include suggestion."
      "Do not put advice, rationale, markdown fences, or commentary in suggestion."
      "Omit suggestion only when no precise replacement would be safe or useful.")
    "\n")
   "Reviewer instructions included in Org Copilot gptel review prompts."
   :type 'string
+  :group 'org-copilot)
+
+(defcustom org-copilot-gptel-enable-web-tools t
+  "Whether Org Copilot may use available gptel web tools for chat requests."
+  :type 'boolean
+  :group 'org-copilot)
+
+(defcustom org-copilot-gptel-web-tool-names '("WebSearch" "WebFetch")
+  "Names of gptel tools to expose for web-backed Org Copilot chat."
+  :type '(repeat string)
+  :group 'org-copilot)
+
+(defcustom org-copilot-gptel-backend nil
+  "Optional gptel backend used specifically for Org Copilot requests."
+  :type 'sexp
+  :group 'org-copilot)
+
+(defcustom org-copilot-gptel-model nil
+  "Optional gptel model used specifically for Org Copilot requests."
+  :type 'sexp
   :group 'org-copilot)
 
 (defconst org-copilot-gptel--review-json-schema-instructions
@@ -58,10 +89,12 @@
 	  "\"summary\":\"sharp marginal note, max 72 chars\","
 	  "\"body\":\"full review explanation\","
 	  "\"target_text\":\"exact reviewed text\","
-	  "\"suggestion\":\"literal replacement text for target_text when changing text\","
+	  "\"anchor_text\":\"exact insertion anchor text\","
+	  "\"placement\":\"before or after\","
+	  "\"suggestion\":\"literal replacement or insertion text\","
 	  "\"line_start\":1,\"line_end\":1}]}\n"
-	  "Use type \"inline\" for anchored inline comments and \"scope\" "
-	  "for whole-scope comments. Include summary for general document-level analysis.")
+	  "Use type \"inline\" for anchored inline comments, \"insertion\" for text to add at a specific location, and \"scope\" "
+	  "for whole-scope comments. Inline requires target_text. Insertion requires anchor_text, placement, and suggestion. Include summary for general document-level analysis.")
   "Fixed JSON schema instructions for Org Copilot gptel review prompts.")
 
 (defun org-copilot-gptel-review-prompt (request)
@@ -134,6 +167,46 @@ REQUEST supplies reviewed source bounds for line-range fallback anchoring."
       (with-current-buffer source
 	(org-copilot-find-comment focus-id)))))
 
+(defun org-copilot-gptel--web-query-p (message)
+  "Return non-nil when MESSAGE appears to need live web information."
+  (let ((case-fold-search t)
+	(text (or message "")))
+    (string-match-p
+     (rx (or "web" "search" "source" "sources" "citation" "citations"
+	     "reference" "references" "bibliography" "bibliographic"
+	     "current" "recent" "latest" "today" "verify" "check online"
+	     "référence" "références" "bibliographie" "source" "sources"
+	     "citation" "citations" "récent" "récente" "actuel"
+	     "vérifie" "verifie" "en ligne"))
+     text)))
+
+(defun org-copilot-gptel--ensure-web-tools ()
+  "Try to load optional gptel web tool providers."
+  (when (require 'gptel-agent nil 'noerror)
+    (when (fboundp 'gptel-agent-update)
+      (gptel-agent-update))))
+
+(defun org-copilot-gptel--available-web-tools ()
+  "Return configured gptel web tools that are currently available."
+  (org-copilot-gptel--ensure-web-tools)
+  (when (fboundp 'gptel-get-tool)
+    (delq nil
+	  (mapcar (lambda (name)
+		    (ignore-errors (gptel-get-tool name)))
+		  org-copilot-gptel-web-tool-names))))
+
+(defun org-copilot-gptel--tool-use-supported-p ()
+  "Return non-nil when the active gptel model can use tools."
+  (or (not (fboundp 'gptel--model-capable-p))
+      (ignore-errors (gptel--model-capable-p 'tool-use))))
+
+(defun org-copilot-gptel--web-tools-for-request (request)
+  "Return web tools to expose for chat REQUEST."
+  (and org-copilot-gptel-enable-web-tools
+       (org-copilot-gptel--web-query-p (plist-get request :message))
+       (org-copilot-gptel--tool-use-supported-p)
+       (org-copilot-gptel--available-web-tools)))
+
 (defun org-copilot-gptel--format-focused-comment (comment)
   "Return COMMENT formatted for a focused chat prompt."
   (when comment
@@ -159,12 +232,20 @@ REQUEST supplies reviewed source bounds for line-range fallback anchoring."
     (format (concat "You are an AI writing partner for an Org author.\n"
 		    "Answer the user's question concisely and concretely.\n"
 		    "Return strict JSON only, with no Markdown fences.\n"
-		    "The JSON shape is {\"message\":\"brief answer\",\"suggestion\":\"optional broad rewrite\",\"heading_line\":\"optional exact target heading line\",\"section_title\":\"optional exact target title\",\"section_path\":[\"optional\",\"outline path\"],\"comments\":[...]} .\n"
+		    "The JSON shape is {\"message\":\"brief answer\",\"suggestion\":\"optional exact replacement text\",\"heading_line\":\"optional exact target heading line\",\"section_title\":\"optional exact target title\",\"section_path\":[\"optional\",\"outline path\"],\"comments\":[...]} .\n"
 		    "Use `comments' only when the user clearly asks for review, critique, edits, improvements, suggestions, issues, or targeted comments; otherwise return an empty comments array.\n"
-		    "Each comment has optional id, type (`inline' or `scope'), summary, body, target_text, suggestion, line_start, and line_end.\n"
-		    "Inline comments must include exact target_text copied from the document; comment suggestions must be literal replacements for target_text only.\n"
+		    "Each comment has optional id, type (`inline', `insertion', or `scope'), summary, body, target_text, anchor_text, placement, suggestion, line_start, and line_end.\n"
+		    "Inline comments must include exact target_text copied from the document; inline suggestions must be literal replacements for target_text only.\n"
+		    "Insertion comments are for adding text at a specific location; they must include exact anchor_text copied from the document, placement `before' or `after', and suggestion containing only the text to insert.\n"
+		    "Scope comments are for broad document or section observations without a specific executable edit location; do not attach suggestions to scope comments.\n"
+		    "Use top-level `suggestion' only when the user explicitly asks to rewrite, replace, draft, or edit source text. The value must be source text that can replace the focused target, focused section body, or document; never put advice, follow-up offers, summaries, explanations, questions, classifications, or bibliographic references in `suggestion'.\n"
+		    "For ordinary Q&A, recommendations, explanations, plans, and reference lists, put the complete answer in `message' and omit `suggestion'.\n"
+		    "When asked for precise references, provide actual bibliographic entries in `message' with author, title, year, and publisher when known; do not claim to provide precise references unless you list them. If uncertain, say what is uncertain instead of inventing details.\n"
+		    (if (plist-get request :web-tools-enabled)
+			"Live web tools are available for this request. For current facts, source checks, precise references, bibliographies, or citation-heavy answers, use WebSearch first and WebFetch when a result needs inspection. Cite only sources you actually used.\n"
+		      "No live web search tool is available for this request. If web verification is needed, say so plainly, then answer from existing knowledge with uncertainty marked.\n")
 		    "At most one scope comment is useful. Prefer no more than 8 comments total.\n"
-		    "Do not combine a broad top-level suggestion with targeted comments unless the user explicitly asks for both a rewrite and review comments. This is exceptional because broad rewrites and targeted suggestions can contradict each other. If both seem necessary, ask for confirmation in `message' and return no top-level suggestion.\n"
+		    "Do not combine a top-level replacement suggestion with targeted comments unless the user explicitly asks for both a rewrite and review comments. This is exceptional because broad rewrites and targeted suggestions can contradict each other. If both seem necessary, ask for confirmation in `message' and return no top-level suggestion.\n"
 		    "When a focused comment is present, help iterate on its replacement suggestion. The top-level suggestion must be replacement text for the focused target, not advice.\n"
 		    "For full-document chat without a focused comment, use the source content and conversation history; do not infer hidden AI comments.\n"
 		    "For section chat, use the full source content as context, but generated comments must target only the focused section unless the user explicitly switches to full-document chat.\n"
@@ -193,6 +274,29 @@ REQUEST supplies reviewed source bounds for line-range fallback anchoring."
 	  (org-copilot-update-comment
 	   (plist-put copy :suggestion suggestion)))))))
 
+(defun org-copilot-gptel--rewrite-request-p (message)
+  "Return non-nil when MESSAGE explicitly asks for replacement text."
+  (let ((case-fold-search t)
+	(text (or message "")))
+    (string-match-p
+     (rx (or "rewrite" "rewrites" "rewrote" "redraft" "draft"
+	     "replace" "edit" "revise" "rephrase" "reword"
+	     "réécris" "reecris" "réécrire" "reecrire" "remplace"
+	     "édite" "edite" "révise" "revise" "reformule"))
+     text)))
+
+(defun org-copilot-gptel--chat-suggestions-allowed-p (request)
+  "Return non-nil when REQUEST may install top-level suggestions."
+  (or (plist-get request :focus-comment-id)
+      (org-copilot-gptel--rewrite-request-p (plist-get request :message))))
+
+(defun org-copilot-gptel--drop-disallowed-chat-suggestion (parsed request)
+  "Return PARSED with unsafe top-level suggestions removed for REQUEST."
+  (if (or (not (plist-get parsed :suggestion))
+	  (org-copilot-gptel--chat-suggestions-allowed-p request))
+      parsed
+    (plist-put (copy-sequence parsed) :suggestion nil)))
+
 (defun org-copilot-gptel--install-chat-suggestion (source-buffer parsed request)
   "Install or preview non-comment chat suggestion PARSED for REQUEST."
   (when-let* ((suggestion (plist-get parsed :suggestion)))
@@ -207,6 +311,21 @@ REQUEST supplies reviewed source bounds for line-range fallback anchoring."
 	(org-copilot-suggestion-open
 	 source-buffer "🌐 Full document" suggestion 'full-document nil)))))
 
+(defun org-copilot-gptel--stream-required-p ()
+  "Return non-nil when the active gptel backend requires streaming."
+  (and (fboundp 'gptel-openai-oauth-p)
+       (gptel-openai-oauth-p gptel-backend)))
+
+(defun org-copilot-gptel--chat-response-complete-p (response stream)
+  "Return non-nil when RESPONSE is complete for STREAM mode."
+  (if stream (eq response t) (stringp response)))
+
+(defun org-copilot-gptel--chat-response-text (response chunks stream)
+  "Return complete response text from RESPONSE, CHUNKS, and STREAM mode."
+  (if stream
+      (apply #'concat (nreverse chunks))
+    response))
+
 (defun org-copilot-gptel--render-chat-buffer (source-buffer &optional scroll-role)
   "Refresh visible Org Copilot chat buffer for SOURCE-BUFFER when present.
 When SCROLL-ROLE is non-nil, scroll that role's last message to the top of the
@@ -219,47 +338,75 @@ chat viewport."
 	(when scroll-role
 	  (org-copilot-chat-scroll-to-last-message source-buffer scroll-role))))))
 
+(defun org-copilot-gptel--handle-chat-response
+    (text source-buffer comment-id context-id request)
+  "Handle complete chat response TEXT for SOURCE-BUFFER."
+  (when (and (stringp text) (buffer-live-p source-buffer))
+    (let* ((parsed (org-copilot-llm-parse-chat-response text))
+	   (parsed (org-copilot-gptel--drop-disallowed-chat-suggestion
+		    parsed request))
+	   (install-result
+	    (unless comment-id
+	      (org-copilot-install-chat-comments
+	       source-buffer
+	       (plist-get parsed :comments)
+	       request
+	       (plist-get request :message))))
+	   (message (org-copilot-llm-append-chat-install-summary
+		     (plist-get parsed :message)
+		     install-result)))
+      (if comment-id
+	  (org-copilot-gptel--update-focused-suggestion
+	   source-buffer comment-id (plist-get parsed :suggestion))
+	(org-copilot-gptel--install-chat-suggestion
+	 source-buffer parsed request))
+      (with-current-buffer source-buffer
+	(org-copilot-remove-pending-chat-message comment-id context-id)
+	(org-copilot-add-chat-message
+	 'assistant message comment-id context-id)))
+    (org-copilot-gptel--render-chat-buffer source-buffer 'assistant)))
+
+(defun org-copilot-gptel--handle-review-response (text source-buffer request)
+  "Handle complete review response TEXT for SOURCE-BUFFER."
+  (when (and (stringp text) (buffer-live-p source-buffer))
+    (org-copilot-gptel--install-response source-buffer text request)))
+
 (defun org-copilot-gptel-chat (request)
   "Request an Org Copilot chat response for REQUEST using gptel."
   (unless (fboundp 'gptel-request)
     (user-error "Org Copilot gptel chat adapter requires gptel"))
-  (let ((source-buffer (plist-get request :source-buffer))
-	(comment-id (plist-get request :focus-comment-id))
-	(context-id (plist-get request :context-id))
-	(prompt (org-copilot-gptel-chat-prompt request)))
-    (gptel-request
-     prompt
-     :callback
-     (lambda (response info)
-       (condition-case err
-	   (progn
-	     (message "Org Copilot: gptel chat completed status=%S"
-		      (plist-get info :status))
-	     (when (and response (buffer-live-p source-buffer))
-	       (let* ((parsed (org-copilot-llm-parse-chat-response response))
-		      (install-result
-		       (unless comment-id
-			 (org-copilot-install-chat-comments
-			  source-buffer
-			  (plist-get parsed :comments)
-			  request
-			  (plist-get request :message))))
-		      (message (org-copilot-llm-append-chat-install-summary
-				(plist-get parsed :message)
-				install-result)))
-		 (if comment-id
-		     (org-copilot-gptel--update-focused-suggestion
-		      source-buffer comment-id (plist-get parsed :suggestion))
-		   (org-copilot-gptel--install-chat-suggestion
-		    source-buffer parsed request))
-		 (with-current-buffer source-buffer
-		   (org-copilot-remove-pending-chat-message comment-id context-id)
-		   (org-copilot-add-chat-message
-		    'assistant message comment-id context-id)))
-	       (org-copilot-gptel--render-chat-buffer source-buffer 'assistant)))
-	 (error
-	  (message "Org Copilot: gptel chat failed error=%S response=%S"
-		   err response)))))
+  (let* ((source-buffer (plist-get request :source-buffer))
+	 (comment-id (plist-get request :focus-comment-id))
+	 (context-id (plist-get request :context-id))
+	 (web-tools (org-copilot-gptel--web-tools-for-request request))
+	 (request (if web-tools
+		      (plist-put (copy-sequence request) :web-tools-enabled t)
+		    request))
+	 (prompt (org-copilot-gptel-chat-prompt request))
+	 chunks)
+    (let* ((gptel-backend (or org-copilot-gptel-backend gptel-backend))
+	   (gptel-model (or org-copilot-gptel-model gptel-model))
+	   (stream (org-copilot-gptel--stream-required-p))
+	   (gptel-use-tools (or gptel-use-tools (and web-tools t)))
+	   (gptel-tools (append web-tools gptel-tools)))
+      (gptel-request
+       prompt
+       :stream stream
+       :callback
+       (lambda (response info)
+	 (condition-case err
+	     (progn
+	       (message "Org Copilot: gptel chat completed status=%S"
+			(plist-get info :status))
+	       (when (and stream (stringp response))
+		 (push response chunks))
+	       (when (org-copilot-gptel--chat-response-complete-p response stream)
+		 (org-copilot-gptel--handle-chat-response
+		  (org-copilot-gptel--chat-response-text response chunks stream)
+		  source-buffer comment-id context-id request)))
+	   (error
+	    (message "Org Copilot: gptel chat failed error=%S response=%S"
+		     err response))))))
     nil))
 
 (defun org-copilot-gptel-review (request)
@@ -268,18 +415,27 @@ The request is asynchronous when using real gptel.  Parsed callback comments are
 installed into REQUEST's `:source-buffer' session."
   (unless (fboundp 'gptel-request)
     (user-error "Org Copilot gptel adapter requires gptel"))
-  (let ((source-buffer (plist-get request :source-buffer))
-	(prompt (org-copilot-gptel-review-prompt request)))
+  (let* ((source-buffer (plist-get request :source-buffer))
+	 (prompt (org-copilot-gptel-review-prompt request))
+	 (gptel-backend (or org-copilot-gptel-backend gptel-backend))
+	 (gptel-model (or org-copilot-gptel-model gptel-model))
+	 (stream (org-copilot-gptel--stream-required-p))
+	 chunks)
     (gptel-request
      prompt
+     :stream stream
      :callback
      (lambda (response info)
        (condition-case err
 	   (progn
 	     (message "Org Copilot: gptel review completed status=%S"
 		      (plist-get info :status))
-	     (when (and response (buffer-live-p source-buffer))
-	       (org-copilot-gptel--install-response source-buffer response request)))
+	     (when (and stream (stringp response))
+	       (push response chunks))
+	     (when (org-copilot-gptel--chat-response-complete-p response stream)
+	       (org-copilot-gptel--handle-review-response
+		(org-copilot-gptel--chat-response-text response chunks stream)
+		source-buffer request)))
 	 (error
 	  (message "Org Copilot: gptel review failed error=%S response=%S"
 		   err response)))))
@@ -293,6 +449,23 @@ installed into REQUEST's `:source-buffer' session."
     (user-error "Org Copilot gptel adapter requires gptel"))
   (setq org-copilot-review-function #'org-copilot-gptel-review)
   (setq org-copilot-chat-function #'org-copilot-gptel-chat))
+
+;;;###autoload
+(defun org-copilot-gptel-use-openai-oauth (&optional model)
+  "Use ChatGPT subscription OAuth for gptel and Org Copilot.
+MODEL defaults to `gpt-5.5'."
+  (interactive)
+  (unless (require 'gptel-openai-oauth nil 'noerror)
+    (user-error "gptel-openai-oauth is unavailable"))
+  (let ((backend (gptel-make-openai-oauth "OpenAI-sub"))
+	(model (or model 'gpt-5.5)))
+    (setq gptel-model model)
+    (setq gptel-backend backend)
+    (setq org-copilot-gptel-model model)
+    (setq org-copilot-gptel-backend backend)
+    (org-copilot-gptel-enable)
+    (message "Org Copilot: using OpenAI OAuth backend with %s" model)
+    backend))
 
 (provide 'org-copilot-gptel)
 ;;; org-copilot-gptel.el ends here

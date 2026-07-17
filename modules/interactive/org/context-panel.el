@@ -115,14 +115,24 @@
     (cancel-timer hub/org-context-panel--refresh-timer))
   (setq hub/org-context-panel--refresh-timer nil))
 
-(defun hub/org-context-panel--visible-p (&optional source-buffer)
-  "Return non-nil when SOURCE-BUFFER has a visible context panel."
+(defun hub/org-context-panel--side-visible-p (&optional source-buffer)
+  "Return non-nil when SOURCE-BUFFER has a visible side context panel."
   (let ((source (or source-buffer (current-buffer))))
     (with-current-buffer source
-      (or (and (buffer-live-p org-context-panel-side-panel-buffer)
-	       (get-buffer-window org-context-panel-side-panel-buffer t))
-	  (and (buffer-live-p org-context-panel-bottom-panel-buffer)
-	       (get-buffer-window org-context-panel-bottom-panel-buffer t))))))
+      (and (buffer-live-p org-context-panel-side-panel-buffer)
+	   (get-buffer-window org-context-panel-side-panel-buffer t)))))
+
+(defun hub/org-context-panel--bottom-visible-p (&optional source-buffer)
+  "Return non-nil when SOURCE-BUFFER has a visible bottom context view."
+  (let ((source (or source-buffer (current-buffer))))
+    (with-current-buffer source
+      (and (buffer-live-p org-context-panel-bottom-panel-buffer)
+	   (get-buffer-window org-context-panel-bottom-panel-buffer t)))))
+
+(defun hub/org-context-panel--visible-p (&optional source-buffer)
+  "Return non-nil when SOURCE-BUFFER has any visible context panel."
+  (or (hub/org-context-panel--side-visible-p source-buffer)
+      (hub/org-context-panel--bottom-visible-p source-buffer)))
 
 (defun hub/org-context-panel--refresh-after-idle (source-buffer)
   "Refresh visible context panels for SOURCE-BUFFER after Emacs becomes idle."
@@ -171,20 +181,6 @@
       (org-marginalia-context-panel-mode 1))
     (unless org-context-panel-mode
       (org-context-panel-mode 1))))
-
-(defun hub/org-context-panel--open-ui ()
-  "Open the configured package context panel UI."
-  (unless (derived-mode-p 'org-mode)
-    (user-error "Org context panel only works in Org buffers"))
-  (let ((source-buffer (current-buffer)))
-    (hub/org-context-panel--enable-comments-provider)
-    (org-context-panel-refresh-source-overlays)
-    (setq hub/org-context-panel--refresh-signature
-	  (hub/org-context-panel--refresh-signature source-buffer))
-    (let ((panel (org-context-panel-open source-buffer)))
-      (with-current-buffer source-buffer
-	(hub/org-context-panel--open-page-view nil nil))
-      panel)))
 
 (defun hub/org-context-panel--page-open-ui ()
   "Open the configured package page comments UI."
@@ -372,15 +368,42 @@ whether an empty page-context panel is shown when there are no page comments."
     (when (window-live-p panel-window)
       (delete-window panel-window))))
 
+(defun hub/org-context-panel--copilot-chat-session-p ()
+  "Return non-nil when current Org buffer has pending Org Copilot chat state."
+  (or (and (fboundp 'org-copilot-chat-messages)
+	   (org-copilot-chat-messages))
+      (and (boundp 'org-copilot-chat-buffer-name)
+	   (buffer-live-p (get-buffer org-copilot-chat-buffer-name)))))
+
+(defun hub/org-context-panel--open-ui ()
+  "Open side context panel and surface pending bottom views when appropriate."
+  (unless (derived-mode-p 'org-mode)
+    (user-error "Org context panel only works in Org buffers"))
+  (let ((source-buffer (current-buffer))
+	(surface-copilot-chat (hub/org-context-panel--copilot-chat-session-p)))
+    (hub/org-context-panel--enable-comments-provider)
+    (org-context-panel-refresh-source-overlays)
+    (setq hub/org-context-panel--refresh-signature
+	  (hub/org-context-panel--refresh-signature source-buffer))
+    (let ((panel (org-context-panel-open source-buffer)))
+      (with-current-buffer source-buffer
+	(hub/org-context-panel--open-page-view nil nil)
+	(when (and surface-copilot-chat
+		   (fboundp 'org-copilot-chat))
+	  (org-copilot-chat)))
+      panel)))
+
 ;;;###autoload
 (defun hub/org-context-panel-toggle-open ()
-  "Open the context panel, or close it when already visible."
+  "Cycle context UI: open side, close all, then reopen all.
+When only a bottom chat/view is visible, opening the side panel keeps and
+surfaces that pending bottom session instead of closing it."
   (interactive)
   (unless (derived-mode-p 'org-mode)
     (user-error "Org context panel only works in Org buffers"))
-  (if (hub/org-context-panel--visible-p)
+  (if (hub/org-context-panel--side-visible-p)
       (hub/org-context-panel--close-ui)
-    (org-comments-open)))
+    (hub/org-context-panel--open-ui)))
 
 (defun hub/org-context-panel--comment-at-point ()
   "Return sidecar comment at point in the current source buffer, or nil."

@@ -466,6 +466,33 @@
       (when-let* ((panel-buffer (get-buffer org-context-panel-bottom-buffer-name)))
 	(kill-buffer panel-buffer)))))
 
+(ert-deftest org-context-panel-window-projection-keeps-unanchored-items ()
+  "Viewport projection keeps global items that have no source anchor."
+  (let ((source-buffer (generate-new-buffer " *org context source*")))
+    (unwind-protect
+	(with-current-buffer source-buffer
+	  (org-mode)
+	  (insert "Alpha\nBeta\n")
+	  (let ((window (selected-window)))
+	    (set-window-buffer window source-buffer)
+	    (org-context-panel-register-provider
+	     (list :name 'test
+		   :collect-side-items
+		   (lambda (_source)
+		     (list (list :id "anchored" :source-start (point-min))
+			   (list :id "global")))))
+	    (let ((items (org-context-panel-items-for-window
+			  window source-buffer)))
+	      (should (= (length items) 2))
+	      (should (cl-find "anchored" items
+			       :key (lambda (item) (plist-get item :id))
+			       :test #'equal))
+	      (should (cl-find "global" items
+			       :key (lambda (item) (plist-get item :id))
+			       :test #'equal)))))
+      (when (buffer-live-p source-buffer)
+	(kill-buffer source-buffer)))))
+
 (ert-deftest org-context-panel-open-renders-default-side-panel ()
   "Opening the generic side panel has a fallback renderer."
   (let ((source-buffer (generate-new-buffer " *org context default source*"))

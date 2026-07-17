@@ -14,6 +14,16 @@
   :type 'boolean
   :group 'hub/ai)
 
+(defcustom hub/gptel-use-openai-oauth t
+  "Whether to use ChatGPT subscription OAuth for gptel by default."
+  :type 'boolean
+  :group 'hub/ai)
+
+(defcustom hub/gptel-openai-oauth-model 'gpt-5.5
+  "Default model for the ChatGPT subscription OAuth gptel backend."
+  :type 'symbol
+  :group 'hub/ai)
+
 (defvar hub/gptel--cached-api-key nil
   "Cached OpenAI API key for gptel requests.")
 
@@ -34,12 +44,37 @@
 	  (setq hub/gptel--cached-api-key secret))
 	secret)))
 
+(defun hub/gptel-configure-openai-oauth ()
+  "Configure gptel and Org Copilot to use ChatGPT subscription OAuth."
+  (when hub/gptel-use-openai-oauth
+    (if (not (require 'org-copilot-gptel nil 'noerror))
+	(message "Org Copilot: gptel provider unavailable")
+      (condition-case err
+	  (org-copilot-gptel-use-openai-oauth hub/gptel-openai-oauth-model)
+	(error
+	 (message "OpenAI OAuth backend unavailable: %s"
+		  (error-message-string err)))))))
+
 (use-package gptel
   :commands (gptel gptel-send gptel-request)
   :init
   (require 'auth-source-pass)
   (auth-source-pass-enable)
-  (setq gptel-api-key #'hub/gptel-api-key))
+  (setq gptel-api-key #'hub/gptel-api-key)
+  :config
+  (hub/gptel-configure-openai-oauth))
+
+(use-package gptel-agent
+  :after gptel
+  :demand t
+  :commands (gptel-agent gptel-agent-update)
+  :config
+  (gptel-agent-update))
+
+(defun hub/gptel-agent-enable-tools ()
+  "Load gptel-agent tools when available."
+  (when (require 'gptel-agent nil 'noerror)
+    (gptel-agent-update)))
 
 (defun hub/org-copilot-enable-gptel ()
   "Configure Org Copilot to use the gptel provider when available."
@@ -57,6 +92,7 @@
   (hub/org-copilot-enable-gptel))
 
 (with-eval-after-load 'gptel
+  (hub/gptel-agent-enable-tools)
   (hub/org-copilot-enable-gptel))
 
 (use-package codeium

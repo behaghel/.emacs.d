@@ -107,6 +107,9 @@ When FALLBACK-ID is non-nil, use it if COMMENT has no JSON id."
 	 :source-start (plist-get comment :source_start)
 	 :source-end (plist-get comment :source_end)
 	 :target-text (plist-get comment :target_text)
+	 :anchor-text (plist-get comment :anchor_text)
+	 :placement (org-copilot-llm--symbol
+		     (plist-get comment :placement) 'after)
 	 :line-start (plist-get comment :line_start)
 	 :line-end (plist-get comment :line_end)
 	 :summary (plist-get comment :summary)
@@ -230,11 +233,28 @@ If RESPONSE is not valid JSON, return it as a plain `:message'."
       (setq copy (plist-put copy :source-start (car bounds)))
       (plist-put copy :source-end (cdr bounds)))))
 
+(defun org-copilot-llm--anchor-insertion-comment (comment)
+  "Return insertion COMMENT anchored by exact anchor text."
+  (let ((anchor-text (plist-get comment :anchor-text)))
+    (when (and (eq (plist-get comment :type) 'insertion)
+	       (org-copilot-llm-optional-string anchor-text))
+      (save-excursion
+	(goto-char (point-min))
+	(when (search-forward anchor-text nil t)
+	  (let* ((placement (or (plist-get comment :placement) 'after))
+		 (position (if (eq placement 'before)
+			       (match-beginning 0)
+			     (match-end 0)))
+		 (copy (copy-sequence comment)))
+	    (setq copy (plist-put copy :source-start position))
+	    (plist-put copy :source-end position)))))))
+
 (defun org-copilot-llm-anchored-comment (comment &optional request)
   "Return COMMENT anchored in the current buffer.
 Prefer exact `:target-text' matching.  Fall back to REQUEST-relative line hints
 when exact matching fails."
   (or (and (plist-get comment :source-start) comment)
+      (org-copilot-llm--anchor-insertion-comment comment)
       (org-copilot-llm--anchor-comment-exact comment)
       (org-copilot-llm--anchor-comment-by-lines comment request)
       comment))
@@ -278,12 +298,29 @@ fallback anchoring."
 			      :end (marker-position end)))
       request)))
 
+(defun org-copilot-llm--anchored-insertion-comment-p (comment)
+  "Return non-nil when insertion COMMENT has an executable anchor."
+  (and (eq (plist-get comment :type) 'insertion)
+       (org-copilot-llm-optional-string (plist-get comment :anchor-text))
+       (org-copilot-llm-optional-string (plist-get comment :suggestion))
+       (memq (plist-get comment :placement) '(before after))
+       (integerp (plist-get comment :source-start))
+       (integerp (plist-get comment :source-end))))
+
 (defun org-copilot-llm--comment-installable-p (comment context)
   "Return non-nil when chat COMMENT may be installed in CONTEXT."
-  (and (memq (plist-get comment :type) '(inline scope))
+  (and (memq (plist-get comment :type) '(inline scope insertion))
        (or (eq (plist-get comment :type) 'scope)
-	   (org-copilot-llm--anchored-inline-comment-p comment))
+	   (org-copilot-llm--anchored-inline-comment-p comment)
+	   (org-copilot-llm--anchored-insertion-comment-p comment))
        (org-copilot-llm--comment-in-section-p comment context)))
+
+(defun org-copilot-llm--review-comment-installable-p (comment)
+  "Return non-nil when review COMMENT may be installed."
+  (and (memq (plist-get comment :type) '(inline scope insertion))
+       (or (eq (plist-get comment :type) 'scope)
+	   (org-copilot-llm--anchored-inline-comment-p comment)
+	   (org-copilot-llm--anchored-insertion-comment-p comment))))
 
 (defun org-copilot-llm--next-ai-comment-id ()
   "Return the next available `ai-N' id in the current buffer session."
@@ -303,22 +340,28 @@ fallback anchoring."
     (setq copy (plist-put copy :metadata metadata))
     (plist-put copy :id (org-copilot-llm--next-ai-comment-id))))
 
-(defun org-copilot-llm--chat-install-summary (installed skipped-unanchored skipped-limit)
+(defun org-copilot-llm--chat-install-summary
+    (installed skipped-unanchored skipped-limit &optional reachable hidden)
   "Return factual summary for chat comment installation counts."
-  (when (or (> installed 0) (> skipped-unanchored 0) (> skipped-limit 0))
-    (string-join
-     (delq nil
-	   (list (when (> installed 0)
-		   (format "Installed %d comment%s."
-			   installed (if (= installed 1) "" "s")))
-		 (when (> skipped-unanchored 0)
-		   (format "Skipped %d unanchored comment%s."
-			   skipped-unanchored
-			   (if (= skipped-unanchored 1) "" "s")))
-		 (when (> skipped-limit 0)
-		   (format "Skipped %d comment%s over the per-response limit."
-			   skipped-limit (if (= skipped-limit 1) "" "s")))))
-     " ")))
+  (let ((reachable (or reachable installed))
+	(hidden (or hidden 0)))
+    (when (or (> installed 0) (> skipped-unanchored 0) (> skipped-limit 0))
+      (string-join
+       (delq nil
+	     (list (when (> installed 0)
+		     (if (> hidden 0)
+			 (format "Installed %d reachable comment%s; %d hidden."
+				 reachable (if (= reachable 1) "" "s") hidden)
+		       (format "Installed %d comment%s."
+			       installed (if (= installed 1) "" "s"))))
+		   (when (> skipped-unanchored 0)
+		     (format "Skipped %d unanchored comment%s."
+			     skipped-unanchored
+			     (if (= skipped-unanchored 1) "" "s")))
+		   (when (> skipped-limit 0)
+		     (format "Skipped %d comment%s over the per-response limit."
+			     skipped-limit (if (= skipped-limit 1) "" "s")))))
+       " "))))
 
 (defun org-copilot-llm-append-chat-install-summary (message result)
   "Append chat comment install RESULT footer to MESSAGE when needed."
@@ -326,7 +369,9 @@ fallback anchoring."
 		      (org-copilot-llm--chat-install-summary
 		       (or (plist-get result :installed) 0)
 		       (or (plist-get result :skipped-unanchored) 0)
-		       (or (plist-get result :skipped-limit) 0)))))
+		       (or (plist-get result :skipped-limit) 0)
+		       (plist-get result :reachable)
+		       (plist-get result :hidden)))))
     (if summary
 	(string-join (delq nil (list (org-copilot-llm-optional-string message)
 				     summary))
@@ -336,7 +381,7 @@ fallback anchoring."
 (defun org-copilot-install-chat-comments (source-buffer comments request prompt)
   "Install chat-generated COMMENTS for SOURCE-BUFFER.
 REQUEST is the originating chat request, and PROMPT is the user's message.
-Return a plist with `:installed', `:skipped-unanchored', and `:skipped-limit'."
+Return a plist with install counts and a reachability receipt."
   (let* ((limit org-copilot-chat-max-comments)
 	 (limited (seq-take comments limit))
 	 (skipped-limit (max 0 (- (length comments) (length limited))))
@@ -349,13 +394,16 @@ Return a plist with `:installed', `:skipped-unanchored', and `:skipped-limit'."
 			 (org-copilot-llm--comment-installable-p comment context))
 		       anchored))
 	 (skipped-unanchored (- (length anchored) (length installable)))
-	 (installed 0))
+	 (installed 0)
+	 installed-ids)
     (when installable
       (with-current-buffer source-buffer
 	(dolist (comment installable)
-	  (org-copilot-add-comment
-	   (org-copilot-llm--rewrite-chat-comment-id comment prompt))
-	  (setq installed (1+ installed)))
+	  (let ((installed-comment
+		 (org-copilot-add-comment
+		  (org-copilot-llm--rewrite-chat-comment-id comment prompt))))
+	    (push (org-copilot-comment-id installed-comment) installed-ids)
+	    (setq installed (1+ installed))))
 	(org-copilot-mode 1)
 	(when (fboundp 'org-copilot-refresh-overlays)
 	  (org-copilot-refresh-overlays))
@@ -363,14 +411,27 @@ Return a plist with `:installed', `:skipped-unanchored', and `:skipped-limit'."
 	    (save-selected-window
 	      (org-copilot-open))
 	  (when (fboundp 'org-context-panel-refresh)
-	    (org-context-panel-refresh)))))
-    (list :installed installed
-	  :skipped-unanchored skipped-unanchored
-	  :skipped-limit skipped-limit)))
+	    (org-context-panel-refresh)))
+	(when (and (boundp 'org-copilot-chat-buffer-name)
+		   (get-buffer org-copilot-chat-buffer-name))
+	  (with-current-buffer org-copilot-chat-buffer-name
+	    (force-mode-line-update)))))
+    (let ((reachable (with-current-buffer source-buffer
+		       (cl-count-if
+			(lambda (comment)
+			  (member (org-copilot-comment-id comment) installed-ids))
+			(org-copilot-comments)))))
+      (list :installed installed
+	    :reachable reachable
+	    :hidden (max 0 (- installed reachable))
+	    :skipped-unanchored skipped-unanchored
+	    :skipped-limit skipped-limit))))
 
 (defun org-copilot-install-review-comments (comments)
   "Install normalized review COMMENTS into the current Org Copilot session."
-  (dolist (comment comments)
+  (dolist (comment (cl-remove-if-not
+		    #'org-copilot-llm--review-comment-installable-p
+		    comments))
     (org-copilot-add-comment comment))
   (org-copilot-mode 1)
   (when (fboundp 'org-copilot-refresh-overlays)

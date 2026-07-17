@@ -204,12 +204,24 @@ This face intentionally changes only the background color."
     (insert "\n")))
 
 (defun org-copilot-context-panel-jump-side-item (source-buffer item)
-  "Jump from context-panel ITEM to its source location in SOURCE-BUFFER."
+  "Jump from context-panel ITEM to its source location in SOURCE-BUFFER.
+Unanchored comments, such as document-scope comments, focus their chat context
+instead of signaling an error."
+  (unless (buffer-live-p source-buffer)
+    (user-error "AI comment source buffer is not live"))
   (let ((position (plist-get item :source-start)))
-    (unless (and (buffer-live-p source-buffer) position)
-      (user-error "AI comment has no source location"))
-    (pop-to-buffer source-buffer)
-    (goto-char position)))
+    (with-current-buffer source-buffer
+      (org-copilot-chat--set-context
+       source-buffer (list :type 'comment
+			   :comment-id (org-copilot-comment-id item))))
+    (if position
+	(progn
+	  (pop-to-buffer source-buffer)
+	  (goto-char position))
+      (when (and (boundp 'org-copilot-chat-buffer-name)
+		 (get-buffer-window org-copilot-chat-buffer-name t))
+	(with-current-buffer org-copilot-chat-buffer-name
+	  (org-copilot-chat-render source-buffer))))))
 
 (defun org-copilot-delete-overlays ()
   "Delete Org Copilot source overlays in the current buffer."
@@ -286,7 +298,8 @@ previous overlay already claimed the focused face."
     (with-current-buffer buffer
       (or (derived-mode-p 'org-copilot-panel-mode)
 	  (derived-mode-p 'org-copilot-chat-mode)
-	  (derived-mode-p 'org-copilot-diff-mode)))))
+	  (derived-mode-p 'org-copilot-diff-mode)
+	  (derived-mode-p 'org-copilot-suggestion-mode)))))
 
 (defun org-copilot--copilot-source-buffer-p (buffer)
   "Return non-nil when BUFFER has `org-copilot-mode' enabled."
@@ -374,24 +387,38 @@ previous overlay already claimed the focused face."
     (org-copilot-delete-overlays)
     (org-copilot-context-panel-disable)))
 
+(defun org-copilot--active-source-buffer ()
+  "Return the Org source buffer for commands run from source or aux buffers."
+  (cond
+   ((and (boundp 'org-copilot-suggestion-source-buffer)
+	 (buffer-live-p org-copilot-suggestion-source-buffer))
+    org-copilot-suggestion-source-buffer)
+   ((buffer-live-p org-context-panel-source-buffer)
+    org-context-panel-source-buffer)
+   ((derived-mode-p 'org-mode)
+    (current-buffer))
+   (t
+    (user-error "Org Copilot needs an Org source buffer"))))
+
 ;;;###autoload
 (defun org-copilot-open ()
   "Open or refresh the Org Copilot side panel for the current Org buffer."
   (interactive)
-  (unless (derived-mode-p 'org-mode)
-    (user-error "Org Copilot needs an Org source buffer"))
-  (org-copilot-mode 1)
-  (org-context-panel-open (current-buffer)))
+  (let ((source (org-copilot--active-source-buffer)))
+    (with-current-buffer source
+      (org-copilot-mode 1))
+    (org-context-panel-open source)))
 
 ;;;###autoload
 (defun org-copilot-open-panels ()
   "Open Org Copilot side and chat panels for the current Org buffer."
   (interactive)
-  (unless (derived-mode-p 'org-mode)
-    (user-error "Org Copilot needs an Org source buffer"))
-  (org-copilot-mode 1)
-  (org-copilot-open)
-  (org-copilot-chat-full-document))
+  (let ((source (org-copilot--active-source-buffer)))
+    (with-current-buffer source
+      (org-copilot-mode 1))
+    (org-copilot-open)
+    (with-current-buffer source
+      (org-copilot-chat-full-document))))
 
 ;;;###autoload
 (defun org-copilot-refresh ()

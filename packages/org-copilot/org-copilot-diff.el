@@ -121,11 +121,41 @@ Fall back to ITEM when it cannot be resolved by id."
 	(end (plist-get comment :source-end))
 	(target-text (plist-get comment :target-text)))
     (with-current-buffer source-buffer
-      (and start end target-text
-	   (<= (point-min) start)
-	   (<= start end)
-	   (<= end (point-max))
-	   (equal (buffer-substring-no-properties start end) target-text)))))
+      (if (eq (plist-get comment :type) 'insertion)
+	  (and start end
+	       (= start end)
+	       (<= (point-min) start)
+	       (<= start (point-max)))
+	(and start end target-text
+	     (<= (point-min) start)
+	     (<= start end)
+	     (<= end (point-max))
+	     (equal (buffer-substring-no-properties start end) target-text))))))
+
+(defun org-copilot--target-text-matches (target-text source-buffer)
+  "Return exact source matches for TARGET-TEXT in SOURCE-BUFFER."
+  (unless (string-empty-p (or target-text ""))
+    (with-current-buffer source-buffer
+      (save-excursion
+	(goto-char (point-min))
+	(let (matches)
+	  (while (search-forward target-text nil t)
+	    (push (cons (match-beginning 0) (match-end 0)) matches))
+	  (nreverse matches))))))
+
+(defun org-copilot-resolve-comment-target (comment source-buffer)
+  "Return COMMENT with recovered source bounds when uniquely resolvable."
+  (if (org-copilot-comment-valid-target-p comment source-buffer)
+      comment
+    (let ((matches (org-copilot--target-text-matches
+		    (plist-get comment :target-text) source-buffer)))
+      (if (= (length matches) 1)
+	  (let* ((match (car matches))
+		 (copy (copy-sequence comment)))
+	    (plist-put copy :source-start (car match))
+	    (plist-put copy :source-end (cdr match))
+	    copy)
+	comment))))
 
 (defun org-copilot--update-comment-status (comment source-buffer status)
   "Update COMMENT in SOURCE-BUFFER with lifecycle STATUS."
@@ -137,9 +167,10 @@ Fall back to ITEM when it cannot be resolved by id."
   "Accept COMMENT's suggestion in SOURCE-BUFFER.
 If COMMENT no longer matches the source text, mark it stale and signal a user
 error instead of modifying the source."
-  (let ((suggestion (org-copilot-diff--ensure-suggestion comment))
-	(start (plist-get comment :source-start))
-	(end (plist-get comment :source-end)))
+  (let* ((comment (org-copilot-resolve-comment-target comment source-buffer))
+	 (suggestion (org-copilot-diff--ensure-suggestion comment))
+	 (start (plist-get comment :source-start))
+	 (end (plist-get comment :source-end)))
     (unless (org-copilot-comment-valid-target-p comment source-buffer)
       (org-copilot--update-comment-status comment source-buffer 'stale)
       (user-error "AI comment target is stale; review again before accepting"))
@@ -150,7 +181,7 @@ error instead of modifying the source."
 	(insert suggestion))
       (let* ((accepted (org-copilot-comment-with-status comment 'accepted))
 	     (accepted (plist-put accepted :original-target-text
-				  (plist-get comment :target-text)))
+				  (or (plist-get comment :target-text) "")))
 	     (accepted (plist-put accepted :original-source-start start))
 	     (accepted (plist-put accepted :original-source-end end))
 	     (accepted (plist-put accepted :accepted-text suggestion))
