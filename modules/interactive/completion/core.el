@@ -34,6 +34,8 @@
 	    "<tab>" #'vertico-insert
 	    "<escape>" #'minibuffer-keyboard-quit
 	    "?" #'minibuffer-completion-help
+	    "C-s" #'vertico-next
+	    "C-t" #'vertico-previous
 	    "C-M-n" #'vertico-next-group
 	    "C-M-p" #'vertico-previous-group
 	    "<backspace>" #'vertico-directory-delete-char
