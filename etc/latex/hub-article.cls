@@ -18,6 +18,7 @@
 \RequirePackage[table]{xcolor}
 \RequirePackage{microtype}
 \RequirePackage{geometry}
+\RequirePackage{needspace}
 \RequirePackage{fancyvrb}
 \RequirePackage{etoolbox}
 \RequirePackage{minted}
@@ -25,6 +26,10 @@
 \RequirePackage{tabularx}
 \RequirePackage{caption}
 \RequirePackage{lettrine}
+\RequirePackage{enumitem}
+\RequirePackage{tikz}
+\RequirePackage{tcolorbox}
+\tcbuselibrary{breakable}
 
 \definecolor{HubArticleLightInk}{HTML}{18312D}
 \definecolor{HubArticleLightMuted}{HTML}{64756F}
@@ -33,6 +38,7 @@
 \definecolor{HubArticleLightStandfirst}{HTML}{2E514B}
 \definecolor{HubArticleLightTableRule}{HTML}{CAD8D1}
 \definecolor{HubArticleLightCalloutRule}{HTML}{AFCBC3}
+\definecolor{HubArticleLightCalloutSurface}{HTML}{F3F8F6}
 \definecolor{HubArticleLightQuoteRule}{HTML}{9EBDB4}
 \definecolor{HubArticleLightMarginaliaText}{HTML}{7E908A}
 
@@ -63,6 +69,7 @@
 \colorlet{HubArticleTableHeaderColor}{HubArticleAccentMuted}
 \colorlet{HubArticleTableCaptionText}{HubArticleMuted}
 \colorlet{HubArticleCalloutRule}{HubArticleLightCalloutRule}
+\colorlet{HubArticleCalloutSurface}{HubArticleLightCalloutSurface}
 \colorlet{HubArticleQuoteRule}{HubArticleLightQuoteRule}
 \colorlet{HubArticleMarginaliaText}{HubArticleLightMarginaliaText}
 \colorlet{HubArticleMarginaliaMarker}{HubArticleAccentMuted}
@@ -195,6 +202,9 @@
 \setlength{\arrayrulewidth}{0.35pt}
 \renewcommand{\arraystretch}{1.18}
 \setcounter{secnumdepth}{0}
+\pretocmd{\section}{\Needspace*{12\baselineskip}}{}{}
+\pretocmd{\subsection}{\Needspace*{8\baselineskip}}{}{}
+\pretocmd{\subsubsection}{\Needspace*{6\baselineskip}}{}{}
 \newcommand{\HubArticleDropCap}[2]{%
   \lettrine[lines=2,findent=0em,nindent=0em,slope=0pt,loversize=0,lhang=0.3]%
     {\HubArticleSerif\bfseries\color{HubArticleInk}#1}{\textsc{#2}}%
@@ -232,8 +242,37 @@
 
 \newcommand{\HubArticleDocumentTitle}{}
 \newcommand{\HubArticleEyebrowBlock}{}
+\newlength{\HubArticleOrnamentWeight}
+\setlength{\HubArticleOrnamentWeight}{0.825pt}
+\newcommand{\HubArticleOrnamentColor}{HubArticleAccentMuted}
+\newcommand{\HubArticleOrnamentDotScale}{1}
 \newcommand{\HubArticleMetaSeparator}{\hspace{0.65em}{\textcolor{HubArticleAccentMuted}{\textbullet}}\hspace{0.65em}}
-\newcommand{\HubArticleAccentMarker}{\textcolor{HubArticleAccentMuted}{\rule{26mm}{0.7pt}}}
+\newcommand{\HubArticleOrnamentDot}{%
+  \tikz[baseline=0pt]
+    \fill[\HubArticleOrnamentColor] (0,0) circle[radius=\HubArticleOrnamentDotScale\HubArticleOrnamentWeight];%
+}
+\newcommand{\HubArticleOrnamentRule}[1]{%
+  \tikz[baseline=0pt]
+    \draw[\HubArticleOrnamentColor,line width=\HubArticleOrnamentWeight,line cap=round] (0,0) -- (#1,0);%
+}
+\newcommand{\HubArticleOrnamentMotif}[5]{%
+  \begingroup
+  \setlength{\HubArticleOrnamentWeight}{#1}%
+  \renewcommand{\HubArticleOrnamentColor}{#4}%
+  \renewcommand{\HubArticleOrnamentDotScale}{#5}%
+  \HubArticleOrnamentRule{#2}%
+  \hspace{#3}%
+  \HubArticleOrnamentDot%
+  \hspace{#3}%
+  \HubArticleOrnamentRule{#2}%
+  \endgroup
+}
+\newcommand{\HubArticleAccentMarker}{\HubArticleOrnamentMotif{0.825pt}{9mm}{1.8mm}{HubArticleAccentMuted}{1}}
+\newcommand{\HubArticleHeroOrnament}{%
+  \par\vspace{1.15em}%
+  \noindent\makebox[\linewidth][c]{\HubArticleOrnamentMotif{2.475pt}{27mm}{5.4mm}{HubArticleCalloutRule}{0.8}}%
+  \par\vspace{0.65em}%
+}
 \newcommand{\HubArticleEyebrow}[1]{%
   {\HubArticleSans\small\addfontfeature{LetterSpace=10.0}\textcolor{HubArticleAccentMuted}{\MakeUppercase{#1}}\par}%
   \vspace{1.15em}%
@@ -309,8 +348,6 @@
   \par\vspace*{1.1em}\noindent
   \begingroup
   \thispagestyle{empty}%
-  \HubArticleAccentMarker\par
-  \vspace{1.35em}%
 }{%
   \par\vspace{1.8em}%
   \endgroup
@@ -323,26 +360,64 @@
 }{%
   \par
   \endgroup
+  \HubArticleHeroOrnament
   \medskip
 }
 
+\newenvironment{HubArticleSectionBreak}{%
+  \par\addvspace{2.7em}\noindent
+  \begingroup
+  \centering
+  \HubArticleAccentMarker%
+  \par
+  \endgroup
+  \addvspace{1.35em}%
+}{%
+}
+
 \newcommand{\HubArticleCalloutRuleColor}{HubArticleCalloutRule}
+\newcommand{\HubArticleCalloutTitleColor}{HubArticleAccentMuted}
+\newcommand{\HubArticleCalloutBullet}{\textcolor{\HubArticleCalloutRuleColor}{\textbullet}}
+\newcommand{\HubArticleCalloutNestedBullet}{\textcolor{HubArticleMuted}{\scriptsize\textbullet}}
 \newcommand{\HubArticleCalloutTitle}[1]{%
-  \vspace{0.2em}{\HubArticleSans\footnotesize\bfseries\textcolor{HubArticleAccentMuted}{#1}}\par\vspace{0.1em}%
+  {\HubArticleSans\normalsize\bfseries\textcolor{\HubArticleCalloutTitleColor}{#1}\par}%
+  \vspace{0.3em}\nobreak
 }
 
 \newenvironment{HubArticleCallout}{}{}
 \renewenvironment{HubArticleCallout}{%
-  \par\addvspace{0.95em}\noindent
+  \par\addvspace{0.45em}\noindent
   \begingroup
   \HubArticleSans\small\color{HubArticleInk}%
-  \setlength{\leftskip}{1.2em}%
-  \setlength{\rightskip}{1em}%
-  \noindent\textcolor{\HubArticleCalloutRuleColor}{\rule{24mm}{0.4pt}}\par\nobreak
-  \vspace{0.2em}%
+  \begin{tcolorbox}[
+    breakable,
+    sharp corners,
+    arc=0pt,
+    outer arc=0pt,
+    colback=HubArticleCalloutSurface,
+    colframe=\HubArticleCalloutRuleColor,
+    boxrule=0pt,
+    leftrule=0.7pt,
+    toprule=0pt,
+    rightrule=0pt,
+    bottomrule=0pt,
+    boxsep=0pt,
+    left=2.1em,
+    right=2.0em,
+    top=1.6em,
+    bottom=1.7em,
+    before skip=0pt,
+    after skip=0pt]
+  \HubArticleSans\small\color{HubArticleInk}%
+  \setlist[itemize,1]{label=\HubArticleCalloutBullet,leftmargin=0.88em,labelsep=0.5em,itemsep=0.2em,topsep=0pt,partopsep=0pt,parsep=0pt}%
+  \setlist[itemize,2]{label=\HubArticleCalloutNestedBullet,leftmargin=0.8em,labelsep=0.45em,itemsep=0.18em,topsep=0pt,partopsep=0pt,parsep=0pt}%
+  \setlist[enumerate,1]{labelindent=0.35em,leftmargin=1.15em,labelsep=0.45em,itemsep=0.2em,topsep=0pt,partopsep=0pt,parsep=0pt}%
+  \setlist[enumerate,2]{labelindent=0.3em,leftmargin=1.05em,labelsep=0.4em,itemsep=0.18em,topsep=0pt,partopsep=0pt,parsep=0pt}%
+  \setlength{\parskip}{0.5em}%
   \ignorespaces
 }{%
   \par
+  \end{tcolorbox}%
   \endgroup
   \addvspace{0.95em}%
 }
@@ -355,6 +430,7 @@
 \colorlet{HubArticleCalloutInfoRule}{HubArticleLightAccentMuted}
 \newenvironment{info}{%
   \renewcommand{\HubArticleCalloutRuleColor}{HubArticleCalloutInfoRule}%
+  \renewcommand{\HubArticleCalloutTitleColor}{HubArticleAccentMuted}%
   \begin{HubArticleCallout}%
 }{%
   \end{HubArticleCallout}%
@@ -363,6 +439,7 @@
 \colorlet{HubArticleCalloutWarningRule}{HubArticleCodeConstantInk}
 \newenvironment{warning}{%
   \renewcommand{\HubArticleCalloutRuleColor}{HubArticleCalloutWarningRule}%
+  \renewcommand{\HubArticleCalloutTitleColor}{HubArticleCalloutWarningRule}%
   \begin{HubArticleCallout}%
 }{%
   \end{HubArticleCallout}%

@@ -68,6 +68,11 @@ When nil, discover devenv from `exec-path' and common Nix profile locations."
 (defconst hub/org-export--babel-package '("AUTO" "babel" nil)
   "Package entry enabling locale-aware Babel wiring in Org LaTeX exports.")
 
+(defconst hub/org-export--english-month-names
+  '("January" "February" "March" "April" "May" "June"
+    "July" "August" "September" "October" "November" "December")
+  "English month names for locale-owned generated dates.")
+
 (defconst hub/org-export--french-month-names
   '("janvier" "février" "mars" "avril" "mai" "juin"
     "juillet" "août" "septembre" "octobre" "novembre" "décembre")
@@ -256,6 +261,17 @@ This is intentionally narrow and targets metadata-like strings."
 	    (org-element-property :month-start timestamp)
 	    (org-element-property :day-start timestamp)))))
 
+(defun hub/org-export--english-date-from-components (components)
+  "Return formal English LaTeX date text from date COMPONENTS."
+  (pcase-let ((`(,year ,month ,day) components))
+    (when (and year month day
+	       (<= 1 month)
+	       (<= month (length hub/org-export--english-month-names)))
+      (format "%s %s, %s"
+	      (nth (1- month) hub/org-export--english-month-names)
+	      day
+	      year))))
+
 (defun hub/org-export--french-date-from-components (components)
   "Return fine French LaTeX date text from date COMPONENTS."
   (pcase-let ((`(,year ,month ,day) components))
@@ -267,13 +283,19 @@ This is intentionally narrow and targets metadata-like strings."
 	      (nth (1- month) hub/org-export--french-month-names)
 	      year))))
 
+(defun hub/org-export--date-components (info fallback)
+  "Return date components from export INFO or FALLBACK."
+  (or (hub/org-export--date-components-from-timestamp (plist-get info :date))
+      (hub/org-export--date-components-from-iso-string fallback)))
+
 (defun hub/org-export--format-hub-article-date (info fallback)
   "Return locale-aware hub-article date for INFO, or FALLBACK."
-  (if (and (hub/org-export--info-hub-article-p info)
-	   (equal (plist-get info :language) "fr"))
-      (or (hub/org-export--french-date-from-components
-	   (or (hub/org-export--date-components-from-timestamp (plist-get info :date))
-	       (hub/org-export--date-components-from-iso-string fallback)))
+  (if (hub/org-export--info-hub-article-p info)
+      (or (pcase (plist-get info :language)
+	    ("fr" (hub/org-export--french-date-from-components
+		   (hub/org-export--date-components info fallback)))
+	    (_ (hub/org-export--english-date-from-components
+		(hub/org-export--date-components info fallback))))
 	  fallback)
     fallback))
 
@@ -811,6 +833,22 @@ remaining width so compact labels do not force prose cells to wrap early."
 	 (t (funcall orig table contents info)))
       (funcall orig table contents info))))
 
+(defun hub/org-export--advice-org-latex-horizontal-rule (orig horizontal-rule contents info)
+  "Render HORIZONTAL-RULE through ORIG, with hub-article section breaks.
+CONTENTS and INFO follow `org-latex-horizontal-rule'."
+  (if (hub/org-export--info-hub-article-p info)
+      (let ((prev (org-export-get-previous-element horizontal-rule info)))
+	(concat
+	 (when (and prev
+		    (let ((prev-blank (org-element-property :post-blank prev)))
+		      (or (not prev-blank) (zerop prev-blank))))
+	   "\n")
+	 (org-latex--wrap-label
+	  horizontal-rule
+	  "\\begin{HubArticleSectionBreak}\n\\end{HubArticleSectionBreak}"
+	  info)))
+    (funcall orig horizontal-rule contents info)))
+
 (defun hub/org-export--advice-org-latex-special-block (orig special-block contents info)
   "Apply Veriff-specific LaTeX handling to SPECIAL-BLOCK before ORIG.
 Escape metric `:options' values and allow graph blocks to opt into full-width
@@ -822,10 +860,23 @@ two-column rendering with `:float multicolumn'."
 	(format "\\begin{standfirst}\n%s\n\\end{standfirst}\n}]\n" contents)
       (when (equal (org-element-property :type special-block) "callout")
 	(if-let* ((title (hub/org-callout-title special-block)))
-	    (org-element-put-property special-block :attr_latex
-				      (list (format ":options [%s]"
-						    (hub/org-export--latex-escape title))))
-	  (org-element-put-property special-block :attr_latex nil)))
+	    (if (hub/org-export--info-hub-article-p info)
+		(setq contents
+		      (concat "\\HubArticleCalloutTitle{"
+			      (hub/org-export--latex-escape title)
+			      "}\n"
+			      contents))
+	      (org-element-put-property special-block :attr_latex
+					(list (format ":options [%s]"
+						      (hub/org-export--latex-escape title)))))
+	  (org-element-put-property special-block :attr_latex nil))
+	(when (hub/org-export--info-hub-article-p info)
+	  (org-element-put-property special-block :attr_latex nil)
+	  (org-element-put-property special-block :type
+				    (pcase (hub/org-callout-type special-block)
+				      ((or "info" "warning")
+				       (hub/org-callout-type special-block))
+				      (_ "callout")))))
       (when (and attr-latex
 		 (hub/org-export--info-veriff-p info)
 		 (equal (org-element-property :type special-block) "metric"))
@@ -1133,6 +1184,7 @@ When OUTPUT-DIR is nil, export into the same directory as the Org file
 (hub/org-export--ensure-texinputs)
 (advice-add 'org-latex--org-table :around #'hub/org-export--advice-org-latex-org-table)
 (advice-add 'org-latex-special-block :around #'hub/org-export--advice-org-latex-special-block)
+(advice-add 'org-latex-horizontal-rule :around #'hub/org-export--advice-org-latex-horizontal-rule)
 (advice-add 'org-latex--format-spec :around #'hub/org-export--advice-org-latex--format-spec)
 (advice-add 'org-latex--text-markup :around #'hub/org-export--advice-org-latex--text-markup)
 (advice-add 'org-latex--inline-image :around #'hub/org-export--advice-org-latex--inline-image)

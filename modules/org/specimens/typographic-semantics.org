@@ -72,6 +72,14 @@ Preformatted example text should preserve whitespace
   and indentation.
 #+end_example
 
+** Section break
+
+-----
+
+*** After section break
+
+The horizontal rule above carries semantic untitled section-break intent.
+
 ** Lists
 
 *** Bullet and task lists

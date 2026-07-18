@@ -53,6 +53,7 @@ These custom constructs are allowed because they carry meaning that the native s
 | pullquote | `#+begin_pullquote` | Large in-flow highlighted quotation is distinct from a standard quote block. |
 | callout | `#+ATTR_CALLOUT: :type ... :title ...` + `#+begin_callout` | Boxed explanatory or warning panel with exporter-independent semantics. |
 | standfirst | `#+begin_standfirst` | Distinct introductory summary paragraph, especially useful for article classes. |
+| section break | Org horizontal rule, e.g. `-----` | Untitled transition or return to a wider section perspective where a heading would be too heavy. |
 | metrics cluster | `#+begin_metrics` | A grid or grouped KPI presentation is not an ordinary list or table. |
 | pillars cluster | `#+begin_pillars` | Side-by-side cards need an explicit grouped semantic wrapper. |
 | graph/chart | `#+begin_graph` | A branded data visualization or chart, distinct from a generic image or table. |

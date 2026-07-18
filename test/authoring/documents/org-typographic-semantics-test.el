@@ -60,6 +60,7 @@
     (should (= 1 (hub/org-typographic-semantics-test--count audit :blocks 'metric)))
     (should (= 1 (hub/org-typographic-semantics-test--count audit :blocks 'graph)))
     (should (= 1 (hub/org-typographic-semantics-test--count audit :structure 'tables)))
+    (should (= 1 (hub/org-typographic-semantics-test--count audit :structure 'section-breaks)))
     (should (= 1 (hub/org-typographic-semantics-test--count audit :structure 'ordered-lists)))
     (should (= 2 (hub/org-typographic-semantics-test--count audit :structure 'unordered-lists)))
     (should (= 1 (hub/org-typographic-semantics-test--count audit :structure 'definition-lists)))

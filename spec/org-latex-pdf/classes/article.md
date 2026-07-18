@@ -30,7 +30,8 @@ At minimum, `hub-article` is expected to consume:
 - source blocks
 - native quotes
 - optional standfirst
-- optional callouts where the content meaning requires them
+- optional callouts where the content meaning requires them; callouts render as quiet breakable panels with a faint shared surface, a type-colored left accent rule, class-owned title treatment, and local round bullets for unordered lists
+- native Org horizontal rules as semantic untitled section breaks, rendered with the same restrained ornament language as the opener accent
 
 The concrete export class should be implementation-ready now, even if the final class file lands later in the code slice sequence.
 
@@ -48,6 +49,7 @@ The concrete export class should be implementation-ready now, even if the final 
 
 - English and French remain the only v1 locales.
 - The class must consume locale profiles from the shared locale layer rather than embedding its own language handling rules.
+- Hero dates must receive already-localized export text: formal English by default and formal French when `#+LANGUAGE: fr` is declared.
 - The French-ready typography path is part of the contract from day one.
 
 ## Current Status

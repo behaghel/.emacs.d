@@ -78,6 +78,7 @@ The goal is to let an author write one Org source consistently and export or syn
 | Semantic | Canonical Org source | Contract |
 | --- | --- | --- |
 | Headings | `*`, `**`, ... | Semantic hierarchy. Preserve levels where possible. |
+| Section break | Org horizontal rule, e.g. `-----` | Semantic untitled transition or return to a wider section perspective. Renderers may style it as a dinkus, ornament, or degraded rule. |
 | Paragraphs | Plain Org paragraphs | Semantic text flow. |
 | Bullet lists | `- item` | Semantic unordered list. |
 | Ordered lists | `1. item` | Semantic ordered list. |
@@ -105,6 +106,7 @@ The goal is to let an author write one Org source consistently and export or syn
 - class-owned inline code and emphasis macros;
 - branded and article table wrappers;
 - callout attributes;
+- `hub-article` section-break ornaments from Org horizontal rules;
 - standfirst placement validation;
 - class-owned image wrappers;
 - `hub-article` sidenotes, `HUB_NOTE_KIND: footnote` overrides, and marginalia metadata conventions;

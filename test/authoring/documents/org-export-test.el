@@ -48,6 +48,44 @@ More content."))
       (ignore-errors (delete-file org-file))
       (ignore-errors (delete-file tex-file)))))
 
+(ert-deftest hub/org-export-hub-article-english-hero-timestamp-date ()
+  "Export English hub-article timestamps as formal English hero dates."
+  (let ((org-file (make-temp-file "hub-article-en-date-" nil ".org"
+				  "#+TITLE: English Article
+#+AUTHOR: Test Author
+#+DATE: [2026-07-11 Sat 07:01]
+#+LANGUAGE: en
+#+LATEX_CLASS: hub-article
+#+OPTIONS: toc:nil
+
+Text.")))
+    (unwind-protect
+	(with-current-buffer (find-file-noselect org-file)
+	  (hub/org-export-register-hub-article)
+	  (let ((output (org-export-as 'latex nil nil nil nil)))
+	    (should output)
+	    (should (string-match-p "\\\\HubArticleMeta{Test Author}{July 11, 2026}" output))
+	    (should-not (string-match-p "\\[2026-07-11 Sat 07:01\\]" output))))
+      (ignore-errors (delete-file org-file)))))
+
+(ert-deftest hub/org-export-hub-article-defaults-to-english-hero-date ()
+  "Export hub-article dates as English when no language is declared."
+  (let ((org-file (make-temp-file "hub-article-default-date-" nil ".org"
+				  "#+TITLE: English Article
+#+AUTHOR: Test Author
+#+DATE: 2026-07-11
+#+LATEX_CLASS: hub-article
+#+OPTIONS: toc:nil
+
+Text.")))
+    (unwind-protect
+	(with-current-buffer (find-file-noselect org-file)
+	  (hub/org-export-register-hub-article)
+	  (let ((output (org-export-as 'latex nil nil nil nil)))
+	    (should output)
+	    (should (string-match-p "\\\\HubArticleMeta{Test Author}{July 11, 2026}" output))))
+      (ignore-errors (delete-file org-file)))))
+
 (ert-deftest hub/org-export-hub-article-french-hero-date ()
   "Export French hub-article dates with editorial typography."
   (let ((org-file (make-temp-file "hub-article-fr-date-" nil ".org"

@@ -85,7 +85,7 @@
     (org-element-map tree
 		     '(bold italic underline strike-through code verbatim footnote-reference
 			    timestamp link footnote-definition src-block example-block quote-block
-			    special-block headline paragraph table plain-list item)
+			    special-block horizontal-rule headline paragraph table plain-list item)
 		     (lambda (element)
 		       (pcase (org-element-type element)
 			 ('bold (hub/org-typographic-semantics--inc inline 'bold))
@@ -133,6 +133,7 @@
 			    ("standfirst" (hub/org-typographic-semantics--inc blocks 'standfirst))
 			    ("metric" (hub/org-typographic-semantics--inc blocks 'metric))
 			    ("graph" (hub/org-typographic-semantics--inc blocks 'graph))))
+			 ('horizontal-rule (hub/org-typographic-semantics--inc structure 'section-breaks))
 			 ('headline (hub/org-typographic-semantics--inc structure 'headings))
 			 ('paragraph (hub/org-typographic-semantics--inc structure 'paragraphs))
 			 ('table (hub/org-typographic-semantics--inc structure 'tables))
