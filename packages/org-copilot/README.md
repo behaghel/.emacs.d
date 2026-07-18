@@ -127,6 +127,7 @@ Adapter responses use Org Copilot's structured JSON protocol. In section or full
 ```json
 {
   "message": "brief explanation",
+  "intent": "answer|review|rewrite_section|rewrite_document|revise_comment|insert_text",
   "suggestion": "suggested text",
   "heading_line": "optional exact target heading line",
   "section_title": "optional exact target title",
@@ -153,7 +154,7 @@ Adapter responses use Org Copilot's structured JSON protocol. In section or full
 }
 ```
 
-The top-level `suggestion` remains the broad section/full-document suggestion path. Combining a broad top-level suggestion with targeted comments is exceptional because the two can contradict each other; adapters should ask for confirmation before returning both unless the user explicitly requested a rewrite plus review comments. If a section anchor is present, or if chat is already in section context, the suggestion becomes an accept-capable AI comment for that section body. The target section heading is preserved; the suggestion replaces only the body below that heading. Suggestions may include subsections or lower-level headings inside the replacement body.
+The `intent` field lets the model interpret the user's natural-language request while Elisp enforces structural safety. Top-level `suggestion` is accepted only for executable intents: `rewrite_section`, `rewrite_document`, or `revise_comment`. Combining a broad top-level suggestion with targeted comments is exceptional because the two can contradict each other; adapters should ask for confirmation before returning both unless the user explicitly requested a rewrite plus review comments. If a section anchor is present, or if chat is already in section context, a `rewrite_section` suggestion becomes an accept-capable AI comment for that section body. The target section heading is preserved; the suggestion replaces only the body below that heading. Suggestions may include subsections or lower-level headings inside the replacement body.
 
 `comments` creates normal review artifacts when the user clearly asked for review, critique, edits, improvements, suggestions, issues, or targeted comments. Inline chat comments must include exact `target_text`; line ranges are only fallback metadata. Insertion comments are for adding text at a specific location and must include exact `anchor_text`, `placement` (`before` or `after`), and literal insertion `suggestion`. Scope comments may omit `target_text` only when they are broad document/section observations with no executable edit location, and they should not carry executable suggestions. Section chat installs comments only inside the active section. Chat-generated comment ids are rewritten locally, comments are capped by `org-copilot-chat-max-comments`, and skipped/unanchored comments are reported in a factual footer appended to the chat answer.
 

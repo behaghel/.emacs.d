@@ -133,8 +133,9 @@
 (ert-deftest org-copilot-llm-parses-chat-comments-with-fallback-message ()
   "Structured chat responses parse comments while plain text remains usable."
   (let ((parsed (org-copilot-llm-parse-chat-response
-		 "{\"message\":\"I found one issue.\",\"comments\":[{\"body\":\"Tighten.\",\"target_text\":\"Alpha sentence.\",\"suggestion\":\"Alpha.\"}]}")))
+		 "{\"message\":\"I found one issue.\",\"intent\":\"review\",\"comments\":[{\"body\":\"Tighten.\",\"target_text\":\"Alpha sentence.\",\"suggestion\":\"Alpha.\"}]}")))
     (should (equal (plist-get parsed :message) "I found one issue."))
+    (should (eq (plist-get parsed :intent) 'review))
     (should (= (length (plist-get parsed :comments)) 1))
     (should (equal (plist-get (car (plist-get parsed :comments)) :target-text)
 		   "Alpha sentence.")))

@@ -118,6 +118,8 @@
 		       :source-content "Draft"
 		       :focus-comment-id nil))))
     (should (string-match-p "author, title, year" prompt))
+    (should (string-match-p "intent" prompt))
+    (should (string-match-p "rewrite_section" prompt))
     (should (string-match-p "anchor_text" prompt))
     (should (string-match-p "type (`inline', `insertion', or `scope')" prompt))
     (should (string-match-p "never put advice" prompt))
@@ -363,7 +365,7 @@
 		       "No web."))))))
 
 (ert-deftest org-copilot-gptel-chat-ignores-suggestion-for-reference-qa ()
-  "Chat ignores top-level suggestions unless the user asked for a rewrite."
+  "Chat ignores top-level suggestions unless intent permits executable edits."
   (with-temp-buffer
     (org-mode)
     (insert "* Intro\nOriginal body.\n")
@@ -371,7 +373,7 @@
 	       (lambda (_prompt &rest args)
 		 (let ((callback (plist-get args :callback)))
 		   (funcall callback
-			    "{\"message\":\"Here are references.\",\"suggestion\":\"I can classify them by usage.\"}"
+			    "{\"message\":\"Here are references.\",\"intent\":\"answer\",\"suggestion\":\"I can classify them by usage.\"}"
 			    (list :status 'success))))))
       (org-copilot-gptel-chat
        (list :source-buffer (current-buffer)
@@ -397,7 +399,7 @@
 		 (lambda (_prompt &rest args)
 		   (let ((callback (plist-get args :callback)))
 		     (funcall callback
-			      "{\"message\":\"I rewrote it.\",\"suggestion\":\"New body.\"}"
+			      "{\"message\":\"I rewrote it.\",\"intent\":\"rewrite_section\",\"suggestion\":\"New body.\"}"
 			      (list :status 'success))))))
 	(org-copilot-gptel-chat
 	 (list :source-buffer (current-buffer)
@@ -413,6 +415,36 @@
 	  (should (equal (plist-get comment :suggestion) "New body.\n"))
 	  (should (get-buffer org-copilot-suggestion-buffer-name)))))))
 
+(ert-deftest org-copilot-gptel-section-chat-allows-french-content-proposal ()
+  "French section content-generation prompts may install section suggestions."
+  (with-temp-buffer
+    (org-mode)
+    (insert "* Les traits de caractères de la salope\nOriginal body.\n")
+    (goto-char (point-min))
+    (let* ((context (org-copilot-chat--section-context-at-point))
+	   (context-id (org-copilot-chat--context-id context)))
+      (cl-letf (((symbol-function 'gptel-request)
+		 (lambda (_prompt &rest args)
+		   (let ((callback (plist-get args :callback)))
+		     (funcall callback
+			      "{\"message\":\"Voici une proposition.\",\"intent\":\"rewrite_section\",\"suggestion\":\"Nouveau programme.\"}"
+			      (list :status 'success))))))
+	(org-copilot-gptel-chat
+	 (list :source-buffer (current-buffer)
+	       :buffer-name (buffer-name)
+	       :message "Regarde la section \"Les traits de caractères de la salope\", et propose un contenu pour cette section."
+	       :messages nil
+	       :chat-context context
+	       :context-id context-id
+	       :focus-comment-id nil))
+	(let ((comment (car (org-copilot-comments))))
+	  (should comment)
+	  (should (equal (plist-get comment :section-title)
+			 "Les traits de caractères de la salope"))
+	  (should (equal (plist-get comment :suggestion)
+			 "Nouveau programme.\n"))
+	  (should (get-buffer org-copilot-suggestion-buffer-name)))))))
+
 (ert-deftest org-copilot-gptel-focused-chat-updates-suggestion ()
   "Focused chat can update the focused comment's suggestion from JSON response."
   (with-temp-buffer
@@ -426,7 +458,7 @@
 	       (lambda (_prompt &rest args)
 		 (let ((callback (plist-get args :callback)))
 		   (funcall callback
-			    "{\"message\":\"I made it more direct.\",\"suggestion\":\"Direct alpha.\"}"
+			    "{\"message\":\"I made it more direct.\",\"intent\":\"revise_comment\",\"suggestion\":\"Direct alpha.\"}"
 			    (list :status 'success))))))
       (org-copilot-gptel-chat
        (list :source-buffer (current-buffer)

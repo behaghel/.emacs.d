@@ -232,13 +232,14 @@ REQUEST supplies reviewed source bounds for line-range fallback anchoring."
     (format (concat "You are an AI writing partner for an Org author.\n"
 		    "Answer the user's question concisely and concretely.\n"
 		    "Return strict JSON only, with no Markdown fences.\n"
-		    "The JSON shape is {\"message\":\"brief answer\",\"suggestion\":\"optional exact replacement text\",\"heading_line\":\"optional exact target heading line\",\"section_title\":\"optional exact target title\",\"section_path\":[\"optional\",\"outline path\"],\"comments\":[...]} .\n"
+		    "The JSON shape is {\"message\":\"brief answer\",\"intent\":\"answer|review|rewrite_section|rewrite_document|revise_comment|insert_text\",\"suggestion\":\"optional exact replacement text\",\"heading_line\":\"optional exact target heading line\",\"section_title\":\"optional exact target title\",\"section_path\":[\"optional\",\"outline path\"],\"comments\":[...]} .\n"
+		    "Choose intent from the user's meaning, not keywords: answer for Q&A, review for critique/comments, rewrite_section for replacing the focused section body, rewrite_document for replacing the document, revise_comment for updating a focused comment suggestion, and insert_text for anchored insertion comments.\n"
 		    "Use `comments' only when the user clearly asks for review, critique, edits, improvements, suggestions, issues, or targeted comments; otherwise return an empty comments array.\n"
 		    "Each comment has optional id, type (`inline', `insertion', or `scope'), summary, body, target_text, anchor_text, placement, suggestion, line_start, and line_end.\n"
 		    "Inline comments must include exact target_text copied from the document; inline suggestions must be literal replacements for target_text only.\n"
 		    "Insertion comments are for adding text at a specific location; they must include exact anchor_text copied from the document, placement `before' or `after', and suggestion containing only the text to insert.\n"
 		    "Scope comments are for broad document or section observations without a specific executable edit location; do not attach suggestions to scope comments.\n"
-		    "Use top-level `suggestion' only when the user explicitly asks to rewrite, replace, draft, or edit source text. The value must be source text that can replace the focused target, focused section body, or document; never put advice, follow-up offers, summaries, explanations, questions, classifications, or bibliographic references in `suggestion'.\n"
+		    "Use top-level `suggestion' only with intent rewrite_section, rewrite_document, or revise_comment. The value must be source text that can replace the focused target, focused section body, or document; never put advice, follow-up offers, summaries, explanations, questions, classifications, or bibliographic references in `suggestion'.\n"
 		    "For ordinary Q&A, recommendations, explanations, plans, and reference lists, put the complete answer in `message' and omit `suggestion'.\n"
 		    "When asked for precise references, provide actual bibliographic entries in `message' with author, title, year, and publisher when known; do not claim to provide precise references unless you list them. If uncertain, say what is uncertain instead of inventing details.\n"
 		    (if (plist-get request :web-tools-enabled)
@@ -274,26 +275,20 @@ REQUEST supplies reviewed source bounds for line-range fallback anchoring."
 	  (org-copilot-update-comment
 	   (plist-put copy :suggestion suggestion)))))))
 
-(defun org-copilot-gptel--rewrite-request-p (message)
-  "Return non-nil when MESSAGE explicitly asks for replacement text."
-  (let ((case-fold-search t)
-	(text (or message "")))
-    (string-match-p
-     (rx (or "rewrite" "rewrites" "rewrote" "redraft" "draft"
-	     "replace" "edit" "revise" "rephrase" "reword"
-	     "réécris" "reecris" "réécrire" "reecrire" "remplace"
-	     "édite" "edite" "révise" "revise" "reformule"))
-     text)))
-
-(defun org-copilot-gptel--chat-suggestions-allowed-p (request)
-  "Return non-nil when REQUEST may install top-level suggestions."
-  (or (plist-get request :focus-comment-id)
-      (org-copilot-gptel--rewrite-request-p (plist-get request :message))))
+(defun org-copilot-gptel--chat-suggestions-allowed-p (parsed request)
+  "Return non-nil when PARSED may install top-level suggestions for REQUEST."
+  (pcase (plist-get parsed :intent)
+    ('rewrite_section (eq (plist-get (plist-get request :chat-context) :type)
+			  'section))
+    ('rewrite_document t)
+    ('draft_document t)
+    ('revise_comment (plist-get request :focus-comment-id))
+    (_ nil)))
 
 (defun org-copilot-gptel--drop-disallowed-chat-suggestion (parsed request)
   "Return PARSED with unsafe top-level suggestions removed for REQUEST."
   (if (or (not (plist-get parsed :suggestion))
-	  (org-copilot-gptel--chat-suggestions-allowed-p request))
+	  (org-copilot-gptel--chat-suggestions-allowed-p parsed request))
       parsed
     (plist-put (copy-sequence parsed) :suggestion nil)))
 

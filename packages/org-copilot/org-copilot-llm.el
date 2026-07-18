@@ -176,6 +176,7 @@ If RESPONSE is not valid JSON, return it as a plain `:message'."
 	(list :message (or (org-copilot-llm-optional-string
 			    (plist-get parsed :message))
 			   response)
+	      :intent (org-copilot-llm--symbol (plist-get parsed :intent) nil)
 	      :suggestion (org-copilot-llm-optional-string
 			   (plist-get parsed :suggestion))
 	      :summary (org-copilot-llm-optional-string
