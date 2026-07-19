@@ -186,7 +186,10 @@ domains:
     subdomains:
       blog:
         description: Blog publishing and Hugo-oriented content workflows.
-        code: [modules/interactive/tools/blog.el]
+        code:
+          - modules/interactive/tools/blog.el
+          - packages/hb-static-site/
+          - test/publishing/blog/
         spec: modules/interactive/tools/
       confluence:
         description: Confluence publishing integration and reusable org-confluence package code.

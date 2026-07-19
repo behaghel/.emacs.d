@@ -1,90 +1,52 @@
-;;; blog.el --- Blogging helpers (ox-hugo, capture) -*- lexical-binding: t; -*-
+;;; blog.el --- Static-site publishing compatibility entrypoint -*- lexical-binding: t; -*-
 
 ;;; Commentary:
-;; Blogging workflow helpers: post creation, org-capture integration, ox-hugo.
+;; Personal static-site workflow now lives in reusable `hb-static-site'.  This
+;; entrypoint keeps the historical `tools/blog' feature and old command aliases
+;; available for interactive configuration.
 
 ;;; Code:
 
-(require 'hub-prose)
-(require 'hub-utils)
+(require 'hb-static-site)
+
+(use-package ox-hugo
+  :commands (org-hugo-auto-export-mode org-hugo-export-wim-to-md)
+  :after (ox))
 
 (defgroup hub/blog nil
-  "Blogging helpers and paths."
-  :group 'external)
+  "Compatibility group for historical blog helpers."
+  :group 'hb-static-site)
 
-(defcustom hub/blog-root "~/ws/blog.behaghel.org"
-  "Root directory of the blog workspace."
-  :type 'directory
+(defcustom hub/blog-root nil
+  "Deprecated static-site root override.
+
+Prefer project-local `org-hugo-base-dir' in each site's .dir-locals.el."
+  :type '(choice (const :tag "Use project-local configuration" nil) directory)
   :group 'hub/blog)
 
-(defcustom hub/blog-posts-dir (expand-file-name "content-org" hub/blog-root)
-  "Directory where standalone blog posts are stored."
-  :type 'directory
-  :group 'hub/blog)
+(defcustom hub/blog-posts-dir nil
+  "Deprecated posts directory override.
 
-(defcustom hub/blog-all-posts-file (expand-file-name "content-org/all-posts.org" hub/blog-root)
-  "Org file where captured posts are appended under the All Blog Posts heading."
-  :type 'file
+Prefer `hb-static-site-posts-subdirectory' plus project-local `denote-directory'."
+  :type '(choice (const :tag "Use hb-static-site defaults" nil) directory)
   :group 'hub/blog)
 
 (defun hub/create-post (title)
-  "Create a new blog post with TITLE under content-org using template.post."
-  (interactive "sTitle: ")
-  (let ((slug (hub/sluggify title))
-	(today (format-time-string "%Y-%m-%d"))
-	(template (expand-file-name "template.post" auto-insert-directory)))
-    (remove-hook 'find-file-hooks 'auto-insert)
-    (find-file (format "%s/%s-%s.org" hub/blog-posts-dir today slug))
-    (insert-file-contents template)
-    (hub/autoinsert-yas-expand `((title ,title)))
-    (add-hook 'find-file-hooks 'auto-insert)))
-(define-key evil-normal-state-map (kbd ",np") 'hub/create-post)
+  "Compatibility wrapper creating a Denote static-site post with TITLE."
+  (interactive "sPost title: ")
+  (hb-static-site-create-post title nil))
 
-(with-eval-after-load 'org-capture
-  (defun org-hugo-new-subtree-post-capture-template ()
-    "Return an org-capture template string for a new Hugo post."
-    (let* ((title (read-from-minibuffer "Post Title: "))
-	   (fname (org-hugo-slug title)))
-      (mapconcat #'identity
-		 (list (concat "* TODO " title)
-		       ":PROPERTIES:" (concat ":EXPORT_FILE_NAME: " fname) ":END:" "%?\n")
-		 "\n")))
-  (add-to-list 'org-capture-templates
-	       `( "b" "Blog post (all-posts.org)" entry
-		  (file+olp ,hub/blog-all-posts-file "All Blog Posts")
-		  (function org-hugo-new-subtree-post-capture-template))))
+(defalias 'hub/blog-enable #'hb-static-site-enable)
+(defalias 'hub/blog-create-post #'hb-static-site-create-post)
+(defalias 'hub/blog-create-page #'hb-static-site-create-page)
+(defalias 'hub/blog-find-page #'hb-static-site-find-page)
+(defalias 'hub/blog-export-buffer #'hb-static-site-export-buffer)
+(defalias 'hub/blog-validate-buffer #'hb-static-site-validate-buffer)
+(defalias 'hub/blog-validate-and-export-buffer #'hb-static-site-validate-and-export-buffer)
 
-(add-to-list 'org-capture-templates
-	     '("B" "Blog post (standalone)" plain (file denote-last-path) #'denote-org-capture))
-
-(defun blog-post-hook ()
-  (let ((current-path (or (buffer-file-name) "")))
-    (when (string-match hub/blog-posts-dir current-path)
-      (ispell-change-dictionary "en_GB")
-      (setq-local ispell-check-comments nil)
-      (writeroom-mode 1)
-      ;; `writeroom-mode' enables `variable-pitch-mode' through our prose
-      ;; setup.  `visual-fill-column' is pixel-based, so narrow proportional
-      ;; glyphs can make a 90-column visual area contain far more than 90
-      ;; buffer columns.  Blog authoring uses fixed pitch so visual and text
-      ;; columns stay aligned.
-      (when (fboundp 'variable-pitch-mode)
-	(variable-pitch-mode -1))
-      ;; `writeroom-mode' owns `visual-fill-column' while active; restore the
-      ;; prose width so blog buffers do not drift to the full window width.
-      (setq-local visual-fill-column-width hub/prose-visual-fill-column
-		  visual-fill-column-center-text t
-		  visual-fill-column-extra-text-width nil)
-      (cond
-       ((fboundp 'visual-fill-column-adjust)
-	(visual-fill-column-adjust))
-       ((fboundp 'visual-fill-column--adjust-window)
-	(visual-fill-column--adjust-window (selected-window))))
-      (artbollocks-mode 1)
-      (font-lock-fontify-buffer))))
-(add-hook 'org-mode-hook 'blog-post-hook)
-
-(use-package ox-hugo :commands (org-hugo-auto-export-mode) :after (ox))
+(with-eval-after-load 'evil
+  (when (boundp 'evil-normal-state-map)
+    (define-key evil-normal-state-map (kbd ",np") #'hb-static-site-create-post)))
 
 (provide 'tools/blog)
 ;;; blog.el ends here

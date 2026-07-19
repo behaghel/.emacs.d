@@ -40,6 +40,7 @@
 (add-to-list 'load-path (expand-file-name "packages/org-copilot" user-emacs-directory))
 (add-to-list 'load-path (expand-file-name "packages/org-confluence" user-emacs-directory))
 (add-to-list 'load-path (expand-file-name "packages/org-marginalia" user-emacs-directory))
+(add-to-list 'load-path (expand-file-name "packages/hb-static-site" user-emacs-directory))
 
 ;; Legacy settings/ folder is being retired; do not add it to load-path.
 ;; Private machine-specific setup now lives under private/setup.el (gitignored).

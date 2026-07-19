@@ -12,6 +12,7 @@
 (add-to-list 'load-path (expand-file-name "lisp" default-directory))
 (add-to-list 'load-path (expand-file-name "modules/interactive" default-directory))
 (add-to-list 'load-path (expand-file-name "modules/org" default-directory))
+(add-to-list 'load-path (expand-file-name "packages/hb-static-site" default-directory))
 
 (defmacro hub/with-temp-project (body-file &rest body)
   "Create a temporary project with a git root and visit BODY-FILE, then run BODY.
