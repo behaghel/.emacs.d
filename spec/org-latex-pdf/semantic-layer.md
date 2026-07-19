@@ -41,6 +41,7 @@ The shared authoring surface starts with standard Org metadata and class selecti
 | figures and images | Org file image link with `#+CAPTION:`, `#+NAME:`, and optional `#+ATTR_LATEX:` | Native figure semantics; classes may own frame and caption treatment. |
 | code sample | source block | Native code-block semantics. Exported via minted for high-fidelity syntax highlighting. |
 | quotation | quote block | Native quotation semantics. |
+| quote attribution | `#+ATTR_QUOTE: :author "Name"` before a quote block | Native quote metadata. Classes may style the attribution line, but the author value is semantic. |
 | emphasis | Org emphasis markers | Native inline semantics. |
 
 ## Explicit Custom Exceptions

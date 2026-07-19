@@ -55,6 +55,7 @@
     (should (= 1 (hub/org-typographic-semantics-test--count audit :blocks 'source)))
     (should (= 1 (hub/org-typographic-semantics-test--count audit :blocks 'example)))
     (should (= 1 (hub/org-typographic-semantics-test--count audit :blocks 'quote)))
+    (should (= 1 (hub/org-typographic-semantics-test--count audit :blocks 'quote-attributions)))
     (should (= 2 (hub/org-typographic-semantics-test--count audit :blocks 'callout)))
     (should (= 1 (hub/org-typographic-semantics-test--count audit :blocks 'standfirst)))
     (should (= 1 (hub/org-typographic-semantics-test--count audit :blocks 'metric)))

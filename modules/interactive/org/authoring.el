@@ -88,6 +88,12 @@ optional description."
   (format "#+ATTR_CALLOUT: :type ${1|%s|} :title \"${2:Title}\"\n#+begin_callout\n$0\n#+end_callout"
 	  (string-join hub/org-callout-types ",")))
 
+(defun hub/org-quote-template-snippet (author)
+  "Return a Yasnippet-compatible quote template with optional AUTHOR."
+  (concat (unless (string-empty-p author)
+	    (format "#+ATTR_QUOTE: :author %S\n" author))
+	  "#+begin_quote\n$0\n#+end_quote"))
+
 (defun hub/org-image-template-snippet ()
   "Return a Yasnippet-compatible Org image template."
   "#+CAPTION: ${1:}\n[[${2:./img/image.png}]]")
@@ -161,6 +167,23 @@ only the image link."
   (when (looking-back "^ *\\(<co\\)" (line-beginning-position))
     (replace-match "" t t nil 1)
     (hub/org-insert-callout-template)
+    t))
+
+(defun hub/org-insert-quote-template ()
+  "Insert an Org quote template, prompting for an optional author."
+  (interactive)
+  (let ((author (string-trim (read-string "Quote author (optional): "))))
+    (if (hub/org-yas-ready-p)
+	(yas-expand-snippet (hub/org-quote-template-snippet author))
+      (insert (hub/org-quote-template-snippet author))
+      (search-backward "$0" nil t)
+      (replace-match "" t t))))
+
+(defun hub/org-tempo-complete-quote ()
+  "Expand the `<q' Org Tempo shortcut as a semantic quote."
+  (when (looking-back "^ *\\(<q\\)" (line-beginning-position))
+    (replace-match "" t t nil 1)
+    (hub/org-insert-quote-template)
     t))
 
 (defun hub/org-footnote-definition-point (label &optional separator)
@@ -351,6 +374,7 @@ this shortcut is intentionally accepted anywhere on the current line."
   (require 'org-tempo)
   (add-hook 'org-tab-before-tab-emulation-hook #'hub/org-tempo-complete-callout -90)
   (add-hook 'org-tab-before-tab-emulation-hook #'hub/org-tempo-complete-image -90)
+  (add-hook 'org-tab-before-tab-emulation-hook #'hub/org-tempo-complete-quote -90)
   (add-hook 'org-tab-before-tab-emulation-hook #'hub/org-tempo-complete-footnote -90)
   (add-hook 'org-tab-before-tab-emulation-hook #'hub/org-tempo-complete-traditional-footnote -90)
   (add-hook 'org-tab-before-tab-emulation-hook #'hub/org-tempo-complete-forced-footnote -90)

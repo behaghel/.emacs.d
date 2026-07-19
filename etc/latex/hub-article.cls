@@ -451,6 +451,10 @@
   \end{HubArticleCallout}%
 }
 
+\newcommand{\HubArticleQuoteAttribution}[1]{%
+  \par\nobreak\vspace{0.45em}%
+  {\raggedleft\HubArticleSans\footnotesize\normalfont\textcolor{HubArticleMuted}{---~#1}\par}%
+}
 \newenvironment{HubArticleQuote}{%
   \par\medskip\noindent
   \begingroup

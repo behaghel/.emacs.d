@@ -28,7 +28,7 @@ At minimum, `hub-article` is expected to consume:
 - native headings and paragraphs
 - native lists and tables
 - source blocks
-- native quotes
+- native quotes, optionally carrying `#+ATTR_QUOTE: :author ...` attribution metadata rendered as a quiet right-aligned byline
 - optional standfirst
 - optional callouts where the content meaning requires them; callouts render as quiet breakable panels with a faint shared surface, a type-colored left accent rule, class-owned title treatment, and local round bullets for unordered lists
 - native Org horizontal rules as semantic untitled section breaks, rendered with the same restrained ornament language as the opener accent

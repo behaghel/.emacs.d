@@ -31,8 +31,9 @@ inactive remote-style date [2026-07-04 Sat], a provisional people mention
 
 ** Quote block
 
+#+ATTR_QUOTE: :author "Ada Lovelace"
 #+begin_quote
-This quote carries quotation semantics.  Exact quote decoration is styling.
+This quote carries quotation semantics and attribution metadata.  Exact quote decoration is styling.
 
 It includes a second paragraph to verify block boundaries and spacing.
 #+end_quote

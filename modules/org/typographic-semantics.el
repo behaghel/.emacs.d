@@ -7,8 +7,10 @@
 ;;; Code:
 
 (require 'cl-lib)
+(require 'hub-org-quote)
 (require 'org)
 (require 'org-element)
+(require 'ox)
 (require 'subr-x)
 
 (defconst hub/org-typographic-semantics--image-extensions
@@ -126,7 +128,10 @@
 			    (_ (hub/org-typographic-semantics--inc notes 'ordinary))))
 			 ('src-block (hub/org-typographic-semantics--inc blocks 'source))
 			 ('example-block (hub/org-typographic-semantics--inc blocks 'example))
-			 ('quote-block (hub/org-typographic-semantics--inc blocks 'quote))
+			 ('quote-block
+			  (hub/org-typographic-semantics--inc blocks 'quote)
+			  (when (hub/org-quote-author element)
+			    (hub/org-typographic-semantics--inc blocks 'quote-attributions)))
 			 ('special-block
 			  (pcase (downcase (or (org-element-property :type element) ""))
 			    ("callout" (hub/org-typographic-semantics--inc blocks 'callout))

@@ -9,6 +9,7 @@
 
 (require 'cl-lib)
 (require 'hub-org-callout)
+(require 'hub-org-quote)
 (require 'org)
 (require 'ox)
 (require 'hub-keys)
@@ -849,6 +850,19 @@ CONTENTS and INFO follow `org-latex-horizontal-rule'."
 	  info)))
     (funcall orig horizontal-rule contents info)))
 
+(defun hub/org-export--advice-org-latex-quote-block (orig quote-block contents info)
+  "Render QUOTE-BLOCK through ORIG, adding hub-article author metadata.
+CONTENTS and INFO follow `org-latex-quote-block'."
+  (if-let* ((author (and (hub/org-export--info-hub-article-p info)
+			 (hub/org-quote-author quote-block))))
+      (let ((contents-with-author
+	     (concat (or contents "")
+		     "\n\\HubArticleQuoteAttribution{"
+		     (hub/org-export--latex-escape author)
+		     "}\n")))
+	(funcall orig quote-block contents-with-author info))
+    (funcall orig quote-block contents info)))
+
 (defun hub/org-export--advice-org-latex-special-block (orig special-block contents info)
   "Apply Veriff-specific LaTeX handling to SPECIAL-BLOCK before ORIG.
 Escape metric `:options' values and allow graph blocks to opt into full-width
@@ -1185,6 +1199,7 @@ When OUTPUT-DIR is nil, export into the same directory as the Org file
 (advice-add 'org-latex--org-table :around #'hub/org-export--advice-org-latex-org-table)
 (advice-add 'org-latex-special-block :around #'hub/org-export--advice-org-latex-special-block)
 (advice-add 'org-latex-horizontal-rule :around #'hub/org-export--advice-org-latex-horizontal-rule)
+(advice-add 'org-latex-quote-block :around #'hub/org-export--advice-org-latex-quote-block)
 (advice-add 'org-latex--format-spec :around #'hub/org-export--advice-org-latex--format-spec)
 (advice-add 'org-latex--text-markup :around #'hub/org-export--advice-org-latex--text-markup)
 (advice-add 'org-latex--inline-image :around #'hub/org-export--advice-org-latex--inline-image)

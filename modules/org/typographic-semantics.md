@@ -68,6 +68,7 @@ The goal is to let an author write one Org source consistently and export or syn
 | Source block | `#+begin_src LANG ... #+end_src` | Semantic code block with language. Google Docs code block building blocks are the native target where available. Syntax highlighting and line-number styling are renderer-specific. |
 | Example block | `#+begin_example ... #+end_example` | Semantic preformatted block. |
 | Quote block | `#+begin_quote ... #+end_quote` | Semantic quotation boundary and text. Visual quote styling is deferred per renderer. |
+| Quote attribution | `#+ATTR_QUOTE: :author "Name"` before a quote block | Semantic attribution metadata for the following quote. Renderers may style it as a right-aligned byline, preserve it as readable attribution text, or report explicit degradation when unsupported. |
 | Callout | `#+begin_callout` plus optional `#+ATTR_CALLOUT:` | Semantic admonition with type/title. Visual panel treatment is styling. |
 | Standfirst | `#+begin_standfirst ... #+end_standfirst` | Semantic leading summary/standfirst for classes that support it. |
 | Metric | `#+begin_metric ... #+end_metric` | Semantic metric block in Veriff-style documents. |
@@ -106,6 +107,7 @@ The goal is to let an author write one Org source consistently and export or syn
 - class-owned inline code and emphasis macros;
 - branded and article table wrappers;
 - callout attributes;
+- quote attribution via `#+ATTR_QUOTE: :author ...` for `hub-article` quote blocks;
 - `hub-article` section-break ornaments from Org horizontal rules;
 - standfirst placement validation;
 - class-owned image wrappers;

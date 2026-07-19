@@ -583,6 +583,24 @@
     (should (string-match-p (regexp-quote "Text\\footnote{Legal note.}") tex))
     (should-not (string-match-p (regexp-quote "\\HubArticleSidenote{Legal note.}") tex))))
 
+(ert-deftest hub/org-export-hub-article-quote-author-uses-attr-quote ()
+  "Hub article quote authors render through class-owned attribution chrome."
+  (let ((tex (org-export-string-as "#+LATEX_CLASS: hub-article\n\n#+ATTR_QUOTE: :author \"A & B\"\n#+begin_quote\nBorrowed words.\n#+end_quote"
+				   'latex t)))
+    (should (string-match-p (regexp-quote "Borrowed words.") tex))
+    (should (string-match-p (regexp-quote "\\HubArticleQuoteAttribution{A \\& B}") tex))
+    (should (string-match-p
+	     (regexp-quote "\\newcommand{\\HubArticleQuoteAttribution}")
+	     (hub/test-read-file-as-string
+	      (expand-file-name "etc/latex/hub-article.cls" hub/test-repo-root))))))
+
+(ert-deftest hub/org-export-hub-article-quote-without-author-is-unchanged ()
+  "Hub article quotes without author metadata keep standard quote output."
+  (let ((tex (org-export-string-as "#+LATEX_CLASS: hub-article\n\n#+begin_quote\nPlain words.\n#+end_quote"
+				   'latex t)))
+    (should (string-match-p (regexp-quote "\\begin{quote}\nPlain words.") tex))
+    (should-not (string-match-p (regexp-quote "\\HubArticleQuoteAttribution") tex))))
+
 (ert-deftest hub/org-export-callout-title-uses-semantic-attribute ()
   "LaTeX callout titles come from `#+ATTR_CALLOUT:'."
   (let ((tex (org-export-string-as "#+ATTR_CALLOUT: :type warning :title \"Heads up\"\n#+begin_callout\nCareful\n#+end_callout"
