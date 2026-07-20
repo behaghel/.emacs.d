@@ -11,6 +11,7 @@
 (require 'ox)
 (require 'ox-html)
 (require 'subr-x)
+(require 'ucs-normalize)
 
 (defgroup hub/org-epub nil
   "Customizations for Org EPUB export."
@@ -32,6 +33,16 @@
   "Optional Pandoc executable used for EPUB packaging.
 When nil, discover Pandoc with `executable-find'."
   :type '(choice (const :tag "Discover automatically" nil) file)
+  :group 'hub/org-epub)
+
+(defcustom hub/org-epub-cover-target-bytes 300000
+  "Target maximum byte size for optimized EPUB cover images."
+  :type 'integer
+  :group 'hub/org-epub)
+
+(defcustom hub/org-epub-cover-max-geometry "1200x1800>"
+  "ImageMagick resize geometry for EPUB cover optimization."
+  :type 'string
   :group 'hub/org-epub)
 
 (defconst hub/org-epub--reader-css-source
@@ -119,6 +130,25 @@ The returned plist contains `:identifier', `:title', and `:subjects'."
 	  (string-to-number (match-string 2 date))
 	  (string-to-number (match-string 3 date))))))
 
+(defun hub/org-epub--iso-date-from-components (components)
+  "Return ISO date string from date COMPONENTS."
+  (pcase-let ((`(,year ,month ,day) components))
+    (when (and year month day (<= 1 month) (<= month 12))
+      (format "%04d-%02d-%02d" year month day))))
+
+(defun hub/org-epub--denote-iso-date (denote)
+  "Return ISO date inferred from DENOTE metadata."
+  (when-let* ((identifier (plist-get denote :identifier)))
+    (when (string-match "\\`\\([0-9]\\{4\\}\\)\\([0-9]\\{2\\}\\)\\([0-9]\\{2\\}\\)T" identifier)
+      (format "%s-%s-%s"
+	      (match-string 1 identifier)
+	      (match-string 2 identifier)
+	      (match-string 3 identifier)))))
+
+(defun hub/org-epub--current-iso-date ()
+  "Return today's date as an ISO string."
+  (format-time-string "%Y-%m-%d"))
+
 (defun hub/org-epub--format-date (date language)
   "Return locale-aware EPUB title-page DATE for LANGUAGE."
   (let ((components (hub/org-epub--date-components-from-org-date date)))
@@ -150,7 +180,11 @@ The returned plist contains `:identifier', `:title', and `:subjects'."
 	 (cover (hub/org-epub--keyword-value "EPUB_COVER"))
 	 (footer-note (hub/org-epub--keyword-value "EXPORT_FOOTER_NOTE"))
 	 (date (hub/org-epub--keyword-value "DATE"))
-	 (language (or (hub/org-epub--keyword-value "LANGUAGE") "en")))
+	 (language (or (hub/org-epub--keyword-value "LANGUAGE") "en"))
+	 (package-date (or (hub/org-epub--iso-date-from-components
+			    (hub/org-epub--date-components-from-org-date date))
+			   (hub/org-epub--denote-iso-date denote)
+			   (hub/org-epub--current-iso-date))))
     (when (hub/org-epub--blank-string-p title)
       (user-error "Org EPUB export requires #+TITLE or a Denote title filename"))
     (when (hub/org-epub--blank-string-p author)
@@ -165,6 +199,7 @@ The returned plist contains `:identifier', `:title', and `:subjects'."
 	  :cover cover
 	  :footer-note footer-note
 	  :date (hub/org-epub--format-date date language)
+	  :package-date package-date
 	  :language language)))
 
 (defun hub/org-epub--sanitize-filename (name)
@@ -244,10 +279,19 @@ Signal a `user-error' when more than one standfirst block exists."
     "\n")
    "\n[[:space:]]*\n" t "[[:space:]\n]+"))
 
+(defun hub/org-epub--ascii-fold (text)
+  "Return TEXT folded to conservative ASCII for EPUB anchors."
+  (let ((folded (ucs-normalize-NFD-string text)))
+    (dolist (mapping '(("œ" . "oe") ("Œ" . "oe")
+		       ("æ" . "ae") ("Æ" . "ae")
+		       ("ß" . "ss")))
+      (setq folded (replace-regexp-in-string (car mapping) (cdr mapping) folded t t)))
+    (replace-regexp-in-string "[̀-ͯ]" "" folded)))
+
 (defun hub/org-epub--slug (title)
-  "Return a stable XHTML anchor slug for TITLE."
-  (let* ((downcased (downcase title))
-	 (slug (replace-regexp-in-string "[^[:alnum:]]+" "-" downcased)))
+  "Return a stable ASCII XHTML anchor slug for TITLE."
+  (let* ((downcased (downcase (hub/org-epub--ascii-fold title)))
+	 (slug (replace-regexp-in-string "[^a-z0-9]+" "-" downcased)))
     (string-trim slug "-+" "-+")))
 
 (defun hub/org-epub--link-map (chapters)
@@ -895,9 +939,13 @@ METADATA supplies EPUB package metadata and WORK-DIR is the resource root."
 			     "--split-level" "1"
 			     "--metadata" (concat "title=" (plist-get metadata :title))
 			     "--metadata" (concat "author=" (plist-get metadata :author))
-			     "--metadata" (concat "lang=" (plist-get metadata :language))
+			     "--metadata" (concat "identifier=" (plist-get metadata :identifier))
+			     "--metadata" (concat "date=" (plist-get metadata :package-date))
+			     "--metadata" (concat "language=" (plist-get metadata :language))
 			     "--resource-path" work-dir
 			     "--css" "reader.css")
+		       (cl-loop for subject in (plist-get metadata :subjects)
+				append (list "--metadata" (concat "subject=" subject)))
 		       (when cover (list "--epub-cover-image" cover))
 		       (mapcar #'file-name-nondirectory spine-inputs)
 		       (list "-o" output-file)))
@@ -924,6 +972,7 @@ METADATA supplies EPUB package metadata and WORK-DIR is the resource root."
     (cover . ,(or (plist-get metadata :cover) :json-false))
     (epub_file . ,epub-file)
     (date . ,(or (plist-get metadata :date) :json-false))
+    (package_date . ,(plist-get metadata :package-date))
     (work_dir . ,work-dir)))
 
 (defun hub/org-epub--copy-reader-css (work-dir)
@@ -934,19 +983,80 @@ METADATA supplies EPUB package metadata and WORK-DIR is the resource root."
 	     (expand-file-name "reader.css" work-dir)
 	     t))
 
+(defun hub/org-epub--image-magick-executable ()
+  "Return the ImageMagick executable for cover optimization, or nil."
+  (or (executable-find "magick")
+      (executable-find "convert")))
+
+(defun hub/org-epub--cover-size (file)
+  "Return byte size of FILE, or nil when FILE is missing."
+  (when (file-exists-p file)
+    (file-attribute-size (file-attributes file))))
+
+(defun hub/org-epub--run-cover-conversion (program source output quality)
+  "Use ImageMagick PROGRAM to convert SOURCE to OUTPUT at QUALITY."
+  (let ((args (list source
+		    "-auto-orient"
+		    "-resize" hub/org-epub-cover-max-geometry
+		    "-background" "white"
+		    "-alpha" "remove"
+		    "-alpha" "off"
+		    "-strip"
+		    "-interlace" "Plane"
+		    "-quality" (number-to-string quality)
+		    output)))
+    (with-temp-buffer
+      (zerop (apply #'process-file program nil t nil args)))))
+
+(defun hub/org-epub--optimized-cover-or-copy (source target-dir)
+  "Return optimized cover copied from SOURCE into TARGET-DIR.
+Fall back to a plain copy when ImageMagick cannot process SOURCE."
+  (let ((program (hub/org-epub--image-magick-executable))
+	(best nil)
+	(best-size nil))
+    (if program
+	(progn
+	  (catch 'optimized
+	    (dolist (quality '(82 72 62 52 42 32))
+	      (let ((candidate (expand-file-name (format "cover-q%d.jpg" quality) target-dir)))
+		(when (hub/org-epub--run-cover-conversion program source candidate quality)
+		  (let ((size (hub/org-epub--cover-size candidate)))
+		    (when (and size (or (not best-size) (< size best-size)))
+		      (setq best candidate
+			    best-size size))
+		    (when (and size (<= size hub/org-epub-cover-target-bytes))
+		      (setq best candidate
+			    best-size size)
+		      (throw 'optimized best)))))))
+	  (if best
+	      (let ((target (expand-file-name "cover.jpg" target-dir)))
+		(rename-file best target t)
+		(dolist (leftover (directory-files target-dir t "\\`cover-q[0-9]+\\.jpg\\'"))
+		  (delete-file leftover))
+		target)
+	    (let* ((extension (file-name-extension source t))
+		   (target (expand-file-name (concat "cover" extension) target-dir)))
+	      (copy-file source target t)
+	      target)))
+      (let* ((extension (file-name-extension source t))
+	     (target (expand-file-name (concat "cover" extension) target-dir)))
+	(copy-file source target t)
+	target))))
+
 (defun hub/org-epub--copy-cover (metadata title-dir work-dir)
   "Copy configured cover from METADATA into TITLE-DIR and WORK-DIR."
   (when-let* ((cover (plist-get metadata :cover)))
     (let* ((source (expand-file-name cover default-directory))
-	   (extension (file-name-extension cover t))
-	   (name (concat "cover" extension))
-	   (final-cover (expand-file-name name title-dir))
-	   (work-cover (expand-file-name name work-dir)))
+	   (final-cover nil)
+	   (name nil)
+	   (work-cover nil))
       (unless (file-readable-p source)
 	(user-error "EPUB cover is not readable: %s" source))
+      (setq final-cover (hub/org-epub--optimized-cover-or-copy source title-dir))
+      (setq name (file-name-nondirectory final-cover))
+      (setq work-cover (expand-file-name name work-dir))
       (plist-put metadata :cover name)
-      (copy-file source final-cover t)
-      (copy-file source work-cover t))))
+      (copy-file final-cover work-cover t))))
 
 (defun hub/org-epub--write-metadata-json (directory metadata epub-file work-dir)
   "Write final metadata JSON into DIRECTORY for EPUB-FILE and WORK-DIR."

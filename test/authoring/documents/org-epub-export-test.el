@@ -129,22 +129,38 @@
   "The exporter invokes Pandoc directly with XHTML inputs in spine order."
   (let ((output-root (make-temp-file "hub-org-epub-output-" t))
 	(work-root (make-temp-file "hub-org-epub-work-" t)))
-    (hub/org-epub-test--with-export-buffer (hub/org-epub-test--minimal-org)
-					   (let ((hub/org-epub-output-root output-root)
-						 (hub/org-epub-work-root work-root)
-						 (hub/org-epub-pandoc-executable "pandoc"))
-					     (hub/org-epub-test--stub-pandoc
-					      (hub/org-epub-export-to-epub)
-					      (let* ((call (car hub/org-epub-test--pandoc-calls))
-						     (args (plist-get call :args))
-						     (input-names (mapcar #'file-name-nondirectory
-									  (seq-filter (lambda (arg)
-											(string-match-p "\\.xhtml\\'" arg))
-										      args))))
-						(should (equal (plist-get call :program) "pandoc"))
-						(should (member "-o" args))
-						(should (equal input-names
-							       '("titlepage.xhtml" "toc.xhtml" "body.xhtml")))))))))
+    (hub/org-epub-test--with-export-buffer
+     (string-join '("#+TITLE: Minimal Book"
+		    "#+AUTHOR: Ada Lovelace"
+		    "#+EPUB_IDENTIFIER: minimal-book"
+		    "#+LANGUAGE: fr"
+		    "#+DATE: [2026-07-11 Sat]"
+		    "#+KEYWORDS: essay, draft"
+		    ""
+		    "This is the first paragraph of the exported book.")
+		  "\n")
+     (let ((hub/org-epub-output-root output-root)
+	   (hub/org-epub-work-root work-root)
+	   (hub/org-epub-pandoc-executable "pandoc"))
+       (hub/org-epub-test--stub-pandoc
+	(hub/org-epub-export-to-epub)
+	(let* ((call (car hub/org-epub-test--pandoc-calls))
+	       (args (plist-get call :args))
+	       (input-names (mapcar #'file-name-nondirectory
+				    (seq-filter (lambda (arg)
+						  (string-match-p "\\.xhtml\\'" arg))
+						args))))
+	  (should (equal (plist-get call :program) "pandoc"))
+	  (should (member "-o" args))
+	  (should (member "title=Minimal Book" args))
+	  (should (member "author=Ada Lovelace" args))
+	  (should (member "identifier=minimal-book" args))
+	  (should (member "date=2026-07-11" args))
+	  (should (member "language=fr" args))
+	  (should (member "subject=essay" args))
+	  (should (member "subject=draft" args))
+	  (should (equal input-names
+			 '("titlepage.xhtml" "toc.xhtml" "body.xhtml")))))))))
 
 (ert-deftest hub/org-epub-title-page-localizes-org-date ()
   "EPUB title page formats Org dates by document language."
@@ -291,6 +307,41 @@
 	  (should (equal input-names '("titlepage.xhtml" "toc.xhtml" "body.xhtml")))
 	  (should (equal (alist-get 'cover metadata) "cover.png"))))))))
 
+(ert-deftest hub/org-epub-cover-is-optimized-with-imagemagick ()
+  "Readable image covers are optimized before packaging when ImageMagick exists."
+  (skip-unless (executable-find "magick"))
+  (let ((output-root (make-temp-file "hub-org-epub-output-" t))
+	(work-root (make-temp-file "hub-org-epub-work-" t)))
+    (hub/org-epub-test--with-export-buffer
+     (string-join '("#+TITLE: Optimized Cover Book"
+		    "#+AUTHOR: Ada Lovelace"
+		    "#+EPUB_IDENTIFIER: optimized-cover-book"
+		    "#+EPUB_COVER: cover.png"
+		    ""
+		    "Body text.")
+		  "\n")
+     (process-file "magick" nil nil nil
+		   "-size" "1696x2528" "plasma:fractal"
+		   (expand-file-name "cover.png" default-directory))
+     (let ((hub/org-epub-output-root output-root)
+	   (hub/org-epub-work-root work-root)
+	   (hub/org-epub-pandoc-executable "pandoc")
+	   (hub/org-epub-cover-target-bytes 300000))
+       (cl-letf (((symbol-function 'hub/org-epub--call-pandoc)
+		  (lambda (_spine output-file _metadata _work-dir)
+		    (with-temp-file output-file
+		      (insert "stub epub")))))
+	 (let* ((result (hub/org-epub-export-to-epub))
+		(cover (expand-file-name "cover.jpg"
+					 (file-name-directory (plist-get result :epub-file))))
+		(metadata (hub/org-epub-test--read-json-file
+			   (expand-file-name "metadata.json"
+					     (file-name-directory (plist-get result :epub-file))))))
+	   (should (file-exists-p cover))
+	   (should (< (file-attribute-size (file-attributes cover)) 300000))
+	   (should (file-exists-p (expand-file-name "cover.jpg" (plist-get result :work-dir))))
+	   (should (equal (alist-get 'cover metadata) "cover.jpg"))))))))
+
 (ert-deftest hub/org-epub-cover-absent-is-informational ()
   "Missing cover does not block strict export and is recorded in metadata."
   (let ((output-root (make-temp-file "hub-org-epub-output-" t))
@@ -410,10 +461,10 @@
 		    "#+AUTHOR: Ada Lovelace"
 		    "#+EPUB_IDENTIFIER: toc-book"
 		    ""
-		    "* First"
+		    "* Préface"
 		    "One."
 		    ""
-		    "* Second"
+		    "* Libérer l'œuvre"
 		    "Two.")
 		  "\n")
      (let ((hub/org-epub-output-root output-root)
@@ -424,10 +475,10 @@
 	       (toc-html (hub/org-epub-test--slurp
 			  (expand-file-name "toc.xhtml" (plist-get result :work-dir)))))
 	  (should (string-match-p "<ol" toc-html))
-	  (should (string-match-p "href=\"#first\"" toc-html))
-	  (should-not (string-match-p "chapter-1.xhtml#first" toc-html))
-	  (should (string-match-p "First" toc-html))
-	  (should (string-match-p "href=\"#second\"" toc-html))))))))
+	  (should (string-match-p "href=\"#preface\"" toc-html))
+	  (should (string-match-p "Préface" toc-html))
+	  (should (string-match-p "href=\"#liberer-l-oeuvre\"" toc-html))
+	  (should (string-match-p "Libérer l'œuvre" toc-html))))))))
 
 (ert-deftest hub/org-epub-splits-level-one-headings-into-chapters ()
   "Level-one Org headings become separate chapter XHTML files."
@@ -1375,6 +1426,68 @@
 						    (epub-file (plist-get result :epub-file)))
 					       (should (file-exists-p epub-file))
 					       (should (> (file-attribute-size (file-attributes epub-file)) 0)))))))
+
+(ert-deftest hub/org-epub-real-package-writes-library-metadata ()
+  "Real Pandoc package has useful OPF metadata for library scanners."
+  (skip-unless (and (executable-find "pandoc") (executable-find "unzip")))
+  (let ((output-root (make-temp-file "hub-org-epub-output-" t))
+	(work-root (make-temp-file "hub-org-epub-work-" t)))
+    (hub/org-epub-test--with-export-buffer
+     (string-join '("#+TITLE: Metadata Book"
+		    "#+AUTHOR: Ada Lovelace"
+		    "#+EPUB_IDENTIFIER: metadata-book"
+		    "#+LANGUAGE: fr"
+		    "#+DATE: [2026-07-11 Sat]"
+		    "#+KEYWORDS: essay, draft"
+		    ""
+		    "Body.")
+		  "\n")
+     (let ((hub/org-epub-output-root output-root)
+	   (hub/org-epub-work-root work-root)
+	   (hub/org-epub-pandoc-executable nil))
+       (let* ((result (hub/org-epub-export-to-epub))
+	      (opf (with-temp-buffer
+		     (process-file "unzip" nil t nil "-p" (plist-get result :epub-file) "EPUB/content.opf")
+		     (buffer-string))))
+	 (should (string-match-p "<dc:identifier[^>]*>metadata-book</dc:identifier>" opf))
+	 (should (string-match-p "<dc:title[^>]*>Metadata Book</dc:title>" opf))
+	 (should (string-match-p "<dc:creator[^>]*>Ada Lovelace</dc:creator>" opf))
+	 (should (string-match-p "<dc:date[^>]*>2026-07-11</dc:date>" opf))
+	 (should-not (string-match-p "<dc:date[^>]*>1980" opf))
+	 (should (string-match-p "<dc:language>fr</dc:language>" opf))
+	 (should (string-match-p "<dc:subject[^>]*>essay</dc:subject>" opf))
+	 (should (string-match-p "<dc:subject[^>]*>draft</dc:subject>" opf)))))))
+
+(ert-deftest hub/org-epub-real-package-asciifolds-non-ascii-toc-fragments ()
+  "Real Pandoc package keeps non-ASCII chapter TOC links resolvable."
+  (skip-unless (and (executable-find "pandoc") (executable-find "unzip")))
+  (let ((output-root (make-temp-file "hub-org-epub-output-" t))
+	(work-root (make-temp-file "hub-org-epub-work-" t)))
+    (hub/org-epub-test--with-export-buffer
+     (string-join '("#+TITLE: Accents"
+		    "#+AUTHOR: Ada Lovelace"
+		    "#+EPUB_IDENTIFIER: accents"
+		    ""
+		    "* Préface"
+		    "Body."
+		    ""
+		    "* Libérer l'œuvre"
+		    "More body.")
+		  "\n")
+     (let ((hub/org-epub-output-root output-root)
+	   (hub/org-epub-work-root work-root)
+	   (hub/org-epub-pandoc-executable nil))
+       (let* ((result (hub/org-epub-export-to-epub))
+	      (visible-toc (with-temp-buffer
+			     (process-file "unzip" nil t nil "-p" (plist-get result :epub-file) "EPUB/text/ch002.xhtml")
+			     (buffer-string)))
+	      (first-chapter (with-temp-buffer
+			       (process-file "unzip" nil t nil "-p" (plist-get result :epub-file) "EPUB/text/ch003.xhtml")
+			       (buffer-string))))
+	 (should (string-match-p "href=\"ch003.xhtml#preface\"" visible-toc))
+	 (should (string-match-p "href=\"ch004.xhtml#liberer-l-oeuvre\"" visible-toc))
+	 (should-not (string-match-p "#préface" visible-toc))
+	 (should (string-match-p "id=\"preface\"" first-chapter)))))))
 
 (ert-deftest hub/org-epub-real-package-contains-css-cover-xhtml-metadata-nav ()
   "Real Pandoc package contains EPUB resources produced by the exporter."
