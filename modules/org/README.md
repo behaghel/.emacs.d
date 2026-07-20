@@ -23,3 +23,4 @@ last-reviewed: 2026-06-10
 - Generated PDFs, TeX files, screenshots, and visual diff artifacts belong under runtime output locations, not tracked golden files.
 - Document workflows should route runtime outputs through managed paths under `var/`.
 - In `hub-article`, ordinary Org footnotes export as margin sidenotes; `HUB_NOTE_KIND: footnote` preserves bottom footnotes. Review comments are not represented as Org footnotes and should live in sidecar `*.comments.org` files.
+- EPUB export is specified in [`export-epub.md`](export-epub.md) and implemented by `org/export-epub` via `M-x hub/org-epub-export-to-epub`.

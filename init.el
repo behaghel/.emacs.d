@@ -1,5 +1,5 @@
 ;;; emacs --- Hubert's .emacs file         -*- lexical-binding: t -*-
-;; Copyright (C) 2013 Hubert Behaghel
+;; Copyright (C) 2013 Hubert J. Behaghel
 ;;
 ;;; Commentary:
 ;; Main orchestration entrypoint.  Feature and package configuration lives in
@@ -66,7 +66,7 @@
        ((file-exists-p private-legacy) (load private-legacy t) (setq hub/private-setup-loaded t))))))
 
 (setq user-mail-address "behaghel@gmail.com")
-(setq user-full-name "Hubert Behaghel")
+(setq user-full-name "Hubert J. Behaghel")
 
 ;; Use centralized package management from core/ with safe fallback.
 (defvar hub/core-packages-load-ok nil)
@@ -163,6 +163,7 @@
   (require 'org/confluence)
   (require 'org/google-docs)
   (require 'org/export-latex)
+  (require 'org/export-epub)
   (unless (getenv "HUB_CI_SKIP_OPTIONALS")
     (require 'notes/brain))
   (require 'tools/blog)
