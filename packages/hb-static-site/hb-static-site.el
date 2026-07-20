@@ -17,6 +17,7 @@
 
 ;;; Code:
 
+(require 'autoinsert)
 (require 'seq)
 (require 'subr-x)
 
@@ -79,12 +80,55 @@ When nil, derive the directory from `denote-directory', then from
   :safe #'stringp
   :group 'hb-static-site)
 
+(defcustom hb-static-site-post-org-front-matter "#+title:      %s
+#+date:       %s
+#+filetags:   %s
+#+identifier: %s
+#+hugo_section: posts
+#+hugo_draft: true
+
+"
+  "Denote Org front matter for Hugo posts."
+  :type 'string
+  :safe #'stringp
+  :group 'hb-static-site)
+
 (put 'denote-directory 'safe-local-variable #'stringp)
 (put 'denote-prompts 'safe-local-variable #'listp)
 (put 'denote-org-front-matter 'safe-local-variable #'stringp)
 (put 'org-hugo-base-dir 'safe-local-variable #'stringp)
 (put 'hb-static-site-mode 'safe-local-eval-function t)
 (put 'hb-static-site-enable 'safe-local-eval-function t)
+
+(defvar hb-static-site-mode-map
+  (let ((map (make-sparse-keymap)))
+    (define-key map (kbd "C-c w p") #'hb-static-site-create-post)
+    (define-key map (kbd "C-c w s") #'hb-static-site-create-section)
+    (define-key map (kbd "C-c w f") #'hb-static-site-create-page)
+    (define-key map (kbd "C-c w o") #'hb-static-site-find-page)
+    (define-key map (kbd "C-c w e") #'hb-static-site-export-buffer)
+    (define-key map (kbd "C-c w v") #'hb-static-site-validate-buffer)
+    map)
+  "Keymap for `hb-static-site-mode'.")
+
+(with-eval-after-load 'evil
+  (when (fboundp 'evil-define-key)
+    (evil-define-key 'normal hb-static-site-mode-map
+		     (kbd ",w p") #'hb-static-site-create-post)
+    (evil-define-key 'normal hb-static-site-mode-map
+		     (kbd ",w s") #'hb-static-site-create-section)
+    (evil-define-key 'normal hb-static-site-mode-map
+		     (kbd ",w f") #'hb-static-site-create-page)
+    (evil-define-key 'normal hb-static-site-mode-map
+		     (kbd ",w o") #'hb-static-site-find-page)
+    (evil-define-key 'normal hb-static-site-mode-map
+		     (kbd ",w e") #'hb-static-site-export-buffer)
+    (evil-define-key 'normal hb-static-site-mode-map
+		     (kbd ",w v") #'hb-static-site-validate-buffer)))
+
+(with-eval-after-load 'which-key
+  (when (fboundp 'which-key-add-key-based-replacements)
+    (which-key-add-key-based-replacements "C-c w" "static site")))
 
 (defun hb-static-site--expand-directory (directory)
   "Return expanded DIRECTORY with a trailing slash, or nil."
@@ -158,15 +202,76 @@ When nil, derive the directory from `denote-directory', then from
       (denote-keywords-prompt)
     (split-string (read-string "Keywords (comma-separated): ") "[, ]+" t)))
 
-(defun hb-static-site--create-denote-file (directory title keywords)
-  "Create a Denote Org file in DIRECTORY with TITLE and KEYWORDS."
+(defun hb-static-site--slugify (text)
+  "Return a Hugo-friendly slug derived from TEXT."
+  (let* ((downcased (downcase (string-trim text)))
+	 (slug (replace-regexp-in-string "[^[:alnum:]]+" "-" downcased)))
+    (string-trim slug "-+" "-+")))
+
+(defun hb-static-site--titleize-slug (slug)
+  "Return a human title derived from SLUG."
+  (string-join
+   (mapcar #'capitalize (split-string (replace-regexp-in-string "[-_]" " " slug)))
+   " "))
+
+(defun hb-static-site--read-slug (prompt)
+  "Read a static-site slug with PROMPT."
+  (let ((slug (hb-static-site--slugify (read-string prompt))))
+    (if (string-empty-p slug)
+	(user-error "Slug cannot be empty")
+      slug)))
+
+(defun hb-static-site--read-title (prompt default)
+  "Read a title with PROMPT and DEFAULT."
+  (read-string (format "%s (default %s): " prompt default) nil nil default))
+
+(defun hb-static-site--expand-template (template)
+  "Insert TEMPLATE, using YASnippet when available."
+  (if (fboundp 'yas-expand-snippet)
+      (yas-expand-snippet template (point-min) (point-max))
+    (insert (replace-regexp-in-string "\\(?:\n\\)?\\$0" "" template t t))))
+
+(defun hb-static-site--auto-insert-template (file template)
+  "Visit FILE and expand TEMPLATE through `auto-insert'."
+  (make-directory (file-name-directory file) t)
+  (find-file file)
+  (when (= (buffer-size) 0)
+    (let ((auto-insert-query nil)
+	  (auto-insert-alist
+	   `(("\\.org\\'"
+	      . [(lambda () (hb-static-site--expand-template ,template))]))))
+      (auto-insert)))
+  (current-buffer))
+
+(defun hb-static-site--page-template (title section slug)
+  "Return an Org/YAS template for page TITLE in Hugo SECTION with SLUG."
+  (format "#+title: %s
+#+hugo_base_dir: ../..
+#+hugo_section: %s
+#+hugo_slug: %s
+
+$0
+" title section slug))
+
+(defun hb-static-site--section-template (title section)
+  "Return an Org/YAS template for section TITLE and SECTION."
+  (format "#+title: %s
+#+hugo_base_dir: ../..
+#+hugo_section: %s
+#+hugo_bundle: _index
+
+$0
+" title section))
+
+(defun hb-static-site--create-denote-file (directory title keywords front-matter)
+  "Create a Denote Org file in DIRECTORY with TITLE, KEYWORDS and FRONT-MATTER."
   (hb-static-site--require-denote)
   (let* ((content (hb-static-site--content-org-directory-or-error))
 	 (directory (file-name-as-directory (expand-file-name directory))))
     (make-directory directory t)
     (let ((denote-directory content)
 	  (denote-prompts '(title keywords))
-	  (denote-org-front-matter hb-static-site-org-front-matter))
+	  (denote-org-front-matter front-matter))
       (find-file (denote title keywords 'org directory)))))
 
 ;;;###autoload
@@ -180,17 +285,48 @@ The content root is derived from .dir-locals.el variables such as
 		 (list (read-string "Post title: ")
 		       (hb-static-site--read-keywords))))
   (hb-static-site--create-denote-file
-   (hb-static-site-posts-directory) title keywords))
+   (hb-static-site-posts-directory) title keywords
+   hb-static-site-post-org-front-matter))
 
 ;;;###autoload
-(defun hb-static-site-create-page (title keywords)
-  "Create a Denote Hugo page under content-org/pages."
-  (interactive (progn
-		 (hb-static-site--require-denote)
-		 (list (read-string "Page title: ")
-		       (hb-static-site--read-keywords))))
-  (hb-static-site--create-denote-file
-   (hb-static-site-pages-directory) title keywords))
+(defun hb-static-site-create-section (slug title)
+  "Create a Hugo section index Org file under content-org/SLUG/_index.org."
+  (interactive
+   (let* ((slug (hb-static-site--read-slug "Section slug: "))
+	  (title (hb-static-site--read-title
+		  "Section title" (hb-static-site--titleize-slug slug))))
+     (list slug title)))
+  (let ((file (expand-file-name
+	       (concat (file-name-as-directory slug) "_index.org")
+	       (hb-static-site--content-org-directory-or-error))))
+    (hb-static-site--auto-insert-template
+     file (hb-static-site--section-template title slug))))
+
+;;;###autoload
+(defun hb-static-site-create-page (path title)
+  "Create a Hugo page Org file.
+
+PATH without a slash creates content-org/pages/PATH.org and exports to the
+site root.  PATH with a slash, such as notes/first-note, creates a page inside
+that Hugo section."
+  (interactive
+   (let* ((path (string-trim (read-string "Page path: ")))
+	  (_ (when (string-empty-p path) (user-error "Page path cannot be empty")))
+	  (title (hb-static-site--read-title
+		  "Page title" (hb-static-site--titleize-slug
+				(file-name-base (directory-file-name path))))))
+     (list path title)))
+  (let* ((clean-path (string-remove-prefix "/" path))
+	 (parts (split-string clean-path "/" t))
+	 (slug (hb-static-site--slugify (file-name-base (car (last parts)))))
+	 (section (if (= (length parts) 1) "/" (car parts)))
+	 (directory (if (= (length parts) 1)
+			(hb-static-site-pages-directory)
+		      (expand-file-name (car parts)
+					(hb-static-site--content-org-directory-or-error))))
+	 (file (expand-file-name (concat slug ".org") directory)))
+    (hb-static-site--auto-insert-template
+     file (hb-static-site--page-template title section slug))))
 
 ;;;###autoload
 (defun hb-static-site-find-page ()
@@ -266,9 +402,10 @@ subtrees in the buffer."
   "Minor mode for editing an Org source buffer in a Hugo static site.
 
 The mode is intentionally small: it uses project-local variables, enables
-pleasant prose editing when those helpers exist, sets local Denote/Hugo defaults,
-and gracefully skips optional packages that are not loaded."
+pleasant prose editing when those helpers exist, sets local Denote/Hugo
+defaults, and gracefully skips optional packages that are not loaded."
   :lighter " Site"
+  :keymap hb-static-site-mode-map
   (if hb-static-site-mode
       (progn
 	(setq-local denote-directory (hb-static-site-content-org-directory))

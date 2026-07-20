@@ -14,6 +14,15 @@ last-reviewed: 2026-06-10
 - **Page**: Durable site content, conventionally under `content-org/pages`.
 - **Project-local configuration**: `.dir-locals.el` variables such as `denote-directory`, `denote-prompts`, and `org-hugo-base-dir` that select the active site without hardcoding one repository.
 - **Capture template**: A command surface for creating a publishable post skeleton.
+- **Section index**: A Hugo `_index` Org source that defines a list/landing page for a section.
+
+## ox-hugo Practice
+
+- ox-hugo does not own a `hugo new` equivalent; creation is Org-first.
+- Posts are Denote files under `content-org/posts` with Hugo metadata.
+- Durable pages are plain Org files under `content-org/pages` or `content-org/<section>`.
+- Sections are plain Org `_index.org` files under `content-org/<section>`.
+- Export remains ox-hugo's job via `org-hugo-export-wim-to-md` or auto-export.
 
 ## Invariants
 

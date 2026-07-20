@@ -61,6 +61,43 @@
 	    (should (hb-static-site-validate-buffer)))
 	(kill-buffer)))))
 
+(ert-deftest hb-static-site-create-section-inserts-ox-hugo-index ()
+  "Section creation creates content-org/SECTION/_index.org with Hugo metadata."
+  (let* ((root (make-temp-file "hb-site-" t))
+	 (content (expand-file-name "content-org" root))
+	 (denote-directory content)
+	 (org-hugo-base-dir root))
+    (make-directory content t)
+    (with-current-buffer (hb-static-site-create-section "notes" "Notes")
+      (unwind-protect
+	  (progn
+	    (should (string-suffix-p "content-org/notes/_index.org" (buffer-file-name)))
+	    (should (string-match-p "^#\\+title: Notes" (buffer-string)))
+	    (should (string-match-p "^#\\+hugo_section: notes" (buffer-string)))
+	    (should (string-match-p "^#\\+hugo_bundle: _index" (buffer-string))))
+	(kill-buffer)))))
+
+(ert-deftest hb-static-site-create-page-uses-root-or-section-conventions ()
+  "Page creation creates root pages under pages/ and section pages in sections."
+  (let* ((root (make-temp-file "hb-site-" t))
+	 (content (expand-file-name "content-org" root))
+	 (denote-directory content)
+	 (org-hugo-base-dir root))
+    (make-directory content t)
+    (with-current-buffer (hb-static-site-create-page "about" "About")
+      (unwind-protect
+	  (progn
+	    (should (string-suffix-p "content-org/pages/about.org" (buffer-file-name)))
+	    (should (string-match-p "^#\\+hugo_section: /" (buffer-string))))
+	(kill-buffer)))
+    (with-current-buffer (hb-static-site-create-page "notes/first-note" "First note")
+      (unwind-protect
+	  (progn
+	    (should (string-suffix-p "content-org/notes/first-note.org" (buffer-file-name)))
+	    (should (string-match-p "^#\\+hugo_section: notes" (buffer-string)))
+	    (should (string-match-p "^#\\+hugo_slug: first-note" (buffer-string))))
+	(kill-buffer)))))
+
 (ert-deftest hb-static-site-export-validates-then-calls-ox-hugo ()
   "Export command validates the buffer before delegating to ox-hugo."
   (let* ((root (make-temp-file "hb-site-" t))
