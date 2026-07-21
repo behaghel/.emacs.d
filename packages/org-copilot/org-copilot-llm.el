@@ -164,6 +164,37 @@ The model id is kept only as metadata; callers rewrite `:id' before install."
       (setq metadata (plist-put metadata :model-id model-id)))
     (plist-put normalized :metadata metadata)))
 
+(defun org-copilot-llm--hunk-from-json (hunk)
+  "Return suggestion hunk plist from parsed JSON HUNK."
+  (list :id (plist-get hunk :id)
+	:kind (org-copilot-llm--symbol (plist-get hunk :kind) nil)
+	:primary (plist-get hunk :primary)
+	:section-title (org-copilot-llm-optional-string
+			(plist-get hunk :section_title))
+	:section-path (plist-get hunk :section_path)
+	:anchor-text (org-copilot-llm-optional-string
+		      (plist-get hunk :anchor_text))
+	:placement (org-copilot-llm--symbol (plist-get hunk :placement) nil)
+	:original (org-copilot-llm-optional-string
+		   (plist-get hunk :original))
+	:replacement (org-copilot-llm-optional-string
+		      (plist-get hunk :replacement))))
+
+(defun org-copilot-llm--candidate-from-json (candidate)
+  "Return suggestion candidate plist from parsed JSON CANDIDATE."
+  (list :id (plist-get candidate :id)
+	:status 'active
+	:body (org-copilot-llm-optional-string (plist-get candidate :label))
+	:hunks (mapcar #'org-copilot-llm--hunk-from-json
+		       (plist-get candidate :hunks))))
+
+(defun org-copilot-llm--suggestion-thread-from-json (thread)
+  "Return suggestion thread plist from parsed JSON THREAD."
+  (list :intent (org-copilot-llm--symbol (plist-get thread :intent) nil)
+	:summary (org-copilot-llm-optional-string (plist-get thread :summary))
+	:candidates (mapcar #'org-copilot-llm--candidate-from-json
+			    (plist-get thread :suggestions))))
+
 (defun org-copilot-llm-parse-chat-response (response)
   "Parse Org Copilot structured chat RESPONSE.
 If RESPONSE is not valid JSON, return it as a plain `:message'."
@@ -181,6 +212,9 @@ If RESPONSE is not valid JSON, return it as a plain `:message'."
 			   (plist-get parsed :suggestion))
 	      :summary (org-copilot-llm-optional-string
 			(plist-get parsed :summary))
+	      :suggestion-threads
+	      (mapcar #'org-copilot-llm--suggestion-thread-from-json
+		      (plist-get parsed :suggestion_threads))
 	      :heading-line (org-copilot-llm-optional-string
 			     (plist-get parsed :heading_line))
 	      :section-title (org-copilot-llm-optional-string

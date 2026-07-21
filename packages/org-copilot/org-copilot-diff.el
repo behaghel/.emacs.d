@@ -17,6 +17,8 @@
 (require 'org-context-panel)
 (require 'org-copilot-model)
 (require 'org-copilot-session)
+(require 'org-copilot-suggestion)
+(require 'org-suggestions nil 'noerror)
 
 (defcustom org-copilot-diff-buffer-name "*Org Copilot Diff*"
   "Buffer name used for Org Copilot suggestion diff previews."
@@ -163,31 +165,80 @@ Fall back to ITEM when it cannot be resolved by id."
     (org-copilot-update-comment
      (org-copilot-comment-with-status comment status))))
 
+(defun org-copilot-accept-section-suggestion (comment source-buffer)
+  "Accept section suggestion COMMENT in SOURCE-BUFFER.
+Section suggestions replace the current section body, not a stale stored diff."
+  (let* ((suggestion (org-copilot-diff--ensure-suggestion comment))
+	 (section (or (org-copilot-suggestion-resolve-comment-section
+		       source-buffer comment)
+		      (progn
+			(org-copilot--update-comment-status comment source-buffer 'stale)
+			(user-error "AI section target is stale; reselect section"))))
+	 (start (plist-get section :body-start))
+	 (end (plist-get section :end))
+	 (normalized (org-copilot-suggestion-normalize-section-body suggestion)))
+    (with-current-buffer source-buffer
+      (let ((original-text (buffer-substring-no-properties start end)))
+	(save-excursion
+	  (goto-char start)
+	  (delete-region start end)
+	  (insert normalized))
+	(let* ((root-id (or (plist-get comment :thread-root-id)
+			    (org-copilot-comment-id comment)))
+	       (accepted (org-copilot-comment-with-status comment 'accepted))
+	       (accepted (plist-put accepted :thread-root-id root-id))
+	       (accepted (plist-put accepted :original-target-text original-text))
+	       (accepted (plist-put accepted :original-source-start start))
+	       (accepted (plist-put accepted :original-source-end end))
+	       (accepted (plist-put accepted :accepted-text normalized))
+	       (accepted (plist-put accepted :source-start start))
+	       (accepted (plist-put accepted :source-end (+ start (length normalized))))
+	       (accepted (plist-put accepted :target-text normalized))
+	       (accepted (plist-put accepted :heading-line
+				    (plist-get section :heading-line)))
+	       (accepted (plist-put accepted :section-title
+				    (plist-get section :section-title)))
+	       (accepted (plist-put accepted :section-path
+				    (plist-get section :section-path))))
+	  (org-copilot-update-comment accepted)
+	  (dolist (sibling (org-copilot-comments))
+	    (when (and (equal root-id (or (plist-get sibling :thread-root-id)
+					  (org-copilot-comment-id sibling)))
+		       (not (equal (org-copilot-comment-id sibling)
+				   (org-copilot-comment-id accepted)))
+		       (eq (org-copilot-comment-status sibling) 'active))
+	      (let ((copy (org-copilot-comment-with-status sibling 'dismissed)))
+		(org-copilot-update-comment
+		 (plist-put copy :superseded-by
+			    (org-copilot-comment-id accepted)))))))))))
+
 (defun org-copilot-accept-comment (comment source-buffer)
   "Accept COMMENT's suggestion in SOURCE-BUFFER.
 If COMMENT no longer matches the source text, mark it stale and signal a user
 error instead of modifying the source."
-  (let* ((comment (org-copilot-resolve-comment-target comment source-buffer))
-	 (suggestion (org-copilot-diff--ensure-suggestion comment))
-	 (start (plist-get comment :source-start))
-	 (end (plist-get comment :source-end)))
-    (unless (org-copilot-comment-valid-target-p comment source-buffer)
-      (org-copilot--update-comment-status comment source-buffer 'stale)
-      (user-error "AI comment target is stale; review again before accepting"))
-    (with-current-buffer source-buffer
-      (save-excursion
-	(goto-char start)
-	(delete-region start end)
-	(insert suggestion))
-      (let* ((accepted (org-copilot-comment-with-status comment 'accepted))
-	     (accepted (plist-put accepted :original-target-text
-				  (or (plist-get comment :target-text) "")))
-	     (accepted (plist-put accepted :original-source-start start))
-	     (accepted (plist-put accepted :original-source-end end))
-	     (accepted (plist-put accepted :accepted-text suggestion))
-	     (accepted (plist-put accepted :source-end (+ start (length suggestion))))
-	     (accepted (plist-put accepted :target-text suggestion)))
-	(org-copilot-update-comment accepted)))))
+  (if (org-copilot-suggestion-section-comment-p comment)
+      (org-copilot-accept-section-suggestion comment source-buffer)
+    (let* ((comment (org-copilot-resolve-comment-target comment source-buffer))
+	   (suggestion (org-copilot-diff--ensure-suggestion comment))
+	   (start (plist-get comment :source-start))
+	   (end (plist-get comment :source-end)))
+      (unless (org-copilot-comment-valid-target-p comment source-buffer)
+	(org-copilot--update-comment-status comment source-buffer 'stale)
+	(user-error "AI comment target is stale; review again before accepting"))
+      (with-current-buffer source-buffer
+	(save-excursion
+	  (goto-char start)
+	  (delete-region start end)
+	  (insert suggestion))
+	(let* ((accepted (org-copilot-comment-with-status comment 'accepted))
+	       (accepted (plist-put accepted :original-target-text
+				    (or (plist-get comment :target-text) "")))
+	       (accepted (plist-put accepted :original-source-start start))
+	       (accepted (plist-put accepted :original-source-end end))
+	       (accepted (plist-put accepted :accepted-text suggestion))
+	       (accepted (plist-put accepted :source-end (+ start (length suggestion))))
+	       (accepted (plist-put accepted :target-text suggestion)))
+	  (org-copilot-update-comment accepted))))))
 
 (defun org-copilot-undo-accepted-comment (comment source-buffer)
   "Undo accepted COMMENT in SOURCE-BUFFER."
@@ -254,16 +305,33 @@ error instead of modifying the source."
     (when (buffer-live-p buffer)
       (kill-buffer buffer))))
 
+(defun org-copilot--linked-suggestion-id-at-point (source-buffer)
+  "Return the linked suggestion id for context item at point in SOURCE-BUFFER."
+  (when (fboundp 'org-suggestions-find-candidate)
+    (when-let* ((item (ignore-errors (org-context-panel-item-at-point)))
+		(ids (plist-get item :suggestion-ids))
+		(source-file (buffer-file-name source-buffer))
+		(threads (org-suggestions-load-sidecar source-file)))
+      (cl-loop for id in (reverse (split-string ids "[[:space:]]+" t))
+	       for match = (org-suggestions-find-candidate threads id)
+	       when (and match (eq (plist-get (cdr match) :status) 'active))
+	       return id
+	       finally return (car (last (split-string ids "[[:space:]]+" t)))))))
+
 ;;;###autoload
 (defun org-copilot-accept-at-point ()
   "Accept the AI suggestion at point."
   (interactive)
-  (let ((source-buffer (org-copilot-diff--source-buffer))
-	(close-diff-buffer-p (and org-copilot-diff-comment
-				  (derived-mode-p 'diff-mode))))
-    (org-copilot-accept-comment
-     (org-copilot-comment-at-point)
-     source-buffer)
+  (let* ((source-buffer (org-copilot-diff--source-buffer))
+	 (linked-suggestion-id
+	  (org-copilot--linked-suggestion-id-at-point source-buffer))
+	 (close-diff-buffer-p (and org-copilot-diff-comment
+				   (derived-mode-p 'diff-mode))))
+    (if linked-suggestion-id
+	(org-suggestions-accept-candidate-id source-buffer linked-suggestion-id)
+      (org-copilot-accept-comment
+       (org-copilot-comment-at-point)
+       source-buffer))
     (with-current-buffer source-buffer
       (when (fboundp 'org-copilot-refresh-overlays)
 	(org-copilot-refresh-overlays)))

@@ -17,6 +17,21 @@
 (require 'org/context-panel)
 (require 'org/comments)
 
+(autoload 'org-copilot-accept-at-point "org-copilot-diff" nil t)
+(autoload 'org-copilot-chat "org-copilot-chat" nil t)
+(autoload 'org-copilot-chat-focus-next-comment "org-copilot-chat" nil t)
+(autoload 'org-copilot-chat-focus-previous-comment "org-copilot-chat" nil t)
+(autoload 'org-copilot-chat-full-document "org-copilot-chat" nil t)
+(autoload 'org-copilot-chat-section "org-copilot-chat" nil t)
+(autoload 'org-copilot-chat-undo-focused-comment-at-point "org-copilot-chat" nil t)
+(autoload 'org-copilot-clear-session "org-copilot-session" nil t)
+(autoload 'org-copilot-dismiss-at-point "org-copilot-diff" nil t)
+(autoload 'org-copilot-erase-session "org-copilot-session" nil t)
+(autoload 'org-copilot-open-panels "org-copilot-context-panel" nil t)
+(autoload 'org-copilot-review-dwim "org-copilot-llm" nil t)
+(autoload 'org-copilot-toggle-suggestion-panel "org-copilot-suggestion" nil t)
+(autoload 'org-copilot-view-diff-at-point "org-copilot-diff" nil t)
+
 (defun hub/org-setup-wrapping ()
   "Use virtual autofill in Org buffers and avoid hard line breaks."
   (hub/prose-visual-fill-mode))
@@ -65,6 +80,20 @@ native behavior."
   (define-key evil-normal-state-map (kbd ",ol") #'org-store-link)
   (define-key evil-normal-state-map (kbd ",oa") #'org-agenda)
   (evil-collection-define-key 'normal 'org-mode-map
+			      ",aa" #'org-copilot-chat
+			      ",aA" #'org-copilot-accept-at-point
+			      ",ac" #'org-copilot-clear-session
+			      ",aC" #'org-copilot-erase-session
+			      ",ad" #'org-copilot-view-diff-at-point
+			      ",ag" #'org-copilot-chat-full-document
+			      ",an" #'org-copilot-chat-focus-next-comment
+			      ",ao" #'org-copilot-open-panels
+			      ",ap" #'org-copilot-chat-focus-previous-comment
+			      ",ar" #'org-copilot-review-dwim
+			      ",as" #'org-copilot-chat-section
+			      ",au" #'org-copilot-chat-undo-focused-comment-at-point
+			      ",av" #'org-copilot-toggle-suggestion-panel
+			      ",ax" #'org-copilot-dismiss-at-point
 			      ",or" #'org-babel-open-src-block-result
 			      ",à"  #'org-archive-subtree-default
 			      ",s"  #'outline-up-heading

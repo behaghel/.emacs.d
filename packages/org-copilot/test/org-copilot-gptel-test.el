@@ -8,6 +8,8 @@
 (require 'cl-lib)
 (require 'ert)
 (require 'org)
+(require 'org-comments-sidecar)
+(require 'org-suggestions)
 (require 'org-copilot)
 (require 'org-copilot-gptel)
 
@@ -445,6 +447,44 @@
 			 "Nouveau programme.\n"))
 	  (should (get-buffer org-copilot-suggestion-buffer-name)))))))
 
+(ert-deftest org-copilot-gptel-focused-section-chat-creates-revision ()
+  "Focused accepted section suggestions create active revision comments."
+  (with-temp-buffer
+    (org-mode)
+    (insert "* Intro\nAccepted body.\n")
+    (org-copilot-add-comment
+     (list :id "ai-section-1"
+	   :type 'scope
+	   :status 'accepted
+	   :source-start 9
+	   :source-end 24
+	   :target-text "Accepted body.\n"
+	   :suggestion "Accepted body.\n"
+	   :section-title "Intro"))
+    (setq org-copilot-chat-focus-comment-id "ai-section-1")
+    (cl-letf (((symbol-function 'gptel-request)
+	       (lambda (_prompt &rest args)
+		 (let ((callback (plist-get args :callback)))
+		   (funcall callback
+			    "{\"message\":\"I revised it.\",\"intent\":\"revise_comment\",\"suggestion\":\"Revised body.\"}"
+			    (list :status 'success))))))
+      (org-copilot-gptel-chat
+       (list :source-buffer (current-buffer)
+	     :buffer-name (buffer-name)
+	     :message "Make it sharper"
+	     :messages nil
+	     :chat-context '(:type comment :comment-id "ai-section-1")
+	     :context-id "comment:ai-section-1"
+	     :focus-comment-id "ai-section-1"))
+      (let ((old (org-copilot-find-comment "ai-section-1"))
+	    (new (org-copilot-find-comment "ai-section-1.1")))
+	(should (eq (plist-get old :status) 'accepted))
+	(should new)
+	(should (eq (plist-get new :status) 'active))
+	(should (equal org-copilot-chat-focus-comment-id "ai-section-1.1"))
+	(should (equal (plist-get new :suggestion) "Revised body.\n"))
+	(should (get-buffer org-copilot-suggestion-buffer-name))))))
+
 (ert-deftest org-copilot-gptel-focused-chat-updates-suggestion ()
   "Focused chat can update the focused comment's suggestion from JSON response."
   (with-temp-buffer
@@ -550,3 +590,154 @@
 
 (provide 'org-copilot-gptel-test)
 ;;; org-copilot-gptel-test.el ends here
+
+(ert-deftest org-copilot-gptel-installs-durable-suggestion-thread ()
+  "New chat schema installs transcript, linked comment, and suggestion sidecar."
+  (let* ((directory (make-temp-file "org-copilot-durable" t))
+	 (source-file (expand-file-name "draft.org" directory)))
+    (unwind-protect
+	(with-current-buffer (find-file-noselect source-file)
+	  (erase-buffer)
+	  (insert "* Intro\nOld body.\n")
+	  (save-buffer)
+	  (org-mode)
+	  (let ((source (current-buffer)))
+	    (cl-letf (((symbol-function 'gptel-request)
+		       (lambda (_prompt &rest args)
+			 (funcall (plist-get args :callback)
+				  (concat
+				   "{\"intent\":\"edit\","
+				   "\"message\":\"I drafted it.\","
+				   "\"suggestion_threads\":[{"
+				   "\"intent\":\"rewrite_section\","
+				   "\"summary\":\"Rewrite Intro\","
+				   "\"suggestions\":[{\"id\":\"ai-1\","
+				   "\"hunks\":[{\"id\":\"h1\","
+				   "\"kind\":\"section-replace\","
+				   "\"primary\":true,"
+				   "\"section_title\":\"Intro\","
+				   "\"replacement\":\"New body.\"}]}]}]}" )
+				  (list :status 'success)))))
+	      (org-copilot-gptel-chat
+	       (list :source-buffer source
+		     :buffer-name "draft.org"
+		     :message "Rewrite intro"
+		     :messages nil
+		     :chat-context '(:type section)
+		     :context-id "section:Intro"
+		     :source-content (buffer-string)
+		     :section-content "* Intro\nOld body.\n"))
+	      (let ((comments-file (org-comments-sidecar-path source-file))
+		    (suggestions-file (org-suggestions-sidecar-path source-file))
+		    (copilot-file (org-copilot-sidecar-path source-file)))
+		(should (file-exists-p comments-file))
+		(should (file-exists-p suggestions-file))
+		(should (file-exists-p copilot-file))
+		(with-temp-buffer
+		  (insert-file-contents comments-file)
+		  (should (search-forward "Rewrite Intro" nil t))
+		  (should (search-forward ":ORG_COMMENTS_SUGGESTION_THREAD_ID: ai-thread-1" nil t)))
+		(with-temp-buffer
+		  (insert-file-contents suggestions-file)
+		  (should (search-forward "* Thread ai-thread-1" nil t))
+		  (should (search-forward "** ACTIVE ai-1" nil t))
+		  (should (search-forward ":ORG_SUGGESTIONS_HUNK_KIND: section-replace" nil t))
+		  (should (search-forward "New body." nil t)))
+		(with-temp-buffer
+		  (insert-file-contents copilot-file)
+		  (should (search-forward "I drafted it." nil t)))))))
+      (when-let* ((buffer (find-buffer-visiting source-file)))
+	(kill-buffer buffer))
+      (delete-directory directory t))))
+
+(ert-deftest org-copilot-gptel-refinement-appends-active-revision-candidate ()
+  "Focused suggestion refinement appends an active revision to the same thread."
+  (let* ((directory (make-temp-file "org-copilot-refine" t))
+	 (source-file (expand-file-name "draft.org" directory)))
+    (unwind-protect
+	(with-current-buffer (find-file-noselect source-file)
+	  (erase-buffer)
+	  (insert "* Intro\nAccepted body plus live edits.\n")
+	  (save-buffer)
+	  (org-mode)
+	  (let* ((source (current-buffer))
+		 (thread (list :id "ai-thread-1"
+			       :provider "org-copilot"
+			       :summary "Rewrite Intro"
+			       :candidates
+			       (list
+				(list :id "ai-1"
+				      :status 'accepted
+				      :hunks
+				      (list
+				       (list :id "h1"
+					     :kind 'section-replace
+					     :section-title "Intro"
+					     :replacement "Accepted body.\n")))))))
+	    (org-suggestions-write-sidecar source-file (list thread))
+	    (cl-letf (((symbol-function 'gptel-request)
+		       (lambda (_prompt &rest args)
+			 (funcall (plist-get args :callback)
+				  (concat
+				   "{\"intent\":\"edit\","
+				   "\"message\":\"I refined it.\","
+				   "\"suggestion_threads\":[{"
+				   "\"intent\":\"revise_suggestion\","
+				   "\"summary\":\"Refine Intro\","
+				   "\"suggestions\":[{\"id\":\"ai-1.1\","
+				   "\"hunks\":[{\"id\":\"h1\","
+				   "\"kind\":\"section-replace\","
+				   "\"section_title\":\"Intro\","
+				   "\"replacement\":\"Refined body.\"}]}]}]}" )
+				  (list :status 'success)))))
+	      (org-copilot-gptel-chat
+	       (list :source-buffer source
+		     :buffer-name "draft.org"
+		     :message "Make it more practical"
+		     :messages nil
+		     :chat-context '(:type suggestion)
+		     :context-id "suggestion:ai-1"
+		     :suggestion-thread-id "ai-thread-1"
+		     :focus-suggestion-id "ai-1"
+		     :source-content (buffer-string)
+		     :section-content "* Intro\nAccepted body plus live edits.\n"))
+	      (let* ((loaded (car (org-suggestions-load-sidecar source-file)))
+		     (candidates (plist-get loaded :candidates))
+		     (old (car candidates))
+		     (new (cadr candidates)))
+		(should (equal (plist-get loaded :id) "ai-thread-1"))
+		(should (equal (plist-get old :id) "ai-1"))
+		(should (eq (plist-get old :status) 'accepted))
+		(should (equal (plist-get new :id) "ai-1.1"))
+		(should (eq (plist-get new :status) 'active))
+		(should (equal (plist-get new :parent-id) "ai-1"))))))
+      (when-let* ((buffer (find-buffer-visiting source-file)))
+	(kill-buffer buffer))
+      (delete-directory directory t))))
+
+(ert-deftest org-copilot-gptel-prompt-includes-live-source-and-suggestion-history ()
+  "Suggestion-focused prompts include live source and compact thread history."
+  (let* ((directory (make-temp-file "org-copilot-prompt" t))
+	 (source-file (expand-file-name "draft.org" directory)))
+    (unwind-protect
+	(progn
+	  (write-region "* Intro\nAccepted body plus live edits.\n" nil source-file nil 'silent)
+	  (org-suggestions-write-sidecar
+	   source-file
+	   (list (list :id "ai-thread-1"
+		       :candidates
+		       (list (list :id "ai-1" :status 'accepted :hunks nil)))))
+	  (let ((prompt (org-copilot-gptel-chat-prompt
+			 (list :source-buffer (find-file-noselect source-file)
+			       :buffer-name "draft.org"
+			       :message "Refine it"
+			       :messages nil
+			       :source-content "* Intro\nAccepted body plus live edits.\n"
+			       :suggestion-thread-id "ai-thread-1"
+			       :focus-suggestion-id "ai-1"))))
+	    (should (string-match-p "Accepted body plus live edits" prompt))
+	    (should (string-match-p "ai-thread-1" prompt))
+	    (should (string-match-p "ai-1 accepted" prompt))))
+      (when-let* ((buffer (find-buffer-visiting source-file)))
+	(kill-buffer buffer))
+      (delete-directory directory t))))

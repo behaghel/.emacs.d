@@ -18,6 +18,14 @@
 (require 'subr-x)
 
 (autoload 'org-confluence-comments-push-current "org-confluence-comments-push" nil t)
+(autoload 'org-copilot-toggle-suggestion-panel "org-copilot-suggestion" nil t)
+(autoload 'org-copilot-view-suggestion-at-point "org-copilot-suggestion" nil t)
+
+(with-eval-after-load 'org-comments-panel
+  (define-key org-comments-panel-mode-map (kbd "v")
+	      #'org-copilot-view-suggestion-at-point)
+  (define-key org-comments-panel-mode-map (kbd "V")
+	      #'org-copilot-toggle-suggestion-panel))
 
 (defgroup hub/org-context-panel nil
   "Interactive Org context panel."

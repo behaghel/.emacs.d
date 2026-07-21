@@ -126,30 +126,64 @@ preview window; otherwise preserve the current selected window."
        (listp right)
        (equal left right)))
 
+(defun org-copilot-suggestion--section-at-position (position)
+  "Return section bounds containing POSITION, or nil."
+  (when (and (integerp position)
+	     (<= (point-min) position)
+	     (<= position (point-max)))
+    (save-excursion
+      (goto-char position)
+      (when (or (org-at-heading-p)
+		(ignore-errors (org-back-to-heading t) t))
+	(org-copilot-suggestion--section-bounds-at-heading)))))
+
+(defun org-copilot-suggestion-resolve-comment-section (source-buffer comment)
+  "Resolve current section bounds for section suggestion COMMENT."
+  (with-current-buffer source-buffer
+    (or (org-copilot-suggestion--section-at-position
+	 (plist-get comment :source-start))
+	(org-copilot-suggestion-resolve-section source-buffer comment nil))))
+
+(defun org-copilot-suggestion--find-section (predicate &optional unique)
+  "Return section matching PREDICATE.
+When UNIQUE is non-nil, return only if exactly one section matches."
+  (org-with-wide-buffer
+   (save-excursion
+     (goto-char (point-min))
+     (let (matches)
+       (catch 'done
+	 (while (re-search-forward org-heading-regexp nil t)
+	   (beginning-of-line)
+	   (when (funcall predicate)
+	     (let ((section (org-copilot-suggestion--section-bounds-at-heading)))
+	       (if unique
+		   (push section matches)
+		 (throw 'done section))))
+	   (forward-line 1)))
+       (and unique (= (length matches) 1) (car matches))))))
+
 (defun org-copilot-suggestion-resolve-section (source-buffer suggestion context)
   "Resolve section anchor for SUGGESTION in SOURCE-BUFFER using CONTEXT.
 SUGGESTION and CONTEXT are plists.  Return section bounds or nil."
   (with-current-buffer source-buffer
-    (let* ((heading-line (plist-get suggestion :heading-line))
-	   (section-title (plist-get suggestion :section-title))
-	   (section-path (plist-get suggestion :section-path))
-	   (sections (org-copilot-suggestion--all-section-bounds)))
+    (let ((heading-line (plist-get suggestion :heading-line))
+	  (section-title (plist-get suggestion :section-title))
+	  (section-path (plist-get suggestion :section-path)))
       (cond
        (heading-line
-	(cl-find heading-line sections
-		 :key (lambda (section) (plist-get section :heading-line))
-		 :test #'string=))
+	(org-copilot-suggestion--find-section
+	 (lambda ()
+	   (string= heading-line (org-copilot-suggestion--heading-line)))))
        (section-path
-	(cl-find section-path sections
-		 :key (lambda (section) (plist-get section :section-path))
-		 :test #'org-copilot-suggestion--section-path-equal-p))
+	(org-copilot-suggestion--find-section
+	 (lambda ()
+	   (org-copilot-suggestion--section-path-equal-p
+	    section-path (org-get-outline-path t t)))))
        (section-title
-	(let ((matches (cl-remove-if-not
-			(lambda (section)
-			  (string= section-title
-				   (plist-get section :section-title)))
-			sections)))
-	  (and (= (length matches) 1) (car matches))))
+	(org-copilot-suggestion--find-section
+	 (lambda ()
+	   (string= section-title (org-get-heading t t t t)))
+	 t))
        ((eq (plist-get context :type) 'section)
 	(let ((marker (plist-get context :heading-marker)))
 	  (and (markerp marker)
@@ -181,6 +215,46 @@ SUGGESTION and CONTEXT are plists.  Return section bounds or nil."
 	   (plist-get comment :heading-line)
 	   (plist-get comment :section-path))))
 
+(defun org-copilot-suggestion-open-comment (source-buffer comment &optional select)
+  "Open section suggestion COMMENT preview for SOURCE-BUFFER.
+When SELECT is non-nil, select the suggestion window."
+  (unless (org-copilot-suggestion-section-comment-p comment)
+    (user-error "AI comment has no section suggestion"))
+  (org-copilot-suggestion-open
+   source-buffer
+   (format "§ Section: %s"
+	   (or (plist-get comment :section-title)
+	       (plist-get comment :heading-line)
+	       "Suggestion"))
+   (plist-get comment :suggestion)
+   'section
+   (org-copilot-comment-id comment)
+   select))
+
+(defun org-copilot-suggestion--candidates (source-buffer)
+  "Return active section suggestion comments for SOURCE-BUFFER."
+  (with-current-buffer source-buffer
+    (cl-remove-if-not
+     (lambda (comment)
+       (and (not (eq (org-copilot-comment-status comment) 'dismissed))
+	    (org-copilot-suggestion-section-comment-p comment)))
+     (org-copilot-comments))))
+
+(defun org-copilot-suggestion--read-comment (candidates)
+  "Read one section suggestion from CANDIDATES."
+  (let* ((choices
+	  (mapcar
+	   (lambda (comment)
+	     (cons (format "%s — %s"
+			   (or (plist-get comment :section-title) "Section")
+			   (or (plist-get comment :summary)
+			       (plist-get comment :body)
+			       (org-copilot-comment-id comment)))
+		   comment))
+	   candidates))
+	 (choice (completing-read "Suggestion: " choices nil t)))
+    (cdr (assoc choice choices))))
+
 ;;;###autoload
 (defun org-copilot-view-suggestion-at-point (&optional select)
   "Open left-side preview for the section suggestion at point.
@@ -195,18 +269,42 @@ preview window is selected by default."
 			     (org-copilot-find-comment
 			      (org-copilot-comment-id item))))
 		      item)))
-    (unless (org-copilot-suggestion-section-comment-p comment)
-      (user-error "No section suggestion preview at point"))
-    (org-copilot-suggestion-open
-     source-buffer
-     (format "§ Section: %s"
-	     (or (plist-get comment :section-title)
-		 (plist-get comment :heading-line)
-		 "current"))
-     (plist-get comment :suggestion)
-     'section
-     (org-copilot-comment-id comment)
-     select)))
+    (org-copilot-suggestion-open-comment source-buffer comment select)))
+
+;;;###autoload
+(defun org-copilot-toggle-suggestion-panel ()
+  "Toggle the current source buffer's Org Copilot suggestion preview."
+  (interactive)
+  (let* ((source-buffer (org-copilot-suggestion--source-buffer))
+	 (preview (get-buffer org-copilot-suggestion-buffer-name))
+	 (window (and preview (get-buffer-window preview t))))
+    (if (window-live-p window)
+	(delete-window window)
+      (let* ((item (org-context-panel-item-at-point))
+	     (item-comment
+	      (and item
+		   (or (and (org-copilot-comment-id item)
+			    (with-current-buffer source-buffer
+			      (org-copilot-find-comment
+			       (org-copilot-comment-id item))))
+		       item)))
+	     (focused-comment
+	      (with-current-buffer source-buffer
+		(when org-copilot-chat-focus-comment-id
+		  (org-copilot-find-comment org-copilot-chat-focus-comment-id))))
+	     (candidates (org-copilot-suggestion--candidates source-buffer))
+	     (comment (cond
+		       ((org-copilot-suggestion-section-comment-p item-comment)
+			item-comment)
+		       ((org-copilot-suggestion-section-comment-p focused-comment)
+			focused-comment)
+		       ((= (length candidates) 1)
+			(car candidates))
+		       (candidates
+			(org-copilot-suggestion--read-comment candidates))
+		       (t
+			(user-error "No Org Copilot section suggestions")))))
+	(org-copilot-suggestion-open-comment source-buffer comment t)))))
 
 (defun org-copilot-suggestion-install-section
     (source-buffer suggestion context &optional message)

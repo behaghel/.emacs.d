@@ -77,6 +77,25 @@
       (should (eq (plist-get (org-copilot-find-comment "ai-1") :status)
 		  'accepted)))))
 
+(ert-deftest org-copilot-accept-section-suggestion-replaces-current-body ()
+  "Accepting a section suggestion replaces the current body despite edits."
+  (with-temp-buffer
+    (org-mode)
+    (insert "* Intro\nEdited body.\n")
+    (let ((comment (org-copilot-add-comment
+		    (list :id "ai-section-1"
+			  :type 'scope
+			  :source-start 9
+			  :source-end 20
+			  :target-text "Original body.\n"
+			  :suggestion "New body.\n"
+			  :section-title "Intro"))))
+      (org-copilot-accept-comment comment (current-buffer))
+      (should (equal (buffer-string) "* Intro\nNew body.\n"))
+      (should (eq (plist-get (org-copilot-find-comment "ai-section-1")
+			     :status)
+		  'accepted)))))
+
 (ert-deftest org-copilot-accept-insertion-inserts-suggestion-at-anchor ()
   "Accepting an insertion comment inserts its suggestion at the anchor point."
   (with-temp-buffer
@@ -266,3 +285,40 @@
 
 (provide 'org-copilot-actions-test)
 ;;; org-copilot-actions-test.el ends here
+
+(ert-deftest org-copilot-accept-at-point-delegates-linked-suggestion ()
+  "Accepting a linked comment row delegates source mutation to org-suggestions."
+  (let* ((directory (make-temp-file "org-copilot-linked-accept" t))
+	 (source-file (expand-file-name "draft.org" directory)))
+    (unwind-protect
+	(with-current-buffer (find-file-noselect source-file)
+	  (erase-buffer)
+	  (insert "* Intro\nCurrent body.\n")
+	  (save-buffer)
+	  (org-mode)
+	  (let* ((source (current-buffer))
+		 (thread (list :id "ai-thread-1"
+			       :candidates
+			       (list (list :id "ai-1" :status 'active
+					   :hunks
+					   (list (list :id "h1"
+						       :kind 'section-replace
+						       :section-title "Intro"
+						       :replacement "New body.")))))))
+	    (org-suggestions-write-sidecar source-file (list thread))
+	    (with-temp-buffer
+	      (setq org-context-panel-source-buffer source)
+	      (insert "💬 Rewrite Intro ✏️ ai-1\n")
+	      (add-text-properties
+	       (point-min) (point-max)
+	       '(org-context-panel-item
+		 (:type comment :id "cmt-1" :suggestion-ids "ai-1")))
+	      (goto-char (point-min))
+	      (org-copilot-accept-at-point))
+	    (should (equal (buffer-string) "* Intro\nNew body.\n"))
+	    (let* ((loaded (car (org-suggestions-load-sidecar source-file)))
+		   (candidate (car (plist-get loaded :candidates))))
+	      (should (eq (plist-get candidate :status) 'accepted)))))
+      (when-let* ((buffer (find-buffer-visiting source-file)))
+	(kill-buffer buffer))
+      (delete-directory directory t))))

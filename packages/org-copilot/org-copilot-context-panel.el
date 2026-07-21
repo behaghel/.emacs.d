@@ -214,14 +214,18 @@ instead of signaling an error."
       (org-copilot-chat--set-context
        source-buffer (list :type 'comment
 			   :comment-id (org-copilot-comment-id item))))
-    (if position
-	(progn
-	  (pop-to-buffer source-buffer)
-	  (goto-char position))
-      (when (and (boundp 'org-copilot-chat-buffer-name)
-		 (get-buffer-window org-copilot-chat-buffer-name t))
-	(with-current-buffer org-copilot-chat-buffer-name
-	  (org-copilot-chat-render source-buffer))))))
+    (when (fboundp 'org-copilot-chat--scroll-source-to-comment)
+      (org-copilot-chat--scroll-source-to-comment source-buffer item))
+    (cond
+     ((org-copilot-suggestion-section-comment-p item)
+      (org-copilot-suggestion-open-comment source-buffer item t))
+     (position
+      (pop-to-buffer source-buffer)
+      (goto-char position))
+     ((and (boundp 'org-copilot-chat-buffer-name)
+	   (get-buffer-window org-copilot-chat-buffer-name t))
+      (with-current-buffer org-copilot-chat-buffer-name
+	(org-copilot-chat-render source-buffer))))))
 
 (defun org-copilot-delete-overlays ()
   "Delete Org Copilot source overlays in the current buffer."

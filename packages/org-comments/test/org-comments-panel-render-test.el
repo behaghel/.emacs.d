@@ -108,6 +108,18 @@
      '((:type comment :status "OPEN" :body "Page note" :page-comment t)))
     (should (search-forward "PAGE" nil t))))
 
+
+(ert-deftest org-comments-panel-render-shows-suggestion-link-indicator ()
+  "Rendering shows compact linked suggestion state on comment rows."
+  (with-temp-buffer
+    (org-comments-panel-render-buffer
+     (current-buffer)
+     '((:type comment :status "OPEN" :body "Rewrite intro."
+	      :suggestion-thread-id "ai-thread-1"
+	      :suggestion-ids "ai-1 ai-1.1"))
+     nil)
+    (should (search-forward "✏️ ai-1 ai-1.1" nil t))))
+
 (ert-deftest org-comments-panel-render-current-comment-shows-replies ()
   "Current comments render full body and reply conversation."
   (with-temp-buffer

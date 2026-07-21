@@ -72,6 +72,14 @@ For example, article.org maps to article.comments.org."
        (org-comments--property-line "ORG_COMMENTS_CREATED_AT" created-at))
      (when-let* ((sync-kind (plist-get record :sync-kind)))
        (org-comments--property-line "ORG_COMMENTS_SYNC_KIND" sync-kind))
+     (when-let* ((provider (plist-get record :provider)))
+       (org-comments--property-line "ORG_COMMENTS_PROVIDER" provider))
+     (when-let* ((session-id (plist-get record :org-copilot-session-id)))
+       (org-comments--property-line "ORG_COPILOT_SESSION_ID" session-id))
+     (when-let* ((thread-id (plist-get record :suggestion-thread-id)))
+       (org-comments--property-line "ORG_COMMENTS_SUGGESTION_THREAD_ID" thread-id))
+     (when-let* ((suggestion-ids (plist-get record :suggestion-ids)))
+       (org-comments--property-line "ORG_COMMENTS_SUGGESTION_IDS" suggestion-ids))
      (org-comments--property-line
       "ORG_COMMENTS_TARGET"
       (format "%s %s" (plist-get record :target-start) (plist-get record :target-end)))
@@ -186,6 +194,36 @@ SIDECAR-FILE defaults to the sidecar path for RECORD's source file."
 		     do (forward-line 1))
       (user-error "Comment %s not found in sidecar" comment-id))
     (write-region (point-min) (point-max) sidecar-file nil 'silent)))
+
+(defun org-comments-archive-provider-session-comments (sidecar-file provider session-id)
+  "Archive comments in SIDECAR-FILE created by PROVIDER during SESSION-ID.
+Archiving delegates subtree movement to native Org archive behavior."
+  (with-current-buffer (find-file-noselect sidecar-file)
+    (org-mode)
+    (save-excursion
+      (goto-char (point-min))
+      (while (re-search-forward org-heading-regexp nil t)
+	(goto-char (match-beginning 0))
+	(if (and (equal provider (org-entry-get nil "ORG_COMMENTS_PROVIDER"))
+		 (equal session-id (org-entry-get nil "ORG_COPILOT_SESSION_ID")))
+	    (org-archive-subtree)
+	  (forward-line 1))))
+    (save-buffer)))
+
+(defun org-comments-delete-provider-session-comments (sidecar-file provider session-id)
+  "Delete comments in SIDECAR-FILE created by PROVIDER during SESSION-ID."
+  (when (file-exists-p sidecar-file)
+    (with-temp-buffer
+      (insert-file-contents sidecar-file)
+      (org-mode)
+      (goto-char (point-min))
+      (while (re-search-forward org-heading-regexp nil t)
+	(goto-char (match-beginning 0))
+	(if (and (equal provider (org-entry-get nil "ORG_COMMENTS_PROVIDER"))
+		 (equal session-id (org-entry-get nil "ORG_COPILOT_SESSION_ID")))
+	    (delete-region (point) (save-excursion (org-end-of-subtree t t)))
+	  (forward-line 1)))
+      (write-region (point-min) (point-max) sidecar-file nil 'silent))))
 
 (defun org-comments-delete-entry (sidecar-file comment-id)
   "Delete COMMENT-ID subtree from SIDECAR-FILE."
@@ -604,6 +642,10 @@ SUBTREE-END defaults to the current subtree end."
 	   :remote-resolution-status (alist-get "ORG_COMMENTS_REMOTE_RESOLUTION_STATUS" properties nil nil #'equal)
 	   :local-status-dirty (alist-get "ORG_COMMENTS_LOCAL_STATUS_DIRTY" properties nil nil #'equal)
 	   :sync-kind (alist-get "ORG_COMMENTS_SYNC_KIND" properties nil nil #'equal)
+	   :provider (alist-get "ORG_COMMENTS_PROVIDER" properties nil nil #'equal)
+	   :org-copilot-session-id (alist-get "ORG_COPILOT_SESSION_ID" properties nil nil #'equal)
+	   :suggestion-thread-id (alist-get "ORG_COMMENTS_SUGGESTION_THREAD_ID" properties nil nil #'equal)
+	   :suggestion-ids (alist-get "ORG_COMMENTS_SUGGESTION_IDS" properties nil nil #'equal)
 	   :body-format (or (alist-get "ORG_COMMENTS_BODY_FORMAT" properties nil nil #'equal)
 			    "storage")
 	   :target-text target-text

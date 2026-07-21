@@ -143,11 +143,17 @@ domains:
           - packages/org-comments/
         spec: packages/org-comments/
       copilot:
-        description: Org-native AI authoring assistant package, including ephemeral AI comments, review sessions, context-panel provider integration, diff-backed suggestions, and LLM adapters.
+        description: Org-native AI authoring assistant package, including durable chat sessions, review orchestration, suggestion providers, and LLM adapters.
         type: core
         code:
           - packages/org-copilot/
         spec: packages/org-copilot/
+      suggestions:
+        description: Reusable Org-native executable suggestion package, including patch-like edit threads, candidate hunks, lifecycle, sidecar storage, and accept/stale semantics.
+        type: shared-kernel
+        code:
+          - packages/org-suggestions/
+        spec: packages/org-suggestions/SPEC.md
       marginalia:
         description: Reusable Org marginalia package, including native footnote/sidenote collection, layout, and context-panel provider integration.
         type: shared-kernel

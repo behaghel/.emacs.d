@@ -45,8 +45,8 @@
 	 (window-width . 0.5) (reusable-frames . nil))
 	("\\*info\\*" (display-buffer-reuse-window display-buffer-in-side-window)
 	 (side . right))
-	("\\*Help\\*" (display-buffer-reuse-window display-buffer-in-side-window)
-	 (window-width . fit-window-to-buffer) (side . right))
+	("\\*Help\\*" (display-buffer-reuse-mode-window display-buffer-pop-up-window)
+	 (inhibit-same-window . t) (window-width . 80))
 	("\\*Org Agenda\\*" display-buffer-in-side-window
 	 (side . right) (slot . 0) (window-width . fit-window-to-buffer)
 	 ,adjustable-width ,protected-window)

@@ -95,6 +95,11 @@
       (format-time-string "%Y-%m-%d %H:%M" time)
     created-at))
 
+(defun org-comments-panel-render--suggestion-indicator (comment)
+  "Return compact linked-suggestion indicator for COMMENT, or nil."
+  (when-let* ((suggestion-ids (plist-get comment :suggestion-ids)))
+    (format "✏️ %s" suggestion-ids)))
+
 (defun org-comments-panel-render--insert-metadata (comment)
   "Insert author/date metadata for COMMENT when present."
   (let ((author (or (plist-get comment :remote-author-name)
@@ -201,7 +206,10 @@
      ((not (string-empty-p target))
       (insert " “" (org-comments-panel-render--truncate
 		    target org-comments-panel-target-preview-length) "”")))
-    (insert " " (org-comments-panel-render--sync-badge comment) "\n")
+    (insert " " (org-comments-panel-render--sync-badge comment))
+    (when-let* ((indicator (org-comments-panel-render--suggestion-indicator comment)))
+      (insert " " indicator))
+    (insert "\n")
     (when stale
       (insert "Anchor no longer matches source text.\n"))
     (when (and remote-missing (plist-get comment :current))

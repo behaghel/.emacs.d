@@ -14,12 +14,21 @@
 
 (require 'cl-lib)
 (require 'org-copilot-model)
+(require 'org-copilot-sidecar nil 'noerror)
+(require 'org-comments-sidecar nil 'noerror)
+(require 'org-suggestions nil 'noerror)
 
 (defvar-local org-copilot--comments nil
   "Ephemeral AI comments for the current Org source buffer.")
 
 (defvar-local org-copilot--chat-messages nil
   "Ephemeral chat messages for the current Org source buffer.")
+
+(defvar-local org-copilot--chat-messages-restored-p nil
+  "Non-nil when durable chat messages have been restored for this buffer.")
+
+(defvar org-copilot--suppress-chat-persistence nil
+  "Non-nil while restoring chat messages from durable storage.")
 
 (defvar-local org-copilot-chat-focus-comment-id nil
   "AI comment id currently focused by the Org Copilot chat view.")
@@ -90,6 +99,20 @@ Return the normalized comments."
   "Return ephemeral chat messages for the current buffer."
   (copy-sequence org-copilot--chat-messages))
 
+(defun org-copilot-set-chat-messages (messages)
+  "Replace current buffer chat transcript with MESSAGES."
+  (setq org-copilot--chat-messages messages))
+
+(defun org-copilot-restore-chat-messages ()
+  "Restore durable chat messages for the current buffer once."
+  (when (and (not org-copilot--chat-messages-restored-p)
+	     buffer-file-name
+	     (fboundp 'org-copilot-sidecar-load-messages))
+    (setq org-copilot--chat-messages-restored-p t)
+    (when-let* ((messages (org-copilot-sidecar-load-messages buffer-file-name)))
+      (let ((org-copilot--suppress-chat-persistence t))
+	(org-copilot-set-chat-messages messages)))))
+
 (defun org-copilot-add-chat-message (role content &optional comment-id context-id)
   "Add a chat message with ROLE and CONTENT to the current buffer session.
 When COMMENT-ID is non-nil, associate the message with that AI comment.
@@ -101,6 +124,15 @@ When CONTEXT-ID is non-nil, associate the message with another chat context."
 		       :created-at (format-time-string "%FT%T%z"))))
     (setq org-copilot--chat-messages
 	  (append org-copilot--chat-messages (list message)))
+    (when (and buffer-file-name
+	       (not org-copilot--suppress-chat-persistence)
+	       (memq role '(user assistant))
+	       (fboundp 'org-copilot-sidecar-append-message))
+      (org-copilot-sidecar-append-message
+       buffer-file-name role content
+       (list "ORG_COPILOT_CREATED_AT" (plist-get message :created-at)
+	     "ORG_COPILOT_CONTEXT_ID" context-id
+	     "ORG_COPILOT_COMMENT_ID" comment-id)))
     message))
 
 (defun org-copilot-remove-pending-chat-message (&optional comment-id context-id)
@@ -119,11 +151,47 @@ full-document chat."
 		   (setq removed t)))
 	    (reverse org-copilot--chat-messages))))))
 
-(defun org-copilot-clear-session ()
-  "Clear ephemeral Org Copilot session state for the current buffer."
-  (interactive)
+(defun org-copilot--current-session-id ()
+  "Return current Copilot session id."
+  "default")
+
+(defun org-copilot--archive-session-artifacts (source-file session-id)
+  "Archive durable Copilot artifacts for SOURCE-FILE SESSION-ID."
+  (when (and source-file (fboundp 'org-copilot-sidecar-archive-session))
+    (org-copilot-sidecar-archive-session source-file session-id))
+  (when (and source-file (fboundp 'org-comments-archive-provider-session-comments))
+    (let ((comments-sidecar (org-comments-sidecar-path source-file)))
+      (when (file-exists-p comments-sidecar)
+	(org-comments-archive-provider-session-comments
+	 comments-sidecar "org-copilot" session-id))))
+  (when (and source-file
+	     (fboundp 'org-suggestions-archive-provider-session-threads))
+    (let ((suggestions-sidecar (org-suggestions-sidecar-path source-file)))
+      (when (file-exists-p suggestions-sidecar)
+	(org-suggestions-archive-provider-session-threads
+	 suggestions-sidecar "org-copilot" session-id)))))
+
+(defun org-copilot--delete-session-artifacts (source-file session-id)
+  "Delete durable Copilot artifacts for SOURCE-FILE SESSION-ID."
+  (when (and source-file (fboundp 'org-copilot-sidecar-delete-session))
+    (org-copilot-sidecar-delete-session source-file session-id))
+  (when (and source-file (fboundp 'org-comments-delete-provider-session-comments))
+    (let ((comments-sidecar (org-comments-sidecar-path source-file)))
+      (when (file-exists-p comments-sidecar)
+	(org-comments-delete-provider-session-comments
+	 comments-sidecar "org-copilot" session-id))))
+  (when (and source-file
+	     (fboundp 'org-suggestions-delete-provider-session-threads))
+    (let ((suggestions-sidecar (org-suggestions-sidecar-path source-file)))
+      (when (file-exists-p suggestions-sidecar)
+	(org-suggestions-delete-provider-session-threads
+	 suggestions-sidecar "org-copilot" session-id)))))
+
+(defun org-copilot--clear-ephemeral-session ()
+  "Clear ephemeral Org Copilot state for the current buffer."
   (setq org-copilot--comments nil)
   (setq org-copilot--chat-messages nil)
+  (setq org-copilot--chat-messages-restored-p t)
   (setq org-copilot-chat-focus-comment-id nil)
   (setq org-copilot-chat-context '(:type full-document))
   (when (fboundp 'org-copilot-delete-overlays)
@@ -132,6 +200,25 @@ full-document chat."
 	     (get-buffer org-copilot-panel-buffer-name)
 	     (fboundp 'org-context-panel-refresh))
     (org-context-panel-refresh)))
+
+(defun org-copilot-clear-session (&optional preserve-artifacts)
+  "Clear current Copilot session.
+By default, archive durable Copilot chat, comments, and suggestions for the
+current session.  With PRESERVE-ARTIFACTS, only clear ephemeral UI state."
+  (interactive "P")
+  (let ((source-file buffer-file-name)
+	(session-id (org-copilot--current-session-id)))
+    (unless preserve-artifacts
+      (org-copilot--archive-session-artifacts source-file session-id))
+    (org-copilot--clear-ephemeral-session)))
+
+(defun org-copilot-erase-session ()
+  "Hard-delete durable artifacts for the current Copilot session."
+  (interactive)
+  (when (yes-or-no-p "Hard-delete current Org Copilot session artifacts? ")
+    (org-copilot--delete-session-artifacts
+     buffer-file-name (org-copilot--current-session-id))
+    (org-copilot--clear-ephemeral-session)))
 
 (provide 'org-copilot-session)
 ;;; org-copilot-session.el ends here

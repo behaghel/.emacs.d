@@ -105,6 +105,27 @@
 	    (should (string-match-p "§ Section: Intro" (buffer-string)))
 	    (should (string-match-p "New body" (buffer-string)))))))))
 
+(ert-deftest org-copilot-toggle-suggestion-panel-opens-single-section-suggestion ()
+  "The toggle command opens the only active section suggestion from source."
+  (with-temp-buffer
+    (org-mode)
+    (let ((source (current-buffer)))
+      (unwind-protect
+	  (progn
+	    (org-copilot-add-comment
+	     (list :id "ai-1"
+		   :type 'scope
+		   :status 'active
+		   :suggestion "New body.\n"
+		   :section-title "Intro"))
+	    (org-copilot-toggle-suggestion-panel)
+	    (should (get-buffer-window org-copilot-suggestion-buffer-name t))
+	    (org-copilot-toggle-suggestion-panel)
+	    (should-not (get-buffer-window org-copilot-suggestion-buffer-name t)))
+	(when (get-buffer org-copilot-suggestion-buffer-name)
+	  (kill-buffer org-copilot-suggestion-buffer-name))
+	(should (buffer-live-p source))))))
+
 (ert-deftest org-copilot-view-suggestion-at-point-errors-for-inline-suggestion ()
   "Inline suggestion rows do not use the left suggestion preview."
   (with-temp-buffer

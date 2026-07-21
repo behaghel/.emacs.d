@@ -196,5 +196,59 @@
 			 "local-1")))
       (delete-directory dir t))))
 
+
+(ert-deftest org-comments-store-preserves-provider-suggestion-links ()
+  "Provider-created comments round-trip suggestion link metadata."
+  (org-comments-store-test--with-file-buffer "article.org" "Alpha selected text omega"
+					     (let* ((start (progn (goto-char (point-min))
+								  (search-forward "selected")
+								  (match-beginning 0)))
+						    (end (match-end 0))
+						    (record (org-comments-create-record
+							     buffer-file-name start end "Rewrite intro." "cmt-1" "org-copilot" "now")))
+					       (setq record (plist-put record :provider "org-copilot"))
+					       (setq record (plist-put record :org-copilot-session-id "session-1"))
+					       (setq record (plist-put record :suggestion-thread-id "ai-thread-1"))
+					       (setq record (plist-put record :suggestion-ids "ai-1 ai-1.1"))
+					       (org-comments-append-to-sidecar record)
+					       (let ((comment (car (org-comments-collect (current-buffer)))))
+						 (should (equal (plist-get comment :provider) "org-copilot"))
+						 (should (equal (plist-get comment :org-copilot-session-id) "session-1"))
+						 (should (equal (plist-get comment :suggestion-thread-id) "ai-thread-1"))
+						 (should (equal (plist-get comment :suggestion-ids) "ai-1 ai-1.1"))))))
+
+(ert-deftest org-comments-store-public-resolves-comment-target ()
+  "Public target resolver returns a recovered comment target."
+  (org-comments-store-test--with-file-buffer "article.org" "X Alpha selected text omega"
+					     (let* ((sidecar (org-comments-sidecar-path buffer-file-name)))
+					       (with-temp-file sidecar
+						 (insert "#+title: Comments\n#+source: article.org\n\n")
+						 (insert "* OPEN Drifted\n")
+						 (insert ":PROPERTIES:\n")
+						 (insert ":ORG_COMMENTS_ID: cmt-1\n")
+						 (insert ":ORG_COMMENTS_SYNC_KIND: inline\n")
+						 (insert ":ORG_COMMENTS_TARGET: 8 21\n")
+						 (insert ":ORG_COMMENTS_TARGET_TEXT: selected text\n")
+						 (insert ":END:\n\nBody\n"))
+					       (let ((bounds (org-comments-resolve-comment-target (current-buffer) "cmt-1")))
+						 (should (equal bounds '(9 . 22)))))))
+
+
+(ert-deftest org-comments-store-archives-provider-session-comments ()
+  "Provider session archive removes matching comments from active sidecar."
+  (org-comments-store-test--with-file-buffer "article.org" "Alpha selected text omega"
+					     (let* ((start (progn (goto-char (point-min))
+								  (search-forward "selected")
+								  (match-beginning 0)))
+						    (end (match-end 0))
+						    (record (org-comments-create-record
+							     buffer-file-name start end "Rewrite." "cmt-1" "org-copilot" "now")))
+					       (setq record (plist-put record :provider "org-copilot"))
+					       (setq record (plist-put record :org-copilot-session-id "session-1"))
+					       (org-comments-append-to-sidecar record)
+					       (org-comments-archive-provider-session-comments
+						(org-comments-sidecar-path buffer-file-name) "org-copilot" "session-1")
+					       (should-not (org-comments-collect (current-buffer) t)))))
+
 (provide 'org-comments-store-test)
 ;;; org-comments-store-test.el ends here

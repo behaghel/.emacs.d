@@ -17,6 +17,10 @@
 (require 'cl-lib)
 (require 'json)
 (require 'subr-x)
+(require 'org-comments-model)
+(require 'org-comments-sidecar)
+(require 'org-suggestions)
+(require 'org-copilot-sidecar)
 (require 'org-copilot-chat)
 (require 'org-copilot-llm)
 (require 'org-copilot-session)
@@ -219,6 +223,25 @@ REQUEST supplies reviewed source bounds for line-range fallback anchoring."
 	    (or (plist-get comment :summary) "")
 	    (or (plist-get comment :body) ""))))
 
+(defun org-copilot-gptel--suggestion-thread-history (request)
+  "Return compact suggestion thread history for REQUEST."
+  (when-let* ((source (plist-get request :source-buffer))
+	      (source-file (buffer-file-name source))
+	      (thread-id (plist-get request :suggestion-thread-id))
+	      (thread (cl-find thread-id
+			       (org-suggestions-load-sidecar source-file)
+			       :key (lambda (item) (plist-get item :id))
+			       :test #'equal)))
+    (concat
+     (format "Thread %s\n" thread-id)
+     (mapconcat
+      (lambda (candidate)
+	(format "- %s %s"
+		(plist-get candidate :id)
+		(plist-get candidate :status)))
+      (plist-get thread :candidates)
+      "\n"))))
+
 (defun org-copilot-gptel-chat-prompt (request)
   "Return a gptel chat prompt for REQUEST."
   (let* ((history (mapconcat #'org-copilot-gptel--format-chat-message
@@ -228,34 +251,36 @@ REQUEST supplies reviewed source bounds for line-range fallback anchoring."
 	 (source-content (plist-get request :source-content))
 	 (section-content (plist-get request :section-content))
 	 (focused-comment (org-copilot-gptel--focused-comment-context request))
-	 (focused-context (org-copilot-gptel--format-focused-comment focused-comment)))
+	 (focused-context (org-copilot-gptel--format-focused-comment focused-comment))
+	 (suggestion-history (org-copilot-gptel--suggestion-thread-history request)))
     (format (concat "You are an AI writing partner for an Org author.\n"
 		    "Answer the user's question concisely and concretely.\n"
 		    "Return strict JSON only, with no Markdown fences.\n"
-		    "The JSON shape is {\"message\":\"brief answer\",\"intent\":\"answer|review|rewrite_section|rewrite_document|revise_comment|insert_text\",\"suggestion\":\"optional exact replacement text\",\"heading_line\":\"optional exact target heading line\",\"section_title\":\"optional exact target title\",\"section_path\":[\"optional\",\"outline path\"],\"comments\":[...]} .\n"
-		    "Choose intent from the user's meaning, not keywords: answer for Q&A, review for critique/comments, rewrite_section for replacing the focused section body, rewrite_document for replacing the document, revise_comment for updating a focused comment suggestion, and insert_text for anchored insertion comments.\n"
+		    "The JSON shape is {\"message\":\"brief answer\",\"intent\":\"answer|review|edit\",\"suggestion_threads\":[{\"intent\":\"rewrite_section|revise_suggestion|insert_text|mixed_edit\",\"summary\":\"short linked comment text\",\"suggestions\":[{\"id\":\"optional provider id\",\"label\":\"optional candidate label\",\"hunks\":[{\"id\":\"h1\",\"kind\":\"section-replace|replace|insert\",\"primary\":true,\"section_title\":\"optional exact title\",\"section_path\":[\"optional\",\"outline path\"],\"anchor_text\":\"exact insertion anchor\",\"placement\":\"before|after\",\"original\":\"exact replacement target\",\"replacement\":\"executable text\"}]}]}],\"comments\":[...]} .\n"
+		    "Choose top-level intent from the user's meaning, not keywords: answer for Q&A, review for critique/comments, and edit for executable edit proposals. Use suggestion_threads only for executable edits. Default to one suggestion thread with one suggestion; use multiple suggestions only for explicit alternatives or coherent multi-hunk edits, and multiple threads only for clearly separate edit intents.\n"
 		    "Use `comments' only when the user clearly asks for review, critique, edits, improvements, suggestions, issues, or targeted comments; otherwise return an empty comments array.\n"
 		    "Each comment has optional id, type (`inline', `insertion', or `scope'), summary, body, target_text, anchor_text, placement, suggestion, line_start, and line_end.\n"
 		    "Inline comments must include exact target_text copied from the document; inline suggestions must be literal replacements for target_text only.\n"
 		    "Insertion comments are for adding text at a specific location; they must include exact anchor_text copied from the document, placement `before' or `after', and suggestion containing only the text to insert.\n"
 		    "Scope comments are for broad document or section observations without a specific executable edit location; do not attach suggestions to scope comments.\n"
-		    "Use top-level `suggestion' only with intent rewrite_section, rewrite_document, or revise_comment. The value must be source text that can replace the focused target, focused section body, or document; never put advice, follow-up offers, summaries, explanations, questions, classifications, or bibliographic references in `suggestion'.\n"
+		    "Do not return top-level `suggestion'. Put executable text only in suggestion_threads hunks as `replacement'. Never put advice, follow-up offers, summaries, explanations, questions, classifications, or bibliographic references in replacement text.\n"
 		    "For ordinary Q&A, recommendations, explanations, plans, and reference lists, put the complete answer in `message' and omit `suggestion'.\n"
 		    "When asked for precise references, provide actual bibliographic entries in `message' with author, title, year, and publisher when known; do not claim to provide precise references unless you list them. If uncertain, say what is uncertain instead of inventing details.\n"
 		    (if (plist-get request :web-tools-enabled)
 			"Live web tools are available for this request. For current facts, source checks, precise references, bibliographies, or citation-heavy answers, use WebSearch first and WebFetch when a result needs inspection. Cite only sources you actually used.\n"
 		      "No live web search tool is available for this request. If web verification is needed, say so plainly, then answer from existing knowledge with uncertainty marked.\n")
 		    "At most one scope comment is useful. Prefer no more than 8 comments total.\n"
-		    "Do not combine a top-level replacement suggestion with targeted comments unless the user explicitly asks for both a rewrite and review comments. This is exceptional because broad rewrites and targeted suggestions can contradict each other. If both seem necessary, ask for confirmation in `message' and return no top-level suggestion.\n"
-		    "When a focused comment is present, help iterate on its replacement suggestion. The top-level suggestion must be replacement text for the focused target, not advice.\n"
+		    "Do not combine broad replacement hunks with targeted comments unless the user explicitly asks for both a rewrite and review comments. This is exceptional because broad rewrites and targeted suggestions can contradict each other. If both seem necessary, ask for confirmation in `message' and return no suggestion_threads.\n"
+		    "When a focused suggestion/comment is present, help iterate on its replacement candidate. Replacement hunks must contain source text for the focused target, not advice.\n"
 		    "For full-document chat without a focused comment, use the source content and conversation history; do not infer hidden AI comments.\n"
-		    "For section chat, use the full source content as context, but generated comments must target only the focused section unless the user explicitly switches to full-document chat.\n"
-		    "For section suggestions, the top-level `suggestion' must be replacement content for the body below the target heading. Do not repeat the target section's own heading line. You may include subsections or lower-level headings inside the replacement body when appropriate. Omit anchor fields when the active section is the target.\n\n"
+		    "For section chat, use the full source content as context, but generated comments and suggestion threads must target only the focused section unless the user explicitly switches to full-document chat.\n"
+		    "For section-replace hunks, replacement must be content for the body below the target heading. Do not repeat the target section's own heading line. You may include subsections or lower-level headings inside the replacement body when appropriate.\n\n"
 		    "Buffer: %s\n"
 		    "Focused comment id: %s\n\n"
 		    "Full source content:\n%s\n\n"
 		    "Focused section content, when section chat is active:\n%s\n\n"
 		    "Focused comment context:\n%s\n\n"
+		    "Focused suggestion thread history:\n%s\n\n"
 		    "Conversation so far:\n%s\n\n"
 		    "User message:\n%s")
 	    (or (plist-get request :buffer-name) "Org buffer")
@@ -263,17 +288,77 @@ REQUEST supplies reviewed source bounds for line-range fallback anchoring."
 	    (if focus-id "<focused comment chat>" (or source-content "<none>"))
 	    (or section-content "<none>")
 	    (or focused-context "<none>")
+	    (or suggestion-history "<none>")
 	    (if (string-empty-p history) "<none>" history)
 	    (plist-get request :message))))
 
-(defun org-copilot-gptel--update-focused-suggestion (source-buffer comment-id suggestion)
+(defun org-copilot-gptel--next-revision-id (source-buffer root-id)
+  "Return next revision id for ROOT-ID in SOURCE-BUFFER."
+  (let ((max-revision 0)
+	(prefix (concat (regexp-quote root-id) "\\.\\([0-9]+\\)\\'")))
+    (with-current-buffer source-buffer
+      (dolist (comment (org-copilot-comments))
+	(when-let* ((id (org-copilot-comment-id comment)))
+	  (when (string-match prefix id)
+	    (setq max-revision
+		  (max max-revision
+		       (string-to-number (match-string 1 id))))))))
+    (format "%s.%d" root-id (1+ max-revision))))
+
+(defun org-copilot-gptel--create-section-revision
+    (source-buffer comment suggestion message)
+  "Create a new active section revision from COMMENT and SUGGESTION."
+  (let* ((root-id (or (plist-get comment :thread-root-id)
+		      (org-copilot-comment-id comment)))
+	 (revision-id (org-copilot-gptel--next-revision-id source-buffer root-id))
+	 (normalized (org-copilot-suggestion-normalize-section-body suggestion))
+	 (section (org-copilot-suggestion-resolve-comment-section
+		   source-buffer comment))
+	 (copy (copy-sequence comment))
+	 (metadata (copy-sequence (or (plist-get copy :metadata) nil))))
+    (setq metadata (plist-put metadata :parent-comment-id
+			      (org-copilot-comment-id comment)))
+    (setq copy (plist-put copy :id revision-id))
+    (setq copy (plist-put copy :status 'active))
+    (setq copy (plist-put copy :thread-root-id root-id))
+    (setq copy (plist-put copy :parent-comment-id
+			  (org-copilot-comment-id comment)))
+    (setq copy (plist-put copy :revision
+			  (string-to-number
+			   (car (last (split-string revision-id "\\."))))))
+    (setq copy (plist-put copy :metadata metadata))
+    (setq copy (plist-put copy :body (or message (plist-get copy :body))))
+    (setq copy (plist-put copy :suggestion normalized))
+    (when section
+      (setq copy (plist-put copy :source-start (plist-get section :body-start)))
+      (setq copy (plist-put copy :source-end (plist-get section :end)))
+      (setq copy (plist-put copy :target-text
+			    (with-current-buffer source-buffer
+			      (buffer-substring-no-properties
+			       (plist-get section :body-start)
+			       (plist-get section :end)))))
+      (setq copy (plist-put copy :heading-line (plist-get section :heading-line)))
+      (setq copy (plist-put copy :section-title (plist-get section :section-title)))
+      (setq copy (plist-put copy :section-path (plist-get section :section-path))))
+    (with-current-buffer source-buffer
+      (let ((revision (org-copilot-add-comment copy)))
+	(org-copilot-chat--set-context
+	 source-buffer (list :type 'comment :comment-id revision-id))
+	(org-copilot-suggestion-open-comment source-buffer revision nil)
+	revision))))
+
+(defun org-copilot-gptel--update-focused-suggestion
+    (source-buffer comment-id suggestion &optional message)
   "Update COMMENT-ID in SOURCE-BUFFER with revised SUGGESTION."
   (when (and comment-id suggestion)
     (with-current-buffer source-buffer
       (when-let* ((comment (org-copilot-find-comment comment-id)))
-	(let ((copy (copy-sequence comment)))
-	  (org-copilot-update-comment
-	   (plist-put copy :suggestion suggestion)))))))
+	(if (org-copilot-suggestion-section-comment-p comment)
+	    (org-copilot-gptel--create-section-revision
+	     source-buffer comment suggestion message)
+	  (let ((copy (copy-sequence comment)))
+	    (org-copilot-update-comment
+	     (plist-put copy :suggestion suggestion))))))))
 
 (defun org-copilot-gptel--chat-suggestions-allowed-p (parsed request)
   "Return non-nil when PARSED may install top-level suggestions for REQUEST."
@@ -291,6 +376,95 @@ REQUEST supplies reviewed source bounds for line-range fallback anchoring."
 	  (org-copilot-gptel--chat-suggestions-allowed-p parsed request))
       parsed
     (plist-put (copy-sequence parsed) :suggestion nil)))
+
+(defun org-copilot-gptel--next-thread-id (source-file)
+  "Return next suggestion thread id for SOURCE-FILE."
+  (format "ai-thread-%d"
+	  (1+ (length (org-suggestions-load-sidecar source-file)))))
+
+(defun org-copilot-gptel--section-heading-bounds (source-buffer title)
+  "Return cons bounds for section heading TITLE in SOURCE-BUFFER."
+  (with-current-buffer source-buffer
+    (save-excursion
+      (goto-char (point-min))
+      (catch 'found
+	(while (re-search-forward org-heading-regexp nil t)
+	  (beginning-of-line)
+	  (when (string= title (org-get-heading t t t t))
+	    (throw 'found (cons (line-beginning-position)
+				(line-end-position))))
+	  (org-end-of-subtree t t))))))
+
+(defun org-copilot-gptel--primary-hunk (thread)
+  "Return primary hunk from THREAD, or first hunk."
+  (let ((hunks (cl-mapcan (lambda (candidate)
+			    (copy-sequence (plist-get candidate :hunks)))
+			  (plist-get thread :candidates))))
+    (or (cl-find-if (lambda (hunk) (plist-get hunk :primary)) hunks)
+	hunks)))
+
+(defun org-copilot-gptel--persist-thread-comment
+    (source-buffer source-file thread thread-id suggestion-ids)
+  "Persist linked comment for THREAD in SOURCE-BUFFER/SOURCE-FILE."
+  (when-let* ((hunk (org-copilot-gptel--primary-hunk thread))
+	      (section-title (plist-get hunk :section-title))
+	      (bounds (org-copilot-gptel--section-heading-bounds
+		       source-buffer section-title)))
+    (with-current-buffer source-buffer
+      (let ((record (org-comments-create-record
+		     source-file (car bounds) (cdr bounds)
+		     (or (plist-get thread :summary) "AI suggestion")
+		     nil "org-copilot" (format-time-string "%FT%T%z"))))
+	(setq record (plist-put record :provider "org-copilot"))
+	(setq record (plist-put record :org-copilot-session-id "default"))
+	(setq record (plist-put record :suggestion-thread-id thread-id))
+	(setq record (plist-put record :suggestion-ids
+				(string-join suggestion-ids " ")))
+	(org-comments-append-to-sidecar record)
+	(plist-get record :id)))))
+
+(defun org-copilot-gptel--install-suggestion-threads
+    (source-buffer parsed request)
+  "Install durable suggestion threads from PARSED for REQUEST."
+  (when-let* ((source-file (buffer-file-name source-buffer))
+	      (threads (plist-get parsed :suggestion-threads)))
+    (let ((stored (org-suggestions-load-sidecar source-file))
+	  installed-thread-ids
+	  installed-suggestion-ids)
+      (dolist (thread threads)
+	(let* ((requested-thread-id (plist-get request :suggestion-thread-id))
+	       (thread-id (or (plist-get thread :id)
+			      requested-thread-id
+			      (org-copilot-gptel--next-thread-id source-file)))
+	       (existing (cl-find thread-id stored
+				  :key (lambda (item) (plist-get item :id))
+				  :test #'equal))
+	       (candidates (plist-get thread :candidates))
+	       (suggestion-ids (mapcar (lambda (candidate)
+					 (or (plist-get candidate :id) "ai-1"))
+				       candidates))
+	       (focus-suggestion-id (plist-get request :focus-suggestion-id)))
+	  (when focus-suggestion-id
+	    (setq candidates
+		  (mapcar (lambda (candidate)
+			    (plist-put candidate :parent-id focus-suggestion-id))
+			  candidates)))
+	  (if existing
+	      (plist-put existing :candidates
+			 (append (plist-get existing :candidates) candidates))
+	    (let ((new-thread (copy-sequence thread)))
+	      (setq new-thread (plist-put new-thread :id thread-id))
+	      (setq new-thread (plist-put new-thread :provider "org-copilot"))
+	      (setq new-thread (plist-put new-thread :session-id "default"))
+	      (setq new-thread (plist-put new-thread :candidates candidates))
+	      (setq new-thread (plist-put new-thread :comment-id
+					  (org-copilot-gptel--persist-thread-comment
+					   source-buffer source-file new-thread thread-id suggestion-ids)))
+	      (push new-thread stored)))
+	  (push thread-id installed-thread-ids)
+	  (setq installed-suggestion-ids
+		(append suggestion-ids installed-suggestion-ids))))
+      (org-suggestions-write-sidecar source-file (nreverse stored)))))
 
 (defun org-copilot-gptel--install-chat-suggestion (source-buffer parsed request)
   "Install or preview non-comment chat suggestion PARSED for REQUEST."
@@ -350,9 +524,11 @@ chat viewport."
 	   (message (org-copilot-llm-append-chat-install-summary
 		     (plist-get parsed :message)
 		     install-result)))
+      (org-copilot-gptel--install-suggestion-threads source-buffer parsed request)
       (if comment-id
 	  (org-copilot-gptel--update-focused-suggestion
-	   source-buffer comment-id (plist-get parsed :suggestion))
+	   source-buffer comment-id (plist-get parsed :suggestion)
+	   (plist-get parsed :message))
 	(org-copilot-gptel--install-chat-suggestion
 	 source-buffer parsed request))
       (with-current-buffer source-buffer

@@ -288,3 +288,24 @@
 
 (provide 'org-copilot-llm-test)
 ;;; org-copilot-llm-test.el ends here
+
+(ert-deftest org-copilot-llm-parses-suggestion-threads ()
+  "Chat responses parse durable suggestion threads, candidates, and hunks."
+  (let* ((parsed (org-copilot-llm-parse-chat-response
+		  (concat "{\"intent\":\"edit\",\"message\":\"Done.\","
+			  "\"suggestion_threads\":[{\"intent\":\"rewrite_section\","
+			  "\"summary\":\"Rewrite Intro\","
+			  "\"suggestions\":[{\"id\":\"ai-1\",\"hunks\":[{"
+			  "\"id\":\"h1\",\"kind\":\"section-replace\","
+			  "\"primary\":true,\"section_title\":\"Intro\","
+			  "\"replacement\":\"New body.\"}]}]}]}")))
+	 (thread (car (plist-get parsed :suggestion-threads)))
+	 (candidate (car (plist-get thread :candidates)))
+	 (hunk (car (plist-get candidate :hunks))))
+    (should (eq (plist-get parsed :intent) 'edit))
+    (should (eq (plist-get thread :intent) 'rewrite_section))
+    (should (equal (plist-get thread :summary) "Rewrite Intro"))
+    (should (equal (plist-get candidate :id) "ai-1"))
+    (should (eq (plist-get hunk :kind) 'section-replace))
+    (should (equal (plist-get hunk :section-title) "Intro"))
+    (should (equal (plist-get hunk :replacement) "New body."))))

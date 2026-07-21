@@ -211,6 +211,7 @@ assistant message, or a plist with `:message' and optional `:comments'.  Normal
     (org-copilot-chat--set-context
      source-buffer
      (list :type 'comment :comment-id (org-copilot-comment-id comment)))
+    (org-copilot-chat--scroll-source-to-comment source-buffer comment)
     (when (fboundp 'org-copilot-chat--refresh-source-ui)
       (org-copilot-chat--refresh-source-ui source-buffer))))
 
@@ -219,6 +220,21 @@ assistant message, or a plist with `:message' and optional `:comments'.  Normal
   (with-current-buffer source-buffer
     (and org-copilot-chat-focus-comment-id
 	 (org-copilot-find-comment org-copilot-chat-focus-comment-id))))
+
+(defun org-copilot-chat--scroll-source-to-comment (source-buffer comment)
+  "Scroll SOURCE-BUFFER windows to COMMENT without moving buffer point."
+  (when-let* ((position (plist-get comment :source-start)))
+    (dolist (window (get-buffer-window-list source-buffer nil t))
+      (when (window-live-p window)
+	(let ((old-point (window-point window))
+	      start)
+	  (with-current-buffer source-buffer
+	    (save-excursion
+	      (goto-char position)
+	      (forward-line -2)
+	      (setq start (line-beginning-position))))
+	  (set-window-start window start t)
+	  (set-window-point window old-point))))))
 
 (defun org-copilot-chat--insert-metadata (text)
   "Insert metadata TEXT using the Org Copilot metadata face."
@@ -505,6 +521,7 @@ prompt active.  Source target overlays remain visible as dim context markers."
   (org-copilot-chat--set-context
    source-buffer
    (list :type 'comment :comment-id (org-copilot-comment-id comment)))
+  (org-copilot-chat--scroll-source-to-comment source-buffer comment)
   (org-copilot-chat--refresh-source-ui source-buffer)
   (let ((buffer (org-copilot-chat--buffer source-buffer)))
     (when-let* ((window (get-buffer-window buffer t)))
@@ -564,6 +581,8 @@ prompt active.  Source target overlays remain visible as dim context markers."
 
 (defun org-copilot-chat--buffer (source-buffer)
   "Return the chat buffer for SOURCE-BUFFER, creating it when needed."
+  (with-current-buffer source-buffer
+    (org-copilot-restore-chat-messages))
   (let ((buffer (get-buffer-create org-copilot-chat-buffer-name)))
     (with-current-buffer buffer
       (unless (derived-mode-p 'org-copilot-chat-mode)
@@ -603,9 +622,7 @@ prompt active.  Source target overlays remain visible as dim context markers."
 
 (defun org-copilot-chat--context-source-content ()
   "Return source content relevant to the current chat context."
-  (pcase (plist-get org-copilot-chat-context :type)
-    ('comment nil)
-    (_ (buffer-substring-no-properties (point-min) (point-max)))))
+  (buffer-substring-no-properties (point-min) (point-max)))
 
 (defun org-copilot-chat--request (source-buffer message)
   "Return chat request for SOURCE-BUFFER and user MESSAGE."
@@ -813,8 +830,11 @@ prompt active.  Source target overlays remain visible as dim context markers."
 
 (defconst org-copilot-chat-slash-commands
   '(("/accept" . "Accept focused suggestion")
+    ("/clear" . "Archive current Copilot session")
+    ("/clear-ui" . "Clear chat UI while preserving artifacts")
     ("/dismiss" . "Dismiss focused comment")
     ("/doctor" . "Run Org Copilot health check")
+    ("/erase" . "Hard-delete current Copilot session")
     ("/next" . "Focus next comment")
     ("/prev" . "Focus previous comment")
     ("/undo" . "Undo accepted suggestion"))
@@ -831,7 +851,10 @@ prompt active.  Source target overlays remain visible as dim context markers."
   "Return non-nil when slash COMMAND is available for SOURCE-BUFFER."
   (let ((comment (org-copilot-chat--focused-comment source-buffer)))
     (pcase command
+      ("/clear" t)
+      ("/clear-ui" t)
       ("/doctor" t)
+      ("/erase" t)
       ("/next" (org-copilot-chat--navigable-comments source-buffer))
       ("/prev" (org-copilot-chat--navigable-comments source-buffer))
       ("/accept" (and comment
@@ -879,11 +902,23 @@ prompt active.  Source target overlays remain visible as dim context markers."
     ("/accept"
      (org-copilot-chat-accept-focused-suggestion source-buffer)
      t)
+    ("/clear"
+     (with-current-buffer source-buffer
+       (org-copilot-clear-session))
+     t)
+    ("/clear-ui"
+     (with-current-buffer source-buffer
+       (org-copilot-clear-session t))
+     t)
     ("/doctor"
      (org-copilot-chat-doctor source-buffer)
      t)
     ("/dismiss"
      (org-copilot-chat-dismiss-focused-comment source-buffer)
+     t)
+    ("/erase"
+     (with-current-buffer source-buffer
+       (org-copilot-erase-session))
      t)
     ("/undo"
      (org-copilot-chat-undo-focused-comment source-buffer)

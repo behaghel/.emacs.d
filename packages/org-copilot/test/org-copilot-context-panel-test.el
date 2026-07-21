@@ -112,6 +112,30 @@
       (when (buffer-live-p source-buffer)
 	(kill-buffer source-buffer)))))
 
+(ert-deftest org-copilot-context-panel-ret-opens-section-suggestion ()
+  "Jumping to a section suggestion row opens its preview."
+  (let ((source-buffer (generate-new-buffer " *org copilot jump suggestion source*")))
+    (unwind-protect
+	(with-current-buffer source-buffer
+	  (org-mode)
+	  (insert "* Intro\nBody.\n")
+	  (org-copilot-mode 1)
+	  (org-copilot-add-comment
+	   (list :id "ai-1"
+		 :type 'scope
+		 :status 'active
+		 :summary "Section suggestion"
+		 :body "Try this."
+		 :suggestion "New body.\n"
+		 :section-title "Intro"))
+	  (org-copilot-context-panel-jump-side-item
+	   source-buffer (car (org-copilot-comments)))
+	  (should (get-buffer org-copilot-suggestion-buffer-name)))
+      (when (get-buffer org-copilot-suggestion-buffer-name)
+	(kill-buffer org-copilot-suggestion-buffer-name))
+      (when (buffer-live-p source-buffer)
+	(kill-buffer source-buffer)))))
+
 (ert-deftest org-copilot-refresh-overlays-creates-dim-target-overlay-by-default ()
   "Refreshing overlays dims anchored AI comment target ranges by default."
   (with-temp-buffer

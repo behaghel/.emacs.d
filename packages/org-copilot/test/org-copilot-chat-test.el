@@ -392,6 +392,37 @@
       (should (equal (plist-get (car (plist-get request :messages)) :content)
 		     "General")))))
 
+(ert-deftest org-copilot-chat-navigation-scrolls-source-without-moving-point ()
+  "Focusing comments scrolls source windows without moving source point."
+  (let ((source (generate-new-buffer " *org copilot scroll source*")))
+    (unwind-protect
+	(progn
+	  (delete-other-windows)
+	  (set-window-buffer (selected-window) source)
+	  (with-current-buffer source
+	    (org-mode)
+	    (dotimes (index 80)
+	      (insert (format "Line %02d\n" index)))
+	    (goto-char (point-min))
+	    (let ((target (save-excursion
+			    (goto-char (point-min))
+			    (forward-line 70)
+			    (point))))
+	      (org-copilot-add-comment
+	       (list :id "ai-1"
+		     :status 'active
+		     :source-start target
+		     :source-end target))))
+	  (let ((original-point (with-current-buffer source (point)))
+		(original-start (window-start (selected-window))))
+	    (with-current-buffer source
+	      (org-copilot-chat-focus-next-comment))
+	    (should (= (with-current-buffer source (point)) original-point))
+	    (should (> (window-start (get-buffer-window source t)) original-start))))
+      (delete-other-windows)
+      (when (buffer-live-p source)
+	(kill-buffer source)))))
+
 (ert-deftest org-copilot-chat-navigation-focuses-next-and-previous-comments ()
   "Chat navigation cycles through non-dismissed AI comments."
   (with-temp-buffer
@@ -713,3 +744,32 @@
 
 (provide 'org-copilot-chat-test)
 ;;; org-copilot-chat-test.el ends here
+
+(ert-deftest org-copilot-chat-slash-commands-include-session-management ()
+  "Slash completion includes session management commands."
+  (with-temp-buffer
+    (org-mode)
+    (let ((commands (mapcar #'car
+			    (org-copilot-chat--available-slash-commands
+			     (current-buffer)))))
+      (should (member "/clear" commands))
+      (should (member "/clear-ui" commands))
+      (should (member "/erase" commands)))))
+
+(ert-deftest org-copilot-chat-clear-ui-command-preserves-sidecar ()
+  "The /clear-ui command clears ephemeral chat while preserving transcript."
+  (let* ((directory (make-temp-file "org-copilot-chat-clear-ui" t))
+	 (source-file (expand-file-name "draft.org" directory)))
+    (unwind-protect
+	(with-current-buffer (find-file-noselect source-file)
+	  (erase-buffer)
+	  (insert "* Intro\nBody.\n")
+	  (save-buffer)
+	  (org-mode)
+	  (org-copilot-add-chat-message 'user "Hello")
+	  (org-copilot-chat-send "/clear-ui")
+	  (should-not (org-copilot-chat-messages))
+	  (should (org-copilot-sidecar-load-messages source-file)))
+      (when-let* ((buffer (find-buffer-visiting source-file)))
+	(kill-buffer buffer))
+      (delete-directory directory t))))

@@ -223,6 +223,16 @@ matches the source buffer as unanchored stale records."
        (lambda ()
 	 (org-comments--record-from-heading sidecar-file buffer include-stale))))))
 
+(defun org-comments-resolve-comment-target (source-buffer comment-id)
+  "Return resolved target bounds for COMMENT-ID in SOURCE-BUFFER, or nil."
+  (when-let* ((comment (car (cl-remove-if-not
+			     (lambda (record)
+			       (equal comment-id (plist-get record :id)))
+			     (org-comments-collect source-buffer t)))))
+    (when-let* ((start (plist-get comment :target-start))
+		(end (plist-get comment :target-end)))
+      (cons start end))))
+
 (defun org-comments-collect-page (&optional source-buffer)
   "Collect page-level sidecar comments for SOURCE-BUFFER or current buffer."
   (let* ((buffer (or source-buffer (current-buffer)))
