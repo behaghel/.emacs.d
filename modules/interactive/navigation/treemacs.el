@@ -33,8 +33,23 @@
   ;; Prefer simple git mode to avoid deferred annotation timer issues
   (when (executable-find "git")
     (treemacs-git-mode 'simple))
-  ;; Disable annotations if available to reduce timer noise
+  ;; Disable annotations if available to reduce timer noise.  Treemacs may
+  ;; nevertheless queue annotation timers while rendering a project tree; guard
+  ;; the deferred applier from transient non-node buttons with no `:depth'.
   (with-eval-after-load 'treemacs-annotations
+    (defun hub/treemacs--apply-annotations-deferred-a (orig btn path buffer git-future)
+      "Run ORIG annotation application only for Treemacs buttons with depth."
+      (when (and (fboundp 'treemacs-button-get)
+		 (numberp (treemacs-button-get btn :depth)))
+	(condition-case err
+	    (funcall orig btn path buffer git-future)
+	  (wrong-type-argument
+	   (unless (equal err '(wrong-type-argument number-or-marker-p nil))
+	     (signal (car err) (cdr err)))))))
+    (advice-remove 'treemacs--apply-annotations-deferred
+		   #'hub/treemacs--apply-annotations-deferred-a)
+    (advice-add 'treemacs--apply-annotations-deferred
+		:around #'hub/treemacs--apply-annotations-deferred-a)
     (when (fboundp 'treemacs-annotations-mode)
       (ignore-errors (treemacs-annotations-mode -1))))
 
