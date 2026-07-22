@@ -135,6 +135,12 @@ Implementation notes:
 - Durable linked suggestion accept delegates source mutation and lifecycle persistence to `org-suggestions`.
 - Legacy top-level `suggestion` remains compatibility code in some paths, but `suggestion_threads` is canonical.
 
+## Windowing Invariants
+- Copilot side panel and bottom chat follow generic `org-context-panel` source ownership.
+- If the source Org window disappears, durable side/bottom panels hide instead of remaining attached to a stale source.
+- If another eligible Org source becomes visible while panels are desired, Copilot panels restore/retarget and chat restore runs for the new source.
+- Copilot diff/suggestion previews are transient auxiliary views: close them on source disappearance/retarget, but do not auto-restore them.
+
 ## Invariants
 - Copilot must not persist credentials, OAuth tokens, request headers, or raw prompts in normal sidecars.
 - Live source buffer content is always canonical for model context; transcript and events are explanatory context.

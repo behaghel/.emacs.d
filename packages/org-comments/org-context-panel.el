@@ -69,6 +69,24 @@
 (defvar org-context-panel--following nil
   "Non-nil while `org-context-panel' is following selected windows.")
 
+(defvar org-context-panel--desired-side-panel-p nil
+  "Non-nil when the workspace should keep a side context panel available.")
+
+(defvar org-context-panel--desired-bottom-view-id nil
+  "Bottom context view id the workspace should keep available.")
+
+(defvar org-context-panel--last-source-buffer nil
+  "Most recent ordinary eligible Org source buffer for context panels.")
+
+(defvar org-context-panel--temporarily-hidden-p nil
+  "Non-nil when panels were hidden because no eligible source was visible.")
+
+(defvar org-context-panel--reconciling nil
+  "Non-nil while reconciling context-panel windows.")
+
+(defvar org-context-panel--reconcile-timer nil
+  "Idle timer used to debounce context-panel window reconciliation.")
+
 (defvar org-context-panel--repairing-window nil
   "Non-nil while restoring a protected context-panel window.")
 
@@ -102,7 +120,18 @@
 (defun org-context-panel-close-current-window ()
   "Close the current context-panel auxiliary window."
   (interactive)
-  (quit-window t))
+  (cond
+   ((and org-context-panel-view-id
+	 (eq (current-buffer)
+	     (and (buffer-live-p org-context-panel-source-buffer)
+		  (buffer-local-value 'org-context-panel-bottom-panel-buffer
+				      org-context-panel-source-buffer))))
+    (org-context-panel-close-bottom-view))
+   ((and (not org-context-panel-view-id)
+	 (buffer-live-p org-context-panel-source-buffer))
+    (org-context-panel-close))
+   (t
+    (quit-window t))))
 
 (defun org-context-panel--refresh-after-save ()
   "Refresh context-panel source overlays after saving the current buffer."
@@ -592,6 +621,9 @@ visible viewport rows."
 			    . ((no-other-window . t)
 			       (no-delete-other-windows . t)))))))
       (org-context-panel-protect-window panel-window panel-buffer source)
+      (setq org-context-panel--desired-side-panel-p t)
+      (setq org-context-panel--last-source-buffer source)
+      (setq org-context-panel--temporarily-hidden-p nil)
       (org-context-panel--run-side-panel-hook
        'org-context-panel-after-side-panel-open-hook
        source panel-buffer source-window panel-window))
@@ -614,8 +646,11 @@ visible viewport rows."
       (setq org-context-panel-source-buffer source)
       (org-context-panel-render-side-panel source source-window))))
 
-(defun org-context-panel--close-side-panel-buffer (panel-buffer)
-  "Close side PANEL-BUFFER and clear its source association."
+(defun org-context-panel--close-side-panel-buffer (panel-buffer &optional preserve-desire)
+  "Close side PANEL-BUFFER and clear its source association.
+When PRESERVE-DESIRE is non-nil, keep workspace desired-panel state."
+  (unless preserve-desire
+    (setq org-context-panel--desired-side-panel-p nil))
   (when (buffer-live-p panel-buffer)
     (let ((source (buffer-local-value 'org-context-panel-source-buffer
 				      panel-buffer))
@@ -680,6 +715,146 @@ visible viewport rows."
       (insert (format "Context view: %s\n" (plist-get view :id))))
     (goto-char (point-min))))
 
+(defun org-context-panel--auxiliary-window-p (window)
+  "Return non-nil when WINDOW is a context-panel auxiliary window."
+  (or (window-parameter window 'org-context-panel-protected)
+      (with-current-buffer (window-buffer window)
+	(and (boundp 'org-context-panel-source-buffer)
+	     (buffer-live-p org-context-panel-source-buffer)))))
+
+(defun org-context-panel--eligible-source-buffer-p (buffer)
+  "Return non-nil when BUFFER is an eligible Org source buffer."
+  (and (buffer-live-p buffer)
+       (with-current-buffer buffer
+	 (and (derived-mode-p 'org-mode)
+	      (not (org-context-panel--panel-buffer-p buffer))))))
+
+(defun org-context-panel--ordinary-source-window-p (window)
+  "Return non-nil when WINDOW shows an ordinary eligible source buffer."
+  (and (window-live-p window)
+       (not (window-minibuffer-p window))
+       (not (org-context-panel--auxiliary-window-p window))
+       (org-context-panel--eligible-source-buffer-p (window-buffer window))))
+
+(defun org-context-panel--visible-source-window (source-buffer)
+  "Return ordinary visible window for SOURCE-BUFFER, or nil."
+  (cl-find-if (lambda (window)
+		(and (eq (window-buffer window) source-buffer)
+		     (org-context-panel--ordinary-source-window-p window)))
+	      (window-list nil 'no-minibuf)))
+
+(defun org-context-panel--selected-source-buffer ()
+  "Return selected ordinary eligible source buffer, or nil."
+  (when (org-context-panel--ordinary-source-window-p (selected-window))
+    (window-buffer (selected-window))))
+
+(defun org-context-panel--visible-source-buffer ()
+  "Return selected or fallback visible eligible Org source buffer."
+  (or (org-context-panel--selected-source-buffer)
+      (and (buffer-live-p org-context-panel--last-source-buffer)
+	   (org-context-panel--visible-source-window
+	    org-context-panel--last-source-buffer)
+	   org-context-panel--last-source-buffer)
+      (when-let* ((window (cl-find-if
+			   #'org-context-panel--ordinary-source-window-p
+			   (window-list nil 'no-minibuf))))
+	(window-buffer window))))
+
+(defun org-context-panel--visible-side-panel-window ()
+  "Return a visible context side-panel window, or nil."
+  (cl-find-if
+   (lambda (window)
+     (with-current-buffer (window-buffer window)
+       (and (buffer-live-p org-context-panel-source-buffer)
+	    (not org-context-panel-view-id))))
+   (window-list nil 'no-minibuf)))
+
+(defun org-context-panel--visible-bottom-panel-window ()
+  "Return a visible context bottom-panel window, or nil."
+  (cl-find-if
+   (lambda (window)
+     (with-current-buffer (window-buffer window)
+       (and (buffer-live-p org-context-panel-source-buffer)
+	    org-context-panel-view-id)))
+   (window-list nil 'no-minibuf)))
+
+(defun org-context-panel--cleanup-auxiliary (source-buffer)
+  "Ask SOURCE-BUFFER providers to clean transient auxiliary views."
+  (when (buffer-live-p source-buffer)
+    (with-current-buffer source-buffer
+      (dolist (provider org-context-panel-providers)
+	(when-let* ((function (plist-get provider :cleanup-auxiliary)))
+	  (funcall function source-buffer))))))
+
+(defun org-context-panel--hide-visible-panels ()
+  "Hide visible context panels while preserving desired layout state."
+  (setq org-context-panel--temporarily-hidden-p t)
+  (when-let* ((window (org-context-panel--visible-side-panel-window)))
+    (org-context-panel--close-side-panel-buffer (window-buffer window) t))
+  (when-let* ((window (org-context-panel--visible-bottom-panel-window)))
+    (org-context-panel--close-bottom-view-buffer (window-buffer window) t))
+  (when (buffer-live-p org-context-panel--last-source-buffer)
+    (org-context-panel--cleanup-auxiliary org-context-panel--last-source-buffer)))
+
+(defun org-context-panel--close-stale-panels (source-buffer)
+  "Close visible context panels not associated with SOURCE-BUFFER."
+  (dolist (window (window-list nil 'no-minibuf))
+    (with-current-buffer (window-buffer window)
+      (when (and (buffer-live-p org-context-panel-source-buffer)
+		 (not (eq org-context-panel-source-buffer source-buffer)))
+	(if org-context-panel-view-id
+	    (org-context-panel--close-bottom-view-buffer (current-buffer) t)
+	  (org-context-panel--close-side-panel-buffer (current-buffer) t))))))
+
+(defun org-context-panel--restore-desired-panels (source-buffer)
+  "Restore desired context panels for SOURCE-BUFFER."
+  (when org-context-panel--desired-side-panel-p
+    (org-context-panel-open source-buffer))
+  (when (and org-context-panel--desired-bottom-view-id
+	     (org-context-panel-bottom-view
+	      org-context-panel--desired-bottom-view-id source-buffer))
+    (org-context-panel-open-bottom-view
+     org-context-panel--desired-bottom-view-id source-buffer))
+  (org-context-panel--close-stale-panels source-buffer))
+
+(defun org-context-panel-reconcile-windows ()
+  "Reconcile visible context panels with the current visible Org source."
+  (unless org-context-panel--reconciling
+    (let ((org-context-panel--reconciling t)
+	  (selected (selected-window)))
+      (unwind-protect
+	  (if-let* ((source (org-context-panel--visible-source-buffer)))
+	      (progn
+		(setq org-context-panel--last-source-buffer source)
+		(when (and org-context-panel--desired-side-panel-p
+			   (not org-context-panel--temporarily-hidden-p)
+			   (not (org-context-panel--visible-side-panel-window)))
+		  (setq org-context-panel--desired-side-panel-p nil))
+		(when (and org-context-panel--desired-bottom-view-id
+			   (not org-context-panel--temporarily-hidden-p)
+			   (not (org-context-panel--visible-bottom-panel-window)))
+		  (setq org-context-panel--desired-bottom-view-id nil))
+		(org-context-panel--restore-desired-panels source)
+		(setq org-context-panel--temporarily-hidden-p nil))
+	    (when (or (org-context-panel--visible-side-panel-window)
+		      (org-context-panel--visible-bottom-panel-window))
+	      (org-context-panel--hide-visible-panels)))
+	(when (window-live-p selected)
+	  (select-window selected))))))
+
+(defun org-context-panel--schedule-reconcile (&rest _args)
+  "Schedule debounced context-panel window reconciliation."
+  (unless (timerp org-context-panel--reconcile-timer)
+    (setq org-context-panel--reconcile-timer
+	  (run-with-idle-timer
+	   0 nil
+	   (lambda ()
+	     (setq org-context-panel--reconcile-timer nil)
+	     (org-context-panel-reconcile-windows))))))
+
+(add-hook 'window-configuration-change-hook
+	  #'org-context-panel--schedule-reconcile)
+
 (defun org-context-panel--side-panel-window ()
   "Return a visible `org-context-panel' side-panel window, or nil."
   (cl-find-if
@@ -711,26 +886,20 @@ visible viewport rows."
 		  org-context-panel-providers))))
 
 (defun org-context-panel--follow-selected-buffer ()
-  "Keep a visible side context panel bound to the selected Org buffer."
-  (unless (or org-context-panel--following
-	      (active-minibuffer-window)
-	      (minibufferp (window-buffer (selected-window)))
-	      (org-context-panel--panel-buffer-p (window-buffer (selected-window))))
+  "Schedule context-panel reconciliation after command-driven focus changes."
+  (when (and (not org-context-panel--following)
+	     (not (active-minibuffer-window)))
     (let ((org-context-panel--following t))
-      (when-let* ((panel-window (org-context-panel--side-panel-window)))
-	(let* ((source-window (selected-window))
-	       (source-buffer (window-buffer source-window))
-	       (old-panel-buffer (window-buffer panel-window)))
-	  (if (org-context-panel--followable-source-p source-buffer)
-	      (let ((panel-buffer (org-context-panel-open source-buffer)))
-		(unless (eq (get-buffer-window panel-buffer) panel-window)
-		  (set-window-dedicated-p panel-window nil)
-		  (set-window-buffer panel-window panel-buffer)
-		  (org-context-panel-protect-window
-		   panel-window panel-buffer source-buffer))
-		(unless (eq panel-buffer old-panel-buffer)
-		  (org-context-panel--close-side-panel-buffer old-panel-buffer)))
-	    (org-context-panel--close-side-panel-buffer old-panel-buffer)))))))
+      (unwind-protect
+	  (progn
+	    (when-let* ((source (org-context-panel--selected-source-buffer)))
+	      (setq org-context-panel--last-source-buffer source))
+	    (when (or org-context-panel--desired-side-panel-p
+		      org-context-panel--desired-bottom-view-id
+		      (org-context-panel--visible-side-panel-window)
+		      (org-context-panel--visible-bottom-panel-window))
+	      (org-context-panel--schedule-reconcile)))
+	(setq org-context-panel--following nil)))))
 
 (add-hook 'post-command-hook #'org-context-panel--follow-selected-buffer)
 
@@ -763,6 +932,9 @@ visible viewport rows."
 	 . ((no-other-window . t)
 	    (no-delete-other-windows . t)))))
      panel-buffer source)
+    (setq org-context-panel--desired-bottom-view-id view-id)
+    (setq org-context-panel--last-source-buffer source)
+    (setq org-context-panel--temporarily-hidden-p nil)
     panel-buffer))
 
 ;;;###autoload
@@ -775,6 +947,21 @@ visible viewport rows."
     (org-context-panel-open-bottom-view view-id source)))
 
 ;;;###autoload
+(defun org-context-panel--close-bottom-view-buffer (panel-buffer &optional preserve-desire)
+  "Close bottom PANEL-BUFFER.
+When PRESERVE-DESIRE is non-nil, keep workspace desired-bottom state."
+  (unless preserve-desire
+    (setq org-context-panel--desired-bottom-view-id nil))
+  (when (buffer-live-p panel-buffer)
+    (let ((source (buffer-local-value 'org-context-panel-source-buffer
+				      panel-buffer)))
+      (when-let* ((window (get-buffer-window panel-buffer)))
+	(delete-window window))
+      (kill-buffer panel-buffer)
+      (when (buffer-live-p source)
+	(with-current-buffer source
+	  (setq org-context-panel-bottom-panel-buffer nil))))))
+
 (defun org-context-panel-close-bottom-view ()
   "Close the generic bottom context view for the current source."
   (interactive)
@@ -782,13 +969,7 @@ visible viewport rows."
 	 (panel-buffer (or (and (buffer-live-p org-context-panel-bottom-panel-buffer)
 				org-context-panel-bottom-panel-buffer)
 			   (get-buffer org-context-panel-bottom-buffer-name))))
-    (when (buffer-live-p panel-buffer)
-      (when-let* ((window (get-buffer-window panel-buffer)))
-	(delete-window window))
-      (kill-buffer panel-buffer))
-    (when (buffer-live-p source)
-      (with-current-buffer source
-	(setq org-context-panel-bottom-panel-buffer nil)))))
+    (org-context-panel--close-bottom-view-buffer panel-buffer)))
 
 (defun org-context-panel-cleanup-source-overlays ()
   "Clean up source overlays for registered providers in the current buffer."

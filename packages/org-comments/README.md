@@ -90,6 +90,22 @@ packages/org-comments/
 
 Personal activation remains in `modules/interactive/org/` and should stay limited to load-path setup, package requires, hooks, and personal extensions. Comments panel mode/keymaps are owned by `org-comments-panel-mode`.
 
+## Context Panel Window Ownership
+
+`org-context-panel` owns generic side/bottom panel window lifecycle for all
+providers. Panels are linked to ordinary visible Org source windows, not to the
+selected auxiliary buffer. When the visible source window is replaced by a
+non-Org buffer, side/bottom panels are temporarily hidden while desired layout
+state is preserved. When an eligible Org source becomes visible again, durable
+panel roles are restored and retargeted to that source. Explicit user close
+commands clear desired layout state and prevent automatic restore.
+
+The reconciler is global but inert until panels are visible or desired. It uses
+window-configuration reconciliation rather than intercepting every delete path,
+preserves the selected window, and lets providers clean transient auxiliary
+views through provider callbacks. Durable panel roles are side panels and bottom
+views; transient diff/preview windows should be cleaned, not auto-restored.
+
 ## UX Parity Contract
 
 Remote comment providers should share the same author-facing command language,

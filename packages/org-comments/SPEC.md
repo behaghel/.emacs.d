@@ -49,6 +49,13 @@ If existing functions already provide these capabilities, implementation should 
 - [x] AC-5: Given a Copilot session id, when clearing the session with artifact archival enabled, then matching Copilot-created comments can be archived using native Org archive behavior.
 - [x] AC-6: Given a comment sidecar with unknown extension properties, when collected, then existing comment behavior remains stable and unknown properties do not break loading.
 
+## Context Panel Window Ownership
+- Side and bottom context panels are owned by ordinary visible Org source windows.
+- If no eligible Org source window is visible, durable panel roles are temporarily hidden while desired layout state is preserved.
+- When an eligible Org source becomes visible again, desired side/bottom panels restore and retarget to that source.
+- Explicit user close commands clear desired layout state and prevent automatic restoration.
+- Providers may clean transient auxiliary views, but generic context-panel code must not hardcode provider buffer names.
+
 ## Invariants
 - `org-comments` must not apply source edits, accept suggestions, or implement section replacement.
 - Comment TODO/status remains discussion lifecycle, separate from suggestion candidate lifecycle.

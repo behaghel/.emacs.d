@@ -292,6 +292,7 @@ previous overlay already claimed the focused face."
 	:render-side-item #'org-copilot-context-panel-render-side-item
 	:jump-side-item #'org-copilot-context-panel-jump-side-item
 	:collect-bottom-views #'org-copilot-chat-bottom-views
+	:cleanup-auxiliary #'org-copilot--cleanup-transient-auxiliary
 	:side-panel-mode #'org-copilot-panel-mode
 	:side-panel-buffer-name org-copilot-panel-buffer-name
 	:side-panel-width org-copilot-panel-width))
@@ -327,6 +328,14 @@ previous overlay already claimed the focused face."
   (when (boundp 'org-copilot-diff-buffer-name)
     (org-copilot--close-buffer-window (get-buffer org-copilot-diff-buffer-name))))
 
+(defun org-copilot--cleanup-transient-auxiliary (_source-buffer)
+  "Close transient Org Copilot auxiliary previews."
+  (when (boundp 'org-copilot-diff-buffer-name)
+    (org-copilot--close-buffer-window (get-buffer org-copilot-diff-buffer-name)))
+  (when (boundp 'org-copilot-suggestion-buffer-name)
+    (org-copilot--close-buffer-window
+     (get-buffer org-copilot-suggestion-buffer-name))))
+
 (defun org-copilot--retarget-visible-panels (source-buffer)
   "Retarget visible Org Copilot panels to SOURCE-BUFFER."
   (when-let* ((panel (get-buffer org-copilot-panel-buffer-name)))
@@ -352,15 +361,10 @@ previous overlay already claimed the focused face."
       buffer)))
 
 (defun org-copilot--window-selection-changed (_frame)
-  "Retarget or close Org Copilot panels after selected window changes."
+  "Schedule generic context-panel reconciliation after selection changes."
   (unless org-copilot--workspace-refreshing
-    (when-let* ((source (org-copilot--selected-source-buffer)))
-      (unless (eq source org-copilot--workspace-source-buffer)
-	(let ((org-copilot--workspace-refreshing t))
-	  (setq org-copilot--workspace-source-buffer source)
-	  (if (org-copilot--copilot-source-buffer-p source)
-	      (org-copilot--retarget-visible-panels source)
-	    (org-copilot--close-auxiliary-panels)))))))
+    (when (fboundp 'org-context-panel--schedule-reconcile)
+      (org-context-panel--schedule-reconcile))))
 
 (defun org-copilot--ensure-window-watch ()
   "Install Org Copilot source-window tracking hook."

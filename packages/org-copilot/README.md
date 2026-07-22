@@ -65,6 +65,18 @@ Package code is Evil-neutral. This repository’s personal Org bindings use `,a`
 - `,ac` clear/archive session
 - `,aC` erase session
 
+## Window behavior
+
+Copilot panels are source-owned context panels. If the source Org window is
+replaced by a non-Org buffer, the side panel and bottom chat hide instead of
+staying attached to a stale file. If an eligible Org file becomes visible again,
+the visible/desired side panel and bottom chat restore and retarget to that
+source. Explicitly closing the panels disables automatic restoration until you
+open them again.
+
+Transient suggestion/diff previews are not auto-restored; reopen them from the
+focused artifact when needed.
+
 ## Suggested workflow
 
 1. Open an Org document.

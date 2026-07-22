@@ -355,7 +355,7 @@
 	  (set-window-buffer (selected-window) source-a)
 	  (let ((panel-buffer (org-context-panel-open source-a)))
 	    (set-window-buffer (selected-window) source-b)
-	    (org-context-panel--follow-selected-buffer)
+	    (org-context-panel-reconcile-windows)
 	    (with-current-buffer panel-buffer
 	      (should (eq org-context-panel-source-buffer source-b))
 	      (should (string-match-p "Rendered  \\*org context follow b\\*"
@@ -382,7 +382,7 @@
 	  (set-window-buffer (selected-window) source)
 	  (let ((panel-buffer (org-context-panel-open source)))
 	    (set-window-buffer (selected-window) other)
-	    (org-context-panel--follow-selected-buffer)
+	    (org-context-panel-reconcile-windows)
 	    (should-not (buffer-live-p panel-buffer))))
       (when (buffer-live-p source)
 	(kill-buffer source))
@@ -613,3 +613,94 @@
 
 (provide 'org-context-panel-test)
 ;;; org-context-panel-test.el ends here
+
+(defun org-context-panel-test--reset-workspace-state ()
+  "Reset generic context-panel workspace state for tests."
+  (setq org-context-panel--desired-side-panel-p nil)
+  (setq org-context-panel--desired-bottom-view-id nil)
+  (setq org-context-panel--last-source-buffer nil)
+  (setq org-context-panel--temporarily-hidden-p nil)
+  (when (timerp org-context-panel--reconcile-timer)
+    (cancel-timer org-context-panel--reconcile-timer))
+  (setq org-context-panel--reconcile-timer nil))
+
+(defun org-context-panel-test--source-buffer (name label)
+  "Return Org source buffer NAME with test provider rendering LABEL."
+  (let ((buffer (generate-new-buffer name)))
+    (with-current-buffer buffer
+      (org-mode)
+      (insert "* Heading\nBody.\n")
+      (org-context-panel-register-provider
+       (list :name 'test
+	     :render-side-panel (lambda (_source _items)
+				  (insert "Side " label "\n"))
+	     :collect-bottom-views
+	     (lambda (_source)
+	       (list (list :id 'test-bottom
+			   :buffer-name "*Org Context Test Bottom*"
+			   :render (lambda (_source _view)
+				     (insert "Bottom " label "\n"))))))))
+    buffer))
+
+(ert-deftest org-context-panel-reconciler-hides-and-restores-panels ()
+  "Panels hide without a visible source and restore for the next Org source."
+  (org-context-panel-test--reset-workspace-state)
+  (let ((source-a (org-context-panel-test--source-buffer
+		   " *org context source a*" "A"))
+	(source-b (org-context-panel-test--source-buffer
+		   " *org context source b*" "B"))
+	(other (generate-new-buffer " *org context other*")))
+    (unwind-protect
+	(progn
+	  (set-window-buffer (selected-window) source-a)
+	  (org-context-panel-open source-a)
+	  (org-context-panel-open-bottom-view 'test-bottom source-a)
+	  (should (org-context-panel--visible-side-panel-window))
+	  (should (org-context-panel--visible-bottom-panel-window))
+	  (set-window-buffer (selected-window) other)
+	  (org-context-panel-reconcile-windows)
+	  (should-not (org-context-panel--visible-side-panel-window))
+	  (should-not (org-context-panel--visible-bottom-panel-window))
+	  (should org-context-panel--desired-side-panel-p)
+	  (should (eq org-context-panel--desired-bottom-view-id 'test-bottom))
+	  (set-window-buffer (selected-window) source-b)
+	  (org-context-panel-reconcile-windows)
+	  (should (org-context-panel--visible-side-panel-window))
+	  (should (org-context-panel--visible-bottom-panel-window))
+	  (with-current-buffer (window-buffer
+				(org-context-panel--visible-side-panel-window))
+	    (should (eq org-context-panel-source-buffer source-b))
+	    (should (string-match-p "Side B" (buffer-string))))
+	  (with-current-buffer (window-buffer
+				(org-context-panel--visible-bottom-panel-window))
+	    (should (eq org-context-panel-source-buffer source-b))
+	    (should (string-match-p "Bottom B" (buffer-string)))))
+      (org-context-panel-test--reset-workspace-state)
+      (dolist (buffer (list source-a source-b other
+			    (get-buffer "*Org Context Test Bottom*")
+			    (get-buffer org-context-panel-buffer-name)))
+	(when (buffer-live-p buffer)
+	  (kill-buffer buffer))))))
+
+(ert-deftest org-context-panel-explicit-close-clears-desired-layout ()
+  "Explicit side-panel close prevents automatic restore."
+  (org-context-panel-test--reset-workspace-state)
+  (let ((source (org-context-panel-test--source-buffer
+		 " *org context close source*" "A"))
+	(other (generate-new-buffer " *org context close other*")))
+    (unwind-protect
+	(progn
+	  (set-window-buffer (selected-window) source)
+	  (org-context-panel-open source)
+	  (with-current-buffer source
+	    (org-context-panel-close))
+	  (should-not org-context-panel--desired-side-panel-p)
+	  (set-window-buffer (selected-window) other)
+	  (org-context-panel-reconcile-windows)
+	  (set-window-buffer (selected-window) source)
+	  (org-context-panel-reconcile-windows)
+	  (should-not (org-context-panel--visible-side-panel-window)))
+      (org-context-panel-test--reset-workspace-state)
+      (dolist (buffer (list source other (get-buffer org-context-panel-buffer-name)))
+	(when (buffer-live-p buffer)
+	  (kill-buffer buffer))))))
