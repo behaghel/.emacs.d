@@ -57,5 +57,28 @@
 	(kill-buffer org-copilot-chat-buffer-name))
       (delete-directory directory t))))
 
+(ert-deftest org-copilot-chat-open-does-not-restore-archived-transcript ()
+  "Opening chat does not restore transcript from archived sessions."
+  (let* ((directory (make-temp-file "org-copilot-chat-archive" t))
+	 (source-file (expand-file-name "draft.org" directory)))
+    (unwind-protect
+	(with-current-buffer (find-file-noselect source-file)
+	  (erase-buffer)
+	  (insert "* Draft\n")
+	  (save-buffer)
+	  (org-mode)
+	  (org-copilot-sidecar-append-message source-file 'user "Archived?" nil)
+	  (org-copilot-sidecar-archive-session source-file "default")
+	  (setq org-copilot--chat-messages nil)
+	  (let ((buffer (org-copilot-chat--buffer (current-buffer))))
+	    (should-not (org-copilot-chat-messages))
+	    (with-current-buffer buffer
+	      (should-not (search-forward "Archived?" nil t)))))
+      (when-let* ((buffer (find-buffer-visiting source-file)))
+	(kill-buffer buffer))
+      (when (get-buffer org-copilot-chat-buffer-name)
+	(kill-buffer org-copilot-chat-buffer-name))
+      (delete-directory directory t))))
+
 (provide 'org-copilot-sidecar-test)
 ;;; org-copilot-sidecar-test.el ends here

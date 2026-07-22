@@ -754,3 +754,43 @@
 			    (get-buffer "*Org Context Test Bottom*")))
 	(when (buffer-live-p buffer)
 	  (kill-buffer buffer))))))
+
+(ert-deftest org-context-panel-ignored-sidecar-does-not-steal-source ()
+  "Selecting a sidecar keeps desired panels attached to the last source."
+  (org-context-panel-test--reset-workspace-state)
+  (let* ((directory (make-temp-file "org-context-sidecar" t))
+	 (source-file (expand-file-name "draft.org" directory))
+	 (sidecar-file (expand-file-name "draft.copilot.org" directory))
+	 (source (find-file-noselect source-file))
+	 (sidecar (find-file-noselect sidecar-file)))
+    (unwind-protect
+	(progn
+	  (with-current-buffer source
+	    (erase-buffer)
+	    (org-mode)
+	    (insert "* Source\nBody.\n")
+	    (org-context-panel-register-provider
+	     (list :name 'test
+		   :render-side-panel
+		   (lambda (source-buffer _items)
+		     (insert (format "Side for %s"
+				     (buffer-name source-buffer)))))))
+	  (with-current-buffer sidecar
+	    (erase-buffer)
+	    (org-mode)
+	    (insert "* Session default\n"))
+	  (set-window-buffer (selected-window) source)
+	  (org-context-panel-open source)
+	  (set-window-buffer (selected-window) sidecar)
+	  (org-context-panel-reconcile-windows)
+	  (should (eq org-context-panel--last-source-buffer source))
+	  (should (org-context-panel--visible-side-panel-window))
+	  (with-current-buffer (window-buffer
+				(org-context-panel--visible-side-panel-window))
+	    (should (eq org-context-panel-source-buffer source))
+	    (should (string-match-p "Side for" (buffer-string)))))
+      (org-context-panel-test--reset-workspace-state)
+      (dolist (buffer (list source sidecar (get-buffer org-context-panel-buffer-name)))
+	(when (buffer-live-p buffer)
+	  (kill-buffer buffer)))
+      (delete-directory directory t))))

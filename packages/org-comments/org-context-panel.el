@@ -18,6 +18,7 @@
 
 (require 'cl-lib)
 (require 'org)
+(require 'seq)
 
 (defgroup org-context-panel nil
   "Reusable Org context panel mechanics."
@@ -42,6 +43,18 @@
   "Height of generic Org context bottom views."
   :type 'natnum
   :group 'org-context-panel)
+
+(defcustom org-context-panel-ignored-source-file-suffixes
+  '(".comments.org" ".copilot.org" ".suggestions.org"
+    ".comments.org_archive" ".copilot.org_archive" ".suggestions.org_archive")
+  "File suffixes that should not become context-panel source buffers."
+  :type '(repeat string)
+  :group 'org-context-panel)
+
+(defvar org-context-panel-ignored-source-file-functions nil
+  "Predicate hooks for files that should not become context-panel sources.
+Each function receives an absolute file name and should return non-nil when the
+file is an auxiliary sidecar or generated artifact rather than a source file.")
 
 (defface org-context-panel-marker-face
   '((t :inherit link))
@@ -722,12 +735,35 @@ When PRESERVE-DESIRE is non-nil, keep workspace desired-panel state."
 	(and (boundp 'org-context-panel-source-buffer)
 	     (buffer-live-p org-context-panel-source-buffer)))))
 
+(defun org-context-panel-ignored-source-file-p (file)
+  "Return non-nil when FILE should not become a context-panel source."
+  (and (stringp file)
+       (let ((expanded (expand-file-name file)))
+	 (or (seq-some
+	      (lambda (suffix)
+		(string-suffix-p suffix (file-name-nondirectory expanded)))
+	      org-context-panel-ignored-source-file-suffixes)
+	     (run-hook-with-args-until-success
+	      'org-context-panel-ignored-source-file-functions expanded)))))
+
+(defun org-context-panel--selected-ignored-source-buffer-p ()
+  "Return non-nil when selected window shows an ignored Org sidecar buffer."
+  (let ((buffer (window-buffer (selected-window))))
+    (and (buffer-live-p buffer)
+	 (not (org-context-panel--auxiliary-window-p (selected-window)))
+	 (with-current-buffer buffer
+	   (and (derived-mode-p 'org-mode)
+		buffer-file-name
+		(org-context-panel-ignored-source-file-p buffer-file-name))))))
+
 (defun org-context-panel--eligible-source-buffer-p (buffer)
   "Return non-nil when BUFFER is an eligible Org source buffer."
   (and (buffer-live-p buffer)
        (with-current-buffer buffer
 	 (and (derived-mode-p 'org-mode)
-	      (not (org-context-panel--panel-buffer-p buffer))))))
+	      (not (org-context-panel--panel-buffer-p buffer))
+	      (not (and buffer-file-name
+			(org-context-panel-ignored-source-file-p buffer-file-name)))))))
 
 (defun org-context-panel--ordinary-source-window-p (window)
   "Return non-nil when WINDOW shows an ordinary eligible source buffer."
@@ -749,8 +785,13 @@ When PRESERVE-DESIRE is non-nil, keep workspace desired-panel state."
     (window-buffer (selected-window))))
 
 (defun org-context-panel--visible-source-buffer ()
-  "Return selected or fallback visible eligible Org source buffer."
+  "Return selected or fallback visible eligible Org source buffer.
+When the selected window previews an ignored sidecar, keep the last live source
+instead of treating the sidecar as a new source or hiding existing panels."
   (or (org-context-panel--selected-source-buffer)
+      (and (org-context-panel--selected-ignored-source-buffer-p)
+	   (buffer-live-p org-context-panel--last-source-buffer)
+	   org-context-panel--last-source-buffer)
       (and (buffer-live-p org-context-panel--last-source-buffer)
 	   (org-context-panel--visible-source-window
 	    org-context-panel--last-source-buffer)
