@@ -37,6 +37,7 @@
 (setq hub-lisp-dir (expand-file-name "lisp" user-emacs-directory))
 (add-to-list 'load-path hub-lisp-dir)
 (add-to-list 'load-path (expand-file-name "packages/org-comments" user-emacs-directory))
+(add-to-list 'load-path (expand-file-name "packages/org-suggestions" user-emacs-directory))
 (add-to-list 'load-path (expand-file-name "packages/org-copilot" user-emacs-directory))
 (add-to-list 'load-path (expand-file-name "packages/org-confluence" user-emacs-directory))
 (add-to-list 'load-path (expand-file-name "packages/org-marginalia" user-emacs-directory))
