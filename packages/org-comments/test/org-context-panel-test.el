@@ -728,3 +728,25 @@
 			    (get-buffer "*Org Context Test Bottom*")))
 	(when (buffer-live-p buffer)
 	  (kill-buffer buffer))))))
+
+(ert-deftest org-context-panel-reconciler-kills-directly-deleted-bottom-buffer ()
+  "Direct window deletion is treated as explicit bottom panel close."
+  (org-context-panel-test--reset-workspace-state)
+  (let ((source (org-context-panel-test--source-buffer
+		 " *org context direct close source*" "A")))
+    (unwind-protect
+	(progn
+	  (set-window-buffer (selected-window) source)
+	  (let ((bottom-buffer (org-context-panel-open-bottom-view
+				'test-bottom source)))
+	    (delete-window (get-buffer-window bottom-buffer))
+	    (org-context-panel-reconcile-windows)
+	    (should-not org-context-panel--desired-bottom-view-id)
+	    (should-not (buffer-live-p bottom-buffer))
+	    (with-current-buffer source
+	      (should-not org-context-panel-bottom-panel-buffer))))
+      (org-context-panel-test--reset-workspace-state)
+      (dolist (buffer (list source
+			    (get-buffer "*Org Context Test Bottom*")))
+	(when (buffer-live-p buffer)
+	  (kill-buffer buffer))))))

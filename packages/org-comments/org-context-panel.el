@@ -841,11 +841,13 @@ editable prompt point that reconciliation must not disturb."
 		(when (and org-context-panel--desired-side-panel-p
 			   (not org-context-panel--temporarily-hidden-p)
 			   (not (org-context-panel--visible-side-panel-window)))
-		  (setq org-context-panel--desired-side-panel-p nil))
+		  (org-context-panel--close-side-panel-buffer
+		   (buffer-local-value 'org-context-panel-side-panel-buffer source)))
 		(when (and org-context-panel--desired-bottom-view-id
 			   (not org-context-panel--temporarily-hidden-p)
 			   (not (org-context-panel--visible-bottom-panel-window)))
-		  (setq org-context-panel--desired-bottom-view-id nil))
+		  (org-context-panel--close-bottom-view-buffer
+		   (buffer-local-value 'org-context-panel-bottom-panel-buffer source)))
 		(org-context-panel--restore-desired-panels source)
 		(setq org-context-panel--temporarily-hidden-p nil))
 	    (when (or (org-context-panel--visible-side-panel-window)

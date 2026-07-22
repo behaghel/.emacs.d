@@ -574,3 +574,23 @@
 
 (provide 'org-copilot-context-panel-test)
 ;;; org-copilot-context-panel-test.el ends here
+
+(ert-deftest org-copilot-close-from-chat-closes-bottom-buffer ()
+  "`org-copilot-close' closes chat when invoked from the chat buffer."
+  (let ((source (generate-new-buffer " *org copilot close chat source*")))
+    (unwind-protect
+	(progn
+	  (with-current-buffer source
+	    (org-mode)
+	    (org-copilot-mode 1)
+	    (insert "* Heading\nBody.\n")
+	    (org-copilot-chat))
+	  (let ((chat (get-buffer org-copilot-chat-buffer-name)))
+	    (should (buffer-live-p chat))
+	    (with-current-buffer chat
+	      (org-copilot-close))
+	    (should-not (buffer-live-p chat))))
+      (when (buffer-live-p source)
+	(kill-buffer source))
+      (when-let* ((chat (get-buffer org-copilot-chat-buffer-name)))
+	(kill-buffer chat)))))

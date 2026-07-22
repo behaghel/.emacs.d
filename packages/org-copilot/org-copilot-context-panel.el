@@ -436,9 +436,26 @@ previous overlay already claimed the focused face."
 
 ;;;###autoload
 (defun org-copilot-close ()
-  "Close the Org Copilot side panel for the current source."
+  "Close Org Copilot panel windows for the current source or panel."
   (interactive)
-  (org-context-panel-close))
+  (cond
+   ((derived-mode-p 'org-copilot-chat-mode)
+    (let ((source org-context-panel-source-buffer)
+	  (chat (current-buffer)))
+      (setq org-context-panel--desired-bottom-view-id nil)
+      (when (buffer-live-p source)
+	(with-current-buffer source
+	  (setq org-context-panel-bottom-panel-buffer nil)))
+      (org-copilot--close-buffer-window chat)))
+   ((derived-mode-p 'org-copilot-panel-mode)
+    (org-context-panel-close))
+   (t
+    (let ((source (org-copilot--active-source-buffer)))
+      (with-current-buffer source
+	(when (buffer-live-p org-context-panel-side-panel-buffer)
+	  (org-context-panel-close))
+	(when (buffer-live-p org-context-panel-bottom-panel-buffer)
+	  (org-context-panel-close-bottom-view)))))))
 
 (provide 'org-copilot-context-panel)
 ;;; org-copilot-context-panel.el ends here
