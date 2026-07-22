@@ -704,3 +704,27 @@
       (dolist (buffer (list source other (get-buffer org-context-panel-buffer-name)))
 	(when (buffer-live-p buffer)
 	  (kill-buffer buffer))))))
+
+(ert-deftest org-context-panel-reconciler-preserves-bottom-buffer-point ()
+  "Reconciliation does not rerender an already-correct bottom panel."
+  (org-context-panel-test--reset-workspace-state)
+  (let ((source (org-context-panel-test--source-buffer
+		 " *org context point source*" "A")))
+    (unwind-protect
+	(progn
+	  (set-window-buffer (selected-window) source)
+	  (org-context-panel-open-bottom-view 'test-bottom source)
+	  (let* ((bottom-window (org-context-panel--visible-bottom-panel-window))
+		 (bottom-buffer (window-buffer bottom-window)))
+	    (select-window bottom-window)
+	    (with-current-buffer bottom-buffer
+	      (goto-char (point-max)))
+	    (org-context-panel-reconcile-windows)
+	    (should (eq (selected-window) bottom-window))
+	    (with-current-buffer bottom-buffer
+	      (should (= (point) (point-max))))))
+      (org-context-panel-test--reset-workspace-state)
+      (dolist (buffer (list source
+			    (get-buffer "*Org Context Test Bottom*")))
+	(when (buffer-live-p buffer)
+	  (kill-buffer buffer))))))

@@ -806,11 +806,23 @@ When PRESERVE-DESIRE is non-nil, keep workspace desired-panel state."
 	    (org-context-panel--close-bottom-view-buffer (current-buffer) t)
 	  (org-context-panel--close-side-panel-buffer (current-buffer) t))))))
 
+(defun org-context-panel--panel-window-for-source-p (window source-buffer)
+  "Return non-nil when WINDOW already shows a panel for SOURCE-BUFFER."
+  (and (window-live-p window)
+       (with-current-buffer (window-buffer window)
+	 (eq org-context-panel-source-buffer source-buffer))))
+
 (defun org-context-panel--restore-desired-panels (source-buffer)
-  "Restore desired context panels for SOURCE-BUFFER."
-  (when org-context-panel--desired-side-panel-p
+  "Restore desired context panels for SOURCE-BUFFER.
+Do not rerender already-correct visible panels; chat buffers may have an
+editable prompt point that reconciliation must not disturb."
+  (when (and org-context-panel--desired-side-panel-p
+	     (not (org-context-panel--panel-window-for-source-p
+		   (org-context-panel--visible-side-panel-window) source-buffer)))
     (org-context-panel-open source-buffer))
   (when (and org-context-panel--desired-bottom-view-id
+	     (not (org-context-panel--panel-window-for-source-p
+		   (org-context-panel--visible-bottom-panel-window) source-buffer))
 	     (org-context-panel-bottom-view
 	      org-context-panel--desired-bottom-view-id source-buffer))
     (org-context-panel-open-bottom-view
