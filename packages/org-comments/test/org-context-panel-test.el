@@ -325,7 +325,8 @@
 	      (should (string-match-p "Rendered 1"
 				      (buffer-string))))
 	    (org-context-panel-close)
-	    (should-not (buffer-live-p panel-buffer))
+	    (should (buffer-live-p panel-buffer))
+	    (should-not (get-buffer-window panel-buffer t))
 	    (should-not org-context-panel-side-panel-buffer)))
       (when (buffer-live-p source-buffer)
 	(kill-buffer source-buffer))
@@ -383,7 +384,8 @@
 	  (let ((panel-buffer (org-context-panel-open source)))
 	    (set-window-buffer (selected-window) other)
 	    (org-context-panel-reconcile-windows)
-	    (should-not (buffer-live-p panel-buffer))))
+	    (should (buffer-live-p panel-buffer))
+	    (should-not (get-buffer-window panel-buffer t))))
       (when (buffer-live-p source)
 	(kill-buffer source))
       (when (buffer-live-p other)
@@ -459,7 +461,8 @@
 	      (should (string-match-p "View details"
 				      (buffer-string))))
 	    (org-context-panel-close-bottom-view)
-	    (should-not (buffer-live-p panel-buffer))
+	    (should (buffer-live-p panel-buffer))
+	    (should-not (get-buffer-window panel-buffer t))
 	    (should-not org-context-panel-bottom-panel-buffer)))
       (when (buffer-live-p source-buffer)
 	(kill-buffer source-buffer))
@@ -729,7 +732,7 @@
 	(when (buffer-live-p buffer)
 	  (kill-buffer buffer))))))
 
-(ert-deftest org-context-panel-reconciler-kills-directly-deleted-bottom-buffer ()
+(ert-deftest org-context-panel-reconciler-buries-directly-deleted-bottom-buffer ()
   "Direct window deletion is treated as explicit bottom panel close."
   (org-context-panel-test--reset-workspace-state)
   (let ((source (org-context-panel-test--source-buffer
@@ -742,7 +745,8 @@
 	    (delete-window (get-buffer-window bottom-buffer))
 	    (org-context-panel-reconcile-windows)
 	    (should-not org-context-panel--desired-bottom-view-id)
-	    (should-not (buffer-live-p bottom-buffer))
+	    (should (buffer-live-p bottom-buffer))
+	    (should-not (get-buffer-window bottom-buffer t))
 	    (with-current-buffer source
 	      (should-not org-context-panel-bottom-panel-buffer))))
       (org-context-panel-test--reset-workspace-state)

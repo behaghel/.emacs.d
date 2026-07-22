@@ -6,6 +6,7 @@
 ;;; Code:
 
 (require 'hub-denote)
+(require 'hub-noise)
 (require 'hub-utils)
 
 (defcustom hub/denote-work-known-keywords
@@ -90,6 +91,11 @@
 	denote-sort-keywords t
 	denote-prompts '(title keywords)
 	denote-excluded-directories-regexp nil
+	denote-excluded-files-regexp
+	(mapconcat (lambda (suffix)
+		     (concat (regexp-quote suffix) "\\'"))
+		   hub/noise-sidecar-suffixes
+		   "\\|")
 	denote-rename-confirmations '(rewrite-front-matter modify-file-name)
 	denote-date-prompt-use-org-read-date t
 	denote-allow-multi-word-keywords nil

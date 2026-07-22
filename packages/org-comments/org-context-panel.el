@@ -662,7 +662,7 @@ When PRESERVE-DESIRE is non-nil, keep workspace desired-panel state."
        panel-window)
       (when (window-live-p panel-window)
 	(delete-window panel-window))
-      (kill-buffer panel-buffer)
+      (bury-buffer panel-buffer)
       (when (buffer-live-p source)
 	(with-current-buffer source
 	  (setq org-context-panel-side-panel-buffer nil))))))
@@ -971,7 +971,7 @@ When PRESERVE-DESIRE is non-nil, keep workspace desired-bottom state."
 				      panel-buffer)))
       (when-let* ((window (get-buffer-window panel-buffer)))
 	(delete-window window))
-      (kill-buffer panel-buffer)
+      (bury-buffer panel-buffer)
       (when (buffer-live-p source)
 	(with-current-buffer source
 	  (setq org-context-panel-bottom-panel-buffer nil))))))

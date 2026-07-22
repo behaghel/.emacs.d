@@ -6,6 +6,7 @@
 ;;; Code:
 
 (require 'hub-denote)
+(require 'hub-noise)
 (require 'hub-utils)
 
 (require 'seq)
@@ -63,7 +64,7 @@ removing the item from `dashboard-items', also avoids loading them."
   "Return non-nil when PATH is a Denote source note or generated sibling."
   (let ((file (file-name-nondirectory path)))
     (or (hub/denote-source-note-file-p path)
-	(string-suffix-p ".comments.org" file)
+	(hub/noise-file-p path)
 	(string-match-p (rx string-start
 			    (= 8 digit) "T" (= 6 digit)
 			    (or "--" "=="))
@@ -78,6 +79,7 @@ removing the item from `dashboard-items', also avoids loading them."
 	(string-prefix-p ".#" file)
 	(string-suffix-p "~" file)
 	(string-suffix-p ".elc" file)
+	(hub/noise-file-p path)
 	(string-match-p (rx (or ".cache" "~undo-tree~" ".lost-") string-end) file))))
 
 (defun hub/dashboard--mail-path-p (path)
@@ -212,6 +214,7 @@ removing the item from `dashboard-items', also avoids loading them."
     (require 'recentf)
     (require 'seq)
     (require 'project)
+    (hub/noise-install-buffer-filters)
     (recentf-mode 1)
     (ignore-errors (recentf-load-list))
     (hub/performance-log-startup-event "dashboard recentf ready" start-time))

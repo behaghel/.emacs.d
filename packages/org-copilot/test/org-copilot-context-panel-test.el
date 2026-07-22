@@ -428,9 +428,13 @@
 	    (org-copilot-mode 1))
 	  (display-buffer (get-buffer-create org-copilot-panel-buffer-name))
 	  (display-buffer (org-copilot-chat--buffer source))
-	  (org-copilot--close-auxiliary-panels)
-	  (should-not (get-buffer org-copilot-panel-buffer-name))
-	  (should-not (get-buffer org-copilot-chat-buffer-name)))
+	  (let ((panel (get-buffer org-copilot-panel-buffer-name))
+		(chat (get-buffer org-copilot-chat-buffer-name)))
+	    (org-copilot--close-auxiliary-panels)
+	    (should (buffer-live-p panel))
+	    (should (buffer-live-p chat))
+	    (should-not (get-buffer-window panel t))
+	    (should-not (get-buffer-window chat t))))
       (when (buffer-live-p source)
 	(kill-buffer source)))))
 
@@ -575,8 +579,8 @@
 (provide 'org-copilot-context-panel-test)
 ;;; org-copilot-context-panel-test.el ends here
 
-(ert-deftest org-copilot-close-from-chat-closes-bottom-buffer ()
-  "`org-copilot-close' closes chat when invoked from the chat buffer."
+(ert-deftest org-copilot-close-from-chat-buries-bottom-buffer ()
+  "`org-copilot-close' buries chat when invoked from the chat buffer."
   (let ((source (generate-new-buffer " *org copilot close chat source*")))
     (unwind-protect
 	(progn
@@ -589,7 +593,8 @@
 	    (should (buffer-live-p chat))
 	    (with-current-buffer chat
 	      (org-copilot-close))
-	    (should-not (buffer-live-p chat))))
+	    (should (buffer-live-p chat))
+	    (should-not (get-buffer-window chat t))))
       (when (buffer-live-p source)
 	(kill-buffer source))
       (when-let* ((chat (get-buffer org-copilot-chat-buffer-name)))

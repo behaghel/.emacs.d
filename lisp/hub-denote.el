@@ -6,6 +6,7 @@
 
 ;;; Code:
 
+(require 'hub-noise)
 (require 'seq)
 (require 'subr-x)
 
@@ -49,7 +50,7 @@ readable title; consumers such as dashboards can layer that display policy on
 top."
   (and (stringp path)
        (not (hub/denote--hidden-path-component-p path))
-       (not (string-suffix-p ".comments.org" path))
+       (not (hub/noise-file-p path))
        (string-match-p hub/denote--source-note-regexp
 		       (file-name-nondirectory path))))
 

@@ -312,13 +312,13 @@ previous overlay already claimed the focused face."
        (buffer-local-value 'org-copilot-mode buffer)))
 
 (defun org-copilot--close-buffer-window (buffer)
-  "Close BUFFER's visible window and kill BUFFER when it is live."
+  "Close BUFFER's visible window and bury BUFFER when it is live."
   (when (buffer-live-p buffer)
     (when-let* ((window (get-buffer-window buffer t)))
       (unless (one-window-p t)
 	(delete-window window)))
     (when (buffer-live-p buffer)
-      (kill-buffer buffer))))
+      (bury-buffer buffer))))
 
 (defun org-copilot--close-auxiliary-panels ()
   "Close Org Copilot auxiliary panels for the previous source."

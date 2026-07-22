@@ -6,6 +6,7 @@
 
 ;;; Code:
 
+(require 'hub-noise)
 (require 'hub-utils)
 (defvar org-directory (expand-file-name "Documents/org/" (or (getenv "HOME") "~"))
   "Base directory for Org files.
@@ -279,6 +280,7 @@ overwriting intentional uppercase bindings that target other spaces."
    consult--source-bookmark consult--source-file-register
    consult--source-recent-file consult--source-project-recent-file
    :preview-key '(:debounce 0.4 any))
+  (hub/noise-install-buffer-filters)
   (setq consult-narrow-key "<")
   (define-key consult-narrow-map (vconcat consult-narrow-key "?") #'consult-narrow-help))
 
