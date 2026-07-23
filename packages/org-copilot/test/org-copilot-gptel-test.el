@@ -588,6 +588,91 @@
 	(should (string-match-p "Add evidence"
 				(plist-get (car messages) :content)))))))
 
+(ert-deftest org-copilot-gptel-installs-durable-suggestion-thread-with-generated-id-and-todo-title ()
+  "Suggestion install generates missing candidate ids and anchors TODO headings."
+  (let* ((directory (make-temp-file "org-copilot-durable-todo" t))
+	 (source-file (expand-file-name "draft.org" directory)))
+    (unwind-protect
+	(with-current-buffer (find-file-noselect source-file)
+	  (erase-buffer)
+	  (insert "* TODO Partnering With Insurances\nOld body.\n")
+	  (save-buffer)
+	  (org-mode)
+	  (let ((source (current-buffer)))
+	    (cl-letf (((symbol-function 'gptel-request)
+		       (lambda (_prompt &rest args)
+			 (funcall (plist-get args :callback)
+				  (concat
+				   "{\"intent\":\"edit\","
+				   "\"message\":\"I drafted it.\","
+				   "\"suggestion_threads\":[{"
+				   "\"intent\":\"rewrite_section\","
+				   "\"summary\":\"Rewrite insurance section\","
+				   "\"suggestions\":[{"
+				   "\"hunks\":[{\"id\":\"h1\","
+				   "\"kind\":\"section-replace\","
+				   "\"section_title\":\"TODO Partnering With Insurances\","
+				   "\"replacement\":\"New body.\"}]}]}]}" )
+				  (list :status 'success)))))
+	      (org-copilot-gptel-chat
+	       (list :source-buffer source
+		     :buffer-name "draft.org"
+		     :message "Rewrite insurance"
+		     :messages nil
+		     :chat-context '(:type section)
+		     :context-id "section:Partnering With Insurances"
+		     :source-content (buffer-string)
+		     :section-content "* TODO Partnering With Insurances\nOld body.\n"))
+	      (with-temp-buffer
+		(insert-file-contents (org-suggestions-sidecar-path source-file))
+		(should (search-forward "** ACTIVE ai-thread-1.1" nil t))
+		(should (search-forward "New body." nil t)))
+	      (with-temp-buffer
+		(insert-file-contents (org-comments-sidecar-path source-file))
+		(should (search-forward "Rewrite insurance section" nil t))
+		(should (search-forward
+			 ":ORG_COMMENTS_SUGGESTION_IDS: ai-thread-1.1" nil t))))))
+      (when-let* ((buffer (find-buffer-visiting source-file)))
+	(kill-buffer buffer))
+      (delete-directory directory t))))
+
+(ert-deftest org-copilot-gptel-chat-warns-when-edit-installs-no-artifact ()
+  "Chat response warns when edit intent returns no executable suggestion."
+  (let* ((directory (make-temp-file "org-copilot-no-artifact" t))
+	 (source-file (expand-file-name "draft.org" directory)))
+    (unwind-protect
+	(with-current-buffer (find-file-noselect source-file)
+	  (erase-buffer)
+	  (insert "* Intro\nOld body.\n")
+	  (save-buffer)
+	  (org-mode)
+	  (let ((source (current-buffer)))
+	    (cl-letf (((symbol-function 'gptel-request)
+		       (lambda (_prompt &rest args)
+			 (funcall (plist-get args :callback)
+				  "{\"intent\":\"rewrite_section\",\"message\":\"Drafted it.\"}"
+				  (list :status 'success)))))
+	      (org-copilot-gptel-chat
+	       (list :source-buffer source
+		     :buffer-name "draft.org"
+		     :message "Rewrite intro"
+		     :messages nil
+		     :chat-context '(:type section)
+		     :context-id "section:Intro"
+		     :source-content (buffer-string)
+		     :section-content "* Intro\nOld body.\n"))
+	      (let ((message (plist-get (car (last (org-copilot-chat-messages)))
+					:content)))
+		(should (string-match-p "No executable suggestion artifact" message)))
+	      (with-current-buffer org-copilot-debug-buffer-name
+		(goto-char (point-min))
+		(should (search-forward "Chat response handled" nil t))))))
+      (when-let* ((buffer (find-buffer-visiting source-file)))
+	(kill-buffer buffer))
+      (when (get-buffer org-copilot-debug-buffer-name)
+	(kill-buffer org-copilot-debug-buffer-name))
+      (delete-directory directory t))))
+
 (provide 'org-copilot-gptel-test)
 ;;; org-copilot-gptel-test.el ends here
 

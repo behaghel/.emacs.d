@@ -28,6 +28,7 @@ file is generated or auxiliary rather than user-authored source.")
 (defconst hub/noise-auxiliary-buffer-regexps
   '("\\`\\*Org Copilot\\*\\'"
     "\\`\\*Org Copilot Chat\\*\\'"
+    "\\`\\*Org Copilot Debug\\*\\'"
     "\\`\\*Org Copilot Diff\\*\\'"
     "\\`\\*Org Copilot Suggestion\\*\\'"
     "\\`\\*Org Context Panel\\*\\'"

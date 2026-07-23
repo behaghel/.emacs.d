@@ -22,6 +22,7 @@
 (require 'org-suggestions)
 (require 'org-copilot-sidecar)
 (require 'org-copilot-chat)
+(require 'org-copilot-debug)
 (require 'org-copilot-llm)
 (require 'org-copilot-session)
 (require 'org-copilot-suggestion)
@@ -382,18 +383,41 @@ REQUEST supplies reviewed source bounds for line-range fallback anchoring."
   (format "ai-thread-%d"
 	  (1+ (length (org-suggestions-load-sidecar source-file)))))
 
+(defun org-copilot-gptel--ensure-candidate-ids (candidates thread-id)
+  "Return CANDIDATES with stable ids derived from THREAD-ID when missing."
+  (cl-loop for candidate in candidates
+	   for index from 1
+	   collect (if (org-copilot-llm-optional-string
+			(plist-get candidate :id))
+		       candidate
+		     (plist-put (copy-sequence candidate) :id
+				(format "%s.%d" thread-id index)))))
+
+(defun org-copilot-gptel--normalize-section-title (title)
+  "Return TITLE normalized for matching against Org headings."
+  (when (stringp title)
+    (let* ((trimmed (string-trim title))
+	   (todo-keywords (and (boundp 'org-todo-keywords-1)
+			       org-todo-keywords-1))
+	   (todo-regexp (and todo-keywords
+			     (concat "\\`" (regexp-opt todo-keywords 'words) "[ \\t]+"))))
+      (if (and todo-regexp (string-match-p todo-regexp trimmed))
+	  (string-trim (replace-regexp-in-string todo-regexp "" trimmed nil nil 1))
+	trimmed))))
+
 (defun org-copilot-gptel--section-heading-bounds (source-buffer title)
   "Return cons bounds for section heading TITLE in SOURCE-BUFFER."
-  (with-current-buffer source-buffer
-    (save-excursion
-      (goto-char (point-min))
-      (catch 'found
-	(while (re-search-forward org-heading-regexp nil t)
-	  (beginning-of-line)
-	  (when (string= title (org-get-heading t t t t))
-	    (throw 'found (cons (line-beginning-position)
-				(line-end-position))))
-	  (org-end-of-subtree t t))))))
+  (let ((normalized-title (org-copilot-gptel--normalize-section-title title)))
+    (with-current-buffer source-buffer
+      (save-excursion
+	(goto-char (point-min))
+	(catch 'found
+	  (while (re-search-forward org-heading-regexp nil t)
+	    (beginning-of-line)
+	    (when (string= normalized-title (org-get-heading t t t t))
+	      (throw 'found (cons (line-beginning-position)
+				  (line-end-position))))
+	    (org-end-of-subtree t t)))))))
 
 (defun org-copilot-gptel--primary-hunk (thread)
   "Return primary hunk from THREAD, or first hunk."
@@ -401,7 +425,7 @@ REQUEST supplies reviewed source bounds for line-range fallback anchoring."
 			    (copy-sequence (plist-get candidate :hunks)))
 			  (plist-get thread :candidates))))
     (or (cl-find-if (lambda (hunk) (plist-get hunk :primary)) hunks)
-	hunks)))
+	(car hunks))))
 
 (defun org-copilot-gptel--persist-thread-comment
     (source-buffer source-file thread thread-id suggestion-ids)
@@ -439,9 +463,10 @@ REQUEST supplies reviewed source bounds for line-range fallback anchoring."
 	       (existing (cl-find thread-id stored
 				  :key (lambda (item) (plist-get item :id))
 				  :test #'equal))
-	       (candidates (plist-get thread :candidates))
+	       (candidates (org-copilot-gptel--ensure-candidate-ids
+			    (plist-get thread :candidates) thread-id))
 	       (suggestion-ids (mapcar (lambda (candidate)
-					 (or (plist-get candidate :id) "ai-1"))
+					 (plist-get candidate :id))
 				       candidates))
 	       (focus-suggestion-id (plist-get request :focus-suggestion-id)))
 	  (when focus-suggestion-id
@@ -452,19 +477,35 @@ REQUEST supplies reviewed source bounds for line-range fallback anchoring."
 	  (if existing
 	      (plist-put existing :candidates
 			 (append (plist-get existing :candidates) candidates))
-	    (let ((new-thread (copy-sequence thread)))
+	    (let* ((new-thread (copy-sequence thread))
+		   (comment-id nil))
 	      (setq new-thread (plist-put new-thread :id thread-id))
 	      (setq new-thread (plist-put new-thread :provider "org-copilot"))
 	      (setq new-thread (plist-put new-thread :session-id "default"))
 	      (setq new-thread (plist-put new-thread :candidates candidates))
-	      (setq new-thread (plist-put new-thread :comment-id
-					  (org-copilot-gptel--persist-thread-comment
-					   source-buffer source-file new-thread thread-id suggestion-ids)))
+	      (setq comment-id
+		    (org-copilot-gptel--persist-thread-comment
+		     source-buffer source-file new-thread thread-id suggestion-ids))
+	      (setq new-thread (plist-put new-thread :comment-id comment-id))
+	      (unless comment-id
+		(org-copilot-debug-record
+		 "Suggestion thread comment not anchored"
+		 :source-file source-file
+		 :thread-id thread-id
+		 :primary-hunk (org-copilot-gptel--primary-hunk new-thread)))
 	      (push new-thread stored)))
 	  (push thread-id installed-thread-ids)
 	  (setq installed-suggestion-ids
 		(append suggestion-ids installed-suggestion-ids))))
-      (org-suggestions-write-sidecar source-file (nreverse stored)))))
+      (org-suggestions-write-sidecar source-file (nreverse stored))
+      (let ((result (list :thread-ids (nreverse installed-thread-ids)
+			  :suggestion-ids (nreverse installed-suggestion-ids))))
+	(org-copilot-debug-record
+	 "Suggestion threads installed"
+	 :source-file source-file
+	 :result result
+	 :parsed-threads threads)
+	result))))
 
 (defun org-copilot-gptel--install-chat-suggestion (source-buffer parsed request)
   "Install or preview non-comment chat suggestion PARSED for REQUEST."
@@ -507,13 +548,24 @@ chat viewport."
 	(when scroll-role
 	  (org-copilot-chat-scroll-to-last-message source-buffer scroll-role))))))
 
+(defun org-copilot-gptel--missing-executable-warning (parsed suggestions-result)
+  "Return warning when PARSED promised an edit but installed no artifact."
+  (when (and (memq (plist-get parsed :intent)
+		   '(rewrite_section rewrite_document draft_document revise_comment edit))
+	     (not (plist-get parsed :suggestion))
+	     (not (plist-get suggestions-result :suggestion-ids)))
+    "\n\n⚠ No executable suggestion artifact was returned or installed. Open `*Org Copilot Debug*` for the raw response and parse trace."))
+
 (defun org-copilot-gptel--handle-chat-response
     (text source-buffer comment-id context-id request)
   "Handle complete chat response TEXT for SOURCE-BUFFER."
   (when (and (stringp text) (buffer-live-p source-buffer))
-    (let* ((parsed (org-copilot-llm-parse-chat-response text))
+    (let* ((parsed-raw (org-copilot-llm-parse-chat-response text))
 	   (parsed (org-copilot-gptel--drop-disallowed-chat-suggestion
-		    parsed request))
+		    parsed-raw request))
+	   (suggestions-result
+	    (org-copilot-gptel--install-suggestion-threads
+	     source-buffer parsed request))
 	   (install-result
 	    (unless comment-id
 	      (org-copilot-install-chat-comments
@@ -521,10 +573,23 @@ chat viewport."
 	       (plist-get parsed :comments)
 	       request
 	       (plist-get request :message))))
-	   (message (org-copilot-llm-append-chat-install-summary
-		     (plist-get parsed :message)
-		     install-result)))
-      (org-copilot-gptel--install-suggestion-threads source-buffer parsed request)
+	   (message (concat
+		     (org-copilot-llm-append-chat-install-summary
+		      (plist-get parsed :message)
+		      install-result)
+		     (or (org-copilot-gptel--missing-executable-warning
+			  parsed suggestions-result)
+			 ""))))
+      (org-copilot-debug-record
+       "Chat response handled"
+       :source-file (buffer-file-name source-buffer)
+       :request request
+       :raw-response text
+       :parsed parsed
+       :dropped-fields (and (not (equal parsed parsed-raw))
+			    (list :before parsed-raw :after parsed))
+       :comment-install-result install-result
+       :suggestion-install-result suggestions-result)
       (if comment-id
 	  (org-copilot-gptel--update-focused-suggestion
 	   source-buffer comment-id (plist-get parsed :suggestion)

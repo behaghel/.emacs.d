@@ -59,6 +59,7 @@ Package code is Evil-neutral. This repository’s personal Org bindings use `,a`
 - `,an` / `,ap` next/previous
 - `,aA` accept
 - `,ad` diff preview
+- `,aD` debug trace buffer
 - `,av` suggestion preview panel
 - `,au` undo
 - `,ax` dismiss

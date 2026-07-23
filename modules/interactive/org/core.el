@@ -25,6 +25,7 @@
 (autoload 'org-copilot-chat-section "org-copilot-chat" nil t)
 (autoload 'org-copilot-chat-undo-focused-comment-at-point "org-copilot-chat" nil t)
 (autoload 'org-copilot-clear-session "org-copilot-session" nil t)
+(autoload 'org-copilot-debug-open "org-copilot-debug" nil t)
 (autoload 'org-copilot-dismiss-at-point "org-copilot-diff" nil t)
 (autoload 'org-copilot-erase-session "org-copilot-session" nil t)
 (autoload 'org-copilot-open-panels "org-copilot-context-panel" nil t)
@@ -85,6 +86,7 @@ native behavior."
 			      ",ac" #'org-copilot-clear-session
 			      ",aC" #'org-copilot-erase-session
 			      ",ad" #'org-copilot-view-diff-at-point
+			      ",aD" #'org-copilot-debug-open
 			      ",ag" #'org-copilot-chat-full-document
 			      ",an" #'org-copilot-chat-focus-next-comment
 			      ",ao" #'org-copilot-open-panels

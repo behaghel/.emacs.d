@@ -25,6 +25,7 @@
 (require 'org-copilot-suggestion)
 (require 'org-copilot-llm)
 (require 'org-copilot-chat)
+(require 'org-copilot-debug)
 
 (provide 'org-copilot)
 ;;; org-copilot.el ends here
