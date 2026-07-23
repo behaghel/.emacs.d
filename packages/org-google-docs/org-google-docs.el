@@ -24,9 +24,12 @@
 (declare-function gdocs-convert-docs-json-to-ir "gdocs-convert" (json))
 (declare-function gdocs-convert-ir-to-docs-requests "gdocs-convert"
 		  (ir &optional start-index))
+(declare-function gdocs-convert-ir-to-org "gdocs-convert" (ir))
 (declare-function gdocs-convert-org-buffer-to-ir "gdocs-convert" ())
 (declare-function gdocs-diff-generate "gdocs-diff"
 		  (old-ir new-ir &optional start-index))
+(declare-function gdocs-sync--pull-integrity-diagnostics "gdocs-sync"
+		  (old-org new-org))
 (declare-function gdocs-sync-push "gdocs-sync" ())
 
 (defgroup org-google-docs nil
@@ -46,6 +49,23 @@ Set this to nil before rebuilding the map to leave the mode map unbound."
 
 (defvar org-google-docs-mode-map (make-sparse-keymap)
   "Keymap for `org-google-docs-mode'.")
+
+(defcustom org-google-docs-gdocs-repository nil
+  "Optional local gdocs checkout used for semantic publishing.
+When non-nil, `org-google-docs-ensure-gdocs-loaded' loads gdocs files from this
+checkout in dependency order and checks that required semantic seams are present.
+Leave nil to use the normally installed gdocs package."
+  :type '(choice (const :tag "Use installed gdocs" nil) directory)
+  :group 'org-google-docs)
+
+(defconst org-google-docs--gdocs-files
+  '("gdocs-auth.el"
+    "gdocs-api.el"
+    "gdocs-convert.el"
+    "gdocs-diff.el"
+    "gdocs-sync.el"
+    "gdocs.el")
+  "Local gdocs files loaded together for semantic publishing.")
 
 (defvar-local org-google-docs--enabled-org-comments-mode nil
   "Non-nil when `org-google-docs-mode' enabled `org-comments-mode'.")
@@ -94,6 +114,84 @@ Set this to nil before rebuilding the map to leave the mode map unbound."
   "Require upstream gdocs LIBRARY or signal an actionable error."
   (unless (require library nil 'noerror)
     (user-error "Missing upstream gdocs library `%s'; install and configure benthamite/gdocs" library)))
+
+(defun org-google-docs--local-gdocs-file (file)
+  "Return absolute path to local gdocs FILE."
+  (expand-file-name file org-google-docs-gdocs-repository))
+
+(defun org-google-docs-load-gdocs (&optional noerror)
+  "Load configured local gdocs files in dependency order.
+When `org-google-docs-gdocs-repository' is nil, just `require' installed gdocs.
+When NOERROR is non-nil, report load problems by message and return nil instead
+of signaling."
+  (interactive)
+  (condition-case err
+      (if (not org-google-docs-gdocs-repository)
+	  (progn
+	    (org-google-docs--require-upstream-library 'gdocs)
+	    t)
+	(unless (file-directory-p org-google-docs-gdocs-repository)
+	  (user-error "Local gdocs repository missing: %s"
+		      org-google-docs-gdocs-repository))
+	(add-to-list 'load-path org-google-docs-gdocs-repository)
+	(dolist (file org-google-docs--gdocs-files)
+	  (let ((path (org-google-docs--local-gdocs-file file)))
+	    (unless (file-readable-p path)
+	      (user-error "Local gdocs file missing: %s" path))
+	    (load-file path)))
+	(when (called-interactively-p 'interactive)
+	  (message "Loaded local gdocs from %s" org-google-docs-gdocs-repository))
+	t)
+    ((error quit)
+     (if noerror
+	 (progn
+	   (message "Could not load gdocs: %s" (error-message-string err))
+	   nil)
+       (signal (car err) (cdr err))))))
+
+(defun org-google-docs--symbol-loaded-from-local-p (symbol)
+  "Return non-nil when SYMBOL is loaded from configured local gdocs."
+  (when-let* ((file (symbol-file symbol)))
+    (and org-google-docs-gdocs-repository
+	 (file-in-directory-p (file-truename file)
+			      (file-truename org-google-docs-gdocs-repository)))))
+
+(defun org-google-docs-check-gdocs-loaded (&optional noerror)
+  "Validate that gdocs is loaded with semantic publishing seams.
+When `org-google-docs-gdocs-repository' is non-nil, also require key symbols to
+come from that local checkout.  When NOERROR is non-nil, return issues instead
+of signaling."
+  (interactive)
+  (let (issues)
+    (when org-google-docs-gdocs-repository
+      (dolist (symbol '(gdocs-api--send-multipart-upload
+			gdocs-convert-org-buffer-to-ir
+			gdocs-diff-generate
+			gdocs-sync-pull))
+	(unless (org-google-docs--symbol-loaded-from-local-p symbol)
+	  (push (format "%s not loaded from %s"
+			symbol org-google-docs-gdocs-repository)
+		issues))))
+    (unless (and (boundp 'gdocs-convert-footnote-reference-handler)
+		 (boundp 'gdocs-convert-footnote-reference-text-function))
+      (push "native footnote conversion seams are missing" issues))
+    (setq issues (nreverse issues))
+    (cond
+     ((and issues noerror)
+      (message "gdocs load check warning: %s" (string-join issues "; ")))
+     (issues
+      (user-error "gdocs load check failed: %s" (string-join issues "; ")))
+     ((called-interactively-p 'interactive)
+      (message "gdocs load check passed")))
+    issues))
+
+(defun org-google-docs-ensure-gdocs-loaded (&optional noerror)
+  "Load gdocs and verify required semantic seams.
+When NOERROR is non-nil, report issues by message instead of signaling."
+  (interactive)
+  (let ((loaded (org-google-docs-load-gdocs noerror)))
+    (when loaded
+      (org-google-docs-check-gdocs-loaded noerror))))
 
 (defconst org-google-docs-debug-buffer-name "*org-google-docs-debug*"
   "Buffer name used for Google Docs pipeline traces.")
@@ -229,6 +327,20 @@ Set this to nil before rebuilding the map to leave the mode map unbound."
 	  (when (fboundp 'gdocs-convert-docs-json-to-ir)
 	    (org-google-docs--safe-diagnostic-value
 	     (lambda () (gdocs-convert-docs-json-to-ir json)))))
+	 (remote-org
+	  (when (and remote-ir
+		     (not (plist-get remote-ir :error))
+		     (fboundp 'gdocs-convert-ir-to-org))
+	    (org-google-docs--safe-diagnostic-value
+	     (lambda () (gdocs-convert-ir-to-org remote-ir)))))
+	 (pull-integrity-diagnostics
+	  (when (and (stringp remote-org)
+		     (fboundp 'gdocs-sync--pull-integrity-diagnostics))
+	    (org-google-docs--safe-diagnostic-value
+	     (lambda ()
+	       (gdocs-sync--pull-integrity-diagnostics
+		(buffer-substring-no-properties (point-min) (point-max))
+		remote-org)))))
 	 (diff-requests
 	  (when (and remote-ir
 		     local-ir
@@ -239,6 +351,8 @@ Set this to nil before rebuilding the map to leave the mode map unbound."
 	     (lambda () (gdocs-diff-generate remote-ir local-ir))))))
     (list :remote-json json
 	  :remote-ir remote-ir
+	  :remote-org remote-org
+	  :pull-integrity-diagnostics pull-integrity-diagnostics
 	  :diff-requests diff-requests)))
 
 ;;;###autoload
@@ -268,12 +382,19 @@ content from the local buffer and fetched Google Doc."
 	  (gdocs-api-get-document
 	   document-id
 	   (lambda (json)
-	     (org-google-docs--debug-append-remote
-	      debug-buffer
-	      (org-google-docs--debug-remote-snapshot json local-ir))
+	     (with-current-buffer source-buffer
+	       (org-google-docs--debug-append-remote
+		debug-buffer
+		(org-google-docs--debug-remote-snapshot json local-ir)))
 	     (display-buffer debug-buffer)
 	     (message "Org Google Docs pipeline trace updated with remote state"))
-	   account))
+	   account
+	   (lambda (error)
+	     (org-google-docs--debug-append-remote
+	      debug-buffer
+	      (list :remote-fetch-error error))
+	     (display-buffer debug-buffer)
+	     (message "Org Google Docs remote trace failed: %s" error))))
       (display-buffer debug-buffer)
       (message "Org Google Docs pipeline trace written"))
     debug-buffer))

@@ -181,7 +181,12 @@ local fork is cloned."
 
 (add-to-list 'load-path (expand-file-name "packages/org-sync" user-emacs-directory))
 (add-to-list 'load-path hub/org-google-docs-package-directory)
+(when (file-directory-p hub/org-google-docs-gdocs-repository)
+  (add-to-list 'load-path hub/org-google-docs-gdocs-repository))
 (hub/org-google-docs--ensure-gdocs-package)
+(require 'org-google-docs)
+(setq org-google-docs-gdocs-repository hub/org-google-docs-gdocs-repository)
+(org-google-docs-ensure-gdocs-loaded 'noerror)
 
 (use-package gdocs
   :straight nil
@@ -199,11 +204,10 @@ local fork is cloned."
 	gdocs-auto-pull-on-open nil)
   (hub/org-google-docs-configure-accounts-from-auth-source 'noerror)
   :config
+  (org-google-docs-ensure-gdocs-loaded 'noerror)
   (with-eval-after-load 'gdocs-convert
     (hub/org-google-docs-apply-style-definitions))
   (hub/org-google-docs-configure-accounts-from-auth-source 'noerror))
-
-(require 'org-google-docs)
 
 (add-hook 'org-mode-hook #'org-google-docs-mode-maybe)
 

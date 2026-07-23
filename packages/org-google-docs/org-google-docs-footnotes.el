@@ -295,16 +295,18 @@ that each request uses the index captured before the batch mutation begins."
 (defun org-google-docs-footnotes--reference-by-label (session label)
   "Return next planned reference from SESSION matching LABEL."
   (let* ((references (org-google-docs-footnotes--session-references session))
-	 (cursor (plist-get session :cursor))
-	 (reference (and (< cursor (length references))
-			 (aref references cursor))))
-    (unless (and reference (equal label (plist-get reference :label)))
-      (user-error "Unexpected Google Docs footnote reference label `%s'" label))
-    (aset references cursor
-	  (plist-put reference :sentinel
-		     (org-google-docs-footnotes--sentinel-for reference)))
-    (plist-put session :cursor (1+ cursor))
-    (aref references cursor)))
+	 (cursor (plist-get session :cursor)))
+    (unless (and (vectorp references) (integerp cursor))
+      (user-error "No active Google Docs footnote push session for `%s'" label))
+    (let ((reference (and (< cursor (length references))
+			  (aref references cursor))))
+      (unless (and reference (equal label (plist-get reference :label)))
+	(user-error "Unexpected Google Docs footnote reference label `%s'" label))
+      (aset references cursor
+	    (plist-put reference :sentinel
+		       (org-google-docs-footnotes--sentinel-for reference)))
+      (plist-put session :cursor (1+ cursor))
+      (aref references cursor))))
 
 (defun org-google-docs-footnotes--utf16-prefix-length (string end)
   "Return UTF-16 length of STRING before character position END."
@@ -467,10 +469,16 @@ modified."
 
 (defun org-google-docs-footnotes--sentinel-text-for-object (object)
   "Return and record sentinel text for Org footnote reference OBJECT."
-  (let* ((label (org-google-docs-footnotes--reference-label object))
-	 (reference (org-google-docs-footnotes--reference-by-label
-		     org-google-docs-footnotes--push-session label)))
-    (plist-get reference :sentinel)))
+  (if (not org-google-docs-footnotes--push-session)
+      (progn
+	(when (eq gdocs-convert-footnote-reference-text-function
+		  #'org-google-docs-footnotes--sentinel-text-for-object)
+	  (setq gdocs-convert-footnote-reference-text-function nil))
+	"")
+    (let* ((label (org-google-docs-footnotes--reference-label object))
+	   (reference (org-google-docs-footnotes--reference-by-label
+		       org-google-docs-footnotes--push-session label)))
+      (plist-get reference :sentinel))))
 
 (defun org-google-docs-footnotes--activate-session (plan)
   "Activate a native footnote push session for PLAN."

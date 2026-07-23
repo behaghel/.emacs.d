@@ -58,6 +58,20 @@
       (let ((org-google-docs-footnotes--push-session (list :references [])))
 	(should-not (org-google-docs-footnotes--around-org-buffer-to-ir #'orig))))))
 
+(ert-deftest org-google-docs-footnotes-stale-sentinel-hook-self-heals ()
+  "A stale sentinel text hook outside push does not crash later conversion."
+  (let ((org-google-docs-footnotes--push-session nil)
+	(gdocs-convert-footnote-reference-text-function
+	 #'org-google-docs-footnotes--sentinel-text-for-object))
+    (with-temp-buffer
+      (insert "Text[fn:one].\n")
+      (org-mode)
+      (let ((reference (car (org-element-map (org-element-parse-buffer)
+					     'footnote-reference #'identity))))
+	(should (equal "" (org-google-docs-footnotes--sentinel-text-for-object
+			   reference)))
+	(should-not gdocs-convert-footnote-reference-text-function)))))
+
 (ert-deftest org-google-docs-footnotes-builds-create-requests-at-doc-indices ()
   "Create native footnote requests from reference document indices."
   (let* ((references (list (list :label "one" :ordinal 1 :body "First body." :doc-index 12)
