@@ -67,13 +67,13 @@ This tip callout intentionally mixes paragraphs and lists.
 
 - Native bullet one
 - Native bullet two with *bold* text
-  - Nested bullet stays a native nested Google Docs bullet
-  - Another nested bullet with ~inline code~
+- Former nested bullet is intentionally flattened in v1
+- Another formerly nested bullet with ~inline code~
 
 1. Ordered step one
 2. Ordered step two
-   1. Nested ordered step
-   2. Another nested ordered step
+3. Former nested ordered step is intentionally flattened in v1
+4. Another formerly nested ordered step
 
 The paragraph after the lists verifies that callout body composition is stable.
 #+END_CALLOUT
