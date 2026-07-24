@@ -36,8 +36,10 @@ This repository has a mature Org ↔ Confluence publishing and sync workflow, bu
 - Patch files are audit/export artifacts for upstream review; current active seam work is developed and tested directly on the local `~/ws/gdocs` branch.
 - `docs/native-footnotes-smoke.md` records manual smoke-test scenarios for native footnote push/pull, including repeated references and UI caveats.
 - `docs/native-images-smoke.md` records manual smoke-test scenarios for standalone image and caption push, including debug-pipeline checkpoints.
-- `docs/deep-semantic-smoke.org` is a live end-to-end smoke document for mixed semantic content, Veriff theme styling, generated callout chrome, footnotes, images, lists, tables, and pull-back ownership checks.
-- The activation module prefers a local `~/ws/gdocs` checkout on branch `org-image-seam`; this makes the seam repeatable without mutating `straight/repos/gdocs` directly.
+- `docs/deep-semantic-smoke.org` is a live end-to-end smoke document for mixed semantic content, Veriff theme styling, generated callout chrome, footnotes, images, flat block lists, tables, and pull-back ownership checks.
+- Live semantic conformance fixtures live under `test/fixtures/` and are exercised by `scripts/org-google-docs-live-conformance` when `ORG_GOOGLE_DOCS_LIVE_TESTS=1` is set.
+- The activation module accepts `ORG_GOOGLE_DOCS_CLIENT_ID`, `ORG_GOOGLE_DOCS_CLIENT_SECRET`, optional `ORG_GOOGLE_DOCS_REFRESH_TOKEN`, and optional `ORG_GOOGLE_DOCS_LIVE_ACCOUNT` so batch/live tests can run without auth-source/pass/YubiKey interaction.
+- The activation module prefers a local `~/ws/gdocs` checkout on branch `org-image-seam`; current semantic conformance depends on the local fork including commit `af28781` (`Stabilize semantic Google Docs round trips`) until those seams are upstreamed or pinned through the package lock.
 - This domain is supporting: specs are expected when the package boundary or integration contract changes, but the first implementation should stay small and reversible.
 
 ## Decisions
@@ -218,6 +220,35 @@ Verification:
 - Google comment root creation is unsupported until Google exposes reliable public API support for native inline anchored Docs comments; imported remote roots are actionable, but local-only root comments cannot be pushed.
 - Google comment mutations stay explicit and command-driven: replies and resolves are never pushed implicitly except through comments-only sync of pending local resolved state.
 - Local sidecar user notes and unsynced replies must not be overwritten by remote comment re-import.
+- Nested list items inside shaded blocks/callouts are unsupported in v1 and must fail closed before remote mutation; authors should flatten those lists or move nested lists outside the shaded block.
+
+## Current Live Conformance Workflow
+
+Run the opt-in live suite only with disposable test documents and non-interactive OAuth credentials:
+
+```sh
+ORG_GOOGLE_DOCS_LIVE_TESTS=1 \
+HUB_FORCE_FULL_LOAD=1 HUB_CI_SKIP_OPTIONALS=1 \
+./scripts/org-google-docs-live-conformance
+```
+
+Credential environment variables:
+
+- `ORG_GOOGLE_DOCS_CLIENT_ID`
+- `ORG_GOOGLE_DOCS_CLIENT_SECRET`
+- `ORG_GOOGLE_DOCS_REFRESH_TOKEN` (optional but required for unattended batch refresh)
+- `ORG_GOOGLE_DOCS_LIVE_ACCOUNT` (optional, defaults to `personal`)
+
+The suite covers create/fetch canonicalization and immediate diff stability for
+plain headings/lists, nested top-level lists, inline formatting, semantic blocks,
+tables, images/captions, dates, and native footnotes. It intentionally keeps
+block/callout list fixtures flat because nested block lists are a documented v1
+unsupported construct.
+
+If an async push callback leaves local state wedged, run
+`M-x org-google-docs-clear-push-queue`; from Lisp,
+`(org-google-docs-clear-push-queue nil 'all-buffers)` clears stale queue/lock
+state across all live buffers.
 
 ## Scope
 
