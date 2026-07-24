@@ -1,0 +1,10 @@
+#+TITLE: Table Conformance
+
+* Table conformance
+
+| Name  | Status | Notes       |
+|-------+--------+-------------|
+| Alpha | Ready  | Plain cell  |
+| Beta  | Hold   | *Bold* note |
+
+Paragraph after table.

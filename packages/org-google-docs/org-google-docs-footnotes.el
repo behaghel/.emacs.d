@@ -559,19 +559,54 @@ modified."
      (org-google-docs-footnotes--deactivate-session)
      (signal (car err) (cdr err)))))
 
+(defun org-google-docs-footnotes--string-in-tree-p (needle tree)
+  "Return non-nil when NEEDLE appears in any string inside TREE."
+  (cond
+   ((stringp tree) (string-search needle tree))
+   ((consp tree)
+    (or (org-google-docs-footnotes--string-in-tree-p needle (car tree))
+	(org-google-docs-footnotes--string-in-tree-p needle (cdr tree))))
+   ((vectorp tree)
+    (seq-some (lambda (item)
+		(org-google-docs-footnotes--string-in-tree-p needle item))
+	      tree))))
+
+(defun org-google-docs-footnotes--references-in-requests (references requests)
+  "Return REFERENCES whose sentinel text is present in REQUESTS."
+  (seq-filter
+   (lambda (reference)
+     (org-google-docs-footnotes--string-in-tree-p
+      (or (plist-get reference :sentinel)
+	  (org-google-docs-footnotes--sentinel-for reference))
+      requests))
+   references))
+
 (defun org-google-docs-footnotes--around-batch-update
     (orig document-id requests callback &optional account on-error)
   "Advise ORIG `gdocs-api-batch-update' for native footnote insertion.
 When a push session is active, body updates first insert unique sentinel text.
 After the body update completes, the remote document is fetched, sentinels are
-replaced with native footnotes, and footnote bodies are inserted before CALLBACK."
+replaced with native footnotes, and footnote bodies are inserted before CALLBACK.
+Incremental pushes may not touch existing footnote references; in that case no
+sentinel appears in REQUESTS, so the advice deactivates and lets the ordinary
+batch update proceed unchanged."
   (if (not org-google-docs-footnotes--push-session)
       (funcall orig document-id requests callback account on-error)
-    (funcall orig document-id requests
-	     (lambda (response)
-	       (org-google-docs-footnotes--finish-sentinel-push
-		orig document-id response callback account on-error))
-	     account on-error)))
+    (let* ((references (org-google-docs-footnotes--session-reference-list
+			org-google-docs-footnotes--push-session))
+	   (active-references
+	    (org-google-docs-footnotes--references-in-requests references requests)))
+      (if (null active-references)
+	  (progn
+	    (org-google-docs-footnotes--deactivate-session)
+	    (funcall orig document-id requests callback account on-error))
+	(plist-put org-google-docs-footnotes--push-session
+		   :references (vconcat active-references))
+	(funcall orig document-id requests
+		 (lambda (response)
+		   (org-google-docs-footnotes--finish-sentinel-push
+		    orig document-id response callback account on-error))
+		 account on-error)))))
 
 (defun org-google-docs-footnotes-enable-conversion-advice ()
   "Enable push-time native footnote filtering around gdocs conversion."

@@ -30,6 +30,7 @@
 		  (old-ir new-ir &optional start-index))
 (declare-function gdocs-sync--pull-integrity-diagnostics "gdocs-sync"
 		  (old-org new-org))
+(declare-function gdocs-sync--set-status "gdocs-sync" (status))
 (declare-function gdocs-sync-push "gdocs-sync" ())
 
 (defgroup org-google-docs nil
@@ -450,6 +451,7 @@ text has not changed."
   '(("Status: Doctor" . org-google-docs-doctor)
     ("Status: Upstream gdocs status" . org-google-docs-status)
     ("Debug: Pipeline trace" . org-google-docs-debug-pipeline)
+    ("Sync: Clear stale push queue/lock" . org-google-docs-clear-push-queue)
     ("Sync: Sync current buffer" . org-google-docs-sync-current)
     ("Publish: Create Google Doc from buffer" . org-google-docs-create)
     ("Publish: Push buffer to Google Docs" . org-google-docs-push)
@@ -554,10 +556,50 @@ Google Drive URIs for native inline-image insertion."
   (org-google-docs--prepare-images-then
    #'org-google-docs--push-after-image-upload))
 
+(defun org-google-docs--clear-push-queue-in-buffer (synced)
+  "Clear stale Google Docs push state in the current buffer.
+When SYNCED is non-nil, mark the buffer as synced; otherwise mark it modified."
+  (setq-local gdocs-sync--push-queued nil)
+  (setq-local gdocs-sync--push-in-progress nil)
+  (when (boundp 'gdocs-sync--pushing)
+    (setq-local gdocs-sync--pushing nil))
+  (when (fboundp 'gdocs-sync--set-status)
+    (gdocs-sync--set-status (if synced 'synced 'modified))))
+
+;;;###autoload
+(defun org-google-docs-clear-push-queue (&optional synced all-buffers)
+  "Clear stale Google Docs push queue and in-progress state.
+By default, clear the current buffer.  With prefix argument SYNCED, set status
+to `synced'; otherwise set it to `modified'.  When called from Lisp with
+ALL-BUFFERS non-nil, clear every live buffer that has Google Docs push state.
+This command is intended for recovery after async callback errors leave local
+push state stuck even though the remote mutation completed or failed elsewhere."
+  (interactive "P")
+  (let ((count 0))
+    (if all-buffers
+	(dolist (buffer (buffer-list))
+	  (with-current-buffer buffer
+	    (when (or (bound-and-true-p gdocs-sync--push-queued)
+		      (bound-and-true-p gdocs-sync--push-in-progress)
+		      (bound-and-true-p gdocs-sync--pushing))
+	      (org-google-docs--clear-push-queue-in-buffer synced)
+	      (cl-incf count))))
+      (org-google-docs--clear-push-queue-in-buffer synced)
+      (setq count 1))
+    (org-google-docs-images-deactivate-session)
+    (org-google-docs-footnotes--deactivate-session)
+    (message "Cleared Google Docs push queue/lock in %d buffer(s)" count)))
+
 ;;;###autoload
 (defun org-google-docs-pull ()
   "Pull the linked Google Doc into the current Org buffer via upstream gdocs."
   (interactive)
+  ;; Pull converts the current Org buffer for conflict/integrity checks, but it
+  ;; must never run with a stale native-push footnote/image session.  A prior
+  ;; async push callback can otherwise leave sentinel hooks active and make the
+  ;; read-side conversion expect planned push references.
+  (org-google-docs-images-deactivate-session)
+  (org-google-docs-footnotes--deactivate-session)
   (org-google-docs--call-upstream 'gdocs-pull))
 
 ;;;###autoload

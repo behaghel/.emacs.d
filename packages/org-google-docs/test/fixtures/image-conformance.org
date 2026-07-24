@@ -1,0 +1,8 @@
+#+TITLE: Image Conformance
+
+* Image conformance
+
+#+CAPTION: Stable local image caption
+[[file:../../../../modules/org/specimens/img/image.png]]
+
+Paragraph after image.

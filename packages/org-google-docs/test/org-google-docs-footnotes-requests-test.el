@@ -178,7 +178,7 @@
 		 (lambda (_document-id callback &optional _account _on-error)
 		   (funcall callback document))))
 	(org-google-docs-footnotes--around-batch-update
-	 #'orig "doc-1" '(((insertText . ((text . "Body")))))
+	 #'orig "doc-1" '(((insertText . ((text . "A ⟦GDOCS_FN:1:one⟧ B ⟦GDOCS_FN:2:two⟧.")))))
 	 #'ignore))
       (should (equal (nth 1 calls)
 		     '(((deleteContentRange
@@ -219,7 +219,7 @@
 		 (lambda (_document-id callback &optional _account _on-error)
 		   (funcall callback document))))
 	(org-google-docs-footnotes--around-batch-update
-	 #'orig "doc-1" '(((insertText . ((text . "Body")))))
+	 #'orig "doc-1" '(((insertText . ((text . "Body ⟦GDOCS_FN:1:one⟧")))))
 	 (lambda (_response) (setq callback-ran t))))
       (should callback-ran)
       (should (= 3 (length calls)))
@@ -227,6 +227,26 @@
 		     '(((insertText . ((text . "First body.")
 				       (location . ((segmentId . "fn-a")
 						    (index . 1))))))))))))
+
+(ert-deftest org-google-docs-footnotes-batch-advice-skips-unchanged-references ()
+  "Batch advice ignores planned references whose sentinels are absent from diff."
+  (let* ((session (list :references (vconcat (list (list :label "one"
+							 :ordinal 1
+							 :body "First body."
+							 :sentinel "⟦GDOCS_FN:1:one⟧")))
+			:cursor 0
+			:previous-handler nil))
+	 (org-google-docs-footnotes--push-session session)
+	 calls callback-ran)
+    (cl-labels ((orig (_document-id requests callback &optional _account _on-error)
+		  (push requests calls)
+		  (funcall callback '((replies . [])))))
+      (org-google-docs-footnotes--around-batch-update
+       #'orig "doc-1" '(((insertText . ((text . "Trivial edit.")))))
+       (lambda (_response) (setq callback-ran t)))
+      (should callback-ran)
+      (should (null org-google-docs-footnotes--push-session))
+      (should (equal calls '((((insertText . ((text . "Trivial edit.")))))))))))
 
 (provide 'org-google-docs-footnotes-requests-test)
 ;;; org-google-docs-footnotes-requests-test.el ends here

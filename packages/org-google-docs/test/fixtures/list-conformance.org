@@ -1,0 +1,31 @@
+#+TITLE: List Conformance
+
+* List conformance
+
+Plain paragraph before lists.
+
+** Bullets
+- Bullet one
+- Bullet two
+  - Nested bullet one
+  - Nested bullet two
+- Bullet three
+
+Paragraph between list groups.
+
+** Numbers
+1. Number one
+2. Number two
+   1. Nested number one
+   2. Nested number two
+3. Number three
+
+Paragraph after numbered lists.
+
+** Mixed checkbox list
+- [ ] Todo item
+- Plain bullet sibling
+- [X] Done item
+- [-] Partial item
+
+Final paragraph after checkboxes.

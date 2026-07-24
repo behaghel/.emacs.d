@@ -114,6 +114,31 @@ HOST may also name an exact pass entry, such as
     (cons name `((client-id . ,client-id)
 		 (client-secret . ,client-secret)))))
 
+(defun hub/org-google-docs-configure-accounts-from-env ()
+  "Populate upstream `gdocs-accounts' from environment variables.
+This is intended for non-interactive batch/live tests where touching a YubiKey to
+read pass/auth-source entries would make automation depend on a human.  Set
+`ORG_GOOGLE_DOCS_CLIENT_ID', `ORG_GOOGLE_DOCS_CLIENT_SECRET', and optionally
+`ORG_GOOGLE_DOCS_REFRESH_TOKEN'."
+  (when-let* ((client-id (getenv "ORG_GOOGLE_DOCS_CLIENT_ID"))
+	      (client-secret (getenv "ORG_GOOGLE_DOCS_CLIENT_SECRET")))
+    (let ((account (or (getenv "ORG_GOOGLE_DOCS_LIVE_ACCOUNT") "personal"))
+	  (refresh-token (getenv "ORG_GOOGLE_DOCS_REFRESH_TOKEN")))
+      (setq gdocs-accounts
+	    (list (cons account
+			`((client-id . ,client-id)
+			  (client-secret . ,client-secret)))))
+      (when (and refresh-token (fboundp 'gdocs-auth--write-token-file))
+	(gdocs-auth--write-token-file
+	 account
+	 `((access_token . "")
+	   (refresh_token . ,refresh-token)
+	   (expires_at . 0)
+	   (token_type . "Bearer")
+	   (client_id . ,client-id)
+	   (client_secret . ,client-secret))))
+      1)))
+
 (defun hub/org-google-docs-configure-accounts-from-auth-source (&optional noerror)
   "Populate upstream `gdocs-accounts' from auth-source account mappings.
 When NOERROR is non-nil, leave `gdocs-accounts' untouched if a secret is
@@ -135,6 +160,13 @@ return the configured account value, because it contains OAuth client secrets."
     (when (called-interactively-p 'interactive)
       (message "Configured %d Google Docs account(s) from auth-source" configured-count))
     configured-count))
+
+(defun hub/org-google-docs-configure-accounts (&optional noerror)
+  "Populate upstream `gdocs-accounts' from env or auth-source.
+Environment variables take precedence so batch automation can avoid pass/GPG and
+YubiKey prompts.  When NOERROR is non-nil, auth-source failures are ignored."
+  (or (hub/org-google-docs-configure-accounts-from-env)
+      (hub/org-google-docs-configure-accounts-from-auth-source noerror)))
 
 (defun hub/org-google-docs--merge-style-definitions (overrides base)
   "Return BASE logical style definitions with OVERRIDES applied by name."
@@ -202,12 +234,12 @@ local fork is cloned."
   :init
   (setq gdocs-auto-push-on-save nil
 	gdocs-auto-pull-on-open nil)
-  (hub/org-google-docs-configure-accounts-from-auth-source 'noerror)
+  (hub/org-google-docs-configure-accounts 'noerror)
   :config
   (org-google-docs-ensure-gdocs-loaded 'noerror)
   (with-eval-after-load 'gdocs-convert
     (hub/org-google-docs-apply-style-definitions))
-  (hub/org-google-docs-configure-accounts-from-auth-source 'noerror))
+  (hub/org-google-docs-configure-accounts 'noerror))
 
 (add-hook 'org-mode-hook #'org-google-docs-mode-maybe)
 

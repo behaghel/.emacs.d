@@ -26,6 +26,40 @@
     (should-error (org-google-docs-push)
 		  :type 'user-error)))
 
+(ert-deftest org-google-docs-clear-push-queue-clears-buffer-state ()
+  "Clear-push command resets queued/in-progress state and deactivates sessions."
+  (with-temp-buffer
+    (let ((org-google-docs-images--push-session '(:images t))
+	  (org-google-docs-footnotes--push-session '(:references []))
+	  status)
+      (setq-local gdocs-sync--push-queued t)
+      (setq-local gdocs-sync--push-in-progress t)
+      (cl-letf (((symbol-function 'gdocs-sync--set-status)
+		 (lambda (new-status) (setq status new-status))))
+	(org-google-docs-clear-push-queue)
+	(should-not gdocs-sync--push-queued)
+	(should-not gdocs-sync--push-in-progress)
+	(should-not org-google-docs-images--push-session)
+	(should-not org-google-docs-footnotes--push-session)
+	(should (eq status 'modified))))))
+
+(ert-deftest org-google-docs-clear-push-queue-can-clear-all-buffers ()
+  "Clear-push command can reset stale state outside the current buffer."
+  (let ((source-buffer (generate-new-buffer " *gdocs-stale-source*"))
+	(other-buffer (generate-new-buffer " *gdocs-current*")))
+    (unwind-protect
+	(progn
+	  (with-current-buffer source-buffer
+	    (setq-local gdocs-sync--push-queued t)
+	    (setq-local gdocs-sync--push-in-progress t))
+	  (with-current-buffer other-buffer
+	    (org-google-docs-clear-push-queue nil 'all-buffers))
+	  (with-current-buffer source-buffer
+	    (should-not gdocs-sync--push-queued)
+	    (should-not gdocs-sync--push-in-progress)))
+      (kill-buffer source-buffer)
+      (kill-buffer other-buffer))))
+
 (ert-deftest org-google-docs-facade-commands-delegate-to-upstream-gdocs ()
   "Facade commands call the corresponding upstream gdocs command."
   (let (calls)
@@ -48,6 +82,18 @@
       (org-google-docs-status)
       (should (equal (nreverse calls)
 		     '(create push pull open-in-browser status))))))
+
+(ert-deftest org-google-docs-pull-deactivates-stale-native-push-sessions ()
+  "Pull clears stale native push sessions before delegating to upstream gdocs."
+  (let ((org-google-docs-images--push-session '(:images t))
+	(org-google-docs-footnotes--push-session '(:references []))
+	called)
+    (cl-letf (((symbol-function 'gdocs-pull)
+	       (lambda () (interactive) (setq called t))))
+      (org-google-docs-pull)
+      (should called)
+      (should-not org-google-docs-images--push-session)
+      (should-not org-google-docs-footnotes--push-session))))
 
 (ert-deftest org-google-docs-push-blocks-invalid-footnotes-before-upstream ()
   "Push rejects unsupported footnotes before invoking upstream gdocs."
@@ -210,6 +256,7 @@
 		 '("Status: Doctor"
 		   "Status: Upstream gdocs status"
 		   "Debug: Pipeline trace"
+		   "Sync: Clear stale push queue/lock"
 		   "Sync: Sync current buffer"
 		   "Publish: Create Google Doc from buffer"
 		   "Publish: Push buffer to Google Docs"

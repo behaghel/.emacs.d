@@ -1,0 +1,12 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+selector=${1:-org-google-docs-live-conformance}
+
+if [[ -z "${ORG_GOOGLE_DOCS_LIVE_TESTS:-}" ]]; then
+  export ORG_GOOGLE_DOCS_LIVE_TESTS=1
+fi
+
+exec emacs --batch -l init.el \
+  -l packages/org-google-docs/test/org-google-docs-live-conformance-test.el \
+  --eval "(ert-run-tests-batch-and-exit \"${selector}\")"

@@ -1,0 +1,7 @@
+#+TITLE: Inline Conformance
+
+* Inline conformance
+
+Plain paragraph with *bold*, /italic/, _underline_, +strike-through+, ~inline code~, =verbatim text=, and [[https://developers.google.com/docs/api][a Google Docs API link]].
+
+Second paragraph keeps adjacent *bold* and /italic/ runs stable.

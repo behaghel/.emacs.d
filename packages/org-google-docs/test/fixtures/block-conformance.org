@@ -1,0 +1,30 @@
+#+TITLE: Block Conformance
+
+* Block conformance
+
+#+BEGIN_QUOTE
+Quoted first line.
+
+Quoted second paragraph with *bold* text.
+#+END_QUOTE
+
+#+BEGIN_SRC emacs-lisp
+(defun block-conformance ()
+  "Return a stable value."
+  42)
+#+END_SRC
+
+#+BEGIN_EXAMPLE
+literal example line one
+  indented example line two
+#+END_EXAMPLE
+
+#+ATTR_CALLOUT: :type note :title Decision record
+#+BEGIN_CALLOUT
+Callout body paragraph.
+
+- Callout bullet one
+- Callout bullet two
+#+END_CALLOUT
+
+Paragraph after semantic blocks.

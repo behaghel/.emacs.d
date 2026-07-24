@@ -1,0 +1,9 @@
+#+TITLE: Footnote Conformance
+
+* Footnote conformance
+
+Paragraph with a native footnote[fn:one] and more text.
+
+* Footnotes
+
+[fn:one] Footnote body with *bold* and /italic/ text.

@@ -1,0 +1,17 @@
+#+TITLE: Date Footnote Quote Conformance
+
+* Date footnote quote conformance
+
+Paragraph before <2026-07-12 Sun> and after [2026-07-13 Mon]. It has first reference[fn:first] and second reference[fn:second] before the quote.
+
+#+BEGIN_QUOTE
+The first quote paragraph should be styled.
+
+The second quote paragraph should also be styled.
+#+END_QUOTE
+
+* Footnotes
+
+[fn:first] First footnote body.
+
+[fn:second] Second footnote body.

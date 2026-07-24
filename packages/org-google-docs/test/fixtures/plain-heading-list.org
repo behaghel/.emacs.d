@@ -1,0 +1,17 @@
+#+TITLE: Plain Heading List Conformance
+
+* Smoke protocol
+Intro prose should remain prose.
+
+** Expected validation flow
+1. Create the document.
+2. Fetch the document JSON.
+3. Compare canonical IR.
+
+** High-value visual checks
+- Body text stays body text.
+- Headings stay headings.
+- Lists stay lists.
+
+* Executive summary
+A paragraph after lists should not inherit list state.
