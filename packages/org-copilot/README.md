@@ -47,6 +47,28 @@ In the chat prompt, type `/` on an empty prompt for context-aware completion.
 - `/clear-ui` — clear only the visible/ephemeral UI state.
 - `/erase` — hard-delete current session chat/comments/suggestions after confirmation.
 
+## Copilot Babel blocks
+
+`ob-copilot` adds a `copilot` Babel language for reviewable AI-maintained results:
+
+```org
+#+begin_src copilot :results value raw replace :exports results :eval never-export
+Write an executive summary of this document.
+#+end_src
+```
+
+Evaluation stores raw Org in `#+RESULTS:` with hidden freshness metadata. Export preflight does not re-evaluate fresh blocks; missing/stale blocks ask before generation and ask again before exporting unreviewed content.
+
+For generated diagrams/code, use `:output src:LANG` and optional `:file`:
+
+```org
+#+begin_src copilot :output src:dot :file flow.svg :eval never-export
+Maintain a Graphviz flow diagram for this section.
+#+end_src
+```
+
+The model returns only inner `LANG` code; Emacs wraps the generated source block. This config enables the Babel language, enables built-in Graphviz DOT Babel support, and adds Org Tempo shortcut `<cp TAB`.
+
 ## Personal Evil bindings in this config
 
 Package code is Evil-neutral. This repository’s personal Org bindings use `,a` for AI:

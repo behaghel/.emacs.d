@@ -25,7 +25,11 @@
   ;; `typescript-mode' or Tree-sitter grammars.
   (add-to-list 'org-src-lang-modes '("typescript" . js))
   (add-to-list 'org-src-lang-modes '("ts" . js))
-  (add-to-list 'org-src-lang-modes '("tsx" . js)))
+  (add-to-list 'org-src-lang-modes '("tsx" . js))
+  (add-to-list 'org-babel-load-languages '(copilot . t))
+  (add-to-list 'org-babel-load-languages '(dot . t))
+  (require 'ob-copilot nil 'noerror)
+  (require 'ob-dot nil 'noerror))
 
 (provide 'org/babel)
 ;;; babel.el ends here
