@@ -607,6 +607,29 @@ chat viewport."
   (when (and (stringp text) (buffer-live-p source-buffer))
     (org-copilot-gptel--install-response source-buffer text request)))
 
+(defun org-copilot-gptel--failure-message (operation _response info)
+  "Return concise failure message for failed gptel OPERATION and INFO."
+  (let* ((error (plist-get info :error))
+	 (message (plist-get error :message))
+	 (code (plist-get error :code))
+	 (detail (string-join (delq nil (list message code)) " / ")))
+    (format "Org Copilot: gptel %s failed status=%S%s"
+	    operation
+	    (or (plist-get info :status) (plist-get info :http-status))
+	    (if (string-empty-p detail) "" (format " — %s" detail)))))
+
+(defun org-copilot-gptel--record-failure (operation request prompt response info)
+  "Record failed gptel OPERATION with REQUEST, PROMPT, RESPONSE, and INFO."
+  (let ((message (org-copilot-gptel--failure-message operation response info)))
+    (org-copilot-debug-record
+     (format "gptel %s failed" operation)
+     :request request
+     :prompt prompt
+     :status (plist-get info :status)
+     :response response
+     :info info)
+    (message "%s" message)))
+
 (defun org-copilot-gptel-chat (request)
   "Request an Org Copilot chat response for REQUEST using gptel."
   (unless (fboundp 'gptel-request)
@@ -634,12 +657,16 @@ chat viewport."
 	     (progn
 	       (message "Org Copilot: gptel chat completed status=%S"
 			(plist-get info :status))
-	       (when (and stream (stringp response))
+	       (cond
+		((and stream (stringp response))
 		 (push response chunks))
-	       (when (org-copilot-gptel--chat-response-complete-p response stream)
+		((org-copilot-gptel--chat-response-complete-p response stream)
 		 (org-copilot-gptel--handle-chat-response
 		  (org-copilot-gptel--chat-response-text response chunks stream)
-		  source-buffer comment-id context-id request)))
+		  source-buffer comment-id context-id request))
+		((not response)
+		 (org-copilot-gptel--record-failure
+		  "chat" request prompt response info))))
 	   (error
 	    (message "Org Copilot: gptel chat failed error=%S response=%S"
 		     err response))))))
@@ -666,12 +693,16 @@ installed into REQUEST's `:source-buffer' session."
 	   (progn
 	     (message "Org Copilot: gptel review completed status=%S"
 		      (plist-get info :status))
-	     (when (and stream (stringp response))
+	     (cond
+	      ((and stream (stringp response))
 	       (push response chunks))
-	     (when (org-copilot-gptel--chat-response-complete-p response stream)
+	      ((org-copilot-gptel--chat-response-complete-p response stream)
 	       (org-copilot-gptel--handle-review-response
 		(org-copilot-gptel--chat-response-text response chunks stream)
-		source-buffer request)))
+		source-buffer request))
+	      ((not response)
+	       (org-copilot-gptel--record-failure
+		"review" request prompt response info))))
 	 (error
 	  (message "Org Copilot: gptel review failed error=%S response=%S"
 		   err response)))))

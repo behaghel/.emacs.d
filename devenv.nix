@@ -31,6 +31,7 @@ in
     pkgs.ripgrep
     pkgs.pre-commit
     pkgs.ghostscript
+    pkgs.graphviz
     pkgs.poppler-utils
     pkgs.texinfo
     texliveEnv

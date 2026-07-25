@@ -371,6 +371,8 @@ this shortcut is intentionally accepted anywhere on the current line."
   (hub/org-set-structure-template "pi" "pillars")
   (hub/org-set-structure-template "pa" "pillar")
   (hub/org-set-structure-template "gr" "graph")
+  (hub/org-set-structure-template
+   "cp" "src copilot :results value raw replace :exports results :eval never-export")
   (require 'org-tempo)
   (add-hook 'org-tab-before-tab-emulation-hook #'hub/org-tempo-complete-callout -90)
   (add-hook 'org-tab-before-tab-emulation-hook #'hub/org-tempo-complete-image -90)
