@@ -117,7 +117,7 @@ Planned `hub-article` runs should use class-aware roots under `var/org-latex-pdf
 
 ## Cross-Links
 
-- Shared semantics: [`../semantic-layer.md`](../semantic-layer.md)
+- Shared semantics: [`../../org-semantic-layer/semantic-layer.md`](../../org-semantic-layer/semantic-layer.md)
 - Locale separation: [`../locale-layer.md`](../locale-layer.md)
 - First real class: [`../classes/veriff.md`](../classes/veriff.md)
 - Personal article relationship: [`../classes/article.md`](../classes/article.md)

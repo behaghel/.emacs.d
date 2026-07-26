@@ -65,7 +65,7 @@ That means:
 ## Cross-Links
 
 - Family inventory: [`../class-family-matrix.md`](../class-family-matrix.md)
-- Shared semantics: [`../semantic-layer.md`](../semantic-layer.md)
+- Shared semantics: [`../../org-semantic-layer/semantic-layer.md`](../../org-semantic-layer/semantic-layer.md)
 - Shared locale behavior: [`../locale-layer.md`](../locale-layer.md)
 - First flagship class: [`veriff.md`](veriff.md)
 - Personal concrete class: `hub-article`

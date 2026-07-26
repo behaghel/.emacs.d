@@ -77,14 +77,22 @@ Some visible structures are compositions of multiple semantic inputs rather than
 
 Every semantic role listed above must later be exercised by at least one tracked specimen in [`validation/specimens.md`](validation/specimens.md).
 
+## Target Mappings
+
+- Hugo/static sites: [`targets/hugo.md`](targets/hugo.md)
+- LaTeX/PDF: [`targets/latex-pdf.md`](targets/latex-pdf.md)
+- EPUB: [`targets/epub.md`](targets/epub.md)
+- Confluence: [`targets/confluence.md`](targets/confluence.md)
+- Google Docs: [`targets/google-docs.md`](targets/google-docs.md)
+
 ## Cross-Links
 
-- Class inventory: [`class-family-matrix.md`](class-family-matrix.md)
-- Locale separation: [`locale-layer.md`](locale-layer.md)
-- First real class mapping: [`classes/veriff.md`](classes/veriff.md)
-- Personal article relationship: [`classes/article.md`](classes/article.md)
-- Coverage corpus: [`validation/specimens.md`](validation/specimens.md)
-- Rollout plan: [`plans/iterative-test-plan.md`](plans/iterative-test-plan.md)
+- LaTeX/PDF class inventory: [`../org-latex-pdf/class-family-matrix.md`](../org-latex-pdf/class-family-matrix.md)
+- Locale separation: [`../org-latex-pdf/locale-layer.md`](../org-latex-pdf/locale-layer.md)
+- First LaTeX/PDF class mapping: [`../org-latex-pdf/classes/veriff.md`](../org-latex-pdf/classes/veriff.md)
+- Personal article relationship: [`../org-latex-pdf/classes/article.md`](../org-latex-pdf/classes/article.md)
+- Coverage corpus: [`../org-latex-pdf/validation/specimens.md`](../org-latex-pdf/validation/specimens.md)
+- LaTeX/PDF rollout plan: [`../org-latex-pdf/plans/iterative-test-plan.md`](../org-latex-pdf/plans/iterative-test-plan.md)
 
 ## Non-Goals
 

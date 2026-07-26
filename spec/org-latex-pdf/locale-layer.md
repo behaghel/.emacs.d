@@ -58,7 +58,7 @@ The locale layer does not own authored prose, brand tone, or class-specific emph
 
 ## Cross-Links
 
-- Shared semantics: [`semantic-layer.md`](semantic-layer.md)
+- Shared semantics: [`../org-semantic-layer/semantic-layer.md`](../org-semantic-layer/semantic-layer.md)
 - Family inventory: [`class-family-matrix.md`](class-family-matrix.md)
 - First real class: [`classes/veriff.md`](classes/veriff.md)
 - Personal article relationship: [`classes/article.md`](classes/article.md)

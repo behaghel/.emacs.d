@@ -116,7 +116,7 @@ Non-negotiable signals:
 
 ## Required Semantic Affordances
 
-The class must consume the shared semantic layer from [`../semantic-layer.md`](../semantic-layer.md) and must not invent a separate authoring dialect.
+The class must consume the shared semantic layer from [`../../org-semantic-layer/semantic-layer.md`](../../org-semantic-layer/semantic-layer.md) and must not invent a separate authoring dialect.
 
 | Visible structure | Expected Org source | Notes |
 | --- | --- | --- |

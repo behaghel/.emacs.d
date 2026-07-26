@@ -207,4 +207,4 @@ Authors can already export Org documents to LaTeX/PDF and publish/sync selected 
 - `modules/org/typographic-semantics.md`
 - `modules/org/specimens/typographic-semantics.org`
 - `modules/org/README.md`
-- `spec/org-latex-pdf/semantic-layer.md`
+- `spec/org-semantic-layer/semantic-layer.md`

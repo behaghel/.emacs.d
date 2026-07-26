@@ -61,13 +61,34 @@
 	    (should (hb-static-site-validate-buffer)))
 	(kill-buffer)))))
 
+(ert-deftest hb-static-site-relative-dir-locals-stay-anchored-at-site-root ()
+  "Relative .dir-locals paths do not recurse under the current content file."
+  (let* ((root (make-temp-file "hb-site-" t))
+	 (content (expand-file-name "content-org" root))
+	 (nested (expand-file-name "pages/about" content))
+	 (default-directory nested)
+	 (denote-directory "content-org")
+	 (org-hugo-base-dir ".")
+	 (hb-static-site-content-org-directory nil))
+    (make-directory nested t)
+    (write-region "" nil (expand-file-name "hugo.toml" root))
+    (should (equal (hb-static-site-hugo-base-dir)
+		   (file-name-as-directory root)))
+    (should (equal (hb-static-site-content-org-directory)
+		   (file-name-as-directory content)))
+    (should-not (string-match-p "content-org/.*/content-org"
+				(hb-static-site-content-org-directory)))))
+
 (ert-deftest hb-static-site-create-section-inserts-ox-hugo-index ()
   "Section creation creates content-org/SECTION/_index.org with Hugo metadata."
   (let* ((root (make-temp-file "hb-site-" t))
 	 (content (expand-file-name "content-org" root))
-	 (denote-directory content)
-	 (org-hugo-base-dir root))
-    (make-directory content t)
+	 (nested (expand-file-name "pages/about" content))
+	 (default-directory nested)
+	 (denote-directory "content-org")
+	 (org-hugo-base-dir "."))
+    (make-directory nested t)
+    (write-region "" nil (expand-file-name "hugo.toml" root))
     (with-current-buffer (hb-static-site-create-section "notes" "Notes")
       (unwind-protect
 	  (progn
@@ -77,8 +98,41 @@
 	    (should (string-match-p "^#\\+hugo_bundle: _index" (buffer-string))))
 	(kill-buffer)))))
 
-(ert-deftest hb-static-site-create-page-uses-root-or-section-conventions ()
-  "Page creation creates root pages under pages/ and section pages in sections."
+(ert-deftest hb-static-site-section-names-come-from-existing-section-indexes ()
+  "Page section choices are based on existing section directories."
+  (let* ((root (make-temp-file "hb-site-" t))
+	 (content (expand-file-name "content-org" root))
+	 (denote-directory content)
+	 (org-hugo-base-dir root))
+    (make-directory (expand-file-name "notes" content) t)
+    (make-directory (expand-file-name "draft-no-index" content) t)
+    (make-directory (expand-file-name "pages" content) t)
+    (write-region "#+title: Notes\n" nil (expand-file-name "notes/_index.org" content))
+    (should (equal (hb-static-site-section-names) '("/" "notes")))))
+
+(ert-deftest hb-static-site-create-basic-page-uses-root-or-section-conventions ()
+  "Basic page creation creates flat root pages and section pages."
+  (let* ((root (make-temp-file "hb-site-" t))
+	 (content (expand-file-name "content-org" root))
+	 (denote-directory content)
+	 (org-hugo-base-dir root))
+    (make-directory content t)
+    (with-current-buffer (hb-static-site-create-basic-page "about" "About")
+      (unwind-protect
+	  (progn
+	    (should (string-suffix-p "content-org/pages/about.org" (buffer-file-name)))
+	    (should (string-match-p "^#\\+hugo_section: /" (buffer-string))))
+	(kill-buffer)))
+    (with-current-buffer (hb-static-site-create-basic-page "notes/first-note" "First note")
+      (unwind-protect
+	  (progn
+	    (should (string-suffix-p "content-org/notes/first-note.org" (buffer-file-name)))
+	    (should (string-match-p "^#\\+hugo_section: notes" (buffer-string)))
+	    (should (string-match-p "^#\\+hugo_slug: first-note" (buffer-string))))
+	(kill-buffer)))))
+
+(ert-deftest hb-static-site-create-page-uses-leaf-bundles ()
+  "Default page creation creates Hugo leaf bundles for page-owned resources."
   (let* ((root (make-temp-file "hb-site-" t))
 	 (content (expand-file-name "content-org" root))
 	 (denote-directory content)
@@ -87,16 +141,43 @@
     (with-current-buffer (hb-static-site-create-page "about" "About")
       (unwind-protect
 	  (progn
-	    (should (string-suffix-p "content-org/pages/about.org" (buffer-file-name)))
-	    (should (string-match-p "^#\\+hugo_section: /" (buffer-string))))
+	    (should (string-suffix-p "content-org/pages/about/index.org" (buffer-file-name)))
+	    (should (string-match-p "^#\\+hugo_base_dir: ../../.." (buffer-string)))
+	    (should (string-match-p "^#\\+hugo_section: /" (buffer-string)))
+	    (should (string-match-p "^#\\+hugo_bundle: about" (buffer-string))))
 	(kill-buffer)))
     (with-current-buffer (hb-static-site-create-page "notes/first-note" "First note")
       (unwind-protect
 	  (progn
-	    (should (string-suffix-p "content-org/notes/first-note.org" (buffer-file-name)))
+	    (should (string-suffix-p "content-org/notes/first-note/index.org" (buffer-file-name)))
 	    (should (string-match-p "^#\\+hugo_section: notes" (buffer-string)))
-	    (should (string-match-p "^#\\+hugo_slug: first-note" (buffer-string))))
+	    (should (string-match-p "^#\\+hugo_slug: first-note" (buffer-string)))
+	    (should (string-match-p "^#\\+hugo_bundle: first-note" (buffer-string))))
 	(kill-buffer)))))
+
+(ert-deftest hb-static-site-create-page-interactive-prompts-for-existing-section ()
+  "Interactive page creation prompts for a section before page slug/title."
+  (let* ((root (make-temp-file "hb-site-" t))
+	 (content (expand-file-name "content-org" root))
+	 (nested (expand-file-name "pages/about" content))
+	 (default-directory nested)
+	 (denote-directory "content-org")
+	 (org-hugo-base-dir "."))
+    (make-directory (expand-file-name "notes" content) t)
+    (make-directory nested t)
+    (write-region "" nil (expand-file-name "hugo.toml" root))
+    (write-region "#+title: Notes\n" nil (expand-file-name "notes/_index.org" content))
+    (cl-letf (((symbol-function 'completing-read)
+	       (lambda (_prompt collection &rest _args)
+		 (should (member "notes" collection))
+		 "notes"))
+	      ((symbol-function 'read-string)
+	       (lambda (prompt &rest _args)
+		 (if (string-match-p "slug" prompt) "first-note" "First note"))))
+      (with-current-buffer (call-interactively #'hb-static-site-create-page)
+	(unwind-protect
+	    (should (string-suffix-p "content-org/notes/first-note/index.org" (buffer-file-name)))
+	  (kill-buffer))))))
 
 (ert-deftest hb-static-site-export-validates-then-calls-ox-hugo ()
   "Export command validates the buffer before delegating to ox-hugo."

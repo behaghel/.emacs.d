@@ -51,7 +51,7 @@ This order is normative. Later files in this tree should not contradict it.
 
 ## Cross-Links
 
-- Shared authoring contract: [`semantic-layer.md`](semantic-layer.md)
+- Shared authoring contract: [`../org-semantic-layer/semantic-layer.md`](../org-semantic-layer/semantic-layer.md)
 - Locale separation: [`locale-layer.md`](locale-layer.md)
 - First real class: [`classes/veriff.md`](classes/veriff.md)
 - Personal article constraint: [`classes/article.md`](classes/article.md)

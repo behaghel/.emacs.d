@@ -4,12 +4,15 @@ This tree holds behavior-first specifications for work that should be implemente
 
 ## Scope
 
-The active subsystem in this tree is the Org -> LaTeX -> PDF export-class system described in the handoff context for the Veriff document work.
+The active subsystems in this tree are:
+
+- a target-agnostic Org semantic layer for authored meaning;
+- the Org -> LaTeX -> PDF export-class system described in the handoff context for the Veriff document work.
 
 This spec set exists to answer four questions before implementation starts:
 
 1. What semantic contract authors write against in Org.
-2. How class styling, locale behavior, and validation are separated.
+2. How target mappings, class styling, locale behavior, and validation are separated.
 3. What the first shipped slice is.
 4. How the system expands from that slice without a structural rewrite.
 
@@ -38,8 +41,8 @@ This spec set exists to answer four questions before implementation starts:
 
 - [`org-latex-pdf/class-family-matrix.md`](org-latex-pdf/class-family-matrix.md)
   - Canonical class inventory, family relationships, spec coverage status, and rollout order.
-- [`org-latex-pdf/semantic-layer.md`](org-latex-pdf/semantic-layer.md)
-  - Shared authoring contract between Org and export output.
+- [`org-semantic-layer/semantic-layer.md`](org-semantic-layer/semantic-layer.md)
+  - Shared target-agnostic authoring contract for Org semantics.
 - [`org-latex-pdf/locale-layer.md`](org-latex-pdf/locale-layer.md)
   - Locale separation, keyword handling, and localized output surfaces.
 - [`org-latex-pdf/classes/veriff.md`](org-latex-pdf/classes/veriff.md)

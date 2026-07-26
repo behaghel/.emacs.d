@@ -102,9 +102,10 @@ When nil, derive the directory from `denote-directory', then from
 
 (defvar hb-static-site-mode-map
   (let ((map (make-sparse-keymap)))
-    (define-key map (kbd "C-c w p") #'hb-static-site-create-post)
+    (define-key map (kbd "C-c w n") #'hb-static-site-create-post)
     (define-key map (kbd "C-c w s") #'hb-static-site-create-section)
-    (define-key map (kbd "C-c w f") #'hb-static-site-create-page)
+    (define-key map (kbd "C-c w p") #'hb-static-site-create-page)
+    (define-key map (kbd "C-c w P") #'hb-static-site-create-basic-page)
     (define-key map (kbd "C-c w o") #'hb-static-site-find-page)
     (define-key map (kbd "C-c w e") #'hb-static-site-export-buffer)
     (define-key map (kbd "C-c w v") #'hb-static-site-validate-buffer)
@@ -114,11 +115,13 @@ When nil, derive the directory from `denote-directory', then from
 (with-eval-after-load 'evil
   (when (fboundp 'evil-define-key)
     (evil-define-key 'normal hb-static-site-mode-map
-		     (kbd ",w p") #'hb-static-site-create-post)
+		     (kbd ",w n") #'hb-static-site-create-post)
     (evil-define-key 'normal hb-static-site-mode-map
 		     (kbd ",w s") #'hb-static-site-create-section)
     (evil-define-key 'normal hb-static-site-mode-map
-		     (kbd ",w f") #'hb-static-site-create-page)
+		     (kbd ",w p") #'hb-static-site-create-page)
+    (evil-define-key 'normal hb-static-site-mode-map
+		     (kbd ",w P") #'hb-static-site-create-basic-page)
     (evil-define-key 'normal hb-static-site-mode-map
 		     (kbd ",w o") #'hb-static-site-find-page)
     (evil-define-key 'normal hb-static-site-mode-map
@@ -130,10 +133,22 @@ When nil, derive the directory from `denote-directory', then from
   (when (fboundp 'which-key-add-key-based-replacements)
     (which-key-add-key-based-replacements "C-c w" "static site")))
 
-(defun hb-static-site--expand-directory (directory)
-  "Return expanded DIRECTORY with a trailing slash, or nil."
+(defun hb-static-site--expand-directory (directory &optional base)
+  "Return expanded DIRECTORY with a trailing slash, or nil.
+
+Relative directories are expanded from BASE when provided.  This matters for
+project-local values like \"content-org\" and \".\" from .dir-locals.el: they
+must stay anchored at the site root, not at the currently visited Org file's
+subdirectory."
   (when (and (stringp directory) (not (string-empty-p directory)))
-    (file-name-as-directory (expand-file-name directory))))
+    (file-name-as-directory (expand-file-name directory base))))
+
+(defun hb-static-site--site-root ()
+  "Return the current static-site root directory."
+  (file-name-as-directory
+   (or (locate-dominating-file default-directory "hugo.toml")
+       (locate-dominating-file default-directory ".dir-locals.el")
+       (hb-static-site--project-root))))
 
 (defun hb-static-site--project-root ()
   "Return the current project root, or `default-directory' when unavailable."
@@ -144,22 +159,25 @@ When nil, derive the directory from `denote-directory', then from
 
 (defun hb-static-site-hugo-base-dir ()
   "Return the active Hugo base directory for the current buffer."
-  (hb-static-site--expand-directory
-   (cond
-    ((and (boundp 'org-hugo-base-dir) (stringp org-hugo-base-dir))
-     org-hugo-base-dir)
-    (t (hb-static-site--project-root)))))
+  (let ((root (hb-static-site--site-root)))
+    (hb-static-site--expand-directory
+     (cond
+      ((and (boundp 'org-hugo-base-dir) (stringp org-hugo-base-dir))
+       org-hugo-base-dir)
+      (t root))
+     root)))
 
 (defun hb-static-site-content-org-directory ()
   "Return the active Org source directory for the current static site."
-  (hb-static-site--expand-directory
-   (cond
-    ((stringp hb-static-site-content-org-directory)
-     hb-static-site-content-org-directory)
-    ((and (boundp 'denote-directory) (stringp denote-directory))
-     denote-directory)
-    ((hb-static-site-hugo-base-dir)
-     (expand-file-name "content-org" (hb-static-site-hugo-base-dir))))))
+  (let ((root (hb-static-site-hugo-base-dir)))
+    (hb-static-site--expand-directory
+     (cond
+      ((stringp hb-static-site-content-org-directory)
+       hb-static-site-content-org-directory)
+      ((and (boundp 'denote-directory) (stringp denote-directory))
+       denote-directory)
+      (root (expand-file-name "content-org" root)))
+     root)))
 
 (defun hb-static-site--content-org-directory-or-error ()
   "Return the active content Org directory or signal a user error."
@@ -225,6 +243,30 @@ When nil, derive the directory from `denote-directory', then from
   "Read a title with PROMPT and DEFAULT."
   (read-string (format "%s (default %s): " prompt default) nil nil default))
 
+(defun hb-static-site-section-names ()
+  "Return existing first-level Hugo section names under content-org.
+
+A directory counts as a section when it contains `_index.org'.  The root
+section `/` is always available for ordinary root pages."
+  (let* ((content (hb-static-site--content-org-directory-or-error))
+	 (sections (when (file-directory-p content)
+		     (seq-filter
+		      (lambda (name)
+			(and (not (member name '("." ".." "pages" "posts")))
+			     (file-directory-p (expand-file-name name content))
+			     (file-exists-p (expand-file-name "_index.org"
+							      (expand-file-name name content)))))
+		      (directory-files content nil "^[^.].*")))))
+    (cons "/" (sort sections #'string<))))
+
+(defun hb-static-site--read-page-args ()
+  "Read section, slug and title for page creation."
+  (let* ((section (completing-read "Section: " (hb-static-site-section-names) nil t nil nil "/"))
+	 (slug (hb-static-site--read-slug "Page slug: "))
+	 (title (hb-static-site--read-title "Page title" (hb-static-site--titleize-slug slug)))
+	 (path (if (string= section "/") slug (concat section "/" slug))))
+    (list path title)))
+
 (defun hb-static-site--expand-template (template)
   "Insert TEMPLATE, using YASnippet when available."
   (if (fboundp 'yas-expand-snippet)
@@ -243,15 +285,18 @@ When nil, derive the directory from `denote-directory', then from
       (auto-insert)))
   (current-buffer))
 
-(defun hb-static-site--page-template (title section slug)
-  "Return an Org/YAS template for page TITLE in Hugo SECTION with SLUG."
+(defun hb-static-site--page-template (title section slug base-dir &optional bundle)
+  "Return an Org/YAS template for page TITLE in Hugo SECTION with SLUG.
+
+BASE-DIR is the relative `org-hugo-base-dir' value for the generated file.
+When BUNDLE is non-nil, add `hugo_bundle' for a Hugo leaf bundle."
   (format "#+title: %s
-#+hugo_base_dir: ../..
+#+hugo_base_dir: %s
 #+hugo_section: %s
 #+hugo_slug: %s
-
+%s
 $0
-" title section slug))
+" title base-dir section slug (if bundle (format "#+hugo_bundle: %s\n" slug) "")))
 
 (defun hb-static-site--section-template (title section)
   "Return an Org/YAS template for section TITLE and SECTION."
@@ -302,31 +347,65 @@ The content root is derived from .dir-locals.el variables such as
     (hb-static-site--auto-insert-template
      file (hb-static-site--section-template title slug))))
 
+(defun hb-static-site--page-path-parts (path)
+  "Return normalized path parts for page PATH."
+  (let ((parts (split-string (string-remove-prefix "/" path) "/" t)))
+    (unless parts
+      (user-error "Page path cannot be empty"))
+    parts))
+
+(defun hb-static-site--page-section (parts)
+  "Return Hugo section for page PARTS."
+  (if (= (length parts) 1) "/" (car parts)))
+
+(defun hb-static-site--page-slug (parts)
+  "Return Hugo slug for page PARTS."
+  (hb-static-site--slugify (file-name-base (car (last parts)))))
+
+(defun hb-static-site--page-directory (parts &optional bundle)
+  "Return Org directory for page PARTS.
+
+When BUNDLE is non-nil, return the leaf-bundle directory."
+  (let* ((slug (hb-static-site--page-slug parts))
+	 (parent (if (= (length parts) 1)
+		     (hb-static-site-pages-directory)
+		   (expand-file-name (car parts)
+				     (hb-static-site--content-org-directory-or-error)))))
+    (if bundle (expand-file-name slug parent) parent)))
+
 ;;;###autoload
-(defun hb-static-site-create-page (path title)
-  "Create a Hugo page Org file.
+(defun hb-static-site-create-basic-page (path title)
+  "Create a basic Hugo page Org file.
 
 PATH without a slash creates content-org/pages/PATH.org and exports to the
 site root.  PATH with a slash, such as notes/first-note, creates a page inside
-that Hugo section."
-  (interactive
-   (let* ((path (string-trim (read-string "Page path: ")))
-	  (_ (when (string-empty-p path) (user-error "Page path cannot be empty")))
-	  (title (hb-static-site--read-title
-		  "Page title" (hb-static-site--titleize-slug
-				(file-name-base (directory-file-name path))))))
-     (list path title)))
-  (let* ((clean-path (string-remove-prefix "/" path))
-	 (parts (split-string clean-path "/" t))
-	 (slug (hb-static-site--slugify (file-name-base (car (last parts)))))
-	 (section (if (= (length parts) 1) "/" (car parts)))
-	 (directory (if (= (length parts) 1)
-			(hb-static-site-pages-directory)
-		      (expand-file-name (car parts)
-					(hb-static-site--content-org-directory-or-error))))
+that Hugo section.  Prefer `hb-static-site-create-page' for new pages because
+it creates a Hugo leaf bundle that can own local page resources."
+  (interactive (hb-static-site--read-page-args))
+  (let* ((parts (hb-static-site--page-path-parts path))
+	 (slug (hb-static-site--page-slug parts))
+	 (section (hb-static-site--page-section parts))
+	 (directory (hb-static-site--page-directory parts))
 	 (file (expand-file-name (concat slug ".org") directory)))
     (hb-static-site--auto-insert-template
-     file (hb-static-site--page-template title section slug))))
+     file (hb-static-site--page-template title section slug "../.."))))
+
+;;;###autoload
+(defun hb-static-site-create-page (path title)
+  "Create a Hugo leaf-bundle page Org file.
+
+PATH without a slash creates content-org/pages/PATH/index.org and exports to
+the site root.  PATH with a slash, such as notes/first-note, creates a bundle
+inside that Hugo section.  Leaf bundles can own page-local resources such as
+images."
+  (interactive (hb-static-site--read-page-args))
+  (let* ((parts (hb-static-site--page-path-parts path))
+	 (slug (hb-static-site--page-slug parts))
+	 (section (hb-static-site--page-section parts))
+	 (directory (hb-static-site--page-directory parts t))
+	 (file (expand-file-name "index.org" directory)))
+    (hb-static-site--auto-insert-template
+     file (hb-static-site--page-template title section slug "../../.." t))))
 
 ;;;###autoload
 (defun hb-static-site-find-page ()

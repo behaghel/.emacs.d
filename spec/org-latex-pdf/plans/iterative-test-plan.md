@@ -50,7 +50,7 @@ The personal `hub-article` slice should follow the same output discipline, with 
 ## Cross-Links
 
 - Family inventory: [`../class-family-matrix.md`](../class-family-matrix.md)
-- Shared semantics: [`../semantic-layer.md`](../semantic-layer.md)
+- Shared semantics: [`../../org-semantic-layer/semantic-layer.md`](../../org-semantic-layer/semantic-layer.md)
 - Locale separation: [`../locale-layer.md`](../locale-layer.md)
 - First real class: [`../classes/veriff.md`](../classes/veriff.md)
 - Personal article boundary: [`../classes/article.md`](../classes/article.md)
