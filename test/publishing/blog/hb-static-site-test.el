@@ -95,7 +95,7 @@
 	    (should (string-suffix-p "content-org/notes/_index.org" (buffer-file-name)))
 	    (should (string-match-p "^#\\+title: Notes" (buffer-string)))
 	    (should (string-match-p "^#\\+hugo_section: notes" (buffer-string)))
-	    (should (string-match-p "^#\\+hugo_bundle: _index" (buffer-string))))
+	    (should-not (string-match-p "^#\\+hugo_bundle:" (buffer-string))))
 	(kill-buffer)))))
 
 (ert-deftest hb-static-site-section-names-come-from-existing-section-indexes ()
@@ -178,6 +178,35 @@
 	(unwind-protect
 	    (should (string-suffix-p "content-org/notes/first-note/index.org" (buffer-file-name)))
 	  (kill-buffer))))))
+
+(ert-deftest hb-static-site-export-all-exports-every-org-source ()
+  "Export-all visits every Org file under content-org and delegates to ox-hugo."
+  (let* ((root (make-temp-file "hb-site-" t))
+	 (content (expand-file-name "content-org" root))
+	 (first (expand-file-name "pages/about.org" content))
+	 (second (expand-file-name "howtos/barbecue/index.org" content))
+	 (default-directory root)
+	 (org-hugo-base-dir root)
+	 (denote-directory content)
+	 (exported nil)
+	 (original-require (symbol-function 'require)))
+    (make-directory (file-name-directory first) t)
+    (make-directory (file-name-directory second) t)
+    (write-region "#+title: About\n" nil first)
+    (write-region "#+title: Barbecue\n" nil second)
+    (cl-letf (((symbol-function 'require)
+	       (lambda (feature &optional filename noerror)
+		 (if (eq feature 'ox-hugo) t
+		   (funcall original-require feature filename noerror))))
+	      ((symbol-function 'org-hugo-export-wim-to-md)
+	       (lambda (&optional all-subtrees _async _visible-only _noerror)
+		 (should all-subtrees)
+		 (push (buffer-file-name) exported))))
+      (should (equal (sort (mapcar #'file-truename (hb-static-site-export-all content))
+			   #'string<)
+		     (sort (mapcar #'file-truename (list first second)) #'string<)))
+      (should (equal (sort (mapcar #'file-truename exported) #'string<)
+		     (sort (mapcar #'file-truename (list first second)) #'string<))))))
 
 (ert-deftest hb-static-site-export-validates-then-calls-ox-hugo ()
   "Export command validates the buffer before delegating to ox-hugo."

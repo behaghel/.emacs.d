@@ -18,6 +18,7 @@
 ;;; Code:
 
 (require 'autoinsert)
+(require 'org)
 (require 'seq)
 (require 'subr-x)
 
@@ -108,6 +109,7 @@ When nil, derive the directory from `denote-directory', then from
     (define-key map (kbd "C-c w P") #'hb-static-site-create-basic-page)
     (define-key map (kbd "C-c w o") #'hb-static-site-find-page)
     (define-key map (kbd "C-c w e") #'hb-static-site-export-buffer)
+    (define-key map (kbd "C-c w E") #'hb-static-site-export-all)
     (define-key map (kbd "C-c w v") #'hb-static-site-validate-buffer)
     map)
   "Keymap for `hb-static-site-mode'.")
@@ -126,6 +128,8 @@ When nil, derive the directory from `denote-directory', then from
 		     (kbd ",w o") #'hb-static-site-find-page)
     (evil-define-key 'normal hb-static-site-mode-map
 		     (kbd ",w e") #'hb-static-site-export-buffer)
+    (evil-define-key 'normal hb-static-site-mode-map
+		     (kbd ",w E") #'hb-static-site-export-all)
     (evil-define-key 'normal hb-static-site-mode-map
 		     (kbd ",w v") #'hb-static-site-validate-buffer)))
 
@@ -303,7 +307,6 @@ $0
   (format "#+title: %s
 #+hugo_base_dir: ../..
 #+hugo_section: %s
-#+hugo_bundle: _index
 
 $0
 " title section))
@@ -461,6 +464,38 @@ subtrees in the buffer."
   (hb-static-site--require-ox-hugo)
   (let ((org-hugo-base-dir (hb-static-site-hugo-base-dir)))
     (org-hugo-export-wim-to-md all-subtrees)))
+
+(defun hb-static-site-org-files (&optional directory)
+  "Return Org source files under DIRECTORY or the active content Org root."
+  (let ((root (file-name-as-directory
+	       (or directory (hb-static-site--content-org-directory-or-error)))))
+    (seq-filter #'hb-static-site--org-file-p
+		(directory-files-recursively root "\\.org\\'"))))
+
+;;;###autoload
+(defun hb-static-site-export-all (&optional directory)
+  "Export every Org source file under DIRECTORY or the active content Org root."
+  (interactive)
+  (hb-static-site--require-ox-hugo)
+  (let* ((root (file-name-as-directory
+		(or directory (hb-static-site--content-org-directory-or-error))))
+	 (files (hb-static-site-org-files root))
+	 (exported nil)
+	 (failures nil))
+    (dolist (file files)
+      (with-current-buffer (find-file-noselect file)
+	(condition-case err
+	    (progn
+	      (org-mode)
+	      (hb-static-site-export-buffer t)
+	      (push file exported))
+	  (error
+	   (push (format "%s: %s" file (error-message-string err)) failures)))))
+    (if failures
+	(user-error "Static-site export failed for %d/%d files: %s"
+		    (length failures) (length files) (string-join (nreverse failures) "; "))
+      (message "Static-site exported %d Org files from %s" (length exported) root)
+      (nreverse exported))))
 
 ;;;###autoload
 (defun hb-static-site-validate-and-export-buffer (&optional all-subtrees)
