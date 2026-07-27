@@ -32,6 +32,8 @@
   "External ox-hugo auto-export mode variable.")
 (defvar org-hugo-base-dir nil
   "External ox-hugo variable naming the active Hugo project root.")
+(defvar org-hugo-front-matter-format nil
+  "External ox-hugo variable naming the front matter format.")
 
 (defun hb-static-site--safe-string-or-nil-p (value)
   "Return non-nil when VALUE is nil or a string."
@@ -98,6 +100,7 @@ When nil, derive the directory from `denote-directory', then from
 (put 'denote-prompts 'safe-local-variable #'listp)
 (put 'denote-org-front-matter 'safe-local-variable #'stringp)
 (put 'org-hugo-base-dir 'safe-local-variable #'stringp)
+(put 'org-hugo-front-matter-format 'safe-local-variable #'stringp)
 (put 'hb-static-site-mode 'safe-local-eval-function t)
 (put 'hb-static-site-enable 'safe-local-eval-function t)
 
