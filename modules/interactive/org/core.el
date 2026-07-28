@@ -30,8 +30,8 @@
 (autoload 'org-copilot-erase-session "org-copilot-session" nil t)
 (autoload 'org-copilot-open-panels "org-copilot-context-panel" nil t)
 (autoload 'org-copilot-review-dwim "org-copilot-llm" nil t)
-(autoload 'org-copilot-toggle-suggestion-panel "org-copilot-suggestion" nil t)
 (autoload 'org-copilot-view-diff-at-point "org-copilot-diff" nil t)
+(autoload 'org-copilot-visualize-at-point "org-copilot-diff" nil t)
 
 (defun hub/org-setup-wrapping ()
   "Use virtual autofill in Org buffers and avoid hard line breaks."
@@ -94,7 +94,7 @@ native behavior."
 			      ",ar" #'org-copilot-review-dwim
 			      ",as" #'org-copilot-chat-section
 			      ",au" #'org-copilot-chat-undo-focused-comment-at-point
-			      ",av" #'org-copilot-toggle-suggestion-panel
+			      ",av" #'org-copilot-visualize-at-point
 			      ",ax" #'org-copilot-dismiss-at-point
 			      ",or" #'org-babel-open-src-block-result
 			      ",à"  #'org-archive-subtree-default
@@ -141,7 +141,7 @@ native behavior."
   (evil-define-key 'insert org-mode-map (kbd "C-[") #'evil-normal-state)
   (setq org-return-follows-link t
 	org-hide-leading-stars t
-	org-startup-indented t
+	org-startup-indented nil
 	org-footnote-auto-adjust t
 	org-cycle-separator-lines 0
 	org-archive-location "archive/%s_archive::datetree/")

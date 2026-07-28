@@ -18,14 +18,84 @@
 (require 'subr-x)
 
 (autoload 'org-confluence-comments-push-current "org-confluence-comments-push" nil t)
-(autoload 'org-copilot-toggle-suggestion-panel "org-copilot-suggestion" nil t)
-(autoload 'org-copilot-view-suggestion-at-point "org-copilot-suggestion" nil t)
+(autoload 'org-copilot-visualize-at-point "org-copilot-diff" nil t)
+
+(defun hub/org-technical-buffer--evil-normalize-map (map bindings)
+  "Apply Evil normal-state BINDINGS to technical buffer MAP."
+  (when (fboundp 'evil-define-key)
+    (dolist (binding bindings)
+      (evil-define-key 'normal map (kbd (car binding)) (cdr binding)))))
+
+(with-eval-after-load 'evil
+  (dolist (mode '(org-comments-panel-mode
+		  org-context-panel-buffer-mode
+		  org-copilot-panel-mode
+		  org-copilot-chat-mode
+		  org-copilot-diff-mode))
+    (evil-set-initial-state mode 'normal)))
 
 (with-eval-after-load 'org-comments-panel
   (define-key org-comments-panel-mode-map (kbd "v")
-	      #'org-copilot-view-suggestion-at-point)
-  (define-key org-comments-panel-mode-map (kbd "V")
-	      #'org-copilot-toggle-suggestion-panel))
+	      #'org-copilot-visualize-at-point)
+  (with-eval-after-load 'evil
+    (hub/org-technical-buffer--evil-normalize-map
+     org-comments-panel-mode-map
+     '(("RET" . org-context-panel-jump-at-point)
+       ("v" . org-copilot-visualize-at-point)
+       ("d" . org-comments-delete)
+       ("e" . org-comments-edit)
+       ("g" . org-comments-panel-refresh)
+       ("m" . org-comments-panel-status-map)
+       ("D" . org-comments-pull)
+       ("O" . org-comments-open-remote)
+       ("o" . org-comments-open-remote)
+       ("p" . org-comments-page-open-at-point)
+       ("S" . org-comments-sync)
+       ("U" . org-comments-push)
+       ("q" . org-comments-close-current-ui)
+       ("r" . org-comments-reply)
+       ("z" . org-comments-panel-filter-map)
+       ("]c" . org-comments-next-item-at-point)
+       ("[c" . org-comments-previous-item-at-point)))))
+
+(with-eval-after-load 'org-copilot-context-panel
+  (with-eval-after-load 'evil
+    (hub/org-technical-buffer--evil-normalize-map
+     org-copilot-panel-mode-map
+     '(("RET" . org-context-panel-jump-at-point)
+       ("d" . org-copilot-view-diff-at-point)
+       ("v" . org-copilot-visualize-at-point)
+       ("a" . org-copilot-accept-at-point)
+       ("x" . org-copilot-dismiss-at-point)
+       ("n" . org-copilot-panel-next-item)
+       ("p" . org-copilot-panel-previous-item)
+       ("]c" . org-copilot-panel-next-item)
+       ("[c" . org-copilot-panel-previous-item)
+       ("G" . org-copilot-chat-full-document)
+       ("g" . org-copilot-refresh)
+       ("q" . org-copilot-close)))))
+
+(with-eval-after-load 'org-copilot-chat
+  (with-eval-after-load 'evil
+    (hub/org-technical-buffer--evil-normalize-map
+     org-copilot-chat-mode-map
+     '(("RET" . org-copilot-chat-return-dwim)
+       ("/" . org-copilot-chat-slash-or-complete)
+       ("M-a" . org-copilot-chat-accept-focused-suggestion-at-point)
+       ("M-d" . org-copilot-chat-dismiss-focused-comment-at-point)
+       ("M-n" . org-copilot-chat-focus-next-comment)
+       ("M-p" . org-copilot-chat-focus-previous-comment)
+       ("M-u" . org-copilot-chat-undo-focused-comment-at-point)
+       ("M-g" . org-copilot-chat-full-document)
+       ("M-s" . org-copilot-chat-section)
+       ("M-<up>" . org-copilot-chat-recall-last-prompt)))))
+
+(with-eval-after-load 'org-copilot-diff
+  (with-eval-after-load 'evil
+    (hub/org-technical-buffer--evil-normalize-map
+     org-copilot-diff-mode-map
+     '(("a" . org-copilot-accept-at-point)
+       ("q" . org-copilot-close-diff)))))
 
 (defgroup hub/org-context-panel nil
   "Interactive Org context panel."
