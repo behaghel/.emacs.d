@@ -33,10 +33,9 @@ capture its value at load time; compute paths at call time instead.")
   (eval
    `(lambda ()
       (interactive)
-      (let ((exists (member ,persp (persp-names))))
-	(persp-switch ,persp)
-	(find-file ,path)
-	(unless exists (hub/open-treemacs-sidebar))))))
+      (persp-switch ,persp)
+      (find-file ,path)
+      (hub/open-treemacs-sidebar))))
 
 (use-package perspective
   :defer t
