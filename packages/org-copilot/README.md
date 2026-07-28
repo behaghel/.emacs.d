@@ -28,9 +28,9 @@ Pure Q&A answers stay in the Copilot transcript. Executable edits live in `org-s
 - `org-copilot-review-dwim` — review active region, else current subtree.
 - `org-copilot-open-panels` — open side panel + chat.
 - `org-copilot-view-diff-at-point` — preview focused suggestion.
-- `org-copilot-view-suggestion-at-point` — reopen section suggestion preview.
-- `org-copilot-accept-at-point` — accept focused suggestion.
-- `org-copilot-dismiss-at-point` — dismiss focused legacy in-session comment.
+- `org-copilot-visualize-at-point` — DWIM visualisation for focused comments and linked durable suggestions.
+- `org-copilot-accept-at-point` — accept focused durable suggestion.
+- `org-copilot-dismiss-at-point` — resolve focused durable comment and dismiss linked suggestions.
 - `org-copilot-clear-session` — archive current Copilot session artifacts; with prefix, clear UI only.
 - `org-copilot-erase-session` — hard-delete current Copilot session artifacts after confirmation.
 
@@ -40,7 +40,7 @@ In the chat prompt, type `/` on an empty prompt for context-aware completion.
 
 - `/accept` — accept focused suggestion.
 - `/dismiss` — dismiss focused comment.
-- `/undo` — undo accepted legacy in-session suggestion when rollback data exists.
+- `/undo` — reserved for durable suggestion undo flows; legacy comment-local undo is retired.
 - `/next`, `/prev` — navigate focused comments/suggestions.
 - `/doctor` — append a local health report.
 - `/clear` — archive current session chat/comments/suggestions.
@@ -146,19 +146,18 @@ Rules:
 - `intent: answer` installs no comments or suggestions.
 - `intent: review` may install comments.
 - `intent: edit` may install suggestion threads/comments.
-- `suggestion` means executable text only and is legacy compatibility, not the canonical path.
-- Section suggestions replace the live section body while preserving the heading.
+- Top-level `suggestion` and comment-local `:suggestion` are invalid for executable edits and are ignored/fail closed.
+- Section rewrites must be encoded as `suggestion_threads` hunks.
 
 ## Architecture
 
 - `org-copilot-chat.el` — chat UI, context switching, slash commands.
-- `org-copilot-session.el` — source-buffer session state and clear/erase orchestration.
+- `org-copilot-session.el` — source-buffer chat state, durable comment/suggestion adapters, and clear/erase orchestration.
 - `org-copilot-sidecar.el` — `.copilot.org` transcript persistence.
 - `org-copilot-llm.el` — adapter-neutral parsing/normalization.
 - `org-copilot-gptel.el` — optional gptel/ChatGPT OAuth adapter.
 - `org-copilot-context-panel.el` — side-panel provider and overlays.
 - `org-copilot-diff.el` — preview/accept actions, delegating durable suggestions to `org-suggestions`.
-- `org-copilot-suggestion.el` — legacy/preview section suggestion support.
 
 See also:
 

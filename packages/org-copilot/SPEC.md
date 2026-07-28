@@ -18,7 +18,7 @@ Org Copilot needs to behave like a durable authoring assistant rather than an ep
 | Source of truth for model context | Live source + restored transcript + Copilot events + current comments/suggestions | Source text remains canonical; transcript/events explain conversation history. |
 | Raw prompts | Not persisted by default; debug traces are explicit opt-in | Balances debuggability and privacy. |
 | Model metadata | Persist symbolic backend/model per assistant response/event, never credentials | Useful for debugging without leaking tokens. |
-| Suggestion schema | `suggestion_threads` is canonical; top-level `suggestion` is legacy compatibility only | Clean path avoids ambiguity while old flows migrate out. |
+| Suggestion schema | `suggestion_threads` is the only executable edit schema; top-level `suggestion` and comment-local `:suggestion` are retired | Clean path avoids ambiguity and makes `org-suggestions` the edit source of truth. |
 | Prompt policy | Conservative: one thread/one suggestion by default; complex threads only when warranted | Avoids leading model into unnecessary complexity. |
 | Clear session | Default archives current session Copilot entries and Copilot-created comments/suggestions; `C-u` preserves durable artifacts | Keeps sidecars tidy without hard deletion. |
 | Erase session | Hard-delete Copilot sidecar data and Copilot-created comments/suggestions after confirmation | Explicit destructive cleanup command. |
@@ -111,6 +111,7 @@ The model response is JSON with conservative structure:
 Rules:
 - Top-level `intent` gates artifact installation: `answer` installs no comments/suggestions; `review` may install comments; `edit` may install suggestion threads/comments.
 - Top-level `suggestion` is invalid and must be dropped with a chat warning.
+- Comment-local `:suggestion` is invalid for executable edits; accept/dismiss/diff paths must resolve edits from linked `org-suggestions` candidates instead.
 - `message` is conversational and must not be used as the linked suggestion comment body.
 - `summary` is the short linked comment body; if absent, Copilot creates a neutral fallback.
 - Parser accepts multiple threads/hunks, but prompt discourages complexity unless explicitly warranted.
@@ -133,7 +134,7 @@ Rules:
 Implementation notes:
 - `/clear` archives current-session artifacts; `/clear-ui` passes prefix-preserve semantics; `/erase` hard-deletes after confirmation.
 - Durable linked suggestion accept delegates source mutation and lifecycle persistence to `org-suggestions`.
-- Legacy top-level `suggestion` remains compatibility code in some paths, but `suggestion_threads` is canonical.
+- Legacy top-level `suggestion` and comment-local `:suggestion` no longer mutate source and fail closed or warn.
 
 ## Windowing Invariants
 - Copilot side panel and bottom chat follow generic `org-context-panel` source ownership.
@@ -146,6 +147,7 @@ Implementation notes:
 - Live source buffer content is always canonical for model context; transcript and events are explanatory context.
 - Copilot-created targeted/scope review comments are durable `org-comments` records, not a parallel persistent Copilot comment store.
 - Copilot-created executable edits are durable `org-suggestions` records, not embedded in comments or Copilot transcript.
+- Copilot comment records may store `suggestion-thread-id` / `suggestion-ids` links, but never executable replacement text.
 - Pure chat answers remain only in the Copilot transcript.
 - Clear/erase commands operate on the current session id and do not affect artifacts from other sessions.
 - DRY rule: Copilot wraps `org-comments`/`org-suggestions` APIs and must not duplicate anchoring, sidecar, lifecycle, or source mutation logic.
