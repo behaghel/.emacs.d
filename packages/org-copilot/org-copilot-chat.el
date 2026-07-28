@@ -112,7 +112,7 @@ assistant message, or a plist with `:message' and optional `:comments'.  Normal
 			  (cl-remove-if
 			   (lambda (comment)
 			     (eq (org-copilot-comment-status comment) 'dismissed))
-			   (org-copilot-comments)))))
+			   (org-copilot-visible-comments)))))
 	 (total (length comments))
 	 (scope-count (cl-count-if
 		       (lambda (comment)
@@ -147,9 +147,6 @@ assistant message, or a plist with `:message' and optional `:comments'.  Normal
   (cond
    ((buffer-live-p org-copilot-chat-source-buffer)
     org-copilot-chat-source-buffer)
-   ((and (boundp 'org-copilot-suggestion-source-buffer)
-	 (buffer-live-p org-copilot-suggestion-source-buffer))
-    org-copilot-suggestion-source-buffer)
    ((buffer-live-p org-context-panel-source-buffer)
     org-context-panel-source-buffer)
    ((derived-mode-p 'org-mode)
@@ -219,7 +216,7 @@ assistant message, or a plist with `:message' and optional `:comments'.  Normal
   "Return SOURCE-BUFFER's focused AI comment, or nil."
   (with-current-buffer source-buffer
     (and org-copilot-chat-focus-comment-id
-	 (org-copilot-find-comment org-copilot-chat-focus-comment-id))))
+	 (org-copilot-find-visible-comment org-copilot-chat-focus-comment-id))))
 
 (defun org-copilot-chat--scroll-source-to-comment (source-buffer comment)
   "Scroll SOURCE-BUFFER windows to COMMENT without moving buffer point."
@@ -245,7 +242,7 @@ assistant message, or a plist with `:message' and optional `:comments'.  Normal
   (pcase (org-copilot-comment-status comment)
     ('accepted "✅")
     ('stale "⚠️")
-    (_ (if (plist-get comment :suggestion) "✏️" "💬"))))
+    (_ (if (org-copilot-comment-suggestion-text comment) "✏️" "💬"))))
 
 (defun org-copilot-chat--context-marker (source-buffer)
   "Return chat context marker for SOURCE-BUFFER."
@@ -424,7 +421,9 @@ assistant responses start where the user begins reading."
 (defun org-copilot-chat--focused-suggestion-comment (source-buffer)
   "Return focused comment with a suggestion for SOURCE-BUFFER, or nil."
   (when-let* ((comment (org-copilot-chat--focused-comment source-buffer)))
-    (and (plist-get comment :suggestion) comment)))
+    (and (with-current-buffer source-buffer
+	   (org-copilot-comment-suggestion-text comment))
+	 comment)))
 
 (defun org-copilot-chat--navigable-comments (source-buffer)
   "Return non-dismissed AI comments for SOURCE-BUFFER."
@@ -432,7 +431,7 @@ assistant responses start where the user begins reading."
     (cl-remove-if
      (lambda (comment)
        (eq (org-copilot-comment-status comment) 'dismissed))
-     (org-copilot-comments))))
+     (org-copilot-visible-comments))))
 
 (defun org-copilot-chat--focus-comment-by-step (source-buffer step)
   "Focus SOURCE-BUFFER chat on the next comment by STEP."
@@ -456,6 +455,8 @@ assistant responses start where the user begins reading."
 
 (defun org-copilot-chat-render-bottom-view (source-buffer _view)
   "Render the Org Copilot bottom chat view for SOURCE-BUFFER."
+  (with-current-buffer source-buffer
+    (org-copilot-restore-chat-messages))
   (setq org-copilot-chat-source-buffer source-buffer)
   (setq org-context-panel-source-buffer source-buffer)
   (setq org-context-panel-view-id 'copilot-chat)
@@ -523,6 +524,7 @@ prompt active.  Source target overlays remain visible as dim context markers."
    (list :type 'comment :comment-id (org-copilot-comment-id comment)))
   (org-copilot-chat--scroll-source-to-comment source-buffer comment)
   (org-copilot-chat--refresh-source-ui source-buffer)
+  (org-copilot-chat-sync-diff source-buffer)
   (let ((buffer (org-copilot-chat--buffer source-buffer)))
     (when-let* ((window (get-buffer-window buffer t)))
       (with-current-buffer buffer
@@ -646,7 +648,7 @@ prompt active.  Source target overlays remain visible as dim context markers."
   (with-current-buffer source-buffer
     (unless org-copilot-chat-focus-comment-id
       (user-error "No focused AI comment to %s" action))
-    (or (org-copilot-find-comment org-copilot-chat-focus-comment-id)
+    (or (org-copilot-find-visible-comment org-copilot-chat-focus-comment-id)
 	(user-error "No focused AI comment to %s" action))))
 
 (defun org-copilot-chat--after-focused-action (source-buffer)
@@ -721,7 +723,7 @@ prompt active.  Source target overlays remain visible as dim context markers."
 			   (with-current-buffer source-buffer major-mode)))
 	 (comments (and source-live
 			(with-current-buffer source-buffer
-			  (org-copilot-comments))))
+			  (org-copilot-visible-comments))))
 	 (messages (and source-live
 			(with-current-buffer source-buffer
 			  (org-copilot-chat-messages))))
@@ -860,7 +862,8 @@ prompt active.  Source target overlays remain visible as dim context markers."
       ("/accept" (and comment
 		      (not (memq (org-copilot-comment-status comment)
 				 '(accepted stale dismissed)))
-		      (plist-get comment :suggestion)))
+		      (with-current-buffer source-buffer
+			(org-copilot-comment-suggestion-text comment))))
       ("/dismiss" (and comment
 		       (not (eq (org-copilot-comment-status comment)
 				'dismissed))))

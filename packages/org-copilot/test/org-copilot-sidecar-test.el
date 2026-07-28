@@ -6,6 +6,8 @@
 ;;; Code:
 
 (require 'ert)
+(require 'org-comments-store)
+(require 'org-suggestions)
 (require 'org-copilot-chat)
 (require 'org-copilot-sidecar)
 (require 'org-copilot-session)
@@ -55,6 +57,71 @@
 	(kill-buffer buffer))
       (when (get-buffer org-copilot-chat-buffer-name)
 	(kill-buffer org-copilot-chat-buffer-name))
+      (delete-directory directory t))))
+
+(ert-deftest org-copilot-chat-bottom-render-restores-sidecar-transcript ()
+  "Generic bottom-view rendering restores persisted transcript."
+  (let* ((directory (make-temp-file "org-copilot-chat-bottom-restore" t))
+	 (source-file (expand-file-name "draft.org" directory)))
+    (unwind-protect
+	(with-current-buffer (find-file-noselect source-file)
+	  (erase-buffer)
+	  (insert "* Draft\n")
+	  (save-buffer)
+	  (org-mode)
+	  (org-copilot-sidecar-append-message source-file 'user "Question?" nil)
+	  (org-copilot-sidecar-append-message source-file 'assistant "Answer." nil)
+	  (setq org-copilot--chat-messages nil)
+	  (with-current-buffer (get-buffer-create org-copilot-chat-buffer-name)
+	    (org-copilot-chat-mode)
+	    (org-copilot-chat-render-bottom-view (find-file-noselect source-file) nil)
+	    (goto-char (point-min))
+	    (should (search-forward "Question?" nil t))
+	    (should (search-forward "Answer." nil t))))
+      (when-let* ((buffer (find-buffer-visiting source-file)))
+	(kill-buffer buffer))
+      (when (get-buffer org-copilot-chat-buffer-name)
+	(kill-buffer org-copilot-chat-buffer-name))
+      (delete-directory directory t))))
+
+(ert-deftest org-copilot-restore-suggestion-comments-backfills-linked-comment ()
+  "Reopening source buffers restores visible comments for durable suggestions."
+  (let* ((directory (make-temp-file "org-copilot-thread-restore" t))
+	 (source-file (expand-file-name "draft.org" directory)))
+    (unwind-protect
+	(with-current-buffer (find-file-noselect source-file)
+	  (erase-buffer)
+	  (insert "Une phrase avec erreur syntaxique.\n")
+	  (save-buffer)
+	  (org-mode)
+	  (let ((thread (list :id "ai-thread-1"
+			      :provider "org-copilot"
+			      :session-id "default"
+			      :summary "Corriger la syntaxe"
+			      :candidates
+			      (list
+			       (list :id "ai-thread-1.1"
+				     :status 'active
+				     :hunks
+				     (list
+				      (list :id "h1"
+					    :kind 'replace
+					    :primary t
+					    :original "erreur syntaxique"
+					    :replacement "erreur de syntaxe")))))))
+	    (org-suggestions-write-sidecar source-file (list thread))
+	    (org-copilot-restore-suggestion-comments)
+	    (let ((comments (org-comments-collect (current-buffer) t))
+		  (threads (org-suggestions-load-sidecar source-file)))
+	      (should (= (length comments) 1))
+	      (should (equal (plist-get (car comments) :body)
+			     "Corriger la syntaxe"))
+	      (should (equal (plist-get (car comments) :suggestion-thread-id)
+			     "ai-thread-1"))
+	      (should (equal (plist-get (car threads) :comment-id)
+			     (plist-get (car comments) :id))))))
+      (when-let* ((buffer (find-buffer-visiting source-file)))
+	(kill-buffer buffer))
       (delete-directory directory t))))
 
 (ert-deftest org-copilot-chat-open-does-not-restore-archived-transcript ()

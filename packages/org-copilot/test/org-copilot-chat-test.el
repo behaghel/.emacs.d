@@ -7,9 +7,10 @@
 
 (require 'ert)
 (require 'org)
+(require 'org-comments-store)
+(require 'org-suggestions)
 (require 'org-copilot)
 (require 'org-copilot-chat)
-(require 'org-copilot-suggestion)
 
 (ert-deftest org-copilot-chat-opens-bottom-view-for-source ()
   "Opening chat creates a bottom-view buffer associated with the source."
@@ -52,17 +53,6 @@
       (when (buffer-live-p source)
 	(kill-buffer source)))))
 
-(ert-deftest org-copilot-chat-source-buffer-uses-suggestion-source ()
-  "Chat commands from suggestion previews keep the associated Org source."
-  (let ((source (generate-new-buffer " *org copilot source*")))
-    (unwind-protect
-	(with-temp-buffer
-	  (org-copilot-suggestion-mode)
-	  (setq org-copilot-suggestion-source-buffer source)
-	  (should (eq (org-copilot-chat--source-buffer) source)))
-      (when (buffer-live-p source)
-	(kill-buffer source)))))
-
 (ert-deftest org-copilot-chat-focuses-current-comment ()
   "Opening chat from a context-panel row focuses that AI comment."
   (let ((source (generate-new-buffer " *org copilot chat source*")))
@@ -94,7 +84,7 @@
 	      (with-current-buffer source
 		(should (equal org-copilot-chat-focus-comment-id "ai-1")))
 	      (with-current-buffer buffer
-		(should (string-match-p "Org Copilot Chat — .* · ✏️ Comment ai-1 · active"
+		(should (string-match-p "Org Copilot Chat — .* · 💬 Comment ai-1 · active"
 					(buffer-string)))
 		(should-not (string-match-p "^Context" (buffer-string)))
 		(should (string-match-p "Copilot\n  Clarify this sentence" (buffer-string)))
@@ -106,11 +96,13 @@
       (when (buffer-live-p source)
 	(kill-buffer source)))))
 
-(ert-deftest org-copilot-chat-opens-diff-for-focused-suggestion ()
-  "Focused chat opens a diff buffer for the focused comment suggestion."
+(ert-deftest org-copilot-chat-does-not-open-diff-for-legacy-suggestion ()
+  "Focused chat ignores retired comment-local suggestions for diff sync."
   (let ((source (generate-new-buffer " *org copilot chat source*")))
     (unwind-protect
 	(let ((comment nil))
+	  (when-let* ((buffer (get-buffer org-copilot-diff-buffer-name)))
+	    (kill-buffer buffer))
 	  (with-current-buffer source
 	    (org-mode)
 	    (insert "Alpha sentence.\n")
@@ -132,9 +124,7 @@
 				   `(org-context-panel-item ,comment)))
 	    (goto-char (point-min))
 	    (org-copilot-chat)
-	    (with-current-buffer (get-buffer org-copilot-diff-buffer-name)
-	      (should (string-match-p "^-Alpha sentence\\." (buffer-string)))
-	      (should (string-match-p "^+Alpha\\." (buffer-string))))))
+	    (should-not (get-buffer org-copilot-diff-buffer-name))))
       (when (buffer-live-p source)
 	(kill-buffer source)))))
 
@@ -161,11 +151,12 @@
 		(kill-buffer buffer)))
 	    (list source-a source-b)))))
 
-(ert-deftest org-copilot-chat-accept-command-accepts-focused-suggestion ()
-  "The /accept chat command accepts the focused comment suggestion."
+(ert-deftest org-copilot-chat-accept-command-rejects-legacy-local-suggestion ()
+  "The /accept command rejects retired comment-local suggestions."
   (with-temp-buffer
     (org-mode)
-    (insert "Alpha sentence.\n")
+    (insert "Alpha sentence.
+")
     (org-copilot-add-comment
      (list :id "ai-1"
 	   :source-start (point-min)
@@ -174,51 +165,16 @@
 	   :suggestion "Alpha."
 	   :status 'active))
     (setq org-copilot-chat-focus-comment-id "ai-1")
-    (org-copilot-chat-send "/accept")
-    (should (equal (buffer-string) "Alpha.\n"))
-    (should (eq (plist-get (org-copilot-find-comment "ai-1") :status)
-		'accepted))))
+    (should-error (org-copilot-chat-send "/accept") :type 'user-error)
+    (should (equal (buffer-string) "Alpha sentence.
+"))))
 
-(ert-deftest org-copilot-chat-undo-command-restores-accepted-suggestion ()
-  "The /undo chat command restores an accepted focused suggestion."
+(ert-deftest org-copilot-chat-accept-key-rejects-legacy-local-suggestion ()
+  "Direct chat accept rejects retired comment-local suggestions."
   (with-temp-buffer
     (org-mode)
-    (insert "Alpha sentence.\n")
-    (let ((comment (org-copilot-add-comment
-		    (list :id "ai-1"
-			  :source-start (point-min)
-			  :source-end (+ (point-min) (length "Alpha sentence."))
-			  :target-text "Alpha sentence."
-			  :suggestion "Alpha."
-			  :status 'active))))
-      (org-copilot-accept-comment comment (current-buffer))
-      (setq org-copilot-chat-focus-comment-id "ai-1")
-      (org-copilot-chat-send "/undo")
-      (should (equal (buffer-string) "Alpha sentence.\n"))
-      (should (eq (plist-get (org-copilot-find-comment "ai-1") :status)
-		  'active)))))
-
-(ert-deftest org-copilot-chat-accept-command-recovers-unanchored-suggestion ()
-  "The /accept chat command applies uniquely anchorable unpositioned suggestions."
-  (with-temp-buffer
-    (org-mode)
-    (insert "Alpha sentence.\n")
-    (org-copilot-add-comment
-     (list :id "ai-1"
-	   :target-text "Alpha sentence."
-	   :suggestion "Alpha."
-	   :status 'active))
-    (setq org-copilot-chat-focus-comment-id "ai-1")
-    (org-copilot-chat-send "/accept")
-    (should (equal (buffer-string) "Alpha.\n"))
-    (should (eq (plist-get (org-copilot-find-comment "ai-1") :status)
-		'accepted))))
-
-(ert-deftest org-copilot-chat-accept-key-accepts-focused-suggestion ()
-  "Direct chat accept command accepts the focused comment suggestion."
-  (with-temp-buffer
-    (org-mode)
-    (insert "Alpha sentence.\n")
+    (insert "Alpha sentence.
+")
     (org-copilot-add-comment
      (list :id "ai-1"
 	   :source-start (point-min)
@@ -228,10 +184,10 @@
 	   :status 'active))
     (setq org-copilot-chat-focus-comment-id "ai-1")
     (with-current-buffer (org-copilot-chat--buffer (current-buffer))
-      (org-copilot-chat-accept-focused-suggestion-at-point))
-    (should (equal (buffer-string) "Alpha.\n"))
-    (should (eq (plist-get (org-copilot-find-comment "ai-1") :status)
-		'accepted))))
+      (should-error (org-copilot-chat-accept-focused-suggestion-at-point)
+		    :type 'user-error))
+    (should (equal (buffer-string) "Alpha sentence.
+"))))
 
 (ert-deftest org-copilot-chat-opens-at-editable-prompt ()
   "Opening chat selects the chat buffer and places point at an editable prompt."
@@ -439,10 +395,12 @@
     (org-copilot-chat-focus-previous-comment)
     (should (equal org-copilot-chat-focus-comment-id "ai-2"))))
 
-(ert-deftest org-copilot-chat-navigation-syncs-diff ()
-  "Chat navigation opens suggestion diffs for newly focused comments."
+(ert-deftest org-copilot-chat-navigation-ignores-legacy-suggestion-diff ()
+  "Chat navigation does not open diffs for retired comment-local suggestions."
   (with-temp-buffer
     (org-mode)
+    (when-let* ((buffer (get-buffer org-copilot-diff-buffer-name)))
+      (kill-buffer buffer))
     (insert "Alpha sentence.\nBeta sentence.\n")
     (org-copilot-add-comment
      (list :id "ai-1"
@@ -452,7 +410,7 @@
 	   :target-text "Alpha sentence."
 	   :suggestion "Alpha."))
     (org-copilot-chat-focus-next-comment)
-    (should (get-buffer org-copilot-diff-buffer-name))))
+    (should-not (get-buffer org-copilot-diff-buffer-name))))
 
 (ert-deftest org-copilot-chat-next-prev-commands-change-focus ()
   "The /next and /prev chat commands navigate focused comments."
@@ -467,50 +425,131 @@
     (org-copilot-chat-send "/prev")
     (should (equal org-copilot-chat-focus-comment-id "ai-1"))))
 
-(ert-deftest org-copilot-chat-dismiss-command-dismisses-focused-comment ()
-  "The /dismiss chat command dismisses the focused comment."
+(ert-deftest org-copilot-chat-dismiss-command-rejects-legacy-comment ()
+  "The /dismiss command rejects retired in-memory comments."
   (with-temp-buffer
     (org-mode)
     (org-copilot-add-comment (list :id "ai-1" :status 'active))
     (setq org-copilot-chat-focus-comment-id "ai-1")
-    (org-copilot-chat-send "/dismiss")
-    (should-not (org-copilot-find-comment "ai-1"))
-    (should-not org-copilot-chat-focus-comment-id)))
+    (should-error (org-copilot-chat-send "/dismiss") :type 'user-error)
+    (should (org-copilot-find-comment "ai-1"))))
 
-(ert-deftest org-copilot-chat-dismiss-refreshes-side-panel ()
-  "Dismissing from chat refreshes the visible side panel."
-  (with-temp-buffer
-    (org-mode)
-    (org-copilot-mode 1)
-    (org-copilot-add-comment
-     (list :id "ai-1" :status 'active :summary "Remove me"))
-    (setq org-copilot-chat-focus-comment-id "ai-1")
-    (let ((source (current-buffer))
-	  (panel-buffer (get-buffer-create org-copilot-panel-buffer-name)))
-      (unwind-protect
-	  (progn
-	    (with-current-buffer panel-buffer
-	      (org-copilot-panel-mode)
-	      (setq org-context-panel-source-buffer source))
-	    (org-context-panel-refresh)
-	    (with-current-buffer panel-buffer
-	      (should (string-match-p "Remove me" (buffer-string))))
+(ert-deftest org-copilot-chat-next-navigates-durable-sidecar-suggestions ()
+  "The /next command navigates restored durable linked suggestions."
+  (let* ((directory (make-temp-file "org-copilot-chat-durable-next" t))
+	 (source-file (expand-file-name "draft.org" directory))
+	 (alpha-candidate (list :id "ai-1"
+				:status 'active
+				:hunks (list (list :id "h1"
+						   :kind 'replace
+						   :primary t
+						   :original "Alpha typo"
+						   :replacement "Alpha fixed"))))
+	 (beta-candidate (list :id "ai-2"
+			       :status 'active
+			       :hunks (list (list :id "h2"
+						  :kind 'replace
+						  :primary t
+						  :original "Beta typo"
+						  :replacement "Beta fixed"))))
+	 (threads (list (list :id "ai-thread-1"
+			      :provider "org-copilot"
+			      :summary "Fix Alpha"
+			      :candidates (list alpha-candidate))
+			(list :id "ai-thread-2"
+			      :provider "org-copilot"
+			      :summary "Fix Beta"
+			      :candidates (list beta-candidate)))))
+    (unwind-protect
+	(with-current-buffer (find-file-noselect source-file)
+	  (erase-buffer)
+	  (insert "Alpha typo.\nBeta typo.\n")
+	  (save-buffer)
+	  (org-mode)
+	  (org-suggestions-write-sidecar source-file threads)
+	  (org-copilot-restore-suggestion-comments)
+	  (setq org-copilot--comments nil)
+	  (should (assoc "/next" (org-copilot-chat--available-slash-commands
+				  (current-buffer))))
+	  (let ((navigable (org-copilot-chat--navigable-comments (current-buffer))))
+	    (org-copilot-chat-send "/next")
+	    (should (equal org-copilot-chat-focus-comment-id
+			   (plist-get (car navigable) :id)))
+	    (org-copilot-chat-send "/next")
+	    (should (equal org-copilot-chat-focus-comment-id
+			   (plist-get (cadr navigable) :id)))))
+      (when-let* ((buffer (find-buffer-visiting source-file)))
+	(kill-buffer buffer))
+      (delete-directory directory t))))
+
+(ert-deftest org-copilot-chat-accept-mutates-durable-sidecars ()
+  "The /accept command accepts durable linked suggestions."
+  (let* ((directory (make-temp-file "org-copilot-chat-durable-accept" t))
+	 (source-file (expand-file-name "draft.org" directory))
+	 (candidate (list :id "ai-1"
+			  :status 'active
+			  :hunks (list (list :id "h1"
+					     :kind 'replace
+					     :primary t
+					     :original "Alpha typo."
+					     :replacement "Alpha fixed."))))
+	 (thread (list :id "ai-thread-1"
+		       :provider "org-copilot"
+		       :summary "Fix Alpha"
+		       :candidates (list candidate))))
+    (unwind-protect
+	(with-current-buffer (find-file-noselect source-file)
+	  (erase-buffer)
+	  (insert "Alpha typo.\n")
+	  (save-buffer)
+	  (org-mode)
+	  (org-suggestions-write-sidecar source-file (list thread))
+	  (org-copilot-restore-suggestion-comments)
+	  (let ((comment (car (org-copilot-visible-comments))))
+	    (setq org-copilot-chat-focus-comment-id (plist-get comment :id))
+	    (org-copilot-chat-send "/accept")
+	    (let* ((loaded-thread (car (org-suggestions-load-sidecar source-file)))
+		   (loaded-candidate (car (plist-get loaded-thread :candidates))))
+	      (should (equal (buffer-string) "Alpha fixed.\n"))
+	      (should (eq (plist-get loaded-candidate :status) 'accepted)))))
+      (when-let* ((buffer (find-buffer-visiting source-file)))
+	(kill-buffer buffer))
+      (delete-directory directory t))))
+
+(ert-deftest org-copilot-chat-dismiss-mutates-durable-sidecars ()
+  "The /dismiss command marks durable linked suggestions dismissed."
+  (let* ((directory (make-temp-file "org-copilot-chat-durable-dismiss" t))
+	 (source-file (expand-file-name "draft.org" directory))
+	 (candidate (list :id "ai-1"
+			  :status 'active
+			  :hunks (list (list :id "h1"
+					     :kind 'replace
+					     :primary t
+					     :original "Alpha typo."
+					     :replacement "Alpha fixed."))))
+	 (thread (list :id "ai-thread-1"
+		       :provider "org-copilot"
+		       :summary "Fix Alpha"
+		       :candidates (list candidate))))
+    (unwind-protect
+	(with-current-buffer (find-file-noselect source-file)
+	  (erase-buffer)
+	  (insert "Alpha typo.\n")
+	  (save-buffer)
+	  (org-mode)
+	  (org-suggestions-write-sidecar source-file (list thread))
+	  (org-copilot-restore-suggestion-comments)
+	  (let ((comment (car (org-copilot-visible-comments))))
+	    (setq org-copilot-chat-focus-comment-id (plist-get comment :id))
 	    (org-copilot-chat-send "/dismiss")
-	    (with-current-buffer panel-buffer
-	      (should-not (string-match-p "Remove me" (buffer-string)))))
-	(when (buffer-live-p panel-buffer)
-	  (kill-buffer panel-buffer))))))
-
-(ert-deftest org-copilot-chat-advance-after-dismiss-focuses-next-comment ()
-  "Dismiss can automatically advance chat focus to the next comment."
-  (with-temp-buffer
-    (org-mode)
-    (let ((org-copilot-chat-advance-after-action t))
-      (org-copilot-add-comment (list :id "ai-1" :status 'active))
-      (org-copilot-add-comment (list :id "ai-2" :status 'active))
-      (setq org-copilot-chat-focus-comment-id "ai-1")
-      (org-copilot-chat-dismiss-focused-comment (current-buffer))
-      (should (equal org-copilot-chat-focus-comment-id "ai-2")))))
+	    (let* ((visible (org-copilot-visible-comments))
+		   (loaded-thread (car (org-suggestions-load-sidecar source-file)))
+		   (loaded-candidate (car (plist-get loaded-thread :candidates))))
+	      (should (eq (plist-get loaded-candidate :status) 'dismissed))
+	      (should (eq (plist-get (car visible) :status) 'dismissed)))))
+      (when-let* ((buffer (find-buffer-visiting source-file)))
+	(kill-buffer buffer))
+      (delete-directory directory t))))
 
 (ert-deftest org-copilot-chat-available-slash-commands-are-context-aware ()
   "Slash command completion only exposes commands valid for current focus."
@@ -530,8 +569,8 @@
 				  (current-buffer))))
     (org-copilot-update-comment
      (plist-put (org-copilot-find-comment "ai-1") :suggestion "Alpha."))
-    (should (assoc "/accept" (org-copilot-chat--available-slash-commands
-			      (current-buffer))))
+    (should-not (assoc "/accept" (org-copilot-chat--available-slash-commands
+				  (current-buffer))))
     (org-copilot-update-comment
      (org-copilot-comment-with-status (org-copilot-find-comment "ai-1") 'stale))
     (should-not (assoc "/accept" (org-copilot-chat--available-slash-commands

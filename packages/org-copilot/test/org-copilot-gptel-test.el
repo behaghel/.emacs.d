@@ -9,6 +9,7 @@
 (require 'ert)
 (require 'org)
 (require 'org-comments-sidecar)
+(require 'org-comments-store)
 (require 'org-suggestions)
 (require 'org-copilot)
 (require 'org-copilot-gptel)
@@ -95,7 +96,7 @@
 (ert-deftest org-copilot-gptel-review-chat-summary-counts-comments-and-suggestions ()
   "Review chat summaries include local comment and suggestion counts."
   (let ((summary (org-copilot-gptel--review-chat-summary
-		  (list (list :id "ai-1" :suggestion "Alpha.")
+		  (list (list :id "ai-1" :suggestion-ids "ai-1")
 			(list :id "ai-2"))
 		  "Overall review.")))
     (should (string-match-p "2 comments, 1 suggestion" summary))
@@ -212,7 +213,7 @@
 		 (lambda (_prompt &rest args)
 		   (let ((callback (plist-get args :callback)))
 		     (funcall callback
-			      "{\"message\":\"I added one comment.\",\"comments\":[{\"body\":\"Tighten this.\",\"target_text\":\"Alpha sentence.\",\"suggestion\":\"Alpha.\"}]}"
+			      "{\"message\":\"I added one comment.\",\"comments\":[{\"body\":\"Tighten this.\",\"target_text\":\"Alpha sentence.\"}]}"
 			      (list :status 'success))))))
 	(org-copilot-gptel-chat
 	 (list :source-buffer (current-buffer)
@@ -226,7 +227,7 @@
 	  (should (= (length comments) 1))
 	  (should (equal (plist-get (car comments) :target-text)
 			 "Alpha sentence."))
-	  (should (equal (plist-get (car comments) :suggestion) "Alpha."))
+	  (should-not (plist-get (car comments) :suggestion))
 	  (should (string-match-p "Installed 1 comment"
 				  (plist-get message :content))))))))
 
@@ -362,7 +363,6 @@
 	       :context-id context-id
 	       :focus-comment-id nil))
 	(should-not (org-copilot-comments))
-	(should-not (get-buffer org-copilot-suggestion-buffer-name))
 	(should (equal (plist-get (car (org-copilot-chat-messages)) :content)
 		       "No web."))))))
 
@@ -385,15 +385,16 @@
 	     :chat-context '(:type full-document)
 	     :focus-comment-id nil))
       (should-not (org-copilot-comments))
-      (should-not (get-buffer org-copilot-suggestion-buffer-name))
       (should (equal (plist-get (car (org-copilot-chat-messages)) :content)
 		     "Here are references.")))))
 
-(ert-deftest org-copilot-gptel-section-chat-installs-section-suggestion ()
-  "Section chat suggestions become AI comments and preview buffers."
+(ert-deftest org-copilot-gptel-section-chat-ignores-legacy-top-level-suggestion ()
+  "Section chat no longer installs comment-local executable suggestions."
   (with-temp-buffer
     (org-mode)
-    (insert "* Intro\nOriginal body.\n")
+    (insert "* Intro
+Original body.
+")
     (goto-char (point-min))
     (let* ((context (org-copilot-chat--section-context-at-point))
 	   (context-id (org-copilot-chat--context-id context)))
@@ -411,82 +412,10 @@
 	       :chat-context context
 	       :context-id context-id
 	       :focus-comment-id nil))
-	(let ((comment (car (org-copilot-comments))))
-	  (should comment)
-	  (should (equal (plist-get comment :section-title) "Intro"))
-	  (should (equal (plist-get comment :suggestion) "New body.\n"))
-	  (should (get-buffer org-copilot-suggestion-buffer-name)))))))
+	(should-not (org-copilot-comments))))))
 
-(ert-deftest org-copilot-gptel-section-chat-allows-french-content-proposal ()
-  "French section content-generation prompts may install section suggestions."
-  (with-temp-buffer
-    (org-mode)
-    (insert "* Les traits de caractères de la salope\nOriginal body.\n")
-    (goto-char (point-min))
-    (let* ((context (org-copilot-chat--section-context-at-point))
-	   (context-id (org-copilot-chat--context-id context)))
-      (cl-letf (((symbol-function 'gptel-request)
-		 (lambda (_prompt &rest args)
-		   (let ((callback (plist-get args :callback)))
-		     (funcall callback
-			      "{\"message\":\"Voici une proposition.\",\"intent\":\"rewrite_section\",\"suggestion\":\"Nouveau programme.\"}"
-			      (list :status 'success))))))
-	(org-copilot-gptel-chat
-	 (list :source-buffer (current-buffer)
-	       :buffer-name (buffer-name)
-	       :message "Regarde la section \"Les traits de caractères de la salope\", et propose un contenu pour cette section."
-	       :messages nil
-	       :chat-context context
-	       :context-id context-id
-	       :focus-comment-id nil))
-	(let ((comment (car (org-copilot-comments))))
-	  (should comment)
-	  (should (equal (plist-get comment :section-title)
-			 "Les traits de caractères de la salope"))
-	  (should (equal (plist-get comment :suggestion)
-			 "Nouveau programme.\n"))
-	  (should (get-buffer org-copilot-suggestion-buffer-name)))))))
-
-(ert-deftest org-copilot-gptel-focused-section-chat-creates-revision ()
-  "Focused accepted section suggestions create active revision comments."
-  (with-temp-buffer
-    (org-mode)
-    (insert "* Intro\nAccepted body.\n")
-    (org-copilot-add-comment
-     (list :id "ai-section-1"
-	   :type 'scope
-	   :status 'accepted
-	   :source-start 9
-	   :source-end 24
-	   :target-text "Accepted body.\n"
-	   :suggestion "Accepted body.\n"
-	   :section-title "Intro"))
-    (setq org-copilot-chat-focus-comment-id "ai-section-1")
-    (cl-letf (((symbol-function 'gptel-request)
-	       (lambda (_prompt &rest args)
-		 (let ((callback (plist-get args :callback)))
-		   (funcall callback
-			    "{\"message\":\"I revised it.\",\"intent\":\"revise_comment\",\"suggestion\":\"Revised body.\"}"
-			    (list :status 'success))))))
-      (org-copilot-gptel-chat
-       (list :source-buffer (current-buffer)
-	     :buffer-name (buffer-name)
-	     :message "Make it sharper"
-	     :messages nil
-	     :chat-context '(:type comment :comment-id "ai-section-1")
-	     :context-id "comment:ai-section-1"
-	     :focus-comment-id "ai-section-1"))
-      (let ((old (org-copilot-find-comment "ai-section-1"))
-	    (new (org-copilot-find-comment "ai-section-1.1")))
-	(should (eq (plist-get old :status) 'accepted))
-	(should new)
-	(should (eq (plist-get new :status) 'active))
-	(should (equal org-copilot-chat-focus-comment-id "ai-section-1.1"))
-	(should (equal (plist-get new :suggestion) "Revised body.\n"))
-	(should (get-buffer org-copilot-suggestion-buffer-name))))))
-
-(ert-deftest org-copilot-gptel-focused-chat-updates-suggestion ()
-  "Focused chat can update the focused comment's suggestion from JSON response."
+(ert-deftest org-copilot-gptel-focused-chat-ignores-legacy-suggestion-update ()
+  "Focused chat ignores retired comment-local suggestion updates."
   (with-temp-buffer
     (org-mode)
     (org-copilot-add-comment
@@ -508,8 +437,9 @@
 	     :focus-comment-id "ai-1"))
       (let ((comment (org-copilot-find-comment "ai-1"))
 	    (message (car (org-copilot-chat-messages))))
-	(should (equal (plist-get comment :suggestion) "Direct alpha."))
-	(should (equal (plist-get message :content) "I made it more direct."))))))
+	(should (equal (plist-get comment :suggestion) "Alpha."))
+	(should (equal (plist-get message :content)
+		       "I made it more direct."))))))
 
 (ert-deftest org-copilot-gptel-review-accumulates-streaming-oauth-response ()
   "The gptel review adapter requests and accumulates streaming OAuth responses."
@@ -632,6 +562,51 @@
 		(should (search-forward "Rewrite insurance section" nil t))
 		(should (search-forward
 			 ":ORG_COMMENTS_SUGGESTION_IDS: ai-thread-1.1" nil t))))))
+      (when-let* ((buffer (find-buffer-visiting source-file)))
+	(kill-buffer buffer))
+      (delete-directory directory t))))
+
+(ert-deftest org-copilot-gptel-installs-linked-comment-for-anchored-replace-hunk ()
+  "Suggestion threads without section titles still get visible linked comments."
+  (let* ((directory (make-temp-file "org-copilot-durable-replace" t))
+	 (source-file (expand-file-name "draft.org" directory)))
+    (unwind-protect
+	(with-current-buffer (find-file-noselect source-file)
+	  (erase-buffer)
+	  (insert "Une phrase avec erreur syntaxique.\n")
+	  (save-buffer)
+	  (org-mode)
+	  (let ((source (current-buffer)))
+	    (cl-letf (((symbol-function 'gptel-request)
+		       (lambda (_prompt &rest args)
+			 (funcall (plist-get args :callback)
+				  (concat
+				   "{\"intent\":\"edit\","
+				   "\"message\":\"J’ai préparé une correction.\","
+				   "\"suggestion_threads\":[{"
+				   "\"intent\":\"mixed_edit\","
+				   "\"summary\":\"Corriger la syntaxe\","
+				   "\"suggestions\":[{\"id\":\"ai-1\","
+				   "\"hunks\":[{\"id\":\"h1\","
+				   "\"kind\":\"replace\","
+				   "\"primary\":true,"
+				   "\"original\":\"erreur syntaxique\","
+				   "\"replacement\":\"erreur de syntaxe\"}]}]}]}" )
+				  (list :status 'success)))))
+	      (org-copilot-gptel-chat
+	       (list :source-buffer source
+		     :buffer-name "draft.org"
+		     :message "Corrige ma syntaxe"
+		     :messages nil
+		     :chat-context '(:type full-document)
+		     :source-content (buffer-string)))
+	      (let ((comments (org-comments-collect source t)))
+		(should (= (length comments) 1))
+		(should (equal (plist-get (car comments) :body)
+			       "Corriger la syntaxe"))
+		(should (equal (plist-get (car comments) :suggestion-thread-id)
+			       "ai-thread-1"))
+		(should (equal (plist-get (car comments) :suggestion-ids) "ai-1"))))))
       (when-let* ((buffer (find-buffer-visiting source-file)))
 	(kill-buffer buffer))
       (delete-directory directory t))))

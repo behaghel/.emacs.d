@@ -19,7 +19,6 @@
 (require 'subr-x)
 (require 'org-copilot-model)
 (require 'org-copilot-session)
-(require 'org-copilot-suggestion)
 
 (defcustom org-copilot-panel-buffer-name "*Org Copilot*"
   "Buffer name used for the Org Copilot side panel."
@@ -97,14 +96,41 @@ This face intentionally changes only the background color."
 (defvar org-copilot--workspace-refreshing nil
   "Non-nil while Org Copilot is retargeting auxiliary panels.")
 
+(defun org-copilot-panel--move-item (step)
+  "Move point by STEP rendered Copilot side-panel items."
+  (let* ((starts (org-context-panel-item-starts))
+	 (ordered (if (> step 0) starts (reverse starts)))
+	 (next (or (cl-find-if (lambda (position)
+				 (if (> step 0)
+				     (> position (point))
+				   (< position (point))))
+			       ordered)
+		   (car ordered))))
+    (unless next
+      (user-error "No Copilot panel items"))
+    (goto-char next)))
+
+(defun org-copilot-panel-next-item ()
+  "Move point to the next rendered Copilot panel item."
+  (interactive)
+  (org-copilot-panel--move-item 1))
+
+(defun org-copilot-panel-previous-item ()
+  "Move point to the previous rendered Copilot panel item."
+  (interactive)
+  (org-copilot-panel--move-item -1))
+
 (defvar org-copilot-panel-mode-map
   (let ((map (make-sparse-keymap)))
     (define-key map (kbd "RET") #'org-context-panel-jump-at-point)
     (define-key map (kbd "d") #'org-copilot-view-diff-at-point)
-    (define-key map (kbd "v") #'org-copilot-view-suggestion-at-point)
+    (define-key map (kbd "v") #'org-copilot-visualize-at-point)
     (define-key map (kbd "a") #'org-copilot-accept-at-point)
     (define-key map (kbd "x") #'org-copilot-dismiss-at-point)
-    (define-key map (kbd "c") #'org-copilot-chat)
+    (define-key map (kbd "n") #'org-copilot-panel-next-item)
+    (define-key map (kbd "p") #'org-copilot-panel-previous-item)
+    (define-key map (kbd "]c") #'org-copilot-panel-next-item)
+    (define-key map (kbd "[c") #'org-copilot-panel-previous-item)
     (define-key map (kbd "C-c C-x / a") #'org-copilot-chat-accept-focused-suggestion-at-point)
     (define-key map (kbd "C-c C-x / d") #'org-copilot-chat-dismiss-focused-comment-at-point)
     (define-key map (kbd "C-c C-x / n") #'org-copilot-chat-focus-next-comment)
@@ -158,22 +184,23 @@ This face intentionally changes only the background color."
 	  (org-context-panel-render-side-panel source)
 	  (org-context-panel-goto-item-key key))))))
 
-(defun org-copilot-context-panel-collect-side-items (_source-buffer)
+(defun org-copilot-context-panel-collect-side-items (source-buffer)
   "Collect Org Copilot side items for SOURCE-BUFFER."
-  (cl-remove-if
-   (lambda (comment)
-     (eq (org-copilot-comment-status comment) 'dismissed))
-   (org-copilot-comments)))
+  (with-current-buffer source-buffer
+    (cl-remove-if
+     (lambda (comment)
+       (eq (org-copilot-comment-status comment) 'dismissed))
+     (org-copilot-visible-comments))))
 
-(defun org-copilot-context-panel--status-marker (item)
-  "Return compact side-panel marker for AI comment ITEM."
+(defun org-copilot-context-panel--status-marker (source-buffer item)
+  "Return compact side-panel marker for AI comment ITEM in SOURCE-BUFFER."
   (pcase (org-copilot-comment-status item)
     ('accepted "✅")
     ('stale "⚠️")
-    (_ (cond
-	((org-copilot-suggestion-section-comment-p item) "§✏️")
-	((plist-get item :suggestion) "✏️")
-	(t "💬")))))
+    (_ (if (with-current-buffer source-buffer
+	     (org-copilot-comment-suggestion-text item))
+	   "✏️"
+	 "💬"))))
 
 (defun org-copilot-context-panel--summary (item)
   "Return compact side-panel summary text for ITEM."
@@ -188,7 +215,7 @@ This face intentionally changes only the background color."
 
 (defun org-copilot-context-panel-render-side-item (source-buffer item)
   "Render one Org Copilot side-panel ITEM."
-  (let* ((marker (org-copilot-context-panel--status-marker item))
+  (let* ((marker (org-copilot-context-panel--status-marker source-buffer item))
 	 (summary (org-copilot-context-panel--summary item))
 	 (prefix (concat marker " "))
 	 (focused-p (with-current-buffer source-buffer
@@ -217,8 +244,6 @@ instead of signaling an error."
     (when (fboundp 'org-copilot-chat--scroll-source-to-comment)
       (org-copilot-chat--scroll-source-to-comment source-buffer item))
     (cond
-     ((org-copilot-suggestion-section-comment-p item)
-      (org-copilot-suggestion-open-comment source-buffer item t))
      (position
       (pop-to-buffer source-buffer)
       (goto-char position))
@@ -268,7 +293,7 @@ previous overlay already claimed the focused face."
   (org-copilot-delete-overlays)
   (let ((focus-id org-copilot-chat-focus-comment-id)
 	focused-seen)
-    (dolist (comment (org-copilot-comments))
+    (dolist (comment (org-copilot-visible-comments))
       (when (org-copilot--overlayable-comment-p comment)
 	(let* ((face (org-copilot--target-face-for-comment
 		      comment focus-id focused-seen))
@@ -303,8 +328,7 @@ previous overlay already claimed the focused face."
     (with-current-buffer buffer
       (or (derived-mode-p 'org-copilot-panel-mode)
 	  (derived-mode-p 'org-copilot-chat-mode)
-	  (derived-mode-p 'org-copilot-diff-mode)
-	  (derived-mode-p 'org-copilot-suggestion-mode)))))
+	  (derived-mode-p 'org-copilot-diff-mode)))))
 
 (defun org-copilot--copilot-source-buffer-p (buffer)
   "Return non-nil when BUFFER has `org-copilot-mode' enabled."
@@ -331,10 +355,7 @@ previous overlay already claimed the focused face."
 (defun org-copilot--cleanup-transient-auxiliary (_source-buffer)
   "Close transient Org Copilot auxiliary previews."
   (when (boundp 'org-copilot-diff-buffer-name)
-    (org-copilot--close-buffer-window (get-buffer org-copilot-diff-buffer-name)))
-  (when (boundp 'org-copilot-suggestion-buffer-name)
-    (org-copilot--close-buffer-window
-     (get-buffer org-copilot-suggestion-buffer-name))))
+    (org-copilot--close-buffer-window (get-buffer org-copilot-diff-buffer-name))))
 
 (defun org-copilot--retarget-visible-panels (source-buffer)
   "Retarget visible Org Copilot panels to SOURCE-BUFFER."
@@ -391,6 +412,7 @@ previous overlay already claimed the focused face."
   (if org-copilot-mode
       (progn
 	(org-copilot-context-panel-enable)
+	(org-copilot-restore-durable-artifacts)
 	(org-copilot-refresh-overlays))
     (org-copilot-delete-overlays)
     (org-copilot-context-panel-disable)))
@@ -398,9 +420,6 @@ previous overlay already claimed the focused face."
 (defun org-copilot--active-source-buffer ()
   "Return the Org source buffer for commands run from source or aux buffers."
   (cond
-   ((and (boundp 'org-copilot-suggestion-source-buffer)
-	 (buffer-live-p org-copilot-suggestion-source-buffer))
-    org-copilot-suggestion-source-buffer)
    ((buffer-live-p org-context-panel-source-buffer)
     org-context-panel-source-buffer)
    ((derived-mode-p 'org-mode)

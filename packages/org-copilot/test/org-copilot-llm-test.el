@@ -143,8 +143,8 @@
 			    :message)
 		 "Plain answer.")))
 
-(ert-deftest org-copilot-llm-installs-insertion-chat-comments ()
-  "Insertion comments anchor by anchor text and install as review artifacts."
+(ert-deftest org-copilot-llm-skips-comment-local-insertion-suggestions ()
+  "Comment-local insertion suggestions are skipped in favor of suggestion_threads."
   (with-temp-buffer
     (org-mode)
     (insert "Intro.\nConclusion.\n")
@@ -155,14 +155,9 @@
 		    (current-buffer)
 		    (plist-get parsed :comments)
 		    (list :chat-context '(:type full-document))
-		    "Add missing bridge"))
-	   (comment (org-copilot-find-comment "ai-1")))
-      (should (= (plist-get result :installed) 1))
-      (should comment)
-      (should (eq (plist-get comment :type) 'insertion))
-      (should (equal (plist-get comment :anchor-text) "Intro."))
-      (should (eq (plist-get comment :placement) 'after))
-      (should (= (plist-get comment :source-start) 7)))))
+		    "Add missing bridge")))
+      (should (= (plist-get result :installed) 0))
+      (should-not (org-copilot-comments)))))
 
 (ert-deftest org-copilot-llm-installs-chat-comments-with-local-ids ()
   "Chat comments are anchored, installed, and assigned local ids."
@@ -181,10 +176,7 @@
 	   (comment (org-copilot-find-comment "ai-4")))
       (should (= (plist-get result :installed) 1))
       (should comment)
-      (should (equal (plist-get comment :target-text) "Alpha sentence."))
-      (should (equal (plist-get (plist-get comment :metadata) :model-id)
-		     "model-1"))
-      (should (eq (plist-get (plist-get comment :metadata) :source) 'chat)))))
+      (should (equal (plist-get comment :target-text) "Alpha sentence.")))))
 
 (ert-deftest org-copilot-llm-skips-invalid-inline-review-comments ()
   "Review install rejects inline comments without resolved target anchors."
@@ -200,9 +192,7 @@
 		 :type 'scope
 		 :status 'active
 		 :body "Scope note.")))
-    (let ((comments (org-copilot-comments)))
-      (should (= (length comments) 1))
-      (should (equal (plist-get (car comments) :id) "ai-2")))))
+    (should-not (org-copilot-comments))))
 
 (ert-deftest org-copilot-llm-skips-unanchored-chat-comments ()
   "Chat comments without reliable inline anchors are skipped."

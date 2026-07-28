@@ -17,7 +17,6 @@
 (require 'org-context-panel)
 (require 'org-copilot-model)
 (require 'org-copilot-session)
-(require 'org-copilot-suggestion)
 (require 'org-suggestions nil 'noerror)
 
 (defcustom org-copilot-diff-buffer-name "*Org Copilot Diff*"
@@ -46,9 +45,9 @@
   "Major mode for Org Copilot suggestion diff buffers.")
 
 (defun org-copilot-diff--ensure-suggestion (comment)
-  "Return COMMENT's suggestion or signal a user error."
-  (or (plist-get comment :suggestion)
-      (user-error "AI comment has no suggestion to diff")))
+  "Return durable suggestion linked to COMMENT or signal a user error."
+  (or (org-copilot-comment-suggestion-text comment)
+      (user-error "AI comment has no durable suggestion to diff")))
 
 (defun org-copilot-diff--format-lines (prefix text)
   "Return TEXT formatted as diff lines with PREFIX."
@@ -58,7 +57,7 @@
 
 (defun org-copilot-diff--insert (source-buffer comment)
   "Insert diff preview for COMMENT from SOURCE-BUFFER."
-  (let ((old-text (or (plist-get comment :target-text) ""))
+  (let ((old-text (or (org-copilot-comment-target-text comment) ""))
 	(new-text (org-copilot-diff--ensure-suggestion comment)))
     (insert (format "--- %s\n" (buffer-name source-buffer)))
     (insert (format "+++ %s suggestion %s\n"
@@ -103,7 +102,7 @@ Fall back to ITEM when it cannot be resolved by id."
   (let ((id (org-copilot-comment-id item)))
     (or (and id
 	     (with-current-buffer source-buffer
-	       (org-copilot-find-comment id)))
+	       (org-copilot-find-visible-comment id)))
 	item)))
 
 (defun org-copilot-comment-at-point ()
@@ -111,9 +110,13 @@ Fall back to ITEM when it cannot be resolved by id."
   (let* ((source-buffer (org-copilot-diff--source-buffer))
 	 (item (or (and org-copilot-diff-comment-id
 			(with-current-buffer source-buffer
-			  (org-copilot-find-comment org-copilot-diff-comment-id)))
+			  (org-copilot-find-visible-comment org-copilot-diff-comment-id)))
 		   org-copilot-diff-comment
 		   (org-context-panel-item-at-point)
+		   (with-current-buffer source-buffer
+		     (and org-copilot-chat-focus-comment-id
+			  (org-copilot-find-visible-comment
+			   org-copilot-chat-focus-comment-id)))
 		   (user-error "No AI comment at point"))))
     (org-copilot-latest-comment-for-item item source-buffer)))
 
@@ -159,121 +162,36 @@ Fall back to ITEM when it cannot be resolved by id."
 	    copy)
 	comment))))
 
-(defun org-copilot--update-comment-status (comment source-buffer status)
-  "Update COMMENT in SOURCE-BUFFER with lifecycle STATUS."
-  (with-current-buffer source-buffer
-    (org-copilot-update-comment
-     (org-copilot-comment-with-status comment status))))
-
-(defun org-copilot-accept-section-suggestion (comment source-buffer)
-  "Accept section suggestion COMMENT in SOURCE-BUFFER.
-Section suggestions replace the current section body, not a stale stored diff."
-  (let* ((suggestion (org-copilot-diff--ensure-suggestion comment))
-	 (section (or (org-copilot-suggestion-resolve-comment-section
-		       source-buffer comment)
-		      (progn
-			(org-copilot--update-comment-status comment source-buffer 'stale)
-			(user-error "AI section target is stale; reselect section"))))
-	 (start (plist-get section :body-start))
-	 (end (plist-get section :end))
-	 (normalized (org-copilot-suggestion-normalize-section-body suggestion)))
-    (with-current-buffer source-buffer
-      (let ((original-text (buffer-substring-no-properties start end)))
-	(save-excursion
-	  (goto-char start)
-	  (delete-region start end)
-	  (insert normalized))
-	(let* ((root-id (or (plist-get comment :thread-root-id)
-			    (org-copilot-comment-id comment)))
-	       (accepted (org-copilot-comment-with-status comment 'accepted))
-	       (accepted (plist-put accepted :thread-root-id root-id))
-	       (accepted (plist-put accepted :original-target-text original-text))
-	       (accepted (plist-put accepted :original-source-start start))
-	       (accepted (plist-put accepted :original-source-end end))
-	       (accepted (plist-put accepted :accepted-text normalized))
-	       (accepted (plist-put accepted :source-start start))
-	       (accepted (plist-put accepted :source-end (+ start (length normalized))))
-	       (accepted (plist-put accepted :target-text normalized))
-	       (accepted (plist-put accepted :heading-line
-				    (plist-get section :heading-line)))
-	       (accepted (plist-put accepted :section-title
-				    (plist-get section :section-title)))
-	       (accepted (plist-put accepted :section-path
-				    (plist-get section :section-path))))
-	  (org-copilot-update-comment accepted)
-	  (dolist (sibling (org-copilot-comments))
-	    (when (and (equal root-id (or (plist-get sibling :thread-root-id)
-					  (org-copilot-comment-id sibling)))
-		       (not (equal (org-copilot-comment-id sibling)
-				   (org-copilot-comment-id accepted)))
-		       (eq (org-copilot-comment-status sibling) 'active))
-	      (let ((copy (org-copilot-comment-with-status sibling 'dismissed)))
-		(org-copilot-update-comment
-		 (plist-put copy :superseded-by
-			    (org-copilot-comment-id accepted)))))))))))
+(defun org-copilot--update-comment-status (comment _source-buffer status)
+  "Update durable COMMENT with lifecycle STATUS."
+  (if (plist-get comment :sidecar-file)
+      (org-copilot-set-durable-comment-status
+       comment (if (eq status 'dismissed) "RESOLVED" "OPEN"))
+    (user-error "Legacy in-memory Copilot comments are retired")))
 
 (defun org-copilot-accept-comment (comment source-buffer)
-  "Accept COMMENT's suggestion in SOURCE-BUFFER.
-If COMMENT no longer matches the source text, mark it stale and signal a user
-error instead of modifying the source."
-  (if (org-copilot-suggestion-section-comment-p comment)
-      (org-copilot-accept-section-suggestion comment source-buffer)
-    (let* ((comment (org-copilot-resolve-comment-target comment source-buffer))
-	   (suggestion (org-copilot-diff--ensure-suggestion comment))
-	   (start (plist-get comment :source-start))
-	   (end (plist-get comment :source-end)))
-      (unless (org-copilot-comment-valid-target-p comment source-buffer)
-	(org-copilot--update-comment-status comment source-buffer 'stale)
-	(user-error "AI comment target is stale; review again before accepting"))
-      (with-current-buffer source-buffer
-	(save-excursion
-	  (goto-char start)
-	  (delete-region start end)
-	  (insert suggestion))
-	(let* ((accepted (org-copilot-comment-with-status comment 'accepted))
-	       (accepted (plist-put accepted :original-target-text
-				    (or (plist-get comment :target-text) "")))
-	       (accepted (plist-put accepted :original-source-start start))
-	       (accepted (plist-put accepted :original-source-end end))
-	       (accepted (plist-put accepted :accepted-text suggestion))
-	       (accepted (plist-put accepted :source-end (+ start (length suggestion))))
-	       (accepted (plist-put accepted :target-text suggestion)))
-	  (org-copilot-update-comment accepted))))))
+  "Accept durable COMMENT's linked suggestion in SOURCE-BUFFER."
+  (if-let* ((source-file (buffer-file-name source-buffer))
+	    (linked-id (org-copilot-linked-suggestion-id comment source-file)))
+      (progn
+	(org-suggestions-accept-candidate-id source-buffer linked-id)
+	(org-copilot-set-durable-comment-status comment "RESOLVED"))
+    (user-error "Copilot suggestions must be durable org-suggestions candidates")))
 
-(defun org-copilot-undo-accepted-comment (comment source-buffer)
-  "Undo accepted COMMENT in SOURCE-BUFFER."
-  (unless (eq (org-copilot-comment-status comment) 'accepted)
-    (user-error "AI comment is not accepted"))
-  (let ((original-text (or (plist-get comment :original-target-text)
-			   (user-error "AI comment has no rollback text")))
-	(accepted-text (or (plist-get comment :accepted-text)
-			   (plist-get comment :target-text)))
-	(start (plist-get comment :source-start))
-	(end (plist-get comment :source-end)))
-    (with-current-buffer source-buffer
-      (unless (and start end
-		   (<= (point-min) start)
-		   (<= start end)
-		   (<= end (point-max))
-		   (equal (buffer-substring-no-properties start end) accepted-text))
-	(user-error "AI comment accepted text is stale; cannot undo safely"))
-      (save-excursion
-	(goto-char start)
-	(delete-region start end)
-	(insert original-text))
-      (let* ((active (org-copilot-comment-with-status comment 'active))
-	     (active (plist-put active :source-start
-				(or (plist-get comment :original-source-start) start)))
-	     (active (plist-put active :source-end
-				(or (plist-get comment :original-source-end)
-				    (+ start (length original-text)))))
-	     (active (plist-put active :target-text original-text)))
-	(org-copilot-update-comment active)))))
+(defun org-copilot-undo-accepted-comment (_comment _source-buffer)
+  "Undo accepted durable suggestions.
+Rollback now belongs to `org-suggestions' session-local undo support."
+  (user-error "Use org-suggestions undo for durable accepted suggestions"))
 
 (defun org-copilot-dismiss-comment (comment source-buffer)
-  "Dismiss COMMENT from SOURCE-BUFFER's current Org Copilot session."
-  (with-current-buffer source-buffer
-    (org-copilot-remove-comment comment)))
+  "Dismiss durable COMMENT from SOURCE-BUFFER's current Org Copilot session."
+  (if-let* ((source-file (buffer-file-name source-buffer))
+	    ((or (plist-get comment :sidecar-file)
+		 (plist-get comment :suggestion-ids))))
+      (progn
+	(org-copilot-set-linked-suggestions-status source-file comment 'dismissed)
+	(org-copilot-set-durable-comment-status comment "RESOLVED"))
+    (user-error "Legacy in-memory Copilot comments are retired")))
 
 (defun org-copilot-diff--refresh-panel-buffer (source-buffer)
   "Refresh the current panel buffer for SOURCE-BUFFER when applicable."
@@ -352,25 +270,49 @@ error instead of modifying the source."
 	(org-copilot-refresh-overlays)))
     (org-copilot-diff--refresh-panel-buffer source-buffer)))
 
-;;;###autoload
-(defun org-copilot-view-diff-at-point ()
-  "Open a read-only diff preview for the AI suggestion at point."
-  (interactive)
-  (let* ((comment (org-copilot-comment-at-point))
-	 (source-buffer (org-copilot-diff--source-buffer))
-	 (buffer (org-copilot-diff-open source-buffer comment))
-	 (window (display-buffer-in-side-window
-		  buffer
-		  '((side . bottom)
-		    (slot . 0)
-		    (window-height . 12)
-		    (window-parameters
-		     . ((no-other-window . t)
-			(no-delete-other-windows . t)))))))
+(defun org-copilot--display-diff-buffer (source-buffer buffer)
+  "Display diff BUFFER for SOURCE-BUFFER and select its window."
+  (let ((window (display-buffer-in-side-window
+		 buffer
+		 '((side . bottom)
+		   (slot . 0)
+		   (window-height . 12)
+		   (window-parameters
+		    . ((no-other-window . t)
+		       (no-delete-other-windows . t)))))))
     (when (window-live-p window)
       (when (fboundp 'org-context-panel-protect-window)
 	(org-context-panel-protect-window window buffer source-buffer))
       (select-window window))))
+
+;;;###autoload
+(defun org-copilot-view-diff-at-point ()
+  "Open a read-only diff preview for the durable AI suggestion at point."
+  (interactive)
+  (let* ((comment (org-copilot-comment-at-point))
+	 (source-buffer (org-copilot-diff--source-buffer))
+	 (buffer (org-copilot-diff-open source-buffer comment)))
+    (org-copilot--display-diff-buffer source-buffer buffer)))
+
+;;;###autoload
+(defun org-copilot-visualize-at-point ()
+  "Visualize the focused Copilot artifact at point.
+Linked durable suggestions open a diff.  Plain comments focus their chat
+context instead of signaling a suggestion-specific error."
+  (interactive)
+  (let* ((source-buffer (org-copilot-diff--source-buffer))
+	 (comment (org-copilot-comment-at-point)))
+    (if (with-current-buffer source-buffer
+	  (org-copilot-comment-suggestion-text comment))
+	(org-copilot--display-diff-buffer
+	 source-buffer (org-copilot-diff-open source-buffer comment))
+      (with-current-buffer source-buffer
+	(org-copilot-chat--set-context
+	 source-buffer (list :type 'comment
+			     :comment-id (org-copilot-comment-id comment))))
+      (when (fboundp 'org-copilot-chat)
+	(org-copilot-chat))
+      (message "Focused Copilot comment has no linked durable suggestion"))))
 
 (provide 'org-copilot-diff)
 ;;; org-copilot-diff.el ends here

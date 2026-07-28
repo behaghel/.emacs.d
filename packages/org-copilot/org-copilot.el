@@ -22,7 +22,6 @@
 (require 'org-copilot-session)
 (require 'org-copilot-context-panel)
 (require 'org-copilot-diff)
-(require 'org-copilot-suggestion)
 (require 'org-copilot-llm)
 (require 'org-copilot-chat)
 (require 'org-copilot-debug)

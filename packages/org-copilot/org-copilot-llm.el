@@ -114,8 +114,6 @@ When FALLBACK-ID is non-nil, use it if COMMENT has no JSON id."
 	 :line-end (plist-get comment :line_end)
 	 :summary (plist-get comment :summary)
 	 :body (plist-get comment :body)
-	 :suggestion (org-copilot-llm-optional-string
-		      (plist-get comment :suggestion))
 	 :rationale (plist-get comment :rationale)
 	 :metadata (plist-get comment :metadata))))
 
@@ -353,14 +351,16 @@ fallback anchoring."
 (defun org-copilot-llm--review-comment-installable-p (comment)
   "Return non-nil when review COMMENT may be installed."
   (and (memq (plist-get comment :type) '(inline scope insertion))
-       (or (eq (plist-get comment :type) 'scope)
+       (or (and (eq (plist-get comment :type) 'scope)
+		(integerp (plist-get comment :source-start))
+		(integerp (plist-get comment :source-end)))
 	   (org-copilot-llm--anchored-inline-comment-p comment)
 	   (org-copilot-llm--anchored-insertion-comment-p comment))))
 
 (defun org-copilot-llm--next-ai-comment-id ()
   "Return the next available `ai-N' id in the current buffer session."
   (let ((max-id 0))
-    (dolist (comment (org-copilot-comments))
+    (dolist (comment (org-copilot-visible-comments))
       (when-let* ((id (plist-get comment :id)))
 	(when (string-match "\\`ai-\\([0-9]+\\)\\'" id)
 	  (setq max-id (max max-id (string-to-number (match-string 1 id)))))))
@@ -435,7 +435,8 @@ Return a plist with install counts and a reachability receipt."
       (with-current-buffer source-buffer
 	(dolist (comment installable)
 	  (let ((installed-comment
-		 (org-copilot-add-comment
+		 (org-copilot-install-durable-comment
+		  source-buffer
 		  (org-copilot-llm--rewrite-chat-comment-id comment prompt))))
 	    (push (org-copilot-comment-id installed-comment) installed-ids)
 	    (setq installed (1+ installed))))
@@ -455,7 +456,7 @@ Return a plist with install counts and a reachability receipt."
 		       (cl-count-if
 			(lambda (comment)
 			  (member (org-copilot-comment-id comment) installed-ids))
-			(org-copilot-comments)))))
+			(org-copilot-visible-comments)))))
       (list :installed installed
 	    :reachable reachable
 	    :hidden (max 0 (- installed reachable))
@@ -463,15 +464,17 @@ Return a plist with install counts and a reachability receipt."
 	    :skipped-limit skipped-limit))))
 
 (defun org-copilot-install-review-comments (comments)
-  "Install normalized review COMMENTS into the current Org Copilot session."
-  (dolist (comment (cl-remove-if-not
-		    #'org-copilot-llm--review-comment-installable-p
-		    comments))
-    (org-copilot-add-comment comment))
-  (org-copilot-mode 1)
-  (when (fboundp 'org-copilot-refresh-overlays)
-    (org-copilot-refresh-overlays))
-  (org-copilot-comments))
+  "Install normalized review COMMENTS into durable Org sidecars."
+  (let (installed)
+    (dolist (comment (cl-remove-if-not
+		      #'org-copilot-llm--review-comment-installable-p
+		      comments))
+      (push (org-copilot-install-durable-comment (current-buffer) comment)
+	    installed))
+    (org-copilot-mode 1)
+    (when (fboundp 'org-copilot-refresh-overlays)
+      (org-copilot-refresh-overlays))
+    (nreverse installed)))
 
 ;;;###autoload
 (defun org-copilot-review-dwim ()

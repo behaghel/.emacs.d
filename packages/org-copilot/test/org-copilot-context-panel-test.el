@@ -9,7 +9,6 @@
 (require 'org)
 (require 'org-copilot)
 (require 'org-copilot-context-panel)
-(require 'org-copilot-suggestion)
 
 (ert-deftest org-copilot-highlight-faces-keep-foreground-unspecified ()
   "Org Copilot highlight faces only force background colors."
@@ -109,30 +108,6 @@
 	  (org-copilot-context-panel-jump-side-item
 	   source-buffer (car (org-copilot-comments)))
 	  (should (equal org-copilot-chat-focus-comment-id "ai-1")))
-      (when (buffer-live-p source-buffer)
-	(kill-buffer source-buffer)))))
-
-(ert-deftest org-copilot-context-panel-ret-opens-section-suggestion ()
-  "Jumping to a section suggestion row opens its preview."
-  (let ((source-buffer (generate-new-buffer " *org copilot jump suggestion source*")))
-    (unwind-protect
-	(with-current-buffer source-buffer
-	  (org-mode)
-	  (insert "* Intro\nBody.\n")
-	  (org-copilot-mode 1)
-	  (org-copilot-add-comment
-	   (list :id "ai-1"
-		 :type 'scope
-		 :status 'active
-		 :summary "Section suggestion"
-		 :body "Try this."
-		 :suggestion "New body.\n"
-		 :section-title "Intro"))
-	  (org-copilot-context-panel-jump-side-item
-	   source-buffer (car (org-copilot-comments)))
-	  (should (get-buffer org-copilot-suggestion-buffer-name)))
-      (when (get-buffer org-copilot-suggestion-buffer-name)
-	(kill-buffer org-copilot-suggestion-buffer-name))
       (when (buffer-live-p source-buffer)
 	(kill-buffer source-buffer)))))
 
@@ -272,13 +247,11 @@
   (should (eq (lookup-key org-copilot-panel-mode-map (kbd "d"))
 	      #'org-copilot-view-diff-at-point))
   (should (eq (lookup-key org-copilot-panel-mode-map (kbd "v"))
-	      #'org-copilot-view-suggestion-at-point))
+	      #'org-copilot-visualize-at-point))
   (should (eq (lookup-key org-copilot-panel-mode-map (kbd "a"))
 	      #'org-copilot-accept-at-point))
   (should (eq (lookup-key org-copilot-panel-mode-map (kbd "x"))
 	      #'org-copilot-dismiss-at-point))
-  (should (eq (lookup-key org-copilot-panel-mode-map (kbd "c"))
-	      #'org-copilot-chat))
   (should (eq (lookup-key org-copilot-panel-mode-map (kbd "C-c C-x / a"))
 	      #'org-copilot-chat-accept-focused-suggestion-at-point))
   (should (eq (lookup-key org-copilot-panel-mode-map (kbd "C-c C-x / d"))
@@ -370,53 +343,6 @@
 	(kill-buffer org-copilot-panel-buffer-name))
       (when (get-buffer org-copilot-chat-buffer-name)
 	(kill-buffer org-copilot-chat-buffer-name)))))
-
-(ert-deftest org-copilot-suggestion-buffer-is-auxiliary-not-source ()
-  "Suggestion previews do not become workspace source buffers."
-  (let ((source (generate-new-buffer " *org copilot source*"))
-	(suggestion (generate-new-buffer " *org copilot suggestion*")))
-    (unwind-protect
-	(progn
-	  (with-current-buffer source
-	    (org-mode)
-	    (org-copilot-mode 1))
-	  (with-current-buffer suggestion
-	    (org-copilot-suggestion-mode)
-	    (setq org-copilot-suggestion-source-buffer source)
-	    (should (org-copilot--auxiliary-buffer-p (current-buffer)))
-	    (should (eq (org-copilot--active-source-buffer) source))))
-      (when (buffer-live-p source)
-	(kill-buffer source))
-      (when (buffer-live-p suggestion)
-	(kill-buffer suggestion)))))
-
-(ert-deftest org-copilot-open-panels-from-suggestion-keeps-source-chat ()
-  "Opening panels from a suggestion preview uses its source buffer."
-  (let ((source (generate-new-buffer " *org copilot source*"))
-	(suggestion (generate-new-buffer " *org copilot suggestion*"))
-	called-source)
-    (unwind-protect
-	(progn
-	  (with-current-buffer source
-	    (org-mode)
-	    (insert "* Source\n"))
-	  (with-current-buffer suggestion
-	    (org-copilot-suggestion-mode)
-	    (setq org-copilot-suggestion-source-buffer source)
-	    (cl-letf (((symbol-function 'org-context-panel-open)
-		       (lambda (buffer) (setq called-source buffer)))
-		      ((symbol-function 'org-copilot-chat-full-document)
-		       (lambda ()
-			 (setq called-source
-			       (cons called-source (current-buffer))))))
-	      (org-copilot-open-panels)))
-	  (should (equal called-source (cons source source)))
-	  (should (buffer-local-value 'org-copilot-mode source))
-	  (should-not (buffer-local-value 'org-copilot-mode suggestion)))
-      (when (buffer-live-p source)
-	(kill-buffer source))
-      (when (buffer-live-p suggestion)
-	(kill-buffer suggestion)))))
 
 (ert-deftest org-copilot-closes-visible-panels-for-non-copilot-source ()
   "Org Copilot panels close when selected source lacks Copilot mode."
@@ -528,51 +454,32 @@
       (when (buffer-live-p source)
 	(kill-buffer source)))))
 
-(ert-deftest org-copilot-context-panel-marks-section-suggestions ()
-  "AI comment rows distinguish section suggestions."
-  (let ((source (generate-new-buffer " *org copilot source*")))
+(ert-deftest org-copilot-context-panel-local-navigation-moves-rendered-items ()
+  "Copilot side panels support panel-local next/previous item motion."
+  (let ((source (generate-new-buffer " *org copilot panel nav source*")))
     (unwind-protect
 	(with-current-buffer source
 	  (org-mode)
-	  (insert "* Intro\nBody.\n")
 	  (org-copilot-mode 1)
-	  (org-copilot-add-comment
-	   (list :id "ai-1"
-		 :type 'scope
-		 :status 'active
-		 :source-start (point-min)
-		 :source-end (point-max)
-		 :target-text "Body."
-		 :summary "Rewrite section"
-		 :suggestion "New body."
-		 :section-title "Intro"))
+	  (org-copilot-add-comment (list :id "ai-1" :summary "First"))
+	  (org-copilot-add-comment (list :id "ai-2" :summary "Second"))
 	  (with-temp-buffer
+	    (org-copilot-panel-mode)
+	    (setq org-context-panel-source-buffer source)
 	    (org-context-panel-render-side-panel source)
-	    (should (string-match-p "§✏️" (buffer-string)))))
-      (when (buffer-live-p source)
-	(kill-buffer source)))))
-
-(ert-deftest org-copilot-context-panel-marks-suggested-comments ()
-  "AI comment rows distinguish comments with replacement suggestions."
-  (let ((source (generate-new-buffer " *org copilot source*")))
-    (unwind-protect
-	(with-current-buffer source
-	  (org-mode)
-	  (insert "Alpha sentence.\n")
-	  (org-copilot-mode 1)
-	  (org-copilot-add-comment
-	   (list :id "ai-1"
-		 :type 'inline
-		 :status 'active
-		 :source-start (point-min)
-		 :source-end (+ (point-min) 5)
-		 :target-text "Alpha"
-		 :summary "Tighten this"
-		 :suggestion "Alpha."))
-	  (with-temp-buffer
-	    (org-context-panel-render-side-panel source)
-	    (should (string-match-p "✏️" (buffer-string)))
-	    (should-not (string-match-p "💬" (buffer-string)))))
+	    (goto-char (point-min))
+	    (org-copilot-panel-next-item)
+	    (should (equal (org-copilot-comment-id
+			    (org-context-panel-item-at-point))
+			   "ai-2"))
+	    (org-copilot-panel-next-item)
+	    (should (equal (org-copilot-comment-id
+			    (org-context-panel-item-at-point))
+			   "ai-1"))
+	    (org-copilot-panel-previous-item)
+	    (should (equal (org-copilot-comment-id
+			    (org-context-panel-item-at-point))
+			   "ai-2"))))
       (when (buffer-live-p source)
 	(kill-buffer source)))))
 
