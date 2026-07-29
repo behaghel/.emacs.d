@@ -70,8 +70,14 @@
 	(goto-char (point-min))
 	(search-forward "Romain Moisescot")
 	(should (eq (get-text-property (match-beginning 0) 'face) expected-face))
+	(search-forward "2026-07-29 09:37")
+	(should (eq (get-text-property (match-beginning 0) 'face)
+		    'org-comments-panel-timestamp))
 	(search-forward "Romain Moisescot")
-	(should (eq (get-text-property (match-beginning 0) 'face) expected-face))))))
+	(should (eq (get-text-property (match-beginning 0) 'face) expected-face))
+	(search-forward "2026-07-29 10:00")
+	(should (eq (get-text-property (match-beginning 0) 'face)
+		    'org-comments-panel-timestamp))))))
 
 (ert-deftest org-comments-panel-colors-reply-authors-in-overview ()
   "Collapsed reply summaries reuse the same stable author color."

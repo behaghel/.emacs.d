@@ -58,6 +58,11 @@
   "Face used for one stable comment author color."
   :group 'org-comments)
 
+(defface org-comments-panel-timestamp
+  '((t :inherit shadow))
+  "Muted face used for comment timestamps."
+  :group 'org-comments)
+
 (defconst org-comments-panel-render--author-faces
   [org-comments-panel-author-1
    org-comments-panel-author-2
@@ -184,15 +189,22 @@
 (defun org-comments-panel-render--insert-metadata-inline (comment)
   "Insert author/date metadata for COMMENT when present, without newline.
 Return non-nil when metadata was inserted."
-  (let ((author (org-comments-panel-render--author comment))
-	(metadata (org-comments-panel-render--metadata-text comment)))
-    (unless (string-empty-p metadata)
-      (if author
-	  (let ((start (point)))
-	    (insert metadata)
-	    (add-text-properties start (+ start (length author))
-				 `(face ,(org-comments-panel-render--author-face author))))
-	(insert metadata))
+  (let* ((author (org-comments-panel-render--author comment))
+	 (created-at (plist-get comment :created-at))
+	 (timestamp (when created-at
+		      (org-comments-panel-render--format-created-at created-at))))
+    (when (or author timestamp)
+      (when author
+	(let ((start (point)))
+	  (insert author)
+	  (add-text-properties start (point)
+			       `(face ,(org-comments-panel-render--author-face author)))))
+      (when (and author timestamp)
+	(insert " · "))
+      (when timestamp
+	(let ((start (point)))
+	  (insert timestamp)
+	  (add-text-properties start (point) '(face org-comments-panel-timestamp))))
       t)))
 
 (defun org-comments-panel-render--insert-metadata (comment)
