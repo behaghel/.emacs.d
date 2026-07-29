@@ -6,9 +6,11 @@
 ;;; Code:
 
 (require 'org)
+(require 'button)
 (require 'org-comments-collaboration)
 (require 'org-comments-core)
 (require 'org-comments-model)
+(require 'browse-url)
 (require 'subr-x)
 
 (defcustom org-comments-panel-target-preview-length 20
@@ -25,6 +27,45 @@
   "Maximum length of each comment overview line."
   :type 'natnum
   :group 'org-comments)
+
+(defface org-comments-panel-author-1
+  '((t :inherit font-lock-keyword-face))
+  "Face used for one stable comment author color."
+  :group 'org-comments)
+
+(defface org-comments-panel-author-2
+  '((t :inherit font-lock-string-face))
+  "Face used for one stable comment author color."
+  :group 'org-comments)
+
+(defface org-comments-panel-author-3
+  '((t :inherit font-lock-type-face))
+  "Face used for one stable comment author color."
+  :group 'org-comments)
+
+(defface org-comments-panel-author-4
+  '((t :inherit font-lock-variable-name-face))
+  "Face used for one stable comment author color."
+  :group 'org-comments)
+
+(defface org-comments-panel-author-5
+  '((t :inherit font-lock-constant-face))
+  "Face used for one stable comment author color."
+  :group 'org-comments)
+
+(defface org-comments-panel-author-6
+  '((t :inherit font-lock-function-name-face))
+  "Face used for one stable comment author color."
+  :group 'org-comments)
+
+(defconst org-comments-panel-render--author-faces
+  [org-comments-panel-author-1
+   org-comments-panel-author-2
+   org-comments-panel-author-3
+   org-comments-panel-author-4
+   org-comments-panel-author-5
+   org-comments-panel-author-6]
+  "Stable author faces used by the comments panel.")
 
 (defun org-comments-panel-render--compact (text)
   "Return TEXT trimmed with whitespace collapsed for panel display."
@@ -82,12 +123,29 @@
 			     '(wrap-prefix "  ")))
       (forward-line 1))))
 
+(defun org-comments-panel-render--buttonize-urls (start end)
+  "Make raw HTTP URLs between START and END clickable."
+  (save-excursion
+    (goto-char start)
+    (while (re-search-forward "https?://[^[:space:]<>()\"']+" end t)
+      (let ((url (match-string-no-properties 0)))
+	(make-text-button
+	 (match-beginning 0) (match-end 0)
+	 'type 'help-url
+	 'help-args (list url)
+	 'face 'link
+	 'follow-link t
+	 'help-echo url
+	 'action (lambda (button)
+		   (browse-url (car (button-get button 'help-args)))))))))
+
 (defun org-comments-panel-render--insert-body (body)
   "Insert readable comment BODY with Org fontification and wrapping hints."
   (unless (string-empty-p body)
     (let ((start (point)))
       (insert (org-comments-panel-render--org-fontified-text body) "\n")
-      (org-comments-panel-render--apply-list-wrap-prefix start (point)))))
+      (org-comments-panel-render--apply-list-wrap-prefix start (point))
+      (org-comments-panel-render--buttonize-urls start (point)))))
 
 (defun org-comments-panel-render--format-created-at (created-at)
   "Return compact display text for CREATED-AT."
@@ -100,20 +158,47 @@
   (when-let* ((suggestion-ids (plist-get comment :suggestion-ids)))
     (format "✏️ %s" suggestion-ids)))
 
+(defun org-comments-panel-render--author (comment)
+  "Return display author for COMMENT, or nil."
+  (or (plist-get comment :remote-author-name)
+      (plist-get comment :remote-author-display-name)
+      (plist-get comment :author)))
+
+(defun org-comments-panel-render--author-face (author)
+  "Return stable face for AUTHOR."
+  (aref org-comments-panel-render--author-faces
+	(mod (abs (sxhash-equal (or author "")))
+	     (length org-comments-panel-render--author-faces))))
+
+(defun org-comments-panel-render--metadata-text (comment)
+  "Return author/date metadata text for COMMENT, or nil."
+  (let ((author (org-comments-panel-render--author comment))
+	(created-at (plist-get comment :created-at)))
+    (string-join
+     (delq nil
+	   (list author
+		 (when created-at
+		   (org-comments-panel-render--format-created-at created-at))))
+     " · ")))
+
+(defun org-comments-panel-render--insert-metadata-inline (comment)
+  "Insert author/date metadata for COMMENT when present, without newline.
+Return non-nil when metadata was inserted."
+  (let ((author (org-comments-panel-render--author comment))
+	(metadata (org-comments-panel-render--metadata-text comment)))
+    (unless (string-empty-p metadata)
+      (if author
+	  (let ((start (point)))
+	    (insert metadata)
+	    (add-text-properties start (+ start (length author))
+				 `(face ,(org-comments-panel-render--author-face author))))
+	(insert metadata))
+      t)))
+
 (defun org-comments-panel-render--insert-metadata (comment)
   "Insert author/date metadata for COMMENT when present."
-  (let ((author (or (plist-get comment :remote-author-name)
-		    (plist-get comment :remote-author-display-name)
-		    (plist-get comment :author)))
-	(created-at (plist-get comment :created-at)))
-    (when (or author created-at)
-      (when author
-	(insert author))
-      (when (and author created-at)
-	(insert " · "))
-      (when created-at
-	(insert (org-comments-panel-render--format-created-at created-at)))
-      (insert "\n"))))
+  (when (org-comments-panel-render--insert-metadata-inline comment)
+    (insert "\n")))
 
 (defun org-comments-panel-render--overview-lines (body)
   "Return compact overview lines for comment BODY."
@@ -140,18 +225,11 @@
 (defun org-comments-panel-render--insert-replies (comment)
   "Insert full reply conversation for COMMENT."
   (dolist (reply (plist-get comment :replies))
-    (let ((start (point))
-	  (has-metadata (or (plist-get reply :author)
-			    (plist-get reply :remote-author-name)
-			    (plist-get reply :remote-author-display-name)
-			    (plist-get reply :created-at))))
-      (insert "\n↳ " (org-comments-panel-render--sync-badge reply)
-	      " " (org-comments-sync-state-label reply))
-      (if has-metadata
-	  (progn
-	    (insert " ")
-	    (org-comments-panel-render--insert-metadata reply))
-	(insert "\n"))
+    (let ((start (point)))
+      (insert "\n↳ ")
+      (unless (org-comments-panel-render--insert-metadata-inline reply)
+	(insert "Reply"))
+      (insert "\n")
       (org-comments-panel-render--insert-body
        (org-comments-panel-render--readable-body reply))
       (let ((row (copy-sequence reply)))
@@ -176,13 +254,25 @@
 
 (defun org-comments-panel-render-reply-summary (reply)
   "Return a one-line summary for REPLY without root-comment status."
-  (let ((body (org-comments-panel-render--compact (org-comments-panel-render--readable-body reply))))
+  (let ((body (org-comments-panel-render--compact (org-comments-panel-render--readable-body reply)))
+	(metadata (org-comments-panel-render--metadata-text reply)))
     (string-join
      (delq nil
-	   (list (org-comments-sync-state-label reply)
+	   (list (unless (string-empty-p metadata) metadata)
 		 (unless (string-empty-p body)
 		   (format "— %s" body))))
      " ")))
+
+(defun org-comments-panel-render--insert-reply-summary (reply)
+  "Insert a one-line overview summary for REPLY with author coloring."
+  (let ((start (point))
+	(body (org-comments-panel-render--compact
+	       (org-comments-panel-render--readable-body reply))))
+    (unless (org-comments-panel-render--insert-metadata-inline reply)
+      (insert "Reply"))
+    (unless (string-empty-p body)
+      (insert " — " body))
+    (org-comments-panel-render--buttonize-urls start (point))))
 
 (defun org-comments-panel-render-insert-comment (comment)
   "Insert rich COMMENT row at point."
@@ -230,7 +320,9 @@
 			  (length replies) (if (= (length replies) 1) "y" "ies")))
 	  (dolist (reply replies)
 	    (let ((reply-start (point)))
-	      (insert "  ↳ " (org-comments-panel-render-reply-summary reply) "\n")
+	      (insert "  ↳ ")
+	      (org-comments-panel-render--insert-reply-summary reply)
+	      (insert "\n")
 	      (push (list reply-start (point) reply) reply-regions))))))
     (let ((row (copy-sequence comment)))
       (plist-put row :provider 'comments)

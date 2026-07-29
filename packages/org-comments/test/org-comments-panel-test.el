@@ -45,6 +45,65 @@
 					    (should (string-match-p "Review this" (buffer-string)))
 					    (should (string-match-p "selected text" (buffer-string)))))))
 
+(ert-deftest org-comments-panel-renders-reply-author-metadata-without-sync-prefix ()
+  "Reply rows show author metadata instead of low-value sync labels."
+  (with-temp-buffer
+    (let ((comment (list :type 'comment
+			 :status "OPEN"
+			 :current t
+			 :target-text "target"
+			 :body "Root body"
+			 :remote-author-display-name "Romain Moisescot"
+			 :created-at "2026-07-29T09:37:00+0200"
+			 :remote-id "root-1"
+			 :replies (list (list :type 'comment
+					      :body "Reply body"
+					      :remote-author-display-name "Romain Moisescot"
+					      :created-at "2026-07-29T10:00:00+0200"
+					      :remote-id "reply-1")))))
+      (org-comments-panel-render-insert-comment comment)
+      (let ((text (buffer-string))
+	    (expected-face (org-comments-panel-render--author-face "Romain Moisescot")))
+	(should (string-match-p "Romain Moisescot · 2026-07-29 09:37" text))
+	(should (string-match-p "↳ Romain Moisescot · 2026-07-29 10:00" text))
+	(should-not (string-match-p "synced —" text))
+	(goto-char (point-min))
+	(search-forward "Romain Moisescot")
+	(should (eq (get-text-property (match-beginning 0) 'face) expected-face))
+	(search-forward "Romain Moisescot")
+	(should (eq (get-text-property (match-beginning 0) 'face) expected-face))))))
+
+(ert-deftest org-comments-panel-colors-reply-authors-in-overview ()
+  "Collapsed reply summaries reuse the same stable author color."
+  (with-temp-buffer
+    (let ((comment (list :type 'comment
+			 :status "OPEN"
+			 :target-text "target"
+			 :body "Root body"
+			 :remote-author-display-name "Romain Moisescot"
+			 :created-at "2026-07-29T09:37:00+0200"
+			 :remote-id "root-1"
+			 :replies (list (list :type 'comment
+					      :body "Reply body"
+					      :remote-author-display-name "Romain Moisescot"
+					      :created-at "2026-07-29T10:00:00+0200"
+					      :remote-id "reply-1")))))
+      (org-comments-panel-render-insert-comment comment)
+      (let ((expected-face (org-comments-panel-render--author-face "Romain Moisescot")))
+	(goto-char (point-min))
+	(search-forward "Romain Moisescot")
+	(should (eq (get-text-property (match-beginning 0) 'face) expected-face))
+	(search-forward "Romain Moisescot")
+	(should (eq (get-text-property (match-beginning 0) 'face) expected-face))))))
+
+(ert-deftest org-comments-panel-linkifies-raw-http-urls ()
+  "Panel rendering makes raw HTTP links actionable."
+  (with-temp-buffer
+    (org-comments-panel-render--insert-body "See https://example.com/path for detail")
+    (goto-char (point-min))
+    (search-forward "https://example.com/path")
+    (should (button-at (match-beginning 0)))))
+
 (ert-deftest org-comments-panel-filters-resolved-comments ()
   "The package panel applies source-buffer-scoped filter state while rendering."
   (org-comments-panel-test--with-source "Alpha selected text omega"
