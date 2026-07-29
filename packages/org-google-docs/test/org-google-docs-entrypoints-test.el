@@ -95,6 +95,59 @@
       (should-not org-google-docs-images--push-session)
       (should-not org-google-docs-footnotes--push-session))))
 
+(ert-deftest org-google-docs-pull-diff-renders-forced-pull-preview ()
+  "Pull diff renders a temp forced pull without mutating the source buffer."
+  (let* ((source-file (make-temp-file "org-google-docs-source" nil ".org"))
+	 (source-buffer (find-file-noselect source-file))
+	 preview-buffer)
+    (unwind-protect
+	(progn
+	  (with-current-buffer source-buffer
+	    (erase-buffer)
+	    (insert "Local text.\n")
+	    (org-mode)
+	    (setq-local gdocs-sync--document-id "doc-1")
+	    (setq-local gdocs-sync--account "account-1")
+	    (save-buffer))
+	  (cl-letf (((symbol-function 'org-google-docs--require-upstream-library)
+		     (lambda (_library) t))
+		    ((symbol-function 'gdocs-api-get-file-metadata)
+		     (lambda (_document-id callback &optional _account)
+		       (funcall callback '((headRevisionId . "rev-2")))))
+		    ((symbol-function 'gdocs-api-get-document)
+		     (lambda (_document-id callback &optional _account _on-error)
+		       (funcall callback 'remote-json)))
+		    ((symbol-function 'gdocs-sync--apply-pull)
+		     (lambda (_json revision-id)
+		       (erase-buffer)
+		       (insert (format "Remote text from %s.\n" revision-id))
+		       (save-buffer)))
+		    ((symbol-function 'display-buffer)
+		     (lambda (buffer &rest _args)
+		       (setq preview-buffer buffer))))
+	    (with-current-buffer source-buffer
+	      (org-google-docs-pull-diff)
+	      (should (equal (buffer-string) "Local text.\n"))))
+	  (should (buffer-live-p preview-buffer))
+	  (with-current-buffer preview-buffer
+	    (should (derived-mode-p 'diff-mode))
+	    (let ((text (buffer-string)))
+	      (should-not (string-match-p "Google Docs Pull Diff" text))
+	      (should (string-match-p "^-Local text\\." text))
+	      (should (string-match-p "^+Remote text from rev-2\\." text)))))
+      (when (buffer-live-p source-buffer)
+	(kill-buffer source-buffer))
+      (when (file-exists-p source-file)
+	(delete-file source-file)))))
+
+(ert-deftest org-google-docs-pull-diff-requires-linked-buffer ()
+  "Pull diff fails clearly when the current buffer is not linked."
+  (with-temp-buffer
+    (org-mode)
+    (cl-letf (((symbol-function 'org-google-docs--require-upstream-library)
+	       (lambda (_library) t)))
+      (should-error (org-google-docs-pull-diff) :type 'user-error))))
+
 (ert-deftest org-google-docs-push-blocks-invalid-footnotes-before-upstream ()
   "Push rejects unsupported footnotes before invoking upstream gdocs."
   (let (calls)
@@ -262,6 +315,7 @@
 		   "Publish: Push buffer to Google Docs"
 		   "Publish: Restyle typographic blocks"
 		   "Pull: Pull Google Doc into buffer"
+		   "Pull: Preview forced pull diff"
 		   "Images: Cache pulled remote images"
 		   "Open: Open linked Google Doc in browser"
 		   "Comments: Import comments"

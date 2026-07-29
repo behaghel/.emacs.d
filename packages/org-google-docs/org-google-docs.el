@@ -19,6 +19,8 @@
 (require 'org-google-docs-footnotes)
 (require 'org-google-docs-images)
 
+(declare-function gdocs-api-get-file-metadata "gdocs-api"
+		  (file-id callback &optional account))
 (declare-function gdocs-api-get-document "gdocs-api"
 		  (document-id callback &optional account on-error))
 (declare-function gdocs-convert-docs-json-to-ir "gdocs-convert" (json))
@@ -30,6 +32,7 @@
 		  (old-ir new-ir &optional start-index))
 (declare-function gdocs-sync--pull-integrity-diagnostics "gdocs-sync"
 		  (old-org new-org))
+(declare-function gdocs-sync--apply-pull "gdocs-sync" (json revision-id))
 (declare-function gdocs-sync--set-status "gdocs-sync" (status))
 (declare-function gdocs-sync-push "gdocs-sync" ())
 
@@ -457,6 +460,7 @@ text has not changed."
     ("Publish: Push buffer to Google Docs" . org-google-docs-push)
     ("Publish: Restyle typographic blocks" . org-google-docs-push-restyle-current)
     ("Pull: Pull Google Doc into buffer" . org-google-docs-pull)
+    ("Pull: Preview forced pull diff" . org-google-docs-pull-diff)
     ("Images: Cache pulled remote images" . org-google-docs-images-cache-remote-images)
     ("Open: Open linked Google Doc in browser" . org-google-docs-open)
     ("Comments: Import comments" . org-google-docs-comments-import)
@@ -601,6 +605,123 @@ push state stuck even though the remote mutation completed or failed elsewhere."
   (org-google-docs-images-deactivate-session)
   (org-google-docs-footnotes--deactivate-session)
   (org-google-docs--call-upstream 'gdocs-pull))
+
+(defun org-google-docs--current-document-id ()
+  "Return current upstream gdocs document id, or nil."
+  (and (boundp 'gdocs-sync--document-id)
+       (symbol-value 'gdocs-sync--document-id)))
+
+(defun org-google-docs--pull-diff-unified (local-file pulled-file)
+  "Return unified diff text comparing LOCAL-FILE and PULLED-FILE."
+  (unless (executable-find "diff")
+    (user-error "Cannot build pull diff because diff is not on PATH"))
+  (with-temp-buffer
+    (let ((status (call-process "diff" nil t nil "-u" local-file pulled-file)))
+      (when (equal status 0)
+	(insert "No differences.\n"))
+      (buffer-string))))
+
+(defun org-google-docs--pull-diff-render
+    (source-buffer local-snapshot pulled-file temp-buffer temp-dir)
+  "Render pull diff for SOURCE-BUFFER against PULLED-FILE.
+LOCAL-SNAPSHOT is the source content snapshot used for the comparison.
+TEMP-BUFFER is the buffer containing the forced pull result.  TEMP-DIR is kept
+for inspection while the preview is open."
+  (let* ((source-name (buffer-name source-buffer))
+	 (buffer-name (format "*org-google-docs-pull-diff: %s*" source-name))
+	 (diff (org-google-docs--pull-diff-unified local-snapshot pulled-file))
+	 (preview (get-buffer-create buffer-name)))
+    (with-current-buffer preview
+      (let ((inhibit-read-only t))
+	(erase-buffer)
+	(insert diff)
+	(unless (string-suffix-p "\n" diff)
+	  (insert "\n"))
+	(diff-mode)
+	(read-only-mode 1)))
+    (when (buffer-live-p temp-buffer)
+      (with-current-buffer temp-buffer
+	(setq-local buffer-read-only t)))
+    (display-buffer preview)
+    (message "Google Docs pull diff ready")
+    preview))
+
+(defun org-google-docs--pull-diff-apply-temp-pull
+    (json revision-id source-buffer local-snapshot temp-buffer pulled-file temp-dir)
+  "Apply forced pull JSON to TEMP-BUFFER and render a diff.
+REVISION-ID is the fetched remote revision.  SOURCE-BUFFER and LOCAL-SNAPSHOT
+identify the original content.  PULLED-FILE and TEMP-DIR identify preview files."
+  (if (not (buffer-live-p temp-buffer))
+      (message "Google Docs pull diff aborted because temp buffer was killed")
+    (with-current-buffer temp-buffer
+      (condition-case err
+	  (let ((gdocs-auto-push-on-save nil)
+		(gdocs-auto-pull-on-open nil)
+		(gdocs-pull-integrity-checks-enable nil)
+		(before-save-hook nil)
+		(after-save-hook nil))
+	    (setq-local gdocs-sync--shadow-ir nil)
+	    (setq-local gdocs-sync--revision-id nil)
+	    (gdocs-sync--apply-pull json revision-id)
+	    (org-google-docs--pull-diff-render
+	     source-buffer local-snapshot pulled-file temp-buffer temp-dir))
+	((error quit)
+	 (message "Google Docs pull diff failed: %s" (error-message-string err)))))))
+
+(defun org-google-docs--pull-diff-fetch
+    (source-buffer local-snapshot temp-buffer pulled-file temp-dir document-id account)
+  "Fetch DOCUMENT-ID into TEMP-BUFFER, then render pull diff.
+SOURCE-BUFFER and LOCAL-SNAPSHOT identify the original content.  PULLED-FILE and
+TEMP-DIR identify the forced-pull preview files.  ACCOUNT is the gdocs account."
+  (gdocs-api-get-file-metadata
+   document-id
+   (lambda (metadata)
+     (let ((revision-id (alist-get 'headRevisionId metadata)))
+       (gdocs-api-get-document
+	document-id
+	(lambda (json)
+	  (org-google-docs--pull-diff-apply-temp-pull
+	   json revision-id source-buffer local-snapshot temp-buffer pulled-file temp-dir))
+	account
+	(lambda (error)
+	  (message "Google Docs pull diff remote fetch failed: %s" error)))))
+   account))
+
+;;;###autoload
+(defun org-google-docs-pull-diff ()
+  "Preview a forced Google Docs pull as a diff against the current Org buffer.
+The command copies the current buffer to a temporary linked file, forces a pull
+there with local shadow/revision state cleared, and renders a read-only Org
+buffer containing a unified diff.  The original buffer and file are not mutated."
+  (interactive)
+  (org-google-docs-images-deactivate-session)
+  (org-google-docs-footnotes--deactivate-session)
+  (org-google-docs--require-upstream-library 'gdocs-api)
+  (org-google-docs--require-upstream-library 'gdocs-sync)
+  (let ((document-id (org-google-docs--current-document-id))
+	(account (org-google-docs--current-gdocs-account))
+	(source-buffer (current-buffer)))
+    (unless document-id
+      (user-error "Buffer is not linked to a Google Doc"))
+    (let* ((source-base (file-name-nondirectory
+			 (or (buffer-file-name source-buffer)
+			     (buffer-name source-buffer))))
+	   (temp-dir (make-temp-file "org-google-docs-pull-diff-" t))
+	   (local-snapshot (expand-file-name (concat "local-" source-base) temp-dir))
+	   (pulled-file (expand-file-name (concat "pulled-" source-base) temp-dir)))
+      (write-region (point-min) (point-max) local-snapshot nil 'silent)
+      (copy-file local-snapshot pulled-file t)
+      (let* ((gdocs-auto-pull-on-open nil)
+	     (temp-buffer (find-file-noselect pulled-file)))
+	(with-current-buffer temp-buffer
+	  (setq-local gdocs-sync--document-id document-id)
+	  (setq-local gdocs-sync--account account)
+	  (setq-local gdocs-sync--shadow-ir nil)
+	  (setq-local gdocs-sync--revision-id nil))
+	(org-google-docs--pull-diff-fetch
+	 source-buffer local-snapshot temp-buffer pulled-file temp-dir document-id account)
+	(message "Google Docs pull diff fetch started")
+	temp-buffer))))
 
 ;;;###autoload
 (defun org-google-docs-sync-current ()
