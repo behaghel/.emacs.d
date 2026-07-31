@@ -131,7 +131,7 @@
  tramp-persistency-file-name (expand-file-name "var/tramp" user-emacs-directory))
 
 ;; Provide streamlined access to writing helpers without changing UX.
-(autoload 'writing/enable-basics "modules/writing/writing" nil t)
+(autoload 'writing/enable-basics "writing/writing" nil t)
 
 ;; Load language configuration (autoloads, treesit sources/remaps, language servers).
 (ignore-errors (require 'lang/treesit-config))
