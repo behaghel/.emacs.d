@@ -47,6 +47,55 @@
 	    (should-not (overlayp org-comments-page-comment-overlay))))
       (delete-directory directory t))))
 
+(ert-deftest org-comments-context-panel-follow-point-highlights-source-and-panel ()
+  "Point in either source target or side-panel row highlights both views."
+  (let* ((directory (make-temp-file "org-comments-context-panel" t))
+	 (source-file (expand-file-name "source.org" directory))
+	 (panel-buffer (generate-new-buffer " *org-comments-test-panel*")))
+    (unwind-protect
+	(progn
+	  (with-temp-file source-file
+	    (insert "#+TITLE: Source\n\nAlpha beta gamma\n"))
+	  (with-current-buffer (find-file-noselect source-file)
+	    (org-mode)
+	    (goto-char (point-min))
+	    (search-forward "Alpha")
+	    (org-comments-append-to-sidecar
+	     (org-comments-create-record source-file
+					 (match-beginning 0)
+					 (match-end 0)
+					 "Body" "c1" "Alice" "now"))
+	    (org-comments-context-panel-enable)
+	    (setq org-context-panel-side-panel-buffer panel-buffer)
+	    (with-current-buffer panel-buffer
+	      (org-comments-panel-mode)
+	      (setq org-context-panel-source-buffer (find-buffer-visiting source-file))
+	      (org-comments-context-panel-render-side-panel org-context-panel-source-buffer nil))
+	    (goto-char (point-min))
+	    (search-forward "Alpha")
+	    (goto-char (match-beginning 0))
+	    (org-comments-context-panel-follow-point)
+	    (let ((source-overlay (cl-find-if
+				   (lambda (overlay)
+				     (overlay-get overlay 'org-comments-comment))
+				   (overlays-at (point)))))
+	      (should (eq (overlay-get source-overlay 'face)
+			  'org-comments-active-region-face))
+	      (with-current-buffer panel-buffer
+		(should (overlayp org-comments-active-panel-overlay))
+		(should (eq (overlay-get org-comments-active-panel-overlay 'face)
+			    'org-comments-active-panel-face))
+		(goto-char (point-min))
+		(search-forward "Body")
+		(org-comments-context-panel-follow-point))
+	      (should (eq (overlay-get source-overlay 'face)
+			  'org-comments-active-region-face)))))
+      (when (buffer-live-p panel-buffer)
+	(kill-buffer panel-buffer))
+      (when-let* ((source (find-buffer-visiting source-file)))
+	(kill-buffer source))
+      (delete-directory directory t))))
+
 (ert-deftest org-comments-context-panel-provider-exposes-collection-functions ()
   "The comments provider descriptor exposes collection entry points."
   (let ((provider (org-comments-context-panel-provider)))

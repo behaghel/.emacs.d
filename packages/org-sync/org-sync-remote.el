@@ -12,11 +12,12 @@
 (defvar org-sync-remote-providers nil
   "Registered Org sync remote providers.
 Each entry is a plist containing at least :kind and optional :describe-url,
-:pull, and :scan functions.")
+:pull, :scan, and :scan-comments functions.")
 
 (defun org-sync-remote-register-provider (&rest provider)
   "Register remote document PROVIDER plist.
-Required key: :kind.  Optional keys: :describe-url, :pull, :scan."
+Required key: :kind.  Optional keys: :describe-url, :pull, :scan, and
+:scan-comments."
   (let ((kind (plist-get provider :kind)))
     (unless (and (stringp kind) (not (string-empty-p kind)))
       (user-error "Org sync remote provider requires non-empty :kind"))
@@ -60,6 +61,16 @@ arguments."
 		       (user-error "No Org sync remote provider registered for %s" kind)))
 	 (fn (or (plist-get provider :scan)
 		 (user-error "Org sync remote provider %s does not support activity scan" kind))))
+    (apply fn id baseline options)))
+
+(defun org-sync-remote-scan-comments (kind id baseline &rest options)
+  "Scan remote document KIND/ID comments through its provider.
+Return normalized activity plist with `:signals' mention/comment signals.
+OPTIONS are provider-specific keyword arguments."
+  (let* ((provider (or (org-sync-remote-provider kind)
+		       (user-error "No Org sync remote provider registered for %s" kind)))
+	 (fn (or (plist-get provider :scan-comments)
+		 (user-error "Org sync remote provider %s does not support comment scan" kind))))
     (apply fn id baseline options)))
 
 (provide 'org-sync-remote)

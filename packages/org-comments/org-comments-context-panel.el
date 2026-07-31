@@ -45,16 +45,37 @@
   "Face used to mark commented source regions."
   :group 'org-comments)
 
+(defface org-comments-active-region-face
+  '((t :inherit region :underline t))
+  "Face used to mark the source region for the active comment."
+  :group 'org-comments)
+
+(defface org-comments-active-panel-face
+  '((t :inherit highlight))
+  "Face used to mark the side-panel row for the active comment."
+  :group 'org-comments)
+
 (defvar-local org-comments-overlays nil
   "Inline comment overlays in the current Org source buffer.")
 
 (defvar-local org-comments-page-comment-overlay nil
   "Page-comment marker overlay in the current Org source buffer.")
 
+(defvar-local org-comments-active-panel-overlay nil
+  "Side-panel overlay for the active Org comment row.")
+
+(defvar-local org-comments-active-comment-key nil
+  "Identity key for the currently highlighted Org comment.")
+
 (defun org-comments-context-panel--delete-range-overlays ()
   "Delete Org comments range overlays in the current buffer."
   (org-context-panel-delete-overlays org-comments-overlays)
   (setq org-comments-overlays nil))
+
+(defun org-comments-context-panel--delete-active-panel-overlay ()
+  "Delete the active comment side-panel overlay in the current buffer."
+  (org-context-panel-delete-overlay org-comments-active-panel-overlay)
+  (setq org-comments-active-panel-overlay nil))
 
 (defun org-comments-context-panel-delete-overlays ()
   "Delete Org comments context-panel overlays in the current buffer."
@@ -65,7 +86,8 @@
 (defun org-comments-context-panel-cleanup-source-overlays ()
   "Clean up Org comments source overlays in the current buffer."
   (org-comments-context-panel--delete-range-overlays)
-  (setq org-comments-page-comment-overlay nil))
+  (setq org-comments-page-comment-overlay nil)
+  (setq org-comments-active-comment-key nil))
 
 (defun org-comments-context-panel-page-marker-position ()
   "Return page comment marker position in the current Org buffer, or nil."
@@ -127,6 +149,8 @@ SOURCE-BUFFER is the Org source buffer associated with ITEM."
   "Render the Org comments side panel for SOURCE-BUFFER.
 ITEMS is accepted for the generic context-panel provider protocol; the current
 comments renderer keeps using the existing source-buffer-scoped filter pipeline."
+  (add-hook 'post-command-hook #'org-comments-context-panel-follow-point nil t)
+  (org-comments-context-panel--delete-active-panel-overlay)
   (setq org-comments-panel-source-buffer source-buffer)
   (org-comments-panel-render-buffer
    source-buffer
@@ -137,7 +161,11 @@ comments renderer keeps using the existing source-buffer-scoped filter pipeline.
    (org-comments-panel-filter-apply
     (with-current-buffer source-buffer
       (org-comments-collect-page source-buffer))
-    (org-comments-filter-state source-buffer))))
+    (org-comments-filter-state source-buffer)))
+  (with-current-buffer source-buffer
+    (when org-comments-active-comment-key
+      (org-comments-context-panel--highlight-panel-row
+       (current-buffer) org-comments-active-comment-key))))
 
 (defun org-comments-context-panel-render-page-view (source-buffer _view)
   "Render the page-comments bottom VIEW for SOURCE-BUFFER."
@@ -164,6 +192,99 @@ comments renderer keeps using the existing source-buffer-scoped filter pipeline.
 		  (string-suffix-p ".comments.org" buffer-file-name))
 	     (string-match-p "\\.comments\\.org\\(?:<.*>\\)?\\'"
 			     (buffer-name))))))
+
+(defun org-comments-context-panel--comment-key (comment)
+  "Return stable identity key for COMMENT."
+  (or (plist-get comment :id)
+      (plist-get comment :remote-id)
+      (plist-get comment :target-start)
+      (plist-get comment :anchor-pos)))
+
+(defun org-comments-context-panel--comment-key-equal-p (comment key)
+  "Return non-nil when COMMENT has identity KEY."
+  (and key
+       (equal (org-comments-context-panel--comment-key comment) key)))
+
+(defun org-comments-context-panel--source-comment-at-point ()
+  "Return Org comment whose source overlay contains point, or nil."
+  (cl-loop for overlay in (overlays-at (point))
+	   for comment = (overlay-get overlay 'org-comments-comment)
+	   when comment return comment))
+
+(defun org-comments-context-panel--panel-comment-at-point ()
+  "Return Org comment row at point in a side-panel buffer, or nil."
+  (or (get-text-property (point) 'org-comments-comment)
+      (get-text-property (line-beginning-position) 'org-comments-comment)
+      (get-text-property (max (point-min) (1- (line-end-position)))
+			 'org-comments-comment)))
+
+(defun org-comments-context-panel--set-source-highlight (overlay active-p)
+  "Set source OVERLAY face according to ACTIVE-P."
+  (overlay-put overlay 'face
+	       (if active-p
+		   'org-comments-active-region-face
+		 'org-comments-region-face)))
+
+(defun org-comments-context-panel--highlight-source-region (key)
+  "Highlight source comment region identified by KEY in the current buffer."
+  (dolist (overlay org-comments-overlays)
+    (org-comments-context-panel--set-source-highlight
+     overlay
+     (org-comments-context-panel--comment-key-equal-p
+      (overlay-get overlay 'org-comments-comment) key))))
+
+(defun org-comments-context-panel--panel-row-bounds (key)
+  "Return side-panel row bounds for comment KEY in the current buffer."
+  (save-excursion
+    (goto-char (point-min))
+    (cl-loop while (< (point) (point-max))
+	     for start = (point)
+	     for comment = (get-text-property start 'org-comments-comment)
+	     when (and comment
+		       (org-comments-context-panel--comment-key-equal-p comment key))
+	     return (cons start (or (next-single-property-change
+				     start 'org-comments-comment nil (point-max))
+				    (point-max)))
+	     do (goto-char (or (next-single-property-change
+				start 'org-comments-comment nil (point-max))
+			       (point-max))))))
+
+(defun org-comments-context-panel--highlight-panel-row (source-buffer key)
+  "Highlight side-panel comment row identified by KEY for SOURCE-BUFFER."
+  (when-let* ((panel-buffer (buffer-local-value
+			     'org-context-panel-side-panel-buffer source-buffer)))
+    (when (buffer-live-p panel-buffer)
+      (with-current-buffer panel-buffer
+	(org-comments-context-panel--delete-active-panel-overlay)
+	(when key
+	  (when-let* ((bounds (org-comments-context-panel--panel-row-bounds key)))
+	    (setq org-comments-active-panel-overlay
+		  (make-overlay (car bounds) (cdr bounds) nil t nil))
+	    (overlay-put org-comments-active-panel-overlay
+			 'face 'org-comments-active-panel-face)))))))
+
+(defun org-comments-context-panel--sync-active-comment (source-buffer comment)
+  "Synchronize active COMMENT highlighting for SOURCE-BUFFER and side panel."
+  (when (buffer-live-p source-buffer)
+    (let ((key (and comment (org-comments-context-panel--comment-key comment))))
+      (with-current-buffer source-buffer
+	(unless (equal key org-comments-active-comment-key)
+	  (setq org-comments-active-comment-key key)
+	  (org-comments-context-panel--highlight-source-region key)
+	  (org-comments-context-panel--highlight-panel-row source-buffer key))))))
+
+(defun org-comments-context-panel-follow-point ()
+  "Keep source target and side-panel row highlighting synchronized with point."
+  (cond
+   ((and (derived-mode-p 'org-mode) org-comments-overlays)
+    (org-comments-context-panel--sync-active-comment
+     (current-buffer)
+     (org-comments-context-panel--source-comment-at-point)))
+   ((and (boundp 'org-context-panel-source-buffer)
+	 (buffer-live-p org-context-panel-source-buffer))
+    (org-comments-context-panel--sync-active-comment
+     org-context-panel-source-buffer
+     (org-comments-context-panel--panel-comment-at-point)))))
 
 (defun org-comments-context-panel-provider ()
   "Return the org-comments context-panel provider descriptor."
@@ -194,15 +315,20 @@ comments renderer keeps using the existing source-buffer-scoped filter pipeline.
 			    start end
 			    :face 'org-comments-region-face
 			    :properties (list 'org-comments-comment comment))))
-	(push overlay org-comments-overlays)))))
+	(push overlay org-comments-overlays))))
+  (when org-comments-active-comment-key
+    (org-comments-context-panel--highlight-source-region
+     org-comments-active-comment-key)))
 
 (defun org-comments-context-panel-enable ()
   "Enable Org comments as a context-panel provider in the current buffer."
   (org-context-panel-register-provider (org-comments-context-panel-provider))
+  (add-hook 'post-command-hook #'org-comments-context-panel-follow-point nil t)
   (org-context-panel-mode 1))
 
 (defun org-comments-context-panel-disable ()
   "Disable Org comments as a context-panel provider in the current buffer."
+  (remove-hook 'post-command-hook #'org-comments-context-panel-follow-point t)
   (org-comments-context-panel-delete-overlays)
   (org-context-panel-unregister-provider 'comments)
   (unless (org-context-panel-registered-providers)

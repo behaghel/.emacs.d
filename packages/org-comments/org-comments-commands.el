@@ -37,6 +37,13 @@ which Org mode uses for `org-toggle-comment'."
   :type 'boolean
   :group 'org-comments)
 
+(defcustom org-comments-open-people-function nil
+  "Function used by `org-comments-open-people' to open the people directory.
+Provider packages can set this buffer-locally.  The function is called with no
+arguments and should open the relevant Org people file or directory view."
+  :type '(choice (const :tag "No people opener" nil) function)
+  :group 'org-comments)
+
 (defun org-comments-refresh ()
   "Refresh package-owned overlays and any registered rich comments UI."
   (when (and (bound-and-true-p org-comments-mode)
@@ -301,6 +308,14 @@ Org source buffer and pass `:source-file' context to the backend adapter."
        (org-comments-backend-detect (current-buffer)) comment))))
 
 ;;;###autoload
+(defun org-comments-open-people ()
+  "Open the configured comments people directory."
+  (interactive)
+  (unless org-comments-open-people-function
+    (user-error "No Org comments people directory is configured for this buffer"))
+  (funcall org-comments-open-people-function))
+
+;;;###autoload
 (defun org-comments-sync ()
   "Synchronize comments for the current Org source or comments panel.
 The selected backend is inferred from the source buffer via
@@ -345,6 +360,7 @@ source-buffer comment at point."
     (define-key prefix (kbd "p") #'org-context-panel-previous-item)
     (define-key prefix (kbd "r") #'org-comments-reply)
     (define-key prefix (kbd "S") #'org-comments-sync)
+    (define-key prefix (kbd "u") #'org-comments-open-people)
     (define-key prefix (kbd "O") #'org-comments-open-remote)
     (define-key prefix (kbd "U") #'org-comments-push)
     (define-key prefix (kbd "D") #'org-comments-pull)

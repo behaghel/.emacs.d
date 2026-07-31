@@ -26,6 +26,8 @@
 (require 'org-confluence-people-store)
 (require 'org-confluence-sync-status-marker)
 (require 'org-sync nil 'noerror)
+(require 'org-confluence-comments-remote)
+(require 'org-confluence-mentions)
 
 (declare-function org-confluence-comments-import "org-confluence-comments-import" (&optional page-id body-format))
 (declare-function org-confluence-open-page "org-confluence-publish" ())
@@ -201,6 +203,8 @@ install personal leader, Evil, or layout-specific bindings."
       (setq org-confluence-mode nil)
       (user-error "org-confluence-mode only works in Org buffers"))
     (org-confluence-comments-backend-register)
+    (setq-local org-comments-open-people-function
+		#'org-confluence-people-store-open-global-file)
     (when (null org-comments-resolve-account-id-function)
       (setq-local org-comments-resolve-account-id-function
 		  #'org-confluence-people-resolve-account-id)
@@ -215,6 +219,7 @@ install personal leader, Evil, or layout-specific bindings."
 	  #'org-confluence-sync-status-refresh-source-marker-in-buffer)
     (org-confluence-sync-status-source-marker-setup))
    (t
+    (kill-local-variable 'org-comments-open-people-function)
     (when org-confluence--installed-account-id-resolver
       (kill-local-variable 'org-comments-resolve-account-id-function)
       (setq org-confluence--installed-account-id-resolver nil))
@@ -278,12 +283,92 @@ install personal leader, Evil, or layout-specific bindings."
 	  :remote (list :version remote-version :updated-at updated-at :author author)
 	  :signals signals)))
 
+(defun org-confluence-remote--response-results (response)
+  "Return Confluence list RESPONSE results."
+  (or (alist-get 'results response)
+      (alist-get 'results (alist-get 'body response))
+      (plist-get response :results)
+      (plist-get (plist-get response :body) :results)
+      response))
+
+(defun org-confluence-remote--current-user-account-id (&optional directory)
+  "Return the configured current Confluence user account id for DIRECTORY."
+  (catch 'found
+    (dolist (file (org-confluence-people-store-files directory))
+      (when (file-exists-p file)
+	(with-temp-buffer
+	  (insert-file-contents file)
+	  (org-mode)
+	  (goto-char (point-min))
+	  (while (re-search-forward "^\\*+[[:space:]]+" nil t)
+	    (when (and (org-confluence-people-store--truthy-entry-value-p "ORG_CONFLUENCE_ME")
+		       (org-entry-get nil "ORG_CONFLUENCE_ACCOUNT_ID"))
+	      (throw 'found (org-entry-get nil "ORG_CONFLUENCE_ACCOUNT_ID")))))))
+    nil))
+
+(defun org-confluence-remote--comment-open-p (comment)
+  "Return non-nil when COMMENT should be considered open/actionable."
+  (not (equal (org-confluence-comments-remote-resolution-status comment) "resolved")))
+
+(defun org-confluence-remote--comment-mentions-p (comment account-id)
+  "Return non-nil when COMMENT body mentions ACCOUNT-ID."
+  (member account-id
+	  (org-confluence-mentions-extract-account-ids
+	   (org-confluence-comments-remote-body comment))))
+
+(defun org-confluence-remote--comment-summary (comment &optional owned-root)
+  "Return compact summary for COMMENT."
+  (let* ((body (org-confluence-comments-remote-body comment))
+	 (plain (string-trim (replace-regexp-in-string "<[^>]+>" " " body))))
+    (if owned-root
+	(format "Comment on owned document: %s" (truncate-string-to-width plain 80 nil nil "…"))
+      (format "Mentioned you: %s" (truncate-string-to-width plain 80 nil nil "…")))))
+
+(defun org-confluence-remote--comment-signal (page-id comment kind comment-kind &optional owned-root)
+  "Return normalized mention signal for COMMENT on PAGE-ID.
+KIND is `root' or `reply'.  COMMENT-KIND is Confluence endpoint kind."
+  (let ((comment-id (org-confluence-comments-remote-id comment)))
+    (list :id (format "confluence-comment:%s:%s:%s" page-id comment-id kind)
+	  :kind "mention"
+	  :remote-at (or (org-confluence-comments-remote-updated-at comment)
+			 (org-confluence-comments-remote-created-at comment)
+			 "")
+	  :author (or (org-confluence-comments-remote-author-name comment) "unknown")
+	  :summary (org-confluence-remote--comment-summary comment owned-root)
+	  :remote-comment-id comment-id
+	  :comment-kind comment-kind)))
+
+(defun org-confluence-remote-scan-comments (page-id _baseline &rest options)
+  "Scan Confluence PAGE-ID comments and return normalized mention signals."
+  (let* ((directory (plist-get options :directory))
+	 (owned-by-me (plist-get options :document-owned-by-me))
+	 (me (or (org-confluence-remote--current-user-account-id directory)
+		 (user-error "Current user identity is not configured for confluence")))
+	 (signals nil))
+    (dolist (comment-kind '("footer-comments" "inline-comments"))
+      (dolist (comment (org-confluence-remote--response-results
+			(org-confluence-api--list-page-comments page-id comment-kind "storage")))
+	(when (org-confluence-remote--comment-open-p comment)
+	  (let ((root-mentions (org-confluence-remote--comment-mentions-p comment me)))
+	    (when (or root-mentions owned-by-me)
+	      (push (org-confluence-remote--comment-signal page-id comment "root" comment-kind owned-by-me)
+		    signals))
+	    (when-let* ((comment-id (org-confluence-comments-remote-id comment)))
+	      (dolist (reply (org-confluence-remote--response-results
+			      (org-confluence-api--list-comment-children comment-id comment-kind "storage")))
+		(when (and (org-confluence-remote--comment-open-p reply)
+			   (org-confluence-remote--comment-mentions-p reply me))
+		  (push (org-confluence-remote--comment-signal page-id reply "reply" comment-kind)
+			signals))))))))
+    (list :kind "confluence" :id page-id :signals (nreverse signals))))
+
 (when (fboundp 'org-sync-remote-register-provider)
   (org-sync-remote-register-provider
    :kind "confluence"
    :describe-url #'org-confluence-remote-describe-url
    :pull #'org-confluence-remote-pull
-   :scan #'org-confluence-remote-scan))
+   :scan #'org-confluence-remote-scan
+   :scan-comments #'org-confluence-remote-scan-comments))
 
 (provide 'org-confluence)
 ;;; org-confluence.el ends here

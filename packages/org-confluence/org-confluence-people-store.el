@@ -136,6 +136,14 @@ suppress a global marker for the same identity."
     (with-temp-file file
       (insert "#+title: Confluence People\n\n"))))
 
+;;;###autoload
+(defun org-confluence-people-store-open-global-file ()
+  "Open the global Confluence people file."
+  (interactive)
+  (let ((file (org-confluence-people-store-global-file)))
+    (org-confluence-people-store--ensure-file file)
+    (find-file file)))
+
 (defun org-confluence-people-store--seen-at ()
   "Return current timestamp for people cache updates."
   (format-time-string "%Y-%m-%dT%H:%M:%S%z"))

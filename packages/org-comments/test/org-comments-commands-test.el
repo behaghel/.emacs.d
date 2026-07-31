@@ -22,6 +22,8 @@
 	      #'org-context-panel-previous-item))
   (should (eq (lookup-key org-comments-mode-map (kbd "C-c C-; S"))
 	      #'org-comments-sync))
+  (should (eq (lookup-key org-comments-mode-map (kbd "C-c C-; u"))
+	      #'org-comments-open-people))
   (should (eq (lookup-key org-comments-mode-map (kbd "C-c C-; O"))
 	      #'org-comments-open-remote))
   (should (eq (lookup-key org-comments-mode-map (kbd "C-c C-; U"))
@@ -54,6 +56,16 @@
   "Open dispatches to the registered rich comments UI."
   (let ((org-comments-ui-open-function (lambda () :panel)))
     (should (eq (org-comments-open) :panel))))
+
+(ert-deftest org-comments-commands-open-people-calls-configured-function ()
+  "Open people delegates to configured provider function."
+  (let ((org-comments-open-people-function (lambda () :opened)))
+    (should (eq (org-comments-open-people) :opened))))
+
+(ert-deftest org-comments-commands-open-people-requires-configured-function ()
+  "Open people fails clearly without a provider function."
+  (let ((org-comments-open-people-function nil))
+    (should-error (org-comments-open-people) :type 'user-error)))
 
 (ert-deftest org-comments-commands-sync-detects-backend-from-source-buffer ()
   "Sync detects the comments backend and passes source-buffer context."
