@@ -38,6 +38,8 @@
 (add-to-list 'load-path hub-lisp-dir)
 (require 'hub-noise)
 (hub/noise-install-buffer-filters)
+(when (file-directory-p (expand-file-name "~/ws/context-panels"))
+  (add-to-list 'load-path (expand-file-name "~/ws/context-panels")))
 (add-to-list 'load-path (expand-file-name "packages/org-comments" user-emacs-directory))
 (add-to-list 'load-path (expand-file-name "packages/org-suggestions" user-emacs-directory))
 (add-to-list 'load-path (expand-file-name "packages/org-copilot" user-emacs-directory))
@@ -98,6 +100,11 @@
    (setq straight-vc-git-default-protocol (hub/preferred-straight-protocol))
    (straight-use-package 'use-package)
    (straight-use-package 'diminish)
+   (when (file-directory-p (expand-file-name "~/ws/context-panels"))
+     (straight-use-package
+      `(context-panels :type git
+		       :repo ,(expand-file-name "~/ws/context-panels")
+		       :local-repo "context-panels")))
    (require 'use-package)
    (require 'use-package-ensure)
    (require 'use-package-delight)
