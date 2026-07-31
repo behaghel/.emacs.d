@@ -49,7 +49,7 @@
    (org-comments-mode 1)
    (let* ((keymap (overlay-get org-comments-page-comment-overlay 'keymap))
 	  (command (lookup-key keymap (kbd "RET"))))
-     (should (eq command #'org-context-panel-open-marker-view))
+     (should (eq command #'context-panels-open-marker-view))
      (goto-char (overlay-start org-comments-page-comment-overlay))
      (call-interactively command))
    (should (get-buffer org-comments-page-panel-buffer-name))))

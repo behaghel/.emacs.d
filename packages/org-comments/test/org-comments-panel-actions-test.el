@@ -54,7 +54,7 @@
 (ert-deftest org-comments-panel-actions-keymap-binds-jump ()
   "Panel binds RET to generic context-panel jump dispatch."
   (should (eq (lookup-key org-comments-panel-mode-map (kbd "RET"))
-	      #'org-context-panel-jump-at-point)))
+	      #'context-panels-jump-at-point)))
 
 (ert-deftest org-comments-panel-actions-keymap-binds-delete ()
   "Panel binds d to the public DWIM delete command."

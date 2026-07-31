@@ -1,7 +1,7 @@
 ;;; org-comments-context-panel-test.el --- Comments context provider tests -*- lexical-binding: t; -*-
 
 ;;; Commentary:
-;; Tests for the org-comments provider layer over org-context-panel primitives.
+;; Tests for the org-comments provider layer over context-panels primitives.
 
 ;;; Code:
 
@@ -66,11 +66,11 @@
 					 (match-end 0)
 					 "Body" "c1" "Alice" "now"))
 	    (org-comments-context-panel-enable)
-	    (setq org-context-panel-side-panel-buffer panel-buffer)
+	    (setq context-panels-side-panel-buffer panel-buffer)
 	    (with-current-buffer panel-buffer
 	      (org-comments-panel-mode)
-	      (setq org-context-panel-source-buffer (find-buffer-visiting source-file))
-	      (org-comments-context-panel-render-side-panel org-context-panel-source-buffer nil))
+	      (setq context-panels-source-buffer (find-buffer-visiting source-file))
+	      (org-comments-context-panel-render-side-panel context-panels-source-buffer nil))
 	    (goto-char (point-min))
 	    (search-forward "Alpha")
 	    (goto-char (match-beginning 0))
@@ -111,40 +111,40 @@
   "`org-comments-mode' enables the comments provider through context-panel mode."
   (with-temp-buffer
     (org-mode)
-    (cl-letf (((symbol-function 'org-context-panel-refresh-source-overlays)
+    (cl-letf (((symbol-function 'context-panels-refresh-source-overlays)
 	       (lambda ())))
       (org-comments-mode 1)
       (should org-comments-mode)
-      (should org-context-panel-mode)
-      (should (org-context-panel-registered-provider 'comments))
+      (should context-panels-mode)
+      (should (context-panels-registered-provider 'comments))
       (org-comments-mode -1)
       (should-not org-comments-mode)
-      (should-not org-context-panel-mode)
-      (should-not (org-context-panel-registered-provider 'comments)))))
+      (should-not context-panels-mode)
+      (should-not (context-panels-registered-provider 'comments)))))
 
 (ert-deftest org-comments-overlays-enable-registers-provider ()
   "Overlay activation registers and unregisters the comments provider."
   (with-temp-buffer
     (org-mode)
     (let ((buffer-file-name nil))
-      (cl-letf (((symbol-function 'org-context-panel-refresh-source-overlays)
+      (cl-letf (((symbol-function 'context-panels-refresh-source-overlays)
 		 (lambda ())))
 	(org-comments-overlays-enable)
-	(should (org-context-panel-registered-provider 'comments))
+	(should (context-panels-registered-provider 'comments))
 	(org-comments-overlays-disable)
-	(should-not (org-context-panel-registered-provider 'comments))))))
+	(should-not (context-panels-registered-provider 'comments))))))
 
 (ert-deftest org-comments-overlays-refresh-delegates-through-context-registry ()
   "The public overlay refresh facade delegates through the provider registry."
   (with-temp-buffer
     (org-mode)
     (let (called)
-      (cl-letf (((symbol-function 'org-context-panel-refresh-source-overlays)
+      (cl-letf (((symbol-function 'context-panels-refresh-source-overlays)
 		 (lambda ()
 		   (setq called t))))
 	(org-comments-overlays-refresh))
       (should called)
-      (should (org-context-panel-registered-provider 'comments)))))
+      (should (context-panels-registered-provider 'comments)))))
 
 (provide 'org-comments-context-panel-test)
 ;;; org-comments-context-panel-test.el ends here

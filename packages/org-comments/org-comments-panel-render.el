@@ -248,7 +248,7 @@ Return non-nil when metadata was inserted."
 	(plist-put row :provider 'comments)
 	(add-text-properties start (point)
 			     `(org-comments-comment ,row
-						    org-context-panel-item ,row))))))
+						    context-panels-item ,row))))))
 
 (defun org-comments-panel-render-comment-summary (comment)
   "Return a one-line summary for COMMENT."
@@ -341,7 +341,7 @@ Return non-nil when metadata was inserted."
       (add-text-properties
        start (point)
        `(org-comments-comment ,row
-			      org-context-panel-item ,row
+			      context-panels-item ,row
 			      mouse-face highlight
 			      help-echo "RET: jump, r: reply, e: edit, d: delete"))
       (dolist (region reply-regions)
@@ -351,7 +351,7 @@ Return non-nil when metadata was inserted."
 	    (add-text-properties
 	     reply-start reply-end
 	     `(org-comments-comment ,reply-row
-				    org-context-panel-item ,reply-row
+				    context-panels-item ,reply-row
 				    mouse-face highlight
 				    help-echo "RET: jump, U: push, e: edit"))))))))
 

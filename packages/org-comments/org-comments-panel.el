@@ -8,7 +8,7 @@
 ;;; Code:
 
 (require 'org)
-(require 'org-context-panel)
+(require 'context-panels)
 (require 'org-comments-context-panel)
 (require 'org-comments-core)
 (require 'org-comments-panel-actions)
@@ -49,7 +49,7 @@ file updates already-bound maps in long-lived Emacs sessions."
   (define-key org-comments-panel-filter-map (kbd "r") #'org-comments-filter-toggle-resolved-current-ui)
   (define-key org-comments-panel-filter-map (kbd "?") #'org-comments-filter-status-current-ui)
   (define-key org-comments-panel-mode-map (kbd "?") #'org-comments-help-current-ui)
-  (define-key org-comments-panel-mode-map (kbd "RET") #'org-context-panel-jump-at-point)
+  (define-key org-comments-panel-mode-map (kbd "RET") #'context-panels-jump-at-point)
   (define-key org-comments-panel-mode-map (kbd "d") #'org-comments-delete)
   (define-key org-comments-panel-mode-map (kbd "e") #'org-comments-edit)
   (define-key org-comments-panel-mode-map (kbd "g") #'org-comments-panel-refresh)
@@ -75,22 +75,22 @@ file updates already-bound maps in long-lived Emacs sessions."
 (defun org-comments-panel-open ()
   "Open or refresh the standalone Org comments panel for the current source."
   (interactive)
-  (let ((source-buffer (org-context-panel-current-source-buffer)))
+  (let ((source-buffer (context-panels-current-source-buffer)))
     (with-current-buffer source-buffer
       (org-comments-context-panel-enable)
-      (org-context-panel-open source-buffer))))
+      (context-panels-open source-buffer))))
 
 ;;;###autoload
 (defun org-comments-panel-refresh ()
   "Refresh the standalone Org comments panel."
   (interactive)
-  (org-context-panel-refresh))
+  (context-panels-refresh))
 
 ;;;###autoload
 (defun org-comments-panel-close ()
   "Close the standalone Org comments panel."
   (interactive)
-  (org-context-panel-close))
+  (context-panels-close))
 
 (provide 'org-comments-panel)
 ;;; org-comments-panel.el ends here

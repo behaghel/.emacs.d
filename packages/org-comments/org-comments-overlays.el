@@ -3,7 +3,7 @@
 ;;; Commentary:
 ;; Public overlay activation facade for Org sidecar comments.  Comments-specific
 ;; provider glue lives in `org-comments-context-panel'; generic refresh hooks are
-;; owned by `org-context-panel-mode'.
+;; owned by `context-panels-mode'.
 
 ;;; Code:
 

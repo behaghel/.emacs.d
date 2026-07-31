@@ -27,7 +27,7 @@
 (require 'org-comments-backend-org)
 (require 'org-comments-compose)
 (require 'org-comments-ui)
-(require 'org-context-panel)
+(require 'context-panels)
 (require 'org-comments-context-panel)
 (require 'org-comments-overlays)
 (require 'org-comments-panel-actions)

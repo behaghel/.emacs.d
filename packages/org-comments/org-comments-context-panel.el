@@ -9,13 +9,14 @@
 
 ;;; Commentary:
 ;; Provider glue between org-comments sidecar/page-comment semantics and the
-;; reusable `org-context-panel' primitives.
+;; reusable `context-panels' primitives.
 
 ;;; Code:
 
 (require 'cl-lib)
 (require 'org)
-(require 'org-context-panel)
+(require 'context-panels)
+(require 'context-panels-org)
 (require 'org-comments-panel-actions)
 (require 'org-comments-panel-filter)
 (require 'org-comments-panel-render)
@@ -69,18 +70,18 @@
 
 (defun org-comments-context-panel--delete-range-overlays ()
   "Delete Org comments range overlays in the current buffer."
-  (org-context-panel-delete-overlays org-comments-overlays)
+  (context-panels-delete-overlays org-comments-overlays)
   (setq org-comments-overlays nil))
 
 (defun org-comments-context-panel--delete-active-panel-overlay ()
   "Delete the active comment side-panel overlay in the current buffer."
-  (org-context-panel-delete-overlay org-comments-active-panel-overlay)
+  (context-panels-delete-overlay org-comments-active-panel-overlay)
   (setq org-comments-active-panel-overlay nil))
 
 (defun org-comments-context-panel-delete-overlays ()
   "Delete Org comments context-panel overlays in the current buffer."
   (org-comments-context-panel--delete-range-overlays)
-  (org-context-panel-delete-top-markers 'comments)
+  (context-panels-delete-top-markers 'comments)
   (setq org-comments-page-comment-overlay nil))
 
 (defun org-comments-context-panel-cleanup-source-overlays ()
@@ -91,13 +92,13 @@
 
 (defun org-comments-context-panel-page-marker-position ()
   "Return page comment marker position in the current Org buffer, or nil."
-  (org-context-panel-marker-position
+  (context-panels-org-marker-position
    org-comments-page-comment-overlay
    (lambda () (org-comments-collect-page (current-buffer)))))
 
 (defun org-comments-context-panel-page-marker-at-point-p ()
   "Return non-nil when point is at the page comment marker position."
-  (org-context-panel-marker-at-point-p
+  (context-panels-org-marker-at-point-p
    org-comments-page-comment-overlay
    (lambda () (org-comments-collect-page (current-buffer)))))
 
@@ -252,7 +253,7 @@ comments renderer keeps using the existing source-buffer-scoped filter pipeline.
 (defun org-comments-context-panel--highlight-panel-row (source-buffer key)
   "Highlight side-panel comment row identified by KEY for SOURCE-BUFFER."
   (when-let* ((panel-buffer (buffer-local-value
-			     'org-context-panel-side-panel-buffer source-buffer)))
+			     'context-panels-side-panel-buffer source-buffer)))
     (when (buffer-live-p panel-buffer)
       (with-current-buffer panel-buffer
 	(org-comments-context-panel--delete-active-panel-overlay)
@@ -280,10 +281,10 @@ comments renderer keeps using the existing source-buffer-scoped filter pipeline.
     (org-comments-context-panel--sync-active-comment
      (current-buffer)
      (org-comments-context-panel--source-comment-at-point)))
-   ((and (boundp 'org-context-panel-source-buffer)
-	 (buffer-live-p org-context-panel-source-buffer))
+   ((and (boundp 'context-panels-source-buffer)
+	 (buffer-live-p context-panels-source-buffer))
     (org-comments-context-panel--sync-active-comment
-     org-context-panel-source-buffer
+     context-panels-source-buffer
      (org-comments-context-panel--panel-comment-at-point)))))
 
 (defun org-comments-context-panel-provider ()
@@ -311,7 +312,7 @@ comments renderer keeps using the existing source-buffer-scoped filter pipeline.
 		    (org-comments-context-panel-collect-side-items (current-buffer))))
     (let ((start (plist-get comment :target-start))
 	  (end (plist-get comment :target-end)))
-      (when-let* ((overlay (org-context-panel-make-range-overlay
+      (when-let* ((overlay (context-panels-make-range-overlay
 			    start end
 			    :face 'org-comments-region-face
 			    :properties (list 'org-comments-comment comment))))
@@ -322,24 +323,25 @@ comments renderer keeps using the existing source-buffer-scoped filter pipeline.
 
 (defun org-comments-context-panel-enable ()
   "Enable Org comments as a context-panel provider in the current buffer."
-  (org-context-panel-register-provider (org-comments-context-panel-provider))
+  (context-panels-org-install-defaults)
+  (context-panels-register-provider (org-comments-context-panel-provider))
   (add-hook 'post-command-hook #'org-comments-context-panel-follow-point nil t)
-  (org-context-panel-mode 1))
+  (context-panels-mode 1))
 
 (defun org-comments-context-panel-disable ()
   "Disable Org comments as a context-panel provider in the current buffer."
   (remove-hook 'post-command-hook #'org-comments-context-panel-follow-point t)
   (org-comments-context-panel-delete-overlays)
-  (org-context-panel-unregister-provider 'comments)
-  (unless (org-context-panel-registered-providers)
-    (org-context-panel-mode -1)))
+  (context-panels-unregister-provider 'comments)
+  (unless (context-panels-registered-providers)
+    (context-panels-mode -1)))
 
 (defun org-comments-context-panel-refresh ()
   "Refresh Org comments context-panel overlays in the current Org buffer."
   (unless (derived-mode-p 'org-mode)
     (user-error "Org comment overlays only work in Org buffers"))
   (org-comments-context-panel-enable)
-  (org-context-panel-refresh-source-overlays))
+  (context-panels-refresh-source-overlays))
 
 (provide 'org-comments-context-panel)
 ;;; org-comments-context-panel.el ends here

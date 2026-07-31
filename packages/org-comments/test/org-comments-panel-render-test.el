@@ -129,7 +129,7 @@
 	      :replies ((:type comment :status "OPEN" :body "Reply body"))))
      nil)
     (should (search-forward "Root body" nil t))
-    (should (search-forward "unsynced" nil t))
+    (should (search-forward "↳ Reply" nil t))
     (should (search-forward "Reply body" nil t))))
 
 (ert-deftest org-comments-panel-render-focused-reply-thread-is-provider-neutral ()
@@ -158,8 +158,8 @@
 	     source-buffer (list (append thread '(:backend google-docs))) nil)
 	    (buffer-substring-no-properties (point-min) (point-max)))))
     (should (equal confluence-output google-output))
-    (should (string-match-p "↳ 🔗 synced" confluence-output))
-    (should (string-match-p "↳ ✍️ unsynced" confluence-output))
+    (should (string-match-p "↳ Bob · " confluence-output))
+    (should (string-match-p "↳ Carol · " confluence-output))
     (should (string-match-p "Remote reply" confluence-output))
     (should (string-match-p "Pending local reply" confluence-output))))
 
@@ -171,8 +171,8 @@
 	 (org-comments-panel-render-test--fixture-output 'google-docs)))
     (should (equal confluence-output google-output))
     (dolist (expected '("💬 [OPEN] “selected paragraph” 🔗"
-			"↳ 🔗 synced Bob · "
-			"↳ ✍️ edited locally Carol"
+			"↳ Bob · "
+			"↳ Carol"
 			"💬 [RESOLVED] “done paragraph” 🔗"
 			"⚠ [TODO] “stale paragraph” ⚠"
 			"💬 [OPEN] “unconfirmed paragrap…” ❓"
@@ -181,14 +181,15 @@
       (should (string-match-p (regexp-quote expected) confluence-output)))))
 
 (ert-deftest org-comments-panel-render-labels-synced-replies ()
-  "Current comments distinguish synced remote replies from unsynced local replies."
+  "Current comments render remote replies without noisy sync prefixes."
   (with-temp-buffer
     (org-comments-panel-render-buffer
      (current-buffer)
      '((:type comment :status "OPEN" :body "Root body" :current t
 	      :replies ((:type comment :status "OPEN" :remote-id "r-1" :body "Reply body"))))
      nil)
-    (should (search-forward "synced" nil t))))
+    (should (search-forward "↳ Reply" nil t))
+    (should-not (search-forward "synced" nil t))))
 
 (ert-deftest org-comments-panel-render-overview-replies-omit-root-status ()
   "Overview reply summaries show sync state rather than root comment status."
@@ -199,7 +200,7 @@
 	      :replies ((:type comment :id "reply" :status "OPEN" :body "Reply body"))))
      nil)
     (should (search-forward "↳ 1 reply" nil t))
-    (should (search-forward "↳ unsynced — Reply body" nil t))
+    (should (search-forward "↳ Reply — Reply body" nil t))
     (should-not (search-forward "↳ [OPEN]" nil t))))
 
 (ert-deftest org-comments-panel-render-overview-replies-carry-reply-property ()
@@ -240,7 +241,7 @@
 	(should (equal "c1" (plist-get row :id)))
 	(should (eq 'comments (plist-get row :provider)))
 	(should (equal row (get-text-property (line-beginning-position)
-					      'org-context-panel-item)))))))
+					      'context-panels-item)))))))
 
 (ert-deftest org-comments-panel-render-truncates-target-preview ()
   "Comment target previews stay compact on the row header line."

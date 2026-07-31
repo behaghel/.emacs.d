@@ -7,7 +7,7 @@
 
 (require 'cl-lib)
 (require 'org)
-(require 'org-context-panel)
+(require 'context-panels)
 (require 'org-comments-backend)
 (require 'org-comments-compose)
 (require 'org-comments-sidecar)
@@ -19,7 +19,7 @@
 (defvar-local org-comments-current-comment-function #'org-comments-panel-current-comment
   "Function used to return the comment at point.")
 (defvar-local org-comments-current-source-buffer-function
-    #'org-context-panel-current-source-buffer
+    #'context-panels-current-source-buffer
   "Function used to return the source buffer for actions at point.")
 (defvar-local org-comments-current-refresh-function
     #'org-comments--refresh-current-context-panel
@@ -39,15 +39,15 @@
   "Function used to return rendered item start positions in the current UI.")
 
 (defun org-comments--refresh-current-context-panel ()
-  "Refresh the current comments UI through `org-context-panel' lifecycle."
+  "Refresh the current comments UI through `context-panels' lifecycle."
   (cond
    ((local-variable-p 'org-comments-panel-refresh-function)
     (funcall org-comments-panel-refresh-function))
-   (org-context-panel-view-id
-    (org-context-panel-refresh-bottom-view))
+   (context-panels-view-id
+    (context-panels-refresh-bottom-view))
    (t
-    (let ((org-context-panel-buffer-name (buffer-name)))
-      (org-context-panel-refresh)))))
+    (let ((context-panels-buffer-name (buffer-name)))
+      (context-panels-refresh)))))
 
 (defun org-comments-panel--refresh ()
   "Refresh the current comments panel using its buffer-local refresh function."
@@ -77,11 +77,11 @@
     (funcall org-comments-current-refresh-function)))
 
 (defun org-comments--close-current-context-panel ()
-  "Close the current comments UI through `org-context-panel' lifecycle."
-  (if org-context-panel-view-id
-      (org-context-panel-close-bottom-view)
-    (let ((org-context-panel-buffer-name (buffer-name)))
-      (org-context-panel-close))))
+  "Close the current comments UI through `context-panels' lifecycle."
+  (if context-panels-view-id
+      (context-panels-close-bottom-view)
+    (let ((context-panels-buffer-name (buffer-name)))
+      (context-panels-close))))
 
 (defun org-comments--close-current-buffer-window ()
   "Close the current comments UI buffer and its window."
