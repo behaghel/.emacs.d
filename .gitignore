@@ -81,6 +81,9 @@ devenv.local.nix
 # direnv
 .direnv
 
+# Local XDG/devenv state
+.local/
+
 # pre-commit
 .pre-commit-config.yaml
 
