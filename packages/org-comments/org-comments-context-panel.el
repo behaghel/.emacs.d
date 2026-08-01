@@ -112,10 +112,25 @@
   (and (org-comments-context-panel--source-comment-p comment)
        (not (eq (plist-get comment :anchor-state) 'stale))))
 
+(defun org-comments-context-panel--mark-current-comment (comment active-key)
+  "Return COMMENT copied with current state when it matches ACTIVE-KEY."
+  (let ((copy (copy-sequence comment)))
+    (plist-put copy :current
+	       (org-comments-context-panel--comment-key-equal-p copy active-key))
+    copy))
+
 (defun org-comments-context-panel-collect-side-items (source-buffer)
-  "Collect side items for SOURCE-BUFFER."
-  (cl-remove-if-not #'org-comments-context-panel--source-comment-p
-		    (org-comments-collect source-buffer t)))
+  "Collect filtered side items for SOURCE-BUFFER."
+  (with-current-buffer source-buffer
+    (let ((active-key org-comments-active-comment-key))
+      (mapcar
+       (lambda (comment)
+	 (org-comments-context-panel--mark-current-comment comment active-key))
+       (cl-remove-if-not
+	#'org-comments-context-panel--source-comment-p
+	(org-comments-panel-filter-apply
+	 (org-comments-collect source-buffer t)
+	 (org-comments-filter-state source-buffer)))))))
 
 (defun org-comments-context-panel-collect-top-markers (source-buffer)
   "Collect top marker descriptors for SOURCE-BUFFER."
@@ -130,9 +145,22 @@
 		  :overlay-variable 'org-comments-page-comment-overlay
 		  :items page-comments)))))
 
-(defun org-comments-context-panel-render-side-item (_source-buffer item)
+(defun org-comments-context-panel-render-side-item (source-buffer item)
   "Render one Org comments side-panel ITEM."
-  (org-comments-panel-render-insert-comment item))
+  (setq org-comments-panel-source-buffer source-buffer)
+  (when (= (point) (point-min))
+    (org-comments-context-panel--delete-active-panel-overlay))
+  (let ((panel-buffer (current-buffer))
+	(start (point)))
+    (org-comments-panel-render-insert-comment item)
+    (with-current-buffer source-buffer
+      (when (org-comments-context-panel--comment-key-equal-p
+	     item org-comments-active-comment-key)
+	(with-current-buffer panel-buffer
+	  (setq org-comments-active-panel-overlay
+		(make-overlay start (point) nil t nil))
+	  (overlay-put org-comments-active-panel-overlay
+		       'face 'org-comments-active-panel-face))))))
 
 (defun org-comments-context-panel-jump-side-item (source-buffer item)
   "Jump from context-panel ITEM to its source or sidecar target.
@@ -145,28 +173,6 @@ SOURCE-BUFFER is the Org source buffer associated with ITEM."
 	(user-error "Comment has no source location"))
       (pop-to-buffer source-buffer)
       (goto-char position))))
-
-(defun org-comments-context-panel-render-side-panel (source-buffer _items)
-  "Render the Org comments side panel for SOURCE-BUFFER.
-ITEMS is accepted for the generic context-panel provider protocol; the current
-comments renderer keeps using the existing source-buffer-scoped filter pipeline."
-  (add-hook 'post-command-hook #'org-comments-context-panel-follow-point nil t)
-  (org-comments-context-panel--delete-active-panel-overlay)
-  (setq org-comments-panel-source-buffer source-buffer)
-  (org-comments-panel-render-buffer
-   source-buffer
-   (org-comments-panel-filter-apply
-    (with-current-buffer source-buffer
-      (org-comments-collect source-buffer t))
-    (org-comments-filter-state source-buffer))
-   (org-comments-panel-filter-apply
-    (with-current-buffer source-buffer
-      (org-comments-collect-page source-buffer))
-    (org-comments-filter-state source-buffer)))
-  (with-current-buffer source-buffer
-    (when org-comments-active-comment-key
-      (org-comments-context-panel--highlight-panel-row
-       (current-buffer) org-comments-active-comment-key))))
 
 (defun org-comments-context-panel-render-page-view (source-buffer _view)
   "Render the page-comments bottom VIEW for SOURCE-BUFFER."
@@ -293,7 +299,6 @@ comments renderer keeps using the existing source-buffer-scoped filter pipeline.
 	:collect-side-items #'org-comments-context-panel-collect-side-items
 	:collect-top-markers #'org-comments-context-panel-collect-top-markers
 	:collect-bottom-views #'org-comments-context-panel-collect-bottom-views
-	:render-side-panel #'org-comments-context-panel-render-side-panel
 	:render-side-item #'org-comments-context-panel-render-side-item
 	:jump-side-item #'org-comments-context-panel-jump-side-item
 	:priority 10

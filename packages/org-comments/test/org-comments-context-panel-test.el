@@ -70,7 +70,7 @@
 	    (with-current-buffer panel-buffer
 	      (org-comments-panel-mode)
 	      (setq context-panels-source-buffer (find-buffer-visiting source-file))
-	      (org-comments-context-panel-render-side-panel context-panels-source-buffer nil))
+	      (context-panels-render-side-panel context-panels-source-buffer nil))
 	    (goto-char (point-min))
 	    (search-forward "Alpha")
 	    (goto-char (match-beginning 0))

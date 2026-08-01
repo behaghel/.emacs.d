@@ -31,17 +31,16 @@
 					  (org-comments-panel-open)
 					  (with-current-buffer org-comments-panel-buffer-name
 					    (should (derived-mode-p 'org-comments-panel-mode))
-					    (should (eq org-comments-panel-source-buffer source-buffer))))))
+					    (should (eq context-panels-source-buffer source-buffer))))))
 
 (ert-deftest org-comments-panel-open-renders-comments-from-source ()
-  "The package panel renders a standalone list of source comments."
+  "The package panel renders visible source comments."
   (org-comments-panel-test--with-source "Alpha selected text omega"
 					(let ((record (org-comments-create-record buffer-file-name 7 20 "Review this." "c1" "Alice" "now")))
 					  (org-comments-append-to-sidecar record)
 					  (org-comments-panel-open)
 					  (with-current-buffer org-comments-panel-buffer-name
 					    (should (derived-mode-p 'org-comments-panel-mode))
-					    (should (string-match-p "1 comment" (buffer-string)))
 					    (should (string-match-p "Review this" (buffer-string)))
 					    (should (string-match-p "selected text" (buffer-string)))))))
 
@@ -126,13 +125,13 @@
 					  (should (string-match-p "Open note" (buffer-string)))
 					  (should-not (string-match-p "Resolved note" (buffer-string))))))
 
-(ert-deftest org-comments-panel-close-kills-panel-buffer ()
-  "Closing the package panel removes its buffer."
+(ert-deftest org-comments-panel-close-clears-source-panel-reference ()
+  "Closing the package panel clears the source buffer panel reference."
   (org-comments-panel-test--with-source "Alpha"
 					(org-comments-panel-open)
 					(with-current-buffer org-comments-panel-buffer-name
 					  (org-comments-panel-close))
-					(should-not (get-buffer org-comments-panel-buffer-name))))
+					(should-not context-panels-side-panel-buffer)))
 
 (provide 'org-comments-panel-test)
 ;;; org-comments-panel-test.el ends here
