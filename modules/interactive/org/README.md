@@ -18,7 +18,7 @@ last-reviewed: 2026-06-08
 
 - Author-facing semantics must stay separate from class-specific visual styling.
 - Export behavior should be testable from tracked specimens and textual assertions before relying on visual inspection.
-- Writing helpers should not make batch loads depend on interactive-only packages unless guarded.
+- Writing helpers should not make batch loads or isolated authoring tests depend on optional interactive packages unless guarded.
 - Machine-specific paths belong in private overrides or defcustoms, not hard-coded shared behavior.
 - Generated PDFs, TeX files, screenshots, and visual diff artifacts belong under runtime output locations, not tracked golden files.
 - Marginalia authoring uses native Org footnotes as the canonical source; the panel is a read-only projection and must jump back to footnote definitions for edits.

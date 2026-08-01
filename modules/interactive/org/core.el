@@ -14,8 +14,17 @@
 (require 'org/babel)
 (require 'org/capture)
 (require 'org/export)
-(require 'org/context-panel)
-(require 'org/comments)
+(defun hub/org--require-optional-feature (feature)
+  "Load optional Org FEATURE, returning non-nil when available."
+  (condition-case err
+      (require feature nil 'noerror)
+    (file-missing
+     (message "Optional Org feature %s is unavailable: %s"
+	      feature (error-message-string err))
+     nil)))
+
+(hub/org--require-optional-feature 'org/context-panel)
+(hub/org--require-optional-feature 'org/comments)
 
 (autoload 'org-copilot-accept-at-point "org-copilot-diff" nil t)
 (autoload 'org-copilot-chat "org-copilot-chat" nil t)
@@ -147,7 +156,8 @@ native behavior."
 	org-archive-location "archive/%s_archive::datetree/")
   (add-hook 'org-mode-hook #'hub/org-setup-wrapping)
   (add-hook 'org-mode-hook #'hub/org-epigraph-align-mode)
-  (add-hook 'org-mode-hook #'org-comments-mode))
+  (when (fboundp 'org-comments-mode)
+    (add-hook 'org-mode-hook #'org-comments-mode)))
 
 (use-package org
   :straight (:depth full)
