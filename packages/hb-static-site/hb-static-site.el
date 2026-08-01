@@ -216,10 +216,68 @@ subdirectory."
   (unless (require 'denote nil 'noerror)
     (user-error "Denote is not available; install/load denote to create site files")))
 
+(defun hb-static-site--callout-attributes (special-block)
+  "Return parsed ATTR_CALLOUT attributes for SPECIAL-BLOCK."
+  (when-let* ((raw (org-element-property :attr_callout special-block))
+	      (text (string-join raw " ")))
+    (org-babel-parse-header-arguments text)))
+
+(defun hb-static-site--hugo-shortcode-quote (value)
+  "Return VALUE quoted for a Hugo shortcode named parameter."
+  (format "\"%s\""
+	  (replace-regexp-in-string "\"" "\\\\\"" (format "%s" value) t t)))
+
+(defun hb-static-site--hugo-shortcode-args (attributes)
+  "Return Hugo shortcode named arguments from ATTRIBUTES."
+  (string-join
+   (delq nil
+	 (mapcar
+	  (lambda (attribute)
+	    (pcase-let ((`(,key . ,value) attribute))
+	      (when (and (keywordp key) value)
+		(format "%s=%s"
+			(substring (symbol-name key) 1)
+			(hb-static-site--hugo-shortcode-quote value)))))
+	  attributes))
+   " "))
+
+(defun hb-static-site--hugo-callout-special-block (special-block contents _info)
+  "Transcode callout SPECIAL-BLOCK with CONTENTS to a Hugo shortcode.
+
+The canonical source syntax is `#+ATTR_CALLOUT' followed by a
+`#+begin_callout' special block.  The attributes are target-independent
+semantic metadata, but the Hugo target needs them as shortcode named
+parameters so titles and types survive Org to Markdown export."
+  (when (string= (org-element-property :type special-block) "callout")
+    (let* ((args (hb-static-site--hugo-shortcode-args
+		  (hb-static-site--callout-attributes special-block)))
+	   (open (if (string-empty-p args)
+		     "{{< callout >}}"
+		   (format "{{< callout %s >}}" args)))
+	   (body (string-trim (or contents ""))))
+      (format "%s\n%s\n{{< /callout >}}" open body))))
+
+(defun hb-static-site--org-hugo-special-block-advice (orig special-block contents info)
+  "Transcode hb-static-site blocks before delegating to ORIG."
+  (or (hb-static-site--hugo-callout-special-block special-block contents info)
+      (funcall orig special-block contents info)))
+
+(defun hb-static-site--install-ox-hugo-advice ()
+  "Install hb-static-site ox-hugo export advice idempotently."
+  (when (and (fboundp 'org-hugo-special-block)
+	     (not (advice-member-p #'hb-static-site--org-hugo-special-block-advice
+				   'org-hugo-special-block)))
+    (advice-add 'org-hugo-special-block
+		:around #'hb-static-site--org-hugo-special-block-advice)))
+
+(with-eval-after-load 'ox-hugo
+  (hb-static-site--install-ox-hugo-advice))
+
 (defun hb-static-site--require-ox-hugo ()
   "Load ox-hugo or signal a helpful user error."
   (unless (require 'ox-hugo nil 'noerror)
-    (user-error "ox-hugo is not available; install/load ox-hugo to export Hugo content")))
+    (user-error "ox-hugo is not available; install/load ox-hugo to export Hugo content"))
+  (hb-static-site--install-ox-hugo-advice))
 
 (defun hb-static-site--read-keywords ()
   "Read Denote keywords, degrading when Denote prompt helpers are unavailable."

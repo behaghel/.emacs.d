@@ -79,6 +79,22 @@
     (should-not (string-match-p "content-org/.*/content-org"
 				(hb-static-site-content-org-directory)))))
 
+(ert-deftest hb-static-site-callout-block-exports-to-hugo-shortcode ()
+  "Callout attributes survive as Hugo shortcode parameters."
+  (with-temp-buffer
+    (org-mode)
+    (insert "#+ATTR_CALLOUT: :type info :title \"Consumables (pods, tablets…)\"\n")
+    (insert "#+begin_callout\nStarter pack included.\n#+end_callout\n")
+    (let* ((ast (org-element-parse-buffer))
+	   (block (org-element-map ast 'special-block #'identity nil t))
+	   (markdown (hb-static-site--hugo-callout-special-block
+		      block "Starter pack included." nil)))
+      (should (string-match-p
+	       "{{< callout type=\"info\" title=\"Consumables (pods, tablets…)\" >}}"
+	       markdown))
+      (should (string-match-p "Starter pack included." markdown))
+      (should (string-match-p "{{< /callout >}}" markdown)))))
+
 (ert-deftest hb-static-site-create-section-inserts-ox-hugo-index ()
   "Section creation creates content-org/SECTION/_index.org with Hugo metadata."
   (let* ((root (make-temp-file "hb-site-" t))
