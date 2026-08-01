@@ -119,7 +119,7 @@
   :custom
   (completion-styles '(orderless basic))
   (completion-category-defaults nil)
-  (completion-category-overrides '((file (styles basic-remote orderless))
+  (completion-category-overrides '((file (styles basic-remote basic partial-completion))
 				   (eglot (styles orderless))))
   (orderless-component-separator 'orderless-escapable-split-on-space)
   (orderless-matching-styles '(orderless-literal orderless-prefixes
@@ -180,7 +180,16 @@
   :init
   (global-corfu-mode)
   :config
-  (general-add-advice '(corfu--setup corfu--teardown) :after 'evil-normalize-keymaps)
+  (defun hub/corfu-normalize-evil-keymaps (&rest _)
+    "Refresh Evil keymaps after Corfu changes its transient maps."
+    (when (and (bound-and-true-p evil-mode)
+	       (not (minibufferp)))
+      (condition-case err
+	  (evil-normalize-keymaps)
+	(error
+	 (message "Could not normalize Evil keymaps after Corfu setup: %s"
+		  (error-message-string err))))))
+  (general-add-advice '(corfu--setup corfu--teardown) :after #'hub/corfu-normalize-evil-keymaps)
   (evil-make-overriding-map corfu-map)
   (defun corfu-enable-always-in-minibuffer ()
     "Enable Corfu in minibuffer when Vertico is inactive."
@@ -232,7 +241,15 @@
 	 ("C-c p _" . cape-tex)
 	 ("C-c p ^" . cape-tex)
 	 ("C-c p &" . cape-sgml)
-	 ("C-c p r" . cape-rfc1345)))
+	 ("C-c p r" . cape-rfc1345))
+  :init
+  (defun hub/minibuffer-file-completion-at-point-setup ()
+    "Offer file-name completion at point in non-file minibuffer prompts."
+    (unless minibuffer-completing-file-name
+      (add-hook 'completion-at-point-functions #'cape-file nil t)))
+  (define-key minibuffer-local-map (kbd "<tab>") #'completion-at-point)
+  (define-key minibuffer-local-map (kbd "C-c f") #'completion-at-point)
+  (add-hook 'minibuffer-setup-hook #'hub/minibuffer-file-completion-at-point-setup))
 
 (provide 'completion/core)
 ;;; core.el ends here
