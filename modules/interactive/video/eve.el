@@ -29,18 +29,37 @@ Try ~/ws/eve.el first; if absent, use the straight.el GitHub recipe."
 
 (hub/eve--ensure-package)
 
+(setq eve-filler-phrases
+      '("um" "uh" "you know" "I mean" "like"))
+
+(defun hub/eve-goto-buffer-start ()
+  "Move point to the first buffer position in `eve-mode'."
+  (interactive)
+  (goto-char (point-min)))
+
+(defun hub/eve-goto-buffer-end ()
+  "Move point to the last buffer position in `eve-mode'."
+  (interactive)
+  (goto-char (point-max)))
+
 (with-eval-after-load 'evil
+  (evil-set-initial-state 'eve-mode 'normal)
+  (define-key eve-mode-map (kbd "g") nil) ; let Evil's `g' prefix handle `gg'.
   (evil-make-overriding-map eve-mode-map 'normal)
   (evil-define-key 'normal eve-mode-map
-		   ;; Bépo nav — t/s stay as Evil down/up
-		   (kbd "t")   #'evil-next-visual-line
-		   (kbd "s")   #'evil-previous-visual-line
-		   ;; Segment nav
+		   ;; Bépo muscle-memory adaptation: down/up becomes next/previous segment.
+		   (kbd "t")   #'eve-next-segment
+		   (kbd "s")   #'eve-previous-segment
 		   (kbd "C-t") #'eve-next-segment
 		   (kbd "C-s") #'eve-previous-segment
 		   (kbd "M-T") #'eve-move-segment-down
-		   (kbd "M-S") #'eve-move-segment-up)
-  ;; Relocate the displaced eve commands
+		   (kbd "M-S") #'eve-move-segment-up
+		   ;; Preserve core Evil muscle memory by jumping to buffer start,
+		   ;; not logical line 1: Eve visual rows may be one physical line.
+		   (kbd "gg")  #'hub/eve-goto-buffer-start
+		   (kbd "G")   #'hub/eve-goto-buffer-end
+		   (kbd "gr")  #'eve-reload)
+  ;; Relocate displaced Eve commands; split remains available on `|'.
   (define-key eve-mode-map "T" #'eve-toggle-tag)     ; was t
   (define-key eve-mode-map "?" #'eve--show-help))
 
