@@ -216,11 +216,15 @@ subdirectory."
   (unless (require 'denote nil 'noerror)
     (user-error "Denote is not available; install/load denote to create site files")))
 
-(defun hb-static-site--callout-attributes (special-block)
-  "Return parsed ATTR_CALLOUT attributes for SPECIAL-BLOCK."
-  (when-let* ((raw (org-element-property :attr_callout special-block))
+(defun hb-static-site--block-attributes (special-block attribute)
+  "Return parsed ATTRIBUTE values for SPECIAL-BLOCK."
+  (when-let* ((raw (org-element-property attribute special-block))
 	      (text (string-join raw " ")))
     (org-babel-parse-header-arguments text)))
+
+(defun hb-static-site--callout-attributes (special-block)
+  "Return parsed ATTR_CALLOUT attributes for SPECIAL-BLOCK."
+  (hb-static-site--block-attributes special-block :attr_callout))
 
 (defun hb-static-site--hugo-shortcode-quote (value)
   "Return VALUE quoted for a Hugo shortcode named parameter."
@@ -241,6 +245,15 @@ subdirectory."
 	  attributes))
    " "))
 
+(defun hb-static-site--hugo-paired-shortcode (name attributes contents)
+  "Return Hugo paired shortcode NAME with ATTRIBUTES and CONTENTS."
+  (let* ((args (hb-static-site--hugo-shortcode-args attributes))
+	 (open (if (string-empty-p args)
+		   (format "{{< %s >}}" name)
+		 (format "{{< %s %s >}}" name args)))
+	 (body (string-trim (or contents ""))))
+    (format "%s\n%s\n{{< /%s >}}" open body name)))
+
 (defun hb-static-site--hugo-callout-special-block (special-block contents _info)
   "Transcode callout SPECIAL-BLOCK with CONTENTS to a Hugo shortcode.
 
@@ -248,18 +261,26 @@ The canonical source syntax is `#+ATTR_CALLOUT' followed by a
 `#+begin_callout' special block.  The attributes are target-independent
 semantic metadata, but the Hugo target needs them as shortcode named
 parameters so titles and types survive Org to Markdown export."
-  (when (string= (org-element-property :type special-block) "callout")
-    (let* ((args (hb-static-site--hugo-shortcode-args
-		  (hb-static-site--callout-attributes special-block)))
-	   (open (if (string-empty-p args)
-		     "{{< callout >}}"
-		   (format "{{< callout %s >}}" args)))
-	   (body (string-trim (or contents ""))))
-      (format "%s\n%s\n{{< /callout >}}" open body))))
+  (when (and (string= (org-element-property :type special-block) "callout")
+	     (not (hb-static-site--block-attributes special-block :attr_media_callout)))
+    (hb-static-site--hugo-paired-shortcode
+     "callout" (hb-static-site--callout-attributes special-block) contents)))
+
+(defun hb-static-site--hugo-media-callout-special-block (special-block contents _info)
+  "Transcode media-callout SPECIAL-BLOCK with CONTENTS to a Hugo shortcode."
+  (when (or (string= (org-element-property :type special-block) "media_callout")
+	    (and (string= (org-element-property :type special-block) "callout")
+		 (hb-static-site--block-attributes special-block :attr_media_callout)))
+    (hb-static-site--hugo-paired-shortcode
+     "media-callout"
+     (append (hb-static-site--callout-attributes special-block)
+	     (hb-static-site--block-attributes special-block :attr_media_callout))
+     contents)))
 
 (defun hb-static-site--org-hugo-special-block-advice (orig special-block contents info)
   "Transcode hb-static-site blocks before delegating to ORIG."
-  (or (hb-static-site--hugo-callout-special-block special-block contents info)
+  (or (hb-static-site--hugo-media-callout-special-block special-block contents info)
+      (hb-static-site--hugo-callout-special-block special-block contents info)
       (funcall orig special-block contents info)))
 
 (defun hb-static-site--install-ox-hugo-advice ()
@@ -530,7 +551,9 @@ subtrees in the buffer."
   "Return Org source files under DIRECTORY or the active content Org root."
   (let ((root (file-name-as-directory
 	       (or directory (hb-static-site--content-org-directory-or-error)))))
-    (seq-filter #'hb-static-site--org-file-p
+    (seq-filter (lambda (file)
+		  (and (hb-static-site--org-file-p file)
+		       (not (string-prefix-p ".#" (file-name-nondirectory file)))))
 		(directory-files-recursively root "\\.org\\'"))))
 
 ;;;###autoload

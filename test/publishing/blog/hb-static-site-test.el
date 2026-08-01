@@ -95,6 +95,23 @@
       (should (string-match-p "Starter pack included." markdown))
       (should (string-match-p "{{< /callout >}}" markdown)))))
 
+(ert-deftest hb-static-site-media-callout-block-exports-to-hugo-shortcode ()
+  "Media callout attributes survive as Hugo shortcode parameters."
+  (with-temp-buffer
+    (org-mode)
+    (insert "#+ATTR_CALLOUT: :type warning :title \"Watering The Plants\"\n")
+    (insert "#+ATTR_MEDIA_CALLOUT: :image \"/img/monstera.png\" :caption \"Monstera deliciosa\"\n")
+    (insert "#+begin_callout\nWater this plant.\n#+end_callout\n")
+    (let* ((ast (org-element-parse-buffer))
+	   (block (org-element-map ast 'special-block #'identity nil t))
+	   (markdown (hb-static-site--hugo-media-callout-special-block
+		      block "Water this plant." nil)))
+      (should (string-match-p
+	       "{{< media-callout type=\"warning\" title=\"Watering The Plants\" image=\"/img/monstera.png\" caption=\"Monstera deliciosa\" >}}"
+	       markdown))
+      (should (string-match-p "Water this plant." markdown))
+      (should (string-match-p "{{< /media-callout >}}" markdown)))))
+
 (ert-deftest hb-static-site-create-section-inserts-ox-hugo-index ()
   "Section creation creates content-org/SECTION/_index.org with Hugo metadata."
   (let* ((root (make-temp-file "hb-site-" t))
