@@ -18,4 +18,5 @@ last-reviewed: 2026-06-10
 - Writing configuration belongs to the knowledge-writing domain, not the generic editing foundation.
 - Snippets and auto-insert templates must keep their assets under the configured snippet/template directories.
 - Prose and markup bindings should conform to the shared Evil leader semantics.
+- Automatic writing setup may adjust buffer-local typography and wrapping, but must not change frame state such as fullscreen.
 - Writing modules are interactive-only and must not be exposed in ordinary batch loads.

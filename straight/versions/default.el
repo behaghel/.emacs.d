@@ -119,7 +119,6 @@
  ("visual-fill-column" . "e1be9a1545157d24454d950c0ac79553c540edb7")
  ("whisper.el" . "fd9bf5787a99dd31a4bdf54d2bd9821aacf84e93")
  ("whitespace-cleanup-mode" . "0c9b795d78e2b230c426684af59c71794f2fc8b0")
- ("writeroom-mode" . "cca2b4b3cfcfea1919e1870519d79ed1a69aa5e2")
  ("xref" . "bd31f9ac86a105c01631b29e6f442049500e9928")
  ("yaml-mode" . "96ef0201101a7cd591febd5886633154dae8834c")
  ("yasnippet" . "c1e6ff23e9af16b856c88dfaab9d3ad7b746ad37")

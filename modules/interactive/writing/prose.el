@@ -28,11 +28,6 @@
 	      (",be" . artbollocks-reading-ease)
 	      (",br" . artbollocks-readability-index)))
 
-(use-package writeroom-mode
-  :commands (writeroom-mode)
-  :config
-  (add-to-list 'writeroom-local-effects #'variable-pitch-mode))
-
 (use-package languagetool
   :commands (languagetool-check)
   :bind (:map evil-normal-state-map

@@ -7,7 +7,6 @@
 ;;; Code:
 
 (use-package denote :defer t)
-(use-package writeroom-mode :defer t)
 (use-package olivetti :defer t)
 
 ;;;###autoload
@@ -16,8 +15,7 @@
   (interactive)
   (when (fboundp 'variable-pitch-mode) (variable-pitch-mode 1))
   (when (fboundp 'visual-line-mode) (visual-line-mode 1))
-  (when (require 'olivetti nil t) (olivetti-mode 1))
-  (when (require 'writeroom-mode nil t) (writeroom-mode 1)))
+  (when (require 'olivetti nil t) (olivetti-mode 1)))
 
 (provide 'mod-writing)
 ;;; writing.el ends here
