@@ -44,8 +44,12 @@ Try ~/ws/eve.el first; if absent, use the straight.el GitHub recipe."
 
 (with-eval-after-load 'evil
   (evil-set-initial-state 'eve-mode 'normal)
+  (when (boundp 'eve-segment-panel-mode-map)
+    (evil-set-initial-state 'eve-segment-panel-mode 'normal))
   (define-key eve-mode-map (kbd "g") nil) ; let Evil's `g' prefix handle `gg'.
   (evil-make-overriding-map eve-mode-map 'normal)
+  (when (boundp 'eve-segment-panel-mode-map)
+    (evil-make-overriding-map eve-segment-panel-mode-map 'normal))
   (evil-define-key 'normal eve-mode-map
 		   ;; Bépo muscle-memory adaptation: down/up becomes next/previous segment.
 		   (kbd "t")   #'eve-next-segment
@@ -59,6 +63,22 @@ Try ~/ws/eve.el first; if absent, use the straight.el GitHub recipe."
 		   (kbd "gg")  #'hub/eve-goto-buffer-start
 		   (kbd "G")   #'hub/eve-goto-buffer-end
 		   (kbd "gr")  #'eve-reload)
+  (when (boundp 'eve-segment-panel-mode-map)
+    (evil-define-key 'normal eve-segment-panel-mode-map
+		     ;; Keep the bottom panel as a dedicated Eve cockpit: these
+		     ;; bindings should win even though the buffer derives from
+		     ;; `special-mode' and Evil normally owns w/b/v motion.
+		     (kbd "w") #'eve-segment-panel-next-word
+		     (kbd "b") #'eve-segment-panel-previous-word
+		     (kbd "v") #'eve-segment-panel-toggle-selection
+		     (kbd "t") #'eve-segment-panel-next-segment
+		     (kbd "s") #'eve-segment-panel-previous-segment
+		     (kbd "C-t") #'eve-segment-panel-next-segment
+		     (kbd "C-s") #'eve-segment-panel-previous-segment
+		     (kbd "n") #'eve-segment-panel-next-segment
+		     (kbd "p") #'eve-segment-panel-previous-segment
+		     (kbd "j") #'eve-segment-panel-next-segment
+		     (kbd "k") #'eve-segment-panel-previous-segment))
   ;; Relocate displaced Eve commands; split remains available on `|'.
   (define-key eve-mode-map "T" #'eve-toggle-tag)     ; was t
   (define-key eve-mode-map "?" #'eve--show-help))
