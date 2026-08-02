@@ -71,6 +71,7 @@ Try ~/ws/eve.el first; if absent, use the straight.el GitHub recipe."
     ;; bindings, so an overriding map is still lower precedence; use intercept.
     (evil-define-key* '(normal motion) eve-segment-panel-mode-map
 		      (kbd "w") #'eve-segment-panel-next-word
+		      (kbd "é") #'eve-segment-panel-next-word
 		      (kbd "b") #'eve-segment-panel-previous-word
 		      (kbd "v") #'eve-segment-panel-toggle-selection
 		      (kbd "t") #'eve-segment-panel-next-segment
