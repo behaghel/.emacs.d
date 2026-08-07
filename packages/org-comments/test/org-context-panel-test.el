@@ -42,8 +42,8 @@
 (ert-deftest org-context-panel-registers-buffer-local-providers ()
   "Providers are registered buffer-locally by name."
   (with-temp-buffer
-    (let ((provider-a (list :name 'comments :value 1))
-	  (provider-b (list :name 'comments :value 2)))
+    (let ((provider-a (list :name 'comments :icon "🧪" :value 1))
+	  (provider-b (list :name 'comments :icon "🧪" :value 2)))
       (should (eq (org-context-panel-register-provider provider-a) provider-a))
       (should (eq (org-context-panel-registered-provider 'comments) provider-a))
       (org-context-panel-register-provider provider-b)
@@ -59,6 +59,7 @@
   (with-temp-buffer
     (org-context-panel-register-provider
      (list :name 'test
+	   :icon "🧪"
 	   :collect-side-items
 	   (lambda (_source-buffer)
 	     (list (list :id "a" :source-start 1)
@@ -82,6 +83,7 @@
 			   (point))))
 	    (org-context-panel-register-provider
 	     (list :name 'test
+		   :icon "🧪"
 		   :collect-side-items
 		   (lambda (_source-buffer)
 		     (list (list :id "two" :source-start two-pos)))))
@@ -118,6 +120,7 @@
 	      (outline-hide-subtree))
 	    (org-context-panel-register-provider
 	     (list :name 'test
+		   :icon "🧪"
 		   :collect-side-items
 		   (lambda (_source-buffer)
 		     (list (list :id "shown" :source-start shown-pos)
@@ -143,6 +146,7 @@
 		(rendered nil))
 	    (org-context-panel-register-provider
 	     (list :name 'comments
+		   :icon "🧪"
 		   :priority 10
 		   :collect-side-items (lambda (_source) (list (list :id "comment" :source-start two)))
 		   :render-side-item (lambda (_source item)
@@ -150,6 +154,7 @@
 				       (insert (plist-get item :id) "\n"))))
 	    (org-context-panel-register-provider
 	     (list :name 'marginalia
+		   :icon "🧪"
 		   :priority 20
 		   :collect-side-items (lambda (_source)
 					 (list (list :id "note" :source-start one)
@@ -178,6 +183,7 @@
 	  (org-mode)
 	  (org-context-panel-register-provider
 	   (list :name 'test
+		 :icon "🧪"
 		 :collect-side-items (lambda (_source) nil)
 		 :render-side-item (lambda (_source item)
 				     (insert (plist-get item :id) "\n"))))
@@ -211,6 +217,7 @@
 			 (point))))
 	    (org-context-panel-register-provider
 	     (list :name 'test
+		   :icon "🧪"
 		   :collect-side-items
 		   (lambda (_source)
 		     (list (list :id "one" :source-start one)
@@ -254,6 +261,7 @@
 	      (outline-hide-subtree))
 	    (org-context-panel-register-provider
 	     (list :name 'test
+		   :icon "🧪"
 		   :collect-side-items
 		   (lambda (_source)
 		     (list (list :id "shown" :source-start shown-pos)
@@ -279,6 +287,7 @@
 	  (org-mode)
 	  (org-context-panel-register-provider
 	   (list :name 'test
+		 :icon "🧪"
 		 :collect-side-items (lambda (_source)
 				       (list (list :id "row" :provider 'test)))
 		 :render-side-item (lambda (_source item)
@@ -304,6 +313,7 @@
 	  (insert "Alpha\n")
 	  (org-context-panel-register-provider
 	   (list :name 'test
+		 :icon "🧪"
 		 :side-panel-buffer-name "*Org Context Provider Panel Test*"
 		 :side-panel-width 42
 		 :collect-side-items
@@ -349,6 +359,7 @@
 	      (org-context-panel-mode 1)
 	      (org-context-panel-register-provider
 	       (list :name 'test
+		     :icon "🧪"
 		     :render-side-panel
 		     (lambda (source-buffer _items)
 		       (insert (format "Rendered %s"
@@ -378,6 +389,7 @@
 	  (org-context-panel-mode 1)
 	  (org-context-panel-register-provider
 	   (list :name 'test
+		 :icon "🧪"
 		 :render-side-panel (lambda (_source-buffer _items)
 				      (insert "Rendered"))))
 	  (set-window-buffer (selected-window) source)
@@ -404,6 +416,7 @@
 	  (org-context-panel-mode 1)
 	  (org-context-panel-register-provider
 	   (list :name 'test
+		 :icon "🧪"
 		 :render-side-panel (lambda (_source-buffer _items)
 				      (insert "Rendered"))))
 	  (set-window-buffer (selected-window) source-buffer)
@@ -444,6 +457,7 @@
 	  (org-mode)
 	  (org-context-panel-register-provider
 	   (list :name 'test
+		 :icon "🧪"
 		 :collect-bottom-views
 		 (lambda (_source-buffer)
 		   (list (list :id 'details
@@ -480,6 +494,7 @@
 	    (set-window-buffer window source-buffer)
 	    (org-context-panel-register-provider
 	     (list :name 'test
+		   :icon "🧪"
 		   :collect-side-items
 		   (lambda (_source)
 		     (list (list :id "anchored" :source-start (point-min))
@@ -497,7 +512,7 @@
 	(kill-buffer source-buffer)))))
 
 (ert-deftest org-context-panel-open-renders-default-side-panel ()
-  "Opening the generic side panel has a fallback renderer."
+  "Opening the generic side panel keeps an empty body without items."
   (let ((source-buffer (generate-new-buffer " *org context default source*"))
 	(org-context-panel-buffer-name "*Org Context Default Panel Test*"))
     (unwind-protect
@@ -507,8 +522,7 @@
 	  (set-window-buffer (selected-window) source-buffer)
 	  (let ((panel-buffer (org-context-panel-open source-buffer)))
 	    (with-current-buffer panel-buffer
-	      (should (string-match-p "No visible context items"
-				      (buffer-string))))
+	      (should (equal (buffer-string) "")))
 	    (org-context-panel-close)))
       (when (buffer-live-p source-buffer)
 	(kill-buffer source-buffer))
@@ -521,6 +535,7 @@
     (let (cleaned)
       (org-context-panel-register-provider
        (list :name 'test
+	     :icon "🧪"
 	     :refresh-source-overlays #'ignore
 	     :cleanup-source-overlays (lambda () (setq cleaned t))))
       (org-context-panel-mode 1)
@@ -537,9 +552,11 @@
     (let (calls)
       (org-context-panel-register-provider
        (list :name 'first
+	     :icon "🧪"
 	     :refresh-source-overlays (lambda () (push 'first calls))))
       (org-context-panel-register-provider
        (list :name 'second
+	     :icon "🧪"
 	     :refresh-source-overlays (lambda () (push 'second calls))))
       (org-context-panel-refresh-source-overlays)
       (should (equal (nreverse calls) '(first second))))))
@@ -576,6 +593,7 @@
     (insert "#+TITLE: Example\n\nBody\n")
     (org-context-panel-register-provider
      (list :name 'test
+	   :icon "🧪"
 	   :collect-top-markers
 	   (lambda (_source-buffer)
 	     (list (list :id 'notice
@@ -635,6 +653,7 @@
       (insert "* Heading\nBody.\n")
       (org-context-panel-register-provider
        (list :name 'test
+	     :icon "🧪"
 	     :render-side-panel (lambda (_source _items)
 				  (insert "Side " label "\n"))
 	     :collect-bottom-views
@@ -771,6 +790,7 @@
 	    (insert "* Source\nBody.\n")
 	    (org-context-panel-register-provider
 	     (list :name 'test
+		   :icon "🧪"
 		   :render-side-panel
 		   (lambda (source-buffer _items)
 		     (insert (format "Side for %s"

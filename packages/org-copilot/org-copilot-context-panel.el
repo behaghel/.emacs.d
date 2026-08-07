@@ -315,6 +315,7 @@ previous overlay already claimed the focused face."
 Copilot contributes chat and transient auxiliary behavior only; comment side-panel
 UI is owned by the unified `org-comments' provider."
   (list :name 'copilot
+	:icon "🤖"
 	:priority 20
 	:collect-bottom-views #'org-copilot-chat-bottom-views
 	:cleanup-auxiliary #'org-copilot--cleanup-transient-auxiliary))

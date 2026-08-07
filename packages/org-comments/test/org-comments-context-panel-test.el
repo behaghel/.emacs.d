@@ -111,7 +111,8 @@
 	(with-temp-buffer
 	  (org-comments-panel-mode)
 	  (setq context-panels-source-buffer source)
-	  (org-comments-panel-render-insert-comment comment)
+	  (let ((inhibit-read-only t))
+	    (org-comments-panel-render-insert-comment comment))
 	  (goto-char (point-min))
 	  (org-comments-context-panel-follow-point))
 	(let ((active (cl-find-if
@@ -161,10 +162,23 @@
 	(org-comments-context-panel--sync-active-comment (current-buffer) comment)
 	(should-not org-comments-overlays)))))
 
+(ert-deftest org-comments-context-panel-collect-side-items-adds-row-icon ()
+  "Collected comment items expose the icon used by rendered rows."
+  (with-temp-buffer
+    (org-mode)
+    (let ((comment (list :type 'comment :id "remote-1" :remote-id "42"
+			 :target-start 1 :target-end 1 :body "Body")))
+      (cl-letf (((symbol-function 'org-comments-collect)
+		 (lambda (&rest _) (list comment))))
+	(let ((items (org-comments-context-panel-collect-side-items
+		      (current-buffer))))
+	  (should (equal (plist-get (car items) :icon) "☁️")))))))
+
 (ert-deftest org-comments-context-panel-provider-exposes-collection-functions ()
   "The comments provider descriptor exposes collection and item renderers."
   (let ((provider (org-comments-context-panel-provider)))
     (should (eq (plist-get provider :name) 'comments))
+    (should (equal (plist-get provider :icon) "✍️"))
     (should (eq (plist-get provider :collect-side-items)
 		#'org-comments-context-panel-collect-side-items))
     (should (eq (plist-get provider :collect-top-markers)

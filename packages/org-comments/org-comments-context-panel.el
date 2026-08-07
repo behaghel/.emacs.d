@@ -130,6 +130,7 @@ Scope comments highlight only their heading line when anchored."
   (let ((copy (copy-sequence comment)))
     (plist-put copy :current
 	       (org-comments-context-panel--comment-key-equal-p copy active-key))
+    (plist-put copy :icon (org-comments-panel-render--provider-icon copy))
     copy))
 
 (defun org-comments-context-panel-collect-side-items (source-buffer)
@@ -316,6 +317,7 @@ SOURCE-BUFFER is the Org source buffer associated with ITEM."
 (defun org-comments-context-panel-provider ()
   "Return the org-comments context-panel provider descriptor."
   (list :name 'comments
+	:icon "✍️"
 	:collect-side-items #'org-comments-context-panel-collect-side-items
 	:collect-top-markers #'org-comments-context-panel-collect-top-markers
 	:collect-bottom-views #'org-comments-context-panel-collect-bottom-views

@@ -54,10 +54,19 @@
       (insert (org-marginalia-context-panel--org-fontified-text body) "\n")
       (org-marginalia-context-panel--apply-list-wrap-prefix start (point)))))
 
+(defun org-marginalia-context-panel--mark-item-icon (item)
+  "Return marginalia ITEM copied with its rendered icon metadata."
+  (let ((copy (copy-sequence item)))
+    (plist-put copy :icon
+	       (org-marginalia-context-panel--kind-icon
+		(plist-get copy :kind)))
+    copy))
+
 (defun org-marginalia-context-panel-collect-side-items (source-buffer)
   "Collect marginalia side items for SOURCE-BUFFER."
   (with-current-buffer source-buffer
-    (org-marginalia-layout (org-marginalia-collect))))
+    (mapcar #'org-marginalia-context-panel--mark-item-icon
+	    (org-marginalia-layout (org-marginalia-collect)))))
 
 (defun org-marginalia-context-panel-render-side-item (_source-buffer item)
   "Render one marginalia side-panel ITEM."
@@ -98,6 +107,7 @@
 (defun org-marginalia-context-panel-provider ()
   "Return the org-marginalia context-panel provider descriptor."
   (list :name 'marginalia
+	:icon "📝"
 	:priority 20
 	:collect-side-items #'org-marginalia-context-panel-collect-side-items
 	:render-side-item #'org-marginalia-context-panel-render-side-item

@@ -43,6 +43,7 @@
 (ert-deftest org-copilot-context-panel-provider-does-not-own-side-items ()
   "Copilot provider leaves side comment rows to org-comments."
   (let ((provider (org-copilot-context-panel-provider)))
+    (should (equal (plist-get provider :icon) "🤖"))
     (should-not (plist-get provider :collect-side-items))
     (should-not (plist-get provider :render-side-item))
     (should-not (plist-get provider :side-panel-buffer-name))))
