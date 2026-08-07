@@ -587,12 +587,23 @@ chat viewport."
   (when (and (stringp text) (buffer-live-p source-buffer))
     (org-copilot-gptel--install-response source-buffer text request)))
 
+(defun org-copilot-gptel--failure-detail (error)
+  "Return a human-readable detail string for gptel ERROR."
+  (cond
+   ((null error) "")
+   ((stringp error) error)
+   ((symbolp error) (symbol-name error))
+   ((listp error)
+    (let ((message (plist-get error :message))
+	  (code (plist-get error :code))
+	  (type (plist-get error :type)))
+      (or (string-join (delq nil (list message code type)) " / ")
+	  (format "%S" error))))
+   (t (format "%S" error))))
+
 (defun org-copilot-gptel--failure-message (operation _response info)
   "Return concise failure message for failed gptel OPERATION and INFO."
-  (let* ((error (plist-get info :error))
-	 (message (plist-get error :message))
-	 (code (plist-get error :code))
-	 (detail (string-join (delq nil (list message code)) " / ")))
+  (let ((detail (org-copilot-gptel--failure-detail (plist-get info :error))))
     (format "Org Copilot: gptel %s failed status=%S%s"
 	    operation
 	    (or (plist-get info :status) (plist-get info :http-status))
@@ -606,6 +617,8 @@ chat viewport."
      :request request
      :prompt prompt
      :status (plist-get info :status)
+     :http-status (plist-get info :http-status)
+     :error (plist-get info :error)
      :response response
      :info info)
     (message "%s" message)))

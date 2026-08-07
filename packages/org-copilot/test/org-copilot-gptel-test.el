@@ -183,6 +183,21 @@
 	(should (equal (plist-get (car (org-copilot-chat-messages)) :content)
 		       "Assistant answer."))))))
 
+(ert-deftest org-copilot-gptel-failure-message-includes-string-error ()
+  "Failure messages include gptel string errors for HTTP diagnostics."
+  (should (equal (org-copilot-gptel--failure-message
+		  "chat" nil (list :status "HTTP/2 400"
+				   :error "unsupported model"))
+		 "Org Copilot: gptel chat failed status=\"HTTP/2 400\" — unsupported model")))
+
+(ert-deftest org-copilot-gptel-failure-message-includes-plist-error ()
+  "Failure messages include gptel plist error details."
+  (should (equal (org-copilot-gptel--failure-message
+		  "chat" nil (list :status "HTTP/2 400"
+				   :error '(:message "Bad request"
+						     :code "invalid_request")))
+		 "Org Copilot: gptel chat failed status=\"HTTP/2 400\" — Bad request / invalid_request")))
+
 (ert-deftest org-copilot-gptel-chat-appends-callback-response ()
   "The gptel chat adapter appends assistant callback text to source chat state."
   (with-temp-buffer

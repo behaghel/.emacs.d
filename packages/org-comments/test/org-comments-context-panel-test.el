@@ -96,16 +96,100 @@
 	(kill-buffer source))
       (delete-directory directory t))))
 
+(ert-deftest org-comments-context-panel-panel-focus-highlights-full-target-range ()
+  "Focusing a panel row highlights the full inline target range."
+  (with-temp-buffer
+    (org-mode)
+    (insert "Alpha beta gamma\n")
+    (let ((source (current-buffer))
+	  (comment (list :type 'comment :id "c1" :target-start 1
+			 :target-end 17 :target-text "Alpha beta gamma"
+			 :body "Body")))
+      (cl-letf (((symbol-function 'org-comments-collect)
+		 (lambda (&rest _) (list comment))))
+	(org-comments-context-panel-refresh-source-overlays)
+	(with-temp-buffer
+	  (org-comments-panel-mode)
+	  (setq context-panels-source-buffer source)
+	  (org-comments-panel-render-insert-comment comment)
+	  (goto-char (point-min))
+	  (org-comments-context-panel-follow-point))
+	(let ((active (cl-find-if
+		       (lambda (overlay)
+			 (eq (overlay-get overlay 'face)
+			     'org-comments-active-region-face))
+		       org-comments-overlays)))
+	  (should active)
+	  (should (= (overlay-start active) 1))
+	  (should (= (overlay-end active) 17)))))))
+
+(ert-deftest org-comments-context-panel-scope-focus-highlights-heading-line ()
+  "Focusing an anchored scope row highlights only its heading line."
+  (with-temp-buffer
+    (org-mode)
+    (insert "* Heading\nBody line\n")
+    (let ((comment (list :type 'scope :id "scope-1" :target-start 1
+			 :target-end (point-max) :target-text "Heading"
+			 :body "Scope body")))
+      (cl-letf (((symbol-function 'org-comments-collect)
+		 (lambda (&rest _) (list comment))))
+	(org-comments-context-panel-refresh-source-overlays)
+	(org-comments-context-panel--sync-active-comment (current-buffer) comment)
+	(let ((active (cl-find-if
+		       (lambda (overlay)
+			 (eq (overlay-get overlay 'face)
+			     'org-comments-active-region-face))
+		       org-comments-overlays)))
+	  (should active)
+	  (should (= (overlay-start active) 1))
+	  (should (= (overlay-end active)
+		     (save-excursion
+		       (goto-char 1)
+		       (line-end-position)))))))))
+
+(ert-deftest org-comments-context-panel-stale-focus-has-no-source-overlay ()
+  "Stale comments do not create source overlays when focused."
+  (with-temp-buffer
+    (org-mode)
+    (insert "Alpha beta gamma\n")
+    (let ((comment (list :type 'comment :id "stale-1" :target-start 1
+			 :target-end 17 :anchor-state 'stale
+			 :target-text "Alpha beta gamma" :body "Stale")))
+      (cl-letf (((symbol-function 'org-comments-collect)
+		 (lambda (&rest _) (list comment))))
+	(org-comments-context-panel-refresh-source-overlays)
+	(org-comments-context-panel--sync-active-comment (current-buffer) comment)
+	(should-not org-comments-overlays)))))
+
 (ert-deftest org-comments-context-panel-provider-exposes-collection-functions ()
-  "The comments provider descriptor exposes collection entry points."
+  "The comments provider descriptor exposes collection and item renderers."
   (let ((provider (org-comments-context-panel-provider)))
     (should (eq (plist-get provider :name) 'comments))
     (should (eq (plist-get provider :collect-side-items)
 		#'org-comments-context-panel-collect-side-items))
     (should (eq (plist-get provider :collect-top-markers)
 		#'org-comments-context-panel-collect-top-markers))
+    (should-not (plist-get provider :render-side-panel))
+    (should (eq (plist-get provider :render-side-item)
+		#'org-comments-context-panel-render-side-item))
     (should (eq (plist-get provider :refresh-source-overlays)
 		#'org-comments-context-panel-refresh-source-overlays))))
+
+(ert-deftest org-comments-context-panel-whole-panel-renderer-uses-rich-comments ()
+  "Whole-panel rendering shows rich comment cards instead of item ids."
+  (let ((source-buffer (generate-new-buffer " *org comments render source*")))
+    (unwind-protect
+	(with-temp-buffer
+	  (org-comments-context-panel-render-side-panel
+	   source-buffer
+	   '((:type comment :id "remote-confluence-1" :status "OPEN"
+		    :remote-id "1" :target-text "Alpha" :body "Remote body.")))
+	  (let ((output (buffer-substring-no-properties (point-min) (point-max))))
+	    (should (string-match-p "☁️ \\[OPEN\\] “Alpha”" output))
+	    (should (string-match-p "Remote body\." output))
+	    (should-not (string-match-p "- remote-confluence-1" output))))
+      (when (buffer-live-p source-buffer)
+	(kill-buffer source-buffer)))))
 
 (ert-deftest org-comments-mode-enables-context-panel-provider ()
   "`org-comments-mode' enables the comments provider through context-panel mode."

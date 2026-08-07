@@ -18,7 +18,7 @@
   :type 'natnum
   :group 'org-comments)
 
-(defcustom org-comments-panel-overview-comment-lines 2
+(defcustom org-comments-panel-overview-comment-lines 1
   "Maximum number of comment body lines shown in comment panel overview rows."
   :type 'natnum
   :group 'org-comments)
@@ -96,15 +96,28 @@
   "Return non-nil when COMMENT is linked to a missing remote comment."
   (eq (plist-get (org-comments-normalize-record comment) :remote-state) 'missing))
 
-(defun org-comments-panel-render--sync-badge (comment)
-  "Return an emoji-only sync-state badge for COMMENT."
+(defun org-comments-panel-render--provider-icon (comment)
+  "Return compact provider icon for COMMENT."
   (cond
-   ((org-comments-panel-render--remote-missing-p comment) "⚠")
-   ((equal (plist-get comment :remote-anchor-state) "dangling") "⚠")
-   ((equal (plist-get comment :remote-anchor-state) "unconfirmed") "❓")
-   ((plist-get comment :local-updated-at) "✍️")
-   ((plist-get comment :remote-id) "🔗")
+   ((equal (plist-get comment :provider) "org-copilot") "🤖")
+   ((plist-get comment :remote-id) "☁️")
    (t "✍️")))
+
+(defun org-comments-panel-render--semantic-badges (comment)
+  "Return semantic and sync badges for COMMENT."
+  (string-join
+   (delq nil
+	 (list
+	  (when (or (org-comments-panel-render--stale-comment-p comment)
+		    (org-comments-panel-render--remote-missing-p comment)
+		    (equal (plist-get comment :remote-anchor-state) "dangling"))
+	    "⚠️")
+	  (when (equal (plist-get comment :remote-anchor-state) "unconfirmed")
+	    "❓")
+	  (when (or (plist-get comment :suggestion-thread-id)
+		    (plist-get comment :suggestion-ids))
+	    "✏️")))
+   " "))
 
 (defun org-comments-panel-render--readable-body (comment)
   "Return readable projection of COMMENT body for display."
@@ -160,8 +173,9 @@
 
 (defun org-comments-panel-render--suggestion-indicator (comment)
   "Return compact linked-suggestion indicator for COMMENT, or nil."
-  (when-let* ((suggestion-ids (plist-get comment :suggestion-ids)))
-    (format "✏️ %s" suggestion-ids)))
+  (when (or (plist-get comment :suggestion-thread-id)
+	    (plist-get comment :suggestion-ids))
+    "✏️"))
 
 (defun org-comments-panel-render--author (comment)
   "Return display author for COMMENT, or nil."
@@ -222,16 +236,9 @@ Return non-nil when metadata was inserted."
       (if (<= (length text) limit)
 	  (setq lines (append lines (list text))
 		text "")
-	(let ((chunk (substring text 0 limit)))
-	  (setq lines (append lines (list chunk))
-		text (string-trim-left (substring text limit))))))
-    (when (and lines (not (string-empty-p text)))
-      (let* ((last-index (1- (length lines)))
-	     (last-line (nth last-index lines)))
-	(setf (nth last-index lines)
-	      (if (> (length last-line) 1)
-		  (concat (substring last-line 0 (1- (length last-line))) "…")
-		"…"))))
+	(let ((chunk (substring text 0 (max 0 (1- limit)))))
+	  (setq lines (append lines (list (concat chunk "…")))
+		text ""))))
     lines))
 
 (defun org-comments-panel-render--insert-replies (comment)
@@ -296,11 +303,9 @@ Return non-nil when metadata was inserted."
 	 (stale (org-comments-panel-render--stale-comment-p comment))
 	 (remote-missing (org-comments-panel-render--remote-missing-p comment))
 	 (page-comment (org-comments-panel-render--page-comment-p comment))
+	 (badges (org-comments-panel-render--semantic-badges comment))
 	 reply-regions)
-    (insert (cond (stale "⚠")
-		  (remote-missing "⚠")
-		  (page-comment "👆")
-		  (t "💬"))
+    (insert (org-comments-panel-render--provider-icon comment)
 	    " [" status "]")
     (cond
      (page-comment
@@ -308,18 +313,22 @@ Return non-nil when metadata was inserted."
      ((not (string-empty-p target))
       (insert " “" (org-comments-panel-render--truncate
 		    target org-comments-panel-target-preview-length) "”")))
-    (insert " " (org-comments-panel-render--sync-badge comment))
-    (when-let* ((indicator (org-comments-panel-render--suggestion-indicator comment)))
-      (insert " " indicator))
     (insert "\n")
-    (when stale
+    (when (and stale (plist-get comment :current))
       (insert "Anchor no longer matches source text.\n"))
     (when (and remote-missing (plist-get comment :current))
       (insert (format "⚠ remote missing%s\n"
 		      (if-let* ((missing-at (plist-get comment :remote-missing-at)))
 			  (format " since %s" missing-at)
 			""))))
-    (org-comments-panel-render--insert-metadata comment)
+    (let ((metadata-start (point)))
+      (org-comments-panel-render--insert-metadata-inline comment)
+      (unless (string-empty-p badges)
+	(unless (= (point) metadata-start)
+	  (insert " "))
+	(insert badges))
+      (unless (= (point) metadata-start)
+	(insert "\n")))
     (if (plist-get comment :current)
 	(progn
 	  (org-comments-panel-render--insert-body body)

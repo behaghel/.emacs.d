@@ -104,13 +104,26 @@
 
 (defun org-comments-context-panel--source-comment-p (comment)
   "Return non-nil when COMMENT belongs in source-context side panels."
-  (and (eq (plist-get comment :type) 'comment)
+  (and (memq (plist-get comment :type) '(comment scope))
        (not (plist-get comment :page-comment))))
 
-(defun org-comments-context-panel--anchored-inline-comment-p (comment)
+(defun org-comments-context-panel--anchored-source-comment-p (comment)
   "Return non-nil when COMMENT should have a source region overlay."
   (and (org-comments-context-panel--source-comment-p comment)
+       (integerp (plist-get comment :target-start))
+       (integerp (plist-get comment :target-end))
        (not (eq (plist-get comment :anchor-state) 'stale))))
+
+(defun org-comments-context-panel--source-overlay-bounds (comment)
+  "Return source overlay bounds for COMMENT.
+Scope comments highlight only their heading line when anchored."
+  (let ((start (plist-get comment :target-start))
+	(end (plist-get comment :target-end)))
+    (if (eq (plist-get comment :type) 'scope)
+	(save-excursion
+	  (goto-char start)
+	  (cons start (min (line-end-position) end)))
+      (cons start end))))
 
 (defun org-comments-context-panel--mark-current-comment (comment active-key)
   "Return COMMENT copied with current state when it matches ACTIVE-KEY."
@@ -161,6 +174,13 @@
 		(make-overlay start (point) nil t nil))
 	  (overlay-put org-comments-active-panel-overlay
 		       'face 'org-comments-active-panel-face))))))
+
+(defun org-comments-context-panel-render-side-panel (source-buffer items)
+  "Render unified comments side panel for SOURCE-BUFFER with ITEMS.
+This whole-panel renderer keeps compatibility with older context-panel dispatch
+paths that predate provider-composed `:render-side-item' rendering."
+  (setq org-comments-panel-source-buffer source-buffer)
+  (org-comments-panel-render-buffer source-buffer items nil))
 
 (defun org-comments-context-panel-jump-side-item (source-buffer item)
   "Jump from context-panel ITEM to its source or sidecar target.
@@ -313,10 +333,10 @@ SOURCE-BUFFER is the Org source buffer associated with ITEM."
   "Refresh Org comments source range overlays in the current Org buffer."
   (org-comments-context-panel--delete-range-overlays)
   (dolist (comment (cl-remove-if-not
-		    #'org-comments-context-panel--anchored-inline-comment-p
+		    #'org-comments-context-panel--anchored-source-comment-p
 		    (org-comments-context-panel-collect-side-items (current-buffer))))
-    (let ((start (plist-get comment :target-start))
-	  (end (plist-get comment :target-end)))
+    (pcase-let ((`(,start . ,end)
+		 (org-comments-context-panel--source-overlay-bounds comment)))
       (when-let* ((overlay (context-panels-make-range-overlay
 			    start end
 			    :face 'org-comments-region-face

@@ -40,56 +40,24 @@
 	(should (eq (plist-get view :mode) 'org-copilot-chat-mode))
 	(should (= (plist-get view :height) 18))))))
 
-(ert-deftest org-copilot-context-panel-collects-visible-items ()
-  "The context-panel provider exposes active AI comments as side items."
+(ert-deftest org-copilot-context-panel-provider-does-not-own-side-items ()
+  "Copilot provider leaves side comment rows to org-comments."
+  (let ((provider (org-copilot-context-panel-provider)))
+    (should-not (plist-get provider :collect-side-items))
+    (should-not (plist-get provider :render-side-item))
+    (should-not (plist-get provider :side-panel-buffer-name))))
+
+(ert-deftest org-copilot-open-delegates-side-panel-to-org-comments ()
+  "Opening Copilot opens unified comments instead of a Copilot side panel."
   (with-temp-buffer
     (org-mode)
-    (insert "Alpha sentence.\nBeta sentence.\n")
-    (let ((start (point-min))
-	  (end (save-excursion
-		 (goto-char (point-min))
-		 (search-forward "Alpha")
-		 (point))))
-      (org-copilot-mode 1)
-      (org-copilot-add-comment
-       (list :id "ai-1"
-	     :type 'inline
-	     :status 'active
-	     :source-start start
-	     :source-end end
-	     :target-text "Alpha"
-	     :body "Clarify this."))
-      (let ((items (org-context-panel-collect-side-items (current-buffer))))
-	(should (= (length items) 1))
-	(should (equal (plist-get (car items) :id) "ai-1"))
-	(should (eq (plist-get (car items) :provider) 'copilot))))))
-
-(ert-deftest org-copilot-context-panel-renders-unanchored-scope-items ()
-  "The side panel surfaces scope AI comments without source anchors."
-  (let ((source-buffer (generate-new-buffer " *org copilot scope source*"))
-	(panel-buffer (generate-new-buffer " *org copilot scope panel*")))
-    (unwind-protect
-	(with-current-buffer source-buffer
-	  (org-mode)
-	  (insert "Alpha sentence.\n")
-	  (set-window-buffer (selected-window) source-buffer)
-	  (org-copilot-mode 1)
-	  (org-copilot-add-comment
-	   (list :id "ai-1"
-		 :type 'scope
-		 :status 'active
-		 :summary "Clarifier le pacte de lecture"
-		 :body "Clarifier."))
-	  (with-current-buffer panel-buffer
-	    (org-copilot-panel-mode)
-	    (org-context-panel-render-side-panel
-	     source-buffer (get-buffer-window source-buffer t))
-	    (should (string-match-p "Clarifier le pacte de lecture"
-				    (buffer-string)))))
-      (when (buffer-live-p panel-buffer)
-	(kill-buffer panel-buffer))
-      (when (buffer-live-p source-buffer)
-	(kill-buffer source-buffer)))))
+    (let (opened)
+      (cl-letf (((symbol-function 'org-comments-open)
+		 (lambda () (setq opened t)))
+		((symbol-function 'org-copilot-mode)
+		 (lambda (&optional _arg) t)))
+	(org-copilot-open)
+	(should opened)))))
 
 (ert-deftest org-copilot-context-panel-jump-unanchored-scope-focuses-comment ()
   "Jumping to an unanchored scope row focuses the comment without error."

@@ -14,6 +14,10 @@
 (require 'org-comments-store)
 
 (declare-function org-comments-panel-refresh "org-comments-panel")
+(declare-function org-suggestions-accept-comment-suggestion "org-suggestions")
+(declare-function org-suggestions-dismiss-comment-suggestion "org-suggestions")
+(declare-function org-suggestions-preview-comment-suggestion-at-point "org-suggestions")
+(declare-function org-suggestions-undo-comment-suggestion "org-suggestions")
 (defvar-local org-comments-panel-refresh-function #'org-comments-panel-refresh
   "Function used to refresh the current Org comments panel buffer.")
 (defvar-local org-comments-current-comment-function #'org-comments-panel-current-comment
@@ -98,45 +102,79 @@
   (interactive)
   (funcall org-comments-current-close-function))
 
-(defun org-comments-help-text ()
-  "Return generic help text for the current Org comments UI."
+(defun org-comments--suggestion-linked-comment-p (comment)
+  "Return non-nil when COMMENT links to suggestion actions."
+  (and comment
+       (or (plist-get comment :suggestion-thread-id)
+	   (plist-get comment :suggestion-ids))))
+
+(defun org-comments-help-text (&optional comment)
+  "Return help text for the current Org comments UI.
+When COMMENT has suggestion metadata, include suggestion actions."
   (string-join
-   '("Org Comments"
-     ""
-     "RET  jump to source or sidecar"
-     "o/O  open remote comment"
-     "r    reply"
-     "U    push current row"
-     "D    pull remote comments"
-     "S    sync remote comments"
-     "e    edit"
-     "d    delete"
-     "m    status actions"
-     "z    filters"
-     "q    close"
-     ""
-     "Badges: ✍️ local draft/edit, 🔗 remote-linked, ⚠ missing/dangling, ❓ unconfirmed."
-     "Focused rows show the full thread: root body followed by ↳ replies with"
-     "the same badges, author/date metadata, and wrapping for all providers."
-     ""
-     "Public commands are DWIM: org-comments-open-remote, org-comments-push,"
-     "org-comments-reply, org-comments-pull, org-comments-sync, and mark commands"
-     "work from both Org source buffers and comments panel rows."
-     ""
-     "Provider limits are capability-gated: unsupported actions explain the"
-     "provider limit and the supported next step instead of changing the UI model.")
+   (append
+    '("Org Comments"
+      ""
+      "RET  jump to source or sidecar"
+      "o/O  open remote comment"
+      "r    reply"
+      "U    push current row"
+      "D    pull remote comments"
+      "S    sync remote comments"
+      "e    edit"
+      "d    delete"
+      "m    status actions"
+      "z    filters"
+      "q    close")
+    (when (org-comments--suggestion-linked-comment-p comment)
+      '(""
+	"Suggestion"
+	"a    accept linked suggestion"
+	"v    preview linked suggestion"
+	"x    dismiss linked suggestion"
+	"u    undo accepted linked suggestion"))
+    '(""
+      "Icons: 🤖 Copilot, ☁️ remote, ✍️ local; badges: ✏️ suggestion, ⚠️ missing/dangling, ❓ unconfirmed."
+      "Focused rows show the full thread: root body followed by ↳ replies with"
+      "the same badges, author/date metadata, and wrapping for all providers."
+      ""
+      "Public commands are DWIM: org-comments-open-remote, org-comments-push,"
+      "org-comments-reply, org-comments-pull, org-comments-sync, and mark commands"
+      "work from both Org source buffers and comments panel rows."
+      ""
+      "Provider limits are capability-gated: unsupported actions explain the"
+      "provider limit and the supported next step instead of changing the UI model."))
    "\n"))
 
+(defun org-comments--help-current-comment ()
+  "Return current comment for contextual help, or nil."
+  (ignore-errors (org-comments-current-comment)))
+
 (defun org-comments--help-current-ui ()
-  "Show generic help for the current Org comments UI."
+  "Show contextual help for the current Org comments UI."
   (with-help-window "*Org Comments Help*"
-    (princ (org-comments-help-text))))
+    (princ (org-comments-help-text (org-comments--help-current-comment)))))
 
 ;;;###autoload
 (defun org-comments-help-current-ui ()
   "Show help for the current comments UI using the active help adapter."
   (interactive)
   (funcall org-comments-current-help-function))
+
+(defun org-comments--require-suggestions ()
+  "Require `org-suggestions' or signal a clear user error."
+  (unless (require 'org-suggestions nil 'noerror)
+    (user-error "Org Suggestions is unavailable")))
+
+(defun org-comments--current-suggestion-context ()
+  "Return (SOURCE-BUFFER . COMMENT) for suggestion actions at point."
+  (org-comments--require-suggestions)
+  (let ((source-buffer (org-comments-current-source-buffer))
+	(comment (org-comments-current-comment)))
+    (unless (or (plist-get comment :suggestion-thread-id)
+		(plist-get comment :suggestion-ids))
+      (user-error "Comment has no linked suggestion"))
+    (cons source-buffer comment)))
 
 (defun org-comments-panel--sidecar-location (comment)
   "Return COMMENT sidecar location as (SIDECAR-FILE . COMMENT-ID)."
@@ -360,6 +398,41 @@ remains sidecar-only until backends declare broader status semantics."
 (defun org-comments-panel-delete ()
   "Delete the current panel row's sidecar comment and refresh the panel."
   (org-comments-delete-at-point))
+
+;;;###autoload
+(defun org-comments-accept-suggestion-at-point ()
+  "Accept the suggestion linked from the current comment row."
+  (interactive)
+  (pcase-let ((`(,source-buffer . ,comment)
+	       (org-comments--current-suggestion-context)))
+    (prog1 (org-suggestions-accept-comment-suggestion source-buffer comment)
+      (org-comments-refresh-current-ui))))
+
+;;;###autoload
+(defun org-comments-preview-suggestion-at-point ()
+  "Preview the suggestion linked from the current comment row."
+  (interactive)
+  (pcase-let ((`(,source-buffer . ,comment)
+	       (org-comments--current-suggestion-context)))
+    (org-suggestions-preview-comment-suggestion-at-point source-buffer comment)))
+
+;;;###autoload
+(defun org-comments-dismiss-suggestion-at-point ()
+  "Dismiss the suggestion linked from the current comment row."
+  (interactive)
+  (pcase-let ((`(,source-buffer . ,comment)
+	       (org-comments--current-suggestion-context)))
+    (prog1 (org-suggestions-dismiss-comment-suggestion source-buffer comment)
+      (org-comments-refresh-current-ui))))
+
+;;;###autoload
+(defun org-comments-undo-suggestion-at-point ()
+  "Undo the accepted suggestion linked from the current comment row."
+  (interactive)
+  (pcase-let ((`(,source-buffer . ,comment)
+	       (org-comments--current-suggestion-context)))
+    (prog1 (org-suggestions-undo-comment-suggestion source-buffer comment)
+      (org-comments-refresh-current-ui))))
 
 (defun org-comments-set-status-at-point (status)
   "Set the current comment at point to STATUS and refresh the UI."

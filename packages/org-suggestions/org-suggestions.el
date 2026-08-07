@@ -467,6 +467,117 @@ All candidate hunks apply as a single all-or-nothing operation."
     (org-suggestions-write-sidecar source-file threads)
     (cdr match)))
 
+(defun org-suggestions-comment-suggestion-p (comment)
+  "Return non-nil when COMMENT links to an executable suggestion."
+  (or (plist-get comment :suggestion-thread-id)
+      (plist-get comment :suggestion-ids)))
+
+(defun org-suggestions--comment-candidate-ids (comment)
+  "Return suggestion candidate ids explicitly linked from COMMENT."
+  (let ((ids (plist-get comment :suggestion-ids)))
+    (cond
+     ((listp ids) ids)
+     ((stringp ids) (split-string ids "[[:space:]]+" t)))))
+
+(defun org-suggestions--source-file (source-buffer)
+  "Return visited source file for SOURCE-BUFFER."
+  (or (buffer-file-name source-buffer)
+      (user-error "Source buffer is not visiting a file")))
+
+(defun org-suggestions--find-thread-for-comment (threads comment)
+  "Return suggestion thread from THREADS linked to COMMENT."
+  (let ((thread-id (plist-get comment :suggestion-thread-id))
+	(comment-id (plist-get comment :id)))
+    (cl-find-if
+     (lambda (thread)
+       (or (and thread-id (equal thread-id (plist-get thread :id)))
+	   (and comment-id (equal comment-id (plist-get thread :comment-id)))))
+     threads)))
+
+(defun org-suggestions--choose-candidate (thread comment)
+  "Return default candidate in THREAD for COMMENT, or signal ambiguity."
+  (let* ((ids (org-suggestions--comment-candidate-ids comment))
+	 (candidates (plist-get thread :candidates))
+	 (linked (if ids
+		     (cl-remove-if-not
+		      (lambda (candidate)
+			(member (plist-get candidate :id) ids))
+		      candidates)
+		   candidates))
+	 (active (cl-remove-if-not
+		  (lambda (candidate)
+		    (eq (plist-get candidate :status) 'active))
+		  linked)))
+    (cond
+     ((= (length active) 1) (car active))
+     ((= (length linked) 1) (car linked))
+     ((null linked) (user-error "No linked suggestion candidate"))
+     (t (user-error "Multiple suggestion candidates; choose one explicitly")))))
+
+(defun org-suggestions-resolve-comment-suggestion (source-buffer comment)
+  "Return (THREAD . CANDIDATE) linked from COMMENT for SOURCE-BUFFER."
+  (unless (org-suggestions-comment-suggestion-p comment)
+    (user-error "Comment has no linked suggestion"))
+  (let* ((source-file (org-suggestions--source-file source-buffer))
+	 (threads (org-suggestions-load-sidecar source-file))
+	 (thread (org-suggestions--find-thread-for-comment threads comment)))
+    (unless thread
+      (user-error "No suggestion thread linked to comment"))
+    (cons thread (org-suggestions--choose-candidate thread comment))))
+
+(defun org-suggestions-accept-comment-suggestion (source-buffer comment)
+  "Accept the default suggestion candidate linked from COMMENT."
+  (let* ((source-file (org-suggestions--source-file source-buffer))
+	 (threads (org-suggestions-load-sidecar source-file))
+	 (thread (org-suggestions--find-thread-for-comment threads comment)))
+    (unless thread
+      (user-error "No suggestion thread linked to comment"))
+    (let ((candidate (org-suggestions--choose-candidate thread comment)))
+      (org-suggestions-accept-candidate source-buffer thread candidate)
+      (org-suggestions-write-sidecar source-file threads)
+      candidate)))
+
+(defun org-suggestions-preview-comment-suggestion (source-buffer comment)
+  "Return diff preview for the default suggestion linked from COMMENT."
+  (pcase-let ((`(,thread . ,candidate)
+	       (org-suggestions-resolve-comment-suggestion source-buffer comment)))
+    (org-suggestions-candidate-diff source-buffer thread candidate)))
+
+(defun org-suggestions-preview-comment-suggestion-at-point (source-buffer comment)
+  "Show diff preview for the default suggestion linked from COMMENT."
+  (let ((diff (org-suggestions-preview-comment-suggestion source-buffer comment)))
+    (with-current-buffer (get-buffer-create "*Org Suggestion Diff*")
+      (let ((inhibit-read-only t))
+	(erase-buffer)
+	(insert diff)
+	(diff-mode)
+	(pop-to-buffer (current-buffer))))
+    diff))
+
+(defun org-suggestions-dismiss-comment-suggestion (source-buffer comment)
+  "Dismiss the default suggestion candidate linked from COMMENT."
+  (let* ((source-file (org-suggestions--source-file source-buffer))
+	 (threads (org-suggestions-load-sidecar source-file))
+	 (thread (org-suggestions--find-thread-for-comment threads comment)))
+    (unless thread
+      (user-error "No suggestion thread linked to comment"))
+    (let ((candidate (org-suggestions--choose-candidate thread comment)))
+      (plist-put candidate :status 'dismissed)
+      (org-suggestions-write-sidecar source-file threads)
+      candidate)))
+
+(defun org-suggestions-undo-comment-suggestion (source-buffer comment)
+  "Undo accepted suggestion candidate linked from COMMENT."
+  (let* ((source-file (org-suggestions--source-file source-buffer))
+	 (threads (org-suggestions-load-sidecar source-file))
+	 (thread (org-suggestions--find-thread-for-comment threads comment)))
+    (unless thread
+      (user-error "No suggestion thread linked to comment"))
+    (let ((candidate (org-suggestions--choose-candidate thread comment)))
+      (org-suggestions-undo-accepted-candidate source-buffer candidate)
+      (org-suggestions-write-sidecar source-file threads)
+      candidate)))
+
 (defun org-suggestions--matching-session-thread-p (provider session-id)
   "Return non-nil when current thread belongs to PROVIDER and SESSION-ID."
   (and (= (org-outline-level) 1)

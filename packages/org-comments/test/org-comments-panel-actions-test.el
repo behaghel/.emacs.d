@@ -56,6 +56,17 @@
   (should (eq (lookup-key org-comments-panel-mode-map (kbd "RET"))
 	      #'context-panels-jump-at-point)))
 
+(ert-deftest org-comments-panel-actions-keymap-binds-suggestion-actions ()
+  "Panel binds suggestion actions to org-comments delegation commands."
+  (should (eq (lookup-key org-comments-panel-mode-map (kbd "a"))
+	      #'org-comments-accept-suggestion-at-point))
+  (should (eq (lookup-key org-comments-panel-mode-map (kbd "v"))
+	      #'org-comments-preview-suggestion-at-point))
+  (should (eq (lookup-key org-comments-panel-mode-map (kbd "u"))
+	      #'org-comments-undo-suggestion-at-point))
+  (should (eq (lookup-key org-comments-panel-mode-map (kbd "x"))
+	      #'org-comments-dismiss-suggestion-at-point)))
+
 (ert-deftest org-comments-panel-actions-keymap-binds-delete ()
   "Panel binds d to the public DWIM delete command."
   (should (eq (lookup-key org-comments-panel-mode-map (kbd "d"))
@@ -166,6 +177,36 @@
       (org-comments-previous-item-at-point)
       (should (= (point) second)))))
 
+(ert-deftest org-comments-panel-actions-accept-suggestion-delegates ()
+  "Accepting a linked suggestion delegates to org-suggestions."
+  (with-temp-buffer
+    (let ((source (current-buffer))
+	  (comment '(:id "c1" :suggestion-thread-id "thread-1"))
+	  called refreshed)
+      (setq-local org-comments-current-source-buffer-function (lambda () source))
+      (setq-local org-comments-current-comment-function (lambda () comment))
+      (setq-local org-comments-current-refresh-function
+		  (lambda () (setq refreshed t)))
+      (cl-letf (((symbol-function 'org-comments--require-suggestions) #'ignore)
+		((symbol-function 'org-suggestions-accept-comment-suggestion)
+		 (lambda (actual-source actual-comment)
+		   (setq called (list actual-source actual-comment))
+		   :accepted)))
+	(should (eq (org-comments-accept-suggestion-at-point) :accepted))
+	(should (equal called (list source comment)))
+	(should refreshed)))))
+
+(ert-deftest org-comments-panel-actions-suggestion-errors-without-link ()
+  "Suggestion actions fail clearly when the row has no suggestion metadata."
+  (with-temp-buffer
+    (let ((source (current-buffer)))
+      (setq-local org-comments-current-source-buffer-function (lambda () source))
+      (setq-local org-comments-current-comment-function
+		  (lambda () '(:id "c1" :body "Only comment")))
+      (cl-letf (((symbol-function 'org-comments--require-suggestions) #'ignore))
+	(should-error (org-comments-preview-suggestion-at-point)
+		      :type 'user-error)))))
+
 (ert-deftest org-comments-panel-actions-jump-at-point-uses-adapter ()
   "Jumping at point delegates through the current jump adapter."
   (org-comments-panel-actions-test--with-comment
@@ -200,9 +241,20 @@
     (should (string-match-p "U    push current row" help))
     (should (string-match-p "Public commands are DWIM" help))
     (should (string-match-p "org-comments-open-remote" help))
-    (should (string-match-p "Badges: ✍️ local draft/edit, 🔗 remote-linked" help))
+    (should (string-match-p "Icons: 🤖 Copilot, ☁️ remote, ✍️ local" help))
+    (should (string-match-p "badges: ✏️ suggestion, ⚠️ missing/dangling, ❓ unconfirmed" help))
     (should (string-match-p "Focused rows show the full thread" help))
-    (should (string-match-p "Provider limits are capability-gated" help))))
+    (should (string-match-p "Provider limits are capability-gated" help))
+    (should-not (string-match-p "accept linked suggestion" help))))
+
+(ert-deftest org-comments-panel-actions-help-text-includes-linked-suggestion-actions ()
+  "Help text includes suggestion actions only for linked suggestion comments."
+  (let ((help (org-comments-help-text '(:id "c1" :suggestion-thread-id "t1"))))
+    (should (string-match-p "Suggestion" help))
+    (should (string-match-p "a    accept linked suggestion" help))
+    (should (string-match-p "v    preview linked suggestion" help))
+    (should (string-match-p "x    dismiss linked suggestion" help))
+    (should (string-match-p "u    undo accepted linked suggestion" help))))
 
 (ert-deftest org-comments-panel-actions-filter-commands-use-adapters ()
   "Current-UI filter commands delegate through filter adapters."

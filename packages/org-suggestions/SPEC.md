@@ -27,6 +27,7 @@ Org authors need executable edit proposals that are more precise than comments a
 | Thread status | Derived from child candidates, not independently authoritative | Avoids inconsistent persisted lifecycle. |
 | Session cleanup | Provider/session archive and delete helpers | Lets orchestrators such as Copilot clean current-session artifacts without owning suggestion internals. |
 | Section resolution | Targeted scans by path/title | Avoids unnecessary full-section materialization on large documents. |
+| Comment-row actions | Public comment-record APIs | Lets `org-comments` delegate accept/preview/dismiss/undo for linked suggestions without knowing provider or suggestion internals. |
 
 ## Sidecar Shape
 For `draft.org`, the default sidecar is `draft.suggestions.org`.
@@ -117,6 +118,8 @@ New paragraph.
 - [x] AC-10: Given an accepted candidate in the current Emacs session, when undo is invoked before the source changed incompatibly, then the source reverts as an all-or-nothing operation and candidate status is restored appropriately.
 - [x] AC-11: Given a candidate preview request, when the source changed since creation, then the generated diff compares the candidate hunks against the live source, not stale captured section text.
 - [ ] AC-12: Given unknown newer `org_suggestions_schema_version`, when loading, then the package warns and skips restore/mutation rather than corrupting data.
+- [ ] AC-13: Given an `org-comments` record with `suggestion-thread-id` or `suggestion-ids`, when a public comment-record suggestion action is invoked, then `org-suggestions` resolves the default active candidate and performs the provider-neutral accept/preview/dismiss/undo operation.
+- [ ] AC-14: Given an `org-comments` record without suggestion link metadata, when a public comment-record suggestion action is invoked, then it fails with a clear provider-neutral user error.
 
 ## Invariants
 - No suggestion accept path may mutate the source unless all hunks in the candidate can be applied safely.
@@ -147,6 +150,7 @@ New paragraph.
 | AC-10 | Session-local undo ERT test | Yes |
 | AC-11 | Diff preview generation ERT test | Yes |
 | AC-12 | Schema-version fixture test | Yes |
+| AC-13, AC-14 | Comment-record action API ERT tests | Yes |
 
 ## References
 - `packages/org-copilot/spec-persistent-suggestions.md`

@@ -126,6 +126,15 @@ Each entry is a cons of the form (:list-id . \"list.id\") or
     ("C-s" . mu4e-view-headers-prev))
   "Direct traversal bindings that only exist in mu4e view buffers.")
 
+(defvar hub/mu4e-view--keys-applied nil
+  "Non-nil after static mu4e view keymap bindings have been installed.")
+
+(defvar hub/mu4e-view--navigation-keys-applied nil
+  "Non-nil after static mu4e view navigation bindings have been installed.")
+
+(defvar-local hub/mu4e-view--local-navigation-keys-applied nil
+  "Non-nil after buffer-local mu4e view navigation bindings were installed.")
+
 (defun hub/mu4e--apply-evil-normal-bindings (keymap bindings)
   "Apply BINDINGS to KEYMAP in Evil normal state."
   (when (featurep 'evil)
@@ -663,39 +672,44 @@ or nil when no matching message was found."
        docid)))
 
   (defun hub/mu4e--apply-view-navigation-keys ()
-    "Reassert all shared direct bindings that mu4e view rendering may shadow."
+    "Install shared direct view navigation bindings once per keymap."
     (let ((bindings (append hub/mu4e--shared-semantic-bindings
 			    hub/mu4e--view-traversal-bindings)))
-      (when (boundp 'mu4e-view-mode-map)
+      (when (and (not hub/mu4e-view--navigation-keys-applied)
+		 (boundp 'mu4e-view-mode-map))
 	(hub/mu4e--define-keys mu4e-view-mode-map bindings)
 	(hub/mu4e--apply-evil-normal-bindings
 	 mu4e-view-mode-map
 	 (append bindings
 		 '(("J" . mu4e~headers-jump-to-maildir)
 		   ("g t" . hub/mu4e-search-next-unread)
-		   ("g s" . hub/mu4e-search-prev-unread)))))
-      (when (boundp 'mu4e-search-minor-mode-map)
-	(let* ((existing (assoc 'mu4e-search-minor-mode minor-mode-overriding-map-alist))
-	       (map (or (cdr existing) (make-sparse-keymap))))
-	  (hub/mu4e--define-keys map bindings)
-	  (setq minor-mode-overriding-map-alist
-		(assq-delete-all 'mu4e-search-minor-mode minor-mode-overriding-map-alist))
-	  (push (cons 'mu4e-search-minor-mode map) minor-mode-overriding-map-alist)))))
+		   ("g s" . hub/mu4e-search-prev-unread))))
+	(setq hub/mu4e-view--navigation-keys-applied t))))
 
-  (defun hub/mu4e-view--apply-local-evil-navigation-keys ()
-    "Reassert shared mu4e view bindings in the current Evil normal buffer."
-    (hub/mu4e--apply-evil-local-normal-bindings
-     (append hub/mu4e--shared-semantic-bindings
-	     hub/mu4e--view-traversal-bindings
-	     '(("J" . mu4e~headers-jump-to-maildir)
-	       ("g t" . hub/mu4e-search-next-unread)
-	       ("g s" . hub/mu4e-search-prev-unread)))))
+  (defun hub/mu4e-view--apply-buffer-navigation-keys ()
+    "Install current-buffer view navigation bindings once."
+    (unless hub/mu4e-view--local-navigation-keys-applied
+      (let ((bindings (append hub/mu4e--shared-semantic-bindings
+			      hub/mu4e--view-traversal-bindings)))
+	(when (boundp 'mu4e-search-minor-mode-map)
+	  (let* ((existing (assoc 'mu4e-search-minor-mode
+				  minor-mode-overriding-map-alist))
+		 (map (or (cdr existing) (make-sparse-keymap))))
+	    (hub/mu4e--define-keys map bindings)
+	    (setq minor-mode-overriding-map-alist
+		  (assq-delete-all 'mu4e-search-minor-mode
+				   minor-mode-overriding-map-alist))
+	    (push (cons 'mu4e-search-minor-mode map)
+		  minor-mode-overriding-map-alist)))
+	(hub/mu4e--apply-evil-local-normal-bindings
+	 (append bindings
+		 '(("J" . mu4e~headers-jump-to-maildir)
+		   ("g t" . hub/mu4e-search-next-unread)
+		   ("g s" . hub/mu4e-search-prev-unread)))))
+      (setq hub/mu4e-view--local-navigation-keys-applied t)))
 
   (hub/mu4e--apply-view-navigation-keys)
-  (add-hook 'mu4e-view-mode-hook #'hub/mu4e--apply-view-navigation-keys)
-  (add-hook 'mu4e-view-mode-hook #'hub/mu4e-view--apply-local-evil-navigation-keys)
-  (add-hook 'mu4e-view-rendered-hook #'hub/mu4e--apply-view-navigation-keys)
-  (add-hook 'mu4e-view-rendered-hook #'hub/mu4e-view--apply-local-evil-navigation-keys)
+  (add-hook 'mu4e-view-mode-hook #'hub/mu4e-view--apply-buffer-navigation-keys)
 
   (defun hub/mu4e-view--press-mime-button (mime-type)
     "Simulate clicking the MIME button for MIME-TYPE.
@@ -924,8 +938,9 @@ Actions   ;a a message  ;a m mime part  ;y u copy URL
 	  ("q" nil))
 
 (defun hub/mu4e-view--apply-keys ()
-  "Ensure custom view bindings are present."
-  (when (boundp 'mu4e-view-mode-map)
+  "Install custom view bindings once per keymap."
+  (when (and (not hub/mu4e-view--keys-applied)
+	     (boundp 'mu4e-view-mode-map))
     (hub/mu4e--define-keys
      mu4e-view-mode-map
      (append hub/mu4e--shared-semantic-bindings
@@ -948,10 +963,10 @@ Actions   ;a a message  ;a m mime part  ;y u copy URL
       (dolist (binding hub/mu4e--shared-unread-bindings)
 	(define-key g-map (kbd (car binding)) (cdr binding)))
       (define-key g-map (kbd "l") #'hub/mu4e-view-jump-to-main-link)
-      (define-key g-map (kbd "L") #'mu4e-show-log))))
+      (define-key g-map (kbd "L") #'mu4e-show-log))
+    (setq hub/mu4e-view--keys-applied t)))
 
 (hub/mu4e-view--apply-keys)
-(add-hook 'mu4e-view-mode-hook #'hub/mu4e-view--apply-keys)
 
 (with-eval-after-load 'general
   (hub/define-leaders)
@@ -1020,6 +1035,8 @@ Actions   ;a a message  ;a m mime part  ;y u copy URL
 (with-eval-after-load 'evil-collection-mu4e
   (when (fboundp 'hub/mu4e-headers--apply-keys)
     (hub/mu4e-headers--apply-keys))
+  (setq hub/mu4e-view--keys-applied nil
+	hub/mu4e-view--navigation-keys-applied nil)
   (when (fboundp 'hub/mu4e-view--apply-keys)
     (hub/mu4e-view--apply-keys))
   (when (fboundp 'hub/mu4e--apply-view-navigation-keys)

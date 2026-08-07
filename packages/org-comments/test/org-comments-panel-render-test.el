@@ -90,14 +90,15 @@
     (should (search-forward "It’s useful & readable." nil t))))
 
 (ert-deftest org-comments-panel-render-shows-stale-warning ()
-  "Rendering marks stale comments with an anchor warning."
+  "Rendering marks stale overview comments with a compact warning badge."
   (with-temp-buffer
     (org-comments-panel-render-buffer
      (current-buffer)
      '((:type comment :status "OPEN" :body "Please revisit." :anchor-state stale))
      nil)
-    (should (search-forward "⚠" nil t))
-    (should (search-forward "Anchor no longer matches source text." nil t))))
+    (let ((output (buffer-substring-no-properties (point-min) (point-max))))
+      (should (string-match-p "⚠️" output))
+      (should-not (string-match-p "Anchor no longer matches source text." output)))))
 
 (ert-deftest org-comments-panel-render-shows-page-badge ()
   "Rendering marks page comments in their row header."
@@ -109,16 +110,50 @@
     (should (search-forward "PAGE" nil t))))
 
 
-(ert-deftest org-comments-panel-render-shows-suggestion-link-indicator ()
-  "Rendering shows compact linked suggestion state on comment rows."
+(ert-deftest org-comments-panel-render-uses-provider-icon-on-first-line ()
+  "Rendering identifies the comment provider by first-line icon."
+  (with-temp-buffer
+    (org-comments-panel-render-buffer
+     (current-buffer)
+     '((:type comment :status "OPEN" :target-text "Intro"
+	      :provider "org-copilot" :body "Rewrite intro.")
+       (:type comment :status "OPEN" :target-text "Cloud"
+	      :remote-id "remote-1" :body "Remote note.")
+       (:type comment :status "OPEN" :target-text "Local"
+	      :body "Local note."))
+     nil)
+    (let ((output (buffer-substring-no-properties (point-min) (point-max))))
+      (should (string-match-p "🤖 \\[OPEN\\] “Intro”" output))
+      (should (string-match-p "☁️ \\[OPEN\\] “Cloud”" output))
+      (should (string-match-p "✍️ \\[OPEN\\] “Local”" output))
+      (should-not (string-match-p "💬 \\[OPEN\\]" output)))))
+
+(ert-deftest org-comments-panel-render-shows-suggestion-badge-on-metadata-line ()
+  "Rendering shows compact linked suggestion state on the metadata line."
   (with-temp-buffer
     (org-comments-panel-render-buffer
      (current-buffer)
      '((:type comment :status "OPEN" :body "Rewrite intro."
+	      :created-at "2026-08-06T20:22:00+0200"
 	      :suggestion-thread-id "ai-thread-1"
 	      :suggestion-ids "ai-1 ai-1.1"))
      nil)
-    (should (search-forward "✏️ ai-1 ai-1.1" nil t))))
+    (let ((output (buffer-substring-no-properties (point-min) (point-max))))
+      (should (string-match-p "2026-08-06 20:22 ✏️" output))
+      (should-not (search-forward "ai-1 ai-1.1" nil t)))))
+
+(ert-deftest org-comments-panel-render-overview-body-is-one-truncated-line ()
+  "Overview cards show one compact body line without autofill expansion."
+  (let ((org-comments-panel-overview-comment-line-length 18))
+    (with-temp-buffer
+      (org-comments-panel-render-buffer
+       (current-buffer)
+       '((:type comment :status "OPEN" :target-text "target"
+		:body "one two three four five six seven"))
+       nil)
+      (let ((output (buffer-substring-no-properties (point-min) (point-max))))
+	(should (string-match-p "one two three fou…" output))
+	(should-not (string-match-p "five" output))))))
 
 (ert-deftest org-comments-panel-render-current-comment-shows-replies ()
   "Current comments render full body and reply conversation."
@@ -170,13 +205,16 @@
 	(google-output
 	 (org-comments-panel-render-test--fixture-output 'google-docs)))
     (should (equal confluence-output google-output))
-    (dolist (expected '("💬 [OPEN] “selected paragraph” 🔗"
+    (dolist (expected '("☁️ [OPEN] “selected paragraph”"
+			"Alice · "
 			"↳ Bob · "
 			"↳ Carol"
-			"💬 [RESOLVED] “done paragraph” 🔗"
-			"⚠ [TODO] “stale paragraph” ⚠"
-			"💬 [OPEN] “unconfirmed paragrap…” ❓"
-			"👆 [OPEN] PAGE 🔗"
+			"☁️ [RESOLVED] “done paragraph”"
+			"☁️ [TODO] “stale paragraph”"
+			"⚠️"
+			"✍️ [OPEN] “unconfirmed paragrap…”"
+			"❓"
+			"☁️ [OPEN] PAGE"
 			"Page/footer provider note."))
       (should (string-match-p (regexp-quote expected) confluence-output)))))
 
@@ -257,18 +295,16 @@
       (should-not (search-forward "commented region" nil t)))))
 
 (ert-deftest org-comments-panel-render-clamps-overview-body ()
-  "Overview comments show at most the configured number of compact body lines."
-  (let ((org-comments-panel-overview-comment-line-length 10)
-	(org-comments-panel-overview-comment-lines 2))
+  "Overview comments show one compact body line."
+  (let ((org-comments-panel-overview-comment-line-length 10))
     (with-temp-buffer
       (org-comments-panel-render-buffer
        (current-buffer)
        '((:type comment :status "OPEN" :target-text "target"
 		:body "one two three four five six seven eight nine"))
        nil)
-      (should (search-forward "one two th" nil t))
-      (should (search-forward "ree four …" nil t))
-      (should-not (search-forward "five" nil t)))))
+      (should (search-forward "one two t…" nil t))
+      (should-not (search-forward "three" nil t)))))
 
 (ert-deftest org-comments-panel-render-remote-missing-overview-is-compact ()
   "Remote-missing overview cards show only a warning icon."

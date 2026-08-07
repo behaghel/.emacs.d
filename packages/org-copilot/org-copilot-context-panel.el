@@ -19,6 +19,7 @@
 (require 'subr-x)
 (require 'org-copilot-model)
 (require 'org-copilot-session)
+(require 'org-comments nil 'noerror)
 
 (defcustom org-copilot-panel-buffer-name "*Org Copilot*"
   "Buffer name used for the Org Copilot side panel."
@@ -310,17 +311,13 @@ previous overlay already claimed the focused face."
   (setq org-copilot--overlays (nreverse org-copilot--overlays)))
 
 (defun org-copilot-context-panel-provider ()
-  "Return the Org Copilot context-panel provider descriptor."
+  "Return the Org Copilot context-panel provider descriptor.
+Copilot contributes chat and transient auxiliary behavior only; comment side-panel
+UI is owned by the unified `org-comments' provider."
   (list :name 'copilot
 	:priority 20
-	:collect-side-items #'org-copilot-context-panel-collect-side-items
-	:render-side-item #'org-copilot-context-panel-render-side-item
-	:jump-side-item #'org-copilot-context-panel-jump-side-item
 	:collect-bottom-views #'org-copilot-chat-bottom-views
-	:cleanup-auxiliary #'org-copilot--cleanup-transient-auxiliary
-	:side-panel-mode #'org-copilot-panel-mode
-	:side-panel-buffer-name org-copilot-panel-buffer-name
-	:side-panel-width org-copilot-panel-width))
+	:cleanup-auxiliary #'org-copilot--cleanup-transient-auxiliary))
 
 (defun org-copilot--auxiliary-buffer-p (buffer)
   "Return non-nil when BUFFER is an Org Copilot auxiliary buffer."
@@ -396,6 +393,8 @@ previous overlay already claimed the focused face."
   "Enable Org Copilot as a context-panel provider in the current buffer."
   (org-copilot--ensure-window-watch)
   (setq org-copilot--workspace-source-buffer (current-buffer))
+  (when (fboundp 'org-comments-mode)
+    (org-comments-mode 1))
   (org-context-panel-register-provider (org-copilot-context-panel-provider))
   (org-context-panel-mode 1))
 
@@ -429,12 +428,14 @@ previous overlay already claimed the focused face."
 
 ;;;###autoload
 (defun org-copilot-open ()
-  "Open or refresh the Org Copilot side panel for the current Org buffer."
+  "Open or refresh unified comments for the current Org buffer."
   (interactive)
   (let ((source (org-copilot--active-source-buffer)))
     (with-current-buffer source
-      (org-copilot-mode 1))
-    (org-context-panel-open source)))
+      (org-copilot-mode 1)
+      (if (fboundp 'org-comments-open)
+	  (org-comments-open)
+	(org-context-panel-open source)))))
 
 ;;;###autoload
 (defun org-copilot-open-panels ()

@@ -232,6 +232,71 @@ Omega.
       (should (eq (plist-get right :status) 'accepted))
       (should (eq (plist-get left :status) 'superseded)))))
 
+(ert-deftest org-suggestions-comment-api-accepts-linked-candidate ()
+  "Comment-record API accepts the linked active suggestion candidate."
+  (org-suggestions-test--with-source-file
+   "Alpha
+beta
+"
+   (lambda (file)
+     (let* ((candidate (org-suggestions-test--candidate
+			"ai-1" 'active
+			(list (list :id "h1" :kind 'replace
+				    :original "beta
+" :replacement "BETA
+"))))
+	    (thread (list :id "thread-1" :comment-id "c1"
+			  :candidates (list candidate)))
+	    (comment (list :id "c1" :suggestion-thread-id "thread-1"
+			   :suggestion-ids "ai-1")))
+       (org-suggestions-write-sidecar file (list thread))
+       (with-current-buffer (find-file-noselect file)
+	 (unwind-protect
+	     (progn
+	       (org-suggestions-accept-comment-suggestion (current-buffer) comment)
+	       (should (equal (buffer-string) "Alpha
+BETA
+"))
+	       (let* ((stored (car (org-suggestions-load-sidecar file)))
+		      (stored-candidate (car (plist-get stored :candidates))))
+		 (should (eq (plist-get stored-candidate :status) 'accepted))))
+	   (kill-buffer (current-buffer))))))))
+
+(ert-deftest org-suggestions-comment-api-previews-linked-candidate ()
+  "Comment-record API previews the linked active suggestion candidate."
+  (org-suggestions-test--with-source-file
+   "* Intro
+Old body.
+"
+   (lambda (file)
+     (let* ((candidate (org-suggestions-test--candidate
+			"ai-1" 'active
+			(list (list :id "h1" :kind 'section-replace
+				    :section-title "Intro"
+				    :replacement "New body.
+"))))
+	    (thread (list :id "thread-1" :comment-id "c1"
+			  :candidates (list candidate)))
+	    (comment (list :id "c1" :suggestion-thread-id "thread-1"
+			   :suggestion-ids "ai-1")))
+       (org-suggestions-write-sidecar file (list thread))
+       (with-current-buffer (find-file-noselect file)
+	 (unwind-protect
+	     (let ((diff (org-suggestions-preview-comment-suggestion
+			  (current-buffer) comment)))
+	       (should (string-match-p "-Old body\." diff))
+	       (should (string-match-p "+New body\." diff)))
+	   (kill-buffer (current-buffer))))))))
+
+(ert-deftest org-suggestions-comment-api-errors-without-link ()
+  "Comment-record API fails clearly without suggestion metadata."
+  (with-temp-buffer
+    (let ((buffer-file-name "/tmp/source.org"))
+      (should-error
+       (org-suggestions-resolve-comment-suggestion
+	(current-buffer) '(:id "c1" :body "Only a comment"))
+       :type 'user-error))))
+
 (ert-deftest org-suggestions-undo-accepted-session-local ()
   "Undo restores source text for an accepted candidate in the same session."
   (with-temp-buffer
