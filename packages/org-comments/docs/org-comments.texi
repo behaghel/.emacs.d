@@ -442,23 +442,23 @@ former personal metadata prefix.
 @tab Enable `org-comments-mode' in Org buffers.
 @item @samp{org-comments-sync}
 @tab Synchronize comments for the current Org source or comments panel.
-@item @samp{org-context-panel-buffer-mode}
+@item @samp{context-panels-buffer-mode}
 @tab Major mode for generic Org context side panel buffers.
-@item @samp{org-context-panel-close}
+@item @samp{context-panels-close}
 @tab Close the generic side context panel for the current source.
-@item @samp{org-context-panel-close-bottom-view}
+@item @samp{context-panels-close-bottom-view}
 @tab Close the generic bottom context view for the current source.
-@item @samp{org-context-panel-mode}
+@item @samp{context-panels-mode}
 @tab Enable reusable Org context-panel mechanics for the current buffer.
-@item @samp{org-context-panel-open}
+@item @samp{context-panels-open}
 @tab Open or refresh a generic side context panel for SOURCE-BUFFER@.
-@item @samp{org-context-panel-open-bottom-view}
+@item @samp{context-panels-open-bottom-view}
 @tab Open bottom context view VIEW-ID for SOURCE-BUFFER@.
-@item @samp{org-context-panel-open-marker-view}
+@item @samp{context-panels-open-marker-view}
 @tab Open the bottom view associated with the top marker at point.
-@item @samp{org-context-panel-refresh}
+@item @samp{context-panels-refresh}
 @tab Refresh the generic side context panel.
-@item @samp{org-context-panel-refresh-bottom-view}
+@item @samp{context-panels-refresh-bottom-view}
 @tab Refresh the current generic bottom context view.
 @end multitable
 

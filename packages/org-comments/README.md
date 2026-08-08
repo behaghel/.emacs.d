@@ -20,7 +20,7 @@ Current implementation locations:
 
 - `packages/org-comments/`: generic sidecar storage/model/link/anchor logic, commands, overlays, panel rendering, and backend protocol.
 - `packages/org-comments/docs/ux-parity-audit.md`: UX parity contract and audit checklist for Confluence and Google Docs comment workflows.
-- `packages/org-comments/org-context-panel.el`: reusable provider-based Org context panel mechanics.
+- `external context-panels package`: reusable provider-based Org context panel mechanics.
 - `modules/interactive/org/comments.el`: personal interactive command layer and Evil/Bépo bindings.
 - `modules/interactive/org/context-panel.el`: personal context-panel activation, UI adapters, visual-fill docking, and optional filter extensions.
 - `packages/org-confluence/`: Confluence publishing and remote comment sync through public package APIs/backend adapters.
@@ -63,7 +63,7 @@ packages/org-comments/
 ├── org-comments-backend-org.el     ; local Org sidecar backend
 ├── org-comments-links.el           ; org-comment: links
 ├── org-comments-commands.el        ; backend-neutral interactive commands
-├── org-context-panel.el            ; reusable Org context panel primitives
+├── context-panels.el            ; reusable Org context panel primitives
 ├── org-comments-context-panel.el   ; comments provider glue
 ├── org-comments-overlays.el        ; public overlay activation facade
 ├── org-comments-panel.el           ; context panel mode and public commands
@@ -81,7 +81,7 @@ packages/org-comments/
     ├── org-comments-backend-test.el
     ├── org-comments-links-test.el
     ├── org-comments-commands-test.el
-    ├── org-context-panel-test.el
+    ├── context-panels-test.el
     ├── org-comments-context-panel-test.el
     ├── org-comments-overlays-test.el
     ├── org-comments-panel-test.el
@@ -92,7 +92,7 @@ Personal activation remains in `modules/interactive/org/` and should stay limite
 
 ## Context Panel Window Ownership
 
-`org-context-panel` owns generic side/bottom panel window lifecycle for all
+`context-panels` owns generic side/bottom panel window lifecycle for all
 providers. Panels are linked to ordinary visible Org source windows, not to the
 selected auxiliary buffer. When the visible source window is replaced by a
 non-Org buffer, side/bottom panels are temporarily hidden while desired layout

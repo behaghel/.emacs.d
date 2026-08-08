@@ -66,9 +66,9 @@ optional.
 
 * Context-panel providers
 
-=org-context-panel= is the reusable Org UI layer used by =org-comments= and
+=context-panels= is the reusable Org UI layer used by =org-comments= and
 other providers such as =org-marginalia=.  Providers register buffer-local plist
-descriptors with =org-context-panel-register-provider=.
+descriptors with =context-panels-register-provider=.
 
 Composable providers should supply:
 
@@ -78,9 +78,9 @@ Composable providers should supply:
 - =:render-side-item=, rendering one row for one item;
 - =:jump-side-item=, handling =RET= on one rendered row.
 
-=org-context-panel= annotates collected rows with =:provider= and stores each
-rendered row as the =org-context-panel-item= text property.  The generic command
-=org-context-panel-jump-at-point= dispatches =RET= to the row provider's
+=context-panels= annotates collected rows with =:provider= and stores each
+rendered row as the =context-panels-item= text property.  The generic command
+=context-panels-jump-at-point= dispatches =RET= to the row provider's
 =:jump-side-item= function.  This keeps the panel core independent from
 comments, marginalia, Confluence, =magit-section=, and =transient= while still
 allowing multiple providers to share one viewport-aligned side panel.

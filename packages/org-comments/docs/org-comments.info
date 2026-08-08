@@ -414,15 +414,15 @@ Command                                            Description
 ‘org-comments-reply’                               Create a reply using the best available comments UI.
 ‘org-comments-setup’                               Enable 'org-comments-mode' in Org buffers.
 ‘org-comments-sync’                                Synchronize comments for the current Org source or comments panel.
-‘org-context-panel-buffer-mode’                    Major mode for generic Org context side panel buffers.
-‘org-context-panel-close’                          Close the generic side context panel for the current source.
-‘org-context-panel-close-bottom-view’              Close the generic bottom context view for the current source.
-‘org-context-panel-mode’                           Enable reusable Org context-panel mechanics for the current buffer.
-‘org-context-panel-open’                           Open or refresh a generic side context panel for SOURCE-BUFFER.
-‘org-context-panel-open-bottom-view’               Open bottom context view VIEW-ID for SOURCE-BUFFER.
-‘org-context-panel-open-marker-view’               Open the bottom view associated with the top marker at point.
-‘org-context-panel-refresh’                        Refresh the generic side context panel.
-‘org-context-panel-refresh-bottom-view’            Refresh the current generic bottom context view.
+‘context-panels-buffer-mode’                    Major mode for generic Org context side panel buffers.
+‘context-panels-close’                          Close the generic side context panel for the current source.
+‘context-panels-close-bottom-view’              Close the generic bottom context view for the current source.
+‘context-panels-mode’                           Enable reusable Org context-panel mechanics for the current buffer.
+‘context-panels-open’                           Open or refresh a generic side context panel for SOURCE-BUFFER.
+‘context-panels-open-bottom-view’               Open bottom context view VIEW-ID for SOURCE-BUFFER.
+‘context-panels-open-marker-view’               Open the bottom view associated with the top marker at point.
+‘context-panels-refresh’                        Refresh the generic side context panel.
+‘context-panels-refresh-bottom-view’            Refresh the current generic bottom context view.
 
 
 File: org-comments.info,  Node: Customization,  Next: Keybindings,  Prev: Commands,  Up: Top

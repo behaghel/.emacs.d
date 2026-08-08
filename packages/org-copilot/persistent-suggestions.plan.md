@@ -113,7 +113,7 @@ The plan is intentionally DRY: each slice should add the smallest public API nee
 - User interaction path: Run review/chat flows; panel rows come from comments with suggestion indicators; accept/view actions delegate to suggestions.
 - Tests to write first:
   - `org-copilot-does-not-store-persistent-ai-comments-in-session`
-  - `org-copilot-panel-uses-linked-comment-suggestion-state`
+  - `org-comments-panel-uses-linked-comment-suggestion-state`
   - `org-copilot-next-previous-navigate-durable_artifacts`
   - `org-copilot-accept-action-delegates-to-org-suggestions`
   - `org-copilot-load-check-without-gptel-hard-dependency`

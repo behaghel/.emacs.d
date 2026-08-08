@@ -47,7 +47,7 @@ marginalia footnotes and sidecar review comments.
 ### Opening, focus, and lifecycle
 
 - Normal-state `,cc` opens or refreshes the context panel for the current Org buffer.
-- `,cM` toggles `hub/org-context-panel-mode`, which refreshes after source-buffer
+- `,cM` toggles `hub/context-panels-mode`, which refreshes after source-buffer
   commands.
 - The panel follows the selected Org buffer while visible.
 - The panel closes automatically when selection moves to a non-Org buffer.
@@ -373,7 +373,7 @@ remote thread is resolved.
 - `packages/org-confluence/org-confluence-api.el`
 - `packages/org-confluence/org-confluence-commands.el`
 - `test/authoring/org/org-comments-test.el`
-- `test/authoring/org/org-context-panel-test.el`
+- `packages/org-comments/test/org-comments-context-panel-test.el`
 - `test/publishing/confluence/org-confluence-api-test.el`
 - `modules/interactive/org/README.md`
 
@@ -406,7 +406,7 @@ remote thread is resolved.
 - `packages/org-confluence/org-confluence-api.el`
 - `packages/org-confluence/org-confluence-commands.el`
 - `test/authoring/org/org-comments-test.el`
-- `test/authoring/org/org-context-panel-test.el`
+- `packages/org-comments/test/org-comments-context-panel-test.el`
 - `test/publishing/confluence/org-confluence-api-test.el`
 
 ## Spec: Org Sidecar Comments Push to Confluence

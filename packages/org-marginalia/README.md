@@ -18,7 +18,7 @@ Confluence publishing, personal keybindings, or edit/delete/toggle actions.
 ```
 
 When enabled alongside `org-comments`, both providers share the same
-`org-context-panel` side panel. Rows are ordered by viewport/source position;
-provider priority breaks ties. `RET` uses `org-context-panel-jump-at-point`, so
+`context-panels` side panel. Rows are ordered by viewport/source position;
+provider priority breaks ties. `RET` uses `context-panels-jump-at-point`, so
 marginalia rows jump to their Org footnote reference while comment rows use the
 comments provider action.

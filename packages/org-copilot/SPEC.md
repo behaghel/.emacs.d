@@ -137,7 +137,7 @@ Implementation notes:
 - Legacy top-level `suggestion` and comment-local `:suggestion` no longer mutate source and fail closed or warn.
 
 ## Windowing Invariants
-- Copilot side panel and bottom chat follow generic `org-context-panel` source ownership.
+- Copilot side panel and bottom chat follow generic `context-panels` source ownership.
 - If the source Org window disappears, durable side/bottom panels hide instead of remaining attached to a stale source.
 - If another eligible Org source becomes visible while panels are desired, Copilot panels restore/retarget and chat restore runs for the new source.
 - Copilot diff/suggestion previews are transient auxiliary views: close them on source disappearance/retarget, but do not auto-restore them.

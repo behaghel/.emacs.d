@@ -75,7 +75,7 @@ If the manual is not installed globally, add the package =docs/= directory to
 
 - User manual: =docs/org-comments.org=
 - Extension points: =docs/extension-points.org=
-- Org context panel specification: =docs/org-context-panel.org=
+- Org context panel specification: =docs/context-panels.org=
 - Backend-neutral collaboration model: =COLLABORATION.md=
 - Current refactor/spec notes: =README.md=
 - Generated references: =docs/generated/=

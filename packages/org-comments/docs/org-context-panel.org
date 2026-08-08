@@ -4,11 +4,11 @@
 
 * Purpose
 
-=org-context-panel= is a future standalone, Org-specific UI library that lives
+=context-panels= is a future standalone, Org-specific UI library that lives
 inside =packages/org-comments/= for now.  It provides reusable mechanics for
 contextual Org panels, source overlays, and top-of-buffer markers.  The current
 user-facing package remains =org-comments=; =org-comments= will use
-=org-context-panel= to deliver its comment review experience.
+=context-panels= to deliver its comment review experience.
 
 The library is intentionally a "package in the package": it should be possible
 to extract it later without bringing along the =org-comments= data model.
@@ -20,10 +20,10 @@ The dependency direction is:
 #+begin_example
 org-comments
   uses / depends on
-org-context-panel
+context-panels
 #+end_example
 
-=org-context-panel= must not depend on =org-comments=.  Instead, it exposes a
+=context-panels= must not depend on =org-comments=.  Instead, it exposes a
 provider protocol.  =org-comments= is the first provider and adapts sidecar
 comments, page comments, and comment actions into that protocol.
 
@@ -32,20 +32,20 @@ comments, page comments, and comment actions into that protocol.
 Initial physical home:
 
 #+begin_example
-packages/org-comments/org-context-panel.el
+external context-panels package
 #+end_example
 
 Initial feature:
 
 #+begin_src emacs-lisp
-(provide 'org-context-panel)
+(provide 'context-panels)
 #+end_src
 
 Initial namespace split:
 
 | Layer | Namespace | Responsibility |
 |-------+-----------+----------------|
-| Reusable panel library | =org-context-panel-*= | Org panel, overlay, marker, provider, and window mechanics. |
+| Reusable panel library | =context-panels-*= | Org panel, overlay, marker, provider, and window mechanics. |
 | Comments provider/glue | =org-comments-context-panel-*= | Adapt =org-comments= sidecar/page comments to the provider protocol. |
 | Personal activation code | local config modules | Temporary wrappers and local activation policy outside the package. |
 
@@ -60,7 +60,7 @@ window.  It is not a full ordered list of all contextual items in the buffer.
 It renders provider items that correspond to visible source fragments and aligns
 those items with the source window's visible lines.
 
-Providers supply source anchors or ranges.  =org-context-panel= owns the
+Providers supply source anchors or ranges.  =context-panels= owns the
 alignment algorithm.
 
 Provider side-item descriptors should include enough information to locate and
@@ -92,33 +92,33 @@ Alignment rules:
 
 The side panel is source-window locked and follows the selected Org source
 buffer.  When a side panel is visible and selection moves to another Org buffer
-with registered providers, =org-context-panel= rebinds and refreshes the visible
+with registered providers, =context-panels= rebinds and refreshes the visible
 panel for that source.  When selection leaves Org/provider context, the visible
 side panel closes.  This follow behavior is core package behavior rather than a
 user option.  Users may move point inside the panel for actions, but independent
 side-panel scrolling is not meaningful state.  The next refresh reasserts
 alignment to the source window.
 
-=org-context-panel= also exposes side-panel lifecycle hooks for local display
+=context-panels= also exposes side-panel lifecycle hooks for local display
 policy such as visual-fill-column docking.  Hook functions can read dynamically
 bound context variables:
 
-- =org-context-panel-current-source-buffer=;
-- =org-context-panel-current-source-window=;
-- =org-context-panel-current-panel-buffer=;
-- =org-context-panel-current-panel-window=.
+- =context-panels-current-source-buffer=;
+- =context-panels-current-source-window=;
+- =context-panels-current-panel-buffer=;
+- =context-panels-current-panel-window=.
 
 The initial hooks are:
 
-- =org-context-panel-after-side-panel-open-hook=;
-- =org-context-panel-before-side-panel-close-hook=.
+- =context-panels-after-side-panel-open-hook=;
+- =context-panels-before-side-panel-close-hook=.
 
 These hooks define lifecycle timing only.  Package core should not depend on a
 specific display adjustment such as =visual-fill-column=.
 
 ** Source overlays and top markers
 
-=org-context-panel= owns generic overlay and marker lifecycle mechanics:
+=context-panels= owns generic overlay and marker lifecycle mechanics:
 
 - create and delete source range overlays;
 - create and delete top-of-buffer marker overlays;
@@ -141,12 +141,12 @@ A provider top-marker descriptor can be plist-shaped:
  :help "Open page comments")
 #+end_src
 
-=org-context-panel= renders the marker and wires activation to a bottom view.
+=context-panels= renders the marker and wires activation to a bottom view.
 The provider decides the label, help text, view identity, and rendered content.
 
 ** Top marker to bottom panel view
 
-Top markers can open provider-owned bottom/page views.  =org-context-panel=
+Top markers can open provider-owned bottom/page views.  =context-panels=
 owns the generic window/buffer lifecycle:
 
 - create/reuse a bottom window below the source window;
@@ -166,7 +166,7 @@ A provider view descriptor can be plist-shaped:
 #+end_src
 
 Later, providers may choose to use =magit-section= for rich bottom views, but
-=org-context-panel= core should not depend on it.
+=context-panels= core should not depend on it.
 
 * Provider protocol
 
@@ -189,29 +189,28 @@ A provider descriptor can start with this shape:
  :follow-source-p #'org-comments-context-panel-follow-source-p)
 #+end_src
 
-Side item descriptors are provider-neutral plists.  =org-context-panel= copies
+Side item descriptors are provider-neutral plists.  =context-panels= copies
 collected items and annotates them with =:provider= before rendering.  The core
-library also stores the item on rendered rows as the =org-context-panel-item=
+library also stores the item on rendered rows as the =context-panels-item=
 text property so navigation and actions do not need provider-specific row
-properties.  Stable row identity is derived by =org-context-panel-item-key= from
+properties.  Stable row identity is derived by =context-panels-item-key= from
 =:id=, definition/jump positions, or source anchor positions.
 
 Composable side panels use =:render-side-item=.  Each provider renders a single
-row for one of its items; =org-context-panel= merges all provider rows and sorts
+row for one of its items; =context-panels= merges all provider rows and sorts
 them by viewport row, source position, then provider =:priority=, where a lower
-number appears first.  Whole-panel renderers via =:render-side-panel= remain a
-fallback for non-composable providers.
+number appears first.  Whole-panel body renderers are retired; providers render rows with =:render-side-item=.
 
 =:jump-side-item= is the provider-neutral action hook for =RET= in a side-panel
-row.  The command =org-context-panel-jump-at-point= reads the
-=org-context-panel-item= at point, resolves its =:provider= against the source
+row.  The command =context-panels-jump-at-point= reads the
+=context-panels-item= at point, resolves its =:provider= against the source
 buffer's registered providers, and calls that provider's =:jump-side-item= with
 SOURCE-BUFFER and ITEM.  This lets comments and marginalia share one keybinding
-without =org-context-panel= depending on either package.
+without =context-panels= depending on either package.
 
 Side-panel display properties are optional.  If no provider supplies them,
-=org-context-panel= falls back to =org-context-panel-buffer-name= and
-=org-context-panel-width=.  A provider may supply static values or, for
+=context-panels= falls back to =context-panels-buffer-name= and
+=context-panels-width=.  A provider may supply static values or, for
 =:side-panel-buffer-name= and =:side-panel-width=, functions that accept the
 source buffer and return the value to use.
 
@@ -220,7 +219,7 @@ source buffer and returns non-nil only when a visible side panel should follow
 that buffer for this provider.  This is provider semantics, not a user option;
 for example, =org-comments= rejects its own =.comments.org= sidecar files.
 
-=org-context-panel= responsibilities:
+=context-panels= responsibilities:
 
 - maintain registered providers;
 - call provider collection functions for the current source buffer;
@@ -229,7 +228,7 @@ for example, =org-comments= rejects its own =.comments.org= sidecar files.
 - render side items into the viewport-aligned right panel;
 - merge composable provider rows by viewport/source position and priority;
 - attach provider-neutral row metadata for navigation and actions;
-- dispatch row jumps through =org-context-panel-jump-at-point= and provider
+- dispatch row jumps through =context-panels-jump-at-point= and provider
   =:jump-side-item= functions;
 - render top markers as source overlays;
 - dispatch marker activation to provider bottom views;
@@ -246,7 +245,7 @@ Provider responsibilities:
 * Org comments provider scope
 
 =org-comments= is the first provider.  It should adapt existing sidecar and page
-comment behavior to =org-context-panel= without changing user-visible behavior
+comment behavior to =context-panels= without changing user-visible behavior
 in the first extraction.
 
 Initial =org-comments= provider responsibilities:
@@ -261,7 +260,7 @@ Initial =org-comments= provider responsibilities:
 - comment actions such as opening, navigating, replying, or updating sidecar
 entries where those actions already exist.
 
-=org-comments-mode= should enable =org-context-panel-mode= by default when the
+=org-comments-mode= should enable =context-panels-mode= by default when the
 context-panel integration exists, but it should not automatically pop open the
 side panel.
 
@@ -269,7 +268,7 @@ A future customization may be:
 
 #+begin_src emacs-lisp
 (defcustom org-comments-enable-context-panel t
-  "Whether `org-comments-mode' enables `org-context-panel-mode'."
+  "Whether `org-comments-mode' enables `context-panels-mode'."
   ...)
 #+end_src
 
@@ -288,7 +287,7 @@ added later.
 
 * Mode semantics
 
-=org-context-panel-mode= should mean: enable context-panel integration for the
+=context-panels-mode= should mean: enable context-panel integration for the
 current Org buffer.
 
 It should:
@@ -315,7 +314,7 @@ The first extraction must not include:
 - broad command renaming beyond what is necessary for package boundaries.
 
 Confluence sync-status currently belongs to =org-confluence=.  It may later
-integrate with =org-context-panel= through the provider/marker protocol, but not
+integrate with =context-panels= through the provider/marker protocol, but not
 in the initial extraction.
 
 * Migration boundary
@@ -326,7 +325,7 @@ Transitional rules:
 
 - existing personal functions may remain as wrappers outside the package while
   extraction proceeds;
-- new reusable code uses =org-context-panel-*=;
+- new reusable code uses =context-panels-*=;
 - =org-comments= provider/glue uses =org-comments-context-panel-*=;
 - no personal functions, personal keybindings, Evil state, or Bépo assumptions
   move into package code;
@@ -335,7 +334,7 @@ Transitional rules:
 * First implementation slices
 
 1. Extract source overlay and top-marker mechanics into
-   =packages/org-comments/org-context-panel.el=.
+   =external context-panels package=.
 2. Implement an =org-comments= provider for comment range overlays and page
    comment top marker.
 3. Preserve current overlay and marker behavior with tests.
@@ -347,10 +346,10 @@ Transitional rules:
 
 This spec is complete when it clearly defines:
 
-1. =org-context-panel= as a future standalone Org-specific UI library currently
+1. =context-panels= as a future standalone Org-specific UI library currently
    living under =packages/org-comments/=.
-2. The dependency direction: =org-comments= uses =org-context-panel=;
-   =org-context-panel= does not depend on =org-comments=.
+2. The dependency direction: =org-comments= uses =context-panels=;
+   =context-panels= does not depend on =org-comments=.
 3. A plist-based provider protocol.
 4. Core capabilities:
    - viewport-aligned right side panel;
