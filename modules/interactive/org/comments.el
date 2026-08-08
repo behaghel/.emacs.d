@@ -307,7 +307,7 @@
 	 (ambiguous (plist-get summary :ambiguous)))
     (org-comments-refresh-sidecar-headings sidecar-file)
     (org-comments-overlays-refresh)
-    (when (get-buffer-window hub/org-context-panel-buffer-name t)
+    (when (get-buffer-window hub/context-panels-buffer-name t)
       (ignore-errors (org-comments-open)))
     (message "Anchored %s inline comments; %s missing; %s ambiguous"
 	     anchored missing ambiguous)
@@ -324,7 +324,7 @@
 	 (triage (org-comments--triage-imported-inline-comments (current-buffer) sidecar-file)))
     (org-comments-refresh-sidecar-headings sidecar-file)
     (org-comments-overlays-refresh)
-    (when (get-buffer-window hub/org-context-panel-buffer-name t)
+    (when (get-buffer-window hub/context-panels-buffer-name t)
       (ignore-errors (org-comments-open)))
     (message "Anchored %s exact, %s selected, %s skipped"
 	     (plist-get exact :anchored)
@@ -348,7 +348,7 @@
 	(revert-buffer :ignore-auto :noconfirm))
       (when (derived-mode-p 'org-mode)
 	(ignore-errors (org-comments-overlays-refresh))
-	(when (get-buffer-window hub/org-context-panel-buffer-name t)
+	(when (get-buffer-window hub/context-panels-buffer-name t)
 	  (ignore-errors (org-comments-open))))
       (message "Deleted comment %s" id))))
 

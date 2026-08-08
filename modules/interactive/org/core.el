@@ -119,8 +119,8 @@ native behavior."
 			      ",ce" #'hub/org-comment-edit
 			      ",cj" #'hub/org-comment-jump-to-sidecar
 			      ",cl" #'org-confluence-comments-open-current
-			      ",cc" #'hub/org-context-panel-toggle-open
-			      ",cM" #'hub/org-context-panel-mode
+			      ",cc" #'hub/context-panels-toggle-open
+			      ",cM" #'hub/context-panels-mode
 			      ",cO" #'org-confluence-open-page
 			      ",cf" #'hub/org-page-comment-create
 			      ",cP" #'hub/org-page-comments-open
@@ -130,11 +130,11 @@ native behavior."
 			      ",cmr" #'hub/org-comment-mark-resolved
 			      ",cx" #'hub/org-comment-delete
 			      ",ov" #'hub/org-insert-veriff-template
-			      "]c" #'org-context-panel-next-item
-			      "[c" #'org-context-panel-previous-item)
+			      "]c" #'context-panels-next-item
+			      "[c" #'context-panels-previous-item)
   (evil-define-key 'visual org-mode-map (kbd ",cA") #'hub/org-comment-reanchor-from-region)
   (evil-define-key 'visual org-mode-map (kbd ",cc") #'hub/org-comment-create-from-region)
-  (evil-define-key 'normal org-mode-map (kbd "RET") #'hub/org-comments-source-ret-dwim)
+  (evil-define-key 'normal org-mode-map (kbd "RET") #'hub/comments-source-ret-dwim)
   (evil-define-key 'insert org-mode-map (kbd "RET") #'org-return)
   (evil-define-key 'motion calendar-mode-map (kbd "RET") #'org-calendar-select)
   (define-key org-mode-map (kbd "<tab>") #'hub/org-tab-dwim)
