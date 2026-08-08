@@ -174,6 +174,26 @@
 		      (current-buffer))))
 	  (should (equal (plist-get (car items) :icon) "☁️")))))))
 
+(ert-deftest org-comments-context-panel-collect-side-items-normalizes-metadata ()
+  "Collected comment items expose source, sidecar, and action metadata."
+  (with-temp-buffer
+    (org-mode)
+    (let ((buffer-file-name "/tmp/org-comments/source.org")
+	  (comment (list :type 'comment :id "c1"
+			 :suggestion-ids "s1"
+			 :target-start 1 :target-end 1 :body "Body")))
+      (cl-letf (((symbol-function 'org-comments-collect)
+		 (lambda (&rest _) (list comment))))
+	(let ((item (car (org-comments-context-panel-collect-side-items
+			  (current-buffer)))))
+	  (should (equal (plist-get item :source-file)
+			 "/tmp/org-comments/source.org"))
+	  (should (equal (plist-get item :source-directory)
+			 "/tmp/org-comments/"))
+	  (should (equal (plist-get item :sidecar-file)
+			 "/tmp/org-comments/source.comments.org"))
+	  (should (eq (plist-get item :suggestion-linked) t)))))))
+
 (ert-deftest org-comments-context-panel-collect-side-items-resolves-people ()
   "Collected comment items resolve remote author IDs using source context."
   (with-temp-buffer

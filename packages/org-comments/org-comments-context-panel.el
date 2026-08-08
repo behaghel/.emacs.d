@@ -21,6 +21,7 @@
 (require 'org-comments-panel-actions)
 (require 'org-comments-panel-filter)
 (require 'org-comments-panel-render)
+(require 'org-comments-sidecar)
 (require 'org-comments-store)
 
 (declare-function org-comments-page-open "org-comments-page")
@@ -141,25 +142,40 @@ Scope comments highlight only their heading line when anchored."
 			 replies)))
     copy))
 
-(defun org-comments-context-panel--mark-current-comment (comment active-key directory)
-  "Return COMMENT copied with current, icon, and author state.
-The comment is current when it matches ACTIVE-KEY.  Remote author account IDs
-are resolved with DIRECTORY as people-cache context."
+(defun org-comments-context-panel--normalize-side-item
+    (comment active-key source-file directory)
+  "Return COMMENT as a normalized context-panel side item.
+The normalized item contains row rendering metadata, resolved people metadata,
+source/sidecar metadata, and action capability flags.  The item is current when
+it matches ACTIVE-KEY.  Remote author account IDs are resolved with DIRECTORY as
+people-cache context."
   (let ((copy (org-comments-context-panel--resolve-author comment directory)))
     (plist-put copy :current
 	       (org-comments-context-panel--comment-key-equal-p copy active-key))
     (plist-put copy :icon (org-comments-panel-render--provider-icon copy))
+    (when source-file
+      (plist-put copy :source-file source-file)
+      (plist-put copy :sidecar-file
+		 (or (plist-get copy :sidecar-file)
+		     (org-comments-sidecar-path source-file))))
+    (when directory
+      (plist-put copy :source-directory directory))
+    (plist-put copy :suggestion-linked
+	       (and (or (plist-get copy :suggestion-thread-id)
+			(plist-get copy :suggestion-ids))
+		    t))
     copy))
 
 (defun org-comments-context-panel-collect-side-items (source-buffer)
   "Collect filtered side items for SOURCE-BUFFER."
   (with-current-buffer source-buffer
-    (let ((active-key org-comments-active-comment-key)
-	  (directory (and buffer-file-name (file-name-directory buffer-file-name))))
+    (let* ((active-key org-comments-active-comment-key)
+	   (source-file buffer-file-name)
+	   (directory (and source-file (file-name-directory source-file))))
       (mapcar
        (lambda (comment)
-	 (org-comments-context-panel--mark-current-comment
-	  comment active-key directory))
+	 (org-comments-context-panel--normalize-side-item
+	  comment active-key source-file directory))
        (cl-remove-if-not
 	#'org-comments-context-panel--source-comment-p
 	(org-comments-panel-filter-apply
