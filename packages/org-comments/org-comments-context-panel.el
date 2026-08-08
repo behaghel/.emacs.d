@@ -196,13 +196,6 @@ are resolved with DIRECTORY as people-cache context."
 	  (overlay-put org-comments-active-panel-overlay
 		       'face 'org-comments-active-panel-face))))))
 
-(defun org-comments-context-panel-render-side-panel (source-buffer items)
-  "Render unified comments side panel for SOURCE-BUFFER with ITEMS.
-This whole-panel renderer keeps compatibility with older context-panel dispatch
-paths that predate provider-composed `:render-side-item' rendering."
-  (setq org-comments-panel-source-buffer source-buffer)
-  (org-comments-panel-render-buffer source-buffer items nil))
-
 (defun org-comments-context-panel-jump-side-item (source-buffer item)
   "Jump from context-panel ITEM to its source or sidecar target.
 SOURCE-BUFFER is the Org source buffer associated with ITEM."

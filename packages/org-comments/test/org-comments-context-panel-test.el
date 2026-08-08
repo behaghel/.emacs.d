@@ -213,22 +213,6 @@
     (should (eq (plist-get provider :refresh-source-overlays)
 		#'org-comments-context-panel-refresh-source-overlays))))
 
-(ert-deftest org-comments-context-panel-whole-panel-renderer-uses-rich-comments ()
-  "Whole-panel rendering shows rich comment cards instead of item ids."
-  (let ((source-buffer (generate-new-buffer " *org comments render source*")))
-    (unwind-protect
-	(with-temp-buffer
-	  (org-comments-context-panel-render-side-panel
-	   source-buffer
-	   '((:type comment :id "remote-confluence-1" :status "OPEN"
-		    :remote-id "1" :target-text "Alpha" :body "Remote body.")))
-	  (let ((output (buffer-substring-no-properties (point-min) (point-max))))
-	    (should (string-match-p "☁️ \\[OPEN\\] “Alpha”" output))
-	    (should (string-match-p "Remote body\." output))
-	    (should-not (string-match-p "- remote-confluence-1" output))))
-      (when (buffer-live-p source-buffer)
-	(kill-buffer source-buffer)))))
-
 (ert-deftest org-comments-mode-enables-context-panel-provider ()
   "`org-comments-mode' enables the comments provider through context-panel mode."
   (with-temp-buffer
