@@ -7,7 +7,7 @@
 
 (require 'ert)
 (require 'org)
-(require 'org-context-panel)
+(require 'context-panels)
 (require 'org-marginalia-context-panel)
 
 (ert-deftest org-marginalia-context-panel-mode-registers-provider ()
@@ -15,13 +15,13 @@
   (with-temp-buffer
     (org-mode)
     (org-marginalia-context-panel-mode 1)
-    (should (org-context-panel-registered-provider 'marginalia))
-    (should (equal (plist-get (org-context-panel-registered-provider 'marginalia)
+    (should (context-panels-registered-provider 'marginalia))
+    (should (equal (plist-get (context-panels-registered-provider 'marginalia)
 			      :icon)
 		   "📝"))
-    (should org-context-panel-mode)
+    (should context-panels-mode)
     (org-marginalia-context-panel-mode -1)
-    (should-not (org-context-panel-registered-provider 'marginalia))))
+    (should-not (context-panels-registered-provider 'marginalia))))
 
 (ert-deftest org-marginalia-context-panel-renders-footnote-row ()
   "Marginalia provider renders Org-fontified footnote rows."
@@ -32,8 +32,8 @@
 	  (insert "Text[fn:one]\n\n[fn:one] *Bold* note.\n")
 	  (org-marginalia-context-panel-mode 1)
 	  (with-temp-buffer
-	    (setq-local org-context-panel-source-buffer source)
-	    (org-context-panel-render-side-panel source)
+	    (setq-local context-panels-source-buffer source)
+	    (context-panels-render-side-panel source)
 	    (should (search-forward "✣" nil t))
 	    (goto-char (point-min))
 	    (should (search-forward "Bold" nil t))
@@ -52,12 +52,12 @@
 	  (let ((panel (generate-new-buffer " *org marginalia generic panel*")))
 	    (unwind-protect
 		(with-current-buffer panel
-		  (org-context-panel-buffer-mode)
-		  (setq-local org-context-panel-source-buffer source)
-		  (org-context-panel-render-side-panel source)
+		  (context-panels-buffer-mode)
+		  (setq-local context-panels-source-buffer source)
+		  (context-panels-render-side-panel source)
 		  (goto-char (point-min))
 		  (search-forward "Note")
-		  (org-context-panel-jump-at-point)
+		  (context-panels-jump-at-point)
 		  (should (eq (current-buffer) source))
 		  (should (looking-at-p "\\[fn:one\\]")))
 	      (when (buffer-live-p panel)
@@ -76,9 +76,9 @@
 	  (let ((panel (generate-new-buffer " *org marginalia panel*")))
 	    (unwind-protect
 		(with-current-buffer panel
-		  (org-context-panel-buffer-mode)
-		  (setq-local org-context-panel-source-buffer source)
-		  (org-context-panel-render-side-panel source)
+		  (context-panels-buffer-mode)
+		  (setq-local context-panels-source-buffer source)
+		  (context-panels-render-side-panel source)
 		  (goto-char (point-min))
 		  (search-forward "Note")
 		  (org-marginalia-context-panel-jump-at-point)

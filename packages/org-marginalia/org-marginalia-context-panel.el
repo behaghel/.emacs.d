@@ -14,7 +14,7 @@
 ;;; Code:
 
 (require 'org)
-(require 'org-context-panel)
+(require 'context-panels)
 (require 'org-marginalia)
 (require 'subr-x)
 
@@ -79,7 +79,7 @@
     (org-marginalia-context-panel--insert-body body)
     (add-text-properties start (point)
 			 `(org-marginalia-item ,item
-					       org-context-panel-item ,item
+					       context-panels-item ,item
 					       mouse-face highlight
 					       help-echo "RET: jump to source reference"))))
 
@@ -101,7 +101,7 @@
     (unless item
       (user-error "No Org marginalia item at point"))
     (org-marginalia-context-panel-jump-side-item
-     (org-context-panel-current-source-buffer)
+     (context-panels-current-source-buffer)
      item)))
 
 (defun org-marginalia-context-panel-provider ()
@@ -119,11 +119,11 @@
   :lighter " Marginalia"
   (if org-marginalia-context-panel-mode
       (progn
-	(org-context-panel-register-provider (org-marginalia-context-panel-provider))
-	(org-context-panel-mode 1))
-    (org-context-panel-unregister-provider 'marginalia)
-    (unless (org-context-panel-registered-providers)
-      (org-context-panel-mode -1))))
+	(context-panels-register-provider (org-marginalia-context-panel-provider))
+	(context-panels-mode 1))
+    (context-panels-unregister-provider 'marginalia)
+    (unless (context-panels-registered-providers)
+      (context-panels-mode -1))))
 
 (provide 'org-marginalia-context-panel)
 ;;; org-marginalia-context-panel.el ends here
