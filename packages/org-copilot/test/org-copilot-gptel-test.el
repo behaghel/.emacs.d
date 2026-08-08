@@ -403,8 +403,8 @@
       (should (equal (plist-get (car (org-copilot-chat-messages)) :content)
 		     "Here are references.")))))
 
-(ert-deftest org-copilot-gptel-section-chat-ignores-legacy-top-level-suggestion ()
-  "Section chat no longer installs comment-local executable suggestions."
+(ert-deftest org-copilot-gptel-section-chat-drops-top-level-suggestion ()
+  "Section chat requires executable edits as durable suggestion threads."
   (with-temp-buffer
     (org-mode)
     (insert "* Intro
@@ -428,33 +428,6 @@ Original body.
 	       :context-id context-id
 	       :focus-comment-id nil))
 	(should-not (org-copilot-comments))))))
-
-(ert-deftest org-copilot-gptel-focused-chat-ignores-legacy-suggestion-update ()
-  "Focused chat ignores retired comment-local suggestion updates."
-  (with-temp-buffer
-    (org-mode)
-    (org-copilot-add-comment
-     (list :id "ai-1"
-	   :body "Tighten."
-	   :target-text "Alpha sentence."
-	   :suggestion "Alpha."))
-    (cl-letf (((symbol-function 'gptel-request)
-	       (lambda (_prompt &rest args)
-		 (let ((callback (plist-get args :callback)))
-		   (funcall callback
-			    "{\"message\":\"I made it more direct.\",\"intent\":\"revise_comment\",\"suggestion\":\"Direct alpha.\"}"
-			    (list :status 'success))))))
-      (org-copilot-gptel-chat
-       (list :source-buffer (current-buffer)
-	     :buffer-name (buffer-name)
-	     :message "Make it more direct"
-	     :messages nil
-	     :focus-comment-id "ai-1"))
-      (let ((comment (org-copilot-find-comment "ai-1"))
-	    (message (car (org-copilot-chat-messages))))
-	(should (equal (plist-get comment :suggestion) "Alpha."))
-	(should (equal (plist-get message :content)
-		       "I made it more direct."))))))
 
 (ert-deftest org-copilot-gptel-review-accumulates-streaming-oauth-response ()
   "The gptel review adapter requests and accumulates streaming OAuth responses."

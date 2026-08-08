@@ -74,17 +74,6 @@
        (should (eq context-panels-source-buffer source))
        (should (eq context-panels-view-id 'copilot-diff))))))
 
-(ert-deftest org-copilot-diff-rejects-legacy-local-suggestion ()
-  "Diff previews reject retired comment-local suggestions."
-  (with-temp-buffer
-    (org-mode)
-    (let ((comment (list :id "ai-1"
-			 :target-text "Alpha sentence."
-			 :suggestion "Alpha."
-			 :status 'active)))
-      (should-error (org-copilot-diff-open (current-buffer) comment)
-		    :type 'user-error))))
-
 (ert-deftest org-copilot-view-diff-errors-without-suggestion ()
   "Viewing a diff errors when the AI comment has no durable suggestion."
   (with-temp-buffer

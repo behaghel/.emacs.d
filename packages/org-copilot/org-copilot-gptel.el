@@ -307,15 +307,6 @@ REQUEST supplies reviewed source bounds for line-range fallback anchoring."
 		       (string-to-number (match-string 1 id))))))))
     (format "%s.%d" root-id (1+ max-revision))))
 
-(defun org-copilot-gptel--update-focused-suggestion
-    (_source-buffer _comment-id suggestion &optional _message)
-  "Ignore legacy focused top-level SUGGESTION updates.
-Focused edit revisions must arrive as durable `suggestion_threads'."
-  (when suggestion
-    (org-copilot-debug-record
-     "Ignored legacy focused top-level suggestion"
-     :reason "Use suggestion_threads for executable edits")))
-
 (defun org-copilot-gptel--chat-suggestions-allowed-p (parsed request)
   "Return non-nil when PARSED may install top-level suggestions for REQUEST."
   (pcase (plist-get parsed :intent)
@@ -572,10 +563,6 @@ chat viewport."
 			    (list :before parsed-raw :after parsed))
        :comment-install-result install-result
        :suggestion-install-result suggestions-result)
-      (when comment-id
-	(org-copilot-gptel--update-focused-suggestion
-	 source-buffer comment-id (plist-get parsed :suggestion)
-	 (plist-get parsed :message)))
       (with-current-buffer source-buffer
 	(org-copilot-remove-pending-chat-message comment-id context-id)
 	(org-copilot-add-chat-message

@@ -96,38 +96,6 @@
       (when (buffer-live-p source)
 	(kill-buffer source)))))
 
-(ert-deftest org-copilot-chat-does-not-open-diff-for-legacy-suggestion ()
-  "Focused chat ignores retired comment-local suggestions for diff sync."
-  (let ((source (generate-new-buffer " *org copilot chat source*")))
-    (unwind-protect
-	(let ((comment nil))
-	  (when-let* ((buffer (get-buffer org-copilot-diff-buffer-name)))
-	    (kill-buffer buffer))
-	  (with-current-buffer source
-	    (org-mode)
-	    (insert "Alpha sentence.\n")
-	    (setq comment
-		  (org-copilot-add-comment
-		   (list :id "ai-1"
-			 :source-start (point-min)
-			 :source-end (+ (point-min) (length "Alpha sentence."))
-			 :target-text "Alpha sentence."
-			 :body "Tighten this."
-			 :suggestion "Alpha."
-			 :status 'active))))
-	  (with-temp-buffer
-	    (context-panels-buffer-mode)
-	    (setq context-panels-source-buffer source)
-	    (let ((inhibit-read-only t))
-	      (insert "💬 Tighten this.\n")
-	      (add-text-properties (point-min) (point-max)
-				   `(context-panels-item ,comment)))
-	    (goto-char (point-min))
-	    (org-copilot-chat)
-	    (should-not (get-buffer org-copilot-diff-buffer-name))))
-      (when (buffer-live-p source)
-	(kill-buffer source)))))
-
 (ert-deftest org-copilot-chat-keeps-one-session-per-source-buffer ()
   "Chat messages are stored per source buffer session."
   (let ((source-a (generate-new-buffer " *org copilot chat source a*"))
@@ -150,44 +118,6 @@
 	      (when (buffer-live-p buffer)
 		(kill-buffer buffer)))
 	    (list source-a source-b)))))
-
-(ert-deftest org-copilot-chat-accept-command-rejects-legacy-local-suggestion ()
-  "The /accept command rejects retired comment-local suggestions."
-  (with-temp-buffer
-    (org-mode)
-    (insert "Alpha sentence.
-")
-    (org-copilot-add-comment
-     (list :id "ai-1"
-	   :source-start (point-min)
-	   :source-end (+ (point-min) (length "Alpha sentence."))
-	   :target-text "Alpha sentence."
-	   :suggestion "Alpha."
-	   :status 'active))
-    (setq org-copilot-chat-focus-comment-id "ai-1")
-    (should-error (org-copilot-chat-send "/accept") :type 'user-error)
-    (should (equal (buffer-string) "Alpha sentence.
-"))))
-
-(ert-deftest org-copilot-chat-accept-key-rejects-legacy-local-suggestion ()
-  "Direct chat accept rejects retired comment-local suggestions."
-  (with-temp-buffer
-    (org-mode)
-    (insert "Alpha sentence.
-")
-    (org-copilot-add-comment
-     (list :id "ai-1"
-	   :source-start (point-min)
-	   :source-end (+ (point-min) (length "Alpha sentence."))
-	   :target-text "Alpha sentence."
-	   :suggestion "Alpha."
-	   :status 'active))
-    (setq org-copilot-chat-focus-comment-id "ai-1")
-    (with-current-buffer (org-copilot-chat--buffer (current-buffer))
-      (should-error (org-copilot-chat-accept-focused-suggestion-at-point)
-		    :type 'user-error))
-    (should (equal (buffer-string) "Alpha sentence.
-"))))
 
 (ert-deftest org-copilot-chat-opens-at-editable-prompt ()
   "Opening chat selects the chat buffer and places point at an editable prompt."
@@ -395,23 +325,6 @@
     (org-copilot-chat-focus-previous-comment)
     (should (equal org-copilot-chat-focus-comment-id "ai-2"))))
 
-(ert-deftest org-copilot-chat-navigation-ignores-legacy-suggestion-diff ()
-  "Chat navigation does not open diffs for retired comment-local suggestions."
-  (with-temp-buffer
-    (org-mode)
-    (when-let* ((buffer (get-buffer org-copilot-diff-buffer-name)))
-      (kill-buffer buffer))
-    (insert "Alpha sentence.\nBeta sentence.\n")
-    (org-copilot-add-comment
-     (list :id "ai-1"
-	   :status 'active
-	   :source-start (point-min)
-	   :source-end (+ (point-min) (length "Alpha sentence."))
-	   :target-text "Alpha sentence."
-	   :suggestion "Alpha."))
-    (org-copilot-chat-focus-next-comment)
-    (should-not (get-buffer org-copilot-diff-buffer-name))))
-
 (ert-deftest org-copilot-chat-next-prev-commands-change-focus ()
   "The /next and /prev chat commands navigate focused comments."
   (with-temp-buffer
@@ -424,15 +337,6 @@
     (should (equal org-copilot-chat-focus-comment-id "ai-2"))
     (org-copilot-chat-send "/prev")
     (should (equal org-copilot-chat-focus-comment-id "ai-1"))))
-
-(ert-deftest org-copilot-chat-dismiss-command-rejects-legacy-comment ()
-  "The /dismiss command rejects retired in-memory comments."
-  (with-temp-buffer
-    (org-mode)
-    (org-copilot-add-comment (list :id "ai-1" :status 'active))
-    (setq org-copilot-chat-focus-comment-id "ai-1")
-    (should-error (org-copilot-chat-send "/dismiss") :type 'user-error)
-    (should (org-copilot-find-comment "ai-1"))))
 
 (ert-deftest org-copilot-chat-next-navigates-durable-sidecar-suggestions ()
   "The /next command navigates restored durable linked suggestions."

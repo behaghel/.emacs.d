@@ -40,11 +40,10 @@
   "Current Org Copilot chat context plist.
 The context has a `:type' key.  Supported values are `full-document',
 `comment', and `section'.  `org-copilot-chat-focus-comment-id' mirrors
-comment contexts for compatibility with older actions and tests.")
+comment contexts for focused chat rendering.")
 
 (defun org-copilot-comments ()
-  "Return visible Copilot comments for the current buffer.
-This compatibility API now reads durable sidecars plus any legacy cache entries."
+  "Return visible Copilot comments for the current buffer."
   (if (fboundp 'org-copilot-visible-comments)
       (org-copilot-visible-comments)
     (copy-sequence org-copilot--comments)))
@@ -163,7 +162,7 @@ When no durable suggestion hunk is linked, fall back to COMMENT's target text."
     (nreverse comments)))
 
 (defun org-copilot-find-visible-comment (id)
-  "Return visible Copilot comment ID from durable sidecars or legacy cache."
+  "Return visible Copilot comment with ID."
   (cl-find id (org-copilot-visible-comments)
 	   :key #'org-copilot-comment-id
 	   :test #'equal))
@@ -251,8 +250,7 @@ Return the normalized comments."
   (org-copilot-comments))
 
 (defun org-copilot-find-comment (id)
-  "Return visible Copilot comment ID, or nil.
-This compatibility API searches durable sidecars before the legacy cache."
+  "Return Copilot comment with ID, or nil."
   (or (cl-find id (org-copilot-durable-comments)
 	       :key #'org-copilot-comment-id
 	       :test #'equal)

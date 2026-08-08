@@ -11,41 +11,6 @@
 (require 'org-copilot-diff)
 (require 'org-suggestions)
 
-(ert-deftest org-copilot-accept-rejects-legacy-local-suggestion ()
-  "Accepting retired comment-local suggestions fails closed."
-  (with-temp-buffer
-    (org-mode)
-    (insert "Alpha sentence.\n")
-    (let ((comment (org-copilot-add-comment
-		    (list :id "ai-1"
-			  :source-start (point-min)
-			  :source-end (+ (point-min) (length "Alpha sentence."))
-			  :target-text "Alpha sentence."
-			  :suggestion "Alpha."
-			  :status 'active))))
-      (should-error (org-copilot-accept-comment comment (current-buffer))
-		    :type 'user-error)
-      (should (equal (buffer-string) "Alpha sentence.\n")))))
-
-(ert-deftest org-copilot-dismiss-rejects-legacy-comment ()
-  "Dismissing retired in-memory comments fails closed."
-  (with-temp-buffer
-    (org-mode)
-    (let ((comment (org-copilot-add-comment
-		    (list :id "ai-1" :body "Clarify this." :status 'active))))
-      (should-error (org-copilot-dismiss-comment comment (current-buffer))
-		    :type 'user-error)
-      (should (org-copilot-find-comment "ai-1")))))
-
-(ert-deftest org-copilot-undo-rejects-legacy-accepted-comment ()
-  "Undoing accepted legacy comments is retired with comment-local suggestions."
-  (with-temp-buffer
-    (org-mode)
-    (let ((comment (org-copilot-add-comment
-		    (list :id "ai-1" :status 'accepted))))
-      (should-error (org-copilot-undo-accepted-comment comment (current-buffer))
-		    :type 'user-error))))
-
 (ert-deftest org-copilot-accept-at-point-delegates-linked-suggestion ()
   "Accepting a linked comment row delegates source mutation to org-suggestions."
   (let* ((directory (make-temp-file "org-copilot-linked-accept" t))

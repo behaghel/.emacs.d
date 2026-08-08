@@ -170,7 +170,7 @@ assistant message, or a plist with `:message' and optional `:comments'.  Normal
     (_ nil)))
 
 (defun org-copilot-chat--set-context (source-buffer context)
-  "Set SOURCE-BUFFER chat CONTEXT and compatibility focus fields."
+  "Set SOURCE-BUFFER chat CONTEXT and focus fields."
   (with-current-buffer source-buffer
     (setq org-copilot-chat-context context)
     (setq org-copilot-chat-focus-comment-id
