@@ -1,7 +1,7 @@
 ;;; org-comments-smoke-test.el --- Smoke tests for org-comments package -*- lexical-binding: t; -*-
 
 ;;; Commentary:
-;; Smoke tests for the initial package extraction bridge.
+;; Smoke tests for the package entrypoint.
 
 ;;; Code:
 
@@ -9,7 +9,7 @@
 (require 'org-comments)
 
 (ert-deftest org-comments-smoke-loads-package ()
-  "The package entrypoint loads the initial compatibility implementation."
+  "The package entrypoint loads the canonical implementation."
   (should (featurep 'org-comments))
   (should (featurep 'org-comments-core))
   (should (featurep 'org-comments-target))
@@ -33,7 +33,6 @@
   (should (featurep 'org-comments-migrate))
   (should (featurep 'org-comments-backend))
   (should (featurep 'org-comments-backend-org))
-  (should (featurep 'org-comments-legacy))
   (should (org-comments-backend-capable-p 'org :list-comments))
   (should (fboundp 'org-comments-sidecar-path)))
 

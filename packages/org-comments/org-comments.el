@@ -23,7 +23,6 @@
 (require 'org-comments-anchors)
 (require 'org-comments-links)
 (require 'org-comments-backend)
-(require 'org-comments-legacy)
 (require 'org-comments-backend-org)
 (require 'org-comments-compose)
 (require 'org-comments-ui)
