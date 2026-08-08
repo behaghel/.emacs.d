@@ -9,7 +9,7 @@
 
 ;;; Commentary:
 ;; Provider glue between `org-marginalia' footnote/sidenote records and the
-;; reusable `org-context-panel' side panel.
+;; reusable `context-panels' side panel.
 
 ;;; Code:
 
@@ -115,7 +115,7 @@
 
 ;;;###autoload
 (define-minor-mode org-marginalia-context-panel-mode
-  "Toggle Org marginalia as an `org-context-panel' provider."
+  "Toggle Org marginalia as a `context-panels' provider."
   :lighter " Marginalia"
   (if org-marginalia-context-panel-mode
       (progn

@@ -29,7 +29,6 @@
 (with-eval-after-load 'evil
   (dolist (mode '(org-comments-panel-mode
 		  context-panels-buffer-mode
-		  org-copilot-panel-mode
 		  org-copilot-chat-mode
 		  org-copilot-diff-mode))
     (evil-set-initial-state mode 'normal)))
@@ -57,23 +56,6 @@
        ("z" . org-comments-panel-filter-map)
        ("]c" . org-comments-next-item-at-point)
        ("[c" . org-comments-previous-item-at-point)))))
-
-(with-eval-after-load 'org-copilot-context-panel
-  (with-eval-after-load 'evil
-    (hub/org-technical-buffer--evil-normalize-map
-     org-copilot-panel-mode-map
-     '(("RET" . context-panels-jump-at-point)
-       ("d" . org-copilot-view-diff-at-point)
-       ("v" . org-copilot-visualize-at-point)
-       ("a" . org-copilot-accept-at-point)
-       ("x" . org-copilot-dismiss-at-point)
-       ("n" . org-copilot-panel-next-item)
-       ("p" . org-copilot-panel-previous-item)
-       ("]c" . org-copilot-panel-next-item)
-       ("[c" . org-copilot-panel-previous-item)
-       ("G" . org-copilot-chat-full-document)
-       ("g" . org-copilot-refresh)
-       ("q" . org-copilot-close)))))
 
 (with-eval-after-load 'org-copilot-chat
   (with-eval-after-load 'evil
