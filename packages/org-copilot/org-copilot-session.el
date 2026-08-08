@@ -503,11 +503,7 @@ full-document chat."
   (setq org-copilot-chat-focus-comment-id nil)
   (setq org-copilot-chat-context '(:type full-document))
   (when (fboundp 'org-copilot-delete-overlays)
-    (org-copilot-delete-overlays))
-  (when (and (boundp 'org-copilot-panel-buffer-name)
-	     (get-buffer org-copilot-panel-buffer-name)
-	     (fboundp 'context-panels-refresh))
-    (context-panels-refresh)))
+    (org-copilot-delete-overlays)))
 
 (defun org-copilot-clear-session (&optional preserve-artifacts)
   "Clear current Copilot session.

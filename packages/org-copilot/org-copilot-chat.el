@@ -509,13 +509,10 @@ prompt active.  Source target overlays remain visible as dim context markers."
     (org-copilot-chat--open-bottom-view source)))
 
 (defun org-copilot-chat--refresh-source-ui (source-buffer)
-  "Refresh source overlays and visible side panel for SOURCE-BUFFER."
+  "Refresh source overlays for SOURCE-BUFFER."
   (with-current-buffer source-buffer
     (when (fboundp 'org-copilot-refresh-overlays)
-      (org-copilot-refresh-overlays))
-    (when (and (boundp 'org-copilot-panel-buffer-name)
-	       (get-buffer org-copilot-panel-buffer-name))
-      (context-panels-refresh))))
+      (org-copilot-refresh-overlays))))
 
 (defun org-copilot-chat--focus-and-refresh (source-buffer comment)
   "Refresh chat and diff after focusing COMMENT in SOURCE-BUFFER."

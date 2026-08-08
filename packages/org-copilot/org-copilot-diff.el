@@ -194,10 +194,9 @@ Rollback now belongs to `org-suggestions' session-local undo support."
     (user-error "Legacy in-memory Copilot comments are retired")))
 
 (defun org-copilot-diff--refresh-panel-buffer (source-buffer)
-  "Refresh the current panel buffer for SOURCE-BUFFER when applicable."
-  (when (and (derived-mode-p 'org-copilot-panel-mode)
-	     (eq context-panels-source-buffer source-buffer))
-    (context-panels-render-side-panel source-buffer)))
+  "Refresh visible context panels for SOURCE-BUFFER after diff actions."
+  (when (eq context-panels-source-buffer source-buffer)
+    (ignore-errors (context-panels-refresh))))
 
 ;;;###autoload
 (defun org-copilot-close-diff ()

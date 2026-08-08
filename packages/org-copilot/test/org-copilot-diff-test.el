@@ -88,7 +88,7 @@
 (ert-deftest org-copilot-view-diff-errors-without-suggestion ()
   "Viewing a diff errors when the AI comment has no durable suggestion."
   (with-temp-buffer
-    (org-copilot-panel-mode)
+    (context-panels-buffer-mode)
     (let ((inhibit-read-only t)
 	  (comment (list :id "ai-1"
 			 :body "Clarify this."

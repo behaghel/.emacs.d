@@ -67,11 +67,11 @@
 						       :replacement "New body.")))))))
 	    (org-suggestions-write-sidecar source-file (list thread))
 	    (with-temp-buffer
-	      (setq org-context-panel-source-buffer source)
+	      (setq context-panels-source-buffer source)
 	      (insert "💬 Rewrite Intro ✏️ ai-1\n")
 	      (add-text-properties
 	       (point-min) (point-max)
-	       '(org-context-panel-item
+	       '(context-panels-item
 		 (:type comment :id "cmt-1" :suggestion-ids "ai-1")))
 	      (goto-char (point-min))
 	      (org-copilot-accept-at-point))

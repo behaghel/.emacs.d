@@ -25,8 +25,8 @@
 	      (should (equal (buffer-string) "* Heading\nBody.\n")))
 	    (with-current-buffer buffer
 	      (should (derived-mode-p 'org-copilot-chat-mode))
-	      (should (eq org-context-panel-source-buffer source))
-	      (should (eq org-context-panel-view-id 'copilot-chat))
+	      (should (eq context-panels-source-buffer source))
+	      (should (eq context-panels-view-id 'copilot-chat))
 	      (should (string-match-p "Org Copilot Chat" (buffer-string)))
 	      (should (string-match-p "Ask Copilot about the full document"
 				      (buffer-string))))))
@@ -47,7 +47,7 @@
 	    (setq org-copilot-chat-focus-comment-id "ai-1"))
 	  (with-temp-buffer
 	    (org-copilot-chat-mode)
-	    (setq org-context-panel-source-buffer source)
+	    (setq context-panels-source-buffer source)
 	    (should (equal (org-copilot-chat--status-line)
 			   "2 comments · 1 scope · ai-1"))))
       (when (buffer-live-p source)
@@ -72,13 +72,13 @@
 			 :suggestion "Alpha."
 			 :status 'active))))
 	  (with-temp-buffer
-	    (org-copilot-panel-mode)
-	    (setq org-context-panel-source-buffer source)
+	    (context-panels-buffer-mode)
+	    (setq context-panels-source-buffer source)
 	    (let ((inhibit-read-only t))
 	      (insert "AI [active] Clarify this sentence.\n"))
 	    (let ((inhibit-read-only t))
 	      (add-text-properties (point-min) (point-max)
-				   `(org-context-panel-item ,comment)))
+				   `(context-panels-item ,comment)))
 	    (goto-char (point-min))
 	    (let ((buffer (org-copilot-chat)))
 	      (with-current-buffer source
@@ -116,12 +116,12 @@
 			 :suggestion "Alpha."
 			 :status 'active))))
 	  (with-temp-buffer
-	    (org-copilot-panel-mode)
-	    (setq org-context-panel-source-buffer source)
+	    (context-panels-buffer-mode)
+	    (setq context-panels-source-buffer source)
 	    (let ((inhibit-read-only t))
 	      (insert "💬 Tighten this.\n")
 	      (add-text-properties (point-min) (point-max)
-				   `(org-context-panel-item ,comment)))
+				   `(context-panels-item ,comment)))
 	    (goto-char (point-min))
 	    (org-copilot-chat)
 	    (should-not (get-buffer org-copilot-diff-buffer-name))))
