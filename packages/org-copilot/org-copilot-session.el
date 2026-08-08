@@ -506,8 +506,8 @@ full-document chat."
     (org-copilot-delete-overlays))
   (when (and (boundp 'org-copilot-panel-buffer-name)
 	     (get-buffer org-copilot-panel-buffer-name)
-	     (fboundp 'org-context-panel-refresh))
-    (org-context-panel-refresh)))
+	     (fboundp 'context-panels-refresh))
+    (context-panels-refresh)))
 
 (defun org-copilot-clear-session (&optional preserve-artifacts)
   "Clear current Copilot session.

@@ -446,8 +446,8 @@ Return a plist with install counts and a reachability receipt."
 	(if org-copilot-chat-open-panel-on-comments
 	    (save-selected-window
 	      (org-copilot-open))
-	  (when (fboundp 'org-context-panel-refresh)
-	    (org-context-panel-refresh)))
+	  (when (fboundp 'context-panels-refresh)
+	    (context-panels-refresh)))
 	(when (and (boundp 'org-copilot-chat-buffer-name)
 		   (get-buffer org-copilot-chat-buffer-name))
 	  (with-current-buffer org-copilot-chat-buffer-name

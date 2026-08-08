@@ -16,7 +16,7 @@
 
 (require 'cl-lib)
 (require 'org)
-(require 'org-context-panel)
+(require 'context-panels)
 (require 'subr-x)
 (require 'org-copilot-diff)
 (require 'org-copilot-model)
@@ -105,8 +105,8 @@ assistant message, or a plist with `:message' and optional `:comments'.  Normal
 
 (defun org-copilot-chat--status-line ()
   "Return compact bottom status text for the current chat buffer."
-  (let* ((source (and (buffer-live-p org-context-panel-source-buffer)
-		      org-context-panel-source-buffer))
+  (let* ((source (and (buffer-live-p context-panels-source-buffer)
+		      context-panels-source-buffer))
 	 (comments (and source
 			(with-current-buffer source
 			  (cl-remove-if
@@ -139,25 +139,25 @@ assistant message, or a plist with `:message' and optional `:comments'.  Normal
 (defun org-copilot-chat--protect-window (window panel-buffer source-buffer)
   "Protect WINDOW for PANEL-BUFFER and SOURCE-BUFFER when supported."
   (when (and (window-live-p window)
-	     (fboundp 'org-context-panel-protect-window))
-    (org-context-panel-protect-window window panel-buffer source-buffer)))
+	     (fboundp 'context-panels-protect-window))
+    (context-panels-protect-window window panel-buffer source-buffer)))
 
 (defun org-copilot-chat--source-buffer ()
   "Return the source buffer for Org Copilot chat commands."
   (cond
    ((buffer-live-p org-copilot-chat-source-buffer)
     org-copilot-chat-source-buffer)
-   ((buffer-live-p org-context-panel-source-buffer)
-    org-context-panel-source-buffer)
+   ((buffer-live-p context-panels-source-buffer)
+    context-panels-source-buffer)
    ((derived-mode-p 'org-mode)
     (current-buffer))
    (t
-    (org-context-panel-current-source-buffer))))
+    (context-panels-current-source-buffer))))
 
 (defun org-copilot-chat--comment-at-point ()
   "Return an AI comment at point, or nil."
   (ignore-errors
-    (org-context-panel-item-at-point)))
+    (context-panels-item-at-point)))
 
 (defun org-copilot-chat--context-id (context)
   "Return stable identifier for chat CONTEXT."
@@ -458,8 +458,8 @@ assistant responses start where the user begins reading."
   (with-current-buffer source-buffer
     (org-copilot-restore-chat-messages))
   (setq org-copilot-chat-source-buffer source-buffer)
-  (setq org-context-panel-source-buffer source-buffer)
-  (setq org-context-panel-view-id 'copilot-chat)
+  (setq context-panels-source-buffer source-buffer)
+  (setq context-panels-view-id 'copilot-chat)
   (org-copilot-chat-render source-buffer))
 
 (defun org-copilot-chat-bottom-views (_source-buffer)
@@ -474,7 +474,7 @@ assistant responses start where the user begins reading."
   "Open the Org Copilot bottom chat view for SOURCE-BUFFER."
   (with-current-buffer source-buffer
     (org-copilot-mode 1))
-  (let* ((buffer (org-context-panel-open-bottom-view 'copilot-chat source-buffer))
+  (let* ((buffer (context-panels-open-bottom-view 'copilot-chat source-buffer))
 	 (window (get-buffer-window buffer t)))
     (org-copilot-chat-sync-diff source-buffer)
     (when (window-live-p window)
@@ -515,7 +515,7 @@ prompt active.  Source target overlays remain visible as dim context markers."
       (org-copilot-refresh-overlays))
     (when (and (boundp 'org-copilot-panel-buffer-name)
 	       (get-buffer org-copilot-panel-buffer-name))
-      (org-context-panel-refresh))))
+      (context-panels-refresh))))
 
 (defun org-copilot-chat--focus-and-refresh (source-buffer comment)
   "Refresh chat and diff after focusing COMMENT in SOURCE-BUFFER."
@@ -590,8 +590,8 @@ prompt active.  Source target overlays remain visible as dim context markers."
       (unless (derived-mode-p 'org-copilot-chat-mode)
 	(org-copilot-chat-mode))
       (setq org-copilot-chat-source-buffer source-buffer)
-      (setq org-context-panel-source-buffer source-buffer)
-      (setq org-context-panel-view-id 'copilot-chat)
+      (setq context-panels-source-buffer source-buffer)
+      (setq context-panels-view-id 'copilot-chat)
       (org-copilot-chat-render source-buffer))
     (org-copilot-chat-sync-diff source-buffer)
     (when-let* ((window (get-buffer-window buffer t)))

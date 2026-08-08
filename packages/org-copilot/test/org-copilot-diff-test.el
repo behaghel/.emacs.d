@@ -71,8 +71,8 @@
   (org-copilot-diff-test--with-durable-suggestion
    (lambda (source comment)
      (with-current-buffer (org-copilot-diff-open source comment)
-       (should (eq org-context-panel-source-buffer source))
-       (should (eq org-context-panel-view-id 'copilot-diff))))))
+       (should (eq context-panels-source-buffer source))
+       (should (eq context-panels-view-id 'copilot-diff))))))
 
 (ert-deftest org-copilot-diff-rejects-legacy-local-suggestion ()
   "Diff previews reject retired comment-local suggestions."
@@ -95,7 +95,7 @@
 			 :status 'active)))
       (insert "AI [active] Clarify this.\n")
       (add-text-properties (point-min) (point-max)
-			   `(org-context-panel-item ,comment))
+			   `(context-panels-item ,comment))
       (goto-char (point-min))
       (should-error (org-copilot-view-diff-at-point) :type 'user-error))))
 

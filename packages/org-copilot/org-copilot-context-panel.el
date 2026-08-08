@@ -15,7 +15,7 @@
 
 (require 'cl-lib)
 (require 'org)
-(require 'org-context-panel)
+(require 'context-panels)
 (require 'subr-x)
 (require 'org-copilot-model)
 (require 'org-copilot-session)
@@ -99,7 +99,7 @@ This face intentionally changes only the background color."
 
 (defun org-copilot-panel--move-item (step)
   "Move point by STEP rendered Copilot side-panel items."
-  (let* ((starts (org-context-panel-item-starts))
+  (let* ((starts (context-panels-item-starts))
 	 (ordered (if (> step 0) starts (reverse starts)))
 	 (next (or (cl-find-if (lambda (position)
 				 (if (> step 0)
@@ -123,7 +123,7 @@ This face intentionally changes only the background color."
 
 (defvar org-copilot-panel-mode-map
   (let ((map (make-sparse-keymap)))
-    (define-key map (kbd "RET") #'org-context-panel-jump-at-point)
+    (define-key map (kbd "RET") #'context-panels-jump-at-point)
     (define-key map (kbd "d") #'org-copilot-view-diff-at-point)
     (define-key map (kbd "v") #'org-copilot-visualize-at-point)
     (define-key map (kbd "a") #'org-copilot-accept-at-point)
@@ -155,8 +155,8 @@ This face intentionally changes only the background color."
   (let ((map (make-sparse-keymap)))
     (define-key map (kbd "C-c C-x / a") #'org-copilot-chat-accept-focused-suggestion-at-point)
     (define-key map (kbd "C-c C-x / d") #'org-copilot-chat-dismiss-focused-comment-at-point)
-    (define-key map (kbd "C-c C-x / n") #'org-context-panel-next-item)
-    (define-key map (kbd "C-c C-x / p") #'org-context-panel-previous-item)
+    (define-key map (kbd "C-c C-x / n") #'context-panels-next-item)
+    (define-key map (kbd "C-c C-x / p") #'context-panels-previous-item)
     (define-key map (kbd "C-c C-x / u") #'org-copilot-chat-undo-focused-comment-at-point)
     (define-key map (kbd "C-c C-x / g") #'org-copilot-chat-full-document)
     (define-key map (kbd "C-c C-x / s") #'org-copilot-chat-section)
@@ -168,22 +168,22 @@ This face intentionally changes only the background color."
 (defun org-copilot-panel-focus-at-point ()
   "Focus source highlighting on the Org Copilot side-panel item at point."
   (when (and (derived-mode-p 'org-copilot-panel-mode)
-	     (buffer-live-p org-context-panel-source-buffer)
+	     (buffer-live-p context-panels-source-buffer)
 	     (not org-copilot-panel--refreshing-focus)
 	     (not (eq this-command 'org-copilot-chat-full-document)))
-    (when-let* ((item (org-context-panel-item-at-point))
+    (when-let* ((item (context-panels-item-at-point))
 		(id (org-copilot-comment-id item)))
       (unless (equal id org-copilot-panel--last-focused-comment-id)
 	(let ((org-copilot-panel--refreshing-focus t)
-	      (key (org-context-panel-item-key item))
-	      (source org-context-panel-source-buffer))
+	      (key (context-panels-item-key item))
+	      (source context-panels-source-buffer))
 	  (setq org-copilot-panel--last-focused-comment-id id)
 	  (with-current-buffer source
 	    (org-copilot-chat--set-context
 	     source (list :type 'comment :comment-id id))
 	    (org-copilot-refresh-overlays))
-	  (org-context-panel-render-side-panel source)
-	  (org-context-panel-goto-item-key key))))))
+	  (context-panels-render-side-panel source)
+	  (context-panels-goto-item-key key))))))
 
 (defun org-copilot-context-panel-collect-side-items (source-buffer)
   "Collect Org Copilot side items for SOURCE-BUFFER."
@@ -360,15 +360,15 @@ UI is owned by the unified `org-comments' provider."
   (when-let* ((panel (get-buffer org-copilot-panel-buffer-name)))
     (when (get-buffer-window panel t)
       (with-current-buffer panel
-	(setq org-context-panel-source-buffer source-buffer)
-	(org-context-panel-render-side-panel source-buffer))))
+	(setq context-panels-source-buffer source-buffer)
+	(context-panels-render-side-panel source-buffer))))
   (when (and (boundp 'org-copilot-chat-buffer-name)
 	     (get-buffer org-copilot-chat-buffer-name))
     (let ((chat (get-buffer org-copilot-chat-buffer-name)))
       (when (get-buffer-window chat t)
 	(with-current-buffer chat
 	  (setq org-copilot-chat-source-buffer source-buffer)
-	  (setq org-context-panel-source-buffer source-buffer)
+	  (setq context-panels-source-buffer source-buffer)
 	  (org-copilot-chat-render source-buffer))
 	(org-copilot-chat-sync-diff source-buffer)))))
 
@@ -382,8 +382,8 @@ UI is owned by the unified `org-comments' provider."
 (defun org-copilot--window-selection-changed (_frame)
   "Schedule generic context-panel reconciliation after selection changes."
   (unless org-copilot--workspace-refreshing
-    (when (fboundp 'org-context-panel--schedule-reconcile)
-      (org-context-panel--schedule-reconcile))))
+    (when (fboundp 'context-panels--schedule-reconcile)
+      (context-panels--schedule-reconcile))))
 
 (defun org-copilot--ensure-window-watch ()
   "Install Org Copilot source-window tracking hook."
@@ -396,14 +396,14 @@ UI is owned by the unified `org-comments' provider."
   (setq org-copilot--workspace-source-buffer (current-buffer))
   (when (fboundp 'org-comments-mode)
     (org-comments-mode 1))
-  (org-context-panel-register-provider (org-copilot-context-panel-provider))
-  (org-context-panel-mode 1))
+  (context-panels-register-provider (org-copilot-context-panel-provider))
+  (context-panels-mode 1))
 
 (defun org-copilot-context-panel-disable ()
   "Disable Org Copilot as a context-panel provider in the current buffer."
-  (org-context-panel-unregister-provider 'copilot)
-  (unless (org-context-panel-registered-providers)
-    (org-context-panel-mode -1)))
+  (context-panels-unregister-provider 'copilot)
+  (unless (context-panels-registered-providers)
+    (context-panels-mode -1)))
 
 ;;;###autoload
 (define-minor-mode org-copilot-mode
@@ -420,8 +420,8 @@ UI is owned by the unified `org-comments' provider."
 (defun org-copilot--active-source-buffer ()
   "Return the Org source buffer for commands run from source or aux buffers."
   (cond
-   ((buffer-live-p org-context-panel-source-buffer)
-    org-context-panel-source-buffer)
+   ((buffer-live-p context-panels-source-buffer)
+    context-panels-source-buffer)
    ((derived-mode-p 'org-mode)
     (current-buffer))
    (t
@@ -436,7 +436,7 @@ UI is owned by the unified `org-comments' provider."
       (org-copilot-mode 1)
       (if (fboundp 'org-comments-open)
 	  (org-comments-open)
-	(org-context-panel-open source)))))
+	(context-panels-open source)))))
 
 ;;;###autoload
 (defun org-copilot-open-panels ()
@@ -453,7 +453,7 @@ UI is owned by the unified `org-comments' provider."
 (defun org-copilot-refresh ()
   "Refresh the Org Copilot side panel from current session state."
   (interactive)
-  (org-context-panel-refresh))
+  (context-panels-refresh))
 
 ;;;###autoload
 (defun org-copilot-close ()
@@ -461,22 +461,22 @@ UI is owned by the unified `org-comments' provider."
   (interactive)
   (cond
    ((derived-mode-p 'org-copilot-chat-mode)
-    (let ((source org-context-panel-source-buffer)
+    (let ((source context-panels-source-buffer)
 	  (chat (current-buffer)))
-      (setq org-context-panel--desired-bottom-view-id nil)
+      (setq context-panels--desired-bottom-view-id nil)
       (when (buffer-live-p source)
 	(with-current-buffer source
-	  (setq org-context-panel-bottom-panel-buffer nil)))
+	  (setq context-panels-bottom-panel-buffer nil)))
       (org-copilot--close-buffer-window chat)))
    ((derived-mode-p 'org-copilot-panel-mode)
-    (org-context-panel-close))
+    (context-panels-close))
    (t
     (let ((source (org-copilot--active-source-buffer)))
       (with-current-buffer source
-	(when (buffer-live-p org-context-panel-side-panel-buffer)
-	  (org-context-panel-close))
-	(when (buffer-live-p org-context-panel-bottom-panel-buffer)
-	  (org-context-panel-close-bottom-view)))))))
+	(when (buffer-live-p context-panels-side-panel-buffer)
+	  (context-panels-close))
+	(when (buffer-live-p context-panels-bottom-panel-buffer)
+	  (context-panels-close-bottom-view)))))))
 
 (provide 'org-copilot-context-panel)
 ;;; org-copilot-context-panel.el ends here

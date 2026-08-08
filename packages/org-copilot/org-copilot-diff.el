@@ -14,7 +14,7 @@
 
 (require 'diff-mode)
 (require 'org)
-(require 'org-context-panel)
+(require 'context-panels)
 (require 'org-copilot-model)
 (require 'org-copilot-session)
 (require 'org-suggestions nil 'noerror)
@@ -77,8 +77,8 @@ Return the diff buffer."
 	(erase-buffer)
 	(org-copilot-diff-mode)
 	(setq org-copilot-diff-source-buffer source-buffer)
-	(setq org-context-panel-source-buffer source-buffer)
-	(setq org-context-panel-view-id 'copilot-diff)
+	(setq context-panels-source-buffer source-buffer)
+	(setq context-panels-view-id 'copilot-diff)
 	(setq org-copilot-diff-comment comment)
 	(setq org-copilot-diff-comment-id (org-copilot-comment-id comment))
 	(org-copilot-diff--insert source-buffer comment)
@@ -94,7 +94,7 @@ Return the diff buffer."
    ((derived-mode-p 'org-mode)
     (current-buffer))
    (t
-    (org-context-panel-current-source-buffer))))
+    (context-panels-current-source-buffer))))
 
 (defun org-copilot-latest-comment-for-item (item source-buffer)
   "Return latest model comment for ITEM from SOURCE-BUFFER.
@@ -112,7 +112,7 @@ Fall back to ITEM when it cannot be resolved by id."
 			(with-current-buffer source-buffer
 			  (org-copilot-find-visible-comment org-copilot-diff-comment-id)))
 		   org-copilot-diff-comment
-		   (org-context-panel-item-at-point)
+		   (context-panels-item-at-point)
 		   (with-current-buffer source-buffer
 		     (and org-copilot-chat-focus-comment-id
 			  (org-copilot-find-visible-comment
@@ -196,8 +196,8 @@ Rollback now belongs to `org-suggestions' session-local undo support."
 (defun org-copilot-diff--refresh-panel-buffer (source-buffer)
   "Refresh the current panel buffer for SOURCE-BUFFER when applicable."
   (when (and (derived-mode-p 'org-copilot-panel-mode)
-	     (eq org-context-panel-source-buffer source-buffer))
-    (org-context-panel-render-side-panel source-buffer)))
+	     (eq context-panels-source-buffer source-buffer))
+    (context-panels-render-side-panel source-buffer)))
 
 ;;;###autoload
 (defun org-copilot-close-diff ()
@@ -226,7 +226,7 @@ Rollback now belongs to `org-suggestions' session-local undo support."
 (defun org-copilot--linked-suggestion-id-at-point (source-buffer)
   "Return the linked suggestion id for context item at point in SOURCE-BUFFER."
   (when (fboundp 'org-suggestions-find-candidate)
-    (when-let* ((item (ignore-errors (org-context-panel-item-at-point)))
+    (when-let* ((item (ignore-errors (context-panels-item-at-point)))
 		(ids (plist-get item :suggestion-ids))
 		(source-file (buffer-file-name source-buffer))
 		(threads (org-suggestions-load-sidecar source-file)))
@@ -281,8 +281,8 @@ Rollback now belongs to `org-suggestions' session-local undo support."
 		    . ((no-other-window . t)
 		       (no-delete-other-windows . t)))))))
     (when (window-live-p window)
-      (when (fboundp 'org-context-panel-protect-window)
-	(org-context-panel-protect-window window buffer source-buffer))
+      (when (fboundp 'context-panels-protect-window)
+	(context-panels-protect-window window buffer source-buffer))
       (select-window window))))
 
 ;;;###autoload

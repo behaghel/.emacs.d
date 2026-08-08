@@ -17,7 +17,7 @@
 ;;; Code:
 
 (require 'org)
-(require 'org-context-panel)
+(require 'context-panels)
 (require 'org-copilot-model)
 (require 'org-copilot-session)
 (require 'org-copilot-context-panel)
