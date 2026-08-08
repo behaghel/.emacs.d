@@ -131,6 +131,24 @@
      (should (equal (plist-get comment :id) "c1"))
      (should (plist-get comment :sidecar-file)))))
 
+(ert-deftest org-comments-panel-actions-current-context-normalizes-row ()
+  "Current action context exposes source, file, and comment once."
+  (org-comments-panel-actions-test--with-comment
+   (let ((context (org-comments-current-action-context)))
+     (should (eq (plist-get context :source-buffer)
+		 org-comments-panel-source-buffer))
+     (should (equal (plist-get context :source-file)
+		    (buffer-file-name org-comments-panel-source-buffer)))
+     (should (equal (plist-get (plist-get context :comment) :id) "c1")))))
+
+(ert-deftest org-comments-panel-actions-current-context-requires-comment ()
+  "Current action context fails clearly away from comment rows."
+  (with-temp-buffer
+    (let ((source (current-buffer)))
+      (setq-local org-comments-current-source-buffer-function (lambda () source))
+      (setq-local org-comments-current-comment-function (lambda () nil))
+      (should-error (org-comments-current-action-context) :type 'user-error))))
+
 (ert-deftest org-comments-panel-actions-jump-opens-source-position ()
   "Jumping from a panel row opens the source at the comment target."
   (org-comments-panel-actions-test--with-comment

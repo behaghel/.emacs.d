@@ -75,6 +75,30 @@
       (user-error "No source buffer associated with this comments UI"))
     source-buffer))
 
+(defun org-comments-current-action-context ()
+  "Return normalized action context for the comment item at point.
+The returned plist includes `:source-buffer' and `:comment'.  When the source
+buffer visits a file, it also includes `:source-file'."
+  (let* ((source-buffer (org-comments-current-source-buffer))
+	 (comment (org-comments-current-comment))
+	 (source-file (buffer-file-name source-buffer)))
+    (unless comment
+      (user-error "No Org comment at point"))
+    (append (list :source-buffer source-buffer
+		  :comment comment)
+	    (when source-file
+	      (list :source-file source-file)))))
+
+(defun org-comments-action-context-source-file (context)
+  "Return source file from action CONTEXT or signal a user error."
+  (or (plist-get context :source-file)
+      (user-error "Source buffer is not visiting a file")))
+
+(defun org-comments-action-context-comment-with-source-file (context)
+  "Return CONTEXT comment annotated with its source file."
+  (append (plist-get context :comment)
+	  (list :source-file (org-comments-action-context-source-file context))))
+
 (defun org-comments-refresh-current-ui ()
   "Refresh the current comments UI using `org-comments-current-refresh-function'."
   (when org-comments-current-refresh-function
@@ -167,14 +191,14 @@ When COMMENT has suggestion metadata, include suggestion actions."
     (user-error "Org Suggestions is unavailable")))
 
 (defun org-comments--current-suggestion-context ()
-  "Return (SOURCE-BUFFER . COMMENT) for suggestion actions at point."
+  "Return action context for suggestion actions at point."
   (org-comments--require-suggestions)
-  (let ((source-buffer (org-comments-current-source-buffer))
-	(comment (org-comments-current-comment)))
+  (let* ((context (org-comments-current-action-context))
+	 (comment (plist-get context :comment)))
     (unless (or (plist-get comment :suggestion-thread-id)
 		(plist-get comment :suggestion-ids))
       (user-error "Comment has no linked suggestion"))
-    (cons source-buffer comment)))
+    context))
 
 (defun org-comments-panel--sidecar-location (comment)
   "Return COMMENT sidecar location as (SIDECAR-FILE . COMMENT-ID)."
@@ -215,9 +239,8 @@ When COMMENT has suggestion metadata, include suggestion actions."
 
 (defun org-comments-panel--comment-with-source-file ()
   "Return current panel comment annotated with its source file."
-  (org-comments-comment-with-source-file
-   (org-comments-current-comment)
-   (org-comments-current-source-buffer)))
+  (org-comments-action-context-comment-with-source-file
+   (org-comments-current-action-context)))
 
 (defun org-comments-remote-status-p (comment source-buffer status)
   "Return non-nil when COMMENT STATUS should be handled by a remote backend.
@@ -242,13 +265,14 @@ remains sidecar-only until backends declare broader status semantics."
 
 (defun org-comments-panel--jump-current ()
   "Jump from the current panel row to its source or sidecar target."
-  (let* ((comment (org-comments-current-comment))
-	 (source-buffer (org-comments-current-source-buffer))
+  (let* ((context (org-comments-current-action-context))
+	 (comment (plist-get context :comment))
+	 (source-buffer (plist-get context :source-buffer))
 	 (position (or (plist-get comment :target-start)
 		       (plist-get comment :anchor-pos))))
     (if (org-comments-panel--sidecar-jump-comment-p comment)
 	(pop-to-buffer (org-comments-panel--goto-sidecar-heading comment))
-      (unless (and (buffer-live-p source-buffer) position)
+      (unless position
 	(user-error "Comment has no source location"))
       (pop-to-buffer source-buffer)
       (goto-char position))))
@@ -336,9 +360,9 @@ remains sidecar-only until backends declare broader status semantics."
 
 (defun org-comments-push-at-point ()
   "Push the current comment through the detected remote backend."
-  (let* ((source-buffer (org-comments-current-source-buffer))
-	 (comment (org-comments-comment-with-source-file
-		   (org-comments-current-comment) source-buffer))
+  (let* ((context (org-comments-current-action-context))
+	 (source-buffer (plist-get context :source-buffer))
+	 (comment (org-comments-action-context-comment-with-source-file context))
 	 (result (org-comments-backend-push
 		  (org-comments-backend-detect source-buffer)
 		  comment)))
@@ -351,9 +375,9 @@ remains sidecar-only until backends declare broader status semantics."
 
 (defun org-comments-open-remote-at-point ()
   "Open the current comment through the detected remote backend."
-  (let* ((source-buffer (org-comments-current-source-buffer))
-	 (comment (org-comments-comment-with-source-file
-		   (org-comments-current-comment) source-buffer)))
+  (let* ((context (org-comments-current-action-context))
+	 (source-buffer (plist-get context :source-buffer))
+	 (comment (org-comments-action-context-comment-with-source-file context)))
     (org-comments-backend-open-remote
      (org-comments-backend-detect source-buffer)
      comment)))
@@ -364,8 +388,9 @@ remains sidecar-only until backends declare broader status semantics."
 
 (defun org-comments-reply-at-point ()
   "Reply to the current comment at point and refresh the UI."
-  (let ((result (funcall org-comments-current-reply-function
-			 (org-comments-current-comment))))
+  (let* ((context (org-comments-current-action-context))
+	 (result (funcall org-comments-current-reply-function
+			  (plist-get context :comment))))
     (org-comments-refresh-current-ui)
     result))
 
@@ -375,8 +400,9 @@ remains sidecar-only until backends declare broader status semantics."
 
 (defun org-comments-edit-at-point ()
   "Open the current comment at point for editing in its sidecar."
-  (let ((buffer (org-comments-panel--goto-sidecar-heading
-		 (org-comments-current-comment))))
+  (let* ((context (org-comments-current-action-context))
+	 (buffer (org-comments-panel--goto-sidecar-heading
+		  (plist-get context :comment))))
     (pop-to-buffer buffer)
     (org-end-of-meta-data t)
     (when (looking-at-p "[[:space:]]*$")
@@ -388,7 +414,8 @@ remains sidecar-only until backends declare broader status semantics."
 
 (defun org-comments-delete-at-point ()
   "Delete the current comment at point and refresh the UI."
-  (let ((comment (org-comments-current-comment)))
+  (let* ((context (org-comments-current-action-context))
+	 (comment (plist-get context :comment)))
     (pcase-let ((`(,sidecar-file . ,comment-id)
 		 (org-comments-panel--sidecar-location comment)))
       (org-comments-delete-entry sidecar-file comment-id)
@@ -403,8 +430,9 @@ remains sidecar-only until backends declare broader status semantics."
 (defun org-comments-accept-suggestion-at-point ()
   "Accept the suggestion linked from the current comment row."
   (interactive)
-  (pcase-let ((`(,source-buffer . ,comment)
-	       (org-comments--current-suggestion-context)))
+  (let* ((context (org-comments--current-suggestion-context))
+	 (source-buffer (plist-get context :source-buffer))
+	 (comment (plist-get context :comment)))
     (prog1 (org-suggestions-accept-comment-suggestion source-buffer comment)
       (org-comments-refresh-current-ui))))
 
@@ -412,16 +440,18 @@ remains sidecar-only until backends declare broader status semantics."
 (defun org-comments-preview-suggestion-at-point ()
   "Preview the suggestion linked from the current comment row."
   (interactive)
-  (pcase-let ((`(,source-buffer . ,comment)
-	       (org-comments--current-suggestion-context)))
+  (let* ((context (org-comments--current-suggestion-context))
+	 (source-buffer (plist-get context :source-buffer))
+	 (comment (plist-get context :comment)))
     (org-suggestions-preview-comment-suggestion-at-point source-buffer comment)))
 
 ;;;###autoload
 (defun org-comments-dismiss-suggestion-at-point ()
   "Dismiss the suggestion linked from the current comment row."
   (interactive)
-  (pcase-let ((`(,source-buffer . ,comment)
-	       (org-comments--current-suggestion-context)))
+  (let* ((context (org-comments--current-suggestion-context))
+	 (source-buffer (plist-get context :source-buffer))
+	 (comment (plist-get context :comment)))
     (prog1 (org-suggestions-dismiss-comment-suggestion source-buffer comment)
       (org-comments-refresh-current-ui))))
 
@@ -429,15 +459,17 @@ remains sidecar-only until backends declare broader status semantics."
 (defun org-comments-undo-suggestion-at-point ()
   "Undo the accepted suggestion linked from the current comment row."
   (interactive)
-  (pcase-let ((`(,source-buffer . ,comment)
-	       (org-comments--current-suggestion-context)))
+  (let* ((context (org-comments--current-suggestion-context))
+	 (source-buffer (plist-get context :source-buffer))
+	 (comment (plist-get context :comment)))
     (prog1 (org-suggestions-undo-comment-suggestion source-buffer comment)
       (org-comments-refresh-current-ui))))
 
 (defun org-comments-set-status-at-point (status)
   "Set the current comment at point to STATUS and refresh the UI."
-  (let* ((source-buffer (org-comments-current-source-buffer))
-	 (comment (org-comments-current-comment))
+  (let* ((context (org-comments-current-action-context))
+	 (source-buffer (plist-get context :source-buffer))
+	 (comment (plist-get context :comment))
 	 (result (if (org-comments-remote-status-p comment source-buffer status)
 		     (org-comments-set-remote-status comment source-buffer status)
 		   (with-current-buffer (org-comments-panel--goto-sidecar-heading comment)
