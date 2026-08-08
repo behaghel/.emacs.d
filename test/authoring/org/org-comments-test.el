@@ -31,18 +31,17 @@
 (defun hub/org-comments-test--render-package-panel (source-buffer panel-buffer)
   "Render package comments for SOURCE-BUFFER into PANEL-BUFFER."
   (with-current-buffer source-buffer
+    (org-comments-context-panel-enable)
     (org-comments-context-panel-refresh-source-overlays))
   (with-current-buffer panel-buffer
     (org-comments-panel-mode)
-    (setq-local org-context-panel-source-buffer source-buffer)
+    (setq-local context-panels-source-buffer source-buffer)
     (setq-local org-comments-panel-source-buffer source-buffer)
     (setq-local org-comments-current-source-buffer-function
 		(lambda () org-comments-panel-source-buffer))
     (setq-local org-comments-panel-refresh-function
 		(lambda ()
-		  (let ((inhibit-read-only t))
-		    (org-comments-context-panel-render-side-panel
-		     org-comments-panel-source-buffer nil))))
+		  (context-panels-render-side-panel org-comments-panel-source-buffer nil)))
     (funcall org-comments-panel-refresh-function)))
 
 (ert-deftest org-comments-sidecar-path-preserves-org-extension ()
@@ -716,7 +715,7 @@
 					     (hub/org-comment-previous)
 					     (should (= (point) (org-comments-context-panel-page-marker-position))))))
 
-(ert-deftest org-context-panel-ret-at-page-marker-opens-page-comments ()
+(ert-deftest context-panels-ret-at-page-marker-opens-page-comments ()
   "RET at the page marker opens the bottom page-context panel."
   (hub/org-comments-test--with-file-buffer "article.org" "#+TITLE: Article\n\nBody"
 					   (let ((sidecar (org-comments-sidecar-path buffer-file-name))
@@ -736,10 +735,10 @@
 					     (goto-char (org-comments-context-panel-page-marker-position))
 					     (cl-letf (((symbol-function 'hub/org-page-comments-open)
 							(lambda () (setq opened t))))
-					       (hub/org-comments-source-ret-dwim))
+					       (hub/comments-source-ret-dwim))
 					     (should opened))))
 
-(ert-deftest org-context-panel-page-view-navigation-wraps ()
+(ert-deftest context-panels-page-view-navigation-wraps ()
   "Page context uses context-panel ]c/[c navigation."
   (let ((buffer (generate-new-buffer " *page context navigation test*")))
     (unwind-protect
@@ -748,14 +747,14 @@
 	  (let ((inhibit-read-only t))
 	    (let ((first-start (point)))
 	      (insert "First\n")
-	      (add-text-properties first-start (point) '(org-context-panel-item (:id "first")))
+	      (add-text-properties first-start (point) '(context-panels-item (:id "first")))
 	      (insert "\n")
 	      (let ((second-start (point)))
 		(insert "Second\n")
-		(add-text-properties second-start (point) '(org-context-panel-item (:id "second")))
+		(add-text-properties second-start (point) '(context-panels-item (:id "second")))
 		(goto-char (point-min))
 		(setq-local org-comments-current-item-starts-function
-			    #'org-context-panel-item-starts)
+			    #'context-panels-item-starts)
 		(org-comments-next-item-at-point)
 		(should (= (point) second-start))
 		(org-comments-next-item-at-point)
@@ -764,12 +763,12 @@
 		(should (= (point) second-start))))))
       (kill-buffer buffer))))
 
-(ert-deftest org-context-panel-filter-keys-use-z-prefix ()
+(ert-deftest context-panels-filter-keys-use-z-prefix ()
   "Context filters live under the z prefix and zz resets filters."
   (with-temp-buffer
     (org-comments-panel-mode)
     (should (eq (local-key-binding (kbd "zx"))
-		#'hub/org-context-panel-filter-toggle-missing))
+		#'hub/context-panels-filter-toggle-missing))
     (should (eq (local-key-binding (kbd "zr"))
 		#'org-comments-filter-toggle-resolved-current-ui))
     (should (eq (local-key-binding (kbd "z?"))
@@ -843,13 +842,13 @@
 					       (should (equal (plist-get comment :local-updated-at)
 							      "2026-06-19T20:00:00+0000"))))))
 
-(ert-deftest org-context-panel-action-keys-live-in-package-panel-mode ()
+(ert-deftest context-panels-action-keys-live-in-package-panel-mode ()
   "Panel actions are owned by `org-comments-panel-mode-map'."
   (with-temp-buffer
     (org-comments-panel-mode)
     (should (eq (local-key-binding (kbd "?")) #'org-comments-help-current-ui))
     (should (eq (local-key-binding (kbd "U")) #'org-comments-push))
-    (should (eq (local-key-binding (kbd "RET")) #'org-context-panel-jump-at-point))
+    (should (eq (local-key-binding (kbd "RET")) #'context-panels-jump-at-point))
     (should (eq (local-key-binding (kbd "o")) #'org-comments-open-remote))
     (should (eq (local-key-binding (kbd "p")) #'org-comments-page-open-at-point))
     (should (eq (local-key-binding (kbd "q")) #'org-comments-close-current-ui))
@@ -864,7 +863,7 @@
     (should (eq (local-key-binding (kbd "r")) #'org-comments-reply))
     (should-not (local-key-binding (kbd "s")))))
 
-(ert-deftest org-context-panel-uses-package-open-remote-at-point ()
+(ert-deftest context-panels-uses-package-open-remote-at-point ()
   "Pressing open remote in the context panel opens the remote comment."
   (hub/org-comments-test--with-file-buffer "article.org" "#+CONFLUENCE_PAGE_ID: 123\n\nAlpha selected text omega"
 					   (let* ((source-buffer (current-buffer))
@@ -935,68 +934,68 @@
 						      "\\[1 PAGE comment\\]"
 						      (overlay-get org-comments-page-comment-overlay 'after-string))))))
 
-(ert-deftest hub/org-context-panel-toggle-opens-side-when-only-bottom-visible ()
+(ert-deftest hub/context-panels-toggle-opens-side-when-only-bottom-visible ()
   "Toggling with only a bottom view visible opens side instead of closing chat."
   (with-temp-buffer
     (org-mode)
     (let (opened closed)
-      (cl-letf (((symbol-function 'hub/org-context-panel--side-visible-p)
+      (cl-letf (((symbol-function 'hub/context-panels--side-visible-p)
 		 (lambda (&optional _source) nil))
-		((symbol-function 'hub/org-context-panel--enable-comments-provider)
+		((symbol-function 'hub/context-panels--enable-comments-provider)
 		 #'ignore)
-		((symbol-function 'org-context-panel-refresh-source-overlays)
+		((symbol-function 'context-panels-refresh-source-overlays)
 		 #'ignore)
-		((symbol-function 'hub/org-context-panel--refresh-signature)
+		((symbol-function 'hub/context-panels--refresh-signature)
 		 #'ignore)
-		((symbol-function 'hub/org-context-panel--open-page-view)
+		((symbol-function 'hub/context-panels--open-page-view)
 		 #'ignore)
-		((symbol-function 'org-context-panel-open)
+		((symbol-function 'context-panels-open)
 		 (lambda (_source) (setq opened t)))
-		((symbol-function 'hub/org-context-panel--close-ui)
+		((symbol-function 'hub/context-panels--close-ui)
 		 (lambda () (setq closed t)))
-		((symbol-function 'hub/org-context-panel--copilot-chat-session-p)
+		((symbol-function 'hub/context-panels--copilot-chat-session-p)
 		 #'ignore))
-	(hub/org-context-panel-toggle-open)
+	(hub/context-panels-toggle-open)
 	(should opened)
 	(should-not closed)))))
 
-(ert-deftest hub/org-context-panel-toggle-closes-all-when-side-visible ()
+(ert-deftest hub/context-panels-toggle-closes-all-when-side-visible ()
   "Toggling with side visible closes the context UI."
   (with-temp-buffer
     (org-mode)
     (let (opened closed)
-      (cl-letf (((symbol-function 'hub/org-context-panel--side-visible-p)
+      (cl-letf (((symbol-function 'hub/context-panels--side-visible-p)
 		 (lambda (&optional _source) t))
 		((symbol-function 'org-comments-open)
 		 (lambda () (setq opened t)))
-		((symbol-function 'hub/org-context-panel--close-ui)
+		((symbol-function 'hub/context-panels--close-ui)
 		 (lambda () (setq closed t))))
-	(hub/org-context-panel-toggle-open)
+	(hub/context-panels-toggle-open)
 	(should closed)
 	(should-not opened)))))
 
-(ert-deftest hub/org-context-panel-toggle-surfaces-pending-copilot-chat ()
+(ert-deftest hub/context-panels-toggle-surfaces-pending-copilot-chat ()
   "Opening context UI also surfaces a pending Org Copilot chat session."
   (with-temp-buffer
     (org-mode)
     (let (opened chatted)
-      (cl-letf (((symbol-function 'hub/org-context-panel--side-visible-p)
+      (cl-letf (((symbol-function 'hub/context-panels--side-visible-p)
 		 (lambda (&optional _source) nil))
-		((symbol-function 'hub/org-context-panel--enable-comments-provider)
+		((symbol-function 'hub/context-panels--enable-comments-provider)
 		 #'ignore)
-		((symbol-function 'org-context-panel-refresh-source-overlays)
+		((symbol-function 'context-panels-refresh-source-overlays)
 		 #'ignore)
-		((symbol-function 'hub/org-context-panel--refresh-signature)
+		((symbol-function 'hub/context-panels--refresh-signature)
 		 #'ignore)
-		((symbol-function 'hub/org-context-panel--open-page-view)
+		((symbol-function 'hub/context-panels--open-page-view)
 		 #'ignore)
-		((symbol-function 'org-context-panel-open)
+		((symbol-function 'context-panels-open)
 		 (lambda (_source) (setq opened t)))
-		((symbol-function 'hub/org-context-panel--copilot-chat-session-p)
+		((symbol-function 'hub/context-panels--copilot-chat-session-p)
 		 (lambda () t))
 		((symbol-function 'org-copilot-chat)
 		 (lambda () (setq chatted (current-buffer)))))
-	(hub/org-context-panel-toggle-open)
+	(hub/context-panels-toggle-open)
 	(should opened)
 	(should (eq chatted (current-buffer)))))))
 
@@ -1015,7 +1014,7 @@
 						      (lambda (overlay)
 							(eq (overlay-get overlay 'face) 'org-comments-region-face))
 						      (overlays-at start)))
-					     (hub/org-context-panel--close-ui)
+					     (hub/context-panels--close-ui)
 					     (should (cl-some
 						      (lambda (overlay)
 							(eq (overlay-get overlay 'face) 'org-comments-region-face))

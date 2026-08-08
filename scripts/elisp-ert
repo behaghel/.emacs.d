@@ -86,8 +86,15 @@ for test_file in "${tests[@]}"; do
 done
 
 echo "Running related ERT tests: ${tests[*]}"
+context_panels_path="${CONTEXT_PANELS_PATH:-/Users/hubertbehaghel/ws/context-panels}"
+context_panels_load_args=()
+if [ -d "$context_panels_path" ]; then
+  context_panels_load_args=("-L" "$context_panels_path")
+fi
+
 emacs --batch -Q \
   -L . \
+  "${context_panels_load_args[@]}" \
   -L packages/org-comments \
   -L packages/org-marginalia \
   -L packages/org-confluence \
