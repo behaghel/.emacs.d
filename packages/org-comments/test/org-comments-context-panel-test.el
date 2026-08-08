@@ -174,6 +174,30 @@
 		      (current-buffer))))
 	  (should (equal (plist-get (car items) :icon) "☁️")))))))
 
+(ert-deftest org-comments-context-panel-collect-side-items-resolves-people ()
+  "Collected comment items resolve remote author IDs using source context."
+  (with-temp-buffer
+    (org-mode)
+    (let ((buffer-file-name "/tmp/org-comments/source.org")
+	  (org-comments-resolve-account-id-function
+	   (lambda (account-id directory)
+	     (when (and (equal account-id "acct-1")
+			(equal directory "/tmp/org-comments/"))
+	       "Alice")))
+	  (comment (list :type 'comment :id "remote-1" :remote-id "42"
+			 :remote-author-id "acct-1"
+			 :target-start 1 :target-end 1 :body "Body"
+			 :replies (list (list :id "reply-1"
+					      :remote-author-id "acct-1"
+					      :body "Reply")))))
+      (cl-letf (((symbol-function 'org-comments-collect)
+		 (lambda (&rest _) (list comment))))
+	(let* ((item (car (org-comments-context-panel-collect-side-items
+			   (current-buffer))))
+	       (reply (car (plist-get item :replies))))
+	  (should (equal (plist-get item :remote-author-name) "Alice"))
+	  (should (equal (plist-get reply :remote-author-name) "Alice")))))))
+
 (ert-deftest org-comments-context-panel-provider-exposes-collection-functions ()
   "The comments provider descriptor exposes collection and item renderers."
   (let ((provider (org-comments-context-panel-provider)))
