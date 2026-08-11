@@ -34,6 +34,7 @@
 
 (defvar org-sync-status-mode-map
   (let ((map (make-sparse-keymap)))
+    (define-key map (kbd "g") #'org-sync-refresh)
     (define-key map (kbd "B") #'org-sync-baseline)
     (define-key map (kbd "q") #'org-sync-close)
     map)
@@ -117,6 +118,13 @@
 	(context-panels-register-provider (org-sync-context-panel-provider)))
     (context-panels-unregister-provider 'org-sync)
     (setq org-sync-current-document nil)))
+
+;;;###autoload
+(defun org-sync-refresh ()
+  "Refresh the current Org sync status panel without network I/O."
+  (interactive)
+  (let ((source-buffer (org-sync--source-buffer)))
+    (context-panels-open-bottom-view 'org-sync-status source-buffer)))
 
 ;;;###autoload
 (defun org-sync-baseline ()

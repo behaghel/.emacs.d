@@ -9,6 +9,7 @@
 (require 'org)
 (require 'org-sync)
 (require 'context-panels)
+(require 'org-comments)
 
 (defmacro org-sync-status-test--with-providers (providers &rest body)
   "Bind org-sync status PROVIDERS while running BODY."
@@ -58,6 +59,68 @@
 	   (should (string-match-p "Org Sync: fake doc-1" (buffer-string)))
 	   (should (string-match-p "Content[[:space:]]+unknown" (buffer-string)))
 	   (should (string-match-p "Comments[[:space:]]+unknown" (buffer-string)))))))))
+
+(ert-deftest org-sync-refresh-renders-content-ahead-after-local-edit ()
+  "Refreshing after local source edits renders content ahead."
+  (let* ((directory (make-temp-file "org-sync-status" t))
+	 (source-file (expand-file-name "source.org" directory)))
+    (unwind-protect
+	(progn
+	  (with-temp-file source-file (insert "Body\n"))
+	  (org-sync-store-write
+	   source-file
+	   '(:provider (:kind fake :remote-id "doc-1")
+		       :domains ((content :fetched-remote-ref (:version "1"))
+				 (comments :fetched-remote-ref (:hash "remote-comments")))))
+	  (with-current-buffer (find-file-noselect source-file)
+	    (org-mode)
+	    (org-sync-status-test--with-providers
+	     (list (org-sync-status-test--fake-provider))
+	     (org-sync-status)
+	     (org-sync-baseline)
+	     (with-current-buffer (find-buffer-visiting source-file)
+	       (goto-char (point-max))
+	       (insert "Local edit\n")
+	       (org-sync-refresh))
+	     (with-current-buffer (get-buffer org-sync-status-buffer-name)
+	       (should (string-match-p "Content[[:space:]]+ahead" (buffer-string)))
+	       (should (string-match-p "Comments[[:space:]]+clean" (buffer-string)))))))
+      (when-let* ((buffer (find-buffer-visiting source-file)))
+	(kill-buffer buffer))
+      (delete-directory directory t))))
+
+(ert-deftest org-sync-refresh-renders-comments-ahead-after-local-comment ()
+  "Refreshing after local sidecar comment edits renders comments ahead."
+  (let* ((directory (make-temp-file "org-sync-status" t))
+	 (source-file (expand-file-name "source.org" directory)))
+    (unwind-protect
+	(progn
+	  (with-temp-file source-file (insert "Alpha beta gamma\n"))
+	  (org-sync-store-write
+	   source-file
+	   '(:provider (:kind fake :remote-id "doc-1")
+		       :domains ((content :fetched-remote-ref (:version "1"))
+				 (comments :fetched-remote-ref (:hash "remote-comments")))))
+	  (with-current-buffer (find-file-noselect source-file)
+	    (org-mode)
+	    (org-sync-status-test--with-providers
+	     (list (org-sync-status-test--fake-provider))
+	     (org-sync-status)
+	     (org-sync-baseline)
+	     (with-current-buffer (find-buffer-visiting source-file)
+	       (goto-char (point-min))
+	       (search-forward "Alpha")
+	       (org-comments-append-to-sidecar
+		(org-comments-create-record source-file
+					    (match-beginning 0) (match-end 0)
+					    "Review this." "c1" "Alice" "now"))
+	       (org-sync-refresh))
+	     (with-current-buffer (get-buffer org-sync-status-buffer-name)
+	       (should (string-match-p "Content[[:space:]]+clean" (buffer-string)))
+	       (should (string-match-p "Comments[[:space:]]+ahead" (buffer-string)))))))
+      (when-let* ((buffer (find-buffer-visiting source-file)))
+	(kill-buffer buffer))
+      (delete-directory directory t))))
 
 (ert-deftest org-sync-baseline-records-base-refs-and-renders-clean ()
   "Baselining stores current/fetched ref pairs and renders clean domains."

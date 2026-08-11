@@ -5,6 +5,8 @@
 
 ;;; Code:
 
+(require 'cl-lib)
+(require 'org-comments)
 (require 'subr-x)
 
 (defconst org-sync-domains '(content comments)
@@ -20,11 +22,29 @@
     (list :hash (secure-hash 'sha1 (buffer-substring-no-properties
 				    (point-min) (point-max))))))
 
-(defun org-sync-comments-local-ref (&optional _source-buffer)
-  "Return current local comments ref.
-Iteration 2 tracks the empty normalized comment set; later slices replace this
-with provider-filtered `org-comments' records."
-  (list :hash (org-sync--hash-object nil) :count 0))
+(defun org-sync--normalized-comment-record (comment)
+  "Return stable sync-relevant fields from COMMENT."
+  (list :id (plist-get comment :id)
+	:provider (plist-get comment :provider)
+	:remote-id (plist-get comment :remote-id)
+	:status (plist-get comment :status)
+	:body (plist-get comment :body)
+	:target-hash (plist-get comment :target-hash)
+	:target-text (plist-get comment :target-text)
+	:replies (mapcar #'org-sync--normalized-comment-record
+			 (plist-get comment :replies))))
+
+(defun org-sync-comments-local-ref (&optional source-buffer)
+  "Return current local comments ref for SOURCE-BUFFER."
+  (let* ((comments (and source-buffer
+			(buffer-file-name source-buffer)
+			(org-comments-collect source-buffer t)))
+	 (records (sort (mapcar #'org-sync--normalized-comment-record comments)
+			(lambda (left right)
+			  (string< (or (plist-get left :id) "")
+				   (or (plist-get right :id) ""))))))
+    (list :hash (org-sync--hash-object records)
+	  :count (length records))))
 
 (defun org-sync-local-ref (domain &optional source-buffer)
   "Return current local ref for DOMAIN in SOURCE-BUFFER."
