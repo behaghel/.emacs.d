@@ -7,7 +7,9 @@
 ;;; Code:
 
 (require 'org-sync-assets)
+(require 'org-sync-provider)
 (require 'org-sync-remote)
+(require 'org-sync-status)
 
 (provide 'org-sync)
 ;;; org-sync.el ends here

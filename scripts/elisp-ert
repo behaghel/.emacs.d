@@ -55,6 +55,10 @@ else
         add_test test/publishing/confluence/org-confluence-api-test.el
         add_test test/publishing/confluence/org-confluence-export-test.el
         ;;
+      packages/org-sync/*)
+        add_test packages/org-sync/test/org-sync-assets-test.el
+        add_test packages/org-sync/test/org-sync-status-test.el
+        ;;
       scripts/approval-refresh-overdrive-page1.el|scripts/export-demo-adaptive-cards.el)
         add_test test/authoring/documents/org-latex-pdf-export-test.el
         ;;
@@ -91,10 +95,19 @@ context_panels_load_args=()
 if [ -d "$context_panels_path" ]; then
   context_panels_load_args=("-L" "$context_panels_path")
 fi
+straight_build_path="${STRAIGHT_BUILD_PATH:-straight/build}"
+straight_load_args=()
+for package in compat transient cond-let llama magit-section; do
+  if [ -d "$straight_build_path/$package" ]; then
+    straight_load_args+=("-L" "$straight_build_path/$package")
+  fi
+done
 
 emacs --batch -Q \
   -L . \
   "${context_panels_load_args[@]}" \
+  "${straight_load_args[@]}" \
+  -L packages/org-sync \
   -L packages/org-comments \
   -L packages/org-marginalia \
   -L packages/org-confluence \
