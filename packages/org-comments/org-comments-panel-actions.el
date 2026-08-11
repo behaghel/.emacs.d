@@ -12,6 +12,7 @@
 (require 'org-comments-compose)
 (require 'org-comments-sidecar)
 (require 'org-comments-store)
+(require 'org-comments-ui)
 
 (declare-function org-comments-panel-refresh "org-comments-panel")
 (declare-function org-suggestions-accept-comment-suggestion "org-suggestions")
@@ -100,9 +101,12 @@ buffer visits a file, it also includes `:source-file'."
 	  (list :source-file (org-comments-action-context-source-file context))))
 
 (defun org-comments-refresh-current-ui ()
-  "Refresh the current comments UI using `org-comments-current-refresh-function'."
+  "Refresh the current comments UI and any registered rich UI."
   (when org-comments-current-refresh-function
-    (funcall org-comments-current-refresh-function)))
+    (funcall org-comments-current-refresh-function))
+  (when (and (fboundp 'org-comments-ui-refresh)
+	     org-comments-ui-refresh-function)
+    (org-comments-ui-refresh)))
 
 (defun org-comments--close-current-context-panel ()
   "Close the current comments UI through `context-panels' lifecycle."
@@ -148,7 +152,9 @@ When COMMENT has suggestion metadata, include suggestion actions."
       "e    edit"
       "d    delete"
       "m    status actions"
-      "z    filters"
+      "z s  toggle suggestions-only filter"
+      "z r  toggle resolved filter"
+      "z z  reset filters"
       "q    close")
     (when (org-comments--suggestion-linked-comment-p comment)
       '(""
@@ -318,6 +324,14 @@ remains sidecar-only until backends declare broader status semantics."
 	  (forward-char 1))))
     (nreverse starts)))
 
+(defun org-comments-panel--sync-current-comment-focus ()
+  "Synchronize source/sidebar/chat focus for the panel comment at point."
+  (when (fboundp 'org-comments-context-panel-focus-comment)
+    (let ((comment (ignore-errors (org-comments-current-comment)))
+	  (source (ignore-errors (org-comments-current-source-buffer))))
+      (when (and comment (buffer-live-p source))
+	(org-comments-context-panel-focus-comment source comment)))))
+
 ;;;###autoload
 (defun org-comments-next-item-at-point ()
   "Move point to the next rendered comment item, wrapping at end."
@@ -327,7 +341,8 @@ remains sidecar-only until backends declare broader status semantics."
 		   (car starts))))
     (unless next
       (user-error "No comment items"))
-    (goto-char next)))
+    (goto-char next)
+    (org-comments-panel--sync-current-comment-focus)))
 
 ;;;###autoload
 (defun org-comments-previous-item-at-point ()
@@ -338,7 +353,8 @@ remains sidecar-only until backends declare broader status semantics."
 		       (car starts))))
     (unless previous
       (user-error "No comment items"))
-    (goto-char previous)))
+    (goto-char previous)
+    (org-comments-panel--sync-current-comment-focus)))
 
 (defun org-comments-panel-pull ()
   "Pull remote comments through the detected backend for the panel source."

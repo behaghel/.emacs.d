@@ -96,10 +96,20 @@
   "Return non-nil when COMMENT is linked to a missing remote comment."
   (eq (plist-get (org-comments-normalize-record comment) :remote-state) 'missing))
 
+(defun org-comments-panel-render--comment-provider (comment)
+  "Return COMMENT's semantic provider, not context-panel owner."
+  (or (plist-get comment :comment-provider)
+      (plist-get comment :provider)))
+
+(defun org-comments-panel-render--copilot-comment-p (comment)
+  "Return non-nil when COMMENT is owned by Org Copilot."
+  (equal (org-comments-panel-render--comment-provider comment) "org-copilot"))
+
 (defun org-comments-panel-render--provider-icon (comment)
   "Return compact provider icon for COMMENT."
   (cond
-   ((equal (plist-get comment :provider) "org-copilot") "🤖")
+   ((plist-get comment :icon))
+   ((org-comments-panel-render--copilot-comment-p comment) "🤖")
    ((plist-get comment :remote-id) "☁️")
    (t "✍️")))
 
@@ -179,9 +189,11 @@
 
 (defun org-comments-panel-render--author (comment)
   "Return display author for COMMENT, or nil."
-  (or (plist-get comment :remote-author-name)
-      (plist-get comment :remote-author-display-name)
-      (plist-get comment :author)))
+  (if (org-comments-panel-render--copilot-comment-p comment)
+      (plist-get comment :id)
+    (or (plist-get comment :remote-author-name)
+	(plist-get comment :remote-author-display-name)
+	(plist-get comment :author))))
 
 (defun org-comments-panel-render--author-face (author)
   "Return stable face for AUTHOR."

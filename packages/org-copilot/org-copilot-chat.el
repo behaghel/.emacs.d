@@ -85,6 +85,7 @@ assistant message, or a plist with `:message' and optional `:comments'.  Normal
     (define-key map (kbd "C-c C-f") #'org-copilot-chat-goto-prompt)
     (define-key map (kbd "C-c C-a") #'org-copilot-chat-accept-focused-suggestion-at-point)
     (define-key map (kbd "C-c C-d") #'org-copilot-chat-dismiss-focused-comment-at-point)
+    (define-key map (kbd "C-c C-r") #'org-copilot-chat-resolve-focused-comment-at-point)
     (define-key map (kbd "C-c C-n") #'org-copilot-chat-focus-next-comment)
     (define-key map (kbd "C-c C-p") #'org-copilot-chat-focus-previous-comment)
     (define-key map (kbd "C-c C-u") #'org-copilot-chat-undo-focused-comment-at-point)
@@ -92,8 +93,13 @@ assistant message, or a plist with `:message' and optional `:comments'.  Normal
     (define-key map (kbd "C-c C-x / g") #'org-copilot-chat-full-document)
     (define-key map (kbd "C-c C-x / s") #'org-copilot-chat-section)
     (define-key map (kbd "C-c C-x / o") #'org-copilot-open-panels)
+    (define-key map (kbd "C-c C-x / c") #'org-copilot-chat-clear-session-at-point)
+    (define-key map (kbd "C-c C-x / u") #'org-copilot-chat-clear-ui-at-point)
+    (define-key map (kbd "C-c C-x / d") #'org-copilot-chat-doctor-at-point)
+    (define-key map (kbd "C-c C-x / e") #'org-copilot-chat-erase-session-at-point)
     (define-key map (kbd "M-a") #'org-copilot-chat-accept-focused-suggestion-at-point)
     (define-key map (kbd "M-d") #'org-copilot-chat-dismiss-focused-comment-at-point)
+    (define-key map (kbd "M-z") #'org-copilot-chat-resolve-focused-comment-at-point)
     (define-key map (kbd "M-n") #'org-copilot-chat-focus-next-comment)
     (define-key map (kbd "M-p") #'org-copilot-chat-focus-previous-comment)
     (define-key map (kbd "M-u") #'org-copilot-chat-undo-focused-comment-at-point)
@@ -521,6 +527,9 @@ prompt active.  Source target overlays remain visible as dim context markers."
    (list :type 'comment :comment-id (org-copilot-comment-id comment)))
   (org-copilot-chat--scroll-source-to-comment source-buffer comment)
   (org-copilot-chat--refresh-source-ui source-buffer)
+  (when (fboundp 'org-comments-context-panel-focus-comment)
+    (ignore-errors
+      (org-comments-context-panel-focus-comment source-buffer comment t)))
   (org-copilot-chat-sync-diff source-buffer)
   (let ((buffer (org-copilot-chat--buffer source-buffer)))
     (when-let* ((window (get-buffer-window buffer t)))
@@ -530,6 +539,21 @@ prompt active.  Source target overlays remain visible as dim context markers."
 			(with-current-buffer buffer
 			  org-copilot-chat--prompt-start)))
     buffer))
+
+(defun org-copilot-chat-focus-comment-id (source-buffer comment-id)
+  "Focus SOURCE-BUFFER's Copilot chat on COMMENT-ID without stealing focus."
+  (when-let* ((comment (with-current-buffer source-buffer
+			 (org-copilot-find-visible-comment comment-id))))
+    (let ((selected (selected-window)))
+      (org-copilot-chat--focus-and-refresh source-buffer comment)
+      (when (and (fboundp 'context-panels-open-bottom-view)
+		 (or (not (boundp 'context-panels-bottom-panel-buffer))
+		     (not (buffer-live-p context-panels-bottom-panel-buffer))
+		     (get-buffer-window context-panels-bottom-panel-buffer t)))
+	(context-panels-open-bottom-view 'copilot-chat source-buffer nil))
+      (when (window-live-p selected)
+	(select-window selected)))
+    comment))
 
 ;;;###autoload
 (defun org-copilot-chat-focus-next-comment ()
@@ -694,6 +718,39 @@ prompt active.  Source target overlays remain visible as dim context markers."
     (org-copilot-chat--set-context source-buffer '(:type full-document)))
   (org-copilot-chat--after-focused-action source-buffer))
 
+(defun org-copilot-chat--next-comment-after (source-buffer comment)
+  "Return navigable comment after COMMENT in SOURCE-BUFFER, or nil."
+  (let* ((comments (org-copilot-chat--navigable-comments source-buffer))
+	 (count (length comments))
+	 (current-id (org-copilot-comment-id comment))
+	 (index (cl-position current-id comments
+			     :key #'org-copilot-comment-id
+			     :test #'equal)))
+    (when (and index (> count 1))
+      (nth (mod (1+ index) count) comments))))
+
+;;;###autoload
+(defun org-copilot-chat-resolve-focused-comment-at-point ()
+  "Resolve the current Org Copilot chat focus and advance."
+  (interactive)
+  (let ((source (org-copilot-chat--source-buffer)))
+    (org-copilot-chat-resolve-focused-comment source)))
+
+(defun org-copilot-chat-resolve-focused-comment (source-buffer)
+  "Resolve SOURCE-BUFFER's focused AI comment and advance to the next one."
+  (let* ((comment (org-copilot-chat--current-focused-comment-or-error
+		   source-buffer "resolve"))
+	 (next (org-copilot-chat--next-comment-after source-buffer comment)))
+    (if (plist-get comment :sidecar-file)
+	(org-copilot-set-durable-comment-status comment "RESOLVED")
+      (user-error "Legacy in-memory Copilot comments are retired"))
+    (org-copilot-chat--refresh-source-ui source-buffer)
+    (org-copilot-chat--close-stale-diff)
+    (if next
+	(org-copilot-chat--focus-and-refresh source-buffer next)
+      (org-copilot-chat--set-context source-buffer '(:type full-document))
+      (org-copilot-chat--buffer source-buffer))))
+
 (defun org-copilot-chat--doctor-value (value)
   "Return VALUE formatted for the Org Copilot doctor report."
   (cond
@@ -807,6 +864,33 @@ prompt active.  Source target overlays remain visible as dim context markers."
 	"- No obvious local configuration problem detected. If requests still hang, inspect *Messages* and gptel backend logs.")))
      "\n")))
 
+;;;###autoload
+(defun org-copilot-chat-clear-session-at-point ()
+  "Archive the current Org Copilot session from the chat buffer."
+  (interactive)
+  (with-current-buffer (org-copilot-chat--source-buffer)
+    (org-copilot-clear-session)))
+
+;;;###autoload
+(defun org-copilot-chat-clear-ui-at-point ()
+  "Clear the current chat UI while preserving artifacts."
+  (interactive)
+  (with-current-buffer (org-copilot-chat--source-buffer)
+    (org-copilot-clear-session t)))
+
+;;;###autoload
+(defun org-copilot-chat-erase-session-at-point ()
+  "Hard-delete the current Org Copilot session from the chat buffer."
+  (interactive)
+  (with-current-buffer (org-copilot-chat--source-buffer)
+    (org-copilot-erase-session)))
+
+;;;###autoload
+(defun org-copilot-chat-doctor-at-point ()
+  "Append a local Org Copilot health report from the chat buffer."
+  (interactive)
+  (org-copilot-chat-doctor (org-copilot-chat--source-buffer)))
+
 (defun org-copilot-chat-doctor (source-buffer)
   "Append an Org Copilot health report for SOURCE-BUFFER to the chat."
   (let ((report (org-copilot-chat--doctor-report source-buffer))
@@ -836,8 +920,22 @@ prompt active.  Source target overlays remain visible as dim context markers."
     ("/erase" . "Hard-delete current Copilot session")
     ("/next" . "Focus next comment")
     ("/prev" . "Focus previous comment")
+    ("/resolve" . "Resolve focused comment and advance")
     ("/undo" . "Undo accepted suggestion"))
   "Implemented Org Copilot chat slash commands and annotations.")
+
+(defconst org-copilot-chat-slash-command-keys
+  '(("/accept" "M-a" "C-c C-a")
+    ("/clear" "C-c C-x / c")
+    ("/clear-ui" "C-c C-x / u")
+    ("/dismiss" "M-d" "C-c C-d")
+    ("/doctor" "C-c C-x / d")
+    ("/erase" "C-c C-x / e")
+    ("/next" "M-n" "C-c C-n")
+    ("/prev" "M-p" "C-c C-p")
+    ("/resolve" "M-z" "C-c C-r")
+    ("/undo" "M-u" "C-c C-u"))
+  "Documented key coverage for Org Copilot chat slash commands.")
 
 (defun org-copilot-chat--comment-accepted-with-rollback-p (comment)
   "Return non-nil when COMMENT can be undone."
@@ -864,6 +962,9 @@ prompt active.  Source target overlays remain visible as dim context markers."
       ("/dismiss" (and comment
 		       (not (eq (org-copilot-comment-status comment)
 				'dismissed))))
+      ("/resolve" (and comment
+		       (not (memq (org-copilot-comment-status comment)
+				  '(dismissed accepted stale)))))
       ("/undo" (and comment
 		    (org-copilot-chat--comment-accepted-with-rollback-p
 		     comment)))
@@ -930,6 +1031,9 @@ prompt active.  Source target overlays remain visible as dim context markers."
     ("/prev"
      (with-current-buffer source-buffer
        (org-copilot-chat-focus-previous-comment))
+     t)
+    ("/resolve"
+     (org-copilot-chat-resolve-focused-comment source-buffer)
      t)
     (_ nil)))
 

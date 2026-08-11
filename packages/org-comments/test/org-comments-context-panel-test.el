@@ -148,6 +148,46 @@
 		       (goto-char 1)
 		       (line-end-position)))))))))
 
+(ert-deftest org-comments-context-panel-broad-inline-overlay-skips-frontmatter ()
+  "Broad inline comments highlight one content line, not whole document metadata."
+  (with-temp-buffer
+    (org-mode)
+    (insert "#+title: Draft\n#+date: today\n\n* Hidden :noexport:\nDraft notes\n* Heading\nBody line\n")
+    (let ((comment (list :type 'comment :id "broad-1"
+			 :target-start (point-min)
+			 :target-end (point-max)
+			 :target-text (buffer-string)
+			 :body "Broad note")))
+      (cl-letf (((symbol-function 'org-comments-collect)
+		 (lambda (&rest _) (list comment))))
+	(org-comments-context-panel-refresh-source-overlays)
+	(let ((overlay (car org-comments-overlays)))
+	  (should overlay)
+	  (should (= (overlay-start overlay)
+		     (save-excursion
+		       (goto-char (point-min))
+		       (re-search-forward "^\\* Heading")
+		       (line-beginning-position))))
+	  (should (= (overlay-end overlay)
+		     (save-excursion
+		       (goto-char (overlay-start overlay))
+		       (line-end-position)))))))))
+
+(ert-deftest org-comments-context-panel-focus-copilot-comment-syncs-chat ()
+  "Focusing a Copilot-linked comment propagates focus to Copilot chat."
+  (with-temp-buffer
+    (org-mode)
+    (insert "Alpha beta gamma\n")
+    (let ((source (current-buffer))
+	  (comment (list :id "ai-1" :provider "org-copilot"
+			 :target-start 1 :target-end 17))
+	  focused)
+      (cl-letf (((symbol-function 'org-copilot-chat-focus-comment-id)
+		 (lambda (buffer id)
+		   (setq focused (list buffer id)))))
+	(org-comments-context-panel-focus-comment source comment)
+	(should (equal focused (list source "ai-1")))))))
+
 (ert-deftest org-comments-context-panel-stale-focus-has-no-source-overlay ()
   "Stale comments do not create source overlays when focused."
   (with-temp-buffer
@@ -173,6 +213,19 @@
 	(let ((items (org-comments-context-panel-collect-side-items
 		      (current-buffer))))
 	  (should (equal (plist-get (car items) :icon) "☁️")))))))
+
+(ert-deftest org-comments-context-panel-collect-side-items-preserves-comment-provider ()
+  "Collected items preserve semantic provider before context-panel ownership."
+  (with-temp-buffer
+    (org-mode)
+    (let ((comment (list :type 'comment :id "ai-1" :provider "org-copilot"
+			 :target-start 1 :target-end 1 :body "Body")))
+      (cl-letf (((symbol-function 'org-comments-collect)
+		 (lambda (&rest _) (list comment))))
+	(let ((item (car (org-comments-context-panel-collect-side-items
+			  (current-buffer)))))
+	  (should (equal (plist-get item :comment-provider) "org-copilot"))
+	  (should (equal (plist-get item :icon) "🤖")))))))
 
 (ert-deftest org-comments-context-panel-collect-side-items-normalizes-metadata ()
   "Collected comment items expose source, sidecar, and action metadata."

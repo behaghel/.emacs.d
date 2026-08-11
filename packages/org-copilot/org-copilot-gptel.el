@@ -19,6 +19,7 @@
 (require 'subr-x)
 (require 'org-comments-model)
 (require 'org-comments-sidecar)
+(require 'org-comments-store)
 (require 'org-suggestions)
 (require 'org-copilot-sidecar)
 (require 'org-copilot-chat)
@@ -43,9 +44,11 @@
   (string-join
    '("You are a balanced, high-impact AI reviewer for an Org document."
      "Prefer specific anchored inline comments over broad scope comments."
-     "For inline comments, copy the exact reviewed source span into target_text."
+     "For inline comments, copy only a compact unique prose locator into target_text: at most 2 complete sentences and 300 characters."
+     "Never put Org structural markers in target_text: no frontmatter, property drawers, block delimiters, table separator/table markup lines, or headings unless the heading text itself is the reviewed prose."
+     "For comments inside tables or blocks, target the content cell/line inside the structure rather than the table or block markers."
      "For executable edits, use top-level suggestion_threads rather than comment-local suggestions."
-     "Use scope comments only for issues that apply to the whole reviewed subtree or document."
+     "Use scope comments only for issues that apply to the whole reviewed subtree or document; scope comments must not include target_text."
      "Prioritize clarity, argument strength, structure, evidence/support, and outcome fit."
      "If the text states a goal, intended audience, or desired outcome, judge feedback against that outcome."
      "Avoid low-value nitpicks; focus on changes likely to improve the document's effectiveness."
@@ -81,6 +84,11 @@
   :type 'sexp
   :group 'org-copilot)
 
+(defcustom org-copilot-gptel-defer-chat-postprocessing t
+  "Whether to defer chat artifact installation until after initial rendering."
+  :type 'boolean
+  :group 'org-copilot)
+
 (defconst org-copilot-gptel--review-json-schema-instructions
   (concat "Return strict JSON only, with no Markdown fences.\n"
 	  "The JSON shape must be:\n"
@@ -98,7 +106,7 @@
 	  "\"suggestion\":\"literal replacement or insertion text\","
 	  "\"line_start\":1,\"line_end\":1}]}\n"
 	  "Use type \"inline\" for anchored inline comments, \"insertion\" for text to add at a specific location, and \"scope\" "
-	  "for whole-scope comments. Inline requires target_text. Do not put executable edits inside comments; use suggestion_threads instead. Include summary for general document-level analysis.")
+	  "for whole-scope comments. Inline requires compact target_text: max 2 sentences and 300 chars, prose only, no Org structural markers. Scope comments must omit target_text. Do not put executable edits inside comments; use suggestion_threads instead. Include summary for general document-level analysis.")
   "Fixed JSON schema instructions for Org Copilot gptel review prompts.")
 
 (defun org-copilot-gptel-review-prompt (request)
@@ -257,12 +265,13 @@ REQUEST supplies reviewed source bounds for line-range fallback anchoring."
 	 (suggestion-history (org-copilot-gptel--suggestion-thread-history request)))
     (format (concat "You are an AI writing partner for an Org author.\n"
 		    "Answer the user's question concisely and concretely.\n"
+		    "When the user asks to be grilled, interview them one question at a time, give your recommended answer with each question, and wait for their reply before asking the next question.\n"
 		    "Return strict JSON only, with no Markdown fences.\n"
 		    "The JSON shape is {\"message\":\"brief answer\",\"intent\":\"answer|review|edit\",\"suggestion_threads\":[{\"intent\":\"rewrite_section|revise_suggestion|insert_text|mixed_edit\",\"summary\":\"short linked comment text\",\"suggestions\":[{\"id\":\"optional provider id\",\"label\":\"optional candidate label\",\"hunks\":[{\"id\":\"h1\",\"kind\":\"section-replace|replace|insert\",\"primary\":true,\"section_title\":\"optional exact title\",\"section_path\":[\"optional\",\"outline path\"],\"anchor_text\":\"exact insertion anchor\",\"placement\":\"before|after\",\"original\":\"exact replacement target\",\"replacement\":\"executable text\"}]}]}],\"comments\":[...]} .\n"
 		    "Choose top-level intent from the user's meaning, not keywords: answer for Q&A, review for critique/comments, and edit for executable edit proposals. Use suggestion_threads only for executable edits. Default to one suggestion thread with one suggestion; use multiple suggestions only for explicit alternatives or coherent multi-hunk edits, and multiple threads only for clearly separate edit intents.\n"
 		    "Use `comments' only when the user clearly asks for review, critique, edits, improvements, suggestions, issues, or targeted comments; otherwise return an empty comments array.\n"
 		    "Each comment has optional id, type (`inline', `insertion', or `scope'), summary, body, target_text, anchor_text, placement, suggestion, line_start, and line_end.\n"
-		    "Inline comments must include exact target_text copied from the document. Do not attach executable suggestion text to comments.\n"
+		    "Inline comments must include compact exact target_text copied from the document: at most 2 complete sentences and 300 characters, only enough to be unique. Never include Org structural markers in target_text: no frontmatter, property drawers, block delimiters, table separator/table markup lines, or headings unless the heading text itself is reviewed prose. For comments inside tables or blocks, target content inside the structure. Scope comments must omit target_text. Do not attach executable suggestion text to comments.\n"
 		    "Insertion/edit proposals must be expressed as suggestion_threads hunks, not comment-local suggestions.\n"
 		    "Scope comments are for broad document or section observations without a specific executable edit location; do not attach suggestions to scope comments.\n"
 		    "Do not return top-level `suggestion'. Put executable text only in suggestion_threads hunks as `replacement'. Never put advice, follow-up offers, summaries, explanations, questions, classifications, or bibliographic references in replacement text.\n"
@@ -287,7 +296,7 @@ REQUEST supplies reviewed source bounds for line-range fallback anchoring."
 		    "User message:\n%s")
 	    (or (plist-get request :buffer-name) "Org buffer")
 	    (or focus-id "none")
-	    (if focus-id "<focused comment chat>" (or source-content "<none>"))
+	    (or source-content "<none>")
 	    (or section-content "<none>")
 	    (or focused-context "<none>")
 	    (or suggestion-history "<none>")
@@ -427,6 +436,24 @@ REQUEST supplies reviewed source bounds for line-range fallback anchoring."
 	(org-comments-append-to-sidecar record)
 	(plist-get record :id)))))
 
+(defun org-copilot-gptel--link-focused-comment-to-thread
+    (source-buffer focus-id thread-id suggestion-ids)
+  "Attach THREAD-ID and SUGGESTION-IDS to focused comment FOCUS-ID."
+  (when-let* ((comment (with-current-buffer source-buffer
+			 (org-copilot-find-visible-comment focus-id)))
+	      (sidecar-file (plist-get comment :sidecar-file))
+	      (comment-id (plist-get comment :id)))
+    (with-current-buffer (find-file-noselect sidecar-file)
+      (org-mode)
+      (save-excursion
+	(unless (org-comments-goto-id comment-id)
+	  (user-error "Comment %s not found in sidecar" comment-id))
+	(org-entry-put nil "ORG_COMMENTS_SUGGESTION_THREAD_ID" thread-id)
+	(org-entry-put nil "ORG_COMMENTS_SUGGESTION_IDS"
+		       (string-join suggestion-ids " ")))
+      (save-buffer))
+    comment-id))
+
 (defun org-copilot-gptel--install-suggestion-threads
     (source-buffer parsed request)
   "Install durable suggestion threads from PARSED for REQUEST."
@@ -465,8 +492,12 @@ REQUEST supplies reviewed source bounds for line-range fallback anchoring."
 	      (setq new-thread (plist-put new-thread :session-id "default"))
 	      (setq new-thread (plist-put new-thread :candidates candidates))
 	      (setq comment-id
-		    (org-copilot-gptel--persist-thread-comment
-		     source-buffer source-file new-thread thread-id suggestion-ids))
+		    (or (and (plist-get request :focus-comment-id)
+			     (org-copilot-gptel--link-focused-comment-to-thread
+			      source-buffer (plist-get request :focus-comment-id)
+			      thread-id suggestion-ids))
+			(org-copilot-gptel--persist-thread-comment
+			 source-buffer source-file new-thread thread-id suggestion-ids)))
 	      (setq new-thread (plist-put new-thread :comment-id comment-id))
 	      (unless comment-id
 		(push thread-id unanchored-thread-ids)
@@ -491,10 +522,16 @@ REQUEST supplies reviewed source bounds for line-range fallback anchoring."
 	 :parsed-threads threads)
 	result))))
 
-(defun org-copilot-gptel--stream-required-p ()
-  "Return non-nil when the active gptel backend requires streaming."
-  (and (fboundp 'gptel-openai-oauth-p)
-       (gptel-openai-oauth-p gptel-backend)))
+(defun org-copilot-gptel--ensure-openai-oauth-loaded ()
+  "Load gptel OpenAI OAuth support when available."
+  (or (fboundp 'gptel-openai-oauth-p)
+      (require 'gptel-openai-oauth nil 'noerror)))
+
+(defun org-copilot-gptel--stream-required-p (&optional backend)
+  "Return non-nil when BACKEND requires streaming.
+When BACKEND is nil, use the active global `gptel-backend'."
+  (and (org-copilot-gptel--ensure-openai-oauth-loaded)
+       (gptel-openai-oauth-p (or backend gptel-backend))))
 
 (defun org-copilot-gptel--chat-response-complete-p (response stream)
   "Return non-nil when RESPONSE is complete for STREAM mode."
@@ -529,16 +566,42 @@ chat viewport."
    ((plist-get suggestions-result :unanchored-thread-ids)
     "\n\n⚠ Some suggestions were saved but could not be anchored into visible comment cards. Open `*Org Copilot Debug*` for the raw response and parse trace.")))
 
-(defun org-copilot-gptel--handle-chat-response
-    (text source-buffer comment-id context-id request)
-  "Handle complete chat response TEXT for SOURCE-BUFFER."
-  (when (and (stringp text) (buffer-live-p source-buffer))
-    (let* ((parsed-raw (org-copilot-llm-parse-chat-response text))
-	   (parsed (org-copilot-gptel--drop-disallowed-chat-suggestion
-		    parsed-raw request))
+(defun org-copilot-gptel--milliseconds-since (start)
+  "Return elapsed milliseconds since START."
+  (round (* 1000.0 (- (float-time) start))))
+
+(defun org-copilot-gptel--update-last-assistant-message
+    (source-buffer content &optional comment-id context-id)
+  "Update SOURCE-BUFFER's last matching assistant message to CONTENT."
+  (when (buffer-live-p source-buffer)
+    (with-current-buffer source-buffer
+      (let ((updated nil))
+	(setq org-copilot--chat-messages
+	      (nreverse
+	       (mapcar
+		(lambda (message)
+		  (if (and (not updated)
+			   (eq (plist-get message :role) 'assistant)
+			   (equal (plist-get message :comment-id) comment-id)
+			   (equal (plist-get message :context-id) context-id))
+		      (progn
+			(setq updated t)
+			(plist-put (copy-sequence message) :content content))
+		    message))
+		(reverse org-copilot--chat-messages))))))))
+
+(defun org-copilot-gptel--postprocess-chat-response
+    (text source-buffer comment-id context-id request parsed-raw parsed base-message
+	  parse-ms)
+  "Install artifacts for parsed chat response after BASE-MESSAGE is visible."
+  (when (buffer-live-p source-buffer)
+    (let* ((install-start (float-time))
 	   (suggestions-result
 	    (org-copilot-gptel--install-suggestion-threads
 	     source-buffer parsed request))
+	   (install-suggestions-ms
+	    (org-copilot-gptel--milliseconds-since install-start))
+	   (comments-start (float-time))
 	   (install-result
 	    (unless comment-id
 	      (org-copilot-install-chat-comments
@@ -546,16 +609,21 @@ chat viewport."
 	       (plist-get parsed :comments)
 	       request
 	       (plist-get request :message))))
+	   (install-comments-ms
+	    (org-copilot-gptel--milliseconds-since comments-start))
 	   (message (concat
 		     (org-copilot-llm-append-chat-install-summary
-		      (plist-get parsed :message)
-		      install-result)
+		      base-message install-result)
 		     (or (org-copilot-gptel--suggestion-install-warning
 			  parsed suggestions-result)
-			 ""))))
+			 "")))
+	   (debug-start (float-time)))
       (org-copilot-debug-record
        "Chat response handled"
        :source-file (buffer-file-name source-buffer)
+       :timing-ms (list :parse parse-ms
+			:install-suggestions install-suggestions-ms
+			:install-comments install-comments-ms)
        :request request
        :raw-response text
        :parsed parsed
@@ -563,11 +631,51 @@ chat viewport."
 			    (list :before parsed-raw :after parsed))
        :comment-install-result install-result
        :suggestion-install-result suggestions-result)
+      (org-copilot-gptel--update-last-assistant-message
+       source-buffer message comment-id context-id)
+      (org-copilot-debug-record
+       "Chat response timing"
+       :timing-ms (list :parse parse-ms
+			:install-suggestions install-suggestions-ms
+			:install-comments install-comments-ms
+			:debug (org-copilot-gptel--milliseconds-since
+				debug-start)))
+      (org-copilot-gptel--render-chat-buffer source-buffer 'assistant))))
+
+(defun org-copilot-gptel--defer-chat-postprocessing
+    (text source-buffer comment-id context-id request parsed-raw parsed base-message
+	  parse-ms)
+  "Schedule deferred chat artifact installation for TEXT."
+  (let ((postprocess
+	 (lambda ()
+	   (condition-case err
+	       (org-copilot-gptel--postprocess-chat-response
+		text source-buffer comment-id context-id request parsed-raw parsed
+		base-message parse-ms)
+	     (error
+	      (message "Org Copilot: chat post-processing failed error=%S" err))))))
+    (if org-copilot-gptel-defer-chat-postprocessing
+	(run-with-idle-timer 0 nil postprocess)
+      (funcall postprocess))))
+
+(defun org-copilot-gptel--handle-chat-response
+    (text source-buffer comment-id context-id request)
+  "Handle complete chat response TEXT for SOURCE-BUFFER."
+  (when (and (stringp text) (buffer-live-p source-buffer))
+    (let* ((parse-start (float-time))
+	   (parsed-raw (org-copilot-llm-parse-chat-response text))
+	   (parsed (org-copilot-gptel--drop-disallowed-chat-suggestion
+		    parsed-raw request))
+	   (parse-ms (org-copilot-gptel--milliseconds-since parse-start))
+	   (message (plist-get parsed :message)))
       (with-current-buffer source-buffer
 	(org-copilot-remove-pending-chat-message comment-id context-id)
 	(org-copilot-add-chat-message
-	 'assistant message comment-id context-id)))
-    (org-copilot-gptel--render-chat-buffer source-buffer 'assistant)))
+	 'assistant message comment-id context-id))
+      (org-copilot-gptel--render-chat-buffer source-buffer 'assistant)
+      (org-copilot-gptel--defer-chat-postprocessing
+       text source-buffer comment-id context-id request parsed-raw parsed message
+       parse-ms))))
 
 (defun org-copilot-gptel--handle-review-response (text source-buffer request)
   "Handle complete review response TEXT for SOURCE-BUFFER."
@@ -625,7 +733,7 @@ chat viewport."
 	 chunks)
     (let* ((gptel-backend (or org-copilot-gptel-backend gptel-backend))
 	   (gptel-model (or org-copilot-gptel-model gptel-model))
-	   (stream (org-copilot-gptel--stream-required-p))
+	   (stream (org-copilot-gptel--stream-required-p gptel-backend))
 	   (gptel-use-tools (or gptel-use-tools (and web-tools t)))
 	   (gptel-tools (append web-tools gptel-tools)))
       (gptel-request
@@ -634,19 +742,18 @@ chat viewport."
        :callback
        (lambda (response info)
 	 (condition-case err
-	     (progn
+	     (cond
+	      ((and stream (stringp response))
+	       (push response chunks))
+	      ((org-copilot-gptel--chat-response-complete-p response stream)
 	       (message "Org Copilot: gptel chat completed status=%S"
 			(plist-get info :status))
-	       (cond
-		((and stream (stringp response))
-		 (push response chunks))
-		((org-copilot-gptel--chat-response-complete-p response stream)
-		 (org-copilot-gptel--handle-chat-response
-		  (org-copilot-gptel--chat-response-text response chunks stream)
-		  source-buffer comment-id context-id request))
-		((not response)
-		 (org-copilot-gptel--record-failure
-		  "chat" request prompt response info))))
+	       (org-copilot-gptel--handle-chat-response
+		(org-copilot-gptel--chat-response-text response chunks stream)
+		source-buffer comment-id context-id request))
+	      ((not response)
+	       (org-copilot-gptel--record-failure
+		"chat" request prompt response info)))
 	   (error
 	    (message "Org Copilot: gptel chat failed error=%S response=%S"
 		     err response))))))
@@ -662,7 +769,7 @@ installed into REQUEST's `:source-buffer' session."
 	 (prompt (org-copilot-gptel-review-prompt request))
 	 (gptel-backend (or org-copilot-gptel-backend gptel-backend))
 	 (gptel-model (or org-copilot-gptel-model gptel-model))
-	 (stream (org-copilot-gptel--stream-required-p))
+	 (stream (org-copilot-gptel--stream-required-p gptel-backend))
 	 chunks)
     (gptel-request
      prompt
@@ -670,19 +777,18 @@ installed into REQUEST's `:source-buffer' session."
      :callback
      (lambda (response info)
        (condition-case err
-	   (progn
+	   (cond
+	    ((and stream (stringp response))
+	     (push response chunks))
+	    ((org-copilot-gptel--chat-response-complete-p response stream)
 	     (message "Org Copilot: gptel review completed status=%S"
 		      (plist-get info :status))
-	     (cond
-	      ((and stream (stringp response))
-	       (push response chunks))
-	      ((org-copilot-gptel--chat-response-complete-p response stream)
-	       (org-copilot-gptel--handle-review-response
-		(org-copilot-gptel--chat-response-text response chunks stream)
-		source-buffer request))
-	      ((not response)
-	       (org-copilot-gptel--record-failure
-		"review" request prompt response info))))
+	     (org-copilot-gptel--handle-review-response
+	      (org-copilot-gptel--chat-response-text response chunks stream)
+	      source-buffer request))
+	    ((not response)
+	     (org-copilot-gptel--record-failure
+	      "review" request prompt response info)))
 	 (error
 	  (message "Org Copilot: gptel review failed error=%S response=%S"
 		   err response)))))

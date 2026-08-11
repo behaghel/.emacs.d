@@ -7,6 +7,7 @@
 
 (require 'org)
 (require 'org-comments-backend)
+(require 'org-comments-collaboration)
 (require 'org-comments-compose)
 (require 'org-comments-context-panel)
 (require 'org-comments-core)
@@ -37,6 +38,13 @@ which Org mode uses for `org-toggle-comment'."
   :type 'boolean
   :group 'org-comments)
 
+(defcustom org-comments-mode-line-open-suggestion-format " ✍%d"
+  "Mode-line format for open comment threads linked to suggestions.
+The value is a `format' string receiving the open suggestion thread count.  Set
+it to nil to hide the suggestion counter from `org-comments-mode' lighter."
+  :type '(choice (const :tag "Hidden" nil) string)
+  :group 'org-comments)
+
 (defcustom org-comments-open-people-function nil
   "Function used by `org-comments-open-people' to open the people directory.
 Provider packages can set this buffer-locally.  The function is called with no
@@ -49,7 +57,45 @@ arguments and should open the relevant Org people file or directory view."
   (when (and (bound-and-true-p org-comments-mode)
 	     (derived-mode-p 'org-mode))
     (org-comments-overlays-refresh))
-  (org-comments-ui-refresh))
+  (org-comments-ui-refresh)
+  (force-mode-line-update))
+
+(defun org-comments--comment-has-linked-suggestion-p (comment)
+  "Return non-nil when COMMENT has linked suggestions."
+  (or (plist-get comment :suggestion-thread-id)
+      (plist-get comment :suggestion-ids)
+      (plist-get comment :suggestion-linked)))
+
+(defun org-comments-open-suggestion-thread-count (&optional buffer)
+  "Return count of open suggestion-linked comment threads in BUFFER.
+BUFFER defaults to the current buffer.  Resolved comments and page comments are
+excluded.  Multiple comments linked to the same suggestion thread count once."
+  (let ((source-buffer (or buffer (current-buffer)))
+	(seen (make-hash-table :test #'equal))
+	(count 0))
+    (when (buffer-live-p source-buffer)
+      (with-current-buffer source-buffer
+	(dolist (comment (org-comments-collect source-buffer t))
+	  (when (and (not (plist-get comment :page-comment))
+		     (not (org-comments-record-resolved-p comment))
+		     (org-comments--comment-has-linked-suggestion-p comment))
+	    (let ((key (or (plist-get comment :suggestion-thread-id)
+			   (plist-get comment :id)
+			   (plist-get comment :remote-id))))
+	      (unless (and key (gethash key seen))
+		(when key (puthash key t seen))
+		(setq count (1+ count))))))))
+    count))
+
+(defun org-comments-mode-line-string ()
+  "Return `org-comments-mode' lighter with open suggestion thread count."
+  (let ((count (and org-comments-mode-line-open-suggestion-format
+		    (ignore-errors
+		      (org-comments-open-suggestion-thread-count)))))
+    (concat " OrgC"
+	    (if (and count (> count 0))
+		(format org-comments-mode-line-open-suggestion-format count)
+	      ""))))
 
 (defun org-comments--region-bounds ()
   "Return active region bounds or signal a user error."
@@ -389,7 +435,7 @@ source-buffer comment at point."
 When `org-comments-enable-overlays' is non-nil, also show inline and page
 comment overlays owned by this mode.  The default key prefix is controlled by
 `org-comments-keymap-prefix'."
-  :lighter " OrgC"
+  :lighter (:eval (org-comments-mode-line-string))
   :keymap org-comments-mode-map
   (if org-comments-mode
       (when org-comments-enable-overlays

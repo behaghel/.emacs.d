@@ -67,6 +67,11 @@
 (defvar-local org-comments-active-panel-overlay nil
   "Side-panel overlay for the active Org comment row.")
 
+(defcustom org-comments-broad-overlay-max-chars 1000
+  "Maximum source range length before comment overlays collapse to one line."
+  :type 'natnum
+  :group 'org-comments)
+
 (defvar-local org-comments-active-comment-key nil
   "Identity key for the currently highlighted Org comment.")
 
@@ -116,15 +121,51 @@
        (integerp (plist-get comment :target-end))
        (not (eq (plist-get comment :anchor-state) 'stale))))
 
+(defun org-comments-context-panel--visible-heading-line-position (start end)
+  "Return first non-archived, non-noexport heading line between START and END."
+  (save-excursion
+    (goto-char start)
+    (cl-loop while (re-search-forward org-heading-regexp end t)
+	     for heading = (line-beginning-position)
+	     for tags = (mapcar #'downcase (org-get-tags nil t))
+	     unless (cl-intersection tags '("archive" "noexport")
+				     :test #'string=)
+	     return heading)))
+
+(defun org-comments-context-panel--first-content-line-position (start end)
+  "Return first useful content line between START and END."
+  (save-excursion
+    (or (org-comments-context-panel--visible-heading-line-position start end)
+	(progn
+	  (goto-char start)
+	  (while (and (< (point) end)
+		      (or (looking-at-p "^[[:space:]]*$")
+			  (looking-at-p "^[[:space:]]*#\\+")))
+	    (forward-line 1))
+	  (min (point) end)))))
+
+(defun org-comments-context-panel--compact-overlay-bounds (start end)
+  "Return one-line overlay bounds near START without crossing END."
+  (let ((line-start (org-comments-context-panel--first-content-line-position
+		     start end)))
+    (save-excursion
+      (goto-char line-start)
+      (cons line-start (min (line-end-position) end)))))
+
+(defun org-comments-context-panel--broad-source-range-p (start end)
+  "Return non-nil when START..END is too broad for full highlighting."
+  (or (> (- end start) org-comments-broad-overlay-max-chars)
+      (and (> (point-max) 0)
+	   (> (- end start) (* 0.3 (point-max))))))
+
 (defun org-comments-context-panel--source-overlay-bounds (comment)
   "Return source overlay bounds for COMMENT.
-Scope comments highlight only their heading line when anchored."
+Scope and broad comments highlight only a compact content line."
   (let ((start (plist-get comment :target-start))
 	(end (plist-get comment :target-end)))
-    (if (eq (plist-get comment :type) 'scope)
-	(save-excursion
-	  (goto-char start)
-	  (cons start (min (line-end-position) end)))
+    (if (or (eq (plist-get comment :type) 'scope)
+	    (org-comments-context-panel--broad-source-range-p start end))
+	(org-comments-context-panel--compact-overlay-bounds start end)
       (cons start end))))
 
 (defun org-comments-context-panel--resolve-author (comment directory)
@@ -150,6 +191,8 @@ source/sidecar metadata, and action capability flags.  The item is current when
 it matches ACTIVE-KEY.  Remote author account IDs are resolved with DIRECTORY as
 people-cache context."
   (let ((copy (org-comments-context-panel--resolve-author comment directory)))
+    (when (plist-get copy :provider)
+      (plist-put copy :comment-provider (plist-get copy :provider)))
     (plist-put copy :current
 	       (org-comments-context-panel--comment-key-equal-p copy active-key))
     (plist-put copy :icon (org-comments-panel-render--provider-icon copy))
@@ -222,7 +265,8 @@ SOURCE-BUFFER is the Org source buffer associated with ITEM."
       (unless (and (buffer-live-p source-buffer) position)
 	(user-error "Comment has no source location"))
       (pop-to-buffer source-buffer)
-      (goto-char position))))
+      (goto-char position)
+      (org-comments-context-panel-focus-comment source-buffer item))))
 
 (defun org-comments-context-panel-render-page-view (source-buffer _view)
   "Render the page-comments bottom VIEW for SOURCE-BUFFER."
@@ -329,6 +373,59 @@ SOURCE-BUFFER is the Org source buffer associated with ITEM."
 	  (setq org-comments-active-comment-key key)
 	  (org-comments-context-panel--highlight-source-region key)
 	  (org-comments-context-panel--highlight-panel-row source-buffer key))))))
+
+(defun org-comments-context-panel--scroll-source-to-comment (source-buffer comment)
+  "Scroll SOURCE-BUFFER windows to COMMENT's target and move source point."
+  (when-let* ((position (or (plist-get comment :target-start)
+			    (plist-get comment :source-start)
+			    (plist-get comment :anchor-pos))))
+    (with-current-buffer source-buffer
+      (goto-char position))
+    (dolist (window (get-buffer-window-list source-buffer nil t))
+      (when (window-live-p window)
+	(with-current-buffer source-buffer
+	  (save-excursion
+	    (goto-char position)
+	    (forward-line -2)
+	    (set-window-start window (line-beginning-position) t)))
+	(set-window-point window position)))))
+
+(defun org-comments-context-panel--scroll-panel-to-comment (source-buffer comment)
+  "Refresh and scroll SOURCE-BUFFER's side panel to COMMENT."
+  (when-let* ((key (org-comments-context-panel--comment-key comment))
+	      (panel-buffer (buffer-local-value
+			     'context-panels-side-panel-buffer source-buffer))
+	      (panel-window (and (buffer-live-p panel-buffer)
+				 (get-buffer-window panel-buffer t))))
+    (with-current-buffer panel-buffer
+      (context-panels-render-side-panel
+       source-buffer (get-buffer-window source-buffer t))
+      (when (context-panels-goto-item-key key)
+	(set-window-point panel-window (point))
+	(set-window-start panel-window (line-beginning-position) t)))
+    (set-window-buffer panel-window panel-buffer)))
+
+(defun org-comments-context-panel--copilot-comment-p (comment)
+  "Return non-nil when COMMENT belongs to Org Copilot."
+  (or (equal (plist-get comment :provider) "org-copilot")
+      (plist-get comment :suggestion-thread-id)
+      (plist-get comment :suggestion-ids)))
+
+(defun org-comments-context-panel-focus-comment
+    (source-buffer comment &optional skip-copilot)
+  "Synchronize source, side panel, and Copilot chat around COMMENT.
+When SKIP-COPILOT is non-nil, do not propagate focus to the Copilot chat."
+  (when (and (buffer-live-p source-buffer) comment)
+    (org-comments-context-panel--scroll-source-to-comment source-buffer comment)
+    (org-comments-context-panel--sync-active-comment source-buffer comment)
+    (org-comments-context-panel--scroll-panel-to-comment source-buffer comment)
+    (when (and (not skip-copilot)
+	       (org-comments-context-panel--copilot-comment-p comment)
+	       (fboundp 'org-copilot-chat-focus-comment-id))
+      (ignore-errors
+	(org-copilot-chat-focus-comment-id
+	 source-buffer (org-comments-context-panel--comment-key comment))))
+    comment))
 
 (defun org-comments-context-panel-follow-point ()
   "Keep source target and side-panel row highlighting synchronized with point."

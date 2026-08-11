@@ -88,6 +88,28 @@
 		   "{\"comments\":[{\"id\":\"ai-1\",\"body\":\"Tighten.\",\"suggestion\":\"   \"}]}")))
     (should-not (plist-get (car comments) :suggestion))))
 
+(ert-deftest org-copilot-llm-drops-unsafe-target-text ()
+  "Generated target_text must remain a compact prose locator."
+  (let* ((long (make-string 301 ?a))
+	 (comments (org-copilot-llm-parse-review-response
+		    (format "{\"comments\":[{\"id\":\"scope\",\"type\":\"scope\",\"target_text\":\"Alpha.\"},{\"id\":\"long\",\"type\":\"inline\",\"target_text\":%S},{\"id\":\"struct\",\"type\":\"inline\",\"target_text\":\"#+title: Draft\"},{\"id\":\"ok\",\"type\":\"inline\",\"target_text\":\"Alpha sentence. Beta sentence.\"}]}"
+			    long))))
+    (should-not (plist-get (cl-find "scope" comments :key #'org-copilot-comment-id :test #'equal)
+			   :target-text))
+    (should-not (plist-get (cl-find "long" comments :key #'org-copilot-comment-id :test #'equal)
+			   :target-text))
+    (should-not (plist-get (cl-find "struct" comments :key #'org-copilot-comment-id :test #'equal)
+			   :target-text))
+    (should (equal (plist-get (cl-find "ok" comments :key #'org-copilot-comment-id :test #'equal)
+			      :target-text)
+		   "Alpha sentence. Beta sentence."))))
+
+(ert-deftest org-copilot-llm-chat-parses-fenced-json-message ()
+  "Chat parsing extracts message instead of rendering raw fenced JSON."
+  (let ((parsed (org-copilot-llm-parse-chat-response
+		 "```json\n{\"message\":\"Readable answer\",\"intent\":\"edit\",\"suggestion_threads\":[],\"comments\":[]}\n```")))
+    (should (equal (plist-get parsed :message) "Readable answer"))))
+
 (ert-deftest org-copilot-llm-parses-json-comments ()
   "Strict JSON responses parse to normalized AI comments."
   (let ((comments (org-copilot-llm-parse-review-response
@@ -193,6 +215,32 @@
 		 :status 'active
 		 :body "Scope note.")))
     (should-not (org-copilot-comments))))
+
+(ert-deftest org-copilot-llm-rejects-unanchored-scope-comments ()
+  "Scope comments must have durable bounds before installation."
+  (should-not
+   (org-copilot-llm--comment-installable-p
+    '(:type scope :body "Overall note.")
+    '(:type full-document))))
+
+(ert-deftest org-copilot-llm-anchors-chat-scope-comments-to-request ()
+  "Chat scope comments anchor to the active request bounds before installation."
+  (with-temp-buffer
+    (org-mode)
+    (insert "* Draft\nAlpha sentence.\n")
+    (let* ((org-copilot-chat-open-panel-on-comments nil)
+	   (parsed (org-copilot-llm-parse-chat-response
+		    "{\"comments\":[{\"type\":\"scope\",\"body\":\"Overall note.\"}]}"))
+	   (result (org-copilot-install-chat-comments
+		    (current-buffer)
+		    (plist-get parsed :comments)
+		    (list :chat-context '(:type full-document))
+		    "Review this"))
+	   (comment (car (org-copilot-comments))))
+      (should (= (plist-get result :installed) 1))
+      (should comment)
+      (should (= (plist-get comment :source-start) (point-min)))
+      (should (= (plist-get comment :source-end) (point-max))))))
 
 (ert-deftest org-copilot-llm-skips-unanchored-chat-comments ()
   "Chat comments without reliable inline anchors are skipped."

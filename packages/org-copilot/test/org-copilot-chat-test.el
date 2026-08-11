@@ -278,8 +278,8 @@
       (should (equal (plist-get (car (plist-get request :messages)) :content)
 		     "General")))))
 
-(ert-deftest org-copilot-chat-navigation-scrolls-source-without-moving-point ()
-  "Focusing comments scrolls source windows without moving source point."
+(ert-deftest org-copilot-chat-navigation-scrolls-source-to-target ()
+  "Focusing comments scrolls source windows and moves point to target."
   (let ((source (generate-new-buffer " *org copilot scroll source*")))
     (unwind-protect
 	(progn
@@ -299,11 +299,13 @@
 		     :status 'active
 		     :source-start target
 		     :source-end target))))
-	  (let ((original-point (with-current-buffer source (point)))
+	  (let ((target (plist-get (car (with-current-buffer source
+					  (org-copilot-visible-comments)))
+				   :source-start))
 		(original-start (window-start (selected-window))))
 	    (with-current-buffer source
 	      (org-copilot-chat-focus-next-comment))
-	    (should (= (with-current-buffer source (point)) original-point))
+	    (should (= (with-current-buffer source (point)) target))
 	    (should (> (window-start (get-buffer-window source t)) original-start))))
       (delete-other-windows)
       (when (buffer-live-p source)
@@ -324,6 +326,20 @@
     (should (equal org-copilot-chat-focus-comment-id "ai-1"))
     (org-copilot-chat-focus-previous-comment)
     (should (equal org-copilot-chat-focus-comment-id "ai-2"))))
+
+(ert-deftest org-copilot-chat-navigation-syncs-comments-panel ()
+  "Chat navigation propagates focus to comments side-panel sync."
+  (with-temp-buffer
+    (org-mode)
+    (org-copilot-add-comment
+     (list :id "ai-1" :status 'active :source-start 1 :source-end 1))
+    (let (synced)
+      (cl-letf (((symbol-function 'org-comments-context-panel-focus-comment)
+		 (lambda (source comment &optional skip-copilot)
+		   (setq synced (list source (plist-get comment :id)
+				      skip-copilot)))))
+	(org-copilot-chat-focus-next-comment)
+	(should (equal synced (list (current-buffer) "ai-1" t)))))))
 
 (ert-deftest org-copilot-chat-next-prev-commands-change-focus ()
   "The /next and /prev chat commands navigate focused comments."
@@ -469,6 +485,8 @@
     (setq org-copilot-chat-focus-comment-id "ai-1")
     (should (assoc "/dismiss" (org-copilot-chat--available-slash-commands
 			       (current-buffer))))
+    (should (assoc "/resolve" (org-copilot-chat--available-slash-commands
+			       (current-buffer))))
     (should-not (assoc "/accept" (org-copilot-chat--available-slash-commands
 				  (current-buffer))))
     (org-copilot-update-comment
@@ -493,6 +511,25 @@
     (setq org-copilot-chat-focus-comment-id "ai-1")
     (should (assoc "/undo" (org-copilot-chat--available-slash-commands
 			    (current-buffer))))))
+
+(ert-deftest org-copilot-chat-resolve-command-resolves-and-advances ()
+  "The /resolve command resolves focused comment and focuses the next one."
+  (with-temp-buffer
+    (org-mode)
+    (org-copilot-add-comment
+     (list :id "ai-1" :status 'active :sidecar-file "/tmp/comments.org"))
+    (org-copilot-add-comment
+     (list :id "ai-2" :status 'active :sidecar-file "/tmp/comments.org"))
+    (setq org-copilot-chat-focus-comment-id "ai-1")
+    (let (resolved)
+      (cl-letf (((symbol-function 'org-copilot-set-durable-comment-status)
+		 (lambda (comment status)
+		   (setq resolved (list (plist-get comment :id) status))))
+		((symbol-function 'org-copilot-chat--refresh-source-ui) #'ignore)
+		((symbol-function 'org-copilot-chat--close-stale-diff) #'ignore))
+	(org-copilot-chat-send "/resolve")
+	(should (equal resolved '("ai-1" "RESOLVED")))
+	(should (equal org-copilot-chat-focus-comment-id "ai-2"))))))
 
 (ert-deftest org-copilot-chat-doctor-command-appends-health-report ()
   "The /doctor command appends a local Org Copilot health report."
@@ -541,6 +578,16 @@
 		 "  Run Org Copilot health check"))
   (should-not (assoc "/help" org-copilot-chat-slash-commands)))
 
+(ert-deftest org-copilot-chat-slash-commands-have-key-coverage ()
+  "Every implemented slash command documents a live chat-mode key."
+  (dolist (entry org-copilot-chat-slash-commands)
+    (let* ((command (car entry))
+	   (keys (cdr (assoc command org-copilot-chat-slash-command-keys))))
+      (should keys)
+      (should (cl-some (lambda (key)
+			 (lookup-key org-copilot-chat-mode-map (kbd key)))
+		       keys)))))
+
 (ert-deftest org-copilot-chat-mode-defines-action-keys ()
   "Org Copilot chat mode defines send, focus, and action keys."
   (should (eq (lookup-key org-copilot-chat-mode-map (kbd "RET"))
@@ -555,6 +602,8 @@
 	      #'org-copilot-chat-accept-focused-suggestion-at-point))
   (should (eq (lookup-key org-copilot-chat-mode-map (kbd "C-c C-d"))
 	      #'org-copilot-chat-dismiss-focused-comment-at-point))
+  (should (eq (lookup-key org-copilot-chat-mode-map (kbd "C-c C-r"))
+	      #'org-copilot-chat-resolve-focused-comment-at-point))
   (should (eq (lookup-key org-copilot-chat-mode-map (kbd "C-c C-n"))
 	      #'org-copilot-chat-focus-next-comment))
   (should (eq (lookup-key org-copilot-chat-mode-map (kbd "C-c C-p"))
@@ -569,10 +618,20 @@
 	      #'org-copilot-chat-section))
   (should (eq (lookup-key org-copilot-chat-mode-map (kbd "C-c C-x / o"))
 	      #'org-copilot-open-panels))
+  (should (eq (lookup-key org-copilot-chat-mode-map (kbd "C-c C-x / c"))
+	      #'org-copilot-chat-clear-session-at-point))
+  (should (eq (lookup-key org-copilot-chat-mode-map (kbd "C-c C-x / u"))
+	      #'org-copilot-chat-clear-ui-at-point))
+  (should (eq (lookup-key org-copilot-chat-mode-map (kbd "C-c C-x / d"))
+	      #'org-copilot-chat-doctor-at-point))
+  (should (eq (lookup-key org-copilot-chat-mode-map (kbd "C-c C-x / e"))
+	      #'org-copilot-chat-erase-session-at-point))
   (should (eq (lookup-key org-copilot-chat-mode-map (kbd "M-a"))
 	      #'org-copilot-chat-accept-focused-suggestion-at-point))
   (should (eq (lookup-key org-copilot-chat-mode-map (kbd "M-d"))
 	      #'org-copilot-chat-dismiss-focused-comment-at-point))
+  (should (eq (lookup-key org-copilot-chat-mode-map (kbd "M-z"))
+	      #'org-copilot-chat-resolve-focused-comment-at-point))
   (should (eq (lookup-key org-copilot-chat-mode-map (kbd "M-n"))
 	      #'org-copilot-chat-focus-next-comment))
   (should (eq (lookup-key org-copilot-chat-mode-map (kbd "M-p"))

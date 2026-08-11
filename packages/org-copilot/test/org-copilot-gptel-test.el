@@ -14,6 +14,8 @@
 (require 'org-copilot)
 (require 'org-copilot-gptel)
 
+(setq org-copilot-gptel-defer-chat-postprocessing nil)
+
 (ert-deftest org-copilot-gptel-loads-optionally ()
   "The gptel adapter file loads without requiring gptel eagerly."
   (should (featurep 'org-copilot-gptel)))
@@ -113,6 +115,27 @@
     (should (string-match-p "Earlier question" prompt))
     (should (string-match-p "ai-1" prompt))))
 
+(ert-deftest org-copilot-gptel-focused-chat-prompt-includes-full-source ()
+  "Focused comment chat keeps full document context available."
+  (let ((prompt (org-copilot-gptel-chat-prompt
+		 (list :message "Does this comment still apply?"
+		       :messages nil
+		       :source-content "First paragraph.\nSecond paragraph explains the term."
+		       :focus-comment-id "ai-9"))))
+    (should (string-match-p "First paragraph" prompt))
+    (should (string-match-p "Second paragraph explains the term" prompt))
+    (should-not (string-match-p "<focused comment chat>" prompt))))
+
+(ert-deftest org-copilot-gptel-chat-prompt-includes-grill-me-protocol ()
+  "Chat prompt instructs the model to grill one question at a time."
+  (let ((prompt (org-copilot-gptel-chat-prompt
+		 (list :message "Grill me."
+		       :messages nil
+		       :source-content "Draft"
+		       :focus-comment-id nil))))
+    (should (string-match-p "one question at a time" prompt))
+    (should (string-match-p "recommended answer" prompt))))
+
 (ert-deftest org-copilot-gptel-chat-prompt-hardens-references-and-suggestions ()
   "Chat prompts require precise references and replacement-only suggestions."
   (let ((prompt (org-copilot-gptel-chat-prompt
@@ -125,6 +148,10 @@
     (should (string-match-p "rewrite_section" prompt))
     (should (string-match-p "anchor_text" prompt))
     (should (string-match-p "type (`inline', `insertion', or `scope')" prompt))
+    (should (string-match-p "at most 2 complete sentences" prompt))
+    (should (string-match-p "300 characters" prompt))
+    (should (string-match-p "Scope comments must omit target_text" prompt))
+    (should (string-match-p "Org structural markers" prompt))
     (should (string-match-p "never put advice" prompt))
     (should (string-match-p "reference lists.*message" prompt))))
 
@@ -158,6 +185,60 @@
     (should (string-match-p "full-document chat" prompt))
     (should (string-match-p "\\* Heading" prompt))
     (should (string-match-p "Focused comment id: none" prompt))))
+
+(ert-deftest org-copilot-gptel-stream-required-loads-oauth-support ()
+  "Streaming detection loads the OAuth predicate before checking the backend."
+  (let (required)
+    (cl-letf (((symbol-function 'require)
+	       (lambda (feature &optional _filename _noerror)
+		 (when (eq feature 'gptel-openai-oauth)
+		   (setq required t))
+		 nil)))
+      (ignore-errors (org-copilot-gptel--ensure-openai-oauth-loaded))
+      (unless (fboundp 'gptel-openai-oauth-p)
+	(should required)))))
+
+(ert-deftest org-copilot-gptel-stream-required-uses-copilot-backend ()
+  "Streaming detection uses the effective Org Copilot backend."
+  (let ((gptel-backend 'global-backend)
+	(org-copilot-gptel-backend 'copilot-backend)
+	captured-stream)
+    (cl-letf (((symbol-function 'gptel-openai-oauth-p)
+	       (lambda (backend) (eq backend 'copilot-backend)))
+	      ((symbol-function 'gptel-request)
+	       (lambda (_prompt &rest args)
+		 (setq captured-stream (plist-get args :stream)))))
+      (org-copilot-gptel-chat
+       (list :source-buffer (current-buffer)
+	     :buffer-name (buffer-name)
+	     :message "Explain this"
+	     :messages nil
+	     :focus-comment-id nil))
+      (should captured-stream))))
+
+(ert-deftest org-copilot-gptel-chat-renders-before-deferred-postprocessing ()
+  "Chat response is visible before deferred artifact installation runs."
+  (with-temp-buffer
+    (org-mode)
+    (let ((org-copilot-gptel-defer-chat-postprocessing t)
+	  postprocessed)
+      (cl-letf (((symbol-function 'gptel-request)
+		 (lambda (_prompt &rest args)
+		   (funcall (plist-get args :callback)
+			    "{\"message\":\"Assistant answer.\",\"comments\":[{\"body\":\"Later.\",\"target_text\":\"Alpha\"}]}"
+			    (list :status 'success))))
+		((symbol-function 'org-copilot-gptel--postprocess-chat-response)
+		 (lambda (&rest _args)
+		   (setq postprocessed t))))
+	(org-copilot-gptel-chat
+	 (list :source-buffer (current-buffer)
+	       :buffer-name (buffer-name)
+	       :message "Explain this"
+	       :messages nil
+	       :focus-comment-id nil))
+	(should (equal (plist-get (car (org-copilot-chat-messages)) :content)
+		       "Assistant answer."))
+	(should-not postprocessed)))))
 
 (ert-deftest org-copilot-gptel-chat-accumulates-streaming-oauth-response ()
   "The gptel chat adapter requests and accumulates streaming OAuth responses."
@@ -310,7 +391,8 @@
   (with-temp-buffer
     (org-mode)
     (let (captured-tools captured-use-tools)
-      (cl-letf (((symbol-function 'gptel-get-tool)
+      (cl-letf (((symbol-function 'gptel--model-capable-p) (lambda (&rest _) t))
+		((symbol-function 'gptel-get-tool)
 		 (lambda (name) (intern (concat "tool-" name))))
 		((symbol-function 'gptel-request)
 		 (lambda (_prompt &rest args)
@@ -595,6 +677,61 @@ Original body.
 		(should (equal (plist-get (car comments) :suggestion-thread-id)
 			       "ai-thread-1"))
 		(should (equal (plist-get (car comments) :suggestion-ids) "ai-1"))))))
+      (when-let* ((buffer (find-buffer-visiting source-file)))
+	(kill-buffer buffer))
+      (delete-directory directory t))))
+
+(ert-deftest org-copilot-gptel-focused-comment-suggestion-links-existing-comment ()
+  "Suggestions requested from focused comment attach to that comment."
+  (let* ((directory (make-temp-file "org-copilot-focused-suggestion" t))
+	 (source-file (expand-file-name "draft.org" directory)))
+    (unwind-protect
+	(with-current-buffer (find-file-noselect source-file)
+	  (erase-buffer)
+	  (insert "Risky metaphor.
+")
+	  (save-buffer)
+	  (org-mode)
+	  (let* ((source (current-buffer))
+		 (record (org-comments-create-record
+			  source-file (point-min) (1- (point-max))
+			  "Metaphor is risky" "ai-11" "org-copilot"
+			  "2026-08-09T21:31:23+0200")))
+	    (setq record (plist-put record :provider "org-copilot"))
+	    (org-comments-append-to-sidecar record)
+	    (cl-letf (((symbol-function 'gptel-request)
+		       (lambda (_prompt &rest args)
+			 (funcall (plist-get args :callback)
+				  (concat
+				   "{\"intent\":\"edit\","
+				   "\"message\":\"I drafted a safer version.\","
+				   "\"suggestion_threads\":[{"
+				   "\"intent\":\"mixed_edit\","
+				   "\"summary\":\"Safer metaphor\","
+				   "\"suggestions\":[{\"id\":\"ai-thread-1.1\","
+				   "\"hunks\":[{\"id\":\"h1\","
+				   "\"kind\":\"replace\","
+				   "\"primary\":true,"
+				   "\"original\":\"Risky metaphor.\","
+				   "\"replacement\":\"Safer framing.\"}]}]}]}" )
+				  (list :status 'success)))))
+	      (org-copilot-gptel-chat
+	       (list :source-buffer source
+		     :buffer-name "draft.org"
+		     :message "Suggest safer wording"
+		     :messages nil
+		     :chat-context '(:type comment)
+		     :focus-comment-id "ai-11"
+		     :source-content (buffer-string)))
+	      (let ((comments (org-comments-collect source t)))
+		(should (= (length comments) 1))
+		(should (equal (plist-get (car comments) :id) "ai-11"))
+		(should (equal (plist-get (car comments) :suggestion-thread-id)
+			       "ai-thread-1"))
+		(should (equal (plist-get (car comments) :suggestion-ids)
+			       "ai-thread-1.1")))
+	      (let ((thread (car (org-suggestions-load-sidecar source-file))))
+		(should (equal (plist-get thread :comment-id) "ai-11"))))))
       (when-let* ((buffer (find-buffer-visiting source-file)))
 	(kill-buffer buffer))
       (delete-directory directory t))))

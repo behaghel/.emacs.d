@@ -43,6 +43,8 @@
 	      #'org-comments-filter-reset-current-ui))
   (should (eq (lookup-key org-comments-panel-filter-map (kbd "r"))
 	      #'org-comments-filter-toggle-resolved-current-ui))
+  (should (eq (lookup-key org-comments-panel-filter-map (kbd "s"))
+	      #'org-comments-filter-toggle-suggestions-current-ui))
   (should (eq (lookup-key org-comments-panel-filter-map (kbd "?"))
 	      #'org-comments-filter-status-current-ui)))
 
@@ -195,6 +197,26 @@
       (org-comments-previous-item-at-point)
       (should (= (point) second)))))
 
+(ert-deftest org-comments-panel-actions-navigation-syncs-current-comment ()
+  "Panel item navigation synchronizes the newly focused comment."
+  (let ((source (generate-new-buffer "org-comments-source"))
+	synced)
+    (unwind-protect
+	(with-temp-buffer
+	  (insert "one\ntwo\n")
+	  (add-text-properties 1 4 '(org-comments-comment (:id "c1")))
+	  (add-text-properties 5 8 '(org-comments-comment (:id "c2")))
+	  (setq-local org-comments-current-item-starts-function (lambda () '(1 5)))
+	  (setq-local org-comments-current-source-buffer-function
+		      (lambda () source))
+	  (cl-letf (((symbol-function 'org-comments-context-panel-focus-comment)
+		     (lambda (src comment &optional _skip)
+		       (setq synced (list src (plist-get comment :id))))))
+	    (goto-char 1)
+	    (org-comments-next-item-at-point)
+	    (should (equal synced (list source "c2")))))
+      (kill-buffer source))))
+
 (ert-deftest org-comments-panel-actions-accept-suggestion-delegates ()
   "Accepting a linked suggestion delegates to org-suggestions."
   (with-temp-buffer
@@ -282,12 +304,15 @@
 		  (lambda () (push 'reset calls)))
       (setq-local org-comments-current-filter-toggle-resolved-function
 		  (lambda () (push 'resolved calls)))
+      (setq-local org-comments-current-filter-toggle-suggestions-function
+		  (lambda () (push 'suggestions calls)))
       (setq-local org-comments-current-filter-status-function
 		  (lambda () (push 'status calls)))
       (org-comments-filter-reset-current-ui)
       (org-comments-filter-toggle-resolved-current-ui)
+      (org-comments-filter-toggle-suggestions-current-ui)
       (org-comments-filter-status-current-ui)
-      (should (equal calls '(status resolved reset))))))
+      (should (equal calls '(status suggestions resolved reset))))))
 
 (ert-deftest org-comments-panel-actions-close-current-ui-uses-adapter ()
   "Closing current UI delegates through the current close adapter."

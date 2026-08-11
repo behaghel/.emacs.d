@@ -91,31 +91,68 @@ normalizable AI comment plists.  Adapter packages set this variable."
    ((stringp value) (intern value))
    (t fallback)))
 
+(defconst org-copilot-llm-target-text-max-chars 300
+  "Maximum AI-generated target_text length accepted for anchoring.")
+
+(defconst org-copilot-llm-target-text-max-sentences 2
+  "Maximum AI-generated target_text sentence count accepted for anchoring.")
+
 (defun org-copilot-llm-optional-string (value)
   "Return VALUE as a non-empty string, or nil."
   (when (and (stringp value)
 	     (not (string-empty-p (string-trim value))))
     value))
 
+(defun org-copilot-llm--target-text-sentence-count (text)
+  "Return approximate complete sentence count in TEXT."
+  (length (seq-filter
+	   (lambda (sentence) (not (string-empty-p (string-trim sentence))))
+	   (split-string (or text "") "[.!?]+[[:space:]\n]+"))))
+
+(defun org-copilot-llm--structural-target-text-p (text)
+  "Return non-nil when TEXT contains Org structural marker material."
+  (and (stringp text)
+       (string-match-p
+	(rx (or "#+" ":PROPERTIES:" ":END:"
+		(seq line-start "|")
+		(seq whitespace "|" (* (any "-+| ")) "|")))
+	text)))
+
+(defun org-copilot-llm--valid-target-text-p (text)
+  "Return non-nil when TEXT is a compact prose locator."
+  (and (org-copilot-llm-optional-string text)
+       (<= (length (string-trim text)) org-copilot-llm-target-text-max-chars)
+       (<= (org-copilot-llm--target-text-sentence-count text)
+	   org-copilot-llm-target-text-max-sentences)
+       (not (org-copilot-llm--structural-target-text-p text))))
+
+(defun org-copilot-llm--normalized-target-text (comment type)
+  "Return safe target_text from COMMENT for TYPE, or nil."
+  (let ((target (plist-get comment :target_text)))
+    (when (and (not (eq type 'scope))
+	       (org-copilot-llm--valid-target-text-p target))
+      target)))
+
 (defun org-copilot-llm--comment-from-json (comment &optional fallback-id)
   "Return normalized AI comment plist from parsed JSON COMMENT.
 When FALLBACK-ID is non-nil, use it if COMMENT has no JSON id."
-  (org-copilot-normalize-comment
-   (list :id (or (plist-get comment :id) fallback-id)
-	 :type (org-copilot-llm--symbol (plist-get comment :type) 'inline)
-	 :status (org-copilot-llm--symbol (plist-get comment :status) 'active)
-	 :source-start (plist-get comment :source_start)
-	 :source-end (plist-get comment :source_end)
-	 :target-text (plist-get comment :target_text)
-	 :anchor-text (plist-get comment :anchor_text)
-	 :placement (org-copilot-llm--symbol
-		     (plist-get comment :placement) 'after)
-	 :line-start (plist-get comment :line_start)
-	 :line-end (plist-get comment :line_end)
-	 :summary (plist-get comment :summary)
-	 :body (plist-get comment :body)
-	 :rationale (plist-get comment :rationale)
-	 :metadata (plist-get comment :metadata))))
+  (let ((type (org-copilot-llm--symbol (plist-get comment :type) 'inline)))
+    (org-copilot-normalize-comment
+     (list :id (or (plist-get comment :id) fallback-id)
+	   :type type
+	   :status (org-copilot-llm--symbol (plist-get comment :status) 'active)
+	   :source-start (plist-get comment :source_start)
+	   :source-end (plist-get comment :source_end)
+	   :target-text (org-copilot-llm--normalized-target-text comment type)
+	   :anchor-text (plist-get comment :anchor_text)
+	   :placement (org-copilot-llm--symbol
+		       (plist-get comment :placement) 'after)
+	   :line-start (plist-get comment :line_start)
+	   :line-end (plist-get comment :line_end)
+	   :summary (plist-get comment :summary)
+	   :body (plist-get comment :body)
+	   :rationale (plist-get comment :rationale)
+	   :metadata (plist-get comment :metadata)))))
 
 (defun org-copilot-llm-comment-from-json (comment)
   "Return normalized AI comment plist from parsed JSON COMMENT."
@@ -141,7 +178,7 @@ When FALLBACK-ID is non-nil, use it if COMMENT has no JSON id."
 
 (defun org-copilot-llm-parse-review-result (response)
   "Parse strict JSON review RESPONSE into summary and comments."
-  (let* ((parsed (json-parse-string response
+  (let* ((parsed (json-parse-string (org-copilot-llm--json-payload response)
 				    :object-type 'plist
 				    :array-type 'list
 				    :null-object nil
@@ -193,15 +230,31 @@ The model id is kept only as metadata; callers rewrite `:id' before install."
 	:candidates (mapcar #'org-copilot-llm--candidate-from-json
 			    (plist-get thread :suggestions))))
 
+(defun org-copilot-llm--json-payload (response)
+  "Return likely JSON object payload from RESPONSE."
+  (let ((text (string-trim (or response ""))))
+    (when (string-match-p "\\`[[:space:]]*```" text)
+      (setq text (replace-regexp-in-string
+		  "\\`[[:space:]]*```[[:alpha:]-]*[[:space:]]*\\|[[:space:]]*```[[:space:]]*\\'"
+		  "" text)))
+    (cond
+     ((string-prefix-p "{" text) text)
+     ((and (string-match "{" text)
+	   (let ((start (match-beginning 0)))
+	     (when (string-match ".*}" text)
+	       (substring text start (match-end 0))))))
+     (t text))))
+
 (defun org-copilot-llm-parse-chat-response (response)
   "Parse Org Copilot structured chat RESPONSE.
 If RESPONSE is not valid JSON, return it as a plain `:message'."
   (condition-case nil
-      (let ((parsed (json-parse-string response
-				       :object-type 'plist
-				       :array-type 'list
-				       :null-object nil
-				       :false-object nil)))
+      (let* ((payload (org-copilot-llm--json-payload response))
+	     (parsed (json-parse-string payload
+					:object-type 'plist
+					:array-type 'list
+					:null-object nil
+					:false-object nil)))
 	(list :message (or (org-copilot-llm-optional-string
 			    (plist-get parsed :message))
 			   response)
@@ -282,14 +335,24 @@ If RESPONSE is not valid JSON, return it as a plain `:message'."
 	    (setq copy (plist-put copy :source-start position))
 	    (plist-put copy :source-end position)))))))
 
+(defun org-copilot-llm--anchor-scope-comment (comment &optional request)
+  "Return scope COMMENT anchored to REQUEST bounds or current buffer."
+  (when (eq (plist-get comment :type) 'scope)
+    (let ((copy (copy-sequence comment))
+	  (start (or (plist-get request :start) (point-min)))
+	  (end (or (plist-get request :end) (point-max))))
+      (setq copy (plist-put copy :source-start start))
+      (plist-put copy :source-end end))))
+
 (defun org-copilot-llm-anchored-comment (comment &optional request)
   "Return COMMENT anchored in the current buffer.
 Prefer exact `:target-text' matching.  Fall back to REQUEST-relative line hints
-when exact matching fails."
+when exact matching fails.  Scope comments anchor to the active request bounds."
   (or (and (plist-get comment :source-start) comment)
       (org-copilot-llm--anchor-insertion-comment comment)
       (org-copilot-llm--anchor-comment-exact comment)
       (org-copilot-llm--anchor-comment-by-lines comment request)
+      (org-copilot-llm--anchor-scope-comment comment request)
       comment))
 
 (defun org-copilot-llm-anchor-comments (source-buffer comments &optional request)
@@ -340,9 +403,16 @@ fallback anchoring."
        (integerp (plist-get comment :source-start))
        (integerp (plist-get comment :source-end))))
 
+(defun org-copilot-llm--durably-anchored-comment-p (comment)
+  "Return non-nil when COMMENT has durable source bounds."
+  (let ((start (plist-get comment :source-start))
+	(end (plist-get comment :source-end)))
+    (and (integerp start) (integerp end) (<= start end))))
+
 (defun org-copilot-llm--comment-installable-p (comment context)
   "Return non-nil when chat COMMENT may be installed in CONTEXT."
   (and (memq (plist-get comment :type) '(inline scope insertion))
+       (org-copilot-llm--durably-anchored-comment-p comment)
        (or (eq (plist-get comment :type) 'scope)
 	   (org-copilot-llm--anchored-inline-comment-p comment)
 	   (org-copilot-llm--anchored-insertion-comment-p comment))

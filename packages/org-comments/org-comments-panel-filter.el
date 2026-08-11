@@ -32,6 +32,9 @@ least `:predicate'.")
 (defvar-local org-comments-current-filter-toggle-resolved-function
     #'org-comments-panel-filter--toggle-resolved-current
   "Function used to toggle resolved comments for the current comments UI.")
+(defvar-local org-comments-current-filter-toggle-suggestions-function
+    #'org-comments-panel-filter--toggle-suggestions-current
+  "Function used to toggle suggestion-linked comments for the current comments UI.")
 (defvar-local org-comments-current-filter-status-function
     #'org-comments-panel-filter--status-current
   "Function used to show filter status for the current comments UI.")
@@ -171,18 +174,28 @@ When SOURCE-BUFFER is nil, use the current buffer."
 	     (org-comments-panel-filter--summary
 	      (org-comments-filter-state source)))))
 
-(defun org-comments-panel-filter--toggle-resolved-current ()
-  "Toggle display of resolved comments in the current panel."
+(defun org-comments-panel-filter--toggle-id-current (id)
+  "Toggle boolean filter ID in the current comments UI."
   (let* ((source (org-comments-filter-current-source-buffer))
 	 (state (org-comments-filter-state source)))
     (org-comments-filter-set-state
-     (org-comments-toggle-filter :show-resolved state)
+     (org-comments-toggle-filter id state)
      source)
     (when (fboundp 'org-comments-refresh-current-ui)
       (org-comments-refresh-current-ui))
+    (with-current-buffer source
+      (force-mode-line-update))
     (message "Comment filters: %s"
 	     (org-comments-panel-filter--summary
 	      (org-comments-filter-state source)))))
+
+(defun org-comments-panel-filter--toggle-resolved-current ()
+  "Toggle display of resolved comments in the current panel."
+  (org-comments-panel-filter--toggle-id-current :show-resolved))
+
+(defun org-comments-panel-filter--toggle-suggestions-current ()
+  "Toggle suggestions-only comments in the current panel."
+  (org-comments-panel-filter--toggle-id-current :suggestions-only))
 
 (defun org-comments-panel-filter--status-current ()
   "Show current standalone panel filter status."
@@ -204,6 +217,12 @@ When SOURCE-BUFFER is nil, use the current buffer."
   (funcall org-comments-current-filter-toggle-resolved-function))
 
 ;;;###autoload
+(defun org-comments-filter-toggle-suggestions-current-ui ()
+  "Toggle suggestions-only comments in the current comments UI."
+  (interactive)
+  (funcall org-comments-current-filter-toggle-suggestions-function))
+
+;;;###autoload
 (defun org-comments-filter-status-current-ui ()
   "Show filter status for the current comments UI."
   (interactive)
@@ -219,11 +238,22 @@ When SOURCE-BUFFER is nil, use the current buffer."
   (interactive)
   (org-comments-filter-toggle-resolved-current-ui))
 
+(defun org-comments-panel-filter-toggle-suggestions ()
+  "Toggle suggestions-only comments in the current panel."
+  (interactive)
+  (org-comments-filter-toggle-suggestions-current-ui))
+
 (defun org-comments-panel-filter--draft-p (comment)
   "Return non-nil when COMMENT has draft or outbound local state."
   (seq-some (lambda (flag)
 	      (org-comments-local-state-p comment flag))
 	    '(:local-only :draft :edited :pending-push :push-error)))
+
+(defun org-comments-panel-filter--suggestion-linked-p (comment)
+  "Return non-nil when COMMENT links to one or more suggestions."
+  (or (plist-get comment :suggestion-thread-id)
+      (plist-get comment :suggestion-ids)
+      (plist-get comment :suggestion-linked)))
 
 (defun org-comments-panel-filter--register-builtins ()
   "Register built-in Org comments filters."
@@ -259,6 +289,12 @@ When SOURCE-BUFFER is nil, use the current buffer."
    (lambda (comment value _state)
      (or (not value) (org-comments-panel-filter--draft-p comment)))
    :label "drafts"
+   :default nil)
+  (org-comments-register-filter
+   :suggestions-only
+   (lambda (comment value _state)
+     (or (not value) (org-comments-panel-filter--suggestion-linked-p comment)))
+   :label "suggestions"
    :default nil)
   (org-comments-register-filter
    :actionable

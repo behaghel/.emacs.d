@@ -128,6 +128,18 @@
       (should (string-match-p "✍️ \\[OPEN\\] “Local”" output))
       (should-not (string-match-p "💬 \\[OPEN\\]" output)))))
 
+(ert-deftest org-comments-panel-render-uses-semantic-provider-after-context-wrapping ()
+  "Context-panel provider ownership must not hide comment provider identity."
+  (with-temp-buffer
+    (org-comments-panel-render-insert-comment
+     '(:type comment :id "ai-1" :status "OPEN" :target-text "Intro"
+	     :provider comments :comment-provider "org-copilot"
+	     :author "org-copilot" :body "Rewrite intro."))
+    (let ((output (buffer-substring-no-properties (point-min) (point-max))))
+      (should (string-match-p "\\`🤖 \\[OPEN\\] “Intro”" output))
+      (should (string-match-p "\nai-1\n" output))
+      (should-not (string-match-p "org-copilot" output)))))
+
 (ert-deftest org-comments-panel-render-shows-suggestion-badge-on-metadata-line ()
   "Rendering shows compact linked suggestion state on the metadata line."
   (with-temp-buffer

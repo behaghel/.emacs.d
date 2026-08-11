@@ -99,6 +99,18 @@
 		 '(:backend confluence :remote-author-id "def")
 		 '(:mine t)))))
 
+(ert-deftest org-comments-panel-filter-suggestions-only-keeps-linked-comments ()
+  "Suggestions-only filter keeps comments linked to suggestion threads."
+  (should (org-comments-filter-include-p
+	   '(:id "thread" :suggestion-thread-id "thread-1")
+	   '(:suggestions-only t)))
+  (should (org-comments-filter-include-p
+	   '(:id "ids" :suggestion-ids "s1")
+	   '(:suggestions-only t)))
+  (should-not (org-comments-filter-include-p
+	       '(:id "plain")
+	       '(:suggestions-only t))))
+
 (ert-deftest org-comments-panel-filter-drafts-uses-local-state-flags ()
   "Draft filter includes local-only, edited, pending, and error records."
   (should (org-comments-filter-include-p
@@ -150,7 +162,13 @@
 	  (should refreshed)
 	  (should-not (org-comments-filter-value
 		       :show-resolved
-		       (org-comments-filter-state source))))
+		       (org-comments-filter-state source)))
+	  (setq refreshed nil)
+	  (org-comments-panel-filter--toggle-suggestions-current)
+	  (should refreshed)
+	  (should (org-comments-filter-value
+		   :suggestions-only
+		   (org-comments-filter-state source))))
       (kill-buffer source))))
 
 (provide 'org-comments-panel-filter-test)

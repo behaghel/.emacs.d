@@ -5,6 +5,7 @@
 
 ;;; Code:
 
+(require 'cl-lib)
 (require 'ert)
 (require 'org-comments-commands)
 
@@ -51,6 +52,31 @@
   (let (org-mode-hook)
     (org-comments-setup)
     (should (memq #'org-comments-mode org-mode-hook))))
+
+(ert-deftest org-comments-commands-counts-open-suggestion-threads ()
+  "The mode-line counter counts open suggestion-linked threads once."
+  (with-temp-buffer
+    (let ((comments (list
+		     (list :id "c1" :suggestion-thread-id "t1" :status "OPEN")
+		     (list :id "c2" :suggestion-thread-id "t1" :status "OPEN")
+		     (list :id "c3" :suggestion-ids "s3" :status "TODO")
+		     (list :id "c4" :suggestion-thread-id "t4" :status "RESOLVED")
+		     (list :id "c5" :suggestion-thread-id "t5" :page-comment t :status "OPEN")
+		     (list :id "c6" :status "OPEN"))))
+      (cl-letf (((symbol-function 'org-comments-collect)
+		 (lambda (&rest _) comments)))
+	(should (= (org-comments-open-suggestion-thread-count (current-buffer))
+		   2))))))
+
+(ert-deftest org-comments-commands-mode-line-shows-suggestion-thread-count ()
+  "The minor-mode lighter includes a pen counter only when suggestions exist."
+  (with-temp-buffer
+    (cl-letf (((symbol-function 'org-comments-open-suggestion-thread-count)
+	       (lambda (&optional _) 3)))
+      (should (equal (org-comments-mode-line-string) " OrgC ✍3")))
+    (cl-letf (((symbol-function 'org-comments-open-suggestion-thread-count)
+	       (lambda (&optional _) 0)))
+      (should (equal (org-comments-mode-line-string) " OrgC")))))
 
 (ert-deftest org-comments-commands-open-prefers-registered-ui-when-available ()
   "Open dispatches to the registered rich comments UI."

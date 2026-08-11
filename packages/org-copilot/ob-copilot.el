@@ -345,7 +345,7 @@ unreviewed generated content."
 			      (and (boundp 'gptel-backend) gptel-backend)))
 	   (gptel-model (or org-copilot-gptel-model
 			    (and (boundp 'gptel-model) gptel-model)))
-	   (stream (org-copilot-gptel--stream-required-p)))
+	   (stream (org-copilot-gptel--stream-required-p gptel-backend)))
       (gptel-request
        prompt
        :stream stream

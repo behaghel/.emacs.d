@@ -321,6 +321,11 @@
   (interactive)
   (hub/context-panels--toggle-filter :show-missing))
 
+(defun hub/context-panels-filter-toggle-suggestions ()
+  "Toggle suggestion-linked-only context filtering."
+  (interactive)
+  (hub/context-panels--toggle-filter :suggestions-only))
+
 (with-eval-after-load 'org-comments-panel
   (define-key org-comments-panel-filter-map (kbd "a")
 	      #'hub/context-panels-filter-toggle-actionable)
@@ -328,6 +333,8 @@
 	      #'hub/context-panels-filter-toggle-drafts)
   (define-key org-comments-panel-filter-map (kbd "m")
 	      #'hub/context-panels-filter-toggle-mine)
+  (define-key org-comments-panel-filter-map (kbd "s")
+	      #'hub/context-panels-filter-toggle-suggestions)
   (define-key org-comments-panel-filter-map (kbd "x")
 	      #'hub/context-panels-filter-toggle-missing))
 
