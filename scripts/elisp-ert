@@ -57,6 +57,7 @@ else
         ;;
       packages/org-sync/*)
         add_test packages/org-sync/test/org-sync-assets-test.el
+        add_test packages/org-sync/test/org-sync-store-test.el
         add_test packages/org-sync/test/org-sync-status-test.el
         ;;
       scripts/approval-refresh-overdrive-page1.el|scripts/export-demo-adaptive-cards.el)

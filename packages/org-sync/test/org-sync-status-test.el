@@ -59,5 +59,38 @@
 	   (should (string-match-p "Content[[:space:]]+unknown" (buffer-string)))
 	   (should (string-match-p "Comments[[:space:]]+unknown" (buffer-string)))))))))
 
+(ert-deftest org-sync-baseline-records-base-refs-and-renders-clean ()
+  "Baselining stores current/fetched ref pairs and renders clean domains."
+  (let* ((directory (make-temp-file "org-sync-status" t))
+	 (source-file (expand-file-name "source.org" directory)))
+    (unwind-protect
+	(progn
+	  (with-temp-file source-file (insert "Body\n"))
+	  (org-sync-store-write
+	   source-file
+	   '(:provider (:kind fake :remote-id "doc-1")
+		       :domains ((content :fetched-remote-ref (:version "1"))
+				 (comments :fetched-remote-ref (:hash "remote-comments")))))
+	  (with-current-buffer (find-file-noselect source-file)
+	    (org-mode)
+	    (org-sync-status-test--with-providers
+	     (list (org-sync-status-test--fake-provider))
+	     (org-sync-status)
+	     (org-sync-baseline)
+	     (let* ((tracking (org-sync-store-read source-file))
+		    (content (alist-get 'content (plist-get tracking :domains)))
+		    (comments (alist-get 'comments (plist-get tracking :domains)))
+		    (panel (get-buffer org-sync-status-buffer-name)))
+	       (should (plist-get content :base-local-ref))
+	       (should (plist-get content :base-remote-ref))
+	       (should (plist-get comments :base-local-ref))
+	       (should (plist-get comments :base-remote-ref))
+	       (with-current-buffer panel
+		 (should (string-match-p "Content[[:space:]]+clean" (buffer-string)))
+		 (should (string-match-p "Comments[[:space:]]+clean" (buffer-string))))))))
+      (when-let* ((buffer (find-buffer-visiting source-file)))
+	(kill-buffer buffer))
+      (delete-directory directory t))))
+
 (provide 'org-sync-status-test)
 ;;; org-sync-status-test.el ends here
