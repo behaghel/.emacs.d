@@ -95,5 +95,31 @@
 	(push (cons domain entry) domains)))
     (plist-put copy :domains (nreverse domains))))
 
+(defun org-sync--fetch-domain-ref (domain-entry)
+  "Return fetched remote ref from fetch result DOMAIN-ENTRY."
+  (or (plist-get domain-entry :remote-ref)
+      (when-let* ((records (plist-get domain-entry :remote-records)))
+	(list :hash (org-sync--hash-object records)
+	      :count (length records)))))
+
+(defun org-sync-merge-fetch-result (tracking fetch-result)
+  "Return TRACKING updated with remote refs from FETCH-RESULT."
+  (let ((copy (copy-sequence tracking))
+	(existing-domains (copy-sequence (plist-get tracking :domains))))
+    (dolist (fetched (plist-get fetch-result :domains))
+      (let* ((domain (car fetched))
+	     (data (cdr fetched))
+	     (remote-ref (org-sync--fetch-domain-ref data))
+	     (entry (copy-sequence (or (alist-get domain existing-domains) nil))))
+	(when remote-ref
+	  (setq entry (plist-put entry :fetched-remote-ref remote-ref)))
+	(when-let* ((summary (plist-get data :summary)))
+	  (setq entry (plist-put entry :summary summary)))
+	(setf (alist-get domain existing-domains) entry)))
+    (setq copy (plist-put copy :domains existing-domains))
+    (when-let* ((fetched-at (plist-get fetch-result :fetched-at)))
+      (setq copy (plist-put copy :fetched-at fetched-at)))
+    copy))
+
 (provide 'org-sync-model)
 ;;; org-sync-model.el ends here

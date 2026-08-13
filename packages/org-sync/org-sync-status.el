@@ -35,6 +35,7 @@
 (defvar org-sync-status-mode-map
   (let ((map (make-sparse-keymap)))
     (define-key map (kbd "g") #'org-sync-refresh)
+    (define-key map (kbd "f") #'org-sync-fetch)
     (define-key map (kbd "B") #'org-sync-baseline)
     (define-key map (kbd "q") #'org-sync-close)
     map)
@@ -125,6 +126,29 @@
   (interactive)
   (let ((source-buffer (org-sync--source-buffer)))
     (context-panels-open-bottom-view 'org-sync-status source-buffer)))
+
+;;;###autoload
+(defun org-sync-fetch ()
+  "Fetch remote refs into tracking state without mutating local Org files."
+  (interactive)
+  (let* ((source-buffer (org-sync--source-buffer))
+	 (source-file (or (buffer-file-name source-buffer)
+			  (user-error "Source buffer is not visiting a file")))
+	 (document (with-current-buffer source-buffer
+		     (or org-sync-current-document
+			 (setq org-sync-current-document
+			       (org-sync-detect-document source-buffer)))))
+	 (provider (or (plist-get document :provider)
+		       (org-sync-provider (plist-get document :kind))))
+	 (fetch (or (plist-get provider :fetch)
+		    (user-error "Org sync provider %s does not support fetch"
+				(plist-get document :kind))))
+	 (tracking (org-sync--tracking source-buffer))
+	 (fetch-result (funcall fetch document org-sync-domains))
+	 (updated (org-sync-merge-fetch-result tracking fetch-result)))
+    (org-sync-store-write source-file updated)
+    (context-panels-open-bottom-view 'org-sync-status source-buffer)
+    updated))
 
 ;;;###autoload
 (defun org-sync-baseline ()

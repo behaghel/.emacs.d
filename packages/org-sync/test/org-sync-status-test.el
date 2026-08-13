@@ -17,12 +17,13 @@
   `(let ((org-sync-providers ,providers))
      ,@body))
 
-(defun org-sync-status-test--fake-provider (&optional detect-result)
-  "Return a fake org-sync provider with DETECT-RESULT."
+(defun org-sync-status-test--fake-provider (&optional detect-result fetch-result)
+  "Return a fake org-sync provider with DETECT-RESULT and FETCH-RESULT."
   (list :kind 'fake
 	:detect (lambda (_source-buffer)
 		  (or detect-result
-		      (list :kind 'fake :remote-id "doc-1" :title "Fake Doc")))))
+		      (list :kind 'fake :remote-id "doc-1" :title "Fake Doc")))
+	:fetch (lambda (&rest _args) fetch-result)))
 
 (ert-deftest org-sync-detects-single-provider ()
   "Provider detection returns the one matching document descriptor."
@@ -118,6 +119,58 @@
 	     (with-current-buffer (get-buffer org-sync-status-buffer-name)
 	       (should (string-match-p "Content[[:space:]]+clean" (buffer-string)))
 	       (should (string-match-p "Comments[[:space:]]+ahead" (buffer-string)))))))
+      (when-let* ((buffer (find-buffer-visiting source-file)))
+	(kill-buffer buffer))
+      (delete-directory directory t))))
+
+(ert-deftest org-sync-fetch-updates-remote-tracking-only ()
+  "Fetching writes remote refs without mutating source or comments sidecars."
+  (let* ((directory (make-temp-file "org-sync-status" t))
+	 (source-file (expand-file-name "source.org" directory)))
+    (unwind-protect
+	(progn
+	  (with-temp-file source-file (insert "Alpha beta gamma\n"))
+	  (org-sync-store-write
+	   source-file
+	   '(:provider (:kind fake :remote-id "doc-1")
+		       :domains ((content :fetched-remote-ref (:version "1"))
+				 (comments :fetched-remote-ref (:hash "comments-v1")))))
+	  (with-current-buffer (find-file-noselect source-file)
+	    (org-mode)
+	    (goto-char (point-min))
+	    (search-forward "Alpha")
+	    (org-comments-append-to-sidecar
+	     (org-comments-create-record source-file
+					 (match-beginning 0) (match-end 0)
+					 "Review this." "c1" "Alice" "now"))
+	    (let ((source-before (buffer-string))
+		  (comments-before (with-temp-buffer
+				     (insert-file-contents (org-comments-sidecar-path source-file))
+				     (buffer-string))))
+	      (org-sync-status-test--with-providers
+	       (list (org-sync-status-test--fake-provider
+		      nil
+		      '(:provider fake :remote-id "doc-1" :fetched-at "now"
+				  :domains ((content :remote-ref (:version "2"))
+					    (comments :remote-ref (:hash "comments-v2" :count 1))))))
+	       (org-sync-status)
+	       (org-sync-baseline)
+	       (org-sync-fetch)
+	       (let* ((tracking (org-sync-store-read source-file))
+		      (content (alist-get 'content (plist-get tracking :domains)))
+		      (comments (alist-get 'comments (plist-get tracking :domains))))
+		 (should (equal (plist-get content :fetched-remote-ref)
+				'(:version "2")))
+		 (should (equal (plist-get comments :fetched-remote-ref)
+				'(:hash "comments-v2" :count 1)))
+		 (with-current-buffer (get-buffer org-sync-status-buffer-name)
+		   (should (string-match-p "Content[[:space:]]+behind" (buffer-string)))
+		   (should (string-match-p "Comments[[:space:]]+behind" (buffer-string))))))
+	      (with-current-buffer (find-buffer-visiting source-file)
+		(should (equal source-before (buffer-string))))
+	      (with-temp-buffer
+		(insert-file-contents (org-comments-sidecar-path source-file))
+		(should (equal comments-before (buffer-string)))))))
       (when-let* ((buffer (find-buffer-visiting source-file)))
 	(kill-buffer buffer))
       (delete-directory directory t))))
