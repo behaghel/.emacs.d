@@ -55,5 +55,15 @@
       (insert "\n" org-sync-store--end-marker "\n"))
     sidecar))
 
+(defun org-sync-store-archive (source-file)
+  "Archive SOURCE-FILE's sync sidecar and return backup path, or nil."
+  (let ((sidecar (org-sync-store-path source-file)))
+    (when (file-exists-p sidecar)
+      (let ((backup (format "%s.%s.bak"
+			    sidecar
+			    (format-time-string "%Y%m%d%H%M%S"))))
+	(copy-file sidecar backup t)
+	backup))))
+
 (provide 'org-sync-store)
 ;;; org-sync-store.el ends here

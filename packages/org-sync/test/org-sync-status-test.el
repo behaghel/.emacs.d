@@ -308,6 +308,42 @@ CALLBACKS supplies action callbacks such as `:pull-content'."
 	(kill-buffer buffer))
       (delete-directory directory t))))
 
+(ert-deftest org-sync-reset-tracking-archives-sidecar-and-clears-refs ()
+  "Reset archives old tracking and initializes current identity only."
+  (let* ((directory (make-temp-file "org-sync-status" t))
+	 (source-file (expand-file-name "source.org" directory)))
+    (unwind-protect
+	(progn
+	  (with-temp-file source-file (insert "Body\n"))
+	  (org-sync-store-write
+	   source-file
+	   '(:provider (:kind fake :remote-id "old-doc")
+		       :domains ((content :base-local-ref (:hash "old-local")
+					  :base-remote-ref (:version "old-remote")
+					  :fetched-remote-ref (:version "new-remote")))))
+	  (with-current-buffer (find-file-noselect source-file)
+	    (org-mode)
+	    (org-sync-status-test--with-providers
+	     (list (org-sync-status-test--fake-provider))
+	     (org-sync-status)
+	     (org-sync-reset-tracking nil)
+	     (let ((tracking (org-sync-store-read source-file))
+		   (backups (file-expand-wildcards
+			     (concat (org-sync-store-path source-file) ".*.bak"))))
+	       (should (= 1 (length backups)))
+	       (should (equal (plist-get (plist-get tracking :provider) :remote-id)
+			      "doc-1"))
+	       (should-not (plist-get tracking :domains))
+	       (should (equal (with-temp-buffer
+				(insert-file-contents source-file)
+				(buffer-string))
+			      "Body\n"))
+	       (with-current-buffer (get-buffer org-sync-status-buffer-name)
+		 (should (string-match-p "Head: ⇅ ?" (buffer-string))))))))
+      (when-let* ((buffer (find-buffer-visiting source-file)))
+	(kill-buffer buffer))
+      (delete-directory directory t))))
+
 (ert-deftest org-sync-baseline-records-base-refs-and-renders-clean ()
   "Baselining stores current/fetched ref pairs and renders clean domains."
   (let* ((directory (make-temp-file "org-sync-status" t))

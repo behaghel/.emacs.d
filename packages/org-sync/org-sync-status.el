@@ -48,6 +48,7 @@
     (define-key map (kbd "c") #'org-sync-push-content)
     (define-key map (kbd "m") #'org-sync-push-comments)
     (define-key map (kbd "B") #'org-sync-baseline)
+    (define-key map (kbd "R") #'org-sync-reset-tracking)
     (define-key map (kbd "q") #'org-sync-close)
     map)
   "Keymap for `org-sync-status-mode'.")
@@ -306,6 +307,37 @@ domain is diverged, conflicted, or unknown."
   "Push local comments through the active provider."
   (interactive)
   (org-sync--run-domain-actions 'push 'ahead 'comments))
+
+(defun org-sync--identity-tracking (source-buffer)
+  "Return empty tracking data for SOURCE-BUFFER's current provider identity."
+  (let ((document (with-current-buffer source-buffer
+		    (or org-sync-current-document
+			(setq org-sync-current-document
+			      (org-sync-detect-document source-buffer))))))
+    (list :provider (list :kind (plist-get document :kind)
+			  :remote-id (or (plist-get document :remote-id)
+					 (plist-get document :id)))
+	  :domains nil)))
+
+;;;###autoload
+(defun org-sync-reset-tracking (&optional confirm)
+  "Reset sync tracking for the current source identity.
+When CONFIRM is non-nil, ask before replacing the sidecar."
+  (interactive (list t))
+  (let* ((source-buffer (org-sync--source-buffer))
+	 (source-file (or (buffer-file-name source-buffer)
+			  (user-error "Source buffer is not visiting a file"))))
+    (when (and confirm
+	       (not (yes-or-no-p "Reset Org sync tracking for this source? ")))
+      (user-error "Reset cancelled"))
+    (let ((backup (org-sync-store-archive source-file))
+	  (tracking (org-sync--identity-tracking source-buffer)))
+      (org-sync-store-write source-file tracking)
+      (org-sync-refresh-source-marker source-buffer)
+      (context-panels-open-bottom-view 'org-sync-status source-buffer)
+      (when backup
+	(message "Archived previous Org sync tracking to %s" backup))
+      tracking)))
 
 ;;;###autoload
 (defun org-sync-baseline ()
