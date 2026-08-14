@@ -60,10 +60,43 @@ CALLBACKS supplies action callbacks such as `:pull-content'."
 	 (should (buffer-live-p panel))
 	 (with-current-buffer panel
 	   (should (derived-mode-p 'org-sync-status-mode))
+	   (should (derived-mode-p 'magit-section-mode))
 	   (should (eq context-panels-source-buffer source))
 	   (should (string-match-p "Org Sync: fake doc-1" (buffer-string)))
+	   (should (string-match-p "Unknown" (buffer-string)))
 	   (should (string-match-p "Content[[:space:]]+unknown" (buffer-string)))
 	   (should (string-match-p "Comments[[:space:]]+unknown" (buffer-string)))))))))
+
+(ert-deftest org-sync-source-marker-summarizes-domain-counts ()
+  "Source marker summarizes sync status with domain counts."
+  (let* ((directory (make-temp-file "org-sync-status" t))
+	 (source-file (expand-file-name "source.org" directory)))
+    (unwind-protect
+	(progn
+	  (with-temp-file source-file (insert "Body\n"))
+	  (org-sync-store-write
+	   source-file
+	   '(:provider (:kind fake :remote-id "doc-1")
+		       :domains ((content :fetched-remote-ref (:version "1"))
+				 (comments :fetched-remote-ref (:hash "remote-comments")))))
+	  (with-current-buffer (find-file-noselect source-file)
+	    (org-mode)
+	    (org-sync-status-test--with-providers
+	     (list (org-sync-status-test--fake-provider))
+	     (org-sync-mode 1)
+	     (org-sync-baseline)
+	     (should (string-match-p "⇅ clean"
+				     (overlay-get org-sync-source-marker-overlay
+						  'after-string)))
+	     (goto-char (point-max))
+	     (insert "Local edit\n")
+	     (org-sync-refresh)
+	     (should (string-match-p "⇅ ↑1"
+				     (overlay-get org-sync-source-marker-overlay
+						  'after-string))))))
+      (when-let* ((buffer (find-buffer-visiting source-file)))
+	(kill-buffer buffer))
+      (delete-directory directory t))))
 
 (ert-deftest org-sync-refresh-renders-content-ahead-after-local-edit ()
   "Refreshing after local source edits renders content ahead."
@@ -89,7 +122,7 @@ CALLBACKS supplies action callbacks such as `:pull-content'."
 	       (org-sync-refresh))
 	     (with-current-buffer (get-buffer org-sync-status-buffer-name)
 	       (should (string-match-p "Content[[:space:]]+ahead" (buffer-string)))
-	       (should (string-match-p "Comments[[:space:]]+clean" (buffer-string)))))))
+	       (should (string-match-p "Head: ⇅ ↑1" (buffer-string)))))))
       (when-let* ((buffer (find-buffer-visiting source-file)))
 	(kill-buffer buffer))
       (delete-directory directory t))))
@@ -121,8 +154,8 @@ CALLBACKS supplies action callbacks such as `:pull-content'."
 					    "Review this." "c1" "Alice" "now"))
 	       (org-sync-refresh))
 	     (with-current-buffer (get-buffer org-sync-status-buffer-name)
-	       (should (string-match-p "Content[[:space:]]+clean" (buffer-string)))
-	       (should (string-match-p "Comments[[:space:]]+ahead" (buffer-string)))))))
+	       (should (string-match-p "Comments[[:space:]]+ahead" (buffer-string)))
+	       (should (string-match-p "Head: ⇅ ↑1" (buffer-string)))))))
       (when-let* ((buffer (find-buffer-visiting source-file)))
 	(kill-buffer buffer))
       (delete-directory directory t))))
@@ -208,8 +241,7 @@ CALLBACKS supplies action callbacks such as `:pull-content'."
 	     (org-sync-pull)
 	     (should (equal (sort calls #'string<) '(comments content)))
 	     (with-current-buffer (get-buffer org-sync-status-buffer-name)
-	       (should (string-match-p "Content[[:space:]]+clean" (buffer-string)))
-	       (should (string-match-p "Comments[[:space:]]+clean" (buffer-string)))))))
+	       (should (string-match-p "Head: ⇅ clean" (buffer-string)))))))
       (when-let* ((buffer (find-buffer-visiting source-file)))
 	(kill-buffer buffer))
       (delete-directory directory t))))
@@ -241,8 +273,7 @@ CALLBACKS supplies action callbacks such as `:pull-content'."
 	       (org-sync-push))
 	     (should (equal calls '(content)))
 	     (with-current-buffer (get-buffer org-sync-status-buffer-name)
-	       (should (string-match-p "Content[[:space:]]+clean" (buffer-string)))
-	       (should (string-match-p "Comments[[:space:]]+clean" (buffer-string)))))))
+	       (should (string-match-p "Head: ⇅ clean" (buffer-string)))))))
       (when-let* ((buffer (find-buffer-visiting source-file)))
 	(kill-buffer buffer))
       (delete-directory directory t))))
@@ -304,11 +335,10 @@ CALLBACKS supplies action callbacks such as `:pull-content'."
 	       (should (plist-get comments :base-local-ref))
 	       (should (plist-get comments :base-remote-ref))
 	       (with-current-buffer panel
-		 (should (string-match-p "Content[[:space:]]+clean" (buffer-string)))
-		 (should (string-match-p "Comments[[:space:]]+clean" (buffer-string))))))))
-      (when-let* ((buffer (find-buffer-visiting source-file)))
-	(kill-buffer buffer))
-      (delete-directory directory t))))
+		 (should (string-match-p "Head: ⇅ clean" (buffer-string)))))))
+	  (when-let* ((buffer (find-buffer-visiting source-file)))
+	    (kill-buffer buffer))
+	  (delete-directory directory t)))))
 
 (provide 'org-sync-status-test)
 ;;; org-sync-status-test.el ends here

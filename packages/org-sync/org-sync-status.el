@@ -5,11 +5,13 @@
 
 ;;; Code:
 
+(require 'cl-lib)
 (require 'context-panels)
 (require 'magit-section)
 (require 'org)
 (require 'org-sync-model)
 (require 'org-sync-provider)
+(require 'subr-x)
 (require 'org-sync-store)
 
 (defgroup org-sync nil
@@ -32,6 +34,9 @@
 (defvar-local org-sync-status-source-buffer nil
   "Source buffer associated with the current Org sync status panel.")
 
+(defvar-local org-sync-source-marker-overlay nil
+  "Source overlay showing compact Org sync status.")
+
 (defvar org-sync-status-mode-map
   (let ((map (make-sparse-keymap)))
     (define-key map (kbd "g") #'org-sync-refresh)
@@ -47,8 +52,10 @@
     map)
   "Keymap for `org-sync-status-mode'.")
 
-(define-derived-mode org-sync-status-mode special-mode "Org Sync"
-  "Major mode for Org sync status bottom panels.")
+(define-derived-mode org-sync-status-mode magit-section-mode "Org Sync"
+  "Major mode for Org sync status bottom panels."
+  (setq-local truncate-lines nil)
+  (setq-local word-wrap t))
 
 (defun org-sync--source-buffer ()
   "Return source buffer for the current org-sync command."
@@ -83,20 +90,77 @@
 	      (plist-get document :id)
 	      "<unknown>")))
 
+(defun org-sync-marker-string (&optional source-buffer)
+  "Return compact source marker text for SOURCE-BUFFER."
+  (let* ((source (or source-buffer (current-buffer)))
+	 (statuses (org-sync--domain-statuses source))
+	 (ahead (cl-count 'ahead statuses :key #'cdr))
+	 (behind (cl-count 'behind statuses :key #'cdr))
+	 (diverged (cl-count 'diverged statuses :key #'cdr))
+	 (problem (cl-count-if (lambda (status)
+				 (memq status '(conflicted fetch-error)))
+			       statuses :key #'cdr))
+	 (unknown (cl-count 'unknown statuses :key #'cdr)))
+    (concat
+     " ⇅ "
+     (cond
+      ((> problem 0) "!")
+      ((> diverged 0) "↑↓")
+      ((or (> ahead 0) (> behind 0))
+       (string-join
+	(delq nil
+	      (list (when (> ahead 0) (format "↑%d" ahead))
+		    (when (> behind 0) (format "↓%d" behind))))
+	" "))
+      ((> unknown 0) "?")
+      (t "clean")))))
+
+(defun org-sync-refresh-source-marker (&optional source-buffer)
+  "Refresh compact Org sync source marker for SOURCE-BUFFER."
+  (let ((source (or source-buffer (current-buffer))))
+    (when (buffer-live-p source)
+      (with-current-buffer source
+	(when (overlayp org-sync-source-marker-overlay)
+	  (delete-overlay org-sync-source-marker-overlay))
+	(setq org-sync-source-marker-overlay
+	      (make-overlay (point-min) (point-min) nil t nil))
+	(overlay-put org-sync-source-marker-overlay 'after-string
+		     (propertize (org-sync-marker-string source)
+				 'help-echo "Open Org sync status"))))))
+
+(defun org-sync--insert-status-section (title statuses predicate)
+  "Insert status section TITLE for STATUSES matching PREDICATE."
+  (let ((matches (cl-remove-if-not (lambda (entry) (funcall predicate (cdr entry)))
+				   statuses)))
+    (magit-insert-section (org-sync-status title)
+			  (insert title "\n")
+			  (magit-insert-section-body
+			   (if matches
+			       (dolist (entry matches)
+				 (insert (format "  %-8s %s\n"
+						 (capitalize (symbol-name (car entry)))
+						 (cdr entry))))
+			     (insert "  none\n"))))))
+
 (defun org-sync-status-render (source-buffer _view)
   "Render Org sync status for SOURCE-BUFFER."
   (setq org-sync-status-source-buffer source-buffer)
   (let ((document (with-current-buffer source-buffer
 		    (or org-sync-current-document
 			(setq org-sync-current-document
-			      (org-sync-detect-document source-buffer))))))
+			      (org-sync-detect-document source-buffer)))))
+	(statuses (org-sync--domain-statuses source-buffer)))
     (insert (format "Org Sync: %s\n" (org-sync--document-label document)))
-    (insert "\nStatus\n")
-    (dolist (entry (org-sync--domain-statuses source-buffer))
-      (insert (format "  %-8s %s\n"
-		      (capitalize (symbol-name (car entry)))
-		      (cdr entry))))
-    (insert "\nActions: g refresh, f fetch, p push, F pull, B baseline, R reset, ? help, q close\n")))
+    (insert "Head: " (string-trim (org-sync-marker-string source-buffer)) "\n\n")
+    (org-sync--insert-status-section "Unpushed changes" statuses
+				     (lambda (status) (eq status 'ahead)))
+    (org-sync--insert-status-section "Unpulled changes" statuses
+				     (lambda (status) (eq status 'behind)))
+    (org-sync--insert-status-section "Conflicts" statuses
+				     (lambda (status) (memq status '(diverged conflicted))))
+    (org-sync--insert-status-section "Unknown" statuses
+				     (lambda (status) (memq status '(unknown fetch-error))))
+    (insert "\nActions: g refresh, f fetch, p push, F pull, c/m push domain, C/M pull domain, B baseline, R reset, ? help, q close\n")))
 
 (defun org-sync--bottom-views (_source-buffer)
   "Return Org sync bottom view descriptors."
@@ -122,8 +186,12 @@
       (progn
 	(setq org-sync-current-document (org-sync-detect-document (current-buffer)))
 	(context-panels-mode 1)
-	(context-panels-register-provider (org-sync-context-panel-provider)))
+	(context-panels-register-provider (org-sync-context-panel-provider))
+	(org-sync-refresh-source-marker (current-buffer)))
     (context-panels-unregister-provider 'org-sync)
+    (when (overlayp org-sync-source-marker-overlay)
+      (delete-overlay org-sync-source-marker-overlay))
+    (setq org-sync-source-marker-overlay nil)
     (setq org-sync-current-document nil)))
 
 ;;;###autoload
@@ -131,6 +199,7 @@
   "Refresh the current Org sync status panel without network I/O."
   (interactive)
   (let ((source-buffer (org-sync--source-buffer)))
+    (org-sync-refresh-source-marker source-buffer)
     (context-panels-open-bottom-view 'org-sync-status source-buffer)))
 
 ;;;###autoload
@@ -153,6 +222,7 @@
 	 (fetch-result (funcall fetch document org-sync-domains))
 	 (updated (org-sync-merge-fetch-result tracking fetch-result)))
     (org-sync-store-write source-file updated)
+    (org-sync-refresh-source-marker source-buffer)
     (context-panels-open-bottom-view 'org-sync-status source-buffer)
     updated))
 
@@ -197,6 +267,7 @@ domain is diverged, conflicted, or unknown."
 	(funcall callback document current tracking)))
     (let ((updated (org-sync-advance-base-for-domains tracking source-buffer domains)))
       (org-sync-store-write source-file updated)
+      (org-sync-refresh-source-marker source-buffer)
       (context-panels-open-bottom-view 'org-sync-status source-buffer)
       updated)))
 
@@ -250,6 +321,7 @@ domain is diverged, conflicted, or unknown."
       (setq org-sync-current-document
 	    (or org-sync-current-document
 		(org-sync-detect-document source-buffer))))
+    (org-sync-refresh-source-marker source-buffer)
     (context-panels-open-bottom-view 'org-sync-status source-buffer)
     updated))
 
@@ -259,6 +331,7 @@ domain is diverged, conflicted, or unknown."
   (interactive)
   (unless org-sync-mode
     (org-sync-mode 1))
+  (org-sync-refresh-source-marker (current-buffer))
   (context-panels-open-bottom-view 'org-sync-status (current-buffer) t))
 
 ;;;###autoload
