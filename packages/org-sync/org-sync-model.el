@@ -121,5 +121,20 @@
       (setq copy (plist-put copy :fetched-at fetched-at)))
     copy))
 
+(defun org-sync-advance-base-for-domains (tracking source-buffer domains)
+  "Return TRACKING with base refs advanced for DOMAINS."
+  (let ((copy (copy-sequence tracking))
+	(existing-domains (copy-sequence (plist-get tracking :domains))))
+    (dolist (domain domains)
+      (let* ((entry (copy-sequence (or (alist-get domain existing-domains) nil)))
+	     (remote-ref (plist-get entry :fetched-remote-ref)))
+	(unless remote-ref
+	  (user-error "Cannot advance %s without fetched remote ref" domain))
+	(setq entry (plist-put entry :base-local-ref
+			       (org-sync-local-ref domain source-buffer)))
+	(setq entry (plist-put entry :base-remote-ref remote-ref))
+	(setf (alist-get domain existing-domains) entry)))
+    (plist-put copy :domains existing-domains)))
+
 (provide 'org-sync-model)
 ;;; org-sync-model.el ends here

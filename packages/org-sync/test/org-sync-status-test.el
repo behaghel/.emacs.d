@@ -17,13 +17,17 @@
   `(let ((org-sync-providers ,providers))
      ,@body))
 
-(defun org-sync-status-test--fake-provider (&optional detect-result fetch-result)
-  "Return a fake org-sync provider with DETECT-RESULT and FETCH-RESULT."
-  (list :kind 'fake
-	:detect (lambda (_source-buffer)
-		  (or detect-result
-		      (list :kind 'fake :remote-id "doc-1" :title "Fake Doc")))
-	:fetch (lambda (&rest _args) fetch-result)))
+(defun org-sync-status-test--fake-provider (&optional detect-result fetch-result callbacks)
+  "Return a fake org-sync provider.
+DETECT-RESULT overrides detection, FETCH-RESULT is returned by fetch, and
+CALLBACKS supplies action callbacks such as `:pull-content'."
+  (append
+   (list :kind 'fake
+	 :detect (lambda (_source-buffer)
+		   (or detect-result
+		       (list :kind 'fake :remote-id "doc-1" :title "Fake Doc")))
+	 :fetch (lambda (&rest _args) fetch-result))
+   callbacks))
 
 (ert-deftest org-sync-detects-single-provider ()
   "Provider detection returns the one matching document descriptor."
@@ -171,6 +175,104 @@
 	      (with-temp-buffer
 		(insert-file-contents (org-comments-sidecar-path source-file))
 		(should (equal comments-before (buffer-string)))))))
+      (when-let* ((buffer (find-buffer-visiting source-file)))
+	(kill-buffer buffer))
+      (delete-directory directory t))))
+
+(ert-deftest org-sync-pull-dispatches-behind-domains-and-advances-base ()
+  "Aggregate pull dispatches behind domains and records them as clean."
+  (let* ((directory (make-temp-file "org-sync-status" t))
+	 (source-file (expand-file-name "source.org" directory))
+	 calls)
+    (unwind-protect
+	(progn
+	  (with-temp-file source-file (insert "Body\n"))
+	  (org-sync-store-write
+	   source-file
+	   '(:provider (:kind fake :remote-id "doc-1")
+		       :domains ((content :fetched-remote-ref (:version "1"))
+				 (comments :fetched-remote-ref (:hash "comments-v1")))))
+	  (with-current-buffer (find-file-noselect source-file)
+	    (org-mode)
+	    (org-sync-status-test--with-providers
+	     (list (org-sync-status-test--fake-provider
+		    nil
+		    '(:provider fake :remote-id "doc-1" :fetched-at "now"
+				:domains ((content :remote-ref (:version "2"))
+					  (comments :remote-ref (:hash "comments-v2"))))
+		    (list :pull-content (lambda (&rest _) (push 'content calls) t)
+			  :pull-comments (lambda (&rest _) (push 'comments calls) t))))
+	     (org-sync-status)
+	     (org-sync-baseline)
+	     (org-sync-fetch)
+	     (org-sync-pull)
+	     (should (equal (sort calls #'string<) '(comments content)))
+	     (with-current-buffer (get-buffer org-sync-status-buffer-name)
+	       (should (string-match-p "Content[[:space:]]+clean" (buffer-string)))
+	       (should (string-match-p "Comments[[:space:]]+clean" (buffer-string)))))))
+      (when-let* ((buffer (find-buffer-visiting source-file)))
+	(kill-buffer buffer))
+      (delete-directory directory t))))
+
+(ert-deftest org-sync-push-dispatches-ahead-domains-and-advances-base ()
+  "Aggregate push dispatches ahead domains and records them as clean."
+  (let* ((directory (make-temp-file "org-sync-status" t))
+	 (source-file (expand-file-name "source.org" directory))
+	 calls)
+    (unwind-protect
+	(progn
+	  (with-temp-file source-file (insert "Body\n"))
+	  (org-sync-store-write
+	   source-file
+	   '(:provider (:kind fake :remote-id "doc-1")
+		       :domains ((content :fetched-remote-ref (:version "1"))
+				 (comments :fetched-remote-ref (:hash "comments-v1")))))
+	  (with-current-buffer (find-file-noselect source-file)
+	    (org-mode)
+	    (org-sync-status-test--with-providers
+	     (list (org-sync-status-test--fake-provider
+		    nil nil
+		    (list :push-content (lambda (&rest _) (push 'content calls) t))))
+	     (org-sync-status)
+	     (org-sync-baseline)
+	     (with-current-buffer (find-buffer-visiting source-file)
+	       (goto-char (point-max))
+	       (insert "Local edit\n")
+	       (org-sync-push))
+	     (should (equal calls '(content)))
+	     (with-current-buffer (get-buffer org-sync-status-buffer-name)
+	       (should (string-match-p "Content[[:space:]]+clean" (buffer-string)))
+	       (should (string-match-p "Comments[[:space:]]+clean" (buffer-string)))))))
+      (when-let* ((buffer (find-buffer-visiting source-file)))
+	(kill-buffer buffer))
+      (delete-directory directory t))))
+
+(ert-deftest org-sync-push-refuses-diverged-domain ()
+  "Aggregate push refuses diverged domains."
+  (let* ((directory (make-temp-file "org-sync-status" t))
+	 (source-file (expand-file-name "source.org" directory)))
+    (unwind-protect
+	(progn
+	  (with-temp-file source-file (insert "Body\n"))
+	  (org-sync-store-write
+	   source-file
+	   '(:provider (:kind fake :remote-id "doc-1")
+		       :domains ((content :fetched-remote-ref (:version "1"))
+				 (comments :fetched-remote-ref (:hash "comments-v1")))))
+	  (with-current-buffer (find-file-noselect source-file)
+	    (org-mode)
+	    (org-sync-status-test--with-providers
+	     (list (org-sync-status-test--fake-provider
+		    nil
+		    '(:provider fake :remote-id "doc-1" :fetched-at "now"
+				:domains ((content :remote-ref (:version "2"))))))
+	     (org-sync-status)
+	     (org-sync-baseline)
+	     (with-current-buffer (find-buffer-visiting source-file)
+	       (goto-char (point-max))
+	       (insert "Local edit\n")
+	       (org-sync-fetch)
+	       (should-error (org-sync-push) :type 'user-error)))))
       (when-let* ((buffer (find-buffer-visiting source-file)))
 	(kill-buffer buffer))
       (delete-directory directory t))))

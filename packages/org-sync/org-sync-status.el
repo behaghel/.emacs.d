@@ -36,6 +36,12 @@
   (let ((map (make-sparse-keymap)))
     (define-key map (kbd "g") #'org-sync-refresh)
     (define-key map (kbd "f") #'org-sync-fetch)
+    (define-key map (kbd "F") #'org-sync-pull)
+    (define-key map (kbd "p") #'org-sync-push)
+    (define-key map (kbd "C") #'org-sync-pull-content)
+    (define-key map (kbd "M") #'org-sync-pull-comments)
+    (define-key map (kbd "c") #'org-sync-push-content)
+    (define-key map (kbd "m") #'org-sync-push-comments)
     (define-key map (kbd "B") #'org-sync-baseline)
     (define-key map (kbd "q") #'org-sync-close)
     map)
@@ -149,6 +155,86 @@
     (org-sync-store-write source-file updated)
     (context-panels-open-bottom-view 'org-sync-status source-buffer)
     updated))
+
+(defun org-sync--action-callback (provider action domain)
+  "Return PROVIDER callback for ACTION and DOMAIN."
+  (plist-get provider (intern (format ":%s-%s" action domain))))
+
+(defun org-sync--eligible-domains (source-buffer wanted-status &optional domain)
+  "Return domains in SOURCE-BUFFER with WANTED-STATUS.
+When DOMAIN is non-nil, consider only that domain.  Signal if a considered
+domain is diverged, conflicted, or unknown."
+  (let* ((statuses (org-sync--domain-statuses source-buffer))
+	 (domains (if domain (list domain) org-sync-domains))
+	 eligible)
+    (dolist (current domains)
+      (let ((status (alist-get current statuses)))
+	(when (memq status '(diverged conflicted unknown fetch-error))
+	  (user-error "Refusing to mutate %s while status is %s" current status))
+	(when (eq status wanted-status)
+	  (push current eligible))))
+    (nreverse eligible)))
+
+(defun org-sync--run-domain-actions (action wanted-status &optional domain)
+  "Run ACTION for domains matching WANTED-STATUS, optionally limited to DOMAIN."
+  (let* ((source-buffer (org-sync--source-buffer))
+	 (source-file (or (buffer-file-name source-buffer)
+			  (user-error "Source buffer is not visiting a file")))
+	 (document (with-current-buffer source-buffer
+		     (or org-sync-current-document
+			 (setq org-sync-current-document
+			       (org-sync-detect-document source-buffer)))))
+	 (provider (or (plist-get document :provider)
+		       (org-sync-provider (plist-get document :kind))))
+	 (domains (org-sync--eligible-domains source-buffer wanted-status domain))
+	 (tracking (org-sync--tracking source-buffer)))
+    (unless domains
+      (user-error "No %s domains to %s" wanted-status action))
+    (dolist (current domains)
+      (let ((callback (or (org-sync--action-callback provider action current)
+			  (user-error "Org sync provider %s has no %s callback for %s"
+				      (plist-get document :kind) action current))))
+	(funcall callback document current tracking)))
+    (let ((updated (org-sync-advance-base-for-domains tracking source-buffer domains)))
+      (org-sync-store-write source-file updated)
+      (context-panels-open-bottom-view 'org-sync-status source-buffer)
+      updated)))
+
+;;;###autoload
+(defun org-sync-pull ()
+  "Pull all eligible behind domains through the active provider."
+  (interactive)
+  (org-sync--run-domain-actions 'pull 'behind))
+
+;;;###autoload
+(defun org-sync-push ()
+  "Push all eligible ahead domains through the active provider."
+  (interactive)
+  (org-sync--run-domain-actions 'push 'ahead))
+
+;;;###autoload
+(defun org-sync-pull-content ()
+  "Pull remote content through the active provider."
+  (interactive)
+  (org-sync--run-domain-actions 'pull 'behind 'content))
+
+;;;###autoload
+(defun org-sync-pull-comments ()
+  "Pull remote comments through the active provider."
+  (interactive)
+  (org-sync--run-domain-actions 'pull 'behind 'comments))
+
+;;;###autoload
+(defun org-sync-push-content ()
+  "Push local content through the active provider."
+  (interactive)
+  (org-sync--run-domain-actions 'push 'ahead 'content))
+
+;;;###autoload
+(defun org-sync-push-comments ()
+  "Push local comments through the active provider."
+  (interactive)
+  (org-sync--run-domain-actions 'push 'ahead 'comments))
 
 ;;;###autoload
 (defun org-sync-baseline ()
