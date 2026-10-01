@@ -1,9 +1,3 @@
----
-domain: publishing.org-sync
-status: draft
-last-reviewed: 2026-08-11
----
-
 # Spec: Org Sync Status and Remote Tracking
 
 ## Problem

@@ -1,7 +1,6 @@
 ---
-domain: personal-apps
+domain: personal-apps/ai
 status: draft
-last-reviewed: 2026-06-10
 ---
 
 # AI Workflows

@@ -1,7 +1,6 @@
 ---
-domain: authoring
+domain: authoring/notes
 status: draft
-last-reviewed: 2026-06-10
 ---
 
 # Notes

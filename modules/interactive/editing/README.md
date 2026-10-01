@@ -1,7 +1,6 @@
 ---
-domain: interactive-foundation
+domain: interactive-foundation/editing
 status: draft
-last-reviewed: 2026-06-08
 ---
 
 # Interactive Experience

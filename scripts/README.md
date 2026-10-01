@@ -1,7 +1,6 @@
 ---
-domain: configuration-system
+domain: configuration-system/quality
 status: draft
-last-reviewed: 2026-06-08
 ---
 
 # Quality System
@@ -24,4 +23,4 @@ last-reviewed: 2026-06-08
 
 ## Integration Notes
 
-The quality system verifies contracts supplied by runtime, modules, specs, and governance docs.  Scripts may encode checks, but durable behavioral expectations should be captured in specs or architecture documentation first.
+The quality system verifies contracts supplied by runtime, modules, specs, and governance docs. Scripts may encode checks, but durable behavioral expectations should be captured in specs or architecture documentation first.

@@ -1,5 +1,5 @@
 {
   "packages": [
-    "../../nixos-config/marketplace/plugins/domain-tree"
+    "npm:@behaghel/pi-domain-tree@0.4.0"
   ]
 }

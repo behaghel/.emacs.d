@@ -1,7 +1,6 @@
 ---
-domain: interactive-foundation
+domain: interactive-foundation/navigation
 status: draft
-last-reviewed: 2026-06-10
 ---
 
 # Navigation

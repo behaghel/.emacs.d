@@ -1,11 +1,3 @@
----
-domain: authoring.comments
-status: draft
-last-reviewed: 2026-07-04
-wireframes:
-  - packages/org-comments/docs/wireframes/provider-parity-panel.svg
----
-
 # UX Parity Audit: Confluence and Google Docs Comments
 
 ## Story

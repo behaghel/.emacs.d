@@ -1,9 +1,3 @@
----
-domain: authoring.copilot
-status: draft
-last-reviewed: 2026-07-02
----
-
 # Org Copilot MVP TDD Plan
 
 This plan implements `packages/org-copilot/README.md` through vertical slices.

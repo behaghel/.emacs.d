@@ -1,7 +1,6 @@
 ---
-domain: authoring.copilot
+domain: authoring/copilot
 status: draft
-last-reviewed: 2026-07-21
 ---
 
 # Org Copilot

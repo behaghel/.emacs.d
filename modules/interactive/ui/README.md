@@ -1,7 +1,6 @@
 ---
-domain: interactive-foundation
+domain: interactive-foundation/presentation
 status: draft
-last-reviewed: 2026-06-10
 ---
 
 # Presentation

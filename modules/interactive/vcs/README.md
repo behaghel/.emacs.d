@@ -1,7 +1,6 @@
 ---
-domain: development
+domain: development/vcs
 status: draft
-last-reviewed: 2026-06-10
 ---
 
 # Version Control

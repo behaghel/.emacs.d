@@ -1,7 +1,6 @@
 ---
-domain: configuration-system
+domain: configuration-system/secrets-private
 status: draft
-last-reviewed: 2026-06-10
 ---
 
 # Secrets and Private Setup

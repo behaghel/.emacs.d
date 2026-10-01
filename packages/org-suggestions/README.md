@@ -1,7 +1,6 @@
 ---
-domain: authoring.suggestions
+domain: authoring/suggestions
 status: draft
-last-reviewed: 2026-07-21
 ---
 
 # Org Suggestions

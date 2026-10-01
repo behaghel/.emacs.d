@@ -430,5 +430,10 @@
   (should (equal (hub/org-confluence-test--export "#+ATTR_CALLOUT: :type warning :title \"Heads up\"\n#+begin_callout\nCareful\n#+end_callout")
 		 "<ac:structured-macro ac:name=\"warning\" ac:schema-version=\"1\"><ac:parameter ac:name=\"title\">Heads up</ac:parameter><ac:rich-text-body><p>Careful</p></ac:rich-text-body></ac:structured-macro>")))
 
+(ert-deftest hub/org-confluence-export-callout-important-uses-valid-panel ()
+  "Export important callouts through a Confluence-supported panel macro."
+  (should (equal (hub/org-confluence-test--export "#+ATTR_CALLOUT: :type important\n#+begin_callout\nCritical\n#+end_callout")
+		 "<ac:structured-macro ac:name=\"warning\" ac:schema-version=\"1\"><ac:rich-text-body><p>Critical</p></ac:rich-text-body></ac:structured-macro>")))
+
 (provide 'org-confluence-export-test)
 ;;; org-confluence-export-test.el ends here

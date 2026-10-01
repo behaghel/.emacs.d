@@ -1,7 +1,6 @@
 ---
-domain: development
+domain: development/programming
 status: draft
-last-reviewed: 2026-06-10
 ---
 
 # Programming Defaults

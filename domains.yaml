@@ -4,11 +4,17 @@ project:
 
 domains:
   configuration-system:
+    kind: group
     description: Technical management of the Emacs configuration itself, including runtime, shared libraries, secrets, quality automation, and architecture governance.
-    type: core
-    subdomains:
+    domains:
       runtime:
         description: Startup entrypoints, package bootstrap, runtime predicates, load-path policy, paths, server startup, and always-on foundations.
+        type: core
+        language:
+          - term: Interactive layer
+            meaning: Configuration loaded only in user-facing Emacs sessions, not ordinary batch checks.
+          - term: Batch load
+            meaning: Non-interactive Emacs invocation used for CI, linting, tests, and smoke checks.
         code:
           - core/README.md
           - core/core-keybinds.el
@@ -24,11 +30,18 @@ domains:
         spec: core/
       secrets-private:
         description: Secret stores, local private setup, GPG/pass/YubiKey/SSH auth integration, and credential access policy.
-        code: [core/core-auth.el, core/secrets-private.md, private/]
-        spec: core/
+        type: core
+        language:
+          - term: Secret store
+            meaning: External credential backend such as pass, GPG, YubiKey, SSH agent, or auth-source.
+        code: [core/core-auth.el, private/]
+        spec: core/secrets/
       shared-libraries:
         description: Repo-owned reusable Elisp helpers, key semantics, prose helpers, Org callout helpers, and structural editing helpers.
         type: shared-kernel
+        language:
+          - term: Hub helper
+            meaning: A repo-owned function, variable, or command named with the hub/ prefix.
         code: [lisp/]
       quality:
         description: Tests, CI workflows, linting, formatting, parsing, warm-cache scripts, and developer environment automation.
@@ -43,86 +56,95 @@ domains:
       governance:
         description: Architectural documentation, domain/spec governance, performance discipline, and project-agent instructions.
         type: supporting
+        language:
+          - term: Architecture rule
+            meaning: Constraint that protects module boundaries, runtime layers, or user experience consistency.
         code:
           - docs/
           - spec/
           - AGENTS.md
-    language:
-      - term: Interactive layer
-        meaning: Configuration loaded only in user-facing Emacs sessions, not ordinary batch checks.
-      - term: Batch load
-        meaning: Non-interactive Emacs invocation used for CI, linting, tests, and smoke checks.
-      - term: Hub helper
-        meaning: A repo-owned function, variable, or command named with the hub/ prefix.
-      - term: Secret store
-        meaning: External credential backend such as pass, GPG, YubiKey, SSH agent, or auth-source.
-      - term: Architecture rule
-        meaning: Constraint that protects module boundaries, runtime layers, or user experience consistency.
 
   interactive-foundation:
-    description: Core interaction mechanics independent of work outcome: editing, completion, navigation, presentation, and OS integration.
-    type: core
-    subdomains:
+    kind: group
+    description: "Core interaction mechanics independent of work outcome: editing, completion, navigation, presentation, and OS integration."
+    domains:
       editing:
         description: Editing defaults, Evil behavior, keybinding infrastructure, and shared interaction mechanics.
+        type: core
+        language:
+          - term: Leader binding
+            meaning: Discovery-oriented Evil keybinding rooted at comma.
+          - term: Localleader binding
+            meaning: Mode-specific command surface with semantics documented in keybinding guidance.
         code: [modules/interactive/editing/]
       completion:
         description: Completion framework and minibuffer interaction behavior.
+        type: core
         code: [modules/interactive/completion/]
       navigation:
         description: Project focus, perspectives, file/buffer navigation, Treemacs, Dired, and navigation history.
+        type: core
+        language:
+          - term: Perspective
+            meaning: Project or activity context used to isolate buffers, windows, and navigation state.
         code:
           - modules/interactive/navigation/
           - test/interactive-foundation/navigation/
       presentation:
         description: Interactive presentation, dashboard, themes, fonts, GUI, and TTY behavior.
+        type: core
         code: [modules/interactive/ui/]
       os-integration:
         description: Operating-system-specific interactive integration.
+        type: core
         code: [modules/interactive/os/]
-    language:
-      - term: Leader binding
-        meaning: Discovery-oriented Evil keybinding rooted at comma.
-      - term: Localleader binding
-        meaning: Mode-specific command surface with semantics documented in keybinding guidance.
-      - term: Perspective
-        meaning: Project or activity context used to isolate buffers, windows, and navigation state.
 
   development:
+    kind: group
     description: Coding, developer environment, VCS, shells, language support, and programming ergonomics.
-    type: supporting
-    subdomains:
+    domains:
       programming:
         description: Cross-language programming defaults, structural editing, code assistance, formatting, Tree-sitter, Eglot, and language modules.
+        type: supporting
+        language:
+          - term: Development default
+            meaning: Cross-language programming behavior applied by the dev entrypoints.
+          - term: Language module
+            meaning: Per-language configuration under modules/lang/.
+          - term: Project environment
+            meaning: Directory-local shell/tooling environment, often provided through direnv/devenv.
         code:
           - modules/interactive/dev/
           - modules/lang/
       vcs:
         description: Version-control integration, Git UI, diffs, and repository SSH behavior.
+        type: supporting
         code: [modules/interactive/vcs/]
       shell:
         description: Interactive shells and command-line workflow inside Emacs.
+        type: supporting
         code: [modules/interactive/shell/]
-    language:
-      - term: Development default
-        meaning: Cross-language programming behavior applied by the dev entrypoints.
-      - term: Language module
-        meaning: Per-language configuration under modules/lang/.
-      - term: Project environment
-        meaning: Directory-local shell/tooling environment, often provided through direnv/devenv.
 
   authoring:
+    kind: group
     description: Writing, knowledge capture, notes, Org authoring, and document production.
-    type: core
-    subdomains:
+    domains:
       prose:
         description: Prose writing, snippets, templates, lightweight markup, and legacy writing helpers.
+        type: core
+        language:
+          - term: Prose workflow
+            meaning: Editing behavior for natural-language text, including wrapping, spell checking, readability, and focused writing modes.
         code:
           - modules/interactive/writing/
           - modules/writing/
           - insert/
       org:
         description: Org-based authoring, settings, capture, agenda, Babel, and interactive integrations.
+        type: core
+        language:
+          - term: Semantic layer
+            meaning: Author-facing Org contract that describes meaning independently from output styling.
         code:
           - modules/interactive/org/README.md
           - modules/interactive/org/core.el
@@ -153,20 +175,27 @@ domains:
         type: shared-kernel
         code:
           - packages/org-suggestions/
-        spec: packages/org-suggestions/SPEC.md
+        spec: packages/org-suggestions/
       marginalia:
         description: Reusable Org marginalia package, including native footnote/sidenote collection, layout, and context-panel provider integration.
         type: shared-kernel
         code:
           - packages/org-marginalia/
-        spec: spec/org-marginalia/
+        spec: packages/org-marginalia/
       notes:
         description: Note-taking and personal knowledge management workflows.
+        type: core
         code:
           - modules/interactive/notes/
           - test/authoring/notes/
       documents:
         description: Document export, PDF/LaTeX authoring, Nomina workflows, and document assets.
+        type: core
+        language:
+          - term: Document production
+            meaning: Exporting or compiling authored source into PDF, LaTeX, or other document artifacts.
+          - term: Class family
+            meaning: A related set of LaTeX/PDF export classes and variants.
         code:
           - modules/interactive/org/export.el
           - modules/org/
@@ -176,29 +205,25 @@ domains:
           - test/authoring/documents/
           - test/fixtures/org-export/
         spec: modules/org/
-    language:
-      - term: Semantic layer
-        meaning: Author-facing Org contract that describes meaning independently from output styling.
-      - term: Prose workflow
-        meaning: Editing behavior for natural-language text, including wrapping, spell checking, readability, and focused writing modes.
-      - term: Document production
-        meaning: Exporting or compiling authored source into PDF, LaTeX, or other document artifacts.
-      - term: Class family
-        meaning: A related set of LaTeX/PDF export classes and variants.
 
   publishing:
+    kind: group
     description: Publishing authored content to external destinations and reusable publishing package boundaries.
-    type: supporting
-    subdomains:
+    domains:
       blog:
         description: Blog publishing and Hugo-oriented content workflows.
+        type: supporting
+        language:
+          - term: Publishing workflow
+            meaning: Export or synchronization path from authored content to an external medium.
         code:
           - modules/interactive/tools/blog.el
           - packages/hb-static-site/
           - test/publishing/blog/
-        spec: modules/interactive/tools/
+        spec: packages/hb-static-site/
       confluence:
         description: Confluence publishing integration and reusable org-confluence package code.
+        type: supporting
         code:
           - modules/interactive/org/confluence.el
           - packages/org-confluence/
@@ -207,94 +232,66 @@ domains:
       org-sync:
         description: Provider-neutral Org synchronization helpers shared by bidirectional publishing providers.
         type: shared-kernel
+        language:
+          - term: Local package
+            meaning: Reusable package-style code with neutral defaults, separate from activation and personal configuration modules.
         code:
           - packages/org-sync/
         spec: packages/org-sync/
       google-docs:
         description: Google Docs publishing integration and reusable org-google-docs adapter package code.
+        type: supporting
         code:
           - modules/interactive/org/google-docs.el
           - packages/org-google-docs/
           - test/publishing/google-docs/
         spec: packages/org-google-docs/
-    language:
-      - term: Publishing workflow
-        meaning: Export or synchronization path from authored content to an external medium.
-      - term: Local package
-        meaning: Reusable package-style code with neutral defaults, separate from activation and personal configuration modules.
 
   personal-apps:
+    kind: group
     description: Standalone user-facing workflows not primarily foundation, development, authoring, or publishing.
-    type: supporting
-    subdomains:
+    domains:
       apps:
         description: Feed reader, browser editing, REST request, and other standalone app-style workflows.
+        type: supporting
+        language:
+          - term: App module
+            meaning: A self-contained interactive workflow that is not part of foundation, development, authoring, or publishing behavior.
         code: [modules/interactive/apps/]
       email:
         description: mu4e integration, mail contexts, actions, composing, viewing, noise filtering, and email dashboard behavior.
+        type: supporting
+        language:
+          - term: Context
+            meaning: Mail account or identity selection used by mu4e.
         code: [modules/interactive/email/]
       video:
         description: Media-oriented command flows integrated into Emacs.
+        type: supporting
+        language:
+          - term: Video workflow
+            meaning: Media-oriented command flow integrated into the editor.
         code:
           - modules/interactive/video/
           - test/personal-apps/video/
       ai:
         description: AI and assistant-style standalone workflows.
+        type: supporting
         code: [modules/interactive/tools/ai.el]
-        spec: modules/interactive/tools/
-    language:
-      - term: App module
-        meaning: A self-contained interactive workflow that is not part of foundation, development, authoring, or publishing behavior.
-      - term: Context
-        meaning: Mail account or identity selection used by mu4e.
-      - term: Video workflow
-        meaning: Media-oriented command flow integrated into the editor.
+        spec: modules/interactive/tools/ai/
 
 context-map:
-  - from: interactive-foundation
-    to: configuration-system
-    pattern: shared-kernel
-    via: lisp/ helpers, runtime predicates, package bootstrap, and key semantics
-    notes: Interactive modules consume configuration-system runtime contracts and shared helpers.
-
-  - from: development
-    to: interactive-foundation
-    pattern: conformist
-    via: Evil, completion, project, navigation, VCS, and shell command surfaces
-    notes: Development workflows use the common interactive command surface.
-
-  - from: authoring
-    to: interactive-foundation
-    pattern: conformist
-    via: Evil, prose helpers, snippets, completion, navigation, and presentation conventions
-    notes: Authoring workflows adapt to the established interactive UX model.
-
-  - from: publishing
-    to: authoring
+  - provider: authoring/org
+    consumers: [publishing/blog, publishing/confluence, publishing/google-docs]
     pattern: customer-supplier
-    via: Org content, export semantics, and reusable publishing package contracts
-    notes: Publishing consumes authored documents and preserves authoring semantics when sending content externally.
+    contract: modules/interactive/org/README.md
 
-  - from: publishing
-    to: authoring.comments
+  - provider: authoring/comments
+    consumers: [publishing/confluence, publishing/google-docs]
     pattern: shared-kernel
-    via: packages/org-comments/ backend protocol and comment record model
-    notes: Remote publishing/comment adapters such as Confluence consume the reusable comments kernel instead of private authoring UI internals.
+    contract: packages/org-comments/README.md
 
-  - from: publishing
-    to: configuration-system
+  - provider: publishing/org-sync
+    consumers: [publishing/confluence, publishing/google-docs]
     pattern: shared-kernel
-    via: packages/org-confluence/ and lisp/ helpers
-    notes: Reusable publishing package code consumes shared helper and package-management contracts.
-
-  - from: personal-apps
-    to: interactive-foundation
-    pattern: conformist
-    via: Evil, keybinding, UI, app presentation, and dashboard conventions
-    notes: Personal apps adapt to the established interactive UX model.
-
-  - from: configuration-system
-    to: authoring
-    pattern: customer-supplier
-    via: quality checks, export tests, and architecture guidance
-    notes: Configuration-system quality tooling verifies authoring and document-production behavior.
+    contract: packages/org-sync/README.md

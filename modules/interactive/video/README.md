@@ -1,7 +1,6 @@
 ---
-domain: personal-apps
+domain: personal-apps/video
 status: draft
-last-reviewed: 2026-06-10
 ---
 
 # Video Workflows

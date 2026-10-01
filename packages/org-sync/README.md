@@ -1,42 +1,48 @@
 ---
-domain: publishing.org-sync
+domain: publishing/org-sync
 status: draft
-last-reviewed: 2026-07-05
 ---
 
-# Spec: Org Sync Shared Kernel
+# Org Sync Shared Kernel
 
-## Problem
+## Boundary
 
-Confluence and Google Docs both synchronize Org buffers with remote document providers. They need the same Org-level asset semantics: standalone image detection, local path resolution, stable generated filenames, imported/missing-source handling, and preflight diagnostics. Provider packages should not reimplement this logic differently.
+`org-sync` owns provider-neutral synchronization planning, local and remote reference modeling, tracking sidecars, status presentation, and Org asset semantics. Provider packages own authentication, network APIs, remote mutation, and translation from provider payloads.
 
-## Decisions
+## Tracking Model
 
-- Keep provider-neutral Org synchronization helpers in `packages/org-sync/`.
-- Keep provider API behavior outside this package: Confluence attachment upload and Google Drive upload/download remain in provider packages.
-- Preserve existing Confluence-compatible generated image filename semantics so migration can be incremental.
-- Prefer data-returning planners and small diagnostics over provider-specific side effects.
+A source document may have one active provider identity and a colocated `.sync.org` tracking sidecar. Tracking data contains provider identity plus per-domain base and fetched references; it contains no credentials or raw private payloads.
 
-## Initial Scope
+The synchronization domains are `content` and `comments`. Each domain compares current local, fetched remote, base local, and base remote references and derives `clean`, `ahead`, `behind`, `diverged`, `unknown`, `conflicted`, or `fetch-error`.
 
-- Standalone Org image link detection.
-- Caption extraction from standalone image paragraphs.
-- Local image path resolution relative to the source Org buffer.
-- Stable generated image filenames.
-- Missing imported/generated asset detection for providers that can reuse a remote asset without a local source.
-- Buffer image asset planning.
+## Operation Semantics
 
-## Acceptance Criteria
+- Refresh recomputes local references without network access.
+- Fetch updates remote-tracking references without changing source content, comments, or remote state.
+- Baseline accepts current local and fetched references as corresponding.
+- Pull applies eligible remote changes through provider callbacks.
+- Push applies eligible local changes through provider callbacks.
+- Diverged, conflicted, and unknown domains block generic pull and push.
+- Successful operations advance bases only for domains that completed successfully.
 
-- [x] Given an undescribed standalone local image link, when image assets are planned, then org-sync returns source link, local source path, generated filename, and caption when present.
-- [x] Given a described image link, when image assets are planned, then it is ignored as a normal link.
-- [x] Given a missing non-imported local image, when strict path resolution is requested, then org-sync reports a clear error.
-- [x] Given a generated/imported image filename with no local source, when image assets are planned with imported reuse enabled, then the asset is marked `:missing-source` instead of failing.
-- [x] Given Google Docs image preflight runs, when it detects standalone images, then it uses org-sync asset planning for Org-level detection/path/caption behavior.
-- [x] Given Confluence image asset behavior is migrated, when existing Confluence tests run, then generated filenames and missing-source semantics remain unchanged.
-- [x] Given a pulled Google Docs remote image link, when the provider cache command runs, then org-sync downloads the fetchable URL to a stable local cache filename and the provider rewrites the Org link to `file:`.
+## Provider Contract
 
-## Verification
+Providers register detection, fetch, reference, pull, push, and open-remote callbacks. Raw provider comments are normalized before `org-sync` canonicalizes and hashes them. The kernel never depends on Confluence or Google Docs packages.
 
-- Package-local ERT tests in `packages/org-sync/test/` cover the shared behavior.
-- Provider migrations keep their existing provider-specific test suites green.
+## Asset Contract
+
+The package detects standalone Org image links, resolves local paths relative to the source buffer, extracts captions, creates stable generated filenames, and reports missing sources. Providers decide how remote assets are uploaded, downloaded, or reused.
+
+## Invariants
+
+- A source has at most one active provider identity.
+- Identity mismatches block network and mutation operations until explicitly reset.
+- Tracking files contain no OAuth tokens, credentials, or full private API payloads.
+- Fetch never mutates authored source or comment sidecars.
+- Provider-neutral logic remains deterministic and testable without network access.
+- Status UI reads local and tracking state without implicit fetches.
+
+## Related Material
+
+- Status-model delivery specification: [`SPEC.md`](SPEC.md)
+- Asset-planning delivery history: [`assets.plan.md`](assets.plan.md)

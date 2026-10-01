@@ -1,7 +1,6 @@
 ---
-domain: publishing
+domain: publishing/confluence
 status: draft
-last-reviewed: 2026-06-10
 ---
 
 # Confluence Publishing

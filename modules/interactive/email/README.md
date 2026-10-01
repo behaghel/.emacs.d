@@ -1,7 +1,6 @@
 ---
-domain: personal-apps
+domain: personal-apps/email
 status: draft
-last-reviewed: 2026-06-08
 ---
 
 # Email Productivity

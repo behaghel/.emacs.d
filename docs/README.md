@@ -1,7 +1,6 @@
 ---
-domain: configuration-system
+domain: configuration-system/governance
 status: draft
-last-reviewed: 2026-06-08
 ---
 
 # Architecture Governance
@@ -23,4 +22,4 @@ last-reviewed: 2026-06-08
 
 ## Integration Notes
 
-This domain supplies guidance consumed by quality tooling and implementation work.  When a rule becomes mechanically enforceable, prefer adding a check in the quality system rather than relying only on prose.
+This domain supplies guidance consumed by quality tooling and implementation work. When a rule becomes mechanically enforceable, prefer adding a check in the quality system rather than relying only on prose.

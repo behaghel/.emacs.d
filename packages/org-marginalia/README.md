@@ -1,3 +1,8 @@
+---
+domain: authoring/marginalia
+status: draft
+---
+
 # org-marginalia
 
 `org-marginalia` is a reusable Org package for native footnote/sidenote marginalia.

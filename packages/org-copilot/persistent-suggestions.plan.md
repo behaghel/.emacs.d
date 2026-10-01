@@ -1,9 +1,3 @@
----
-domain: authoring.copilot
-spec: packages/org-copilot/spec-persistent-suggestions.md
-status: draft
----
-
 # Plan: Persistent Copilot Suggestions
 
 This plan implements the coordinated specs:

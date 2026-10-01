@@ -1,7 +1,6 @@
 ---
-domain: personal-apps
+domain: personal-apps/apps
 status: draft
-last-reviewed: 2026-06-08
 ---
 
 # Personal Apps

@@ -44,6 +44,12 @@
   "Return SPECIAL-BLOCK's callout title, or nil."
   (plist-get (org-confluence--callout-attributes special-block) :title))
 
+(defun org-confluence--callout-macro-name (type)
+  "Return the Confluence panel macro name for semantic callout TYPE."
+  (pcase type
+    ("important" "warning")
+    (_ type)))
+
 (defun org-confluence--join-lines (&rest parts)
   "Join non-empty XHTML PARTS with newlines."
   (string-join (seq-filter (lambda (part)
@@ -394,7 +400,8 @@ back to Confluence."
   (if (string= (downcase (or (org-element-property :type special-block) "")) "callout")
       (let ((kind (org-confluence--callout-type special-block "info"))
 	    (title (org-confluence--callout-title special-block)))
-	(concat (format "<ac:structured-macro ac:name=\"%s\" ac:schema-version=\"1\">" (xml-escape-string kind))
+	(concat (format "<ac:structured-macro ac:name=\"%s\" ac:schema-version=\"1\">"
+			(xml-escape-string (org-confluence--callout-macro-name kind)))
 		(when title
 		  (format "<ac:parameter ac:name=\"title\">%s</ac:parameter>"
 			  (xml-escape-string title)))

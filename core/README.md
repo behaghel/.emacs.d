@@ -1,7 +1,6 @@
 ---
-domain: configuration-system
+domain: configuration-system/runtime
 status: draft
-last-reviewed: 2026-06-08
 ---
 
 # Configuration Runtime

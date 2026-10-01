@@ -50,6 +50,7 @@ not part of the target architecture.
 
 - `#+begin_callout` / `#+end_callout` → Confluence panel macros.
 - Optional type via `#+ATTR_CALLOUT: :type info|note|warning|tip|important`. Default: `info`.
+- `important` is semantic authoring shorthand and exports through Confluence's supported `warning` panel macro.
 - Panel title via `#+ATTR_CALLOUT: :title "Title"`.
 
 ### `cfl` Integration
@@ -126,7 +127,7 @@ Decisions:
 **Elements added:**
 - Tables: `<table><thead><tr><th>`, `<tbody><tr><td>`
 - Blockquotes (`#+begin_quote`): `<blockquote>`
-- Callout blocks (`#+begin_callout`): Confluence `<ac:structured-macro>` with `name="info|note|warning|tip|important"`
+- Callout blocks (`#+begin_callout`): Confluence `<ac:structured-macro>` with `name="info|note|warning|tip"`; semantic `important` maps to `warning`
 - Code blocks (`#+begin_src`): `<ac:structured-macro name="code"` with language attribute
 - Strikethrough: `<strike>` or `<span style="text-decoration: line-through;">`
 - Underline: `<u>`
