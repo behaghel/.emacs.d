@@ -83,6 +83,73 @@
   (should (fboundp 'denote))
   (should (equal denote-directory hub/denote-directory)))
 
+(ert-deftest hub/denote-note-destinations-have-distinct-defaults ()
+  "Personal, work, and blog notes have their expected default destinations."
+  (should (equal hub/denote-directory
+		 (expand-file-name "~/Sync/Syncthing/Documents/org/notes/")))
+  (should (equal hub/denote-work-directory
+		 (expand-file-name "~/ws/veriff/my-docs/")))
+  (should (equal hub/denote-blog-directory
+		 (expand-file-name "~/ws/blog.behaghel.org/content-org/journal/"))))
+
+(ert-deftest hub/denote-personal-create-ignores-buffer-local-settings ()
+  "Creating a personal note ignores settings inherited from a work buffer."
+  (let ((personal-directory (make-temp-file "hub-denote-personal-" t))
+	observed)
+    (unwind-protect
+	(let ((hub/denote-directory personal-directory))
+	  (with-temp-buffer
+	    (setq-local denote-directory hub/denote-work-directory)
+	    (setq-local denote-known-keywords hub/denote-work-known-keywords)
+	    (setq-local denote-org-front-matter hub/denote--work-org-front-matter)
+	    (cl-letf (((symbol-function 'denote)
+		       (lambda (&rest _)
+			 (interactive)
+			 (setq observed
+			       (list denote-directory
+				     denote-known-keywords
+				     denote-org-front-matter
+				     denote-prompts)))))
+	      (hub/denote-personal-create)))
+	  (should (equal observed
+			 (list personal-directory
+			       hub/denote-known-keywords
+			       hub/denote--org-front-matter
+			       '(title keywords)))))
+      (delete-directory personal-directory t))))
+
+(ert-deftest hub/denote-blog-create-ignores-buffer-local-directory ()
+  "Creating a blog note ignores the invoking buffer's note directory."
+  (let ((blog-directory (make-temp-file "hub-denote-blog-" t))
+	(original-directory hub/denote-blog-directory)
+	observed)
+    (unwind-protect
+	(progn
+	  (setq hub/denote-blog-directory blog-directory)
+	  (with-temp-buffer
+	    (setq-local denote-directory hub/denote-work-directory)
+	    (cl-letf (((symbol-function 'denote)
+		       (lambda (&rest _)
+			 (interactive)
+			 (setq observed denote-directory))))
+	      (hub/denote-blog-create)))
+	  (should (equal observed blog-directory)))
+      (setq hub/denote-blog-directory original-directory)
+      (delete-directory blog-directory t))))
+
+(ert-deftest hub/denote-note-bindings-select-explicit-destinations ()
+  "Note creation bindings select destination-specific commands."
+  (should (eq (lookup-key evil-normal-state-map (kbd ",nn"))
+	      #'hub/denote-personal-create))
+  (should (eq (lookup-key evil-normal-state-map (kbd ",no"))
+	      #'hub/denote-personal))
+  (should (eq (lookup-key evil-normal-state-map (kbd ",nw"))
+	      #'hub/denote-work))
+  (should (eq (lookup-key evil-normal-state-map (kbd ",nW"))
+	      #'hub/denote-work-create))
+  (should (eq (lookup-key evil-normal-state-map (kbd ",nj"))
+	      #'hub/denote-blog-create)))
+
 (ert-deftest hub/org-tab-advances-active-yasnippet-field ()
   "Org TAB should move through Yasnippet fields before cycling headings."
   (unless (require 'yasnippet nil 'noerror)

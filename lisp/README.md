@@ -17,6 +17,7 @@ status: draft
 - Shared helpers must be small, explicit, and safe to load from multiple domains.
 - Any module that calls shared `hub/` helpers must require the relevant helper library explicitly.
 - Shared libraries must not introduce broad interactive side effects merely by being required.
+- Shared note-directory options provide the configured personal, work, and blog destinations consumed by note commands and dashboard sections.
 - Key semantics should remain discoverable and aligned with documented leader/localleader conventions.
 - Shared code should avoid depending on optional interactive packages unless guarded or moved into the consuming domain.
 - Org marginalia model helpers are pure collection/layout functions: they may parse Org buffers, but they must not open windows, modify source text, or perform export side effects.
@@ -25,4 +26,4 @@ status: draft
 
 ## Integration Notes
 
-This domain is a shared kernel.  Changes can affect runtime, editing, writing, email, and development workflows.  Keep the shared surface narrow; behavior that serves only one domain belongs in that domain instead.
+This domain is a shared kernel.  Changes can affect runtime, editing, writing, email, and development workflows.  Keep the shared surface narrow; behavior that serves only one domain belongs in that domain instead. Note-directory changes affect the authoring notes module and dashboard note sections.

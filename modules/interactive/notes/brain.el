@@ -8,6 +8,13 @@
 (require 'hub-denote)
 (require 'hub-noise)
 (require 'hub-utils)
+(require 'cl-lib)
+
+(defcustom hub/denote-known-keywords
+  '("emacs" "faith" "family" "hubert" "pro" "engineering" "leadership")
+  "Known keywords offered when creating personal and blog Denote notes."
+  :type '(repeat string)
+  :group 'hub/notes)
 
 (defcustom hub/denote-work-known-keywords
   '("product" "engineering" "business" "culture" "organisation")
@@ -38,23 +45,61 @@
 
 (put 'denote-org-front-matter 'safe-local-variable #'stringp)
 
-(defun hub/denote-work--with-settings (command)
-  "Call Denote COMMAND with work-note settings."
-  (make-directory hub/denote-work-directory t)
-  (let ((denote-directory hub/denote-work-directory)
-	(denote-known-keywords hub/denote-work-known-keywords)
-	(denote-org-front-matter hub/denote--work-org-front-matter))
-    (call-interactively command)))
+(defun hub/denote--with-settings (command directory keywords front-matter)
+  "Call Denote COMMAND using DIRECTORY, KEYWORDS, and FRONT-MATTER."
+  (make-directory directory t)
+  (with-temp-buffer
+    (cl-progv '(denote-directory
+		denote-known-keywords
+		denote-org-front-matter
+		denote-prompts)
+	(list directory keywords front-matter '(title keywords))
+      (call-interactively command))))
+
+(defun hub/denote-personal ()
+  "Open or create a Denote note in `hub/denote-directory'."
+  (interactive)
+  (hub/denote--with-settings
+   #'denote-open-or-create
+   hub/denote-directory
+   hub/denote-known-keywords
+   hub/denote--org-front-matter))
+
+(defun hub/denote-personal-create ()
+  "Create a Denote note in `hub/denote-directory'."
+  (interactive)
+  (hub/denote--with-settings
+   #'denote
+   hub/denote-directory
+   hub/denote-known-keywords
+   hub/denote--org-front-matter))
 
 (defun hub/denote-work ()
   "Open or create a Denote note in `hub/denote-work-directory'."
   (interactive)
-  (hub/denote-work--with-settings #'denote-open-or-create))
+  (hub/denote--with-settings
+   #'denote-open-or-create
+   hub/denote-work-directory
+   hub/denote-work-known-keywords
+   hub/denote--work-org-front-matter))
 
 (defun hub/denote-work-create ()
   "Create a Denote note in `hub/denote-work-directory'."
   (interactive)
-  (hub/denote-work--with-settings #'denote))
+  (hub/denote--with-settings
+   #'denote
+   hub/denote-work-directory
+   hub/denote-work-known-keywords
+   hub/denote--work-org-front-matter))
+
+(defun hub/denote-blog-create ()
+  "Create a Denote note in `hub/denote-blog-directory'."
+  (interactive)
+  (hub/denote--with-settings
+   #'denote
+   hub/denote-blog-directory
+   hub/denote-known-keywords
+   hub/denote--org-front-matter))
 
 (defun hub/denote--configure-org-capture ()
   "Configure Org capture templates that create Denote notes."
@@ -86,7 +131,7 @@
   :init
   (setq denote-directory hub/denote-directory
 	denote-org-front-matter hub/denote--org-front-matter
-	denote-known-keywords '("emacs" "faith" "family" "hubert" "pro" "engineering" "leadership")
+	denote-known-keywords hub/denote-known-keywords
 	denote-infer-keywords t
 	denote-sort-keywords t
 	denote-prompts '(title keywords)
@@ -103,10 +148,11 @@
 	denote-backlinks-show-context t
 	denote-dired-directories (list denote-directory))
 
-  (evil-global-set-key 'normal ",no" #'denote-open-or-create)
-  (evil-global-set-key 'normal ",nn" #'denote)
+  (evil-global-set-key 'normal ",no" #'hub/denote-personal)
+  (evil-global-set-key 'normal ",nn" #'hub/denote-personal-create)
   (evil-global-set-key 'normal ",nw" #'hub/denote-work)
   (evil-global-set-key 'normal ",nW" #'hub/denote-work-create)
+  (evil-global-set-key 'normal ",nj" #'hub/denote-blog-create)
   (evil-global-set-key 'normal ",nt" #'denote-type)
   (evil-global-set-key 'normal ",nd" #'denote-date)
   (evil-global-set-key 'normal ",ns" #'denote-subdirectory)
