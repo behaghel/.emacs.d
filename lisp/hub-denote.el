@@ -14,13 +14,19 @@
   "Notes configuration and shared Denote helpers."
   :group 'convenience)
 
-(defcustom hub/denote-directory (expand-file-name "~/ws/blog.behaghel.org/content-org/journal/")
-  "Default directory for Denote notes."
+(defcustom hub/denote-directory (expand-file-name "~/Sync/Syncthing/Documents/org/notes/")
+  "Default directory for personal Denote notes."
   :type 'directory
   :group 'hub/notes)
 
 (defcustom hub/denote-work-directory (expand-file-name "~/ws/veriff/my-docs/")
   "Directory for work Denote notes."
+  :type 'directory
+  :group 'hub/notes)
+
+(defcustom hub/denote-blog-directory
+  (expand-file-name "~/ws/blog.behaghel.org/content-org/journal/")
+  "Directory for blog journal Denote notes."
   :type 'directory
   :group 'hub/notes)
 
