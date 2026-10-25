@@ -10,6 +10,46 @@
 (require 'org-copilot)
 (require 'org-copilot-context-panel)
 
+(ert-deftest org-copilot-context-panel-does-not-install-global-window-watch ()
+  "Explicit activation must not leave a global Copilot selection callback."
+  (let ((window-selection-change-functions nil))
+    (with-temp-buffer
+      (org-mode)
+      (should-not org-copilot-mode)
+      (org-copilot-mode 1)
+      (should-not (memq 'org-copilot--window-selection-changed
+			window-selection-change-functions))
+      (org-copilot-mode -1)
+      (should-not (memq 'org-copilot--window-selection-changed
+			window-selection-change-functions)))))
+
+(ert-deftest org-copilot-personal-config-activation-is-explicit ()
+  "Loading personal AI config leaves ordinary Org buffers inactive."
+  (let ((org-mode-hook nil)
+	(org-copilot-mode-hook nil)
+	(after-load-alist nil)
+	configured)
+    (cl-letf (((symbol-function 'use-package)
+	       (cons 'macro (lambda (&rest _args) nil))))
+      (load (expand-file-name
+	     "../../modules/interactive/tools/ai.el"
+	     (file-name-directory (locate-library "org-copilot")))
+	    nil t))
+    (should (advice-member-p #'hub/org-copilot-enable-gptel
+			     'org-copilot-review-dwim))
+    (advice-remove 'org-copilot-review-dwim #'hub/org-copilot-enable-gptel)
+    (cl-letf (((symbol-function 'hub/org-copilot-enable-gptel)
+	       (lambda () (setq configured t))))
+      (with-temp-buffer
+	(org-mode)
+	(should-not org-copilot-mode)
+	(should-not configured)
+	(org-copilot-mode 1)
+	(should configured)
+	(setq configured nil)
+	(org-copilot-mode -1)
+	(should-not configured)))))
+
 (ert-deftest org-copilot-highlight-faces-keep-foreground-unspecified ()
   "Org Copilot highlight faces only force background colors."
   (dolist (face '(org-copilot-target-face org-copilot-target-dim-face))

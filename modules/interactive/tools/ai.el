@@ -45,15 +45,19 @@
 	secret)))
 
 (defun hub/gptel-configure-openai-oauth ()
-  "Configure gptel and Org Copilot to use ChatGPT subscription OAuth."
+  "Configure gptel's subscription OAuth without activating Org Copilot.
+Fail closed instead of falling back to an API-key backend."
   (when hub/gptel-use-openai-oauth
-    (if (not (require 'org-copilot-gptel nil 'noerror))
-	(message "Org Copilot: gptel provider unavailable")
-      (condition-case err
-	  (org-copilot-gptel-use-openai-oauth hub/gptel-openai-oauth-model)
-	(error
-	 (message "OpenAI OAuth backend unavailable: %s"
-		  (error-message-string err)))))))
+    (setq gptel-api-key nil
+	  gptel-backend nil)
+    (condition-case err
+	(progn
+	  (require 'gptel-openai-oauth)
+	  (setq gptel-backend (gptel-make-openai-oauth "OpenAI-sub")
+		gptel-model hub/gptel-openai-oauth-model))
+      (error
+       (message "gptel: ChatGPT subscription OAuth unavailable: %s"
+		(error-message-string err))))))
 
 (use-package gptel
   :commands (gptel gptel-send gptel-request)
@@ -77,23 +81,41 @@
     (gptel-agent-update)))
 
 (defun hub/org-copilot-enable-gptel ()
-  "Configure Org Copilot to use the gptel provider when available."
-  (if (not (require 'org-copilot-gptel nil 'noerror))
-      (message "Org Copilot: gptel provider unavailable")
-    (condition-case err
-	(org-copilot-gptel-enable)
-      (error
-       (message "Org Copilot: failed to enable gptel provider: %s"
-		(error-message-string err))))))
+  "Configure Org Copilot to use the selected gptel authentication route."
+  (if hub/gptel-use-openai-oauth
+      (when (require 'org-copilot-gptel nil 'noerror)
+	(condition-case err
+	    (org-copilot-gptel-use-openai-oauth hub/gptel-openai-oauth-model)
+	  (error
+	   (setq org-copilot-gptel-backend nil
+		 org-copilot-gptel-model nil
+		 org-copilot-chat-function nil
+		 org-copilot-review-function nil)
+	   (message "Org Copilot: ChatGPT subscription OAuth unavailable: %s"
+		    (error-message-string err)))))
+    (if (not (require 'org-copilot-gptel nil 'noerror))
+	(message "Org Copilot: gptel provider unavailable")
+      (condition-case err
+	  (org-copilot-gptel-enable)
+	(error
+	 (message "Org Copilot: failed to enable gptel provider: %s"
+		  (error-message-string err)))))))
 
-(with-eval-after-load 'org
-  (require 'org-copilot)
-  (add-hook 'org-mode-hook #'org-copilot-mode)
-  (hub/org-copilot-enable-gptel))
+(defun hub/org-copilot-configure-on-activation ()
+  "Configure Copilot's adapter only when its source mode is enabled."
+  (when (bound-and-true-p org-copilot-mode)
+    (hub/org-copilot-enable-gptel)))
+
+;; Also undo the former automatic activation when this config is reloaded.
+(remove-hook 'org-mode-hook #'org-copilot-mode)
+(add-hook 'org-copilot-mode-hook #'hub/org-copilot-configure-on-activation)
+
+;; Review requests precede mode activation, unlike the chat/panel commands.
+(with-eval-after-load 'org-copilot-llm
+  (advice-add 'org-copilot-review-dwim :before #'hub/org-copilot-enable-gptel))
 
 (with-eval-after-load 'gptel
-  (hub/gptel-agent-enable-tools)
-  (hub/org-copilot-enable-gptel))
+  (hub/gptel-agent-enable-tools))
 
 (use-package codeium
   :straight '(:type git :host github :repo "Exafunction/codeium.el")

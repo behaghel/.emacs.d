@@ -9,7 +9,8 @@
 (require 'ert)
 
 (defconst hub/context-dependency-test--root
-  (locate-dominating-file (or load-file-name buffer-file-name) "domains.yaml")
+  (expand-file-name
+   (locate-dominating-file (or load-file-name buffer-file-name) "domains.yaml"))
   "Repository containing package setup and the ERT runner.")
 
 (defun hub/context-dependency-test--write (root path contents)
@@ -108,6 +109,7 @@ SOURCE is `managed', `development', or `invalid'."
 		     root)))
     (unwind-protect
 	(progn
+	  (make-directory (expand-file-name "packages" root) t)
 	  (setenv "HOME" root)
 	  (setenv "STRAIGHT_BUILD_PATH" nil)
 	  (setenv "CONTEXT_PANELS_PATH"

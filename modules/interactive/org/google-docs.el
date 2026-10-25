@@ -31,11 +31,13 @@
   :group 'hub/org-google-docs)
 
 (defcustom hub/org-google-docs-gdocs-repository
-  (expand-file-name "~/ws/gdocs")
-  "Local gdocs fork checkout used by Straight.
-The expected branch is `org-image-seam', which carries the upstreamable seams
-required by `org-google-docs' for native footnotes and image semantics."
-  :type 'directory
+  (let ((directory (getenv "GDOCS_PATH")))
+    (when (and directory (not (string-empty-p directory)))
+      (expand-file-name directory)))
+  "Explicit local gdocs development checkout, or nil for the managed package.
+A nonempty GDOCS_PATH environment variable supplies the default override.
+The managed package uses the pinned semantic fork at behaghel/gdocs."
+  :type '(choice (const :tag "Use managed gdocs" nil) directory)
   :group 'hub/org-google-docs)
 
 (defcustom hub/org-google-docs-style-definitions
@@ -195,30 +197,27 @@ YubiKey prompts.  When NOERROR is non-nil, auth-source failures are ignored."
 	       (length hub/org-google-docs-style-definitions)))))
 
 (defun hub/org-google-docs--gdocs-straight-recipe ()
-  "Return the Straight recipe for upstream gdocs.
-Prefer the local seam fork when `hub/org-google-docs-gdocs-repository' exists;
-fall back to upstream so base Google Docs commands still bootstrap before the
-local fork is cloned."
-  (if (file-directory-p hub/org-google-docs-gdocs-repository)
-      `(gdocs :type git
-	      :repo ,hub/org-google-docs-gdocs-repository
-	      :branch "org-image-seam"
-	      :local-repo "gdocs")
-    '(gdocs :type git :host github :repo "benthamite/gdocs")))
+  "Return the managed or explicitly overridden gdocs recipe."
+  (if hub/org-google-docs-gdocs-repository
+      `(gdocs :type nil :local-repo ,(expand-file-name hub/org-google-docs-gdocs-repository))
+    '(gdocs :type git :host github :repo "behaghel/gdocs" :branch "org-image-seam")))
 
 (defun hub/org-google-docs--ensure-gdocs-package ()
-  "Install or register upstream gdocs through Straight when available."
+  "Validate any local override and register gdocs through Straight."
+  (when (and hub/org-google-docs-gdocs-repository
+	     (not (file-readable-p
+		   (expand-file-name "gdocs.el" hub/org-google-docs-gdocs-repository))))
+    (error "GDOCS_PATH or hub/org-google-docs-gdocs-repository must contain gdocs.el: %s"
+	   hub/org-google-docs-gdocs-repository))
   (when (fboundp 'straight-use-package)
     (straight-use-package (hub/org-google-docs--gdocs-straight-recipe))))
 
 (add-to-list 'load-path (expand-file-name "packages/org-sync" user-emacs-directory))
 (add-to-list 'load-path hub/org-google-docs-package-directory)
-(when (file-directory-p hub/org-google-docs-gdocs-repository)
-  (add-to-list 'load-path hub/org-google-docs-gdocs-repository))
 (hub/org-google-docs--ensure-gdocs-package)
 (require 'org-google-docs)
 (setq org-google-docs-gdocs-repository hub/org-google-docs-gdocs-repository)
-(org-google-docs-ensure-gdocs-loaded 'noerror)
+(org-google-docs-ensure-gdocs-loaded)
 
 (use-package gdocs
   :straight nil
@@ -236,7 +235,7 @@ local fork is cloned."
 	gdocs-auto-pull-on-open nil)
   (hub/org-google-docs-configure-accounts 'noerror)
   :config
-  (org-google-docs-ensure-gdocs-loaded 'noerror)
+  (org-google-docs-ensure-gdocs-loaded)
   (with-eval-after-load 'gdocs-convert
     (hub/org-google-docs-apply-style-definitions))
   (hub/org-google-docs-configure-accounts 'noerror))

@@ -53,12 +53,14 @@
 			 :target-text "target"
 			 :body "Root body"
 			 :remote-author-display-name "Romain Moisescot"
-			 :created-at "2026-07-29T09:37:00+0200"
+			 :created-at (format-time-string
+				      "%FT%T%z" (encode-time 0 37 9 29 7 2026))
 			 :remote-id "root-1"
 			 :replies (list (list :type 'comment
 					      :body "Reply body"
 					      :remote-author-display-name "Romain Moisescot"
-					      :created-at "2026-07-29T10:00:00+0200"
+					      :created-at (format-time-string
+							   "%FT%T%z" (encode-time 0 0 10 29 7 2026))
 					      :remote-id "reply-1")))))
       (org-comments-panel-render-insert-comment comment)
       (let ((text (buffer-string))

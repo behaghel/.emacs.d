@@ -190,21 +190,13 @@ UI is owned by the unified `org-comments' provider."
 		(org-copilot--auxiliary-buffer-p buffer))
       buffer)))
 
-(defun org-copilot--window-selection-changed (_frame)
-  "Schedule generic context-panel reconciliation after selection changes."
-  (unless org-copilot--workspace-refreshing
-    (when (fboundp 'context-panels--schedule-reconcile)
-      (context-panels--schedule-reconcile))))
-
-(defun org-copilot--ensure-window-watch ()
-  "Install Org Copilot source-window tracking hook."
-  (add-hook 'window-selection-change-functions
-	    #'org-copilot--window-selection-changed))
+;; Context-panels owns window reconciliation.  Remove the obsolete callback
+;; as well when reloading this library in an already-running Emacs session.
+(remove-hook 'window-selection-change-functions
+	     #'org-copilot--window-selection-changed)
 
 (defun org-copilot-context-panel-enable ()
   "Enable Org Copilot as a context-panel provider in the current buffer."
-  (org-copilot--ensure-window-watch)
-  (setq org-copilot--workspace-source-buffer (current-buffer))
   (when (fboundp 'org-comments-mode)
     (org-comments-mode 1))
   (context-panels-register-provider (org-copilot-context-panel-provider))

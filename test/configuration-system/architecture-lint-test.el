@@ -9,7 +9,8 @@
 (require 'seq)
 
 (defconst hub/architecture-lint-test--root
-  (locate-dominating-file (or load-file-name buffer-file-name) "domains.yaml")
+  (expand-file-name
+   (locate-dominating-file (or load-file-name buffer-file-name) "domains.yaml"))
   "Repository containing the architecture lint entrypoint.")
 
 (defun hub/architecture-lint-test--run (files)

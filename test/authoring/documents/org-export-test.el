@@ -1,20 +1,42 @@
 ;;; org-export-test.el --- Non-regression tests for org/export -*- lexical-binding: t; -*-
 
+(require 'cl-lib)
 (require 'ert)
 (require 'org)
 (require 'ox)
 (require 'ox-latex)
 
 ;; Ensure modules under modules/org/ are reachable for batch test runners.
-(let ((root (file-name-as-directory
-	     (locate-dominating-file (or load-file-name buffer-file-name)
-				     "domains.yaml"))))
+(let* ((root (file-name-as-directory
+	      (locate-dominating-file (or load-file-name buffer-file-name)
+				      "domains.yaml")))
+       (user-emacs-directory root))
   (add-to-list 'load-path (expand-file-name "modules" root))
   (add-to-list 'load-path (expand-file-name "modules/org" root))
   (add-to-list 'load-path (expand-file-name "lisp" root))
-  (add-to-list 'load-path (expand-file-name "core" root)))
+  (add-to-list 'load-path (expand-file-name "core" root))
+  ;; Export defaults resolve tracked assets relative to this checkout, not HOME.
+  (require 'org/export-latex))
 
-(require 'org/export-latex)
+(defun hub/org-export-test--as-latex (&optional subtreep)
+  "Export LaTeX text without requiring a real compiler.
+When SUBTREEP is non-nil, export only the current subtree."
+  (cl-letf (((symbol-function 'hub/org-export--compiler-ready-p)
+	     (lambda (_compiler) t)))
+    (org-export-as 'latex subtreep nil nil nil)))
+
+(ert-deftest hub/org-export-stages-tracked-assets-with-isolated-home ()
+  "Batch export stages tracked classes and Veriff assets without a real HOME."
+  (let ((output-directory (make-temp-file "hub-export-stage-" t)))
+    (unwind-protect
+	(progn
+	  (dolist (class '("hub-article" "veriff"))
+	    (hub/org-export--stage-class-asset output-directory class)
+	    (should (file-exists-p
+		     (expand-file-name (concat class ".cls") output-directory))))
+	  (dolist (asset '("hero-pattern.png" "hero-logo.pdf" "hero-logo-dark.pdf"))
+	    (should (file-exists-p (expand-file-name asset output-directory)))))
+      (delete-directory output-directory t))))
 
 (ert-deftest hub/org-export-no-toc-in-hub-article ()
   "Export a minimal hub-article Org buffer to LaTeX and verify no TOC."
@@ -38,7 +60,7 @@ More content."))
 	  ;; Register the class (simulates what export.el does at load)
 	  (hub/org-export-register-hub-article)
 	  ;; Export to LaTeX string via org-export-as
-	  (let ((output (org-export-as 'latex nil nil nil nil)))
+	  (let ((output (hub/org-export-test--as-latex)))
 	    (should output)
 	    ;; Check no tableofcontents in output
 	    (should-not (string-match-p "\\\\tableofcontents" output))
@@ -62,7 +84,7 @@ Text.")))
     (unwind-protect
 	(with-current-buffer (find-file-noselect org-file)
 	  (hub/org-export-register-hub-article)
-	  (let ((output (org-export-as 'latex nil nil nil nil)))
+	  (let ((output (hub/org-export-test--as-latex)))
 	    (should output)
 	    (should (string-match-p "\\\\HubArticleMeta{Test Author}{July 11, 2026}" output))
 	    (should-not (string-match-p "\\[2026-07-11 Sat 07:01\\]" output))))
@@ -81,7 +103,7 @@ Text.")))
     (unwind-protect
 	(with-current-buffer (find-file-noselect org-file)
 	  (hub/org-export-register-hub-article)
-	  (let ((output (org-export-as 'latex nil nil nil nil)))
+	  (let ((output (hub/org-export-test--as-latex)))
 	    (should output)
 	    (should (string-match-p "\\\\HubArticleMeta{Test Author}{July 11, 2026}" output))))
       (ignore-errors (delete-file org-file)))))
@@ -100,7 +122,7 @@ Texte.")))
     (unwind-protect
 	(with-current-buffer (find-file-noselect org-file)
 	  (hub/org-export-register-hub-article)
-	  (let ((output (org-export-as 'latex nil nil nil nil)))
+	  (let ((output (hub/org-export-test--as-latex)))
 	    (should output)
 	    (should (string-match-p "\\\\HubArticleMeta{Test Author}{22~juin~2026}" output))))
       (ignore-errors (delete-file org-file)))))
@@ -119,7 +141,7 @@ Texte.")))
     (unwind-protect
 	(with-current-buffer (find-file-noselect org-file)
 	  (hub/org-export-register-hub-article)
-	  (let ((output (org-export-as 'latex nil nil nil nil)))
+	  (let ((output (hub/org-export-test--as-latex)))
 	    (should output)
 	    (should (string-match-p "\\\\HubArticleMeta{Test Author}{1er~juin~2026}" output))))
       (ignore-errors (delete-file org-file)))))
@@ -148,7 +170,7 @@ Subtree content."))
 	  ;; Navigate to the subtree heading and export as subtree
 	  (goto-char (point-min))
 	  (re-search-forward "^\\*\\* Subtree heading")
-	  (let ((output (org-export-as 'latex t nil nil nil)))
+	  (let ((output (hub/org-export-test--as-latex t)))
 	    (should output)
 	    (should-not (string-match-p "\\\\tableofcontents" output))
 	    (message "PASS: No TOC in subtree export")))

@@ -8,15 +8,24 @@
 (require 'ert)
 (require 'seq)
 
-(defconst hub/org-google-docs-styles-test--gdocs-directory
-  (let ((local "/Users/hubertbehaghel/ws/gdocs"))
-    (if (file-directory-p local)
-	local
-      (expand-file-name "straight/repos/gdocs" default-directory)))
-  "Directory containing the gdocs checkout used by style request tests.")
+(defconst hub/org-google-docs-styles-test--build-directory
+  (expand-file-name (or (getenv "STRAIGHT_BUILD_PATH") "straight/build")
+		    default-directory)
+  "Directory containing managed package builds for style request tests.")
 
-(when (file-directory-p hub/org-google-docs-styles-test--gdocs-directory)
-  (add-to-list 'load-path hub/org-google-docs-styles-test--gdocs-directory))
+(defconst hub/org-google-docs-styles-test--gdocs-directory
+  (let ((override (getenv "GDOCS_PATH")))
+    (if (and override (not (equal override "")))
+	(expand-file-name override)
+      (expand-file-name "gdocs" hub/org-google-docs-styles-test--build-directory)))
+  "Managed gdocs build or explicit development checkout used by style tests.")
+
+(dolist (directory
+	 (list hub/org-google-docs-styles-test--gdocs-directory
+	       (expand-file-name "dash" hub/org-google-docs-styles-test--build-directory)
+	       (expand-file-name "s" hub/org-google-docs-styles-test--build-directory)))
+  (when (file-directory-p directory)
+    (add-to-list 'load-path directory)))
 
 (load-file "modules/org/google-docs-themes.el")
 (load-file "modules/org/google-docs-styles.el")

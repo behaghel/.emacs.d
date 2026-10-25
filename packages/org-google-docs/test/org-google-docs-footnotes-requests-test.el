@@ -17,6 +17,10 @@
 
 (require 'org-google-docs-footnotes)
 
+;; Declare the upstream variable here so this file's `let' is dynamic even
+;; without gdocs loaded.  Do not initialize it: boundness detects seam support.
+(defvar gdocs-convert-footnote-reference-text-function)
+
 (defun org-google-docs-footnotes-test--document-with-text (start content)
   "Return minimal Google Docs JSON with text run CONTENT at START."
   (let* ((text-element (list (cons 'startIndex start)

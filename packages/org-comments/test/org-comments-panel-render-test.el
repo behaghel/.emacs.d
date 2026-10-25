@@ -145,8 +145,9 @@
   (with-temp-buffer
     (org-comments-panel-render-buffer
      (current-buffer)
-     '((:type comment :status "OPEN" :body "Rewrite intro."
-	      :created-at "2026-08-06T20:22:00+0200"
+     `((:type comment :status "OPEN" :body "Rewrite intro."
+	      :created-at ,(format-time-string "%FT%T%z"
+					       (encode-time 0 22 20 6 8 2026))
 	      :suggestion-thread-id "ai-thread-1"
 	      :suggestion-ids "ai-1 ai-1.1"))
      nil)

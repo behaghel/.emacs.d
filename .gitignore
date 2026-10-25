@@ -14,6 +14,7 @@ var/
 !/etc/latex/veriff.cls
 !/etc/latex/assets/
 /etc/latex/assets/*
+!/etc/latex/assets/hero-logo.pdf
 !/etc/latex/assets/hero-logo-dark.pdf
 !/etc/latex/assets/hero-pattern-dark.pdf
 !/etc/latex/assets/hero-pattern-dark.svg

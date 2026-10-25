@@ -67,9 +67,9 @@ Keep ordinary personal settings in the relevant tracked modules. Reserve
 * CI Workflow
 - Jobs:
   - warm-cache (on main): populates straight and eln caches via `scripts/ci-warm-all.el`.
-  - load-config: architecture lint, full-load check, checkdoc/format, smoke tests, and ERT tests.
+  - load-config: architecture lint, full-load check, checkdoc/format, smoke tests, and all configuration/package ERT suites.
 - Guards:
-  - Assert no fallback to emergency bootstrap (must load `core-packages`).
+  - Required package setup loads through =core/core-packages.el=; failures stop startup.
   - Forbid any `(require 'setup-*)` in repo.
   - Fail if `settings/` has any tracked files.
 

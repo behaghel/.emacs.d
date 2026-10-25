@@ -9,7 +9,7 @@
 (require 'ert)
 
 (defconst hub/test-repo-root
-  (file-name-as-directory
+  (expand-file-name
    (locate-dominating-file (or load-file-name buffer-file-name) "domains.yaml"))
   "Repository root for Org LaTeX PDF export tests.")
 
@@ -27,6 +27,13 @@
   (require 'org/export-latex))
 
 (load-file (expand-file-name "scripts/approval-refresh-overdrive-page1.el" hub/test-repo-root))
+
+(defmacro hub/test-with-export-compiler-readiness (ready-p &rest body)
+  "Run BODY with exporter readiness forced to READY-P."
+  (declare (indent 1))
+  `(cl-letf (((symbol-function 'hub/org-export--compiler-ready-p)
+	      (lambda (_compiler) ,ready-p)))
+     ,@body))
 
 (defun hub/test-read-file-as-string (path)
   "Return PATH contents as a string."
@@ -158,7 +165,8 @@
 		(progn
 		  (org-mode)
 		  (let ((hub/org-export--active-output-dir nil))
-		    (org-export-to-file 'latex tex-path nil nil nil nil nil)))
+		    (hub/test-with-export-compiler-readiness t
+							     (org-export-to-file 'latex tex-path nil nil nil nil nil))))
 	      (kill-buffer)))
 	  (should (string-match-p
 		   (regexp-quote
@@ -276,12 +284,10 @@
   "Create a temporary artifact root under `var/'."
   (make-temp-file (expand-file-name "var/org-latex-pdf-test-" hub/test-repo-root) t))
 
-(defmacro hub/test-with-export-compiler-readiness (ready-p &rest body)
-  "Run BODY with exporter readiness forced to READY-P."
-  (declare (indent 1))
-  `(cl-letf (((symbol-function 'hub/org-export--compiler-ready-p)
-	      (lambda (_compiler) ,ready-p)))
-     ,@body))
+(defun hub/test-export-string-as (string backend &optional body-only ext-plist)
+  "Export STRING with BACKEND, BODY-ONLY, and EXT-PLIST without a real compiler."
+  (hub/test-with-export-compiler-readiness t
+					   (org-export-string-as string backend body-only ext-plist)))
 
 (defmacro hub/test-with-stubbed-latex-compile (&rest body)
   "Run BODY with `org-latex-compile' replaced by a PDF stub writer."
@@ -411,13 +417,14 @@
   "Gallery-white wraps the full-width opener so standfirst brackets are safe."
   (let ((artifact-root (hub/test-make-export-artifact-root)))
     (unwind-protect
-	(hub/test-with-org-buffer "#+TITLE: Bracket standfirst\n#+LATEX_CLASS: veriff\n#+LATEX_VARIANT: gallery-white\n\n#+begin_standfirst\nThis abstract contains a literal ] bracket.\n#+end_standfirst\n\n* Body\nText.\n"
-				  (let* ((hub/org-export-output-root artifact-root)
-					 (tex-path (hub/org-export-buffer-to-latex artifact-root))
-					 (tex-contents (hub/test-read-file-as-string tex-path)))
-				    (should (string-match-p (regexp-quote "\\twocolumn[{") tex-contents))
-				    (should (string-match-p (regexp-quote "literal ] bracket") tex-contents))
-				    (should (string-match-p (regexp-quote "\\end{standfirst}\n}]\n\\section") tex-contents))))
+	(hub/test-with-export-compiler-readiness t
+						 (hub/test-with-org-buffer "#+TITLE: Bracket standfirst\n#+LATEX_CLASS: veriff\n#+LATEX_VARIANT: gallery-white\n\n#+begin_standfirst\nThis abstract contains a literal ] bracket.\n#+end_standfirst\n\n* Body\nText.\n"
+									   (let* ((hub/org-export-output-root artifact-root)
+										  (tex-path (hub/org-export-buffer-to-latex artifact-root))
+										  (tex-contents (hub/test-read-file-as-string tex-path)))
+									     (should (string-match-p (regexp-quote "\\twocolumn[{") tex-contents))
+									     (should (string-match-p (regexp-quote "literal ] bracket") tex-contents))
+									     (should (string-match-p (regexp-quote "\\end{standfirst}\n}]\n\\section") tex-contents)))))
       (when (file-directory-p artifact-root)
 	(delete-directory artifact-root t)))))
 
@@ -524,7 +531,8 @@
 
 (ert-deftest hub/org-export-veriff-uses-xelatex-only ()
   "`veriff' always selects the XeLaTeX compiler path."
-  (should (equal (hub/org-export--effective-compiler) "xelatex")))
+  (hub/test-with-export-compiler-readiness t
+					   (should (equal (hub/org-export--effective-compiler) "xelatex"))))
 
 (ert-deftest hub/org-export-buffer-to-pdf-uses-selected-compiler-process ()
   "The PDF compile step uses the compiler-specific process selected for the class."
@@ -571,22 +579,22 @@
 
 (ert-deftest hub/org-export-hub-article-footnotes-become-sidenotes ()
   "Ordinary hub-article Org footnotes export as margin sidenotes."
-  (let ((tex (org-export-string-as "#+LATEX_CLASS: hub-article\n\nText[fn:one]\n\n[fn:one] Note body.\n"
-				   'latex t)))
+  (let ((tex (hub/test-export-string-as "#+LATEX_CLASS: hub-article\n\nText[fn:one]\n\n[fn:one] Note body.\n"
+					'latex t)))
     (should (string-match-p (regexp-quote "Text\\HubArticleSidenote{Note body.}") tex))
     (should-not (string-match-p (regexp-quote "\\footnote{Note body.}") tex))))
 
 (ert-deftest hub/org-export-hub-article-footnote-kind-keeps-bottom-footnote ()
   "HUB_NOTE_KIND footnote keeps a traditional bottom footnote in hub-article."
-  (let ((tex (org-export-string-as "#+LATEX_CLASS: hub-article\n\nText[fn:one]\n\n[fn:one]\n:PROPERTIES:\n:HUB_NOTE_KIND: footnote\n:END:\nLegal note.\n"
-				   'latex t)))
+  (let ((tex (hub/test-export-string-as "#+LATEX_CLASS: hub-article\n\nText[fn:one]\n\n[fn:one]\n:PROPERTIES:\n:HUB_NOTE_KIND: footnote\n:END:\nLegal note.\n"
+					'latex t)))
     (should (string-match-p (regexp-quote "Text\\footnote{Legal note.}") tex))
     (should-not (string-match-p (regexp-quote "\\HubArticleSidenote{Legal note.}") tex))))
 
 (ert-deftest hub/org-export-hub-article-quote-author-uses-attr-quote ()
   "Hub article quote authors render through class-owned attribution chrome."
-  (let ((tex (org-export-string-as "#+LATEX_CLASS: hub-article\n\n#+ATTR_QUOTE: :author \"A & B\"\n#+begin_quote\nBorrowed words.\n#+end_quote"
-				   'latex t)))
+  (let ((tex (hub/test-export-string-as "#+LATEX_CLASS: hub-article\n\n#+ATTR_QUOTE: :author \"A & B\"\n#+begin_quote\nBorrowed words.\n#+end_quote"
+					'latex t)))
     (should (string-match-p (regexp-quote "Borrowed words.") tex))
     (should (string-match-p (regexp-quote "\\HubArticleQuoteAttribution{A \\& B}") tex))
     (should (string-match-p
@@ -596,22 +604,22 @@
 
 (ert-deftest hub/org-export-hub-article-quote-without-author-is-unchanged ()
   "Hub article quotes without author metadata keep standard quote output."
-  (let ((tex (org-export-string-as "#+LATEX_CLASS: hub-article\n\n#+begin_quote\nPlain words.\n#+end_quote"
-				   'latex t)))
+  (let ((tex (hub/test-export-string-as "#+LATEX_CLASS: hub-article\n\n#+begin_quote\nPlain words.\n#+end_quote"
+					'latex t)))
     (should (string-match-p (regexp-quote "\\begin{quote}\nPlain words.") tex))
     (should-not (string-match-p (regexp-quote "\\HubArticleQuoteAttribution") tex))))
 
 (ert-deftest hub/org-export-callout-title-uses-semantic-attribute ()
   "LaTeX callout titles come from `#+ATTR_CALLOUT:'."
-  (let ((tex (org-export-string-as "#+ATTR_CALLOUT: :type warning :title \"Heads up\"\n#+begin_callout\nCareful\n#+end_callout"
-				   'latex t)))
+  (let ((tex (hub/test-export-string-as "#+ATTR_CALLOUT: :type warning :title \"Heads up\"\n#+begin_callout\nCareful\n#+end_callout"
+					'latex t)))
     (should (string-match-p (regexp-quote "\\begin{callout}[Heads up]") tex))
     (should (string-match-p "Careful" tex))))
 
 (ert-deftest hub/org-export-hub-article-callout-title-is-explicit ()
   "Hub article callout titles render through class-owned title chrome."
-  (let ((tex (org-export-string-as "#+LATEX_CLASS: hub-article\n#+ATTR_CALLOUT: :type warning :title \"Heads up\"\n#+begin_callout\nCareful\n\n- First\n  - Nested\n#+end_callout"
-				   'latex t)))
+  (let ((tex (hub/test-export-string-as "#+LATEX_CLASS: hub-article\n#+ATTR_CALLOUT: :type warning :title \"Heads up\"\n#+begin_callout\nCareful\n\n- First\n  - Nested\n#+end_callout"
+					'latex t)))
     (should (string-match-p (regexp-quote "\\begin{warning}") tex))
     (should (string-match-p (regexp-quote "\\HubArticleCalloutTitle{Heads up}") tex))
     (should-not (string-match-p (regexp-quote "\\begin{callout}[Heads up]") tex))
@@ -620,8 +628,8 @@
 
 (ert-deftest hub/org-export-hub-article-horizontal-rule-is-section-break ()
   "Hub article horizontal rules render as class-owned section breaks."
-  (let ((tex (org-export-string-as "#+LATEX_CLASS: hub-article\n\nBefore.\n\n-----\n\nAfter."
-				   'latex t)))
+  (let ((tex (hub/test-export-string-as "#+LATEX_CLASS: hub-article\n\nBefore.\n\n-----\n\nAfter."
+					'latex t)))
     (should (string-match-p (regexp-quote "\\begin{HubArticleSectionBreak}") tex))
     (should (string-match-p (regexp-quote "\\end{HubArticleSectionBreak}") tex))
     (should-not (string-match-p (regexp-quote "\\noindent\\rule{\\textwidth}{0.5pt}") tex))))
