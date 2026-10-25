@@ -21,6 +21,16 @@ status: draft
 - Measurement tooling must not change runtime behavior or claim improvements without before/after data.
 - CI cache and package version behavior should remain reproducible.
 
+## Architecture Lint
+
+- Modules and local libraries explicitly require `hub-utils` when referencing
+  helpers defined by that library. Defining module-owned `hub/*` names does not
+  create that dependency; comments and strings are not executable references.
+- Dependency checks read source forms without evaluating them and reject
+  unreadable source rather than silently skipping it.
+- Domain tests live below `test/<domain>/`; only test files directly inside
+  `test/` violate this boundary.
+
 ## Integration Notes
 
 The quality system verifies contracts supplied by runtime, modules, specs, and governance docs. Scripts may encode checks, but durable behavioral expectations should be captured in specs or architecture documentation first.
