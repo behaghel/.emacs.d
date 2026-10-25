@@ -3,9 +3,17 @@ set -euo pipefail
 
 export HOME=${HOME:-$PWD}
 
-all_tests() {
-  find test -type f -name '*-test.el' | sort
-}
+# One inventory serves full runs, changed-path selection, and --list.
+mapfile -t inventory < <(
+  find test packages -type f -name '*-test.el' \
+    \( -path 'test/*' -o -path 'packages/*/test/*' \) | LC_ALL=C sort
+)
+
+list_only=false
+if [ "${1:-}" = "--list" ]; then
+  list_only=true
+  shift
+fi
 
 add_test() {
   local test_file="$1"
@@ -15,9 +23,7 @@ add_test() {
 }
 
 add_all_tests() {
-  while IFS= read -r test_file; do
-    tests+=("$test_file")
-  done < <(all_tests)
+  tests+=("${inventory[@]}")
 }
 
 # Select a focused test set from changed paths.  With no paths, preserve the
@@ -28,10 +34,10 @@ if [ "$#" -eq 0 ]; then
 else
   for path in "$@"; do
     case "$path" in
-      test/test-helpers.el)
+      test/test-helpers.el|scripts/elisp-ert)
         add_all_tests
         ;;
-      test/**/*-test.el|test/*-test.el)
+      test/**/*-test.el|test/*-test.el|packages/*/test/*-test.el)
         add_test "$path"
         ;;
       init.el|core/*.el|early-init.el)
@@ -51,14 +57,18 @@ else
         add_test test/authoring/documents/org-export-test.el
         add_test test/authoring/documents/org-latex-pdf-export-test.el
         ;;
-      packages/org-confluence/*)
-        add_test test/publishing/confluence/org-confluence-api-test.el
-        add_test test/publishing/confluence/org-confluence-export-test.el
-        ;;
-      packages/org-sync/*)
-        add_test packages/org-sync/test/org-sync-assets-test.el
-        add_test packages/org-sync/test/org-sync-store-test.el
-        add_test packages/org-sync/test/org-sync-status-test.el
+      packages/*)
+        package="${path#packages/}"
+        package="${package%%/*}"
+        for test_file in "${inventory[@]}"; do
+          case "$test_file" in
+            "packages/$package/test/"*) add_test "$test_file" ;;
+          esac
+        done
+        if [ "$package" = "org-confluence" ]; then
+          add_test test/publishing/confluence/org-confluence-api-test.el
+          add_test test/publishing/confluence/org-confluence-export-test.el
+        fi
         ;;
       scripts/approval-refresh-overdrive-page1.el|scripts/export-demo-adaptive-cards.el)
         add_test test/authoring/documents/org-latex-pdf-export-test.el
@@ -80,17 +90,27 @@ if printf '%s\n' "${tests[@]}" | grep -qx 'test/authoring/org/org-dropcap-test.e
   tests=(test/authoring/documents/org-latex-pdf-export-test.el "${tests[@]}")
 fi
 
+if "$list_only"; then
+  if [ "${#tests[@]}" -gt 0 ]; then
+    printf '%s\n' "${tests[@]}"
+  fi
+  exit 0
+fi
+
 if [ "${#tests[@]}" -eq 0 ]; then
   echo "No related ERT tests selected."
   exit 0
 fi
 
-load_args=()
-for test_file in "${tests[@]}"; do
-  load_args+=("-l" "$test_file")
-done
+# Package suites and configuration tests may intentionally reuse ERT names or
+# install different stubs.  Do not load them into the same Emacs process.
+mapfile -t groups < <(
+  printf '%s\n' "${tests[@]}" |
+    awk -F/ '{ if ($1 == "packages") print $1 "/" $2; else print "test" }' |
+    awk '!seen[$0]++'
+)
 
-echo "Running related ERT tests: ${tests[*]}"
+echo "Selected ${#tests[@]} ERT files across ${#groups[@]} suites."
 straight_build_path="${STRAIGHT_BUILD_PATH:-straight/build}"
 context_panels_path="${CONTEXT_PANELS_PATH:-$straight_build_path/context-panels}"
 if [ -n "${CONTEXT_PANELS_PATH:-}" ]; then
@@ -113,13 +133,34 @@ for package in compat transient cond-let llama magit-section; do
   fi
 done
 
-emacs --batch -Q \
-  -L . \
-  "${context_panels_load_args[@]}" \
-  "${straight_load_args[@]}" \
-  -L packages/org-sync \
-  -L packages/org-comments \
-  -L packages/org-marginalia \
-  -L packages/org-confluence \
-  -L lisp \
-  -l ert -l test/test-helpers.el "${load_args[@]}" -f ert-run-tests-batch-and-exit
+local_package_args=()
+for package_dir in packages/*/; do
+  local_package_args+=("-L" "$package_dir")
+done
+
+failed_groups=()
+for group in "${groups[@]}"; do
+  load_args=()
+  for test_file in "${tests[@]}"; do
+    case "$test_file" in
+      "$group/"*) load_args+=("-l" "$test_file") ;;
+    esac
+  done
+  echo "Running ERT suite: $group"
+  if ! emacs --batch -Q \
+    -L . \
+    "${context_panels_load_args[@]}" \
+    "${straight_load_args[@]}" \
+    "${local_package_args[@]}" \
+    -L lisp \
+    -l ert -l test/test-helpers.el "${load_args[@]}" -f ert-run-tests-batch-and-exit; then
+    failed_groups+=("$group")
+  fi
+done
+
+if [ "${#failed_groups[@]}" -gt 0 ]; then
+  echo "Failed ERT suites: ${failed_groups[*]}" >&2
+  exit 1
+fi
+
+echo "All ${#groups[@]} ERT suites completed successfully; see ERT output for skips."

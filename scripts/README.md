@@ -20,10 +20,26 @@ status: draft
 - Full-load checks must not hide required module failures.
 - Measurement tooling must not change runtime behavior or claim improvements without before/after data.
 - CI cache and package version behavior should remain reproducible.
+- Entering the development shell installs hooks but does not run test or
+  pre-commit suites. Checks run on commit, in CI, or through explicit commands.
 
-The ERT runner follows the runtime's
-[context-panels source contract](../core/README.md#context-panels-dependency)
-for its dependency load path.
+## ERT Test Coverage
+
+- The full ERT invocation discovers `*-test.el` files under both `test/` and
+  package-local `packages/*/test/` directories, in deterministic order.
+- Package source changes select that package's tests; explicit test paths remain
+  runnable individually. Existing configuration-specific selections are preserved.
+- `scripts/elisp-ert --list [changed-path ...]` reports the same selection used
+  for execution, without loading tests or starting Emacs.
+- Configuration tests and each package's tests run in separate batch Emacs
+  processes so independent ERT names and test stubs do not collide. All selected
+  suites are attempted even when one fails.
+- Test failures and load failures produce a nonzero exit status. Skipped tests
+  remain visible as skips, not passes; live-service tests require explicit opt-in.
+- CI runs the full ERT invocation on pushes and pull requests, including changes
+  confined to package code or test tooling.
+- Dependency load paths follow the runtime's
+  [context-panels source contract](../core/README.md#context-panels-dependency).
 
 ## Architecture Lint
 

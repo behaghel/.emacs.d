@@ -63,7 +63,7 @@
 - `.github/workflows/emacs.yml` runs on pushes and pull requests.
 - CI sets up Emacs `30.2`.
 - CI performs architecture lint, full config load, formatting, checkdoc, init load, and ERT tests without generating configuration.
-- On PRs, CI may limit module-test execution based on changed files; on pushes it runs all module tests present.
+- CI runs all configuration and package-local ERT suites on every PR and push.
 - Straight cache keys depend on Emacs version and `straight/versions/default.el`.
 - Architecture lint also rejects core files requiring namespaced module features and modules using `hub/*` helpers without `(require 'hub-utils)`.
 

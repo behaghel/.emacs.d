@@ -9,6 +9,19 @@ status: draft
 
 The adapter publishes and synchronizes Org documents with Google Docs while delegating base document transport, OAuth, and link metadata to upstream `gdocs`. Reusable adapter behavior lives in this package; personal activation, account selection, and keybindings live in `modules/interactive/org/google-docs.el`.
 
+## Dependency Source
+
+The repository configuration uses the semantic-capable `org-image-seam` branch
+of [`behaghel/gdocs`](https://github.com/behaghel/gdocs), pinned through Straight.
+An ordinary installation does not depend on a checkout under `~/ws/` or select a
+less capable upstream implementation when that directory is absent.
+
+A nonempty `GDOCS_PATH` or an explicitly configured
+`hub/org-google-docs-gdocs-repository` selects a local development checkout.
+Invalid overrides report an error instead of falling back. Leaving the override
+unset uses the managed package. Style request tests use `GDOCS_PATH` when set,
+otherwise using the managed build and its dependencies.
+
 ## Document Synchronization
 
 - Facade commands create, push, pull, open, and inspect linked Google Docs through upstream `gdocs`.

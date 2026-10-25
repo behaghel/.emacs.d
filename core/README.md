@@ -23,6 +23,10 @@ status: draft
 - Required runtime failures must remain visible in CI; fallbacks may be explicit but must not silently hide broken required paths.
 - Runtime state should be routed under `var/` or package-specific managed locations rather than polluting the repo root.
 - Package bootstrap must remain reproducible through pinned `straight.el` versions.
+- `core/core-packages.el` is the single package bootstrap implementation used by
+  startup and package maintenance commands. A bootstrap failure stops startup
+  with the original error rather than attempting another implementation.
+- `emacs -Q` provides a configuration-free recovery session.
 
 ## Context Panels Dependency
 

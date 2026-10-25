@@ -6,15 +6,29 @@
 (require 'ox-latex)
 
 ;; Ensure modules under modules/org/ are reachable for batch test runners.
-(let ((root (file-name-as-directory
-	     (locate-dominating-file (or load-file-name buffer-file-name)
-				     "domains.yaml"))))
+(let* ((root (file-name-as-directory
+	      (locate-dominating-file (or load-file-name buffer-file-name)
+				      "domains.yaml")))
+       (user-emacs-directory root))
   (add-to-list 'load-path (expand-file-name "modules" root))
   (add-to-list 'load-path (expand-file-name "modules/org" root))
   (add-to-list 'load-path (expand-file-name "lisp" root))
-  (add-to-list 'load-path (expand-file-name "core" root)))
+  (add-to-list 'load-path (expand-file-name "core" root))
+  ;; Export defaults resolve tracked assets relative to this checkout, not HOME.
+  (require 'org/export-latex))
 
-(require 'org/export-latex)
+(ert-deftest hub/org-export-stages-tracked-assets-with-isolated-home ()
+  "Batch export stages tracked classes and Veriff assets without a real HOME."
+  (let ((output-directory (make-temp-file "hub-export-stage-" t)))
+    (unwind-protect
+	(progn
+	  (dolist (class '("hub-article" "veriff"))
+	    (hub/org-export--stage-class-asset output-directory class)
+	    (should (file-exists-p
+		     (expand-file-name (concat class ".cls") output-directory))))
+	  (dolist (asset '("hero-pattern.png" "hero-logo.pdf" "hero-logo-dark.pdf"))
+	    (should (file-exists-p (expand-file-name asset output-directory)))))
+      (delete-directory output-directory t))))
 
 (ert-deftest hub/org-export-no-toc-in-hub-article ()
   "Export a minimal hub-article Org buffer to LaTeX and verify no TOC."

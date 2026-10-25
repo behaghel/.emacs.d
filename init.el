@@ -71,43 +71,8 @@
 (setq user-mail-address "behaghel@gmail.com")
 (setq user-full-name "Hubert J. Behaghel")
 
-;; Use centralized package management from core/ with safe fallback.
-(defvar hub/core-packages-load-ok nil)
-(condition-case err
-    (progn
-      (require 'core-packages)
-      (setq hub/core-packages-load-ok t))
-  (error
-   (message "[init] core-packages failed, falling back: %S" err)
-   ;; Keep fallback bootstrap aligned with core/core-packages.el. Respect any
-   ;; earlier CI override that deliberately disabled modification checks.
-   (unless (boundp 'straight-check-for-modifications)
-     (setq straight-check-for-modifications '(find-when-checking only-once)))
-   (defvar bootstrap-version)
-   (let* ((repo "radian-software/straight.el")
-	  (branch "develop")
-	  (install-url (format "https://raw.githubusercontent.com/%s/%s/install.el" repo branch))
-	  (bootstrap-file (expand-file-name "straight/repos/straight.el/bootstrap.el" user-emacs-directory)))
-     (unless (file-exists-p bootstrap-file)
-       (with-current-buffer
-	   (url-retrieve-synchronously install-url 'silent 'inhibit-cookies)
-	 (goto-char (point-max))
-	 (eval-print-last-sexp)))
-     (load bootstrap-file nil 'nomessage))
-   (setq straight-use-package-by-default t)
-   (setq straight-vc-git-default-protocol (hub/preferred-straight-protocol))
-   (straight-use-package 'use-package)
-   (straight-use-package 'diminish)
-   (when (file-directory-p (expand-file-name "~/ws/context-panels"))
-     (straight-use-package
-      `(context-panels :type git
-		       :repo ,(expand-file-name "~/ws/context-panels")
-		       :local-repo "context-panels")))
-   (require 'use-package)
-   (require 'use-package-ensure)
-   (require 'use-package-delight)
-   (require 'use-package-diminish)
-   (setq hub/core-packages-load-ok nil)))
+;; Required bootstrap failures stop startup; use `emacs -Q' for recovery.
+(require 'core-packages)
 
 ;; In CI, if a pinned versions file exists, thaw to it early to avoid rebuilds.
 (when (getenv "GITHUB_ACTIONS")

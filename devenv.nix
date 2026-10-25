@@ -67,7 +67,8 @@ in
       HOME=$PWD emacs --batch -l init.el --eval '(message "Loaded init.el")' --kill
     '';
     freeze.exec = ''
-      emacs --batch -l core/packages.el --eval '(core/packages-freeze)' --kill
+      emacs --batch -Q -L core --eval '(setq user-emacs-directory (expand-file-name default-directory))' \
+        -l core/core-packages.el --eval '(core/packages-freeze)' --kill
     ''
     ;
     "ci:load-all".exec = ''

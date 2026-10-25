@@ -9,6 +9,15 @@ Org-native AI authoring assistance for review, chat, and executable edit suggest
 
 Org Copilot keeps AI output visible as review artifacts. It does not silently mutate the source document: proposed edits become comments/suggestions first, and source text changes only when you accept a suggestion.
 
+## Activation
+
+Org Copilot is opt-in per source buffer. Opening an Org file, switching windows,
+or using another AI assistant does not enable Copilot, restore its artifacts, or
+configure its adapters. Explicitly enabling `org-copilot-mode` or opening Copilot
+chat/panels activates the integration. Disabling the mode removes its provider and
+source overlays. Window tracking belongs to context-panels, not a global Copilot
+selection hook.
+
 ## What it stores
 
 For `draft.org`, Copilot uses source-adjacent Org sidecars:

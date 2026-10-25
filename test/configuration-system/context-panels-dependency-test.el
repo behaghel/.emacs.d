@@ -108,6 +108,7 @@ SOURCE is `managed', `development', or `invalid'."
 		     root)))
     (unwind-protect
 	(progn
+	  (make-directory (expand-file-name "packages" root) t)
 	  (setenv "HOME" root)
 	  (setenv "STRAIGHT_BUILD_PATH" nil)
 	  (setenv "CONTEXT_PANELS_PATH"
