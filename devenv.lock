@@ -77,6 +77,22 @@
         "type": "github"
       }
     },
+    "nixos-config": {
+      "flake": false,
+      "locked": {
+        "lastModified": 1792916378,
+        "narHash": "sha256-5QPypa88b6sYa9NSD6On7B9nTjKpKKkUeEbqOLao9l0=",
+        "owner": "behaghel",
+        "repo": "nixos-config",
+        "rev": "b7079af6d5c9693efd8289fc0de6aabc3669f656",
+        "type": "github"
+      },
+      "original": {
+        "owner": "behaghel",
+        "repo": "nixos-config",
+        "type": "github"
+      }
+    },
     "nixpkgs": {
       "locked": {
         "lastModified": 1774388614,
@@ -97,6 +113,7 @@
       "inputs": {
         "devenv": "devenv",
         "git-hooks": "git-hooks",
+        "nixos-config": "nixos-config",
         "nixpkgs": "nixpkgs"
       }
     }

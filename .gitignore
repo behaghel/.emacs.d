@@ -78,9 +78,12 @@ result/
 # Devenv
 .devenv*
 devenv.local.nix
+devenv.local.yaml
+/.worktrees/
 
 # direnv
 .direnv
+.envrc.local
 
 # Local XDG/devenv state
 .local/

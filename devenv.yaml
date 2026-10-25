@@ -8,4 +8,9 @@ inputs:
         follows: nixpkgs
   nixpkgs:
     url: github:NixOS/nixpkgs/nixos-25.11
+  nixos-config:
+    url: github:behaghel/nixos-config
+    flake: false
+imports:
+  - nixos-config/modules/flake/agent-session
 

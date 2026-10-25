@@ -1,5 +1,21 @@
 # Repository Guidelines
 
+## Coding-agent sessions (Pi)
+
+For tasks that edit repository files:
+
+1. Run `git status --short --branch` before editing. Preserve existing changes; never discard, stash, or overwrite someone else's work without permission.
+2. Check `command -v as`: it must resolve to the shared `agent-session`, not a system assembler. If missing or an assembler, bootstrap from a checkout with `devenv -q shell -- as …`. The shared module is pinned through `devenv.yaml` and launches `pi` by default.
+3. If already in this task's managed worktree, verify with `as . status --json` and continue there. A new agent conversation is not a reason to allocate another worktree. Invalid or missing metadata is not permission to repair or replace a session.
+4. Otherwise use `as <task-slug> create --json` and its returned `session.worktreePath` and `session.branch`. Do not use `start` from an existing agent: it launches nested Pi. Human operators may use `as <task-slug> start`.
+5. Keep edits on the worktree's `agent/` branch or a task-specific `feat/`, `fix/`, `docs/`, or `chore/` branch there. Use absolute worktree paths for read/edit/write tools; a command's `cd` does not relocate later tool calls.
+6. Creation requires a clean primary checkout on its upstream default branch. If blocked, report and ask Hubert; never switch the user's primary branch, move changes, relax guards, or fabricate a session. Initial adoption must be committed before creating sessions.
+7. Prefer `as <task-slug> run <command> [args...]` from any checkout; it selects the worktree and enters quiet devenv. Do not add a redundant outer `cd … && devenv -q shell --`. Inside the managed worktree, `as . run …` is equivalent. Use explicit `sh -c` for pipelines and `as <task-slug> doctor --json` for diagnostics. Named `run` does not relocate subsequent tools. `as . cd` requires shell integration; `agent-session . cd` only prints the path.
+8. Keep commits coherent and verified, with configured authorship and signing intact. Never disable signing to bypass a locked token. When publishing is requested, push the task branch and open/update its PR; report tests, commit, worktree, and check state. Never merge or deploy automatically.
+9. Do not repair, force-clean, or remove other sessions without explicit permission. Offer `as <task-slug> finish --dry-run` from another checkout after review/merge rather than deleting the invoking worktree. Doctor findings are not permission to mutate resources.
+
+Only ignored `devenv.local.nix`, `devenv.local.yaml`, and `.envrc.local` are linked into worktrees. Never link or copy `private/`, credentials, `var/`, `straight/`, private Pi histories, `.pi/npm/`, or generated agent configuration. Pi resources use native Pi package management, not devenv-generated client configuration. Read-only questions do not require a worktree.
+
 ## Purpose
 - This repository is an Emacs configuration written mostly in Emacs Lisp.
 - Optimize for safe batch loading, predictable module boundaries, stable interactive UX, and small local changes over broad rewrites.
@@ -35,7 +51,7 @@
 
 ## Environment And Setup
 - Preferred workflow: enable `direnv` and run `direnv allow` at repo root.
-- Use `devenv shell -- <command>` for one-off commands to match local hooks and CI.
+- In managed worktrees, prefer `as <task-slug> run <command> [args...]` (or `as . run …` there); it enters quiet devenv. Otherwise use `devenv -q shell -- <command>` to match local hooks and CI.
 - `devenv.nix` defines convenience scripts and pre-commit hooks; check it before inventing new commands.
 - When a general tool dependency is missing from the development environment, install it through `devenv.nix` instead of reimplementing that capability inside repo code.
 - Exception: LaTeX packages expected by Emacs document/export workflows must be added in `~/nixos-config/`, not only in this repo's `devenv.nix`. The canonical Home Manager linkage lives in `~/nixos-config/modules/home/emacs/texlive.nix`, re-exported by `~/nixos-config/modules/home/texlive/default.nix`, so GUI Emacs and system activation get the same TeX Live closure.
