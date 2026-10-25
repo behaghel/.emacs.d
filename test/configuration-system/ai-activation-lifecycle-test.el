@@ -21,6 +21,9 @@
 (defvar hub/ai-lifecycle-test--adapter-calls 0
   "Number of explicit Copilot adapter configurations in the child process.")
 
+(defvar hub/ai-lifecycle-test--adapter-route nil
+  "Authentication route selected by the fake Copilot adapter.")
+
 (defvar hub/ai-lifecycle-test--external-calls 0
   "Number of forbidden external operations attempted in the child process.")
 
@@ -32,9 +35,10 @@
   (cl-incf hub/ai-lifecycle-test--external-calls)
   (error "AI lifecycle fixture attempted external access"))
 
-(defun hub/ai-lifecycle-test--configure-adapter (&rest _args)
-  "Record optional provider setup without requesting credentials or a model."
+(defun hub/ai-lifecycle-test--configure-adapter (route &rest _args)
+  "Record optional provider setup for ROUTE without credentials or a model."
   (cl-incf hub/ai-lifecycle-test--adapter-calls)
+  (setq hub/ai-lifecycle-test--adapter-route route)
   (setq org-copilot-review-function #'hub/ai-lifecycle-test--forbid-external
 	org-copilot-chat-function #'hub/ai-lifecycle-test--forbid-external))
 
@@ -64,10 +68,63 @@
 			  hub/ai-lifecycle-test--root)
 	nil 'nomessage))
 
-(defun hub/ai-lifecycle-test--exercise (order fault)
+(defun hub/ai-lifecycle-test--recover-unavailable-adapter ()
+  "Check failed activation, offline UI, and late availability in this Org buffer.
+Leave the mode disabled so the caller's next explicit enable retries setup."
+  (let ((original-require (symbol-function 'require))
+	messages)
+    (princ "AI-LIFECYCLE:UNAVAILABLE\n")
+    (cl-letf (((symbol-function 'require)
+	       (lambda (feature &rest args)
+		 (if (eq feature 'org-copilot-gptel)
+		     (unless (nth 1 args)
+		       (signal 'file-missing '("Fixture adapter unavailable")))
+		   (apply original-require feature args))))
+	      ((symbol-function 'message)
+	       (lambda (format-string &rest args)
+		 (when format-string
+		   (let ((text (apply #'format-message format-string args)))
+		     (push text messages)
+		     text)))))
+      ;; Missing optional code must not break reloads or passive Org editing.
+      (hub/ai-lifecycle-test--load-config)
+      (hub/ai-lifecycle-test--load-config)
+      (should-not org-copilot-mode)
+      (should (zerop hub/ai-lifecycle-test--adapter-calls))
+      (org-copilot-mode 1))
+    (should (cl-some (lambda (text) (string-match-p "unavailable" text)) messages))
+    (should (cl-some (lambda (text) (string-match-p "re-enable org-copilot-mode" text))
+		     messages)))
+  (should org-copilot-mode)
+  (should (context-panels-registered-provider 'copilot))
+  (should (zerop hub/ai-lifecycle-test--adapter-calls))
+  (should-not hub/ai-lifecycle-test--adapter-route)
+  (should-not org-copilot-review-function)
+  (should-not org-copilot-chat-function)
+  ;; Offline source comments remain usable even without an AI adapter.
+  (org-copilot-add-comment
+   '(:id "fixture-comment" :source-start 1 :source-end 8 :status active))
+  (org-copilot-refresh-overlays)
+  (should org-copilot--overlays)
+  ;; Availability alone must neither configure the adapter nor activate buffers.
+  (require 'org-copilot-gptel)
+  (should (zerop hub/ai-lifecycle-test--adapter-calls))
+  (should-not org-copilot-review-function)
+  (with-temp-buffer
+    (org-mode)
+    (should-not org-copilot-mode))
+  (should (zerop hub/ai-lifecycle-test--external-calls))
+  (org-copilot-mode -1)
+  (should-not org-copilot--overlays)
+  (should-not (context-panels-registered-provider 'copilot))
+  (princ "AI-LIFECYCLE:RETRY\n"))
+
+(defun hub/ai-lifecycle-test--exercise (order fault &optional recovery-route)
   "Exercise the lifecycle with load ORDER and optional negative-control FAULT.
 ORDER is `org-first' or `gptel-first'.  FAULT can inject `auto-activation' or
-`duplicate-setup' to demonstrate that lifecycle assertions detect regressions."
+`duplicate-setup' to demonstrate that lifecycle assertions detect regressions.
+RECOVERY-ROUTE, when non-nil, is `oauth' or `api-key' and adds an unavailable
+adapter followed by late availability and explicit activation retry."
   (require 'use-package)
   (require 'straight)
   (require 'auth-source-pass)
@@ -76,6 +133,8 @@ ORDER is `org-first' or `gptel-first'.  FAULT can inject `auto-activation' or
   (setq org-modules nil
 	straight-use-package-by-default t)
   (straight-use-package-mode 1)
+  (when recovery-route
+    (setq hub/gptel-use-openai-oauth (eq recovery-route 'oauth)))
   (cl-letf (((symbol-function 'straight-use-package)
 	     (lambda (recipe &rest _args)
 	       (push recipe hub/ai-lifecycle-test--recipes)
@@ -119,11 +178,15 @@ ORDER is `org-first' or `gptel-first'.  FAULT can inject `auto-activation' or
       (should-not (featurep 'org-copilot-gptel))
       (should (zerop hub/ai-lifecycle-test--adapter-calls))
       (should (zerop hub/ai-lifecycle-test--external-calls))
+      (when recovery-route
+	(hub/ai-lifecycle-test--recover-unavailable-adapter))
       (princ "AI-LIFECYCLE:ENABLE\n")
       (org-copilot-mode 1)
       (should org-copilot-mode)
       (should (context-panels-registered-provider 'copilot))
       (should (= hub/ai-lifecycle-test--adapter-calls 1))
+      (when recovery-route
+	(should (eq hub/ai-lifecycle-test--adapter-route recovery-route)))
       (should (eq org-copilot-review-function #'hub/ai-lifecycle-test--forbid-external))
       (org-copilot-add-comment
        '(:id "fixture-comment" :source-start 1 :source-end 8 :status active))
@@ -157,8 +220,9 @@ ORDER is `org-first' or `gptel-first'.  FAULT can inject `auto-activation' or
     (should (zerop hub/ai-lifecycle-test--external-calls))
     (princ "AI-LIFECYCLE:PASS\n")))
 
-(defun hub/ai-lifecycle-test--run (order &optional fault)
-  "Run ORDER with optional FAULT in a fresh Emacs, returning status and output."
+(defun hub/ai-lifecycle-test--run (order &optional fault recovery-route)
+  "Run ORDER with FAULT and RECOVERY-ROUTE in a fresh Emacs.
+Return the exit status and output; see `hub/ai-lifecycle-test--exercise'."
   (let* ((root (make-temp-file "ai-lifecycle-" t))
 	 ;; A caller's commit-hook Git context does not belong to this fixture.
 	 (process-environment
@@ -190,10 +254,10 @@ ORDER is `org-first' or `gptel-first'.  FAULT can inject `auto-activation' or
 		   "(provide 'gptel-openai-oauth)\n"))
 	  (hub/ai-lifecycle-test--write
 	   root "org-copilot-gptel.el"
-	   (concat "(defalias 'org-copilot-gptel-use-openai-oauth\n"
-		   "  #'hub/ai-lifecycle-test--configure-adapter)\n"
-		   "(defalias 'org-copilot-gptel-enable\n"
-		   "  #'hub/ai-lifecycle-test--configure-adapter)\n"
+	   (concat "(defun org-copilot-gptel-use-openai-oauth (&optional _model)\n"
+		   "  (hub/ai-lifecycle-test--configure-adapter 'oauth))\n"
+		   "(defun org-copilot-gptel-enable ()\n"
+		   "  (hub/ai-lifecycle-test--configure-adapter 'api-key))\n"
 		   "(provide 'org-copilot-gptel)\n"))
 	  (let ((paths (list root
 			     (expand-file-name "use-package" build)
@@ -220,7 +284,7 @@ ORDER is `org-first' or `gptel-first'.  FAULT can inject `auto-activation' or
 			     "-l" hub/ai-lifecycle-test--file
 			     "--eval" (prin1-to-string
 				       `(condition-case err
-					    (hub/ai-lifecycle-test--exercise ',order ',fault)
+					    (hub/ai-lifecycle-test--exercise ',order ',fault ',recovery-route)
 					  (error
 					   (princ (format "AI-LIFECYCLE:FAIL %S\n" err))
 					   (kill-emacs 1)))))))))
@@ -278,6 +342,22 @@ ORDER is `org-first' or `gptel-first'.  FAULT can inject `auto-activation' or
 	      (should (string-match-p "AI-LIFECYCLE:ENABLE\n" output))
 	      (should (string-match-p "ert-test-failed" output))
 	      (should (string-match-p (regexp-quote ":form (= 2 1)") output)))))
+
+(ert-deftest hub/ai-lifecycle-oauth-missing-adapter-recovers-on-explicit-retry ()
+  "OAuth unavailability is diagnosed; late availability needs an explicit retry."
+  (pcase-let ((`(,status ,output) (hub/ai-lifecycle-test--run 'org-first nil 'oauth)))
+    (ert-info ((format "OAuth recovery output:\n%s" output))
+	      (should (equal status 0))
+	      (should (string-match-p "AI-LIFECYCLE:RETRY\n" output))
+	      (should (string-match-p "AI-LIFECYCLE:PASS\n" output)))))
+
+(ert-deftest hub/ai-lifecycle-api-key-missing-adapter-recovers-on-explicit-retry ()
+  "API-key unavailability is diagnosed and retry preserves the selected route."
+  (pcase-let ((`(,status ,output) (hub/ai-lifecycle-test--run 'gptel-first nil 'api-key)))
+    (ert-info ((format "API-key recovery output:\n%s" output))
+	      (should (equal status 0))
+	      (should (string-match-p "AI-LIFECYCLE:RETRY\n" output))
+	      (should (string-match-p "AI-LIFECYCLE:PASS\n" output)))))
 
 (provide 'ai-activation-lifecycle-test)
 ;;; ai-activation-lifecycle-test.el ends here

@@ -82,8 +82,10 @@ Fail closed instead of falling back to an API-key backend."
 
 (defun hub/org-copilot-enable-gptel ()
   "Configure Org Copilot to use the selected gptel authentication route."
-  (if hub/gptel-use-openai-oauth
-      (when (require 'org-copilot-gptel nil 'noerror)
+  (if (not (require 'org-copilot-gptel nil 'noerror))
+      (message (concat "Org Copilot: org-copilot-gptel adapter unavailable; "
+		       "restore it and re-enable org-copilot-mode"))
+    (if hub/gptel-use-openai-oauth
 	(condition-case err
 	    (org-copilot-gptel-use-openai-oauth hub/gptel-openai-oauth-model)
 	  (error
@@ -92,9 +94,7 @@ Fail closed instead of falling back to an API-key backend."
 		 org-copilot-chat-function nil
 		 org-copilot-review-function nil)
 	   (message "Org Copilot: ChatGPT subscription OAuth unavailable: %s"
-		    (error-message-string err)))))
-    (if (not (require 'org-copilot-gptel nil 'noerror))
-	(message "Org Copilot: gptel provider unavailable")
+		    (error-message-string err))))
       (condition-case err
 	  (org-copilot-gptel-enable)
 	(error

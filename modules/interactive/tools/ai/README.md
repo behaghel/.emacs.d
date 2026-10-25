@@ -18,3 +18,9 @@ status: draft
 - Org Copilot activation is [explicit and buffer-local](../../../../packages/org-copilot/README.md#activation); loading Org or gptel does not enable it or configure its adapters.
 - Reloading AI configuration preserves Copilot activation state and does not
   duplicate activation hooks or review advice.
+- If the selected Copilot adapter cannot load on activation, configuration
+  identifies the missing dependency and explains how to retry. Offline comments
+  and panels remain usable without configuring another provider.
+- Making the adapter available does not configure it automatically or activate
+  other Org buffers. Disabling and re-enabling `org-copilot-mode` explicitly
+  retries setup using the selected authentication route.
