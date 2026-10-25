@@ -40,6 +40,18 @@
 (require 'use-package-delight)
 (require 'use-package-diminish)
 
+;; Development checkouts are opt-in; ordinary sessions use the pinned recipe.
+(let ((override (getenv "CONTEXT_PANELS_PATH")))
+  (if (and override (not (equal override "")))
+      (let ((directory (expand-file-name override)))
+	(dolist (library '("context-panels.el" "context-panels-org.el"))
+	  (unless (file-readable-p (expand-file-name library directory))
+	    (error "CONTEXT_PANELS_PATH must contain readable %s: %s"
+		   library directory)))
+	(add-to-list 'load-path directory))
+    (straight-use-package
+     '(context-panels :type git :host github :repo "behaghel/context-panels"))))
+
 ;;;###autoload
 (defun core/packages-freeze ()
   (interactive)

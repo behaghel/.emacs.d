@@ -109,10 +109,6 @@ jobs:
             ./scripts/elisp-checkdoc "${el_files[@]}"
           fi
 
-      - name: Tangle literate config
-        run: |
-          emacs --batch -l org --eval '(org-babel-tangle-file "docs/config.org")'
-
       - name: Load init file
         run: |
           export HOME=$GITHUB_WORKSPACE
