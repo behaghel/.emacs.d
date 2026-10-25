@@ -211,6 +211,70 @@ Omega.
 "))
       (should (eq (plist-get candidate :status) 'stale)))))
 
+(defun org-suggestions-test--multi-hunk-thread ()
+  "Return a two-replacement thread with an active alternative."
+  (list :id "thread-1"
+	:candidates
+	(list
+	 (org-suggestions-test--candidate
+	  "ai-1" 'active
+	  (list (list :id "h1" :kind 'replace
+		      :original "Alpha" :replacement "ALPHA")
+		(list :id "h2" :kind 'replace
+		      :original "beta" :replacement "BETA"))
+	  :alternative-group-id "alt-1")
+	 (org-suggestions-test--candidate
+	  "ai-2" 'active nil :alternative-group-id "alt-1"))))
+
+(ert-deftest org-suggestions-accept-rolls-back-read-only-hunk-and-retries ()
+  "A read-only hunk rolls back all edits and permits a later successful retry."
+  (with-temp-buffer
+    (org-mode)
+    (insert "Alpha beta.\n")
+    (put-text-property 1 6 'read-only t)
+    (let* ((thread (org-suggestions-test--multi-hunk-thread))
+	   (original-thread (copy-tree thread))
+	   (candidate (car (plist-get thread :candidates)))
+	   (alternative (cadr (plist-get thread :candidates)))
+	   (org-suggestions--rollback-data '(("existing" . nil))))
+      (should-error (org-suggestions-accept-candidate
+		     (current-buffer) thread candidate)
+		    :type 'text-read-only)
+      (should (equal (buffer-string) "Alpha beta.\n"))
+      (should (get-text-property 1 'read-only))
+      (should (equal thread original-thread))
+      (should (equal org-suggestions--rollback-data '(("existing" . nil))))
+      (let ((inhibit-read-only t))
+	(remove-text-properties 1 6 '(read-only nil)))
+      (org-suggestions-accept-candidate (current-buffer) thread candidate)
+      (should (equal (buffer-string) "ALPHA BETA.\n"))
+      (should (eq (plist-get candidate :status) 'accepted))
+      (should (eq (plist-get alternative :status) 'superseded))
+      (should (equal (mapcar #'car org-suggestions--rollback-data)
+		     '("ai-1" "existing")))
+      (should (= (length (cdar org-suggestions--rollback-data)) 2)))))
+
+(ert-deftest org-suggestions-accept-rolls-back-edit-hook-error ()
+  "An edit-hook error restores preceding edits and preserves lifecycle state."
+  (with-temp-buffer
+    (org-mode)
+    (insert "Alpha beta.\n")
+    (let* ((thread (org-suggestions-test--multi-hunk-thread))
+	   (original-thread (copy-tree thread))
+	   (candidate (car (plist-get thread :candidates)))
+	   (org-suggestions--rollback-data '(("existing" . nil)))
+	   (before-change-functions
+	    (list (lambda (_start _end)
+		    (when (equal (buffer-string) " BETA.\n")
+		      (error "Simulated insertion failure"))))))
+      (should (equal (should-error
+		      (org-suggestions-accept-candidate
+		       (current-buffer) thread candidate))
+		     '(error "Simulated insertion failure")))
+      (should (equal (buffer-string) "Alpha beta.\n"))
+      (should (equal thread original-thread))
+      (should (equal org-suggestions--rollback-data '(("existing" . nil)))))))
+
 (ert-deftest org-suggestions-alternative-accept-supersedes-siblings ()
   "Accepting one alternative supersedes active siblings in the same group."
   (with-temp-buffer

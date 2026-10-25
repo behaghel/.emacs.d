@@ -422,13 +422,14 @@ All candidate hunks apply as a single all-or-nothing operation."
 		  (> (plist-get left :start) (plist-get right :start)))))
     (with-current-buffer source-buffer
       (save-excursion
-	(dolist (operation operations)
-	  (let ((start (plist-get operation :start))
-		(end (plist-get operation :end))
-		(replacement (plist-get operation :replacement)))
-	    (goto-char start)
-	    (delete-region start end)
-	    (insert replacement)))))
+	(atomic-change-group
+	  (dolist (operation operations)
+	    (let ((start (plist-get operation :start))
+		  (end (plist-get operation :end))
+		  (replacement (plist-get operation :replacement)))
+	      (goto-char start)
+	      (delete-region start end)
+	      (insert replacement))))))
     (push (cons (plist-get candidate :id) operations)
 	  org-suggestions--rollback-data)
     (plist-put candidate :status 'accepted)

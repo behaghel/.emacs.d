@@ -23,7 +23,7 @@ Supported MVP hunk kinds:
 - `replace` — replace exact original text.
 - `insert` — insert text before/after an exact anchor.
 
-Candidate acceptance is all-or-nothing. If any hunk cannot resolve, no source text is changed and the candidate becomes stale.
+Candidate acceptance is all-or-nothing. If any hunk cannot resolve, no source text is changed and the candidate becomes stale. If an error interrupts source editing, all edits are rolled back; candidate and alternative statuses and session-local rollback history remain unchanged. Only successful acceptance records rollback data, marks the candidate accepted, and supersedes its active alternatives.
 
 ## Sidecar shape
 
