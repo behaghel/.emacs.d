@@ -21,6 +21,14 @@ let
   ]);
 in
 {
+  # Shared launcher; implementation and shell integration come from nixos-config.
+  agentSession = {
+    enable = true;
+    agentCommand = [ "pi" ];
+    # Never link private Emacs settings, package caches, or Pi/runtime state.
+    localLinks = [ "devenv.local.nix" "devenv.local.yaml" ".envrc.local" ];
+  };
+
   # Developer shell packages
   packages = [
     pkgs.editorconfig-core-c
@@ -41,6 +49,9 @@ in
   env.OSFONTDIR = "/Library/Fonts:/Users/hubertbehaghel/Library/Fonts:/System/Library/Fonts";
   env.FLOW = ''
   Project commands:
+    - Agent worktree     : as <task-slug> create --json
+    - Run in worktree    : as <task-slug> run <command> [args...]
+    - Session diagnostics: as <task-slug> doctor --json
     - CI full load       : devenv shell -- ci:load-all
     - Format all elisp   : devenv shell -- elisp:format-all
     - Checkdoc all elisp : devenv shell -- elisp:checkdoc-all

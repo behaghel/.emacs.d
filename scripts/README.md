@@ -23,6 +23,19 @@ status: draft
 - Entering the development shell installs hooks but does not run test or
   pre-commit suites. Checks run on commit, in CI, or through explicit commands.
 
+## Coding-agent Environment
+
+- The development environment provides the shared `agent-session` launcher and
+  its `as` shorthand from the locked `nixos-config` input in `devenv.yaml`.
+- Managed worktrees live under the ignored `.worktrees/` subtree. The launcher
+  defaults to Pi and runs one-off commands through quiet devenv in the selected
+  worktree, preserving arguments and exit status.
+- Local links are restricted to ignored `devenv.local.nix`, `devenv.local.yaml`,
+  and `.envrc.local` overrides. Emacs private settings, credentials, package
+  caches, Pi histories, and runtime state are not shared through these links.
+- Agent workflow and safety rules are defined in
+  [repository instructions](../AGENTS.md#coding-agent-sessions-pi).
+
 ## ERT Test Coverage
 
 - The full ERT invocation discovers `*-test.el` files under both `test/` and
