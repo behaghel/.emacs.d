@@ -163,7 +163,7 @@ ORDER is `org-first' or `gptel-first'.  FAULT can inject `auto-activation' or
 	 ;; A caller's commit-hook Git context does not belong to this fixture.
 	 (process-environment
 	  (cl-remove-if (lambda (entry) (string-prefix-p "GIT_" entry))
-			process-environment))
+			(copy-sequence process-environment)))
 	 (build (expand-file-name (or (getenv "STRAIGHT_BUILD_PATH") "straight/build")
 				  hub/ai-lifecycle-test--root))
 	 (context (let ((override (getenv "CONTEXT_PANELS_PATH")))
@@ -226,6 +226,24 @@ ORDER is `org-first' or `gptel-first'.  FAULT can inject `auto-activation' or
 					   (kill-emacs 1)))))))))
 		(list status (buffer-string))))))
       (delete-directory root t))))
+
+(ert-deftest hub/ai-lifecycle-fixture-preserves-caller-environment ()
+  "Filtering commit-hook variables must not share the caller's HOME cons cell."
+  (let* ((process-environment
+	  (cl-loop for entry in process-environment
+		   unless (string-prefix-p "GIT_" entry) collect entry))
+	 (before (copy-sequence process-environment))
+	 (home (expand-file-name "~/"))
+	 (abbreviation (abbreviate-file-name hub/ai-lifecycle-test--root)))
+    (pcase-let ((`(,status ,output) (hub/ai-lifecycle-test--run 'org-first)))
+      (ert-info ((format "Isolated lifecycle output:\n%s" output))
+		(should (equal status 0))
+		;; Report only a boolean on failure, never dump environment values.
+		(let ((unchanged (equal process-environment before)))
+		  (should unchanged))
+		(should (equal (expand-file-name "~/") home))
+		(should (equal (abbreviate-file-name hub/ai-lifecycle-test--root)
+			       abbreviation))))))
 
 (ert-deftest hub/ai-lifecycle-org-before-gptel-stays-opt-in-across-reloads ()
   "Org-first loading and repeated reloads preserve explicit activation and cleanup."
