@@ -3,6 +3,7 @@
 ## Purpose
 - This repository is an Emacs configuration written mostly in Emacs Lisp.
 - Optimize for safe batch loading, predictable module boundaries, stable interactive UX, and small local changes over broad rewrites.
+- Tracked Elisp is authoritative; edit it directly rather than generating config from Org. See `core/README.md`.
 
 ## Agent Inputs
 - No Cursor rules were found in `.cursor/rules/`.
@@ -45,7 +46,6 @@
 - Full batch load smoke check: `devenv shell -- env HOME=$PWD emacs --batch -l init.el --eval '(message "Loaded")' --kill`
 - Equivalent devenv shortcut: `devenv run load-check`
 - Force a fuller CI-like load: `devenv shell -- ci:load-all`
-- Tangle literate config: `devenv shell -- tangle`
 - Format all tracked Elisp: `devenv shell -- elisp:format-all`
 - Checkdoc all tracked Elisp: `devenv shell -- elisp:checkdoc-all`
 - Run all configured pre-commit gates: `devenv shell -- pre-commit:all`
@@ -62,7 +62,7 @@
 ## What CI Enforces
 - `.github/workflows/emacs.yml` runs on pushes and pull requests.
 - CI sets up Emacs `30.2`.
-- CI performs architecture lint, full config load, formatting, checkdoc, tangling, init load, and ERT tests.
+- CI performs architecture lint, full config load, formatting, checkdoc, init load, and ERT tests without generating configuration.
 - On PRs, CI may limit module-test execution based on changed files; on pushes it runs all module tests present.
 - Straight cache keys depend on Emacs version and `straight/versions/default.el`.
 - Architecture lint also rejects core files requiring namespaced module features and modules using `hub/*` helpers without `(require 'hub-utils)`.

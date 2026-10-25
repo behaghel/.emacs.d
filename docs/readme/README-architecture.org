@@ -8,6 +8,16 @@ This document explains the design: layers, loading, and CI integration.
 - Clear module boundaries and naming
 - Reproducible dependencies
 
+* Configuration Source
+Tracked Emacs Lisp is authoritative, as defined by the [[file:../../core/README.md][runtime contract]].
+Edit the =.el= files directly; documentation and CI do not generate them from Org.
+
+The entrypoints are [[file:../../early-init.el][early-init.el]] and [[file:../../init.el][init.el]]. Package setup lives in
+[[file:../../core/core-packages.el][core/core-packages.el]], managed paths in [[file:../../core/core-paths.el][core/core-paths.el]], and the opt-in
+writing helper in [[file:../../modules/writing/writing.el][modules/writing/writing.el]]. Explanatory documentation links to
+these sources rather than carrying executable copies. A literate publication can
+present source excerpts without becoming a second runtime input.
+
 * Layers and Predicates
 - Predicates: `core/core-predicates.el` defines `hub/interactive-p`, `hub/batch-p`, `hub/gui-p`, `hub/tty-p`, `hub/ci-p`.
 - Layers:
@@ -41,7 +51,8 @@ This document explains the design: layers, loading, and CI integration.
 - Temporary files (group `hub/tmp`):
   - `hub/tmp-directory`: base dir used by helpers like `org-msg` composition hook.
 
-Override these in `private/setup.el` to keep the repo portable.
+Keep ordinary personal settings in the relevant tracked modules. Reserve
+=private/setup.el= for secrets and genuinely uncommittable values.
 
 * Loading Strategy
 - `init.el` sets load-path and conditionally adds `modules/interactive` only when interactive (or `HUB_FORCE_FULL_LOAD=1`).
@@ -56,7 +67,7 @@ Override these in `private/setup.el` to keep the repo portable.
 * CI Workflow
 - Jobs:
   - warm-cache (on main): populates straight and eln caches via `scripts/ci-warm-all.el`.
-  - load-config: architecture lint, full-load check, checkdoc/format, tangle, smoke tests.
+  - load-config: architecture lint, full-load check, checkdoc/format, smoke tests, and ERT tests.
 - Guards:
   - Assert no fallback to emergency bootstrap (must load `core-packages`).
   - Forbid any `(require 'setup-*)` in repo.

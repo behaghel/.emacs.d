@@ -19,6 +19,8 @@ status: draft
 - Architecture guidance should preserve batch safety, predictable module boundaries, and stable interactive UX.
 - Performance documentation must distinguish desired behavior from measured facts.
 - Docs that govern behavior should point to the relevant code/spec locations rather than restating generated mappings.
+- Configuration explanations link to [authoritative Elisp](../core/README.md#invariants)
+  rather than maintaining embedded executable configuration copies.
 
 ## Integration Notes
 

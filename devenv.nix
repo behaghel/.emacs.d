@@ -46,7 +46,6 @@ in
     - Checkdoc all elisp : devenv shell -- elisp:checkdoc-all
     - Byte compile pkgs  : devenv shell -- elisp:byte-compile-packages
     - Package lint pkgs  : devenv shell -- elisp:package-lint-packages
-    - Tangle config      : devenv shell -- tangle
     - Confluence docs    : devenv shell -- docs:confluence
     - Org comments docs  : devenv shell -- docs:org-comments
     - Load check         : devenv shell -- load-check
@@ -64,9 +63,6 @@ in
 
   # Developer scripts (run with: devenv run <name>)
   scripts = {
-    tangle.exec = ''
-      emacs --batch -l org --eval '(org-babel-tangle-file "docs/config.org")'
-    '';
     load-check.exec = ''
       HOME=$PWD emacs --batch -l init.el --eval '(message "Loaded init.el")' --kill
     '';

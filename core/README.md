@@ -15,6 +15,9 @@ status: draft
 
 ## Invariants
 
+- Tracked `.el` files are the authoritative executable configuration.
+  Documentation and validation workflows do not generate or overwrite them
+  from Org documents.
 - Batch sessions must stay safe and predictable.
 - Interactive-only modules must not be exposed on `load-path` during ordinary batch loads.
 - Required runtime failures must remain visible in CI; fallbacks may be explicit but must not silently hide broken required paths.
