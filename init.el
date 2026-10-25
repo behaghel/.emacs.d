@@ -38,8 +38,6 @@
 (add-to-list 'load-path hub-lisp-dir)
 (require 'hub-noise)
 (hub/noise-install-buffer-filters)
-(when (file-directory-p (expand-file-name "~/ws/context-panels"))
-  (add-to-list 'load-path (expand-file-name "~/ws/context-panels")))
 (add-to-list 'load-path (expand-file-name "packages/org-comments" user-emacs-directory))
 (add-to-list 'load-path (expand-file-name "packages/org-suggestions" user-emacs-directory))
 (add-to-list 'load-path (expand-file-name "packages/org-copilot" user-emacs-directory))

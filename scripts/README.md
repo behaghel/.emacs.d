@@ -21,6 +21,10 @@ status: draft
 - Measurement tooling must not change runtime behavior or claim improvements without before/after data.
 - CI cache and package version behavior should remain reproducible.
 
+The ERT runner follows the runtime's
+[context-panels source contract](../core/README.md#context-panels-dependency)
+for its dependency load path.
+
 ## Architecture Lint
 
 - Modules and local libraries explicitly require `hub-utils` when referencing
