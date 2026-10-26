@@ -621,32 +621,29 @@ All candidate hunks apply as a single all-or-nothing operation."
 (defun org-suggestions--line-diff (old new)
   "Return a simple line diff from OLD to NEW."
   (concat
-   (mapconcat (lambda (line) (concat "-" line))
-	      (split-string (string-trim-right old) "\n")
-	      "\n")
-   "\n"
-   (mapconcat (lambda (line) (concat "+" line))
-	      (split-string (string-trim-right new) "\n")
-	      "\n")
-   "\n"))
+   (unless (string-empty-p old)
+     (concat
+      (mapconcat (lambda (line) (concat "-" line))
+		 (split-string (string-trim-right old) "\n")
+		 "\n")
+      "\n"))
+   (unless (string-empty-p new)
+     (concat
+      (mapconcat (lambda (line) (concat "+" line))
+		 (split-string (string-trim-right new) "\n")
+		 "\n")
+      "\n"))))
 
 (defun org-suggestions-candidate-diff (source-buffer _thread candidate)
   "Return a textual diff preview for CANDIDATE against live SOURCE-BUFFER."
-  (with-current-buffer source-buffer
+  (let ((operations (org-suggestions--resolve-candidate source-buffer candidate)))
+    (unless (and operations (cl-every #'identity operations))
+      (user-error "Suggestion candidate target is stale"))
     (mapconcat
-     (lambda (hunk)
-       (pcase (plist-get hunk :kind)
-	 ('section-replace
-	  (let* ((section (or (org-suggestions--resolve-section-hunk hunk)
-			      (user-error "Suggestion candidate target is stale")))
-		 (old (buffer-substring-no-properties
-		       (plist-get section :body-start)
-		       (plist-get section :end)))
-		 (new (org-suggestions--normalize-replacement
-		       (plist-get hunk :replacement))))
-	    (org-suggestions--line-diff old new)))
-	 (_ "")))
-     (plist-get candidate :hunks)
+     (lambda (operation)
+       (org-suggestions--line-diff (plist-get operation :original)
+				   (plist-get operation :replacement)))
+     operations
      "\n")))
 
 (provide 'org-suggestions)

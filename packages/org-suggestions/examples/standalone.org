@@ -1,0 +1,94 @@
+#+title: Standalone Org Suggestions
+#+property: header-args:emacs-lisp :results output
+
+This walkthrough uses only Emacs, Org, and =org-suggestions=.  The package
+declares Emacs 29.1+ and Org 9.6+; no comments or AI packages are required.
+For a source installation, add the package directory to =load-path= and evaluate
+=(require 'org-suggestions)=.  The repository helper does this automatically.
+
+From the configuration repository's development shell:
+
+#+begin_example
+./scripts/org-suggestions-standalone                # isolated tests + compilation
+./scripts/org-suggestions-standalone --interactive  # this walkthrough in clean Emacs
+#+end_example
+
+Run this example in a =disposable directory=: it creates/overwrites =draft.org=
+and its suggestions sidecar.  The repository's =scripts/org-suggestions-standalone --interactive=
+command provides such a directory and removes it when Emacs exits.
+
+Evaluate each block in order with =C-c C-c=, confirming Org's evaluation prompt.
+No provider, account, model, or network access is involved.  Source changes
+happen only when you explicitly evaluate the accept or undo block.
+
+* 1. Create and persist a candidate
+
+The candidate replaces the body of Intro, preserving its heading.  The source
+is still unchanged after writing the sidecar.  You can inspect both files with
+=C-x C-f=, returning to this walkthrough to continue.
+
+#+begin_src emacs-lisp
+(require 'org-suggestions)
+(let ((source-file (expand-file-name "draft.org")))
+  (with-temp-file source-file
+    (insert "* Intro\nOld body.\n"))
+  (princ
+   (org-suggestions-write-sidecar
+    source-file
+    (list (list :id "manual-thread" :provider "manual"
+                :summary "Rewrite Intro"
+                :candidates
+                (list (list :id "manual-1" :status 'active
+                            :hunks
+                            (list (list :id "body" :kind 'section-replace
+                                        :section-title "Intro"
+                                        :replacement "Revised body.\n")))))))))
+#+end_src
+
+* 2. Reload and preview, without applying
+
+The preview should contain =-Old body.= and =+Revised body.=.  Reading the
+sidecar and previewing it do not change the source or accept the candidate.
+
+#+begin_src emacs-lisp
+(let* ((source-file (expand-file-name "draft.org"))
+       (source (find-file-noselect source-file))
+       (threads (org-suggestions-load-sidecar source-file))
+       (match (org-suggestions-find-candidate threads "manual-1")))
+  (princ (org-suggestions-candidate-diff source (car match) (cdr match))))
+#+end_src
+
+* 3. Explicitly accept and save
+
+The source becomes =* Intro= followed by =Revised body.=, and the persisted
+candidate becomes ACCEPTED.  Accepting changes the source buffer; saving that
+buffer is a separate, explicit operation shown here.
+
+#+begin_src emacs-lisp
+(let* ((source-file (expand-file-name "draft.org"))
+       (source (find-file-noselect source-file)))
+  (org-suggestions-accept-candidate-id source "manual-1")
+  (with-current-buffer source
+    (save-buffer)
+    (princ (buffer-string))))
+#+end_src
+
+* 4. Undo in the same Emacs session
+
+The source returns to =Old body.= and the candidate returns to ACTIVE.
+The low-level undo helper changes the source buffer and candidate record;
+this example explicitly persists the updated records and saves the source.
+Rollback data is session-local: a restarted Emacs cannot undo solely from the
+persisted sidecar.  Incompatible edits after acceptance cause undo to refuse.
+
+#+begin_src emacs-lisp
+(let* ((source-file (expand-file-name "draft.org"))
+       (source (find-file-noselect source-file))
+       (threads (org-suggestions-load-sidecar source-file))
+       (match (org-suggestions-find-candidate threads "manual-1")))
+  (org-suggestions-undo-accepted-candidate source (cdr match))
+  (org-suggestions-write-sidecar source-file threads)
+  (with-current-buffer source
+    (save-buffer)
+    (princ (buffer-string))))
+#+end_src
