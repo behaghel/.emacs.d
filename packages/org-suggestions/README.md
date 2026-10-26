@@ -46,6 +46,14 @@ these public operations without an external provider.
 
 ## Sidecar shape
 
+Original and replacement bodies preserve their final-newline state, blank lines,
+trailing horizontal whitespace, and Unicode text across write/load cycles.
+Optional hunk properties `ORG_SUGGESTIONS_ORIGINAL_NO_FINAL_NEWLINE` and
+`ORG_SUGGESTIONS_REPLACEMENT_NO_FINAL_NEWLINE`, when `t`, distinguish a synthetic
+source-block delimiter newline from authored text. Readers remove only that
+synthetic newline. Unmarked blocks retain their literal, newline-terminated
+contents; loading does not infer inline text or rewrite the sidecar.
+
 ```org
 #+title: Suggestions for draft.org
 #+source: draft.org

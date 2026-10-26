@@ -31,6 +31,12 @@
 	      (:id "h1" :kind replace :original "Alpha.\n"
 		   :replacement "Revised alpha.\n")
 	      "-Alpha.\n+Revised alpha.\n")
+	     ("Alpha beta gamma.\n" "Alpha BETA gamma.\n"
+	      (:id "h1" :kind replace :original "beta" :replacement "BETA")
+	      "-beta\n+BETA\n")
+	     ("Alpha beta gamma.\n" "Alpha  gamma.\n"
+	      (:id "h1" :kind replace :original "beta" :replacement "")
+	      "-beta\n")
 	     ("Alpha.\nOmega.\n" "Alpha.\nMiddle.\nOmega.\n"
 	      (:id "h1" :kind insert :anchor-text "Omega." :placement before
 		   :replacement "Middle.\n")
@@ -109,12 +115,12 @@
 				      (push (org-babel-execute-src-block) results)))
 	  (setq results (nreverse results))
 	  (should (= (length results) 4))
-	  (should (equal (nth 1 results) "-Old body.\n+Revised body.\n"))
-	  (should (equal (nth 2 results) "* Intro\nRevised body.\n"))
-	  (should (equal (nth 3 results) "* Intro\nOld body.\n"))
+	  (should (equal (nth 1 results) "-beta\n+BETA\n"))
+	  (should (equal (nth 2 results) "Alpha BETA gamma.\n"))
+	  (should (equal (nth 3 results) "Alpha beta gamma.\n"))
 	  (with-temp-buffer
 	    (insert-file-contents source-file)
-	    (should (equal (buffer-string) "* Intro\nOld body.\n")))
+	    (should (equal (buffer-string) "Alpha beta gamma.\n")))
 	  (let* ((threads (org-suggestions-load-sidecar source-file))
 		 (match (org-suggestions-find-candidate threads "manual-1")))
 	    (should (eq (plist-get (cdr match) :status) 'active))))

@@ -23,31 +23,34 @@ happen only when you explicitly evaluate the accept or undo block.
 
 * 1. Create and persist a candidate
 
-The candidate replaces the body of Intro, preserving its heading.  The source
-is still unchanged after writing the sidecar.  You can inspect both files with
-=C-x C-f=, returning to this walkthrough to continue.
+The candidate replaces only =beta= in a sentence.  It must not introduce a
+line break or change the surrounding words.  The source is still unchanged
+after writing the sidecar.  You can inspect both files with =C-x C-f=, returning
+to this walkthrough to continue.  The sidecar's optional =NO_FINAL_NEWLINE=
+properties preserve inline text despite Org's required source-block delimiter
+newline; use a reader that honors those properties for exact inline fidelity.
 
 #+begin_src emacs-lisp
 (require 'org-suggestions)
 (let ((source-file (expand-file-name "draft.org")))
   (with-temp-file source-file
-    (insert "* Intro\nOld body.\n"))
+    (insert "Alpha beta gamma.\n"))
   (princ
    (org-suggestions-write-sidecar
     source-file
     (list (list :id "manual-thread" :provider "manual"
-                :summary "Rewrite Intro"
+                :summary "Capitalize beta"
                 :candidates
                 (list (list :id "manual-1" :status 'active
                             :hunks
-                            (list (list :id "body" :kind 'section-replace
-                                        :section-title "Intro"
-                                        :replacement "Revised body.\n")))))))))
+                            (list (list :id "body" :kind 'replace
+                                        :original "beta"
+                                        :replacement "BETA")))))))))
 #+end_src
 
 * 2. Reload and preview, without applying
 
-The preview should contain =-Old body.= and =+Revised body.=.  Reading the
+The preview should contain =-beta= and =+BETA=.  Reading the
 sidecar and previewing it do not change the source or accept the candidate.
 
 #+begin_src emacs-lisp
@@ -60,7 +63,7 @@ sidecar and previewing it do not change the source or accept the candidate.
 
 * 3. Explicitly accept and save
 
-The source becomes =* Intro= followed by =Revised body.=, and the persisted
+The source becomes =Alpha BETA gamma.= on the same line, and the persisted
 candidate becomes ACCEPTED.  Accepting changes the source buffer; saving that
 buffer is a separate, explicit operation shown here.
 
@@ -75,7 +78,7 @@ buffer is a separate, explicit operation shown here.
 
 * 4. Undo in the same Emacs session
 
-The source returns to =Old body.= and the candidate returns to ACTIVE.
+The source returns to =Alpha beta gamma.= and the candidate returns to ACTIVE.
 The low-level undo helper changes the source buffer and candidate record;
 this example explicitly persists the updated records and saves the source.
 Rollback data is session-local: a restarted Emacs cannot undo solely from the

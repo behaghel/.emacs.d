@@ -95,7 +95,14 @@
 					 (plist-get hunk :section-path))
 	 "ORG_SUGGESTIONS_ANCHOR_TEXT" (plist-get hunk :anchor-text)
 	 "ORG_SUGGESTIONS_PLACEMENT" (org-suggestions--symbol-name
-				      (plist-get hunk :placement))))
+				      (plist-get hunk :placement))
+	 "ORG_SUGGESTIONS_ORIGINAL_NO_FINAL_NEWLINE"
+	 (when (and (plist-member hunk :original)
+		    (not (string-suffix-p "\n" (or (plist-get hunk :original) ""))))
+	   "t")
+	 "ORG_SUGGESTIONS_REPLACEMENT_NO_FINAL_NEWLINE"
+	 (unless (string-suffix-p "\n" (or (plist-get hunk :replacement) ""))
+	   "t")))
   (when (plist-member hunk :original)
     (insert "\n**** Original\n")
     (org-suggestions--insert-org-block (plist-get hunk :original)))
@@ -183,22 +190,29 @@ SIDECAR-FILE defaults to `org-suggestions-sidecar-path'."
   (save-excursion
     (org-end-of-subtree t t)))
 
-(defun org-suggestions--source-block-body-in-subtree ()
-  "Return first source block body in current subtree."
+(defun org-suggestions--source-block-body-in-subtree (&optional no-final-newline)
+  "Return first source block body in current subtree.
+When NO-FINAL-NEWLINE is non-nil, remove the synthetic delimiter newline."
   (let ((end (org-suggestions--subtree-end))
 	body)
     (save-excursion
       (while (and (not body)
-		  (re-search-forward "^[[:space:]]*#[+]begin_src\\b.*$" end t))
+		  (re-search-forward "^[ \t]*#[+]begin_src\\b.*$" end t))
 	(forward-line 1)
 	(let ((start (point)))
-	  (when (re-search-forward "^[[:space:]]*#[+]end_src[[:space:]]*$" nil t)
+	  (when (re-search-forward "^[ \t]*#[+]end_src[ \t]*$" end t)
 	    (setq body (buffer-substring-no-properties start (match-beginning 0)))))))
-    body))
+    (if (and body no-final-newline)
+	(string-remove-suffix "\n" body)
+      body)))
 
 (defun org-suggestions--parse-hunk ()
   "Parse hunk at current heading."
   (let ((end (org-suggestions--subtree-end))
+	(original-no-final-newline
+	 (equal (org-entry-get nil "ORG_SUGGESTIONS_ORIGINAL_NO_FINAL_NEWLINE") "t"))
+	(replacement-no-final-newline
+	 (equal (org-entry-get nil "ORG_SUGGESTIONS_REPLACEMENT_NO_FINAL_NEWLINE") "t"))
 	(hunk (list :id (org-entry-get nil "ORG_SUGGESTIONS_HUNK_ID")
 		    :kind (intern (org-entry-get nil "ORG_SUGGESTIONS_HUNK_KIND"))
 		    :primary (equal (org-entry-get nil "ORG_SUGGESTIONS_PRIMARY") "t")
@@ -214,10 +228,12 @@ SIDECAR-FILE defaults to `org-suggestions-sidecar-path'."
 	  (pcase (org-suggestions--heading-title)
 	    ("Original"
 	     (setq hunk (plist-put hunk :original
-				   (org-suggestions--source-block-body-in-subtree))))
+				   (org-suggestions--source-block-body-in-subtree
+				    original-no-final-newline))))
 	    ("Replacement"
 	     (setq hunk (plist-put hunk :replacement
-				   (org-suggestions--source-block-body-in-subtree))))))))
+				   (org-suggestions--source-block-body-in-subtree
+				    replacement-no-final-newline))))))))
     hunk))
 
 (defun org-suggestions--parse-candidate ()
