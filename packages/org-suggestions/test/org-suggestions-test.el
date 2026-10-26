@@ -380,5 +380,100 @@ Old body.
 "))
       (should (eq (plist-get candidate :status) 'active)))))
 
+(ert-deftest org-suggestions-undo-multi-hunk-restores-length-changing-edits ()
+  "Undo restores the source when earlier replacements grow or shrink."
+  (dolist (replacements '(("ALPHA-LONG" "B") ("A" "BETA-LONG")))
+    (with-temp-buffer
+      (org-mode)
+      (insert "Alpha beta.\n")
+      (let* ((org-suggestions--rollback-data nil)
+	     (thread (org-suggestions-test--multi-hunk-thread))
+	     (candidate (car (plist-get thread :candidates)))
+	     (hunks (plist-get candidate :hunks)))
+	(plist-put (car hunks) :replacement (car replacements))
+	(plist-put (cadr hunks) :replacement (cadr replacements))
+	(org-suggestions-accept-candidate (current-buffer) thread candidate)
+	(should (equal (buffer-string)
+		       (format "%s %s.\n" (car replacements) (cadr replacements))))
+	(org-suggestions-undo-accepted-candidate (current-buffer) candidate)
+	(should (equal (buffer-string) "Alpha beta.\n"))
+	(should (eq (plist-get candidate :status) 'active))))))
+
+(ert-deftest org-suggestions-undo-multi-hunk-refuses-changed-text-atomically ()
+  "Changing either accepted hunk makes undo refuse without partial reversion."
+  (dolist (edit '(("ALPHA" "OTHER") ("BETA" "ELSE")))
+    (with-temp-buffer
+      (org-mode)
+      (insert "Alpha beta.\n")
+      (let* ((org-suggestions--rollback-data nil)
+	     (thread (org-suggestions-test--multi-hunk-thread))
+	     (candidate (car (plist-get thread :candidates))))
+	(org-suggestions-accept-candidate (current-buffer) thread candidate)
+	(goto-char (point-min))
+	(search-forward (car edit))
+	(replace-match (cadr edit) t t)
+	(let ((text-before (buffer-string))
+	      (thread-before (copy-tree thread))
+	      (rollback-before (copy-tree org-suggestions--rollback-data)))
+	  (should-error (org-suggestions-undo-accepted-candidate
+			 (current-buffer) candidate)
+			:type 'user-error)
+	  (should (equal (buffer-string) text-before))
+	  (should (equal thread thread-before))
+	  (should (equal org-suggestions--rollback-data rollback-before)))))))
+
+(ert-deftest org-suggestions-undo-multi-hunk-rolls-back-read-only-error ()
+  "A protected hunk prevents partial undo and permits a later retry."
+  (dolist (range '((1 . 6) (7 . 11)))
+    (with-temp-buffer
+      (org-mode)
+      (insert "Alpha beta.\n")
+      (let* ((org-suggestions--rollback-data nil)
+	     (thread (org-suggestions-test--multi-hunk-thread))
+	     (candidate (car (plist-get thread :candidates))))
+	(org-suggestions-accept-candidate (current-buffer) thread candidate)
+	(put-text-property (car range) (cdr range) 'read-only t)
+	(let ((thread-before (copy-tree thread))
+	      (rollback-before (copy-tree org-suggestions--rollback-data)))
+	  (should-error (org-suggestions-undo-accepted-candidate
+			 (current-buffer) candidate)
+			:type 'text-read-only)
+	  (should (equal (buffer-string) "ALPHA BETA.\n"))
+	  (should (get-text-property (car range) 'read-only))
+	  (should (equal thread thread-before))
+	  (should (equal org-suggestions--rollback-data rollback-before)))
+	(let ((inhibit-read-only t))
+	  (remove-text-properties (point-min) (point-max) '(read-only nil)))
+	(org-suggestions-undo-accepted-candidate (current-buffer) candidate)
+	(should (equal (buffer-string) "Alpha beta.\n"))
+	(should (eq (plist-get candidate :status) 'active))))))
+
+(ert-deftest org-suggestions-undo-multi-hunk-rolls-back-edit-hook-error ()
+  "An edit-hook error during undo preserves accepted text and lifecycle state."
+  (with-temp-buffer
+    (org-mode)
+    (insert "Alpha beta.\n")
+    (let* ((org-suggestions--rollback-data nil)
+	   (thread (org-suggestions-test--multi-hunk-thread))
+	   (candidate (car (plist-get thread :candidates))))
+      (org-suggestions-accept-candidate (current-buffer) thread candidate)
+      (let ((thread-before (copy-tree thread))
+	    (rollback-before (copy-tree org-suggestions--rollback-data))
+	    (before-change-functions
+	     (list (lambda (_start _end)
+		     (when (member (buffer-string)
+				   '("ALPHA beta.\n" "Alpha BETA.\n"))
+		       (error "Simulated undo failure"))))))
+	(should (equal (should-error
+			(org-suggestions-undo-accepted-candidate
+			 (current-buffer) candidate))
+		       '(error "Simulated undo failure")))
+	(should (equal (buffer-string) "ALPHA BETA.\n"))
+	(should (equal thread thread-before))
+	(should (equal org-suggestions--rollback-data rollback-before)))
+      (org-suggestions-undo-accepted-candidate (current-buffer) candidate)
+      (should (equal (buffer-string) "Alpha beta.\n"))
+      (should (eq (plist-get candidate :status) 'active)))))
+
 (provide 'org-suggestions-test)
 ;;; org-suggestions-test.el ends here

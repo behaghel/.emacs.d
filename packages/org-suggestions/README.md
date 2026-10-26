@@ -82,6 +82,6 @@ Replacement body only.
 - `section-replace` compares against the live section body; old section body text is not a stale condition.
 - `replace` and `insert` require resolvable text anchors.
 - Sidecar writes are atomic temp-file + rename writes.
-- Undo is session-local in the MVP.
+- Undo is session-local in the MVP and reverses all candidate hunks together, including length-changing edits. If accepted text has changed incompatibly or an edit fails, undo leaves source text, candidate status, and rollback history unchanged.
 
 See `SPEC.md` for the implementation contract.
