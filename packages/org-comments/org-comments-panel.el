@@ -16,6 +16,17 @@
 (require 'org-comments-panel-render)
 (require 'org-comments-store)
 
+(declare-function org-comments-delete "org-comments-commands" ())
+(declare-function org-comments-edit "org-comments-commands" ())
+(declare-function org-comments-mark-open "org-comments-commands" ())
+(declare-function org-comments-mark-resolved "org-comments-commands" ())
+(declare-function org-comments-mark-todo "org-comments-commands" ())
+(declare-function org-comments-open-remote "org-comments-commands" ())
+(declare-function org-comments-pull "org-comments-commands" ())
+(declare-function org-comments-push "org-comments-commands" ())
+(declare-function org-comments-reply "org-comments-commands" ())
+(declare-function org-comments-sync "org-comments-commands" ())
+
 (defvar-local org-comments-panel-source-buffer nil
   "Org source buffer rendered by the current comments panel.")
 

@@ -54,6 +54,19 @@ status: draft
 - Dependency load paths follow the runtime's
   [context-panels source contract](../core/README.md#context-panels-dependency).
 
+## Standalone Package Checks
+
+- `scripts/org-comments-standalone` verifies the comments package with only
+  Emacs built-ins and its declared context-panels dependency. Dependency paths
+  come from `CONTEXT_PANELS_PATH` or the configured Straight build directory;
+  checks do not fetch dependencies or initialize the personal configuration.
+- Source and package-local tests run from disposable copies outside the checkout,
+  with a temporary home and no sibling package or shared helper load paths.
+  Emacs network connections are disabled. Failures in ERT or strict compilation
+  return a nonzero status, and temporary files are removed on exit.
+- `--interactive` opens a disposable source document for the package's documented
+  [create/reopen/navigate workflow](../packages/org-comments/README.org).
+
 ## Architecture Lint
 
 - Modules and local libraries explicitly require `hub-utils` when referencing

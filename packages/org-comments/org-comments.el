@@ -3,7 +3,7 @@
 ;; Author: Hubert Behaghel
 ;; Maintainer: Hubert Behaghel
 ;; Version: 0.1.0
-;; Package-Requires: ((emacs "29.1") (org "9.6"))
+;; Package-Requires: ((emacs "29.1") (org "9.6") (context-panels "0.1.0"))
 ;; Keywords: outlines, tools, convenience
 ;; URL: https://github.com/behaghel/org-comments
 

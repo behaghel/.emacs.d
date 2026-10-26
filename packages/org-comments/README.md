@@ -32,10 +32,12 @@ Backend detection uses registered detectors and the current source buffer. The p
 - Context-panel rows expose the same author-facing command language across providers while capability limits remain explicit.
 - Package keybindings are Org-native and Emacs-native; the package does not install Evil, leader, or Bépo bindings.
 - Generic panels preserve source focus, jump to source or sidecar targets, and render stale or remote-missing state visibly.
+- Opening the side panel preserves the comments package's source highlight ranges and faces; it does not add a whole-line source highlight. Panel rows may highlight the focused comment independently.
 
 ## Invariants
 
 - Package code has neutral defaults and no dependency on private `hub-*` libraries.
+- Local comment creation, sidecar persistence, reopening, and panel navigation work with plain Emacs, Org, and the declared `context-panels` dependency; personal configuration and remote providers are not required.
 - Personal preferences, secrets, account defaults, and provider credentials stay outside the package.
 - Sidecar updates preserve user-authored bodies, notes, replies, and workflow state unless an explicit operation changes them.
 - Remote metadata enters the core model only through neutral fields and public backend operations.
