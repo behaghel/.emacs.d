@@ -23,7 +23,7 @@ Supported MVP hunk kinds:
 - `replace` — replace exact original text.
 - `insert` — insert text before/after an exact anchor.
 
-Candidate acceptance is all-or-nothing. If any hunk cannot resolve, no source text is changed and the candidate becomes stale.
+Candidate acceptance is all-or-nothing. If any hunk cannot resolve, no source text is changed and the candidate becomes stale. If an error interrupts source editing, all edits are rolled back; candidate and alternative statuses and session-local rollback history remain unchanged. Only successful acceptance records rollback data, marks the candidate accepted, and supersedes its active alternatives.
 
 ## Sidecar shape
 
@@ -82,6 +82,6 @@ Replacement body only.
 - `section-replace` compares against the live section body; old section body text is not a stale condition.
 - `replace` and `insert` require resolvable text anchors.
 - Sidecar writes are atomic temp-file + rename writes.
-- Undo is session-local in the MVP.
+- Undo is session-local in the MVP and reverses all candidate hunks together, including length-changing edits. If accepted text has changed incompatibly or an edit fails, undo leaves source text, candidate status, and rollback history unchanged.
 
 See `SPEC.md` for the implementation contract.

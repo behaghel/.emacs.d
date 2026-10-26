@@ -422,13 +422,14 @@ All candidate hunks apply as a single all-or-nothing operation."
 		  (> (plist-get left :start) (plist-get right :start)))))
     (with-current-buffer source-buffer
       (save-excursion
-	(dolist (operation operations)
-	  (let ((start (plist-get operation :start))
-		(end (plist-get operation :end))
-		(replacement (plist-get operation :replacement)))
-	    (goto-char start)
-	    (delete-region start end)
-	    (insert replacement)))))
+	(atomic-change-group
+	  (dolist (operation operations)
+	    (let ((start (plist-get operation :start))
+		  (end (plist-get operation :end))
+		  (replacement (plist-get operation :replacement)))
+	      (goto-char start)
+	      (delete-region start end)
+	      (insert replacement))))))
     (push (cons (plist-get candidate :id) operations)
 	  org-suggestions--rollback-data)
     (plist-put candidate :status 'accepted)
@@ -443,17 +444,20 @@ All candidate hunks apply as a single all-or-nothing operation."
       (user-error "No rollback data for suggestion candidate"))
     (with-current-buffer source-buffer
       (save-excursion
-	(dolist (operation operations)
-	  (let* ((start (plist-get operation :start))
-		 (replacement (plist-get operation :replacement))
-		 (end (+ start (length replacement)))
-		 (original (plist-get operation :original)))
-	    (unless (equal (buffer-substring-no-properties start end)
-			   replacement)
-	      (user-error "Accepted suggestion text has changed"))
-	    (goto-char start)
-	    (delete-region start end)
-	    (insert original))))))
+	(atomic-change-group
+	  ;; Undo in reverse application order so earlier length changes
+	  ;; restore the original coordinates of later hunks.
+	  (dolist (operation (reverse operations))
+	    (let* ((start (plist-get operation :start))
+		   (replacement (plist-get operation :replacement))
+		   (end (+ start (length replacement)))
+		   (original (plist-get operation :original)))
+	      (unless (equal (buffer-substring-no-properties start end)
+			     replacement)
+		(user-error "Accepted suggestion text has changed"))
+	      (goto-char start)
+	      (delete-region start end)
+	      (insert original)))))))
   (plist-put candidate :status 'active))
 
 (defun org-suggestions-accept-candidate-id (source-buffer candidate-id)
