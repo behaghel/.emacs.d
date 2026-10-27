@@ -42,7 +42,7 @@ Google Docs comments use the provider-neutral [`org-comments`](../org-comments/R
 
 ## Asset and Semantic Safety
 
-- Org-level asset planning is provided by [`org-sync`](../org-sync/README.md); Drive upload and download remain provider responsibilities.
+- Org-level asset planning is provided by [`ox-sync`](../ox-sync/README.md); Drive upload and download remain provider responsibilities.
 - Credentials and OAuth tokens never enter tracked files or diagnostic output.
 - Async callbacks preserve the originating buffer and account context.
 - A failed preflight leaves the remote document unchanged.

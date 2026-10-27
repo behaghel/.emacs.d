@@ -76,5 +76,33 @@
 	      (ert-info ((buffer-string)) (should (zerop status))))))
       (delete-directory directory t))))
 
+(ert-deftest hub/standalone-ox-sync-startup-opens-offline-bottom-panel ()
+  "The real launcher opens a bottom status panel without an implicit fetch."
+  (let* ((directory (make-temp-file "standalone-sync-launcher-test" t))
+	 (wrapper (expand-file-name "emacs" directory))
+	 (real-emacs (expand-file-name invocation-name invocation-directory))
+	 (process-environment (copy-sequence process-environment)))
+    (unwind-protect
+	(progn
+	  (with-temp-file wrapper
+	    (insert "#!/usr/bin/env bash\n"
+		    "exec \"$STANDALONE_TEST_EMACS\" --batch \"$@\" --eval "
+		    "'(let* ((source (get-file-buffer \"draft.org\")) "
+		    "(panel (buffer-local-value (quote context-panels-bottom-panel-buffer) source))) "
+		    "(unless (and (get-buffer-window source) "
+		    "(eq (window-parameter (get-buffer-window panel) (quote window-side)) (quote bottom)) "
+		    "(zerop (plist-get (buffer-local-value (quote ox-sync-demo--state) source) :fetches))) "
+		    "(error \"Startup did not open the offline sync panel\")))'\n"))
+	  (set-file-modes wrapper #o755)
+	  (setenv "STANDALONE_TEST_EMACS" real-emacs)
+	  (setenv "PATH" (concat directory path-separator (getenv "PATH")))
+	  (with-temp-buffer
+	    (let ((status (process-file
+			   (expand-file-name "scripts/ox-sync-standalone"
+					     hub/standalone-package-test--root)
+			   nil (list t t) nil "--interactive")))
+	      (ert-info ((buffer-string)) (should (zerop status))))))
+      (delete-directory directory t))))
+
 (provide 'standalone-package-test)
 ;;; standalone-package-test.el ends here

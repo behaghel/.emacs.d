@@ -1,0 +1,38 @@
+#+title: Offline export synchronization
+
+* This is a disposable source
+
+The bottom panel uses ox-sync's real commands and an in-memory demo provider.
+Nothing contacts Confluence, Google Docs, or any server.  The source and its
+.sync.org sidecar live in a temporary directory removed when Emacs exits.
+
+1. Initially both domains are unknown and no fetch time is recorded.  Press f:
+   expect a completion message and a last-success timestamp.  Content should
+   show fetched v1, with Baseline: not set.  Fetch again: expect no remote changes.
+   Press B to accept the current local fingerprint and remote v1 as corresponding;
+   expect clean, with Baseline: local <fingerprint> ↔ remote v1.
+2. Move to this source window, append a line below, and save with C-x C-s.
+   Return to the panel and press g.  Content should be ahead: its local fingerprint
+   changed, but its baseline still shows the previous fingerprint and remote v1.
+   Local refresh must not change the last-success timestamp.
+3. Press c to push content to the simulated remote.  Expect fetched v2 and
+   Baseline: local <new fingerprint> ↔ remote v2.  Press f again: expect no remote
+   changes, with fetched v2 and baseline remote v2 still equal.
+4. Optionally run M-x ox-sync-demo-remote-edit, enter a short addition, and press
+   f.  Content should be behind.  Press C to pull the addition into this source;
+   inspect and save it.  Expect clean again.
+5. Press q to close the panel.  M-x ox-sync-status reopens it.  Exit Emacs to
+   delete the entire sample, including source edits and tracking files.
+
+A baseline is an accepted pair of reference values, not a backup of the source.
+Fetch updates your view of the remote; it does not itself accept a new baseline.
+Numbered revisions, opaque revision IDs, and abbreviated hashes identify refs.
+The fetch header names the domains refreshed; push confirmation fetches content
+only, while f fetches both domains.
+
+Only content push/pull is implemented by this demo provider; comments remain an
+empty tracked domain.  No live provider behavior or credentials are simulated.
+
+* Add your local edit here
+
+Original sample text.

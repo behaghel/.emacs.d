@@ -15,7 +15,7 @@
 
 (autoload 'org-google-docs-comments-import "org-google-docs-comments-import" nil t)
 (require 'org-google-docs-comments-backend)
-(require 'org-sync nil 'noerror)
+(require 'ox-sync nil 'noerror)
 (require 'org-google-docs-footnotes)
 (require 'org-google-docs-images)
 
@@ -846,7 +846,7 @@ OAuth flow when a valid token already exists."
       (and (hash-table-p doc) (gethash "title" doc))))
 
 (defun org-google-docs-remote-describe-url (url)
-  "Return org-sync descriptor for Google Docs URL, or nil."
+  "Return ox-sync descriptor for Google Docs URL, or nil."
   (let ((trimmed (string-trim url)))
     (when (string-match "docs\\.google\\.com/document/d/\\([^/?#]+\\)" trimmed)
       (let* ((id (match-string 1 trimmed))
@@ -977,8 +977,8 @@ OAuth flow when a valid token already exists."
 			:title remote-name)
 	  :signals signals)))
 
-(when (fboundp 'org-sync-remote-register-provider)
-  (org-sync-remote-register-provider
+(when (fboundp 'ox-sync-remote-register-provider)
+  (ox-sync-remote-register-provider
    :kind "google-docs"
    :describe-url #'org-google-docs-remote-describe-url
    :pull #'org-google-docs-remote-pull

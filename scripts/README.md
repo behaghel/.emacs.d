@@ -62,8 +62,8 @@ status: draft
 
 - `scripts/elisp-package-standalone` shares source-only copying, temporary-home
   isolation, dependency checks, ERT, strict compilation, and interactive samples
-  for the verified comments, suggestions, marginalia, and static-site workflows. The focused
-  commands below retain their `--batch` and `--interactive` interfaces.
+  for the verified comments, suggestions, marginalia, static-site, and export-sync
+  workflows. The focused commands below retain their `--batch` and `--interactive` interfaces.
 - `scripts/org-comments-standalone` verifies the comments package with only
   Emacs built-ins and its declared context-panels dependency. Dependency paths
   come from `CONTEXT_PANELS_PATH` or the configured Straight build directory;
@@ -83,6 +83,12 @@ status: draft
   project with directory-local activation, without Denote, ox-hugo, or
   context-panels. Setup and limits are documented in the
   [package manual](../packages/hb-static-site/README.org).
+- `scripts/ox-sync-standalone` verifies the export-sync kernel with org-comments,
+  Context Panels, and Magit Section's source dependency closure. The interactive
+  mode uses an offline provider for status, fetch, baseline, content push/pull,
+  and tracking persistence, never live Confluence or Google Docs. Cached source
+  dependencies come from `STRAIGHT_BUILD_PATH`; the check never installs them.
+  Usage and limits are documented in the [package manual](../packages/ox-sync/README.org).
 - Source and package-local tests run from disposable copies outside the checkout,
   with a temporary home and no sibling package or shared helper load paths.
   Emacs network connections are disabled. Failures in ERT or strict compilation

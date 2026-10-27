@@ -6,7 +6,7 @@ Confluence and Google Docs both synchronize Org buffers with remote document pro
 
 ## Decisions
 
-- Keep provider-neutral Org synchronization helpers in `packages/org-sync/`.
+- Keep provider-neutral Org synchronization helpers in `packages/ox-sync/`.
 - Keep provider API behavior outside this package: Confluence attachment upload and Google Drive upload/download remain in provider packages.
 - Preserve existing Confluence-compatible generated image filename semantics so migration can be incremental.
 - Prefer data-returning planners and small diagnostics over provider-specific side effects.
@@ -22,15 +22,15 @@ Confluence and Google Docs both synchronize Org buffers with remote document pro
 
 ## Acceptance Criteria
 
-- [x] Given an undescribed standalone local image link, when image assets are planned, then org-sync returns source link, local source path, generated filename, and caption when present.
+- [x] Given an undescribed standalone local image link, when image assets are planned, then ox-sync returns source link, local source path, generated filename, and caption when present.
 - [x] Given a described image link, when image assets are planned, then it is ignored as a normal link.
-- [x] Given a missing non-imported local image, when strict path resolution is requested, then org-sync reports a clear error.
+- [x] Given a missing non-imported local image, when strict path resolution is requested, then ox-sync reports a clear error.
 - [x] Given a generated/imported image filename with no local source, when image assets are planned with imported reuse enabled, then the asset is marked `:missing-source` instead of failing.
-- [x] Given Google Docs image preflight runs, when it detects standalone images, then it uses org-sync asset planning for Org-level detection/path/caption behavior.
+- [x] Given Google Docs image preflight runs, when it detects standalone images, then it uses ox-sync asset planning for Org-level detection/path/caption behavior.
 - [x] Given Confluence image asset behavior is migrated, when existing Confluence tests run, then generated filenames and missing-source semantics remain unchanged.
-- [x] Given a pulled Google Docs remote image link, when the provider cache command runs, then org-sync downloads the fetchable URL to a stable local cache filename and the provider rewrites the Org link to `file:`.
+- [x] Given a pulled Google Docs remote image link, when the provider cache command runs, then ox-sync downloads the fetchable URL to a stable local cache filename and the provider rewrites the Org link to `file:`.
 
 ## Verification
 
-- Package-local ERT tests in `packages/org-sync/test/` cover the shared behavior.
+- Package-local ERT tests in `packages/ox-sync/test/` cover the shared behavior.
 - Provider migrations keep their existing provider-specific test suites green.

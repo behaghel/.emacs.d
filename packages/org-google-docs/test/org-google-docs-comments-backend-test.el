@@ -11,7 +11,7 @@
 (require 'org-comments-backend)
 
 (add-to-list 'load-path (expand-file-name ".." (file-name-directory load-file-name)))
-(add-to-list 'load-path (expand-file-name "../../org-sync"
+(add-to-list 'load-path (expand-file-name "../../ox-sync"
 					  (file-name-directory load-file-name)))
 (add-to-list 'load-path (expand-file-name "../../org-comments" (file-name-directory load-file-name)))
 

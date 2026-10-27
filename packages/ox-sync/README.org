@@ -1,0 +1,122 @@
+#+title: ox-sync — Org export synchronization
+
+* Scope
+
+=ox-sync= provides provider-neutral export/synchronization status, tracking
+sidecars, local asset planning, and a remote-document protocol.  It is shared
+infrastructure, not an Org export backend and not a Confluence/Google Docs API
+client.  Context Panels supplies the status display; it does not own the sync
+model or provider contract.
+
+Requiring =ox-sync= does not enable a mode, register a real provider, fetch data,
+or consult accounts.  Consumers activate =ox-sync-mode= or =ox-sync-status=
+after supplying a matching status adapter.
+
+* Dependencies and local installation
+
+The entrypoint declares Emacs 29.1+, Org 9.6+, context-panels 0.1.0+,
+org-comments 0.1.0+, Magit Section 4.5.0+, and Transient 0.13.0+.
+Magit Section's dependency closure includes compat, cond-let, llama, and a
+sufficiently recent seq.  Transient is declared explicitly because the selected
+Magit Section implementation requires its newer API.  Install dependencies in
+the consumer's package environment, add this directory to =load-path=, then:
+
+#+begin_src emacs-lisp
+(require 'ox-sync)
+#+end_src
+
+No old =org-sync= libraries or command aliases are provided: that name belongs
+to an unrelated package.  Existing =.sync.org= files and their version-1
+=org_sync_sidecar_version= field remain readable without migration.  Remote
+provider IDs and the default =assets/org-sync= cache path are unchanged.  The
+Context Panels provider identifier remains =org-sync=; command/view names use
+=ox-sync=.  The panel retains its familiar “Org Sync” display label.
+
+* Adapter interfaces
+
+The [[file:README.md::Provider Contract][status contract]] uses =ox-sync-register-provider= with detection, fetch, and
+per-domain action callbacks.  Detection reads source metadata locally.  Fetch
+returns remote references without rewriting source/comments.  Push callbacks
+publish their domain; the kernel then fetches the affected refs before advancing
+the baseline.  A provider without a fetch callback cannot push.  A fetch result
+must contain usable requested-domain references; an empty result is an error,
+not a successful no-op.
+
+The separate =ox-sync-remote-register-provider= registry provides URL description,
+pull-to-path, activity scan, and comment scan dispatch.  Confluence and Google
+Docs consume this protocol and the shared asset helpers.  Such registration does
+not automatically supply a status adapter.  See [[file:examples/ox-sync-demo.el][the offline adapter]] for a complete
+minimal content-status adapter; it is not loaded or registered by the package.
+
+Source, tracking, and provider identities must agree before fetch, baseline,
+pull, or push.  Changing provider/account/document metadata is detected afresh.
+An identity mismatch displays a blocking status; explicitly reset tracking to
+archive the old sidecar and initialize the new identity.  This also applies to a
+legacy sidecar lacking an account when the source now specifies one.
+
+* Commands
+
+Run =M-x ox-sync-status= in a source with a registered matching adapter.  The
+bottom panel uses native Emacs keys; no Evil or personal leader map is needed.
+
+| Key | Action                                      |
+|-----+---------------------------------------------|
+| g   | Refresh local status without fetching       |
+| f   | Fetch remote tracking refs                   |
+| B   | Accept local/fetched refs as a baseline      |
+| p/F | Push/pull eligible domains                   |
+| c/C | Push/pull content                            |
+| m/M | Push/pull comments                           |
+| R   | Confirm reset and archive old tracking       |
+| q   | Close the status panel                       |
+
+Unknown, diverged, and conflicted domains block generic mutation.  Baseline is
+an explicit correspondence decision, not an automatic merge or a backup copy.
+It records the local fingerprint and remote reference last accepted as
+corresponding.  B accepts the current pair; successful push/pull advances the
+pair for the affected domains.  Fetch alone does not advance it.
+
+The panel shows each domain's local and fetched references and its baseline
+pair.  Numbered remote versions appear as =v1=, =v2=, etc.; opaque revision IDs
+are shown directly and hashes are abbreviated to eight characters.  Empty
+sections are omitted; clean domains remain visible with their references.
+
+Fetch reports progress and completion even when the remote references are
+unchanged.  The last-success header records the local completion timestamp,
+outcome, and domains refreshed.  Push confirmation fetches only the pushed
+domains; it does not imply other cached domains were refreshed.  Failed fetches
+and local refresh leave the previous success receipt unchanged.  Older tracking
+files without receipt metadata show =not recorded= rather than inventing history.
+
+* Offline standalone workflow
+
+From this checkout's root:
+
+#+begin_src sh
+devenv -q shell -- ./scripts/ox-sync-standalone
+devenv -q shell -- ./scripts/ox-sync-standalone --interactive
+#+end_src
+
+The check copies only package source/tests/examples and declared dependencies to
+a temporary directory, uses =emacs -Q= with a temporary HOME, disables Emacs
+network connections, runs ERT, and strictly compiles package and demo sources.
+It does not load personal helpers or Confluence/Google Docs packages.
+Dependencies are copied from =STRAIGHT_BUILD_PATH= (default =straight/build=),
+with Context Panels optionally selected through =CONTEXT_PANELS_PATH=.  Missing
+source dependencies produce setup errors instead of triggering downloads.
+
+The interactive session opens [[file:examples/standalone.org][the walkthrough]] with an in-memory remote:
+1. Fetch with f; inspect its completion message, timestamp, and fetched v1.
+   Fetch again to see =no remote changes=, then baseline with B; expect clean
+   and baseline remote v1.
+2. Edit/save the source; refresh with g; expect content ahead, a changed local
+   fingerprint, the old baseline pair, and no change to the last-fetch timestamp.
+3. Push with c; expect fetched v2 and baseline remote v2.  Fetch with f again;
+   expect =no remote changes= with both remote references still at v2.
+4. Optionally simulate a remote edit with =ox-sync-demo-remote-edit=, fetch, and
+   pull with C; inspect the source addition and clean status.
+
+The demo implements content actions only; comments remain an empty tracked
+domain.  It uses real status commands and tracking files, but no live transport,
+authentication, provider payload conversion, or provider accounts.  Exit Emacs
+to delete the entire sample.  Existing authored documents are untouched.

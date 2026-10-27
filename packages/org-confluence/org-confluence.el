@@ -25,7 +25,7 @@
 (require 'org-confluence-commands)
 (require 'org-confluence-people-store)
 (require 'org-confluence-sync-status-marker)
-(require 'org-sync nil 'noerror)
+(require 'ox-sync nil 'noerror)
 (require 'org-confluence-comments-remote)
 (require 'org-confluence-mentions)
 
@@ -237,7 +237,7 @@ install personal leader, Evil, or layout-specific bindings."
     (string-trim (url-unhex-string (replace-regexp-in-string "+" " " (match-string 1 url))))))
 
 (defun org-confluence-remote-describe-url (url)
-  "Return org-sync descriptor for Confluence URL, or nil."
+  "Return ox-sync descriptor for Confluence URL, or nil."
   (let ((trimmed (string-trim url)))
     (when (string-match "/pages/\\([0-9]+\\)" trimmed)
       (list :kind "confluence"
@@ -362,8 +362,8 @@ KIND is `root' or `reply'.  COMMENT-KIND is Confluence endpoint kind."
 			signals))))))))
     (list :kind "confluence" :id page-id :signals (nreverse signals))))
 
-(when (fboundp 'org-sync-remote-register-provider)
-  (org-sync-remote-register-provider
+(when (fboundp 'ox-sync-remote-register-provider)
+  (ox-sync-remote-register-provider
    :kind "confluence"
    :describe-url #'org-confluence-remote-describe-url
    :pull #'org-confluence-remote-pull

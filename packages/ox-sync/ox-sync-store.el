@@ -1,4 +1,4 @@
-;;; org-sync-store.el --- Org sync tracking sidecars -*- lexical-binding: t; -*-
+;;; ox-sync-store.el --- Org sync tracking sidecars -*- lexical-binding: t; -*-
 
 ;;; Commentary:
 ;; Provider-neutral read/write helpers for Org sync remote-tracking sidecars.
@@ -7,57 +7,57 @@
 
 (require 'subr-x)
 
-(defconst org-sync-store--begin-marker "#+BEGIN_SRC emacs-lisp"
+(defconst ox-sync-store--begin-marker "#+BEGIN_SRC emacs-lisp"
   "Begin marker for machine-readable sync tracking data.")
 
-(defconst org-sync-store--end-marker "#+END_SRC"
+(defconst ox-sync-store--end-marker "#+END_SRC"
   "End marker for machine-readable sync tracking data.")
 
-(defun org-sync-store-path (&optional source-file)
+(defun ox-sync-store-path (&optional source-file)
   "Return sync sidecar path for SOURCE-FILE."
   (let ((file (or source-file buffer-file-name)))
     (unless file
       (user-error "Source buffer is not visiting a file"))
     (concat (file-name-sans-extension file) ".sync.org")))
 
-(defun org-sync-store--extract-data-string ()
+(defun ox-sync-store--extract-data-string ()
   "Return sync data source block contents from the current buffer."
   (goto-char (point-min))
-  (unless (search-forward org-sync-store--begin-marker nil t)
+  (unless (search-forward ox-sync-store--begin-marker nil t)
     (user-error "Org sync sidecar has no tracking data block"))
   (forward-line 1)
   (let ((start (point)))
-    (unless (search-forward org-sync-store--end-marker nil t)
+    (unless (search-forward ox-sync-store--end-marker nil t)
       (user-error "Org sync sidecar has unterminated tracking data block"))
     (string-trim (buffer-substring-no-properties
 		  start (line-beginning-position)))))
 
-(defun org-sync-store-read (&optional source-file)
+(defun ox-sync-store-read (&optional source-file)
   "Read tracking data for SOURCE-FILE, or nil when absent."
-  (let ((sidecar (org-sync-store-path source-file)))
+  (let ((sidecar (ox-sync-store-path source-file)))
     (when (file-exists-p sidecar)
       (with-temp-buffer
 	(insert-file-contents sidecar)
-	(let ((data (org-sync-store--extract-data-string)))
+	(let ((data (ox-sync-store--extract-data-string)))
 	  (when (not (string-empty-p data))
 	    (read data)))))))
 
-(defun org-sync-store-write (source-file tracking)
+(defun ox-sync-store-write (source-file tracking)
   "Write TRACKING data to SOURCE-FILE's sync sidecar and return its path."
-  (let ((sidecar (org-sync-store-path source-file)))
+  (let ((sidecar (ox-sync-store-path source-file)))
     (make-directory (file-name-directory sidecar) t)
     (with-temp-file sidecar
       (insert "#+TITLE: Org Sync Tracking\n")
       (insert "#+PROPERTY: org_sync_sidecar_version 1\n\n")
       (insert "* Tracking\n")
-      (insert org-sync-store--begin-marker "\n")
+      (insert ox-sync-store--begin-marker "\n")
       (prin1 tracking (current-buffer))
-      (insert "\n" org-sync-store--end-marker "\n"))
+      (insert "\n" ox-sync-store--end-marker "\n"))
     sidecar))
 
-(defun org-sync-store-archive (source-file)
+(defun ox-sync-store-archive (source-file)
   "Archive SOURCE-FILE's sync sidecar and return backup path, or nil."
-  (let ((sidecar (org-sync-store-path source-file)))
+  (let ((sidecar (ox-sync-store-path source-file)))
     (when (file-exists-p sidecar)
       (let ((backup (format "%s.%s.bak"
 			    sidecar
@@ -65,5 +65,5 @@
 	(copy-file sidecar backup t)
 	backup))))
 
-(provide 'org-sync-store)
-;;; org-sync-store.el ends here
+(provide 'ox-sync-store)
+;;; ox-sync-store.el ends here

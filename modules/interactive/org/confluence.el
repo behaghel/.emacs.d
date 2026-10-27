@@ -33,7 +33,7 @@
   "Return absolute path for Confluence exporter file NAME."
   (expand-file-name name hub/org-confluence-export-directory))
 
-(add-to-list 'load-path (expand-file-name "packages/org-sync" user-emacs-directory))
+(add-to-list 'load-path (expand-file-name "packages/ox-sync" user-emacs-directory))
 (add-to-list 'load-path hub/org-confluence-export-directory)
 
 (use-package magit-section

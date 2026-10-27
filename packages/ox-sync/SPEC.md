@@ -4,11 +4,11 @@
 
 Org synchronization currently exposes provider-specific status UX, especially in `org-confluence-sync-status-*`. That makes status, fetch/pull/push language, window management, comment tracking, and future Google Docs parity harder to keep consistent.
 
-`org-sync` should become the shared kernel for a Git/Magit-inspired Org sync status workflow. Provider packages should keep provider API behavior, but status modeling, remote-tracking sidecars, source markers, bottom-panel UI, and content/comment domain comparison should be provider-neutral.
+`ox-sync` should become the shared kernel for a Git/Magit-inspired Org sync status workflow. Provider packages should keep provider API behavior, but status modeling, remote-tracking sidecars, source markers, bottom-panel UI, and content/comment domain comparison should be provider-neutral.
 
 ## Goals
 
-- Provide one `org-sync-status` bottom panel UX for Confluence now and Google Docs later.
+- Provide one `ox-sync-status` bottom panel UX for Confluence now and Google Docs later.
 - Model remote tracking like Git:
   - `g` refreshes local status without network.
   - `f` fetches remote refs into tracking state without mutating source/comments.
@@ -25,19 +25,19 @@ Org synchronization currently exposes provider-specific status UX, especially in
 - Multiple remotes for one Org source file.
 - Generic conflict resolution or force pull/push for diverged domains.
 - Auto-fetch when opening or enabling sync mode.
-- Direct mutation of `.comments.org` by `org-sync`.
+- Direct mutation of `.comments.org` by `ox-sync`.
 - Backward-compatible Confluence `org-confluence-sync-status-*` modules or command names.
 
 ## Package Dependencies
 
-`org-sync` is a stand-alone UX/shared-kernel package and should hard depend on:
+`ox-sync` is a stand-alone UX/shared-kernel package and should hard depend on:
 
 - `org`
 - `context-panels`
 - `magit-section`
 - `org-comments`
 
-Provider packages depend on `org-sync`; `org-sync` must not depend on Confluence or Google Docs packages.
+Provider packages depend on `ox-sync`; `ox-sync` must not depend on Confluence or Google Docs packages.
 
 ## Data Ownership
 
@@ -99,7 +99,7 @@ V1 supports exactly:
 
 - Local comment refs are computed from normalized `org-comments` records filtered for the active provider.
 - Providers adapt remote comments into a shared normalized remote comment shape.
-- `org-sync` canonicalizes/sorts/hashes normalized comment records consistently.
+- `ox-sync` canonicalizes/sorts/hashes normalized comment records consistently.
 - Comment body hashes may be stored; full bodies should not be stored by default.
 - Copilot/local-only comments are excluded unless the provider adapter marks them syncable for that provider.
 
@@ -186,7 +186,7 @@ Provider detection returns one active document descriptor for the current source
 
 If source identity and `.sync.org` identity disagree, status is blocking/unknown and fetch/pull/push are refused.
 
-`R` / `org-sync-reset-tracking` explicitly resets tracking for the current source identity:
+`R` / `ox-sync-reset-tracking` explicitly resets tracking for the current source identity:
 
 - archive or backup old `.sync.org`
 - initialize provider identity
@@ -196,7 +196,7 @@ If source identity and `.sync.org` identity disagree, status is blocking/unknown
 
 ## Provider Adapter Contract
 
-Providers register adapters with `org-sync`.
+Providers register adapters with `ox-sync`.
 
 Required adapter fields:
 
@@ -243,39 +243,39 @@ Fetch result shape:
  :issues (...))
 ```
 
-Providers adapt raw remote comments; `org-sync` owns canonicalization and hashing.
+Providers adapt raw remote comments; `ox-sync` owns canonicalization and hashing.
 
 ## Commands
 
-- `org-sync-mode`: source-buffer minor mode.
+- `ox-sync-mode`: source-buffer minor mode.
   - detects provider
   - reads tracking sidecar
   - computes local refs
   - updates source marker
   - registers bottom panel provider
   - no auto-fetch
-- `org-sync-status`: open the bottom status panel for the current source, enabling `org-sync-mode` if needed.
-- `org-sync-refresh`: `g`, local refresh only.
-- `org-sync-fetch`: `f`, network fetch only into tracking state.
-- `org-sync-pull`: `F`, aggregate pull.
-- `org-sync-push`: `p`, aggregate push.
-- `org-sync-pull-content`: `C`.
-- `org-sync-pull-comments`: `M`.
-- `org-sync-push-content`: `c`.
-- `org-sync-push-comments`: `m`.
-- `org-sync-baseline`: `B`.
-- `org-sync-reset-tracking`: `R`.
-- `org-sync-help`: `?`.
-- `org-sync-close`: `q`.
+- `ox-sync-status`: open the bottom status panel for the current source, enabling `ox-sync-mode` if needed.
+- `ox-sync-refresh`: `g`, local refresh only.
+- `ox-sync-fetch`: `f`, network fetch only into tracking state.
+- `ox-sync-pull`: `F`, aggregate pull.
+- `ox-sync-push`: `p`, aggregate push.
+- `ox-sync-pull-content`: `C`.
+- `ox-sync-pull-comments`: `M`.
+- `ox-sync-push-content`: `c`.
+- `ox-sync-push-comments`: `m`.
+- `ox-sync-baseline`: `B`.
+- `ox-sync-reset-tracking`: `R`.
+- `ox-sync-help`: `?`.
+- `ox-sync-close`: `q`.
 
 No primary generic `sync` command is part of the v1 UX. Existing provider sync commands may exist until deleted/migrated, but the user-facing target is fetch/pull/push/status.
 
 ## Bottom Panel UX
 
-`org-sync` owns one generic `context-panels` bottom provider.
+`ox-sync` owns one generic `context-panels` bottom provider.
 
-- Provider name: `org-sync`.
-- View id: `org-sync-status`.
+- Provider name: `org-sync` (stable integration identifier).
+- View id: `ox-sync-status`.
 - Buffer name: `*Org Sync*`.
 - Rendering uses `magit-section` as a hard dependency.
 
@@ -315,7 +315,7 @@ Only sections with content should be expanded by default where practical.
 
 ## Source Marker UX
 
-`org-sync-mode` owns a generic compact source marker.
+`ox-sync-mode` owns a generic compact source marker.
 
 Marker examples:
 
@@ -327,11 +327,11 @@ Marker examples:
 - `⇅ !`
 - `⇅ ↑2 ↓1`
 
-Counts are domain counts, not comment/item counts. Tooltip/help text explains domain details, e.g. `Content ahead; Comments behind`. Clicking/RET opens `org-sync-status`. The marker uses only tracking/local cache data and performs no network fetch.
+Counts are domain counts, not comment/item counts. Tooltip/help text explains domain details, e.g. `Content ahead; Comments behind`. Clicking/RET opens `ox-sync-status`. The marker uses only tracking/local cache data and performs no network fetch.
 
 ## Confluence Migration
 
-Create `packages/org-confluence/org-confluence-org-sync.el`.
+Create `packages/org-confluence/org-confluence-ox-sync.el`.
 
 It registers the Confluence adapter and owns Confluence-specific behavior:
 
@@ -352,14 +352,14 @@ Migrate/delete old modules after replacement:
 - `org-confluence-sync-status-actions.el`
 - `org-confluence-sync-status.el`
 
-No Confluence status command names need to be preserved. Rename user-facing command to `org-sync-status` and update keybindings/docs.
+No Confluence status command names need to be preserved. Rename user-facing command to `ox-sync-status` and update keybindings/docs.
 
-Future Google Docs adapter should be named `org-google-docs-org-sync.el`.
+Future Google Docs adapter should be named `org-google-docs-ox-sync.el`.
 
 ## Acceptance Criteria
 
-1. Given an Org buffer with Confluence metadata, when `org-sync-mode` is enabled, then exactly one `confluence` adapter is detected and a compact source marker is shown without network I/O.
-2. Given no valid provider metadata, when `org-sync-status` runs, then it fails clearly with no provider detected.
+1. Given an Org buffer with Confluence metadata, when `ox-sync-mode` is enabled, then exactly one `confluence` adapter is detected and a compact source marker is shown without network I/O.
+2. Given no valid provider metadata, when `ox-sync-status` runs, then it fails clearly with no provider detected.
 3. Given multiple providers detect a source, when status is requested, then v1 fails clearly with multiple providers detected.
 4. Given no `.sync.org`, when status opens, then content and comments domains are `unknown` and push/pull are disabled.
 5. Given `f` fetch succeeds, when status refreshes, then `.sync.org` stores fetched remote refs for content/comments and source/comments files are unchanged.
@@ -373,12 +373,12 @@ Future Google Docs adapter should be named `org-google-docs-org-sync.el`.
 13. Given aggregate `p` runs with only ahead eligible domains, then provider push callbacks run for those domains and base refs advance only for successful domains.
 14. Given source identity differs from `.sync.org` identity, when status opens, then a blocking identity mismatch is shown and fetch/pull/push are refused until `R` reset.
 15. Given `R` reset is confirmed, then old `.sync.org` is archived/backed up, new tracking identity is initialized, and source/comments/remote are unchanged.
-16. Given Confluence status migration is complete, then no active code requires `org-confluence-sync-status-*` modules and keybindings/docs use `org-sync-status`.
+16. Given Confluence status migration is complete, then no active code requires `org-confluence-sync-status-*` modules and keybindings/docs use `ox-sync-status`.
 17. Given Google Docs later registers an adapter, then it can reuse the same bottom status panel, source marker, sidecar tracking, command keys, and content/comments status model without Confluence dependencies.
 
 ## Verification Plan
 
-- Add `packages/org-sync/test/` ERT coverage for:
+- Add `packages/ox-sync/test/` ERT coverage for:
   - model status derivation
   - sync sidecar read/write/reset/baseline
   - provider detection and ambiguity

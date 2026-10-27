@@ -236,8 +236,8 @@ domains:
           - term: Local package
             meaning: Reusable package-style code with neutral defaults, separate from activation and personal configuration modules.
         code:
-          - packages/org-sync/
-        spec: packages/org-sync/
+          - packages/ox-sync/
+        spec: packages/ox-sync/
       google-docs:
         description: Google Docs publishing integration and reusable org-google-docs adapter package code.
         type: supporting
@@ -287,7 +287,7 @@ context-map:
     contract: modules/interactive/org/README.md
 
   - provider: authoring/comments
-    consumers: [publishing/confluence, publishing/google-docs]
+    consumers: [publishing/org-sync, publishing/confluence, publishing/google-docs]
     pattern: shared-kernel
     contract: packages/org-comments/README.md
 
@@ -299,4 +299,4 @@ context-map:
   - provider: publishing/org-sync
     consumers: [publishing/confluence, publishing/google-docs]
     pattern: shared-kernel
-    contract: packages/org-sync/README.md
+    contract: packages/ox-sync/README.md

@@ -8,7 +8,7 @@
 ;;; Code:
 
 (require 'cl-lib)
-(require 'org-sync-assets)
+(require 'ox-sync-assets)
 (require 'seq)
 (require 'subr-x)
 
@@ -40,7 +40,7 @@ set this to nil only if your environment provides another fetchable URI path."
 
 (defun org-google-docs-images--absolute-path (path)
   "Return absolute file PATH for an Org image link."
-  (org-sync-assets-absolute-path path))
+  (ox-sync-assets-absolute-path path))
 
 (defun org-google-docs-images--document-cache-directory ()
   "Return local cache directory for the current Google Docs buffer."
@@ -60,7 +60,7 @@ set this to nil only if your environment provides another fetchable URI path."
 	entries)
     (org-element-map tree 'paragraph
 		     (lambda (paragraph)
-		       (when-let* ((link (org-sync-assets-standalone-remote-link paragraph)))
+		       (when-let* ((link (ox-sync-assets-standalone-remote-link paragraph)))
 			 (push (cons paragraph link) entries))))
     entries))
 
@@ -93,8 +93,8 @@ use the normal local-asset path."
 	(let* ((paragraph (car entry))
 	       (link (cdr entry))
 	       (url (org-element-property :raw-link link))
-	       (hint (org-sync-assets-caption paragraph))
-	       (local-path (org-sync-assets-cache-remote-url url directory hint)))
+	       (hint (ox-sync-assets-caption paragraph))
+	       (local-path (ox-sync-assets-cache-remote-url url directory hint)))
 	  (org-google-docs-images--replace-link-with-local-file link local-path)
 	  (cl-incf count))))
     (message "Cached %d Google Docs remote image(s)" count)
@@ -197,7 +197,7 @@ use the normal local-asset path."
   "Return a native Google Docs image push plan for the current Org buffer."
   (unless (derived-mode-p 'org-mode)
     (org-mode))
-  (let* ((asset-plan (org-sync-assets-plan-buffer))
+  (let* ((asset-plan (ox-sync-assets-plan-buffer))
 	 (images (mapcar (lambda (asset)
 			   (append (list :path (plist-get asset :source-link))
 				   asset))
