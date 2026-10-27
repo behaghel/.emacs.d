@@ -180,8 +180,8 @@ domains:
         description: Reusable Org marginalia package, including native footnote/sidenote collection, layout, and context-panel provider integration.
         type: shared-kernel
         code:
-          - packages/org-marginalia/
-        spec: packages/org-marginalia/
+          - packages/cp-org-marginalia/
+        spec: packages/cp-org-marginalia/
       notes:
         description: Note-taking and personal knowledge management workflows.
         type: core
@@ -290,6 +290,11 @@ context-map:
     consumers: [publishing/confluence, publishing/google-docs]
     pattern: shared-kernel
     contract: packages/org-comments/README.md
+
+  - provider: authoring/marginalia
+    consumers: [authoring/org]
+    pattern: shared-kernel
+    contract: packages/cp-org-marginalia/README.md
 
   - provider: publishing/org-sync
     consumers: [publishing/confluence, publishing/google-docs]

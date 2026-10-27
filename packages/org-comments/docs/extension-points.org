@@ -67,7 +67,7 @@ optional.
 * Context-panel providers
 
 =context-panels= is the reusable Org UI layer used by =org-comments= and
-other providers such as =org-marginalia=.  Providers register buffer-local plist
+other providers such as =cp-org-marginalia=.  Providers register buffer-local plist
 descriptors with =context-panels-register-provider=.
 
 Composable providers should supply:

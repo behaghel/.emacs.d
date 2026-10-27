@@ -58,7 +58,7 @@ The goal is to let an author write one Org source consistently and export or syn
 | --- | --- | --- |
 | Ordinary note | `[fn:label] Body` | Semantic note body. In `hub-article` LaTeX, ordinary notes render as margin sidenotes. |
 | Forced bottom footnote | Footnote definition with `HUB_NOTE_KIND: footnote` metadata | Semantic override. Preserves bottom-footnote behavior in renderers that distinguish side notes and footnotes. |
-| Marginalia | Footnote definition with `HUB_NOTE_KIND: marginalia` metadata | Semantic marginal note. `packages/org-marginalia/` owns authoring helpers and metadata conventions. |
+| Marginalia | Footnote definition with `HUB_NOTE_KIND: marginalia` metadata | Semantic marginal note. `packages/cp-org-marginalia/` provides the context-panel projection; personal authoring helpers live in the Org authoring module. |
 | Review comment | Sidecar `*.comments.org` | Not typographic. Must not be encoded as an Org footnote. |
 
 ### Blocks

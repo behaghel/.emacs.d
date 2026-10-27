@@ -9,7 +9,7 @@
 (require 'org-comments)
 (require 'org-comments-context-panel)
 (require 'context-panels)
-(require 'org-marginalia-context-panel)
+(require 'cp-org-marginalia-context-panel)
 (require 'org)
 (require 'org-comments-panel-actions)
 (require 'org-comments-page)
@@ -238,7 +238,7 @@
 			  hub/context-panels-buffer-name)))
       (org-comments-context-panel-enable))
     (unless (context-panels-registered-provider 'marginalia)
-      (org-marginalia-context-panel-mode 1))
+      (cp-org-marginalia-context-panel-mode 1))
     (unless context-panels-mode
       (context-panels-mode 1))))
 

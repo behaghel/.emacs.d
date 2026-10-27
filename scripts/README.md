@@ -47,6 +47,10 @@ status: draft
 - Configuration tests and each package's tests run in separate batch Emacs
   processes so independent ERT names and test stubs do not collide. All selected
   suites are attempted even when one fails.
+- The ERT runner clears inherited `GIT_INDEX_FILE` before starting Emacs. Git
+  operations in nested package repositories and test fixtures use their own
+  indexes, not the committing worktree's staged index. The parent hook environment
+  and other Git configuration are preserved.
 - Test failures and load failures produce a nonzero exit status. Skipped tests
   remain visible as skips, not passes; live-service tests require explicit opt-in.
 - CI runs the full ERT invocation on pushes and pull requests, including changes
@@ -56,6 +60,10 @@ status: draft
 
 ## Standalone Package Checks
 
+- `scripts/elisp-package-standalone` shares source-only copying, temporary-home
+  isolation, dependency checks, ERT, strict compilation, and interactive samples
+  for the verified comments, suggestions, and marginalia workflows. The focused
+  commands below retain their `--batch` and `--interactive` interfaces.
 - `scripts/org-comments-standalone` verifies the comments package with only
   Emacs built-ins and its declared context-panels dependency. Dependency paths
   come from `CONTEXT_PANELS_PATH` or the configured Straight build directory;
@@ -65,6 +73,10 @@ status: draft
   [executable public workflow](../packages/org-suggestions/examples/standalone.org).
   Its `--interactive` mode opens that walkthrough in clean Emacs for explicit
   create, reload, preview, accept, and undo operations.
+- `scripts/cp-org-marginalia-standalone` verifies native note collection, metadata,
+  read-only panel display, and jumps to prose references. The collector also has
+  a model-only loading check without context-panels. Setup and manual acceptance
+  are documented in the [package manual](../packages/cp-org-marginalia/README.org).
 - Source and package-local tests run from disposable copies outside the checkout,
   with a temporary home and no sibling package or shared helper load paths.
   Emacs network connections are disabled. Failures in ERT or strict compilation

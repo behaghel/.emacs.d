@@ -1,9 +1,9 @@
-# org-marginalia Spec
+# cp-org-marginalia Spec
 
 ## Problem
 
 Org footnote/sidenote marginalia currently lives in personal configuration under
-`packages/org-marginalia/` and `modules/interactive/org/context-panel.el`.
+`packages/cp-org-marginalia/` and `modules/interactive/org/context-panel.el`.
 This prevents the context-panel module from collapsing to personal activation and
 keybindings only.
 
@@ -15,10 +15,10 @@ sibling provider rather than personal module logic or an `org-comments` feature.
 
 ## Decisions
 
-- Create standalone package code under `packages/org-marginalia/`.
-- Use clean `org-marginalia-*` names; do not keep `hub/` aliases.
+- Create standalone package code under `packages/cp-org-marginalia/`.
+- Use clean `cp-org-marginalia-*` names; do not keep `hub/` aliases.
 - Preserve existing `HUB_NOTE_*` property drawer semantics for now.
-- Provide independent activation via `org-marginalia-context-panel-mode`.
+- Provide independent activation via `cp-org-marginalia-context-panel-mode`.
 - Integrate with `org-context-panel` through provider descriptors.
 - Render marginalia rows in the shared side panel using source/viewport order.
 - Provide jump behavior to the source footnote reference.
@@ -39,6 +39,6 @@ sibling provider rather than personal module logic or an `org-comments` feature.
 
 ## Verification
 
-- Add focused `packages/org-marginalia/test/*-test.el` tests.
+- Add focused `packages/cp-org-marginalia/test/*-test.el` tests.
 - Keep `packages/org-comments/test/org-context-panel-test.el` composition tests.
 - Run authoring Org tests and package suites.

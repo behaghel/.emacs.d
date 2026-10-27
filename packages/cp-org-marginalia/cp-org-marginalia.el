@@ -1,15 +1,16 @@
-;;; org-marginalia.el --- Org marginalia model helpers -*- lexical-binding: t; -*-
+;;; cp-org-marginalia.el --- Org marginalia model helpers -*- lexical-binding: t; -*-
 
 ;; Author: Hubert Behaghel
 ;; Maintainer: Hubert Behaghel
 ;; Version: 0.1.0
-;; Package-Requires: ((emacs "29.1") (org "9.6"))
+;; Package-Requires: ((emacs "29.1") (org "9.6") (context-panels "0.1.0"))
 ;; Keywords: outlines, convenience
-;; URL: https://github.com/behaghel/org-marginalia
+;; URL: https://github.com/behaghel/.emacs.d/tree/master/packages/cp-org-marginalia
 
 ;;; Commentary:
 ;; Parse native Org footnotes into a small marginalia model and compute a
-;; deterministic right-margin layout.
+;; deterministic right-margin layout.  The collector loads without the panel
+;; library; context-panels supplies the package's optional interactive surface.
 
 ;;; Code:
 
@@ -17,26 +18,26 @@
 (require 'org)
 (require 'subr-x)
 
-(defgroup org-marginalia nil
+(defgroup cp-org-marginalia nil
   "Org marginalia helpers."
   :group 'org)
 
-(defcustom org-marginalia-default-kind 'sidenote
+(defcustom cp-org-marginalia-default-kind 'sidenote
   "Default marginalia kind for ordinary Org footnotes."
   :type '(choice (const :tag "Sidenote" sidenote)
 		 (const :tag "Footnote" footnote))
-  :group 'org-marginalia)
+  :group 'cp-org-marginalia)
 
-(defcustom org-marginalia-layout-gap 1
+(defcustom cp-org-marginalia-layout-gap 1
   "Blank-line gap preserved between rendered marginalia boxes."
   :type 'natnum
-  :group 'org-marginalia)
+  :group 'cp-org-marginalia)
 
-(defun org-marginalia--line-number-at (position)
+(defun cp-org-marginalia--line-number-at (position)
   "Return one-based line number at POSITION in the current buffer."
   (line-number-at-pos position t))
 
-(defun org-marginalia--reference-at-definition-p (position)
+(defun cp-org-marginalia--reference-at-definition-p (position)
   "Return non-nil when footnote reference at POSITION starts a definition."
   (save-excursion
     (goto-char position)
@@ -46,7 +47,7 @@
       (and (= (point) reference-position)
 	   (looking-at-p "\\[fn:[^]\n]+\\]")))))
 
-(defun org-marginalia--collect-references ()
+(defun cp-org-marginalia--collect-references ()
   "Return footnote references in source order for the current Org buffer."
   (let (references)
     (save-excursion
@@ -54,15 +55,15 @@
       (while (re-search-forward "\\[fn:\\([^]:\n]+\\)\\]" nil t)
 	(let ((start (match-beginning 0))
 	      (label (match-string-no-properties 1)))
-	  (unless (org-marginalia--reference-at-definition-p start)
+	  (unless (cp-org-marginalia--reference-at-definition-p start)
 	    (push (list :id label
 			:reference-pos start
-			:anchor-line (org-marginalia--line-number-at start)
+			:anchor-line (cp-org-marginalia--line-number-at start)
 			:reference-marker (match-string-no-properties 0))
 		  references)))))
     (nreverse references)))
 
-(defun org-marginalia--definition-bounds ()
+(defun cp-org-marginalia--definition-bounds ()
   "Return bounds for the footnote definition at point."
   (let ((start (point))
 	(content-start (match-end 0))
@@ -74,23 +75,23 @@
 		    (point-max))))
     (list start content-start end)))
 
-(defun org-marginalia--collect-definitions ()
+(defun cp-org-marginalia--collect-definitions ()
   "Return a hash table mapping footnote labels to definition plists."
   (let ((definitions (make-hash-table :test 'equal)))
     (save-excursion
       (goto-char (point-min))
       (while (re-search-forward "^[ \t]*\\[fn:\\([^]:\n]+\\)\\]" nil t)
 	(let* ((label (match-string-no-properties 1))
-	       (bounds (org-marginalia--definition-bounds))
+	       (bounds (cp-org-marginalia--definition-bounds))
 	       (content-start (nth 1 bounds))
 	       (end (nth 2 bounds))
-	       (parsed (org-marginalia--parse-definition-content content-start end)))
+	       (parsed (cp-org-marginalia--parse-definition-content content-start end)))
 	  (puthash label
 		   (append (list :definition-pos (car bounds)) parsed)
 		   definitions))))
     definitions))
 
-(defun org-marginalia--property-name (key)
+(defun cp-org-marginalia--property-name (key)
   "Return the HUB_NOTE property name for KEY."
   (pcase key
     (:kind "HUB_NOTE_KIND")
@@ -98,7 +99,7 @@
     (:source "HUB_NOTE_SOURCE")
     (:remote-id "HUB_NOTE_REMOTE_ID")))
 
-(defun org-marginalia--parse-definition-content (start end)
+(defun cp-org-marginalia--parse-definition-content (start end)
   "Parse footnote content between START and END into a note plist."
   (let ((properties nil)
 	(body-start start)
@@ -115,21 +116,21 @@
 	(let ((drawer-start (point)))
 	  (when (re-search-forward "^[ \t]*:END:[ \t]*$" end t)
 	    (let ((drawer-end (point)))
-	      (setq properties (org-marginalia--parse-properties drawer-start drawer-end))
+	      (setq properties (cp-org-marginalia--parse-properties drawer-start drawer-end))
 	      (forward-line 1)
 	      (setq body-start (point))))))
       (unless properties
 	(setq body-start (point)))
       (setq body (string-trim (buffer-substring-no-properties body-start end))))
-    (list :kind (org-marginalia--kind-from-string
-		 (alist-get (org-marginalia--property-name :kind) properties nil nil #'equal))
-	  :status (alist-get (org-marginalia--property-name :status) properties nil nil #'equal)
-	  :source (alist-get (org-marginalia--property-name :source) properties nil nil #'equal)
-	  :remote-id (alist-get (org-marginalia--property-name :remote-id) properties nil nil #'equal)
+    (list :kind (cp-org-marginalia--kind-from-string
+		 (alist-get (cp-org-marginalia--property-name :kind) properties nil nil #'equal))
+	  :status (alist-get (cp-org-marginalia--property-name :status) properties nil nil #'equal)
+	  :source (alist-get (cp-org-marginalia--property-name :source) properties nil nil #'equal)
+	  :remote-id (alist-get (cp-org-marginalia--property-name :remote-id) properties nil nil #'equal)
 	  :body body
 	  :height (max 1 (length (split-string body "\n"))))))
 
-(defun org-marginalia--parse-properties (start end)
+(defun cp-org-marginalia--parse-properties (start end)
   "Return an alist of Org drawer properties between START and END."
   (let (properties)
     (save-excursion
@@ -141,27 +142,27 @@
 	    (push (cons key value) properties)))))
     properties))
 
-(defun org-marginalia--kind-from-string (value)
+(defun cp-org-marginalia--kind-from-string (value)
   "Return marginalia kind symbol for VALUE."
   (pcase (downcase (or value ""))
     ("footnote" 'footnote)
     ("sidenote" 'sidenote)
-    (_ org-marginalia-default-kind)))
+    (_ cp-org-marginalia-default-kind)))
 
 ;;;###autoload
-(defun org-marginalia-collect ()
+(defun cp-org-marginalia-collect ()
   "Collect marginalia records from native Org footnotes in the current buffer."
-  (let ((definitions (org-marginalia--collect-definitions)))
-    (cl-loop for reference in (org-marginalia--collect-references)
+  (let ((definitions (cp-org-marginalia--collect-definitions)))
+    (cl-loop for reference in (cp-org-marginalia--collect-references)
 	     for definition = (gethash (plist-get reference :id) definitions)
 	     when definition
 	     collect (append reference definition))))
 
-(defun org-marginalia-layout (notes &optional gap)
+(defun cp-org-marginalia-layout (notes &optional gap)
   "Return NOTES with display-line and displaced layout properties.
-GAP defaults to `org-marginalia-layout-gap'."
+GAP defaults to `cp-org-marginalia-layout-gap'."
   (let ((next-free-line 1)
-	(layout-gap (or gap org-marginalia-layout-gap)))
+	(layout-gap (or gap cp-org-marginalia-layout-gap)))
     (mapcar
      (lambda (note)
        (let* ((anchor-line (or (plist-get note :anchor-line) 1))
@@ -172,5 +173,5 @@ GAP defaults to `org-marginalia-layout-gap'."
 			    :displaced (> display-line anchor-line)))))
      notes)))
 
-(provide 'org-marginalia)
-;;; org-marginalia.el ends here
+(provide 'cp-org-marginalia)
+;;; cp-org-marginalia.el ends here

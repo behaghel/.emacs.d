@@ -1,0 +1,110 @@
+#!/usr/bin/env bash
+# Shared clean-room checks for packages with a verified standalone workflow.
+set -euo pipefail
+
+package=${1:-}
+mode=${2:---batch}
+if [ "$#" -gt 2 ] || { [ "$mode" != --batch ] && [ "$mode" != --interactive ]; }; then
+  echo "Usage: $0 {org-comments|org-suggestions|cp-org-marginalia} [--batch|--interactive]" >&2
+  exit 64
+fi
+case "$package" in
+  org-comments|org-suggestions|cp-org-marginalia) ;;
+  *) echo "Unsupported standalone package: $package" >&2; exit 64 ;;
+esac
+
+repo_root=$(cd "$(dirname "$0")/.." && pwd)
+package_root="$repo_root/packages/$package"
+context_panels_path=
+if [ "$package" != org-suggestions ]; then
+  context_panels_path=${CONTEXT_PANELS_PATH:-${STRAIGHT_BUILD_PATH:-$repo_root/straight/build}/context-panels}
+  for library in context-panels.el context-panels-org.el; do
+    if [ ! -r "$context_panels_path/$library" ]; then
+      echo "Set CONTEXT_PANELS_PATH to a directory containing $library." >&2
+      exit 1
+    fi
+  done
+fi
+
+sandbox=$(mktemp -d "${TMPDIR:-/tmp}/$package-standalone.XXXXXX")
+trap 'rm -rf "$sandbox"' EXIT
+mkdir -p "$sandbox/$package/test" "$sandbox/home"
+# Copy source only: no compiled libraries, private state, or repository helpers.
+cp "$package_root/"*.el "$sandbox/$package/"
+cp "$package_root/test/"*-test.el "$sandbox/$package/test/"
+if [ -d "$package_root/examples" ]; then
+  mkdir -p "$sandbox/$package/examples"
+  cp "$package_root/examples/"*.org "$sandbox/$package/examples/"
+fi
+args=(-Q -L "$sandbox/$package")
+allowed="\"$package\""
+if [ -n "$context_panels_path" ]; then
+  mkdir -p "$sandbox/context-panels"
+  cp "$context_panels_path/context-panels.el" \
+    "$context_panels_path/context-panels-org.el" "$sandbox/context-panels/"
+  args+=(-L "$sandbox/context-panels")
+  allowed+=" \"context-panels\""
+fi
+cd "$sandbox"
+export HOME="$sandbox/home"
+export XDG_CONFIG_HOME="$HOME/.config" XDG_CACHE_HOME="$HOME/.cache" XDG_DATA_HOME="$HOME/.local/share"
+unset EMACSLOADPATH EMACSNATIVELOADPATH
+
+isolation="(progn
+  (dolist (library '(\"hub-utils\" \"test-helpers\" \"hb-static-site\"
+                     \"context-panels\" \"org-comments\" \"org-suggestions\"
+                     \"org-copilot\" \"cp-org-marginalia\" \"org-marginalia\"
+                     \"org-sync\" \"org-confluence\" \"org-google-docs\"))
+    (unless (member library '($allowed))
+      (when (locate-library library)
+        (error \"Unexpected ambient library: %s\" library))))
+  (advice-add 'make-network-process :override
+              (lambda (&rest _) (error \"Standalone checks do not use the network\"))))"
+
+if [ "$mode" = --interactive ]; then
+  echo "Temporary standalone session; files are removed when Emacs exits."
+  case "$package" in
+    org-comments)
+      printf 'Alpha selected text omega.\n' > draft.org
+      echo "Select 'selected text', M-x org-comments-create, write/save the sidecar."
+      echo "Reopen draft.org, enable org-comments-mode, then M-x org-comments-open."
+      emacs "${args[@]}" --eval "$isolation" draft.org \
+        --eval '(progn (require (quote org-comments)) (org-comments-mode 1))'
+      ;;
+    org-suggestions)
+      echo "Evaluate each walkthrough block with C-c C-c, inspecting results before continuing."
+      emacs "${args[@]}" --eval "$isolation" "$package/examples/standalone.org" \
+        --eval '(progn (require (quote org-suggestions)) (require (quote ob-emacs-lisp)))'
+      ;;
+    cp-org-marginalia)
+      cp "$package/examples/standalone.org" draft.org
+      echo "Press RET on each note row; point should return to its source reference."
+      emacs "${args[@]}" --eval "$isolation" draft.org \
+        --eval '(progn (require (quote cp-org-marginalia-context-panel))
+                       ;; Command-line file visiting precedes its first display.
+                       (switch-to-buffer (current-buffer))
+                       (cp-org-marginalia-context-panel-mode 1)
+                       (context-panels-open (current-buffer)))'
+      ;;
+  esac
+else
+  if [ "$package" = cp-org-marginalia ]; then
+    echo "Model-only load: Emacs and Org, without context-panels."
+    emacs --batch -Q -L "$sandbox/$package" --eval "$isolation" \
+      --eval '(progn (require (quote cp-org-marginalia))
+                     (when (featurep (quote context-panels))
+                       (error "The collector unexpectedly loaded context-panels")))'
+  fi
+  tests=()
+  for test_file in "$sandbox/$package/test/"*-test.el; do
+    tests+=(-l "$test_file")
+  done
+  echo "Standalone ERT: $package and its declared dependencies only."
+  emacs --batch "${args[@]}" --eval "$isolation" -l ert \
+    "${tests[@]}" -f ert-run-tests-batch-and-exit
+  echo "Strict byte compilation: warnings are errors."
+  emacs --batch "${args[@]}" --eval "$isolation" \
+    --eval '(setq byte-compile-error-on-warn t)' \
+    -f batch-byte-compile "$sandbox/$package/"*.el
+  echo "Standalone $package checks passed."
+fi

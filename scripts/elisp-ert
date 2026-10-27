@@ -3,6 +3,11 @@ set -euo pipefail
 
 export HOME=${HOME:-$PWD}
 
+# Git hooks export the committing worktree's index.  Nested Git operations
+# during package setup or tests must use their own repository's index instead.
+# This affects test children only; the parent hook and Git configuration remain.
+unset GIT_INDEX_FILE
+
 # One inventory serves full runs, changed-path selection, and --list.
 mapfile -t inventory < <(
   find test packages -type f -name '*-test.el' \

@@ -1,0 +1,81 @@
+#+title: Context Panels Org Marginalia
+#+author: Hubert Behaghel
+
+* Purpose and requirements
+
+=cp-org-marginalia= projects native named Org footnotes and sidenotes into
+=context-panels=.  It declares Emacs 29.1+, Org 9.6+, and context-panels 0.1.0+.
+No comments package, account, publishing adapter, or AI package is required.
+
+=cp-org-marginalia.el= provides collection and layout helpers without activating
+or loading panels.  =cp-org-marginalia-context-panel.el= provides the buffer-local
+interactive mode.  The source document remains the source of truth: this package
+does not create sidecars or edit notes.
+
+* Installation and activation
+
+Obtain a compatible [[https://github.com/behaghel/context-panels][context-panels]] source or use its managed installation.
+For source directories on disk:
+
+#+begin_src emacs-lisp
+(add-to-list 'load-path "/path/to/context-panels")
+(add-to-list 'load-path "/path/to/cp-org-marginalia")
+(require 'cp-org-marginalia-context-panel)
+(add-hook 'org-mode-hook #'cp-org-marginalia-context-panel-mode)
+#+end_src
+
+For per-buffer activation instead of an automatic hook, use
+=M-x cp-org-marginalia-context-panel-mode= in an Org buffer.
+Open the panel with =M-x context-panels-open=.  =RET= on a note row returns to
+its reference in the prose.  Use Org's native footnote navigation to visit its
+definition when editing the note.
+
+The =✣= icon denotes a sidenote; =†= denotes a traditional footnote.
+Disabling the mode unregisters only the marginalia provider, preserving other
+providers when present.  With =org-comments= enabled separately, note and comment
+rows share the panel and dispatch their own jump actions.
+
+* Supported notes and metadata
+
+The supported syntax and metadata are defined in [[file:README.md][the package contract]].
+Named prose references have separate definitions.  Definitions may span multiple
+lines and contain a property drawer; inline-definition and anonymous footnotes
+are not supported by the collector.
+
+=HUB_NOTE_KIND= selects =sidenote= or =footnote=.  Missing or unknown values use
+=cp-org-marginalia-default-kind=, initially =sidenote=.  Optional =HUB_NOTE_STATUS=,
+=HUB_NOTE_SOURCE=, and =HUB_NOTE_REMOTE_ID= values are collected as metadata rather
+than displayed in the note body.  These authored property names stay unchanged
+when the package's Lisp namespace changes.
+
+* Standalone verification
+
+From this configuration repository's development shell:
+
+#+begin_example
+CONTEXT_PANELS_PATH=/path/to/context-panels ./scripts/cp-org-marginalia-standalone
+CONTEXT_PANELS_PATH=/path/to/context-panels ./scripts/cp-org-marginalia-standalone --interactive
+#+end_example
+
+Without =CONTEXT_PANELS_PATH=, the check uses
+=STRAIGHT_BUILD_PATH/context-panels=, defaulting to this checkout's
+=straight/build/context-panels=.  A missing dependency produces an actionable
+error; the check does not download dependencies or load =init.el=.
+
+The batch check copies package source, package-local tests, the example, and
+the declared dependency into a disposable directory.  It clears inherited Emacs
+load paths, uses a temporary home and plain =emacs -Q=, forbids Emacs network
+connections, runs ERT, and compiles with warnings treated as errors.  It also
+checks that the collector alone loads without context-panels.
+
+The interactive check displays [[file:examples/standalone.org][a disposable sample]] in a source window and
+opens its panel on the right.  Use a frame wide enough for both windows.
+Confirm that:
+
+1. The panel is on the right, showing both note kinds with their bodies.
+2. Property drawer keys are absent from panel rows.
+3. =RET= on each row returns to that note's reference, not its definition.
+4. Disabling the mode leaves the source unchanged and creates no sidecar files.
+
+Files are deleted when the sample Emacs exits.  No separate repository or
+published package is needed for this check.
