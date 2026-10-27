@@ -62,7 +62,7 @@ status: draft
 
 - `scripts/elisp-package-standalone` shares source-only copying, temporary-home
   isolation, dependency checks, ERT, strict compilation, and interactive samples
-  for the verified comments, suggestions, and marginalia workflows. The focused
+  for the verified comments, suggestions, marginalia, and static-site workflows. The focused
   commands below retain their `--batch` and `--interactive` interfaces.
 - `scripts/org-comments-standalone` verifies the comments package with only
   Emacs built-ins and its declared context-panels dependency. Dependency paths
@@ -77,6 +77,12 @@ status: draft
   read-only panel display, and jumps to prose references. The collector also has
   a model-only loading check without context-panels. Setup and manual acceptance
   are documented in the [package manual](../packages/cp-org-marginalia/README.org).
+- `scripts/hb-static-site-standalone` verifies project-local section/page creation,
+  validation, source-root resolution, and actionable missing-dependency errors
+  with Emacs and Org built-ins only. Its interactive mode opens a disposable Hugo
+  project with directory-local activation, without Denote, ox-hugo, or
+  context-panels. Setup and limits are documented in the
+  [package manual](../packages/hb-static-site/README.org).
 - Source and package-local tests run from disposable copies outside the checkout,
   with a temporary home and no sibling package or shared helper load paths.
   Emacs network connections are disabled. Failures in ERT or strict compilation

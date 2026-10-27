@@ -1,0 +1,4 @@
+#!/usr/bin/env bash
+# Verify project-local static-site authoring without personal configuration.
+set -euo pipefail
+exec "$(dirname "$0")/elisp-package-standalone" hb-static-site "$@"

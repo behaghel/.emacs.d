@@ -5,18 +5,18 @@ set -euo pipefail
 package=${1:-}
 mode=${2:---batch}
 if [ "$#" -gt 2 ] || { [ "$mode" != --batch ] && [ "$mode" != --interactive ]; }; then
-  echo "Usage: $0 {org-comments|org-suggestions|cp-org-marginalia} [--batch|--interactive]" >&2
+  echo "Usage: $0 {org-comments|org-suggestions|cp-org-marginalia|hb-static-site} [--batch|--interactive]" >&2
   exit 64
 fi
 case "$package" in
-  org-comments|org-suggestions|cp-org-marginalia) ;;
+  org-comments|org-suggestions|cp-org-marginalia|hb-static-site) ;;
   *) echo "Unsupported standalone package: $package" >&2; exit 64 ;;
 esac
 
 repo_root=$(cd "$(dirname "$0")/.." && pwd)
 package_root="$repo_root/packages/$package"
 context_panels_path=
-if [ "$package" != org-suggestions ]; then
+if [ "$package" = org-comments ] || [ "$package" = cp-org-marginalia ]; then
   context_panels_path=${CONTEXT_PANELS_PATH:-${STRAIGHT_BUILD_PATH:-$repo_root/straight/build}/context-panels}
   for library in context-panels.el context-panels-org.el; do
     if [ ! -r "$context_panels_path/$library" ]; then
@@ -35,6 +35,10 @@ cp "$package_root/test/"*-test.el "$sandbox/$package/test/"
 if [ -d "$package_root/examples" ]; then
   mkdir -p "$sandbox/$package/examples"
   cp "$package_root/examples/"*.org "$sandbox/$package/examples/"
+  if [ "$package" = hb-static-site ]; then
+    cp "$package_root/examples/hugo.toml" "$package_root/examples/site-settings.sexp" \
+      "$sandbox/$package/examples/"
+  fi
 fi
 args=(-Q -L "$sandbox/$package")
 allowed="\"$package\""
@@ -54,7 +58,8 @@ isolation="(progn
   (dolist (library '(\"hub-utils\" \"test-helpers\" \"hb-static-site\"
                      \"context-panels\" \"org-comments\" \"org-suggestions\"
                      \"org-copilot\" \"cp-org-marginalia\" \"org-marginalia\"
-                     \"org-sync\" \"org-confluence\" \"org-google-docs\"))
+                     \"org-sync\" \"org-confluence\" \"org-google-docs\"
+                     \"denote\" \"ox-hugo\" \"evil\"))
     (unless (member library '($allowed))
       (when (locate-library library)
         (error \"Unexpected ambient library: %s\" library))))
@@ -64,6 +69,17 @@ isolation="(progn
 if [ "$mode" = --interactive ]; then
   echo "Temporary standalone session; files are removed when Emacs exits."
   case "$package" in
+    hb-static-site)
+      mkdir -p site/content-org/pages/welcome
+      cp "$package/examples/hugo.toml" site/hugo.toml
+      cp "$package/examples/site-settings.sexp" site/.dir-locals.el
+      cp "$package/examples/standalone.org" site/content-org/pages/welcome/index.org
+      echo "Follow the page's C-c w commands to create and validate section/page sources."
+      # Register safe directory-local variables and mode activation before visiting.
+      emacs "${args[@]}" --eval "$isolation" \
+        --eval '(require (quote hb-static-site))' site/content-org/pages/welcome/index.org \
+        --eval '(switch-to-buffer (current-buffer))'
+      ;;
     org-comments)
       printf 'Alpha selected text omega.\n' > draft.org
       echo "Select 'selected text', M-x org-comments-create, write/save the sidecar."

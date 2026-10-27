@@ -6,9 +6,22 @@
 ;;; Code:
 
 (require 'ert)
-(require 'test-helpers)
+(require 'cl-lib)
 (require 'hb-static-site)
 (require 'org)
+(require 'project)
+
+(ert-deftest hb-static-site-project-root-uses-current-project-api ()
+  "Project discovery uses `project-root', not the obsolete plural API."
+  (cl-letf (((symbol-function 'project-current)
+	     (lambda (&optional _prompt _directory) 'static-site-test-project))
+	    ((symbol-function 'project-root)
+	     (lambda (project)
+	       (should (eq project 'static-site-test-project))
+	       "/tmp/site/"))
+	    ((symbol-function 'project-roots)
+	     (lambda (&rest _) (ert-fail "Obsolete project-roots called"))))
+    (should (equal (hb-static-site--project-root) "/tmp/site/"))))
 
 (ert-deftest hb-static-site-derives-content-directory-from-denote-directory ()
   "Project-local `denote-directory' is the preferred content-org source root."
@@ -111,6 +124,31 @@
 	       markdown))
       (should (string-match-p "Water this plant." markdown))
       (should (string-match-p "{{< /media-callout >}}" markdown)))))
+
+(ert-deftest hb-static-site-custom-content-root-keeps-generated-hugo-paths-correct ()
+  "Generated headers resolve to the site even with a nested custom source root."
+  (let* ((root (make-temp-file "hb-site-custom-root-" t))
+	 (default-directory (file-name-as-directory root))
+	 (hb-static-site-content-org-directory (expand-file-name "sources/org" root))
+	 (org-hugo-base-dir root)
+	 (denote-directory nil))
+    (unwind-protect
+	(progn
+	  (write-region "" nil (expand-file-name "hugo.toml" root))
+	  (dolist (creation '((hb-static-site-create-section "notes" "Notes")
+			      (hb-static-site-create-basic-page "about" "About")
+			      (hb-static-site-create-page "notes/first-note" "First note")))
+	    (with-current-buffer (apply (car creation) (cdr creation))
+	      (unwind-protect
+		  (progn
+		    (goto-char (point-min))
+		    (should (re-search-forward "^#\\+hugo_base_dir: \\(.*\\)$" nil t))
+		    (should (equal (file-truename
+				    (expand-file-name (match-string 1) default-directory))
+				   (directory-file-name (file-truename root)))))
+		(set-buffer-modified-p nil)
+		(kill-buffer)))))
+      (delete-directory root t))))
 
 (ert-deftest hb-static-site-create-section-inserts-ox-hugo-index ()
   "Section creation creates content-org/SECTION/_index.org with Hugo metadata."

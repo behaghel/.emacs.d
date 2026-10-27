@@ -1,0 +1,91 @@
+#+title: hb-static-site
+
+* Purpose and requirements
+
+Project-local Org authoring for Hugo sites, without a personal Emacs
+configuration.  Page/section creation and validation require Emacs 29.1+ and
+Org 9.6+ only.  The library does not start a Hugo build or server.
+
+Optional integrations:
+- Denote supplies timestamped Org posts; only post creation requires it.
+- ox-hugo supplies Markdown export.  Auto export also needs its
+  org-hugo-auto-export-mode function/library or generated autoloads.
+- YASnippet expands templates when already loaded; plain insertion works without it.
+- A Hugo theme supplies any =callout= and =media-callout= shortcodes used by
+  exported semantic blocks.  This package emits shortcode references, not their
+  implementations.
+
+* Load and configure a site
+
+Add this directory to =load-path= and load the library before visiting sources:
+
+#+begin_src emacs-lisp
+(require 'hb-static-site)
+#+end_src
+
+Copy [[file:examples/site-settings.sexp][the example settings]] to the Hugo project's =.dir-locals.el=.
+They select =content-org= as the source directory, =.= as the Hugo root, disable
+automatic export for the example, and enable Site mode in Org source buffers.
+The library registers its own mode activation as safe local evaluation; loading
+it before visiting a source file avoids an unknown-function/local-evaluation
+prompt.  Keep project settings in the project, not inside the library.
+
+Relative settings stay anchored at the site root, not at a nested page's
+working directory.  =hb-static-site-content-org-directory= takes precedence
+over =denote-directory=; absent either, the source root is =content-org= below
+the Hugo base directory.  Mode activation normalizes the buffer-local Hugo and
+Denote directories.  Generated page/section headers derive their relative Hugo
+root from each file's actual location, including custom nested source roots.
+
+=hb-static-site-enable-auto-export= defaults to non-nil: enabling Site mode
+tries to enable automatic export when ox-hugo and its mode are available.
+Set it to nil in project settings when saving should not export.  Missing
+optional auto export is skipped with a message; explicit export/post commands
+report an actionable installation error when their dependency is absent.
+
+* Commands
+
+Site mode provides native Emacs keys under =C-c w=:
+
+| Suffix | Command                               | Action                     |
+|--------+---------------------------------------+----------------------------|
+| n      | hb-static-site-create-post            | Denote post                |
+| s      | hb-static-site-create-section         | Section _index.org         |
+| p      | hb-static-site-create-page            | Leaf-bundle page/index.org |
+| P      | hb-static-site-create-basic-page      | Flat page.org              |
+| o      | hb-static-site-find-page              | Find a root page           |
+| e      | hb-static-site-export-buffer          | Validate and export        |
+| E      | hb-static-site-export-all             | Export all source files    |
+| v      | hb-static-site-validate-buffer        | Validate local paths       |
+
+Save a new section index before creating a page in that section so the section
+appears in completion.  Validation checks Org mode and project/source paths;
+it does not validate a theme, run Hugo, or prove a successful Markdown export.
+Personal Evil bindings, which-key labels, and prose setup belong in consumer
+configuration, not in the package.
+
+* Standalone verification and manual acceptance
+
+From this checkout's root:
+
+#+begin_src sh
+devenv -q shell -- ./scripts/hb-static-site-standalone
+devenv -q shell -- ./scripts/hb-static-site-standalone --interactive
+#+end_src
+
+The batch check copies source, package tests, and fixtures to a disposable
+sandbox, uses =emacs -Q= with a temporary HOME, runs ERT, and treats byte-compiler
+warnings as errors.  It neither initializes the personal configuration nor
+loads sibling packages, Denote, ox-hugo, or Evil; Emacs networking is disabled.
+Exporter integration tests use controlled stubs, not a real Hugo build.
+
+The interactive check opens [[file:examples/standalone.org][the walkthrough]] inside a temporary Hugo project.
+Validate the welcome page; create/save a =notes= section; create/save and
+validate a =notes/first-page= leaf bundle.  Site mode should remain active in
+the newly created buffers.  Export and post creation should clearly explain
+that their optional dependencies are absent.  Exit Emacs to delete the entire
+sample project.  No existing site is modified.
+
+For real publishing, install/load Denote and ox-hugo in the consumer's normal
+package environment and supply a Hugo theme.  The dependency-free check does
+not claim to verify those external packages or rendered site output.

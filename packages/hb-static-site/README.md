@@ -28,5 +28,13 @@ status: draft
 - Blog workflows consume authored content; they should not own general authoring semantics.
 - Blog-specific capture or export helpers should remain isolated from unrelated Org authoring behavior.
 - Publishing destinations and local paths should be configurable per project, not hardcoded to one personal site.
+- Relative project settings stay anchored at the site root. Mode activation gives Denote and ox-hugo absolute buffer-local roots; generated page and section headers derive their relative Hugo roots from each file's actual location, including custom source-directory depths.
 - Missing optional packages such as Denote or ox-hugo should fail with actionable user errors or skip non-essential behavior.
-- Reusable static-site mechanics live in `packages/hb-static-site/`; `modules/interactive/tools/blog.el` is only an interactive compatibility entrypoint.
+- Reusable static-site mechanics and native `C-c w` mode bindings live in `packages/hb-static-site/`. Loading the library requires only Emacs and Org built-ins, not personal configuration or optional integrations.
+- Personal Evil bindings, which-key labels, prose activation, and historical command aliases live in `modules/interactive/tools/blog.el`.
+- Page/section creation and local validation do not require Denote, ox-hugo, or Hugo. Post naming delegates to Denote; export delegates to ox-hugo. Hugo themes own the shortcode implementations referenced by exported content.
+
+## User Documentation
+
+Installation, project settings, commands, and isolated usage are documented in the
+[package manual](README.org).

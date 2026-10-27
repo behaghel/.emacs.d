@@ -46,5 +46,35 @@
 			(should (zerop status))))))
       (delete-directory directory t))))
 
+(ert-deftest hub/standalone-static-site-startup-applies-project-settings ()
+  "The real launcher activates Site mode before using project-local sources."
+  (let* ((directory (make-temp-file "standalone-site-launcher-test" t))
+	 (wrapper (expand-file-name "emacs" directory))
+	 (real-emacs (expand-file-name invocation-name invocation-directory))
+	 (process-environment (copy-sequence process-environment)))
+    (unwind-protect
+	(progn
+	  (with-temp-file wrapper
+	    (insert "#!/usr/bin/env bash\n"
+		    "exec \"$STANDALONE_TEST_EMACS\" --batch \"$@\" --eval "
+		    "'(unless (and hb-static-site-mode "
+		    "(not hb-static-site-enable-auto-export) "
+		    "(get-buffer-window (current-buffer)) "
+		    "(eq (key-binding (kbd \"C-c w p\")) "
+		    "(quote hb-static-site-create-page)) "
+		    "(hb-static-site-validate-buffer)) "
+		    "(error \"Startup did not activate the disposable site\"))'\n"))
+	  (set-file-modes wrapper #o755)
+	  (setenv "STANDALONE_TEST_EMACS" real-emacs)
+	  (setenv "CONTEXT_PANELS_PATH" (expand-file-name "absent-context-panels" directory))
+	  (setenv "PATH" (concat directory path-separator (getenv "PATH")))
+	  (with-temp-buffer
+	    (let ((status (process-file
+			   (expand-file-name "scripts/hb-static-site-standalone"
+					     hub/standalone-package-test--root)
+			   nil (list t t) nil "--interactive")))
+	      (ert-info ((buffer-string)) (should (zerop status))))))
+      (delete-directory directory t))))
+
 (provide 'standalone-package-test)
 ;;; standalone-package-test.el ends here

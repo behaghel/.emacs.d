@@ -48,6 +48,9 @@ else
       init.el|core/*.el|early-init.el)
         add_test test/configuration-system/smoke-test.el
         ;;
+      modules/interactive/tools/blog.el)
+        add_test test/publishing/blog/blog-integration-test.el
+        ;;
       modules/interactive/navigation/perspective-auto.el)
         add_test test/interactive-foundation/navigation/perspective-auto-test.el
         ;;

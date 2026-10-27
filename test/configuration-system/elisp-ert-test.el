@@ -68,6 +68,14 @@
 	    "packages/example/test/example-test.el")
 	   '(0 "packages/example/test/example-test.el\n")))))
 
+(ert-deftest hub/ert-runner-selects-personal-blog-integration-from-module-changes ()
+  "Blog activation changes select configuration tests, not just package tests."
+  (hub/ert-runner-test--with-repository
+   (hub/ert-runner-test--write root "test/publishing/blog/blog-integration-test.el" "")
+   (should
+    (equal (hub/ert-runner-test--run "--list" "modules/interactive/tools/blog.el")
+	   '(0 "test/publishing/blog/blog-integration-test.el\n")))))
+
 (ert-deftest hub/ert-runner-preserves-focused-configuration-selection ()
   "Explicit configuration test paths remain independently runnable."
   (hub/ert-runner-test--with-repository
