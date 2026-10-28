@@ -104,5 +104,41 @@
 	      (ert-info ((buffer-string)) (should (zerop status))))))
       (delete-directory directory t))))
 
+(ert-deftest hub/standalone-confluence-startup-converts-with-remote-guards ()
+  "The real launcher activates local conversion with process/auth/browser guards."
+  (let* ((directory (make-temp-file "standalone-confluence-launcher-test" t))
+	 (wrapper (expand-file-name "emacs" directory))
+	 (real-emacs (expand-file-name invocation-name invocation-directory))
+	 (process-environment (copy-sequence process-environment)))
+    (unwind-protect
+	(progn
+	  (with-temp-file wrapper
+	    (insert "#!/usr/bin/env bash\n"
+		    "exec \"$STANDALONE_TEST_EMACS\" --batch \"$@\" --eval "
+		    "'(progn (unless (and org-confluence-mode org-comments-mode "
+		    "(not org-export-use-babel) "
+		    "(get-buffer-window org-confluence-demo--source-buffer) "
+		    "(advice-member-p (function org-confluence-demo--disabled) "
+		    "(quote org-confluence-api--read-cfl-config)) "
+		    "(advice-member-p (function org-confluence-demo--disabled) (quote browse-url))) "
+		    "(error \"Offline Confluence startup guards are missing\")) "
+		    "(unless (condition-case nil (progn (process-file \"sh\" nil nil nil \"-c\" \"exit 0\") nil) "
+		    "(user-error t)) (error \"External processes were not blocked\")) "
+		    "(let ((source org-confluence-demo--source-buffer) (before (buffer-string))) "
+		    "(org-confluence-demo-preview) (org-confluence-demo-roundtrip) "
+		    "(unless (and buffer-read-only "
+		    "(equal before (with-current-buffer source (buffer-string)))) "
+		    "(error \"Local preview modified its source\"))))'\n"))
+	  (set-file-modes wrapper #o755)
+	  (setenv "STANDALONE_TEST_EMACS" real-emacs)
+	  (setenv "PATH" (concat directory path-separator (getenv "PATH")))
+	  (with-temp-buffer
+	    (let ((status (process-file
+			   (expand-file-name "scripts/org-confluence-standalone"
+					     hub/standalone-package-test--root)
+			   nil (list t t) nil "--interactive")))
+	      (ert-info ((buffer-string)) (should (zerop status))))))
+      (delete-directory directory t))))
+
 (provide 'standalone-package-test)
 ;;; standalone-package-test.el ends here

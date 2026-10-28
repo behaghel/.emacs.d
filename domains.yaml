@@ -227,7 +227,6 @@ domains:
         code:
           - modules/interactive/org/confluence.el
           - packages/org-confluence/
-          - test/publishing/confluence/
         spec: packages/org-confluence/
       org-sync:
         description: Provider-neutral Org synchronization helpers shared by bidirectional publishing providers.

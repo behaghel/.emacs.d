@@ -62,8 +62,8 @@ status: draft
 
 - `scripts/elisp-package-standalone` shares source-only copying, temporary-home
   isolation, dependency checks, ERT, strict compilation, and interactive samples
-  for the verified comments, suggestions, marginalia, static-site, and export-sync
-  workflows. The focused commands below retain their `--batch` and `--interactive` interfaces.
+  for the verified comments, suggestions, marginalia, static-site, export-sync,
+  and Confluence workflows. The focused commands below retain their `--batch` and `--interactive` interfaces.
 - `scripts/org-comments-standalone` verifies the comments package with only
   Emacs built-ins and its declared context-panels dependency. Dependency paths
   come from `CONTEXT_PANELS_PATH` or the configured Straight build directory;
@@ -89,12 +89,30 @@ status: draft
   and tracking persistence, never live Confluence or Google Docs. Cached source
   dependencies come from `STRAIGHT_BUILD_PATH`; the check never installs them.
   Usage and limits are documented in the [package manual](../packages/ox-sync/README.org).
+- `scripts/org-confluence-standalone` verifies local Org/Storage XHTML conversion,
+  facade activation, API fixtures, and actionable dependency errors with only its
+  declared source dependencies. Its package tests also isolate their home/caches
+  and reject unmocked I/O outside the standalone launcher, using guards that
+  ordinary error handlers cannot swallow. Emacs networking and external `process-file`
+  commands are blocked; the interactive demo also disables credential reads,
+  REST transport, browser opening, and Babel evaluation. It does not verify live
+  publishing. Usage is documented in the [package manual](../packages/org-confluence/README.org).
 - Source and package-local tests run from disposable copies outside the checkout,
-  with a temporary home and no sibling package or shared helper load paths.
+  with a temporary home and no undeclared sibling or personal helper load paths.
   Emacs network connections are disabled. Failures in ERT or strict compilation
   return a nonzero status, and temporary files are removed on exit.
 - The comments check's `--interactive` mode opens a disposable source document for its documented
   [create/reopen/navigate workflow](../packages/org-comments/README.org).
+
+## Package Reference Generation
+
+- `scripts/elisp-package-docs` loads the requested source in `emacs -Q`, without
+  the personal initialization, and generates public command/customization tables.
+- Repository package paths and cached dependency paths are available during
+  generation. `STRAIGHT_BUILD_PATH` selects the dependency build tree; Context
+  Panels follows the [runtime source contract](../core/README.md#context-panels-dependency).
+  Invalid explicit overrides fail clearly. Generation does not install or fetch
+  dependencies.
 
 ## Architecture Lint
 

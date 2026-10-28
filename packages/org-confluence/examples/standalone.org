@@ -1,0 +1,42 @@
+#+title: Offline Confluence conversion
+#+CONFLUENCE_PAGE_ID: offline-demo
+#+PROPERTY: header-args :eval never-export
+
+* Walkthrough
+
+This disposable source uses the real Org Confluence exporter and importer.
+No account is configured.  The launcher disables Confluence transports,
+credential access, browser opening, and Babel evaluation in this sample Emacs.
+Nothing is published or pulled from a server.
+
+1. Run M-x org-confluence-demo-preview to inspect Storage XHTML.  The native
+   Org export dispatcher, C-c C-e C X, provides the same export operation.
+2. Run M-x org-confluence-demo-roundtrip to import the last Storage preview into
+   a separate read-only Org buffer.  Inspect the sample heading, bold text,
+   callout, date, list, and code block below.  The source must remain unchanged.
+3. Return to this source, edit a sample sentence, and preview/round-trip again.
+   Expect the edit in the new previews, without changing the original source
+   as a side effect of conversion.
+4. Run M-x org-confluence-demo-check-cli.  Expect an actionable missing-cfl
+   error; the command does not run any external process.
+5. Exit this standalone Emacs to delete the temporary source and previews.
+
+These are local conversion checks, not a promise of lossless conversion for all
+Confluence constructs, attachments, live authentication, or remote publishing.
+The existing Confluence status report is not migrated to ox-sync by this demo.
+
+* Sample content
+
+Hello *Bépo* & XML.  Due [2026-07-02 Thu].
+
+- First item
+- Second item
+
+#+ATTR_CALLOUT: :type info :title "Local preview"
+#+begin_callout
+Inspect this *important* sentence.
+#+end_callout
+
+#+begin_src python
+print("No execution: Bépo & <XML>")
+#+end_src

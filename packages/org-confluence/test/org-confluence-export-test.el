@@ -6,19 +6,11 @@
 ;;; Code:
 
 (require 'ert)
+(require 'org-confluence-test-support
+	 (expand-file-name "org-confluence-test-support.el"
+			   (file-name-directory (or load-file-name buffer-file-name))))
 (require 'org)
 (require 'ox)
-
-;; Ensure repo modules are reachable for isolated batch test runners.
-(let ((root (file-name-as-directory
-	     (locate-dominating-file (or load-file-name buffer-file-name)
-				     "domains.yaml"))))
-  (add-to-list 'load-path (expand-file-name "modules" root))
-  (add-to-list 'load-path (expand-file-name "modules/org" root))
-  (add-to-list 'load-path (expand-file-name "packages/ox-sync" root))
-  (add-to-list 'load-path (expand-file-name "packages/org-confluence" root))
-  (add-to-list 'load-path (expand-file-name "lisp" root))
-  (add-to-list 'load-path (expand-file-name "core" root)))
 
 (require 'org-confluence-export)
 

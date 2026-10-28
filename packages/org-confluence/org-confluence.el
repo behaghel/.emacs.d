@@ -3,7 +3,7 @@
 ;; Author: Hubert Behaghel
 ;; Maintainer: Hubert Behaghel
 ;; Version: 0.1.0
-;; Package-Requires: ((emacs "29.1") (org "9.6") (org-comments "0.1.0"))
+;; Package-Requires: ((emacs "29.1") (org "9.6") (org-comments "0.1.0") (ox-sync "0.1.0"))
 ;; Keywords: outlines, tools, hypermedia
 ;; URL: https://github.com/behaghel/org-confluence
 
@@ -25,7 +25,7 @@
 (require 'org-confluence-commands)
 (require 'org-confluence-people-store)
 (require 'org-confluence-sync-status-marker)
-(require 'ox-sync nil 'noerror)
+(require 'ox-sync)
 (require 'org-confluence-comments-remote)
 (require 'org-confluence-mentions)
 

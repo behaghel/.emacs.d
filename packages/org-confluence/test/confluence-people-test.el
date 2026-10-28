@@ -6,7 +6,9 @@
 ;;; Code:
 
 (require 'ert)
-(require 'test-helpers)
+(require 'org-confluence-test-support
+	 (expand-file-name "org-confluence-test-support.el"
+			   (file-name-directory (or load-file-name buffer-file-name))))
 (require 'org-confluence-people-store)
 
 (ert-deftest org-confluence-people-resolves-local-before-global ()

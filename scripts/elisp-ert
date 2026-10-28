@@ -73,10 +73,6 @@ else
             "packages/$package/test/"*) add_test "$test_file" ;;
           esac
         done
-        if [ "$package" = "org-confluence" ]; then
-          add_test test/publishing/confluence/org-confluence-api-test.el
-          add_test test/publishing/confluence/org-confluence-export-test.el
-        fi
         ;;
       scripts/approval-refresh-overdrive-page1.el|scripts/export-demo-adaptive-cards.el)
         add_test test/authoring/documents/org-latex-pdf-export-test.el

@@ -14,6 +14,7 @@
 | =org-confluence-open-page= | Open Confluence PAGE-ID in browser using optional SPACE. |
 | =org-confluence-people-mark-current-user= | Mark the authenticated Confluence user as the current user in people cache. |
 | =org-confluence-people-resolve= | Resolve unresolved Confluence people in local/global people files. |
+| =org-confluence-people-store-open-global-file= | Open the global Confluence people file. |
 | =org-confluence-publish= | Publish the current Org buffer or subtree to an existing Confluence page. |
 | =org-confluence-publish-and-open-from-export-dispatch= | Publish or create through `org-export-dispatch', then open the page. |
 | =org-confluence-publish-dwim= | Publish current Org buffer to Confluence, updating or creating as needed. |

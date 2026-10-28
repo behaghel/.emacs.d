@@ -125,4 +125,4 @@ Org ↔ Google Docs body sync currently depends on upstream `benthamite/gdocs`, 
 - Native image smoke checklist: `packages/org-google-docs/docs/native-images-smoke.md`
 - Native quote block smoke checklist: `packages/org-google-docs/docs/native-quote-blocks-smoke.md`
 - Confluence image/quote/footnote exporter inspiration: `packages/org-confluence/org-confluence-export.el`
-- Confluence exporter tests: `test/publishing/confluence/org-confluence-export-test.el`
+- Confluence exporter tests: `packages/org-confluence/test/org-confluence-export-test.el`

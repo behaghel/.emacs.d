@@ -5,18 +5,19 @@ set -euo pipefail
 package=${1:-}
 mode=${2:---batch}
 if [ "$#" -gt 2 ] || { [ "$mode" != --batch ] && [ "$mode" != --interactive ]; }; then
-  echo "Usage: $0 {org-comments|org-suggestions|cp-org-marginalia|hb-static-site|ox-sync} [--batch|--interactive]" >&2
+  echo "Usage: $0 {org-comments|org-suggestions|cp-org-marginalia|hb-static-site|ox-sync|org-confluence} [--batch|--interactive]" >&2
   exit 64
 fi
 case "$package" in
-  org-comments|org-suggestions|cp-org-marginalia|hb-static-site|ox-sync) ;;
+  org-comments|org-suggestions|cp-org-marginalia|hb-static-site|ox-sync|org-confluence) ;;
   *) echo "Unsupported standalone package: $package" >&2; exit 64 ;;
 esac
 
 repo_root=$(cd "$(dirname "$0")/.." && pwd)
 package_root="$repo_root/packages/$package"
 context_panels_path=
-if [ "$package" = org-comments ] || [ "$package" = cp-org-marginalia ] || [ "$package" = ox-sync ]; then
+if [ "$package" = org-comments ] || [ "$package" = cp-org-marginalia ] \
+  || [ "$package" = ox-sync ] || [ "$package" = org-confluence ]; then
   context_panels_path=${CONTEXT_PANELS_PATH:-${STRAIGHT_BUILD_PATH:-$repo_root/straight/build}/context-panels}
   for library in context-panels.el context-panels-org.el; do
     if [ ! -r "$context_panels_path/$library" ]; then
@@ -31,14 +32,14 @@ trap 'rm -rf "$sandbox"' EXIT
 mkdir -p "$sandbox/$package/test" "$sandbox/home"
 # Copy source only: no compiled libraries, private state, or repository helpers.
 cp "$package_root/"*.el "$sandbox/$package/"
-cp "$package_root/test/"*-test.el "$sandbox/$package/test/"
+cp "$package_root/test/"*.el "$sandbox/$package/test/"
 if [ -d "$package_root/examples" ]; then
   mkdir -p "$sandbox/$package/examples"
   cp "$package_root/examples/"*.org "$sandbox/$package/examples/"
   if [ "$package" = hb-static-site ]; then
     cp "$package_root/examples/hugo.toml" "$package_root/examples/site-settings.sexp" \
       "$sandbox/$package/examples/"
-  elif [ "$package" = ox-sync ]; then
+  elif [ "$package" = ox-sync ] || [ "$package" = org-confluence ]; then
     cp "$package_root/examples/"*.el "$sandbox/$package/examples/"
   fi
 fi
@@ -51,11 +52,17 @@ if [ -n "$context_panels_path" ]; then
   args+=(-L "$sandbox/context-panels")
   allowed+=" \"context-panels\""
 fi
-if [ "$package" = ox-sync ]; then
+if [ "$package" = ox-sync ] || [ "$package" = org-confluence ]; then
   mkdir -p "$sandbox/org-comments"
   cp "$repo_root/packages/org-comments/"*.el "$sandbox/org-comments/"
   args+=(-L "$sandbox/org-comments")
   allowed+=" \"org-comments\""
+  if [ "$package" = org-confluence ]; then
+    mkdir -p "$sandbox/ox-sync"
+    cp "$repo_root/packages/ox-sync/"*.el "$sandbox/ox-sync/"
+    args+=(-L "$sandbox/ox-sync")
+    allowed+=" \"ox-sync\""
+  fi
   build_root=${STRAIGHT_BUILD_PATH:-$repo_root/straight/build}
   dependencies=(magit-section compat cond-let llama transient)
   if [ -r "$build_root/seq/seq.el" ]; then
@@ -89,9 +96,22 @@ isolation="(progn
   (advice-add 'make-network-process :override
               (lambda (&rest _) (error \"Standalone checks do not use the network\"))))"
 
+if [ "$package" = org-confluence ]; then
+  isolation="(progn $isolation
+    (setq org-export-use-babel nil)
+    (advice-add 'process-file :override
+                (lambda (&rest _) (user-error \"Standalone Confluence checks do not run external processes\"))))"
+fi
+
 if [ "$mode" = --interactive ]; then
   echo "Temporary standalone session; files are removed when Emacs exits."
   case "$package" in
+    org-confluence)
+      cp "$package/examples/standalone.org" draft.org
+      echo "Preview with M-x org-confluence-demo-preview; import with M-x org-confluence-demo-roundtrip."
+      emacs "${args[@]}" --eval "$isolation" -l "$package/examples/org-confluence-demo.el" draft.org \
+        --eval '(progn (switch-to-buffer (current-buffer)) (org-confluence-demo-start))'
+      ;;
     ox-sync)
       cp "$package/examples/standalone.org" draft.org
       echo "In the status panel: f fetch, B baseline, g refresh, c push content, C pull content."
@@ -149,7 +169,7 @@ else
     "${tests[@]}" -f ert-run-tests-batch-and-exit
   echo "Strict byte compilation: warnings are errors."
   compile_files=("$sandbox/$package/"*.el)
-  if [ "$package" = ox-sync ]; then
+  if [ "$package" = ox-sync ] || [ "$package" = org-confluence ]; then
     compile_files+=("$sandbox/$package/examples/"*.el)
   fi
   emacs --batch "${args[@]}" --eval "$isolation" \

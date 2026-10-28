@@ -15,7 +15,7 @@
 
 (defgroup org-confluence-api nil
   "Customizations for publishing Org documents to Confluence."
-  :group 'hub)
+  :group 'org)
 
 (defcustom org-confluence-api-cfl-command "cfl"
   "Command used to invoke the cfl Confluence CLI."
