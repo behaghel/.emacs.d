@@ -63,7 +63,7 @@ status: draft
 - `scripts/elisp-package-standalone` shares source-only copying, temporary-home
   isolation, dependency checks, ERT, strict compilation, and interactive samples
   for the verified comments, suggestions, marginalia, static-site, export-sync,
-  and Confluence workflows. The focused commands below retain their `--batch` and `--interactive` interfaces.
+  Confluence, and Copilot workflows. The focused commands below retain their `--batch` and `--interactive` interfaces.
 - `scripts/org-comments-standalone` verifies the comments package with only
   Emacs built-ins and its declared context-panels dependency. Dependency paths
   come from `CONTEXT_PANELS_PATH` or the configured Straight build directory;
@@ -97,6 +97,13 @@ status: draft
   commands are blocked; the interactive demo also disables credential reads,
   REST transport, browser opening, and Babel evaluation. It does not verify live
   publishing. Usage is documented in the [package manual](../packages/org-confluence/README.org).
+- `scripts/org-copilot-standalone` verifies adapter-neutral loading, chat, durable
+  proposals, source-faithful diff/accept/undo, and transcript restoration using
+  org-comments, org-suggestions, and Context Panels source. Its scripted adapter
+  queues replies for explicit delivery to their captured source buffer. No gptel,
+  personal AI configuration, account, or model service is used. Networking,
+  credential lookup, and external processes fail closed. Usage and provider
+  limits are documented in the [package manual](../packages/org-copilot/README.org).
 - Source and package-local tests run from disposable copies outside the checkout,
   with a temporary home and no undeclared sibling or personal helper load paths.
   Emacs network connections are disabled. Failures in ERT or strict compilation

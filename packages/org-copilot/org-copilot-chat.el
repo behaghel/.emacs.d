@@ -138,9 +138,7 @@ assistant message, or a plist with `:message' and optional `:comments'.  Normal
 (define-derived-mode org-copilot-chat-mode fundamental-mode "Org-Copilot-Chat"
   "Major mode for Org Copilot bottom chat buffers."
   (setq buffer-read-only nil)
-  (setq-local mode-line-format '(" " (:eval (org-copilot-chat--status-line))))
-  (when (fboundp 'evil-insert-state)
-    (evil-insert-state)))
+  (setq-local mode-line-format '(" " (:eval (org-copilot-chat--status-line)))))
 
 (defun org-copilot-chat--protect-window (window panel-buffer source-buffer)
   "Protect WINDOW for PANEL-BUFFER and SOURCE-BUFFER when supported."

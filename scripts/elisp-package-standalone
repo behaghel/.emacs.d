@@ -5,11 +5,11 @@ set -euo pipefail
 package=${1:-}
 mode=${2:---batch}
 if [ "$#" -gt 2 ] || { [ "$mode" != --batch ] && [ "$mode" != --interactive ]; }; then
-  echo "Usage: $0 {org-comments|org-suggestions|cp-org-marginalia|hb-static-site|ox-sync|org-confluence} [--batch|--interactive]" >&2
+  echo "Usage: $0 {org-comments|org-suggestions|cp-org-marginalia|hb-static-site|ox-sync|org-confluence|org-copilot} [--batch|--interactive]" >&2
   exit 64
 fi
 case "$package" in
-  org-comments|org-suggestions|cp-org-marginalia|hb-static-site|ox-sync|org-confluence) ;;
+  org-comments|org-suggestions|cp-org-marginalia|hb-static-site|ox-sync|org-confluence|org-copilot) ;;
   *) echo "Unsupported standalone package: $package" >&2; exit 64 ;;
 esac
 
@@ -17,7 +17,7 @@ repo_root=$(cd "$(dirname "$0")/.." && pwd)
 package_root="$repo_root/packages/$package"
 context_panels_path=
 if [ "$package" = org-comments ] || [ "$package" = cp-org-marginalia ] \
-  || [ "$package" = ox-sync ] || [ "$package" = org-confluence ]; then
+  || [ "$package" = ox-sync ] || [ "$package" = org-confluence ] || [ "$package" = org-copilot ]; then
   context_panels_path=${CONTEXT_PANELS_PATH:-${STRAIGHT_BUILD_PATH:-$repo_root/straight/build}/context-panels}
   for library in context-panels.el context-panels-org.el; do
     if [ ! -r "$context_panels_path/$library" ]; then
@@ -39,7 +39,7 @@ if [ -d "$package_root/examples" ]; then
   if [ "$package" = hb-static-site ]; then
     cp "$package_root/examples/hugo.toml" "$package_root/examples/site-settings.sexp" \
       "$sandbox/$package/examples/"
-  elif [ "$package" = ox-sync ] || [ "$package" = org-confluence ]; then
+  elif [ "$package" = ox-sync ] || [ "$package" = org-confluence ] || [ "$package" = org-copilot ]; then
     cp "$package_root/examples/"*.el "$sandbox/$package/examples/"
   fi
 fi
@@ -51,6 +51,14 @@ if [ -n "$context_panels_path" ]; then
     "$context_panels_path/context-panels-org.el" "$sandbox/context-panels/"
   args+=(-L "$sandbox/context-panels")
   allowed+=" \"context-panels\""
+fi
+if [ "$package" = org-copilot ]; then
+  for dependency in org-comments org-suggestions; do
+    mkdir -p "$sandbox/$dependency"
+    cp "$repo_root/packages/$dependency/"*.el "$sandbox/$dependency/"
+    args+=(-L "$sandbox/$dependency")
+    allowed+=" \"$dependency\""
+  done
 fi
 if [ "$package" = ox-sync ] || [ "$package" = org-confluence ]; then
   mkdir -p "$sandbox/org-comments"
@@ -89,7 +97,7 @@ isolation="(progn
                      \"context-panels\" \"org-comments\" \"org-suggestions\"
                      \"org-copilot\" \"cp-org-marginalia\" \"org-marginalia\"
                      \"org-sync\" \"ox-sync\" \"org-confluence\" \"org-google-docs\"
-                     \"denote\" \"ox-hugo\" \"evil\"))
+                     \"denote\" \"ox-hugo\" \"evil\" \"gptel\" \"gptel-openai-oauth\"))
     (unless (member library '($allowed))
       (when (locate-library library)
         (error \"Unexpected ambient library: %s\" library))))
@@ -103,9 +111,33 @@ if [ "$package" = org-confluence ]; then
                 (lambda (&rest _) (user-error \"Standalone Confluence checks do not run external processes\"))))"
 fi
 
+if [ "$package" = org-copilot ]; then
+  isolation="(progn $isolation
+    ;; The fixture needs Org core, not unrelated mail/IRC link initialization.
+    (setq org-modules nil)
+    (put 'org-copilot-standalone-unexpected-io 'error-conditions
+         '(org-copilot-standalone-unexpected-io))
+    (put 'org-copilot-standalone-unexpected-io 'error-message
+         \"Unmocked Copilot standalone I/O\")
+    (defun org-copilot-standalone--deny-io (operation &rest _arguments)
+      (message \"Unmocked Copilot standalone I/O: %s\" operation)
+      (signal 'org-copilot-standalone-unexpected-io (list operation)))
+    (dolist (function '(make-network-process process-file call-process
+                        start-process make-process auth-source-search auth-source-pass-get))
+      (advice-add function :override
+                  (apply-partially #'org-copilot-standalone--deny-io function)
+                  '((name . org-copilot-standalone-io-guard)))))"
+fi
+
 if [ "$mode" = --interactive ]; then
   echo "Temporary standalone session; files are removed when Emacs exits."
   case "$package" in
+    org-copilot)
+      cp "$package/examples/standalone.org" draft.org
+      echo "Scripted offline chat: send answer or edit, then M-x org-copilot-demo-respond."
+      emacs "${args[@]}" --eval "$isolation" -l "$package/examples/org-copilot-demo.el" draft.org \
+        --eval '(progn (switch-to-buffer (current-buffer)) (org-copilot-demo-start))'
+      ;;
     org-confluence)
       cp "$package/examples/standalone.org" draft.org
       echo "Preview with M-x org-confluence-demo-preview; import with M-x org-confluence-demo-roundtrip."
@@ -169,7 +201,7 @@ else
     "${tests[@]}" -f ert-run-tests-batch-and-exit
   echo "Strict byte compilation: warnings are errors."
   compile_files=("$sandbox/$package/"*.el)
-  if [ "$package" = ox-sync ] || [ "$package" = org-confluence ]; then
+  if [ "$package" = ox-sync ] || [ "$package" = org-confluence ] || [ "$package" = org-copilot ]; then
     compile_files+=("$sandbox/$package/examples/"*.el)
   fi
   emacs --batch "${args[@]}" --eval "$isolation" \

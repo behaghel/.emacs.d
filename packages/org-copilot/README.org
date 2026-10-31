@@ -1,0 +1,98 @@
+#+title: Org Copilot manual
+
+* Source setup
+Org Copilot remains in this checkout; these instructions do not assume a
+published archive package or separate repository.  It requires Emacs 29.1+,
+Org 9.6+, Context Panels 0.1.0+, org-comments 0.1.0+, and org-suggestions 0.1.0+.
+Make Context Panels available, then add the local source dependencies:
+
+#+begin_src emacs-lisp
+(dolist (directory '("packages/org-comments" "packages/org-suggestions"
+                     "packages/org-copilot"))
+  (add-to-list 'load-path (expand-file-name directory "/path/to/checkout/")))
+(require 'org-copilot)
+#+end_src
+
+The facade neither enables Copilot in ordinary Org buffers nor chooses a model,
+authentication route, or Evil state.  Explicitly open chat with
+=M-x org-copilot-chat= or panels with =M-x org-copilot-open-panels=.
+
+* Adapter configuration
+=org-copilot-chat-function= and =org-copilot-review-function= are the adapter
+entry points.  Their docstrings describe the request/return protocols.  A chat
+adapter can complete asynchronously using the captured source buffer and context.
+A plain answer belongs only in the transcript.  Executable edits belong in
+=suggestion_threads= and the durable org-suggestions store, never an embedded
+comment-local replacement.
+
+The optional =org-copilot-gptel= library supplies gptel integration:
+
+#+begin_src emacs-lisp
+(require 'gptel)                 ; Installed and configured by the consumer.
+(require 'org-copilot-gptel)
+(org-copilot-gptel-enable)
+#+end_src
+
+Supply provider/backend, model, tools, and credentials in consumer configuration,
+not in reusable package defaults or source documents.  Live authentication and
+model requests are not part of the offline checks below.  Enabling a missing
+adapter fails clearly; no replacement provider is chosen automatically.
+
+* Offline standalone workflow
+From the checkout root:
+
+#+begin_src sh
+devenv -q shell -- ./scripts/org-copilot-standalone
+devenv -q shell -- ./scripts/org-copilot-standalone --interactive
+#+end_src
+
+The launcher copies source, package tests, examples, Context Panels, org-comments,
+and org-suggestions into a disposable directory.  It uses =emacs -Q=, a temporary
+HOME and XDG directories, no personal modules/helpers, and no installed gptel.
+Emacs networking, credential lookup, and external processes are guarded against
+unmocked calls.  The check does not install or download dependencies.  Set
+=CONTEXT_PANELS_PATH= or =STRAIGHT_BUILD_PATH= for existing source locations.
+Only Org core is initialized; unrelated optional mail/IRC link modules are not.
+
+Batch mode runs the package tests and compiles every package/example library
+with warnings treated as errors.  Personal activation/modal-policy tests live
+in the consumer repository's quality suite, not in this package.
+
+The interactive [[file:examples/standalone.org][walkthrough]] exercises the real bottom chat and durable stores.
+Type =answer= or =edit= in its prompt and press =RET=.  Replies deliberately stay
+queued until =M-x org-copilot-demo-respond=, so delivery can also be checked from
+another buffer.  They are fixed JSON fixtures, not model-generated advice.
+
+- =answer= writes chat history without changing source or creating proposals.
+- =edit= proposes a section-body replacement and a linked comment; source stays
+  unchanged until explicit acceptance. Highlights and the visible comments panel
+  refresh immediately; normal viewport filtering still applies.
+- Focus the proposal with chat's =C-c C-n=, then use
+  =M-x org-copilot-view-diff-at-point=.  The preview shows the actual candidate's
+  source edits, including secondary hunks, using org-suggestions.
+- =M-x org-copilot-accept-at-point= accepts from the diff.
+- =M-x org-copilot-demo-undo= delegates the latest accepted candidate to the
+  existing org-suggestions undo API.  It does not add Copilot comment-local undo.
+- Killing the source closes its owned comments/chat/diff windows, even if sidecar
+  files are still displayed. Those sidecar buffers and files are not deleted.
+- Reopening the source and explicitly opening chat restores its transcript.
+
+No account is needed.  Review has no configured adapter in this sample.  The
+fixture verifies local orchestration, not real gptel transport, authentication,
+provider compliance, or response quality.  All sample files disappear on exit.
+
+* Durable artifacts and safety
+For =draft.org=, chat is stored in =draft.copilot.org=; linked comments and edit
+candidates use =draft.comments.org= and =draft.suggestions.org=.  Existing schemas,
+provider identifiers, and source-adjacent paths are retained.  Source is canonical;
+sidecars are reviewable artifacts, not authority to mutate it implicitly.
+
+Use explicit preview/accept actions for edits.  =/clear= archives current-session
+artifacts, =/clear-ui= preserves durable records, and =/erase= is destructive and
+requires confirmation.  The walkthrough does not run cleanup against authored
+files.  Copilot's legacy comment-local =/undo= is reserved/retired; the demo's
+undo helper calls org-suggestions directly.
+
+Personal AI activation and Evil policy are configured outside this package, in
+=modules/interactive/tools/ai.el= in this repository.  The library keeps its
+native mode keys and does not invoke Evil state changes.

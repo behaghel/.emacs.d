@@ -51,6 +51,13 @@
   "Check that reloading leaves one activation hook and one review adapter advice."
   (should (= 1 (cl-count #'hub/org-copilot-configure-on-activation
 			 org-copilot-mode-hook)))
+  (should (= 1 (cl-count #'hub/org-copilot-chat-editing-state
+			 org-copilot-chat-mode-hook)))
+  (let (insert-selected)
+    (cl-letf (((symbol-function 'evil-insert-state)
+	       (lambda () (setq insert-selected t))))
+      (with-temp-buffer (org-copilot-chat-mode)))
+    (should insert-selected))
   (let ((count 0))
     (advice-mapc
      (lambda (function _properties)

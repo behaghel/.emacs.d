@@ -33,6 +33,7 @@
 (declare-function gptel-agent-update "gptel-agent")
 (declare-function gptel-get-tool "gptel")
 (declare-function gptel-openai-oauth-p "gptel-openai-oauth")
+(declare-function gptel-make-openai-oauth "gptel-openai-oauth")
 (declare-function gptel-request "gptel")
 
 (defvar gptel-backend nil)
@@ -618,6 +619,17 @@ chat viewport."
 			  parsed suggestions-result)
 			 "")))
 	   (debug-start (float-time)))
+      (when (plist-get suggestions-result :thread-ids)
+	(save-selected-window
+	  (with-current-buffer source-buffer
+	    (org-copilot-refresh-overlays)
+	    (org-comments-refresh)
+	    (when (get-buffer-window source-buffer t)
+	      (if org-copilot-chat-open-panel-on-comments
+		  (context-panels-open source-buffer)
+		(when (and (buffer-live-p context-panels-side-panel-buffer)
+			   (get-buffer-window context-panels-side-panel-buffer t))
+		  (context-panels-refresh)))))))
       (org-copilot-debug-record
        "Chat response handled"
        :source-file (buffer-file-name source-buffer)

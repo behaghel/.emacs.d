@@ -16,6 +16,8 @@ status: draft
 - API tokens and provider-specific secrets must remain outside tracked configuration.
 - Optional AI integrations should not break ordinary startup when unavailable.
 - Org Copilot activation is [explicit and buffer-local](../../../../packages/org-copilot/README.md#activation); loading Org or gptel does not enable it or configure its adapters.
+- Personal Copilot chat buffers enter Evil insert state when Evil is available;
+  the reusable package does not choose a modal editing state.
 - Reloading AI configuration preserves Copilot activation state and does not
   duplicate activation hooks or review advice.
 - If the selected Copilot adapter cannot load on activation, configuration

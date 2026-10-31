@@ -140,5 +140,50 @@
 	      (ert-info ((buffer-string)) (should (zerop status))))))
       (delete-directory directory t))))
 
+(ert-deftest hub/standalone-copilot-startup-opens-offline-chat-and-sends-native-input ()
+  "The real launcher opens source-owned chat and handles RET without a provider."
+  (let* ((directory (make-temp-file "standalone-copilot-launcher-test" t))
+	 (wrapper (expand-file-name "emacs" directory))
+	 (real-emacs (expand-file-name invocation-name invocation-directory))
+	 (process-environment (copy-sequence process-environment)))
+    (unwind-protect
+	(progn
+	  (with-temp-file wrapper
+	    (insert "#!/usr/bin/env bash\n"
+		    "exec \"$STANDALONE_TEST_EMACS\" --batch \"$@\" --eval "
+		    "'(let* ((source (get-file-buffer \"draft.org\")) "
+		    "(chat (buffer-local-value (quote context-panels-bottom-panel-buffer) source)) "
+		    "(before (with-current-buffer source (buffer-string)))) "
+		    "(unless (and (get-buffer-window source) "
+		    "(not (featurep (quote gptel))) "
+		    "(eq (window-parameter (get-buffer-window chat) (quote window-side)) (quote bottom))) "
+		    "(error \"Standalone Copilot did not open a source-owned offline chat\")) "
+		    "(dolist (function (quote (make-network-process process-file auth-source-search))) "
+		    "(unless (advice-member-p (quote org-copilot-standalone-io-guard) function) "
+		    "(error \"Standalone I/O guard is missing\"))) "
+		    "(unless (condition-case nil "
+		    "(progn (ignore-errors (org-copilot-standalone--deny-io (quote fixture))) nil) "
+		    "(org-copilot-standalone-unexpected-io t)) "
+		    "(error \"Ordinary error handling swallowed the I/O guard\")) "
+		    "(with-selected-window (get-buffer-window chat) "
+		    "(org-copilot-chat-goto-prompt) (insert \"answer\") "
+		    "(execute-kbd-macro (kbd \"RET\"))) "
+		    "(unless (= 1 (length org-copilot-demo--pending)) "
+		    "(error \"Native RET did not queue the scripted reply\")) "
+		    "(with-temp-buffer (org-copilot-demo-respond)) "
+		    "(unless (and (file-exists-p (org-copilot-sidecar-path (buffer-file-name source))) "
+		    "(equal before (with-current-buffer source (buffer-string)))) "
+		    "(error \"Scripted answer changed source or lost its transcript\")))'\n"))
+	  (set-file-modes wrapper #o755)
+	  (setenv "STANDALONE_TEST_EMACS" real-emacs)
+	  (setenv "PATH" (concat directory path-separator (getenv "PATH")))
+	  (with-temp-buffer
+	    (let ((status (process-file
+			   (expand-file-name "scripts/org-copilot-standalone"
+					     hub/standalone-package-test--root)
+			   nil (list t t) nil "--interactive")))
+	      (ert-info ((buffer-string)) (should (zerop status))))))
+      (delete-directory directory t))))
+
 (provide 'standalone-package-test)
 ;;; standalone-package-test.el ends here

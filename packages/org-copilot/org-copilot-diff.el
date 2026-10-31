@@ -49,23 +49,13 @@
   (or (org-copilot-comment-suggestion-text comment)
       (user-error "AI comment has no durable suggestion to diff")))
 
-(defun org-copilot-diff--format-lines (prefix text)
-  "Return TEXT formatted as diff lines with PREFIX."
-  (mapconcat (lambda (line) (concat prefix line))
-	     (split-string text "\n")
-	     "\n"))
-
 (defun org-copilot-diff--insert (source-buffer comment)
-  "Insert diff preview for COMMENT from SOURCE-BUFFER."
-  (let ((old-text (or (org-copilot-comment-target-text comment) ""))
-	(new-text (org-copilot-diff--ensure-suggestion comment)))
-    (insert (format "--- %s\n" (buffer-name source-buffer)))
-    (insert (format "+++ %s suggestion %s\n"
-		    (buffer-name source-buffer)
-		    (org-copilot-comment-id comment)))
-    (insert "@@ org-copilot suggestion @@\n")
-    (insert (org-copilot-diff--format-lines "-" old-text) "\n")
-    (insert (org-copilot-diff--format-lines "+" new-text) "\n")))
+  "Insert the actual durable candidate diff for COMMENT in SOURCE-BUFFER."
+  (let* ((file (buffer-file-name source-buffer))
+	 (match (and file (org-copilot--candidate-match-for-comment file comment))))
+    (unless match
+      (user-error "AI comment has no durable suggestion to diff"))
+    (insert (org-suggestions-candidate-diff source-buffer (car match) (cdr match)))))
 
 (defun org-copilot-diff-open (source-buffer comment)
   "Open a read-only diff preview for COMMENT from SOURCE-BUFFER.

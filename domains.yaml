@@ -286,9 +286,19 @@ context-map:
     contract: modules/interactive/org/README.md
 
   - provider: authoring/comments
-    consumers: [publishing/org-sync, publishing/confluence, publishing/google-docs]
+    consumers: [authoring/copilot, publishing/org-sync, publishing/confluence, publishing/google-docs]
     pattern: shared-kernel
     contract: packages/org-comments/README.md
+
+  - provider: authoring/suggestions
+    consumers: [authoring/copilot]
+    pattern: shared-kernel
+    contract: packages/org-suggestions/README.md
+
+  - provider: authoring/copilot
+    consumers: [personal-apps/ai]
+    pattern: customer-supplier
+    contract: packages/org-copilot/README.md
 
   - provider: authoring/marginalia
     consumers: [authoring/org]
