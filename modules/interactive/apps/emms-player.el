@@ -48,6 +48,15 @@
 (defvar hub/emms-player--timer nil
   "Refresh timer, active only while the playback view is visible.")
 
+(defvar hub/emms-player-render-hook nil
+  "Hook inserting optional content between the player summary and queue.")
+
+(defvar hub/emms-player-close-hook nil
+  "Hook stopping optional resources before the player is dismissed.")
+
+(autoload 'hub/emms-spectrum-toggle "apps/emms-spectrum"
+  "Explicitly toggle system-output spectrum analysis in the visible player." t)
+
 (defvar emms-playlist-buffer nil)
 (defvar emms-playlist-selected-marker)
 (defvar emms-player-playing-p nil)
@@ -148,6 +157,7 @@
 		    (hub/emms-player--time total)
 		    (if (> unknown 0) (format " + %d unknown" unknown) "")
 		    (length tracks)))
+    (run-hooks 'hub/emms-player-render-hook)
     (if (not tracks)
 	(insert "No tracks. Use M-x emms-play-file to load audio.\n")
       (cl-loop for track in (seq-take (nthcdr index tracks) 4)
@@ -157,7 +167,7 @@
 				 number (hub/emms-player--title track)
 				 (hub/emms-player--time (hub/emms-player--duration track)))
 	       do (insert (if selected (propertize row 'face 'highlight) row))))
-    (insert "\nSPC play/pause · c -10s · r +30s · t next · s previous · q close\n"))
+    (insert "\nSPC play/pause · c -10s · r +30s · t next · s previous · v spectrum · q close\n"))
   (unless (timerp hub/emms-player--timer)
     (setq hub/emms-player--timer (run-at-time 1 1 #'hub/emms-player--refresh))))
 
@@ -216,6 +226,7 @@
 (defun hub/emms-player-close ()
   "Dismiss the shared bottom player without stopping playback."
   (interactive)
+  (run-hooks 'hub/emms-player-close-hook)
   (context-panels-close-bottom-view)
   (hub/emms-player--refresh))
 
@@ -246,6 +257,7 @@
     ("r" . hub/emms-seek-forward-30)
     ("t" . hub/emms-player-next)
     ("s" . hub/emms-player-previous)
+    ("v" . hub/emms-spectrum-toggle)
     ("q" . hub/emms-player-close))
   "Playback controls shared by ordinary and Evil player keymaps.")
 
@@ -265,7 +277,8 @@
 		     ("'mc" . hub/emms-seek-backward-10)
 		     ("'mr" . hub/emms-seek-forward-30)
 		     ("'mt" . hub/emms-player-next)
-		     ("'ms" . hub/emms-player-previous)))
+		     ("'ms" . hub/emms-player-previous)
+		     ("'mv" . hub/emms-spectrum-toggle)))
     (define-key evil-normal-state-map (kbd (car binding)) (cdr binding))))
 
 (with-eval-after-load 'emms

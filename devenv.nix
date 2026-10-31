@@ -1,5 +1,37 @@
 { pkgs, lib, config, ... }:
 let
+  # Released CAVA needs a loopback device on macOS.  This revision supports
+  # CoreAudio system-output taps without changing the user's audio routing.
+  cavaVersion = "0.10.6-unstable-2026-10-28";
+  # Keep iniparser's dependency tests enabled with newer Clang's C++ checks.
+  unityForCava = pkgs.unity-test.overrideAttrs (old: {
+    postPatch = (old.postPatch or "") + ''
+      substituteInPlace src/unity_internals.h \
+        --replace-fail 'UnityFloatToPtr(expected),' '(const UNITY_FLOAT*)UnityFloatToPtr(expected),' \
+        --replace-fail 'UnityDoubleToPtr(expected),' '(const UNITY_DOUBLE*)UnityDoubleToPtr(expected),'
+    '';
+  });
+  cavaPackage = if pkgs.stdenv.hostPlatform.isDarwin then
+    (pkgs.cava.override {
+      iniparser = pkgs.iniparser.override { unity-test = unityForCava; };
+    }).overrideAttrs (old: {
+      version = cavaVersion;
+      src = pkgs.fetchFromGitHub {
+        owner = "karlstav";
+        repo = "cava";
+        rev = "d272bb61d28a2e91217e927a1f099670290f59e0";
+        hash = "sha256-7VRYZ4045CIy2h8QMrSWgEPVFgPjMlX9m4tIDShaKZM=";
+      };
+      preAutoreconf = "echo ${cavaVersion} > version";
+      buildInputs = old.buildInputs ++ [ (pkgs.darwinMinVersionHook "14.2") ];
+      postConfigure = (old.postConfigure or "") + ''
+        if ! grep -q -- '-DCOREAUDIO_TAP' Makefile; then
+          echo "CAVA requires a macOS SDK with CoreAudio tap support (14.2+)" >&2
+          exit 1
+        fi
+      '';
+    })
+  else pkgs.cava;
   texliveEnv = pkgs.texliveSmall.withPackages (ps: [
     ps.collection-latexrecommended
     ps.collection-fontsrecommended
@@ -31,6 +63,7 @@ in
 
   # Developer shell packages
   packages = [
+    cavaPackage
     pkgs.editorconfig-core-c
     pkgs.emacsPackages.package-lint
     pkgs.fd
