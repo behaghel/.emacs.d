@@ -5,6 +5,8 @@
 
 ;;; Code:
 
+(require 'apps/emms-player)
+
 (use-package elfeed
   :straight (:depth full)
   :commands elfeed
@@ -50,10 +52,7 @@
 ;;   (elfeed-web-start))
 
 (use-package emms
-  :commands (emms)
-  :bind (:map evil-normal-state-map
-	      ("'mp" . emms-pause)
-	      ("'mm" . emms))
+  :commands (emms emms-play-file emms-seek)
   :config
   (emms-all)
   (emms-default-players)
