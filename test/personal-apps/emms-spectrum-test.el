@@ -144,19 +144,25 @@
    (should emms-player-playing-p)))
 
 (ert-deftest hub/emms-spectrum-child-failure-is-actionable-and-cleans-up ()
-  "AC-4: Capture permission failure is visible, cleaned up, and never retried automatically."
-  (hub/emms-spectrum-test--with-player
-   (setq fake-command (list hub/emms-spectrum-program "--batch" "-Q" "--eval"
-			    "(progn (princ \"AudioTap permissions missing\" #'external-debugging-output) (kill-emacs 1))"))
-   (hub/emms-spectrum-toggle)
-   (cl-loop repeat 40 while hub/emms-spectrum--process
-	    do (accept-process-output nil 0.05))
-   (should-not hub/emms-spectrum--process)
-   (should-not hub/emms-spectrum--timer)
-   (should-not hub/emms-spectrum--config-file)
-   (should (string-match-p "System Audio" hub/emms-spectrum--diagnostic))
-   (should (= starts 1))
-   (should emms-player-playing-p)))
+  "AC-4: Child failure reports platform-specific recovery and releases capture."
+  (dolist (platform '(darwin gnu/linux))
+    (let ((system-type platform))
+      (hub/emms-spectrum-test--with-player
+       (setq fake-command (list hub/emms-spectrum-program "--batch" "-Q" "--eval"
+				"(progn (princ \"AudioTap permissions missing\" #'external-debugging-output) (kill-emacs 1))"))
+       (hub/emms-spectrum-toggle)
+       (cl-loop repeat 40 while hub/emms-spectrum--process
+		do (accept-process-output nil 0.05))
+       (should-not hub/emms-spectrum--process)
+       (should-not hub/emms-spectrum--timer)
+       (should-not hub/emms-spectrum--config-file)
+       (should (string-match-p "AudioTap permissions missing" hub/emms-spectrum--diagnostic))
+       (should (string-match-p "Press v to retry" hub/emms-spectrum--diagnostic))
+       (if (eq platform 'darwin)
+	   (should (string-match-p "System Audio" hub/emms-spectrum--diagnostic))
+	 (should-not (string-match-p "System Audio" hub/emms-spectrum--diagnostic)))
+       (should (= starts 1))
+       (should emms-player-playing-p)))))
 
 (ert-deftest hub/emms-spectrum-protocol-coalesces-fragmented-frames ()
   "AC-5: Keep the latest complete frame across process-output boundaries."
