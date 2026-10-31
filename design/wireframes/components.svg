@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg">
+  <!-- Shared components for the EMMS docked-player story. Colors follow Emacs faces. -->
+  <defs>
+    <symbol id="template-emms-player" viewBox="0 0 900 280">
+      <rect width="900" height="280" fill="#202020"/>
+      <rect y="248" width="900" height="32" fill="#404040"/>
+      <text x="16" y="269" font-family="monospace" font-size="14" fill="#ffffff">EMMS Player — shared context-panels bottom slot</text>
+    </symbol>
+    <symbol id="molecule-emms-controls" viewBox="0 0 880 24">
+      <text x="0" y="18" font-family="monospace" font-size="14" fill="#b0b0b0">SPC play/pause · c -10s · r +30s · t next · s previous · q close</text>
+    </symbol>
+  </defs>
+</svg>

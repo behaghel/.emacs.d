@@ -19,7 +19,7 @@
   :type 'boolean
   :group 'hub/ai)
 
-(defcustom hub/gptel-openai-oauth-model 'gpt-5.5
+(defcustom hub/gptel-openai-oauth-model 'gpt-6.1-luna
   "Default model for the ChatGPT subscription OAuth gptel backend."
   :type 'symbol
   :group 'hub/ai)
