@@ -1,0 +1,30 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Spotify SDK compatibility check</title>
+  <link rel="stylesheet" href="/probe.css">
+  <script src="/probe.js" defer></script>
+</head>
+<body>
+  <main>
+    <h1>Spotify SDK compatibility check</h1>
+    <p class="description">Chrome receiver only. No Spotify desktop app. EMMS is unchanged.</p>
+    <p class="permissions">Permissions: streaming, profile/email, playback control.</p>
+    <a id="track" target="_blank" rel="noopener noreferrer">Selected track — open in Spotify</a>
+    <p id="status" role="status" aria-live="polite">Not authorized</p>
+    <div class="controls">
+      <button id="authorize" disabled>Authorize Spotify</button>
+      <button id="play" disabled>Play 15 seconds</button>
+      <button id="pause" disabled>Pause</button>
+    </div>
+    <p id="duration" class="duration">15-second preview; auto pause. Keep this tab open.</p>
+    <p class="privacy">Authorization is held in memory for this session only.</p>
+    <section id="trace-box" hidden>
+      <h2>Safe state trace — copy this text only</h2>
+      <pre id="trace">In-memory state observations appear here.</pre>
+    </section>
+  </main>
+</body>
+</html>

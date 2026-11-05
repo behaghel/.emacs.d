@@ -1,0 +1,26 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Emacs Spotify receiver</title>
+  <link rel="stylesheet" href="/probe.css">
+  <script src="/receiver.js" defer></script>
+</head>
+<body>
+  <main>
+    <h1>Emacs Spotify receiver</h1>
+    <p class="description">Chrome supplies audio. EMMS owns the playlist. No Spotify desktop app.</p>
+    <p class="permissions">Permissions: streaming, profile/email, playback control.</p>
+    <p id="track">Edit the mixed playlist and control playback in Emacs.</p>
+    <p id="status" role="status" aria-live="polite">Authorize Spotify, then enable audio</p>
+    <div class="controls">
+      <button id="authorize" disabled>Authorize Spotify</button>
+      <button id="activate" disabled>Enable audio</button>
+      <button id="disconnect" disabled>Disconnect</button>
+    </div>
+    <p class="duration">Keep this tab open. Hiding the Emacs player does not stop music.</p>
+    <p class="privacy">Authorization stays in memory; reconnect after session expiry.</p>
+  </main>
+</body>
+</html>

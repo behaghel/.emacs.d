@@ -1,0 +1,92 @@
+--- a/daemon/api_server.go
++++ b/daemon/api_server.go
+@@ -874,6 +874,6 @@
+ func (s *ConcreteApiServer) serve() {
+ 	m := http.NewServeMux()
+-	handler := HandlerFromMux(s, m)
++	handler := emmsPrivateAPI(HandlerFromMux(s, m))
+ 
+ 	c := cors.New(cors.Options{
+ 		AllowedOrigins:      []string{s.allowOrigin},
+--- a/cmd/daemon/main.go
++++ b/cmd/daemon/main.go
+@@ -18,6 +18,10 @@
+ )
+ 
+ func main() {
++	if len(os.Args) == 2 && os.Args[1] == "--emms-api-check" {
++		fmt.Println("emms-private-api-v1")
++		return
++	}
+ 	rand.Seed(uint64(time.Now().UnixNano()))
+ 
+ 	var cfg cliConfig
+--- /dev/null
++++ b/daemon/emms_private_api.go
+@@ -0,0 +1,27 @@
++package daemon
++
++import (
++	"crypto/subtle"
++	"net/http"
++	"os"
++)
++
++func emmsPrivateAPI(next http.Handler) http.Handler {
++	key := os.Getenv("EMMS_SPOTIFY_API_KEY")
++	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
++		if key == "" || subtle.ConstantTimeCompare([]byte(key), []byte(r.Header.Get("X-Emacs-Spotify-Key"))) != 1 {
++			http.Error(w, "Receiver authentication required", http.StatusForbidden)
++			return
++		}
++		switch r.Method + " " + r.URL.Path {
++		case "GET /", "GET /auth/code", "GET /events",
++			"POST /player/play", "POST /player/stop",
++			"POST /player/pause", "POST /player/resume",
++			"POST /player/seek", "POST /player/repeat_context",
++			"POST /player/repeat_track", "POST /player/shuffle_context":
++			next.ServeHTTP(w, r)
++		default:
++			http.NotFound(w, r)
++		}
++	})
++}
+--- /dev/null
++++ b/daemon/emms_private_api_test.go
+@@ -0,0 +1,36 @@
++package daemon
++
++import (
++	"net/http"
++	"net/http/httptest"
++	"testing"
++)
++
++func TestEmmsPrivateAPI(t *testing.T) {
++	for _, c := range []struct {
++		key, header, method, path string
++		want int
++	}{
++		{"", "", "GET", "/", 403},
++		{"synthetic", "", "GET", "/auth/code", 403},
++		{"synthetic", "wrong", "GET", "/events", 403},
++		{"synthetic", "synthetic", "GET", "/", 204},
++		{"synthetic", "synthetic", "GET", "/events", 204},
++		{"synthetic", "synthetic", "POST", "/player/play", 204},
++		{"synthetic", "synthetic", "POST", "/token", 404},
++		{"synthetic", "synthetic", "POST", "/player/next", 404},
++		{"synthetic", "synthetic", "POST", "/library/liked", 404},
++	}{
++		t.Setenv("EMMS_SPOTIFY_API_KEY", c.key)
++		handler := emmsPrivateAPI(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
++			w.WriteHeader(204)
++		}))
++		r := httptest.NewRequest(c.method, c.path, nil)
++		r.Header.Set("X-Emacs-Spotify-Key", c.header)
++		w := httptest.NewRecorder()
++		handler.ServeHTTP(w, r)
++		if w.Code != c.want {
++			t.Fatalf("%s %s: status %d, want %d", c.method, c.path, w.Code, c.want)
++		}
++	}
++}

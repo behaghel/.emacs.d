@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="800" height="752" viewBox="0 0 800 752">
+  <!-- SCREEN: SDK compatibility check; STORY: spotify-sdk-probe; STATE: ending-listening; DOMAIN: personal-apps/apps -->
+  <use href="components.svg#template-spotify-sdk-ending" width="800" height="752"/>
+  <g font-family="Arial, sans-serif" font-size="14">
+    <text x="40" y="180" fill="#17643a">Artist — Selected song — open in Spotify</text>
+    <rect x="40" y="204" width="720" height="56" rx="5" fill="#e2e8f0"/>
+    <text x="56" y="238" fill="#172033">When you hear music, click Seek final 8 seconds</text>
+    <use href="components.svg#atom-sdk-probe-button" x="40" y="284" width="172" height="40" color="#64748b"/>
+    <use href="components.svg#atom-sdk-probe-button" x="232" y="284" width="172" height="40" color="#2354c5"/>
+    <use href="components.svg#atom-sdk-probe-button" x="424" y="284" width="172" height="40" color="#2354c5"/>
+    <g fill="white"><text x="69" y="309">Authorize Spotify</text><text x="253" y="309">Seek final 8 seconds</text><text x="484" y="309">Pause</text></g>
+  </g>
+  <g font-family="monospace" font-size="12" fill="#172033">
+    <text x="56" y="482">{"source":"event","available":true,"paused":false,"position_ms":0,</text>
+    <text x="56" y="500">"duration_ms":194607,"current_matches":true,"previous_matches":false,</text>
+    <text x="56" y="518">"next_count":0,"repeat_mode":0,"shuffle":false}</text>
+  </g>
+</svg>

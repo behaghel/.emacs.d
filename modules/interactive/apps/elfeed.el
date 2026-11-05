@@ -57,6 +57,7 @@
   (emms-all)
   (emms-default-players)
   (setq emms-player-list '(emms-player-vlc-playlist emms-player-vlc emms-player-mplayer emms-player-mpg321 emms-player-ogg123))
+  (when (fboundp 'hub/spotify-player-register) (hub/spotify-player-register))
   (defun browse-with-emms (url &optional _new-window) (emms-play-url url))
   (setq browse-url-browser-function '(("mp3$" . browse-with-emms)
 				      ("." . browse-url-default-browser))))
