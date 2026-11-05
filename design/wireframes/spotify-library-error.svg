@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="900" height="280" viewBox="0 0 900 280">
+  <!-- SCREEN: Spotify Library; STORY: spotify-library; STATE: error; DOMAIN: personal-apps/apps -->
+  <use href="components.svg#template-spotify-library" width="900" height="280"/>
+  <g font-family="monospace" font-size="14" fill="#ffffff"><text x="16" y="21">Liked Songs — Request failed; gr to retry · q close</text><use href="components.svg#molecule-spotify-library-columns" x="16" y="38" width="880" height="24"/><text x="16" y="88">No results loaded. Previous rows remain visible when available.</text></g>
+</svg>

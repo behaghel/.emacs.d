@@ -14,5 +14,55 @@
       <rect y="368" width="900" height="32" fill="#404040"/>
       <text x="16" y="389" font-family="monospace" font-size="14" fill="#ffffff">EMMS Player — shared context-panels bottom slot</text>
     </symbol>
+    <symbol id="template-spotify-library" viewBox="0 0 900 280">
+      <rect width="900" height="280" fill="#202020"/>
+      <rect width="900" height="30" fill="#404040"/>
+      <rect y="248" width="900" height="32" fill="#404040"/>
+      <text x="16" y="269" font-family="monospace" font-size="14" fill="#ffffff">Spotify Liked Songs — shared context-panels bottom slot</text>
+    </symbol>
+    <symbol id="molecule-spotify-library-columns" viewBox="0 0 880 24">
+      <text y="18" font-family="monospace" font-size="14" fill="#b0b0b0"><tspan x="0">Title</tspan><tspan x="288">Artist</tspan><tspan x="504">Album</tspan><tspan x="750">Time</tspan></text>
+    </symbol>
+    <symbol id="template-music-player" viewBox="0 0 900 280">
+      <rect width="900" height="280" fill="#202020"/>
+      <rect y="248" width="900" height="32" fill="#404040"/>
+      <text x="16" y="269" font-family="monospace" font-size="14" fill="#ffffff">Player — shared context-panels bottom slot</text>
+    </symbol>
+    <symbol id="organism-spotify-sdk-header" viewBox="0 0 800 440">
+      <rect width="800" height="440" fill="#f8fafc"/>
+      <g font-family="Arial, sans-serif" fill="#172033">
+        <text x="40" y="68" font-size="24" font-weight="bold">Spotify SDK compatibility check</text>
+        <text x="40" y="104" font-size="14">Chrome receiver only. No Spotify desktop app. EMMS is unchanged.</text>
+        <text x="40" y="138" font-size="12">Permissions: streaming, profile/email, playback control.</text>
+        <text x="40" y="394" font-size="12">Authorization is held in memory for this session only.</text>
+      </g>
+    </symbol>
+    <symbol id="template-spotify-sdk-probe" viewBox="0 0 800 440">
+      <use href="#organism-spotify-sdk-header" width="800" height="440"/>
+      <text x="40" y="360" font-family="Arial, sans-serif" font-size="14" fill="#172033">15-second preview; auto pause. Keep this tab open.</text>
+    </symbol>
+    <symbol id="template-spotify-sdk-ending" viewBox="0 0 800 752">
+      <rect width="800" height="752" fill="#f8fafc"/>
+      <use href="#organism-spotify-sdk-header" width="800" height="440"/>
+      <g font-family="Arial, sans-serif" fill="#172033">
+        <text x="40" y="360" font-size="14">Start normally; seek only after you hear music. No EMMS advancement.</text>
+        <text x="40" y="438" font-size="14" font-weight="bold">Safe state trace — copy this text only</text>
+      </g>
+      <rect x="40" y="452" width="720" height="260" rx="5" fill="#e2e8f0"/>
+    </symbol>
+    <symbol id="template-spotify-browser" viewBox="0 0 800 440">
+      <rect width="800" height="440" fill="#f8fafc"/>
+      <g font-family="Arial, sans-serif" fill="#172033">
+        <text x="40" y="68" font-size="24" font-weight="bold">Emacs Spotify receiver</text>
+        <text x="40" y="104" font-size="14">Chrome supplies audio. EMMS owns the playlist. No Spotify desktop app.</text>
+        <text x="40" y="138" font-size="12">Permissions: streaming, profile/email, playback control.</text>
+        <text x="40" y="180" font-size="14">Edit the mixed playlist and control playback in Emacs.</text>
+        <text x="40" y="360" font-size="14">Keep this tab open. Hiding the Emacs player does not stop music.</text>
+        <text x="40" y="394" font-size="12">Authorization stays in memory; reconnect after session expiry.</text>
+      </g>
+    </symbol>
+    <symbol id="atom-sdk-probe-button" viewBox="0 0 172 40">
+      <rect width="172" height="40" rx="5" fill="currentColor"/>
+    </symbol>
   </defs>
 </svg>

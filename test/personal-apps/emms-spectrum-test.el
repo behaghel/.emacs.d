@@ -62,14 +62,32 @@
 		     ((symbol-function 'fit-window-to-buffer) (lambda (&rest _) nil))
 		     ((symbol-function 'make-process)
 		      (lambda (&rest args)
-			(cl-incf starts)
-			(apply real-make-process (plist-put args :command fake-command)))))
+			(if (equal (plist-get args :name) "EMMS spectrum")
+			    (progn
+			      (cl-incf starts)
+			      (apply real-make-process (plist-put args :command fake-command)))
+			  (apply real-make-process args)))))
 	     ,@body))
        (hub/emms-spectrum-stop)
        (hub/emms-player--cancel-timer)
        (dolist (buffer (list source other (get-buffer hub/emms-player-buffer-name)))
 	 (when (buffer-live-p buffer) (kill-buffer buffer)))
        (delete-directory user-emacs-directory t))))
+
+(ert-deftest hub/emms-spectrum-test-double-does-not-intercept-other-processes ()
+  "The synthetic analyzer leaves unrelated asynchronous processes untouched."
+  (hub/emms-spectrum-test--with-player
+   (let ((output (generate-new-buffer " *spectrum-unrelated-process*")) process)
+     (unwind-protect
+	 (progn
+	   (setq process (make-process :name "unrelated" :noquery t :buffer output :sentinel #'ignore
+				       :command '("/bin/sh" "-c" "printf unrelated")))
+	   (cl-loop repeat 20 while (process-live-p process)
+		    do (accept-process-output process 0.05))
+	   (should (zerop starts))
+	   (should (equal (with-current-buffer output (buffer-string)) "unrelated")))
+       (when (and process (process-live-p process)) (delete-process process))
+       (kill-buffer output)))))
 
 (ert-deftest hub/emms-spectrum-opening-player-is-not-consent ()
   "AC-1: Showing and refreshing the player never starts capture."

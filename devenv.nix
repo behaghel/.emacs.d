@@ -32,6 +32,37 @@ let
       '';
     })
   else pkgs.cava;
+  # Pinned upstream nixpkgs recipe; this package is newer than our nixpkgs pin.
+  goLibrespot = pkgs.buildGoModule {
+    pname = "go-librespot";
+    version = "0.10.5";
+    src = pkgs.fetchFromGitHub {
+      owner = "devgianlu";
+      repo = "go-librespot";
+      rev = "v0.10.5";
+      hash = "sha256-lSObYalZqAYfik59L5PrH4CGcZilA7Tpzx4tVmTdsks=";
+    };
+    vendorHash = "sha256-fxB99qZE+U355iKJHIl7LgxqHmYgCiU1FpbyObTXVcQ=";
+    # Authenticate every request, including WebSockets; never expose /token.
+    patches = [ ./modules/interactive/apps/go-librespot-private-api.patch ];
+    postCheck = ''
+      go test ./daemon -run '^TestEmmsPrivateAPI$' -count=1
+    '';
+    subPackages = [ "cmd/daemon" ];
+    nativeBuildInputs = [ pkgs.pkg-config ];
+    buildInputs = [ pkgs.flac pkgs.libmpg123 pkgs.libogg pkgs.libvorbis ]
+      ++ lib.optionals pkgs.stdenv.hostPlatform.isLinux [ pkgs.alsa-lib ];
+    ldflags = [ "-s" "-X github.com/devgianlu/go-librespot.version=v0.10.5" ];
+    postInstall = ''
+      mv $out/bin/daemon $out/bin/go-librespot
+    '';
+    meta = {
+      description = "Headless Spotify receiver with local playback control";
+      homepage = "https://github.com/devgianlu/go-librespot";
+      license = lib.licenses.gpl3Plus;
+      mainProgram = "go-librespot";
+    };
+  };
   texliveEnv = pkgs.texliveSmall.withPackages (ps: [
     ps.collection-latexrecommended
     ps.collection-fontsrecommended
@@ -64,10 +95,12 @@ in
   # Developer shell packages
   packages = [
     cavaPackage
+    goLibrespot
     pkgs.editorconfig-core-c
     pkgs.emacsPackages.package-lint
     pkgs.fd
     pkgs.git
+    pkgs.openssl
     pkgs.pass
     pkgs.ripgrep
     pkgs.pre-commit

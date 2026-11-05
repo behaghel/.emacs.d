@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="900" height="280" viewBox="0 0 900 280">
+  <!-- SCREEN: Spotify Library; STORY: spotify-library; STATE: loading; DOMAIN: personal-apps/apps -->
+  <use href="components.svg#template-spotify-library" width="900" height="280"/>
+  <g font-family="monospace" font-size="14" fill="#ffffff"><text x="16" y="21">Liked Songs — Connecting / loading… · q close</text><use href="components.svg#molecule-spotify-library-columns" x="16" y="38" width="880" height="24"/><text x="16" y="88">Complete authorization in your browser if requested.</text></g>
+</svg>

@@ -1,0 +1,65 @@
+@story:spotify-player @domain:personal-apps/apps @priority:must @status:done
+Feature: One mixed EMMS playlist with official browser Spotify playback
+  As an Emacs listener browsing Liked Songs
+  I want Spotify and local music in one editable EMMS playlist
+  So that I can listen without the Spotify desktop app or a second queue
+
+  Context:
+    EMMS owns ordering, repeat, and transitions. The official SDK supplies Spotify
+    audio in Chrome after separate explicit authorization and an audio-activation click.
+
+  Out of scope:
+    Remote playlist editing and Spotify desktop control or fallback.
+
+  # AC-1
+  @wireframe:spotify-library.svg @wireframe:spotify-player.svg
+  Scenario: Enqueue and play without clearing the playlist
+    Given I have a local track in my EMMS playlist
+    When I press a on a sorted Liked Songs row
+    Then that Spotify track is appended without interrupting playback
+    When I press RET on another liked song
+    Then that occurrence is appended and played through EMMS
+    And all previous queue entries remain
+
+  # AC-2
+  @wireframe:spotify-player.svg
+  Scenario: Naturally advance across media backends
+    Given Spotify desktop is closed and the browser receiver is connected and activated
+    And my EMMS playlist contains Spotify, local file, and Spotify tracks
+    When each track finishes naturally
+    Then EMMS advances exactly once and chooses the appropriate backend
+    And I can pause and seek using the same player controls
+    And no Spotify-internal next or previous command is sent
+
+  # AC-3
+  @wireframe:spotify-player.svg
+  Scenario: Close the panel or cancel an old occurrence
+    Given a Spotify track is playing through EMMS
+    When I close the player panel
+    Then playback and natural advancement continue without capture
+    When I skip to another occurrence of the same Spotify URI
+    Then completion from the old occurrence cannot advance the new one
+
+  # AC-4
+  @wireframe:spotify-player-error.svg
+  Scenario: Fail without silently skipping or opening the desktop app
+    Given the receiver cannot play a requested Spotify track
+    When playback fails or its event connection closes
+    Then EMMS stops at that entry with an actionable diagnostic
+    And no other track or desktop app is started
+
+  # AC-5
+  @wireframe:spotify-browser-ready.svg @wireframe:spotify-browser-error.svg
+  Scenario: Authorize and activate a private browser receiver
+    When I explicitly connect the browser receiver
+    Then I can authorize Spotify and enable audio in Chrome
+    And no track starts until EMMS selects it
+    And authorization stays in memory without replacing my saved library grant
+    And disconnect stops the owned SDK instance without advancing EMMS
+
+  @wireframe:spotify-player-error.svg
+  Scenario: Refuse overlap when stopping cannot be confirmed
+    Given a Spotify occurrence is playing
+    When I skip to a local track and the receiver does not confirm stopping
+    Then no local player starts
+    And I see an actionable stop-unconfirmed diagnostic

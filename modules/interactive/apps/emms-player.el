@@ -2,7 +2,8 @@
 
 ;;; Commentary:
 ;; A read-only player projection in the shared context-panels bottom slot.
-;; EMMS owns the queue and playback; closing this view only dismisses its UI.
+;; EMMS owns the mixed queue and dispatches tracks to their playback backends.
+;; Closing this projection only dismisses its UI; it never stops audio.
 
 ;;; Code:
 
@@ -10,6 +11,12 @@
 (require 'cl-lib)
 (require 'subr-x)
 (require 'seq)
+
+(defvar org-file-apps)
+(defvar evil-normal-state-map)
+(declare-function evil-set-initial-state "evil-core" (mode state))
+(declare-function evil-define-key* "evil-core" (state keymap key def &rest bindings))
+(declare-function evil-make-intercept-map "evil-core" (keymap &optional state aux))
 
 (defconst hub/emms-audio-file-regexp
   (concat "\\."
@@ -23,27 +30,31 @@
   (emms-play-file file))
 
 (defun hub/emms-seek-backward-10 ()
-  "Seek backward ten seconds in the current EMMS track."
+  "Seek backward ten seconds in the selected player's current track."
   (interactive)
-  (emms-seek -10))
+  (hub/emms-player--seek -10))
 
 (defun hub/emms-seek-forward-30 ()
-  "Seek forward thirty seconds in the current EMMS track."
+  "Seek forward thirty seconds in the selected player's current track."
   (interactive)
-  (emms-seek 30))
+  (hub/emms-player--seek 30))
 
 (with-eval-after-load 'org
   (add-to-list 'org-file-apps
 	       (cons hub/emms-audio-file-regexp #'hub/emms-open-file)))
 
 (defgroup hub/emms-player nil
-  "Docked EMMS playback display."
+  "Docked music playback display."
   :group 'multimedia)
 
 (defcustom hub/emms-player-buffer-name "*EMMS Player*"
   "Buffer name for the docked playback view."
   :type 'string
   :group 'hub/emms-player)
+
+(defun hub/emms-player--seek (seconds)
+  "Seek SECONDS through EMMS's currently selected backend."
+  (emms-seek seconds))
 
 (defvar hub/emms-player--timer nil
   "Refresh timer, active only while the playback view is visible.")
@@ -168,6 +179,7 @@
 				 (hub/emms-player--time (hub/emms-player--duration track)))
 	       do (insert (if selected (propertize row 'face 'highlight) row))))
     (insert "\nSPC play/pause · c -10s · r +30s · t next · s previous · v spectrum · q close\n"))
+  (setq-local mode-name "EMMS Player")
   (unless (timerp hub/emms-player--timer)
     (setq hub/emms-player--timer (run-at-time 1 1 #'hub/emms-player--refresh))))
 
@@ -204,7 +216,7 @@
     (window-buffer window)))
 
 (defun hub/emms-player-open ()
-  "Open and focus the docked EMMS player without starting playback."
+  "Open and focus the docked music player without starting playback."
   (interactive)
   (require 'context-panels)
   (unless (fboundp 'context-panels-open-docked-view)
@@ -216,7 +228,7 @@
        (list :name 'emms :icon "♫"
 	     :collect-bottom-views
 	     (lambda (_source)
-	       (list (list :id 'player :label "EMMS Player" :docked t :height 11
+	       (list (list :id 'player :label "Player" :docked t :height 11
 			   :buffer-name hub/emms-player-buffer-name
 			   :mode #'hub/emms-player-mode
 			   :render #'hub/emms-player--render)))))
@@ -231,7 +243,7 @@
   (hub/emms-player--refresh))
 
 (defun hub/emms-player--command (command)
-  "Load EMMS and invoke playback COMMAND, then refresh a visible player."
+  "Dispatch playback COMMAND through EMMS, then refresh its view."
   (require 'emms)
   (funcall command)
   (hub/emms-player--refresh))
