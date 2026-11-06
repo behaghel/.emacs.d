@@ -1,4 +1,4 @@
-;;; spotify-browser.el --- Owned SDK transport and ephemeral authorization -*- lexical-binding: t; -*-
+;;; spotify-browser.el --- Owned SDK transport and renewable authorization -*- lexical-binding: t; -*-
 
 ;;; Commentary:
 ;; Reuse the proven PKCE host; one authenticated loopback WebSocket carries
@@ -10,6 +10,10 @@
 (require 'websocket)
 (require 'cl-lib)
 (require 'json)
+
+(defcustom hub/spotify-browser-token-entry "dev/spotify/emacs-music/playback"
+  "Pass entry for encrypted playback refresh authorization, not access tokens."
+  :type 'string :group 'hub/spotify)
 
 (defvar hub/spotify-browser--server nil "Owned loopback WebSocket listener.")
 (defvar hub/spotify-browser--socket nil "Single capability-authenticated browser.")
@@ -30,7 +34,9 @@
   (and hub/spotify-browser--ready hub/spotify-browser--socket
        (websocket-openp hub/spotify-browser--socket)
        (eq hub/spotify-browser--context hub/spotify-sdk-probe--session)
-       (hub/spotify-sdk-probe--valid-token-p hub/spotify-browser--context)))
+       (or (hub/spotify-sdk-probe--valid-token-p hub/spotify-browser--context)
+	   (and (hub/spotify-sdk-probe--context-busy hub/spotify-browser--context)
+		(hub/spotify-sdk-probe--context-refresh-token hub/spotify-browser--context) t))))
 
 (defun hub/spotify-browser--cleanup ()
   "Invalidate ownership before closing resources and notifying the backend."
@@ -125,22 +131,33 @@
     (when (> (- now hub/spotify-browser--tick) 3) (setq hub/spotify-browser--pong now))
     (setq hub/spotify-browser--tick now)
     (when hub/spotify-browser--socket
+      (when (hub/spotify-sdk-probe--renewal-due-p hub/spotify-browser--context)
+	(hub/spotify-sdk-probe--refresh-token hub/spotify-browser--context))
       (if (or (> (- now hub/spotify-browser--pong) 8)
 	      (and hub/spotify-browser--ready
-		   (not (hub/spotify-sdk-probe--valid-token-p hub/spotify-browser--context))))
+		   (not (or (hub/spotify-sdk-probe--valid-token-p hub/spotify-browser--context)
+			    (and (hub/spotify-sdk-probe--context-busy hub/spotify-browser--context)
+				 (hub/spotify-sdk-probe--context-refresh-token hub/spotify-browser--context))))))
 	  (hub/spotify-browser-disconnect)
 	(condition-case nil
 	    (hub/spotify-browser--send-json hub/spotify-browser--socket '((type . "ping")))
 	  (error (hub/spotify-browser-disconnect)))))))
 
 ;;;###autoload
-(defun hub/spotify-browser-connect ()
-  "Open Chrome for explicit ephemeral SDK consent and audio activation."
-  (interactive)
+(defun hub/spotify-browser-connect (&optional reauthorize)
+  "Open Chrome for remembered playback authorization and audio activation.
+With prefix REAUTHORIZE, request fresh Spotify consent."
+  (interactive "P")
+  (when (member hub/spotify-browser-token-entry (list hub/spotify-token-entry hub/spotify-client-id-entry))
+    (user-error "Playback authorization needs a separate pass entry"))
   (hub/spotify-browser-disconnect)
   (condition-case err
       (progn
-	(hub/spotify-sdk-probe "" nil #'hub/spotify-browser--route #'hub/spotify-browser--cleanup 3300)
+	(hub/spotify-sdk-probe "" nil #'hub/spotify-browser--route #'hub/spotify-browser--cleanup
+			       0 (unless reauthorize hub/spotify-browser-token-entry))
+	;; Fresh consent still saves its new playback grant after skipping restore.
+	(setf (hub/spotify-sdk-probe--context-token-entry hub/spotify-sdk-probe--session)
+	      hub/spotify-browser-token-entry)
 	(setq hub/spotify-browser--context hub/spotify-sdk-probe--session
 	      hub/spotify-browser--server
 	      (make-network-process
@@ -166,7 +183,7 @@
 					  (websocket-close ws)))))
 	      hub/spotify-browser--pong (float-time) hub/spotify-browser--tick (float-time)
 	      hub/spotify-browser--timer (run-at-time 1 1 #'hub/spotify-browser--heartbeat))
-	(message "Browser receiver opened; authorize and Enable audio, then play from EMMS"))
+	(message "Receiver opened; saved authorization is reused when available. Enable audio in Chrome"))
     ((error quit) (hub/spotify-browser-disconnect) (signal (car err) (cdr err)))))
 
 (defun hub/spotify-browser-send (kind run &optional data)

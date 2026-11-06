@@ -33,7 +33,7 @@ async function stop(child) {
   const closed = new Promise(resolve => child.once('close', resolve)); child.kill('SIGTERM'); await closed;
 }
 test('real Chrome activates the receiver, drives a mixed EMMS queue, and renders safe SDK errors', {
-  skip: !fs.existsSync(chromePath), timeout: 45000
+  skip: !fs.existsSync(chromePath), timeout: 60000
 }, async context => {
   for (const screen of ['ready', 'mixed', 'controls', 'error']) await context.test(screen, async () => {
     const port = await freePort(), profile = fs.mkdtempSync(path.join(os.tmpdir(), 'spotify-browser-ui-'));
@@ -75,6 +75,14 @@ test('real Chrome activates the receiver, drives a mixed EMMS queue, and renders
           await sleep(11000);
           const value = await (await fetch(origin + '/fixture-state')).json();
           assert.equal(value.ready, true); assert.equal(value.playing, true); assert.equal(value.error, false);
+          // A real SDK token callback waits for native renewal beyond the old 5s fetch deadline.
+          assert.ok((await fetch(origin + '/fixture-renew')).ok);
+          await evaluate('window.fixtureRenew(); true');
+          await waitFor(() => evaluate('window.fixtureRenewed'));
+          const renewed = await (await fetch(origin + '/fixture-state')).json();
+          assert.equal(renewed.renewals, 1);
+          assert.equal(renewed.ready, true); assert.equal(renewed.playing, true); assert.equal(renewed.error, false);
+          assert.equal(await evaluate('window.fixtureStarts'), 1);
         } else assert.equal(await evaluate('document.getElementById("status").textContent'), 'Ready — control playback in Emacs');
       }
       const shot = await client.call('Page.captureScreenshot', { format: 'png' });

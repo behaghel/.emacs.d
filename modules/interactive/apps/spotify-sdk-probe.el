@@ -2,8 +2,9 @@
 
 ;;; Commentary:
 ;; One Chrome SDK device, independent of EMMS. OAuth uses the existing callback
-;; registration, but no saved library grant or client secret. Credentials remain
-;; in memory; the browser bootstrap capability is scrubbed from its URL by JS.
+;; registration, but no saved library grant or client secret. The standalone
+;; check is memory-only; receiver hosting can opt into a separate encrypted
+;; refresh grant. The browser bootstrap capability is scrubbed from its URL.
 
 ;;; Code:
 
@@ -22,8 +23,9 @@
   "Permissions required for the official SDK and explicit track selection.")
 (defvar hub/spotify-sdk-probe--session nil "Owned ephemeral SDK session, never serialized.")
 (cl-defstruct (hub/spotify-sdk-probe--context (:constructor hub/spotify-sdk-probe--context-create))
-  "Independent browser authorization; no persistent refresh credentials."
-  client key track port listener clients timer state verifier token expires error ending-check handler on-stop (generation 0))
+  "Owned browser session; only receiver hosting opts into encrypted renewal."
+  client key track port listener clients timer state verifier token expires error ending-check handler on-stop
+  token-entry refresh-token busy waiters retry-at (generation 0))
 
 (defun hub/spotify-sdk-probe--origin (context)
   "Return CONTEXT's exact loopback origin."
@@ -44,6 +46,114 @@
 		   (insert-file-contents (expand-file-name name hub/spotify-sdk-probe--directory))
 		   (buffer-string))))
 
+(defun hub/spotify-sdk-probe--accept-token (context status json)
+  "Accept a validated token response for CONTEXT, saving only refresh material."
+  (let ((token (and (listp json) (alist-get 'access_token json)))
+	(expires (and (listp json) (alist-get 'expires_in json))))
+    (if (not (and (eq status 200) (stringp token) (not (string-empty-p token))
+		  (not (string-match-p "[[:space:]]" token)) (numberp expires) (> expires 30)))
+	(setf (hub/spotify-sdk-probe--context-error context)
+	      (if (eq status 400) "authorization_required" "authorization_failed"))
+      (condition-case nil
+	  (progn
+	    (when (hub/spotify-sdk-probe--context-token-entry context)
+	      (let ((refresh (or (alist-get 'refresh_token json)
+				 (hub/spotify-sdk-probe--context-refresh-token context))))
+		(unless (and (stringp refresh) (not (string-empty-p refresh))
+			     (not (string-match-p "[[:space:]]" refresh)))
+		  (error "Missing refresh authorization"))
+		(unless (equal refresh (hub/spotify-sdk-probe--context-refresh-token context))
+		  (hub/spotify-auth--store
+		   (hub/spotify-auth--session-create
+		    :client-id (hub/spotify-sdk-probe--context-client context)
+		    :token-entry (hub/spotify-sdk-probe--context-token-entry context)) refresh))
+		(setf (hub/spotify-sdk-probe--context-refresh-token context) refresh)))
+	    (setf (hub/spotify-sdk-probe--context-token context) token
+		  (hub/spotify-sdk-probe--context-expires context) (+ (float-time) expires -30)
+		  (hub/spotify-sdk-probe--context-error context) nil))
+	(error (setf (hub/spotify-sdk-probe--context-error context) "authorization_storage"))))))
+
+(defun hub/spotify-sdk-probe--renewal-due-p (context)
+  "Return non-nil when CONTEXT's renewable access token needs replacement."
+  (and (hub/spotify-sdk-probe--context-token-entry context)
+       (hub/spotify-sdk-probe--context-refresh-token context)
+       (<= (or (hub/spotify-sdk-probe--context-expires context) 0) (+ (float-time) 120))))
+
+(defun hub/spotify-sdk-probe--notify-token (context)
+  "Complete CONTEXT's bounded pending token requests, including closed clients."
+  (let ((waiters (hub/spotify-sdk-probe--context-waiters context)))
+    (setf (hub/spotify-sdk-probe--context-waiters context) nil)
+    (dolist (waiter waiters)
+      ;; A client may have closed its request during the HTTPS exchange.
+      (condition-case nil (funcall waiter) (error nil)))))
+
+(defun hub/spotify-sdk-probe--defer-token (context process)
+  "Reply to authenticated PROCESS after CONTEXT's in-flight renewal finishes."
+  (push (lambda ()
+	  (hub/spotify-sdk-probe--reply
+	   process (if (and (eq context hub/spotify-sdk-probe--session)
+			    (hub/spotify-sdk-probe--valid-token-p context))
+		       (hub/spotify-sdk-probe--json
+			200 `((access_token . ,(hub/spotify-sdk-probe--context-token context))))
+		     '(409 "text/plain" "Playback authorization unavailable; reconnect from Emacs."))))
+	(hub/spotify-sdk-probe--context-waiters context))
+  (hub/spotify-sdk-probe--refresh-token context)
+  (unless (hub/spotify-sdk-probe--context-busy context)
+    (hub/spotify-sdk-probe--notify-token context)))
+
+(defun hub/spotify-sdk-probe--refresh-token (context)
+  "Renew CONTEXT's saved playback grant without starting OAuth or reading secrets."
+  (when (and (eq context hub/spotify-sdk-probe--session)
+	     (hub/spotify-sdk-probe--context-token-entry context)
+	     (hub/spotify-sdk-probe--context-refresh-token context)
+	     (not (hub/spotify-sdk-probe--context-busy context))
+	     (<= (or (hub/spotify-sdk-probe--context-retry-at context) 0) (float-time)))
+    (let ((generation (hub/spotify-sdk-probe--context-generation context)))
+      (setf (hub/spotify-sdk-probe--context-busy context) t)
+      (hub/spotify-auth--request
+       "https://accounts.spotify.com/api/token" "POST"
+       '(("Content-Type" . "application/x-www-form-urlencoded"))
+       (hub/spotify-auth--form
+	`(("grant_type" . "refresh_token")
+	  ("refresh_token" . ,(hub/spotify-sdk-probe--context-refresh-token context))
+	  ("client_id" . ,(hub/spotify-sdk-probe--context-client context))))
+       (lambda (status json retry)
+	 (when (and (eq context hub/spotify-sdk-probe--session)
+		    (= generation (hub/spotify-sdk-probe--context-generation context)))
+	   ;; Keep single-flight ownership through encrypted refresh-token rotation.
+	   (hub/spotify-sdk-probe--accept-token context status json)
+	   (cond
+	    ((null (hub/spotify-sdk-probe--context-error context))
+	     (setf (hub/spotify-sdk-probe--context-retry-at context) nil))
+	    ((member status '(400 401 403))
+	     (setf (hub/spotify-sdk-probe--context-token context) nil
+		   (hub/spotify-sdk-probe--context-expires context) nil
+		   (hub/spotify-sdk-probe--context-refresh-token context) nil
+		   (hub/spotify-sdk-probe--context-error context) "authorization_required"))
+	    (t
+	     (setf (hub/spotify-sdk-probe--context-retry-at context)
+		   (+ (float-time) (max 5 (if (numberp retry) retry 30))))
+	     (when (and (hub/spotify-sdk-probe--valid-token-p context)
+			(not (equal (hub/spotify-sdk-probe--context-error context) "authorization_storage")))
+	       (setf (hub/spotify-sdk-probe--context-error context) nil))))
+	   (setf (hub/spotify-sdk-probe--context-busy context) nil)
+	   (hub/spotify-sdk-probe--notify-token context))))))
+  ;; Never return a timer or callback closure containing captured credentials.
+  nil)
+
+(defun hub/spotify-sdk-probe--restore (context)
+  "Restore only CONTEXT's configured encrypted playback authorization."
+  (when-let* ((entry (hub/spotify-sdk-probe--context-token-entry context)))
+    ;; Constructor bindings are synchronous; callbacks retain the captured context.
+    (let* ((hub/spotify-token-entry entry)
+	   (stored (hub/spotify-auth--new-context)))
+      (unless (equal (hub/spotify-auth--session-client-id stored)
+		     (hub/spotify-sdk-probe--context-client context))
+	(user-error "Spotify client changed during authorization"))
+      (setf (hub/spotify-sdk-probe--context-refresh-token context)
+	    (hub/spotify-auth--session-refresh-token stored))
+      (hub/spotify-sdk-probe--refresh-token context))))
+
 (defun hub/spotify-sdk-probe--authorize (context)
   "Start a new explicit PKCE attempt for CONTEXT, invalidating older callbacks."
   (cl-incf (hub/spotify-sdk-probe--context-generation context))
@@ -51,7 +161,11 @@
 	(hub/spotify-sdk-probe--context-verifier context) (hub/spotify-auth--random)
 	(hub/spotify-sdk-probe--context-token context) nil
 	(hub/spotify-sdk-probe--context-expires context) nil
-	(hub/spotify-sdk-probe--context-error context) nil)
+	(hub/spotify-sdk-probe--context-error context) nil
+	(hub/spotify-sdk-probe--context-refresh-token context) nil
+	(hub/spotify-sdk-probe--context-busy context) nil
+	(hub/spotify-sdk-probe--context-retry-at context) nil)
+  (hub/spotify-sdk-probe--notify-token context)
   (hub/spotify-sdk-probe--json
    200 `((authorization_url . ,(concat
 				"https://accounts.spotify.com/authorize?"
@@ -94,13 +208,7 @@
 	   (lambda (status json _retry)
 	     (when (and (eq context hub/spotify-sdk-probe--session)
 			(= generation (hub/spotify-sdk-probe--context-generation context)))
-	       (let ((token (and (listp json) (alist-get 'access_token json)))
-		     (expires (and (listp json) (alist-get 'expires_in json))))
-		 (if (and (eq status 200) (stringp token) (not (string-empty-p token))
-			  (not (string-match-p "[[:space:]]" token)) (numberp expires) (> expires 30))
-		     (setf (hub/spotify-sdk-probe--context-token context) token
-			   (hub/spotify-sdk-probe--context-expires context) (+ (float-time) expires -30))
-		   (setf (hub/spotify-sdk-probe--context-error context) "authorization_failed")))))))
+	       (hub/spotify-sdk-probe--accept-token context status json)))))
 	;; No code or third-party script in the response or final browser URL.
 	'(303 "text/plain" "Return to the SDK check tab." "/complete")))))
 
@@ -140,9 +248,14 @@
 	     (ending_check . ,(if (hub/spotify-sdk-probe--context-ending-check context) t :false))
 	     (error . ,(hub/spotify-sdk-probe--context-error context)))))
      ((and (equal method "GET") (equal path "/token"))
-      (if (hub/spotify-sdk-probe--valid-token-p context)
-	  (hub/spotify-sdk-probe--json 200 `((access_token . ,(hub/spotify-sdk-probe--context-token context))))
-	'(409 "text/plain" "Authorize the SDK session first.")))
+      (cond
+       ((or (hub/spotify-sdk-probe--context-busy context)
+	    (and (hub/spotify-sdk-probe--renewal-due-p context)
+		 (<= (or (hub/spotify-sdk-probe--context-retry-at context) 0) (float-time))))
+	'await-token)
+       ((hub/spotify-sdk-probe--valid-token-p context)
+	(hub/spotify-sdk-probe--json 200 `((access_token . ,(hub/spotify-sdk-probe--context-token context)))))
+       (t '(409 "text/plain" "Authorize the SDK session first."))))
      (t '(404 "text/plain" "Not found.")))))
 
 (defun hub/spotify-sdk-probe--reply (process response)
@@ -179,9 +292,11 @@
 		  (let ((name (downcase (match-string 1 line))) (value (match-string 2 line)))
 		    (when (assoc name headers) (setq duplicate t))
 		    (push (cons name value) headers))))
-	      (hub/spotify-sdk-probe--reply
-	       process (if duplicate '(400 "text/plain" "Duplicate headers.")
-			 (hub/spotify-sdk-probe--dispatch context method target headers)))))
+	      (let ((response (if duplicate '(400 "text/plain" "Duplicate headers.")
+				(hub/spotify-sdk-probe--dispatch context method target headers))))
+		(if (eq response 'await-token)
+		    (hub/spotify-sdk-probe--defer-token context process)
+		  (hub/spotify-sdk-probe--reply process response)))))
 	(error (hub/spotify-sdk-probe--reply process '(500 "text/plain" "SDK session request failed."))))))))
 
 (defun hub/spotify-sdk-probe--open-chrome (url)
@@ -197,6 +312,7 @@
   (interactive)
   (when-let* ((context hub/spotify-sdk-probe--session))
     (setq hub/spotify-sdk-probe--session nil)
+    (hub/spotify-sdk-probe--notify-token context)
     (when (timerp (hub/spotify-sdk-probe--context-timer context))
       (cancel-timer (hub/spotify-sdk-probe--context-timer context)))
     (dolist (process (cons (hub/spotify-sdk-probe--context-listener context)
@@ -206,6 +322,8 @@
 	(when (process-live-p process) (delete-process process))))
     (setf (hub/spotify-sdk-probe--context-key context) nil
 	  (hub/spotify-sdk-probe--context-token context) nil
+	  (hub/spotify-sdk-probe--context-refresh-token context) nil
+	  (hub/spotify-sdk-probe--context-busy context) nil
 	  (hub/spotify-sdk-probe--context-state context) nil
 	  (hub/spotify-sdk-probe--context-verifier context) nil
 	  (hub/spotify-sdk-probe--context-clients context) nil
@@ -215,14 +333,16 @@
   nil)
 
 ;;;###autoload
-(defun hub/spotify-sdk-probe (track &optional ending-check handler on-stop lifetime)
+(defun hub/spotify-sdk-probe (track &optional ending-check handler on-stop lifetime token-entry)
   "Open an independent SDK check for Spotify TRACK URL or URI in Chrome.
 With prefix argument ENDING-CHECK, start normally, then let the listener
 seek to the final eight seconds after hearing music.  Show safe playback-state
 observations instead of a fifteen-second preview.
 Neither mode modifies or advances the EMMS playlist.
 Internal receiver hosting uses HANDLER for named routes, ON-STOP for cleanup,
-and LIFETIME seconds instead of the default ten minutes."
+and LIFETIME seconds instead of the default ten minutes (zero keeps a receiver
+alive until disconnected). TOKEN-ENTRY opts the receiver into encrypted renewal;
+the standalone compatibility check never saves or restores authorization."
   (interactive (list (read-string "Spotify track URL or URI: ") current-prefix-arg))
   (let ((uri (cond ((string-match-p "\\`spotify:track:[A-Za-z0-9]\\{22\\}\\'" track) track)
 		   ((string-match "\\`https://open\\.spotify\\.com/\\(?:intl-[a-z][a-z]/\\)?track/\\([A-Za-z0-9]\\{22\\}\\)\\(?:[?].*\\)?\\'" track)
@@ -237,7 +357,7 @@ and LIFETIME seconds instead of the default ten minutes."
 	(user-error "Cannot read the public Spotify client ID from pass"))
       (let ((context (hub/spotify-sdk-probe--context-create
 		      :client client :key (hub/spotify-auth--random) :track uri
-		      :ending-check (and ending-check t) :handler handler :on-stop on-stop)))
+		      :ending-check (and ending-check t) :handler handler :on-stop on-stop :token-entry token-entry)))
 	(setq hub/spotify-sdk-probe--session context)
 	(condition-case nil
 	    (let ((listener
@@ -256,10 +376,13 @@ and LIFETIME seconds instead of the default ten minutes."
 							     (delq child (hub/spotify-sdk-probe--context-clients context))))))))
 		    :filter (lambda (process chunk) (hub/spotify-sdk-probe--receive context process chunk)))))
 	      (setf (hub/spotify-sdk-probe--context-listener context) listener
-		    (hub/spotify-sdk-probe--context-port context) (process-contact listener :service)
-		    (hub/spotify-sdk-probe--context-timer context)
-		    (run-at-time (or lifetime 600) nil (lambda () (when (eq context hub/spotify-sdk-probe--session)
-								    (hub/spotify-sdk-probe-stop)))))
+		    (hub/spotify-sdk-probe--context-port context) (process-contact listener :service))
+	      (unless (and handler (eq lifetime 0))
+		(setf (hub/spotify-sdk-probe--context-timer context)
+		      (run-at-time (or lifetime 600) nil
+				   (lambda () (when (eq context hub/spotify-sdk-probe--session)
+						(hub/spotify-sdk-probe-stop))))))
+	      (hub/spotify-sdk-probe--restore context)
 	      (hub/spotify-sdk-probe--open-chrome
 	       (concat (hub/spotify-sdk-probe--origin context) "/#" (hub/spotify-sdk-probe--context-key context)))
 	      (message "SDK check opened in Chrome; authorize, then click %s"

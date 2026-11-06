@@ -180,7 +180,7 @@
     };
     const api = async (path, method = 'GET') => {
       const response = await env.fetch(path, { method, headers: { 'X-Emacs-Spotify-Probe': key },
-        cache: 'no-store', credentials: 'omit', redirect: 'error', referrerPolicy: 'no-referrer', signal: env.AbortSignal.timeout(5000) });
+        cache: 'no-store', credentials: 'omit', redirect: 'error', referrerPolicy: 'no-referrer', signal: env.AbortSignal.timeout(path === '/token' ? 35000 : 5000) });
       if (!response.ok) throw Error('local session unavailable');
       return response.json();
     };
@@ -215,7 +215,15 @@
     const pollAuthorization = async () => {
       if (checking || failed || player) return;
       checking = true;
-      try { const state = await api('/state'); if (state.error) fail('authentication_error'); else if (state.authorized) await connect(); }
+      try {
+        const state = await api('/state');
+        if (state.error === 'authorization_required') {
+          el.authorize.disabled = false; status('Saved authorization expired or was revoked — Authorize Spotify');
+        } else if (state.error === 'authorization_storage') {
+          el.authorize.disabled = false; status('Cannot save authorization — unlock GPG, then Authorize Spotify');
+        } else if (state.error) fail('authentication_error');
+        else if (state.authorized) { el.authorize.disabled = true; await connect(); }
+      }
       catch (_) { fail('transport'); } finally { checking = false; }
     };
     el.authorize.onclick = async () => {

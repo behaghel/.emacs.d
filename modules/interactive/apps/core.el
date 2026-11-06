@@ -12,6 +12,9 @@
 
 (use-package websocket :defer t)
 
+;; Entry keys stay available before any player, library or palette is loaded.
+(require 'apps/music)
+
 (autoload 'hub/spotify-browser-connect "apps/spotify-browser" nil t)
 (autoload 'hub/spotify-browser-disconnect "apps/spotify-browser" nil t)
 (autoload 'hub/spotify-sdk-probe "apps/spotify-sdk-probe"
