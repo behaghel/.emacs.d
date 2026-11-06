@@ -8,6 +8,7 @@
 ;;; Code:
 
 (require 'hub-utils)
+(require 'apps/music)
 (require 'cl-lib)
 (require 'subr-x)
 (require 'seq)
@@ -158,7 +159,10 @@
       (if-let* ((seconds (hub/emms-player--duration track)))
 	  (setq total (+ total seconds))
 	(cl-incf unknown)))
-    (insert (propertize (format "%s — %s\n" (plist-get snapshot :state)
+    (insert (propertize (format "%s — %s\n"
+				(hub/music-state-label
+				 (pcase (plist-get snapshot :state)
+				   ("Playing" 'playing) ("Paused" 'paused) (_ 'stopped)))
 				(hub/emms-player--title current)) 'face 'bold))
     (insert (format "[%s%s] %s / %s%s\n"
 		    (make-string filled ?=) (make-string (- 30 filled) ?-)
@@ -178,7 +182,7 @@
 				 number (hub/emms-player--title track)
 				 (hub/emms-player--time (hub/emms-player--duration track)))
 	       do (insert (if selected (propertize row 'face 'highlight) row))))
-    (insert "\nSPC play/pause · c -10s · r +30s · t next · s previous · v spectrum · q close\n"))
+    (insert "\nSPC play/pause · c -10s · r +30s · t next · s previous · v spectrum · l Liked Songs · ? actions · q close\n"))
   (setq-local mode-name "EMMS Player")
   (unless (timerp hub/emms-player--timer)
     (setq hub/emms-player--timer (run-at-time 1 1 #'hub/emms-player--refresh))))
@@ -283,15 +287,8 @@
 		      (kbd (car binding)) (cdr binding)))
   (evil-make-intercept-map hub/emms-player-mode-map 'normal)
   (evil-make-intercept-map hub/emms-player-mode-map 'motion)
-  (dolist (binding '(("'mm" . hub/emms-player-open)
-		     ("'m SPC" . hub/emms-player-toggle)
-		     ("'mp" . hub/emms-player-toggle)
-		     ("'mc" . hub/emms-seek-backward-10)
-		     ("'mr" . hub/emms-seek-forward-30)
-		     ("'mt" . hub/emms-player-next)
-		     ("'ms" . hub/emms-player-previous)
-		     ("'mv" . hub/emms-spectrum-toggle)))
-    (define-key evil-normal-state-map (kbd (car binding)) (cdr binding))))
+  ;; The lazy music access module owns the global 'm prefix.
+  (hub/music--local-help))
 
 (with-eval-after-load 'emms
   (dolist (hook '(emms-player-started-hook emms-player-stopped-hook

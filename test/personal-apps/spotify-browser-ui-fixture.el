@@ -21,13 +21,14 @@
 	(emms-repeat-track nil) (emms-single-track nil) (emms-player-playing-p nil)
 	(emms-playlist-buffer nil) (emms-playlist-buffers nil) (emms-player-list nil)
 	(original (symbol-function 'hub/spotify-sdk-probe--dispatch))
-	(local-count 0) (started nil) (done nil) timer playlist
+	(local-count 0) (renewals 0) (started nil) (done nil) timer playlist
 	(mock (concat
 	       "const screen=" (json-serialize (symbol-name screen)) ";let instance;window.fixtureStarts=0;"
 	       "const originalFetch=window.fetch.bind(window);window.fetch=(url,options)=>{"
 	       "if(String(url).startsWith('https://api.spotify.com/')){instance.start(JSON.parse(options.body).uris[0]);return Promise.resolve({ok:true,status:204})}"
 	       "return originalFetch(url,options)};"
-	       "window.Spotify={Player:class{constructor(){instance=this;this.events={};this.state=null}"
+	       "window.fixtureRenewed=false;window.fixtureRenew=()=>{instance.options.getOAuthToken(token=>{window.fixtureRenewed=token==='SYNTHETIC-RENEWED'});return true};"
+	       "window.Spotify={Player:class{constructor(options){instance=this;this.options=options;this.events={};this.state=null}"
 	       "addListener(n,f){this.events[n]=f}connect(){this.events.ready({device_id:'synthetic'});"
 	       "if(screen==='error')setTimeout(()=>this.events.playback_error({message:'PRIVATE'}),1500);return Promise.resolve(true)}"
 	       "activateElement(){return Promise.resolve()}getCurrentState(){return Promise.resolve(this.state)}"
@@ -44,6 +45,13 @@
     (cl-letf (((symbol-function 'auth-source-pass-get) (lambda (&rest _) (make-string 32 ?a)))
 	      ((symbol-function 'hub/spotify-auth--random) (lambda () "synthetic-capability"))
 	      ((symbol-function 'hub/spotify-sdk-probe--open-chrome) #'ignore)
+	      ((symbol-function 'hub/spotify-auth--request)
+	       (lambda (_url _method _headers _data callback)
+		 (cl-incf renewals)
+		 (run-at-time 6 nil callback 200
+			      '((access_token . "SYNTHETIC-RENEWED") (expires_in . 3600)
+				(refresh_token . "SYNTHETIC-ROTATED")) nil)))
+	      ((symbol-function 'hub/spotify-auth--store) (lambda (&rest _) nil))
 	      ((symbol-function 'hub/spotify-sdk-probe--dispatch)
 	       (lambda (context method target headers)
 		 (cond
@@ -54,7 +62,11 @@
 									   (hub/spotify-browser-player--occurrence-pending hub/spotify-browser-player--run)) t :false))
 						      (playing . ,(if emms-player-playing-p t :false))
 						      (error . ,(if hub/spotify-player-last-error t :false))
-						      (local . ,local-count) (done . ,(if done t :false)))))
+						      (local . ,local-count) (renewals . ,renewals) (done . ,(if done t :false)))))
+		  ((equal target "/fixture-renew")
+		   (setf (hub/spotify-sdk-probe--context-expires context) (- (float-time) 1)
+			 (hub/spotify-sdk-probe--context-refresh-token context) "SYNTHETIC-REFRESH")
+		   (hub/spotify-sdk-probe--json 200 '((sent . t))))
 		  ((equal target "/fixture-seek") (emms-seek 3) (hub/spotify-sdk-probe--json 200 '((sent . t))))
 		  ((equal target "/fixture-pause") (emms-pause) (hub/spotify-sdk-probe--json 200 '((sent . t))))
 		  (t (let ((response (funcall original context method target headers)))

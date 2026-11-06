@@ -18,7 +18,9 @@
 
 (defcustom hub/emms-spectrum-program "cava"
   "CAVA executable with system-output capture support.
-Launch Emacs from devenv or supply the executable's absolute path."
+The default also searches this configuration's existing devenv profile,
+so GUI Emacs need not inherit the development shell's PATH.
+An explicit executable name or absolute path overrides profile discovery."
   :type 'string
   :group 'hub/emms-spectrum)
 
@@ -46,6 +48,15 @@ Launch Emacs from devenv or supply the executable's absolute path."
 (defvar hub/emms-spectrum--image nil "Current SVG image, flushed when replaced.")
 (defvar hub/emms-spectrum--frame nil "Frame in which capture was explicitly enabled.")
 (defvar hub/emms-spectrum--dirty nil "Non-nil when a newer complete frame awaits display.")
+
+(defun hub/emms-spectrum--program ()
+  "Resolve CAVA without launching a shell or starting capture.
+Honor explicit program overrides; only the default searches the config profile."
+  (or (executable-find hub/emms-spectrum-program)
+      (when (equal hub/emms-spectrum-program "cava")
+	(let ((program (expand-file-name ".devenv/profile/bin/cava" user-emacs-directory)))
+	  (when (and (file-regular-p program) (file-executable-p program)) program)))
+      (user-error "CAVA not found; enter the config's devenv or set hub/emms-spectrum-program")))
 
 (defun hub/emms-spectrum--configuration ()
   "Return fixed raw-output settings with an explicit system-output source."
@@ -226,8 +237,7 @@ This analyzes other audible applications too, never the microphone."
 	  (unless (and (integerp hub/emms-spectrum-bars) (<= 4 hub/emms-spectrum-bars 128)
 		       (integerp hub/emms-spectrum-height) (<= 32 hub/emms-spectrum-height 256))
 	    (user-error "Spectrum requires 4–128 bars and a 32–256 pixel height"))
-	  (let* ((program (or (executable-find hub/emms-spectrum-program)
-			      (user-error "CAVA is missing; launch Emacs from devenv or set hub/emms-spectrum-program")))
+	  (let* ((program (hub/emms-spectrum--program))
 		 (configuration (hub/emms-spectrum--configuration))
 		 (directory (expand-file-name "var/emms-spectrum/" user-emacs-directory)))
 	    (make-directory directory t)

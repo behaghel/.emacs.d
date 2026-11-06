@@ -46,6 +46,11 @@ status: draft
 - The integration requires dock-enabled `context-panels`; an older framework
   produces an actionable diagnostic instead of silently changing the layout.
 
+### Music presentation
+
+The [music presentation and access contract](music-ui.md) governs the native Hi-Fi
+console, keyboard cockpit and consistent music entry points.
+
 ### Spectrum analyzer
 
 - The analyzer is opt-in: `v` in the player or `'mv` outside toggles it. Opening,
@@ -59,6 +64,10 @@ status: draft
   Reopening the view requires explicit re-enabling. No audio or spectrum frames
   are recorded or stored; only a temporary, private CAVA configuration is written
   under `var/` and removed when capture stops.
+- Default CAVA discovery uses the executable search path, then the configuration's
+  existing `.devenv/profile/bin/cava`. GUI Emacs does not need a development-shell
+  PATH. Explicit executable overrides remain authoritative; discovery never
+  launches a shell, installs tools, or enables capture.
 - Missing CAVA, unavailable SVG display, process failure, or malformed output
   leaves playback usable and reports how to recover. macOS audio-capture
   permission is controlled by the user in System Settings.
@@ -103,9 +112,14 @@ status: draft
   stops music nor prevents natural advancement. Spectrum capture remains opt-in.
 - `M-x hub/spotify-browser-connect` opens Chrome for explicit SDK authorization
   and an audio-activation click before Spotify tracks are started in EMMS.
-  `M-x hub/spotify-browser-disconnect` releases only the owned receiver. Authorization
-  is memory-only, separate from the saved library grant; the session lasts at most
-  fifty-five minutes and requires explicit reconnection when expired.
+  `M-x hub/spotify-browser-disconnect` releases only the owned receiver. Playback
+  refresh authorization is encrypted in its own `pass` entry, separate from the
+  read-only library grant and associated with the public client ID. Access tokens
+  remain in memory and renew automatically; the receiver has no fixed hourly
+  session cutoff. Reconnecting reuses saved authorization until it expires or is
+  revoked, while a new browser receiver still requires explicit audio activation.
+  Unavailable credentials or failed renewal never advance the queue or expose
+  credential payloads. A prefix argument to connect requests fresh authorization.
 - The loopback HTTP and WebSocket channels require a random session capability.
   The receiver owns one Spotify occurrence at a time, not a playlist. Commands and
   callbacks carry occurrence and control identities; older acknowledgements and

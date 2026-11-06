@@ -1,4 +1,4 @@
-@story:spotify-player @domain:personal-apps/apps @priority:must @status:done
+@story:spotify-player @domain:personal-apps/apps @priority:must @status:in-progress
 Feature: One mixed EMMS playlist with official browser Spotify playback
   As an Emacs listener browsing Liked Songs
   I want Spotify and local music in one editable EMMS playlist
@@ -54,8 +54,24 @@ Feature: One mixed EMMS playlist with official browser Spotify playback
     When I explicitly connect the browser receiver
     Then I can authorize Spotify and enable audio in Chrome
     And no track starts until EMMS selects it
-    And authorization stays in memory without replacing my saved library grant
+    And playback refresh authorization is remembered encrypted without replacing my saved library grant
+    And access tokens remain in memory
     And disconnect stops the owned SDK instance without advancing EMMS
+
+  @wireframe:spotify-browser-ready.svg
+  Scenario: Reconnect without repeating Spotify authorization
+    Given I have previously authorized playback and its grant is still valid
+    When I reconnect the browser receiver after restarting Emacs
+    Then my encrypted playback grant is reused without another OAuth prompt
+    And I still enable audio explicitly before EMMS can start a Spotify track
+
+  @wireframe:spotify-browser-ready.svg
+  Scenario: Renew an access token without disconnecting the receiver
+    Given Spotify is playing through the activated receiver
+    When its short-lived access token needs renewal
+    Then playback authorization renews without another consent prompt
+    And the current occurrence and EMMS queue are unchanged
+    And the receiver does not close because an hour has elapsed
 
   @wireframe:spotify-player-error.svg
   Scenario: Refuse overlap when stopping cannot be confirmed

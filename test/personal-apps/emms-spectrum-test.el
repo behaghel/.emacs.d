@@ -161,6 +161,36 @@
    (should-not hub/emms-spectrum--config-file)
    (should emms-player-playing-p)))
 
+(ert-deftest hub/emms-spectrum-discovers-existing-devenv-cava-for-gui ()
+  "GUI Emacs finds the configured profile without a shell or implicit capture."
+  (hub/emms-spectrum-test--with-player
+   (let ((program (expand-file-name ".devenv/profile/bin/cava" user-emacs-directory))
+	 (hub/emms-spectrum-program "cava"))
+     (make-directory (file-name-directory program) t)
+     (write-region "#!/bin/sh\nexit 0\n" nil program nil 'silent)
+     (set-file-modes program #o755)
+     (cl-letf (((symbol-function 'executable-find) (lambda (_) nil)))
+       (should (equal (hub/emms-spectrum--program) program))
+       (should (zerop starts))
+       (hub/emms-spectrum-toggle)
+       (should (= starts 1))
+       (should (process-live-p hub/emms-spectrum--process))))))
+
+(ert-deftest hub/emms-spectrum-program-overrides-remain-authoritative ()
+  "PATH wins over the profile, and a missing explicit override never falls back."
+  (hub/emms-spectrum-test--with-player
+   (let ((profile (expand-file-name ".devenv/profile/bin/cava" user-emacs-directory))
+	 (hub/emms-spectrum-program "cava"))
+     (make-directory (file-name-directory profile) t)
+     (write-region "#!/bin/sh\nexit 0\n" nil profile nil 'silent)
+     (set-file-modes profile #o755)
+     (cl-letf (((symbol-function 'executable-find) (lambda (_) "/configured/bin/cava")))
+       (should (equal (hub/emms-spectrum--program) "/configured/bin/cava")))
+     (let ((hub/emms-spectrum-program "/missing/explicit/cava"))
+       (cl-letf (((symbol-function 'executable-find) (lambda (_) nil)))
+	 (should-error (hub/emms-spectrum--program) :type 'user-error)))
+     (should (zerop starts)))))
+
 (ert-deftest hub/emms-spectrum-child-failure-is-actionable-and-cleans-up ()
   "AC-4: Child failure reports platform-specific recovery and releases capture."
   (dolist (platform '(darwin gnu/linux))

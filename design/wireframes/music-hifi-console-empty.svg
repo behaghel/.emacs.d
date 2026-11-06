@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="720" viewBox="0 0 1280 720">
+  <!-- SCREEN: Hi-Fi console; STORY: music-hi-fi-console; STATE: empty, capture off; DOMAIN: personal-apps/apps -->
+  <use href="components.svg#template-music-workspace" width="1280" height="720"/>
+  <g transform="translate(0 400)">
+    <use href="components.svg#template-music-console" width="1280" height="320"/>
+    <rect x="28" y="64" width="144" height="144" fill="#171c2c"/>
+    <circle cx="100" cy="136" r="38" fill="none" stroke="#2c354c" stroke-width="2"/>
+    <circle cx="100" cy="136" r="8" fill="#2c354c"/>
+    <text x="640" y="76" font-family="Ubuntu Mono, monospace" font-size="14" fill="#9ba5ba">○ EMPTY PLAYLIST</text>
+    <text x="198" y="109" font-family="ETBembo, Georgia, serif" font-size="38" fill="#f3ece3">Make room for a little music.</text>
+    <text x="198" y="141" font-family="Ubuntu Mono, monospace" font-size="18" fill="#c4c8d4">Your playlist is empty. Nothing starts until you choose.</text>
+    <rect x="198" y="166" width="206" height="34" rx="5" fill="#222b40"/>
+    <g font-family="Ubuntu Mono, monospace" font-size="16" fill="#9fe0c2">
+      <text x="212" y="188" data-action="liked-songs">'ml  Liked Songs</text>
+      <text x="438" y="188" data-action="queue">'mq  Open queue</text>
+    </g>
+    <use href="components.svg#molecule-music-spectrum-off" x="198" y="210" width="610" height="40"/>
+    <g font-family="Ubuntu Mono, monospace" fill="#9ba5ba"><text x="920" y="78" font-size="14">UP NEXT</text><text x="920" y="125" font-size="18">No queued tracks</text><text x="920" y="154" font-size="15">0 tracks · — / —</text></g>
+    <text x="41" y="301" font-family="Ubuntu Mono, monospace" font-size="16" fill="#9ba5ba">SPC  Play</text>
+  </g>
+</svg>
