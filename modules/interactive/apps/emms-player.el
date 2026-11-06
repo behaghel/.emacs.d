@@ -80,6 +80,7 @@
 (declare-function emms-playlist-tracks-in-region "emms" (beg end))
 (declare-function emms-playlist-selected-track "emms" ())
 (declare-function emms-pause "emms" ())
+(declare-function emms-stop "emms" ())
 (declare-function emms-next "emms" ())
 (declare-function emms-previous "emms" ())
 (declare-function context-panels-mode "context-panels" (&optional arg))
@@ -133,11 +134,13 @@
 		(setq index (if (= start (point-min)) 0
 			      (length (emms-playlist-tracks-in-region
 				       (point-min) start))))))))))
-    (list :tracks tracks :current current :index index
-	  :elapsed (if emms-player-playing-p emms-playing-time 0)
-	  :state (cond (emms-player-paused-p "Paused")
-		       (emms-player-playing-p "Playing")
-		       (t "Stopped")))))
+    (let ((waiting (eq (hub/music-playback-state) 'connecting)))
+      (list :tracks tracks :current current :index index
+	    :elapsed (if (and emms-player-playing-p (not waiting)) emms-playing-time 0)
+	    :state (cond (waiting "Waiting for audio")
+			 (emms-player-paused-p "Paused")
+			 (emms-player-playing-p "Playing")
+			 (t "Stopped"))))))
 
 (defun hub/emms-player--cancel-timer ()
   "Stop refreshing the playback view."
@@ -162,7 +165,8 @@
     (insert (propertize (format "%s — %s\n"
 				(hub/music-state-label
 				 (pcase (plist-get snapshot :state)
-				   ("Playing" 'playing) ("Paused" 'paused) (_ 'stopped)))
+				   ("Playing" 'playing) ("Paused" 'paused)
+				   ("Waiting for audio" 'connecting) (_ 'stopped)))
 				(hub/emms-player--title current)) 'face 'bold))
     (insert (format "[%s%s] %s / %s%s\n"
 		    (make-string filled ?=) (make-string (- 30 filled) ?-)
@@ -255,7 +259,8 @@
 (defun hub/emms-player-toggle ()
   "Start or toggle playback without changing the current window."
   (interactive)
-  (hub/emms-player--command #'emms-pause))
+  (hub/emms-player--command
+   (if (eq (hub/music-playback-state) 'connecting) #'emms-stop #'emms-pause)))
 
 (defun hub/emms-player-next ()
   "Play the next track without changing the current window."

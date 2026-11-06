@@ -25,7 +25,8 @@
 
 (defun hub/music-palette--toggle-description ()
   "Describe the actual action of the established play/pause command."
-  (cond (emms-player-paused-p (hub/music-state-label 'playing "Resume"))
+  (cond ((eq (hub/music-playback-state) 'connecting) (hub/music-state-label 'stopped "Cancel request"))
+	(emms-player-paused-p (hub/music-state-label 'playing "Resume"))
 	(emms-player-playing-p (hub/music-state-label 'paused "Pause"))
 	(t (hub/music-state-label 'playing "Play"))))
 

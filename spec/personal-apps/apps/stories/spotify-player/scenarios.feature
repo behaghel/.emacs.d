@@ -21,6 +21,44 @@ Feature: One mixed EMMS playlist with official browser Spotify playback
     Then that occurrence is appended and played through EMMS
     And all previous queue entries remain
 
+  @wireframe:spotify-browser-activating.svg @wireframe:spotify-browser-ready.svg
+  Scenario: First Spotify Play prepares audio without a manual connection command
+    Given no browser receiver is connected
+    When I explicitly play a Spotify occurrence in EMMS
+    Then the receiver opens and I see that audio activation is required
+    And the player shows that it is waiting for audio rather than playing
+    When I click Enable audio
+    Then the requested occurrence starts without another Play command
+
+  @wireframe:spotify-browser-activating.svg @wireframe:spotify-browser-ready.svg
+  Scenario Outline: Cancel a waiting occurrence before enabling audio
+    Given my requested Spotify occurrence is waiting for browser audio activation
+    When I <change>
+    And I later click Enable audio
+    Then the cancelled occurrence does not start
+    And unrelated queue entries remain unchanged by the cancelled request
+    Examples:
+      | change                           |
+      | stop playback                    |
+      | select another occurrence        |
+      | edit the queue                   |
+      | select a different playlist      |
+
+  @wireframe:spotify-browser-ready.svg
+  Scenario: Connecting again reuses the live receiver
+    Given the current receiver is live or awaiting audio activation
+    When I request connection again without forcing authorization
+    Then no new receiver tab or credential read is needed
+    And the current playback occurrence is unchanged
+
+  @wireframe:spotify-browser-inactive.svg
+  Scenario: Distinguish an obsolete receiver tab from the current one
+    Given I have a receiver tab open
+    When its Emacs connection closes
+    Then its tab title and status say Inactive
+    And its audio and authorization actions are disabled
+    And ordinary retirement is not labelled as an SDK error
+
   # AC-2
   @wireframe:spotify-player.svg
   Scenario: Naturally advance across media backends

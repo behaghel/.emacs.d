@@ -17,6 +17,13 @@
       while (this.current(run) && !predicate()) await new Promise(resolve => this.waiters.push(resolve));
       if (!this.current(run)) throw Error('cancelled');
     }
+    retire() {
+      if (this.closed) return;
+      const run = this.run;
+      this.closed = true; this.run = null; this.epoch++; this.wake();
+      if (run && run.abort) run.abort.abort();
+      this.destroy();
+    }
     fail(kind, run = this.run, status) {
       if (this.closed) return;
       this.closed = true; this.run = null; this.epoch++; this.wake();
@@ -159,8 +166,12 @@
     const ids = ['authorize', 'activate', 'disconnect', 'status'];
     const el = Object.fromEntries(ids.map(id => [id, env.document.getElementById(id)]));
     const key = env.location.hash.slice(1); env.history.replaceState(null, '', '/');
-    let socket, player, receiver, device, failed = false, checking = false, sdkReady;
-    const status = text => { el.status.textContent = text; };
+    let socket, player, receiver, device, failed = false, retired = false, checking = false, authorized = false, transportReady = false, sdkReady;
+    env.document.title = 'Preparing — Emacs Spotify';
+    const status = (text, phase) => {
+      el.status.textContent = text;
+      if (phase) env.document.title = phase + ' — Emacs Spotify';
+    };
     const send = message => {
       if (message.type === 'ended' || (message.type === 'ack' && receiver && !receiver.run && player)) status('Ready — control playback in Emacs');
       if (socket && socket.readyState === 1) socket.send(JSON.stringify(message));
@@ -174,9 +185,19 @@
     const fail = kind => {
       if (failed) return;
       failed = true;
+      env.document.title = 'Error — Emacs Spotify';
       if (receiver && !receiver.closed) receiver.fail(kind);
+      else send({ type: 'error', run: 0, seq: 0, kind: safeKinds.includes(kind) ? kind : 'transport' });
       destroy(); status('SDK error: ' + (safeKinds.includes(kind) ? kind : 'transport') + '; reconnect from Emacs');
       el.authorize.disabled = el.disconnect.disabled = true;
+    };
+    const retire = () => {
+      if (retired) return;
+      retired = true; failed = true;
+      if (receiver && !receiver.closed) receiver.retire(); else destroy();
+      if (socket && socket.readyState < 2) socket.close();
+      el.activate.disabled = el.authorize.disabled = el.disconnect.disabled = true;
+      status('Inactive — this tab is no longer connected to Emacs.', 'Inactive');
     };
     const api = async (path, method = 'GET') => {
       const response = await env.fetch(path, { method, headers: { 'X-Emacs-Spotify-Probe': key },
@@ -188,7 +209,7 @@
     const connect = async () => {
       if (player || failed) return;
       await sdkReady;
-      if (failed) return;
+      if (failed || !transportReady || !socket || socket.readyState !== 1) return;
       const instance = new env.Spotify.Player({ name: 'Emacs mixed playlist', volume: 0.5,
         getOAuthToken: callback => { token().then(value => { if (player === instance) callback(value); }).catch(() => { if (player === instance) fail('authentication_error'); }); } });
       player = instance;
@@ -207,7 +228,7 @@
       instance.addListener('ready', ({ device_id }) => {
         if (player !== instance) return;
         device = device_id; el.activate.disabled = !socket || socket.readyState !== 1;
-        status('Click Enable audio, then return to Emacs');
+        status('Click Enable audio, then return to Emacs', 'Enable audio');
       });
       instance.addListener('player_state_changed', state => { if (player === instance) receiver.observe(state); });
       if (!await instance.connect()) fail('transport');
@@ -222,7 +243,7 @@
         } else if (state.error === 'authorization_storage') {
           el.authorize.disabled = false; status('Cannot save authorization — unlock GPG, then Authorize Spotify');
         } else if (state.error) fail('authentication_error');
-        else if (state.authorized) { el.authorize.disabled = true; await connect(); }
+        else if (state.authorized) { authorized = true; el.authorize.disabled = true; await connect(); }
       }
       catch (_) { fail('transport'); } finally { checking = false; }
     };
@@ -242,12 +263,12 @@
       try { await instance.activateElement();
         if (failed || player !== instance || socket.readyState !== 1) return;
         send({ type: 'ready', ready: true });
-        el.activate.disabled = el.authorize.disabled = true; status('Ready — control playback in Emacs');
+        el.activate.disabled = el.authorize.disabled = true; status('Ready — control playback in Emacs', 'Ready');
       } catch (_) { fail('autoplay_failed'); }
     };
-    el.disconnect.onclick = () => { failed = true; destroy(); if (socket) socket.close(); status('Disconnected — reconnect from Emacs'); };
+    el.disconnect.onclick = retire;
     env.addEventListener('pagehide', el.disconnect.onclick);
-    if (!/^[A-Za-z0-9_-]{16,}$/.test(key)) { fail('transport'); return; }
+    if (!/^[A-Za-z0-9_-]{16,}$/.test(key)) { retire(); return; }
     sdkReady = new Promise((resolve, reject) => {
       env.onSpotifyWebPlaybackSDKReady = resolve;
       const script = env.document.createElement('script'); script.src = 'https://sdk.scdn.co/spotify-player.js';
@@ -261,8 +282,10 @@
       socket = new env.WebSocket(config.url);
       socket.onopen = () => {
         if (failed) { socket.close(); return; }
-        send({ type: 'hello', key }); el.authorize.disabled = false; el.disconnect.disabled = false;
+        send({ type: 'hello', key }); transportReady = true;
+        el.authorize.disabled = authorized; el.disconnect.disabled = false;
         if (device && player) el.activate.disabled = false;
+        pollAuthorization();
       };
       socket.onmessage = event => {
         try {
@@ -271,7 +294,7 @@
           else if (message.type === 'command' && receiver) receiver.command(message);
         } catch (_) { fail('transport'); }
       };
-      socket.onclose = () => fail('transport'); socket.onerror = () => fail('transport');
+      socket.onclose = retire; socket.onerror = retire;
       env.setInterval(pollAuthorization, 1000);
       env.setInterval(() => { if (receiver && !failed) receiver.tick(); }, 500);
       await pollAuthorization();

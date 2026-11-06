@@ -58,7 +58,7 @@
         <text x="40" y="138" font-size="12">Permissions: streaming, profile/email, playback control.</text>
         <text x="40" y="180" font-size="14">Edit the mixed playlist and control playback in Emacs.</text>
         <text x="40" y="360" font-size="14">Keep this tab open. Hiding the Emacs player does not stop music.</text>
-        <text x="40" y="394" font-size="12">Playback grant encrypted in pass; access tokens stay in memory and renew automatically.</text>
+        <text x="40" y="394" font-size="12">Playback authorization is remembered encrypted in pass. Access tokens stay in memory and renew automatically.</text>
       </g>
     </symbol>
     <symbol id="atom-sdk-probe-button" viewBox="0 0 172 40">

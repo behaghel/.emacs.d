@@ -110,8 +110,14 @@ console, keyboard cockpit and consistent music entry points.
   progress and duration feed the normal EMMS player as integer seconds, truncating
   receiver milliseconds at that boundary; hiding that view neither
   stops music nor prevents natural advancement. Spectrum capture remains opt-in.
-- `M-x hub/spotify-browser-connect` opens Chrome for explicit SDK authorization
-  and an audio-activation click before Spotify tracks are started in EMMS.
+- An explicit Spotify Play request prepares the Chrome receiver when needed,
+  without requiring a separate connection command. Opening the player or library
+  remains passive. The requested occurrence waits for explicit browser audio
+  activation; stopping, changing selection or editing the queue cancels that
+  waiting request. Audio activation never revives a cancelled request.
+- `M-x hub/spotify-browser-connect` reuses a live receiver, including one awaiting
+  audio activation, without opening another tab or rereading credentials. If no
+  live receiver exists it opens Chrome for authorization and audio activation.
   `M-x hub/spotify-browser-disconnect` releases only the owned receiver. Playback
   refresh authorization is encrypted in its own `pass` entry, separate from the
   read-only library grant and associated with the public client ID. Access tokens
@@ -120,6 +126,8 @@ console, keyboard cockpit and consistent music entry points.
   revoked, while a new browser receiver still requires explicit audio activation.
   Unavailable credentials or failed renewal never advance the queue or expose
   credential payloads. A prefix argument to connect requests fresh authorization.
+  Obsolete receiver tabs are visibly inactive with disabled actions; ordinary
+  receiver retirement is not presented as an SDK failure.
 - The loopback HTTP and WebSocket channels require a random session capability.
   The receiver owns one Spotify occurrence at a time, not a playlist. Commands and
   callbacks carry occurrence and control identities; older acknowledgements and

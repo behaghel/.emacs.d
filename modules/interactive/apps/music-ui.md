@@ -40,7 +40,7 @@ with the same behavior as `'ml`; `?` opens the action palette.
 - Typography, spacing, progress and spectrum share a visual vocabulary derived from
   Emacs faces. Music-specific styling does not replace the editor's global theme or
   fonts. Text remains navigable; SVG supplements rather than replaces buffer text.
-- Playing, paused, seeking, stopped, empty and reconnect-needed states pair an
+- Waiting-for-audio, playing, paused, seeking, stopped, empty and reconnect-needed states pair an
   icon with meaningful text, not colour alone. Unavailable font glyphs use an
   ASCII marker while retaining the full label. Library authorization and Spotify audio readiness are separate
   states. Recovery actions preserve the queue and reuse the existing connection

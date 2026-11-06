@@ -21,14 +21,14 @@
 	(emms-repeat-track nil) (emms-single-track nil) (emms-player-playing-p nil)
 	(emms-playlist-buffer nil) (emms-playlist-buffers nil) (emms-player-list nil)
 	(original (symbol-function 'hub/spotify-sdk-probe--dispatch))
-	(local-count 0) (renewals 0) (started nil) (done nil) timer playlist
+	(local-count 0) (renewals 0) (opens 0) (started nil) (done nil) timer playlist
 	(mock (concat
 	       "const screen=" (json-serialize (symbol-name screen)) ";let instance;window.fixtureStarts=0;"
 	       "const originalFetch=window.fetch.bind(window);window.fetch=(url,options)=>{"
 	       "if(String(url).startsWith('https://api.spotify.com/')){instance.start(JSON.parse(options.body).uris[0]);return Promise.resolve({ok:true,status:204})}"
 	       "return originalFetch(url,options)};"
 	       "window.fixtureRenewed=false;window.fixtureRenew=()=>{instance.options.getOAuthToken(token=>{window.fixtureRenewed=token==='SYNTHETIC-RENEWED'});return true};"
-	       "window.Spotify={Player:class{constructor(options){instance=this;this.options=options;this.events={};this.state=null}"
+	       "window.Spotify={Player:class{constructor(options){if(screen==='pre-error')throw Error('PRIVATE');instance=this;this.options=options;this.events={};this.state=null}"
 	       "addListener(n,f){this.events[n]=f}connect(){this.events.ready({device_id:'synthetic'});"
 	       "if(screen==='error')setTimeout(()=>this.events.playback_error({message:'PRIVATE'}),1500);return Promise.resolve(true)}"
 	       "activateElement(){return Promise.resolve()}getCurrentState(){return Promise.resolve(this.state)}"
@@ -37,14 +37,14 @@
 	       "previous_tracks:previous?[{uri:this.uri}]:[],next_tracks:[]}};"
 	       "this.events.player_state_changed(this.state)}"
 	       "start(uri){this.uri=uri;window.fixtureStarts++;this.emit(0);setTimeout(()=>this.emit(1200),100);"
-	       "if(screen!=='controls'){setTimeout(()=>this.emit(9700),900);setTimeout(()=>this.emit(0,true,true),1600)}}"
+	       "if(!['controls','automatic','cancel','selection'].includes(screen)){setTimeout(()=>this.emit(9700),900);setTimeout(()=>this.emit(0,true,true),1600)}}"
 	       "resume(){if(this.state)this.state={...this.state,paused:false};return Promise.resolve()}"
 	       "seek(position){this.emit(position,this.state.paused);return Promise.resolve()}"
 	       "pause(){if(this.state)this.state={...this.state,paused:true};return Promise.resolve()}"
 	       "disconnect(){}}};window.onSpotifyWebPlaybackSDKReady();")))
     (cl-letf (((symbol-function 'auth-source-pass-get) (lambda (&rest _) (make-string 32 ?a)))
 	      ((symbol-function 'hub/spotify-auth--random) (lambda () "synthetic-capability"))
-	      ((symbol-function 'hub/spotify-sdk-probe--open-chrome) #'ignore)
+	      ((symbol-function 'hub/spotify-sdk-probe--open-chrome) (lambda (_) (cl-incf opens)))
 	      ((symbol-function 'hub/spotify-auth--request)
 	       (lambda (_url _method _headers _data callback)
 		 (cl-incf renewals)
@@ -58,11 +58,23 @@
 		  ((equal target "/mock-sdk.js") (list 200 "text/javascript" mock))
 		  ((equal target "/fixture-state")
 		   (hub/spotify-sdk-probe--json 200 `((ready . ,(if (hub/spotify-browser-ready-p) t :false))
+						      (waiting . ,(if (hub/spotify-browser-player-waiting-p) t :false))
+						      (opens . ,opens)
+						      (failed . ,(if hub/spotify-browser--failed t :false))
 						      (pending . ,(if (and hub/spotify-browser-player--run
 									   (hub/spotify-browser-player--occurrence-pending hub/spotify-browser-player--run)) t :false))
 						      (playing . ,(if emms-player-playing-p t :false))
 						      (error . ,(if hub/spotify-player-last-error t :false))
 						      (local . ,local-count) (renewals . ,renewals) (done . ,(if done t :false)))))
+		  ((equal target "/fixture-connect")
+		   (hub/spotify-browser-connect) (hub/spotify-sdk-probe--json 200 '((sent . t))))
+		  ((equal target "/fixture-stop")
+		   (emms-stop) (hub/spotify-sdk-probe--json 200 '((sent . t))))
+		  ((equal target "/fixture-select")
+		   (emms-playlist-current-select-next) (hub/spotify-sdk-probe--json 200 '((sent . t))))
+		  ((equal target "/fixture-disconnect")
+		   (run-at-time 0.05 nil #'hub/spotify-browser-disconnect)
+		   (hub/spotify-sdk-probe--json 200 '((sent . t))))
 		  ((equal target "/fixture-renew")
 		   (setf (hub/spotify-sdk-probe--context-expires context) (- (float-time) 1)
 			 (hub/spotify-sdk-probe--context-refresh-token context) "SYNTHETIC-REFRESH")
@@ -76,10 +88,9 @@
 		       response))))))
       (unwind-protect
 	  (progn
-	    (hub/spotify-browser-connect)
-	    (setf (hub/spotify-sdk-probe--context-token hub/spotify-browser--context) "SYNTHETIC-TOKEN"
-		  (hub/spotify-sdk-probe--context-expires hub/spotify-browser--context) (+ (float-time) 300))
-	    (when (memq screen '(mixed controls))
+	    (unless (memq screen '(automatic cancel selection))
+	      (hub/spotify-browser-connect))
+	    (when (memq screen '(mixed controls automatic cancel selection))
 	      (setq hub/spotify-browser-ui--file-player
 		    (emms-player (lambda (_track)
 				   (cl-incf local-count)
@@ -95,10 +106,14 @@
 		(emms-playlist-insert-track (emms-track 'file "/tmp/synthetic.wav"))
 		(emms-playlist-insert-track (emms-track 'url "spotify:track:1111111111111111111111"))
 		(goto-char (point-min)) (emms-playlist-select (point)))
-	      (setq timer (run-at-time
-			   0.1 0.1 (lambda ()
-				     (cond ((and (not started) (hub/spotify-browser-ready-p)) (setq started t) (emms-start))
-					   ((and (eq screen 'mixed) started (= local-count 1) (not emms-player-playing-p)) (setq done t)))))))
+	      (if (memq screen '(automatic cancel selection))
+		  (progn (setq started t) (emms-start))
+		(setq timer (run-at-time
+			     0.1 0.1 (lambda ()
+				       (cond ((and (not started) (hub/spotify-browser-ready-p)) (setq started t) (emms-start))
+					     ((and (eq screen 'mixed) started (= local-count 1) (not emms-player-playing-p)) (setq done t))))))))
+	    (setf (hub/spotify-sdk-probe--context-token hub/spotify-browser--context) "SYNTHETIC-TOKEN"
+		  (hub/spotify-sdk-probe--context-expires hub/spotify-browser--context) (+ (float-time) 300))
 	    (sleep-for 45))
 	(when (timerp timer) (cancel-timer timer))
 	(hub/spotify-browser-disconnect)

@@ -30,6 +30,7 @@
 (declare-function emms-playlist-set-playlist-buffer "emms" (&optional buffer))
 (declare-function emms-playlist-mode-go "emms-playlist-mode" ())
 (declare-function hub/spotify-browser-ready-p "apps/spotify-browser" ())
+(declare-function hub/spotify-browser-player-waiting-p "apps/spotify-browser-player" ())
 (declare-function hub/spotify-auth--session-p "apps/spotify-auth" (object))
 (declare-function hub/spotify-auth--session-access-token "apps/spotify-auth" (context))
 (declare-function hub/spotify-auth--session-expires-at "apps/spotify-auth" (context))
@@ -90,6 +91,7 @@
 
 (defconst hub/music--states
   '((playing "▶" ">" "Playing" success)
+    (connecting "○" "o" "Waiting for audio" warning)
     (paused "⏸" "||" "Paused" font-lock-constant-face)
     (seeking "↻" "~" "Seeking" warning)
     (stopped "■" "[]" "Stopped" shadow)
@@ -115,13 +117,15 @@ Use an ASCII marker if the current font cannot display the icon."
 
 (defun hub/music-playback-state ()
   "Return known playback state without starting or querying any backend."
-  (cond (emms-player-playing-p (if emms-player-paused-p 'paused 'playing))
+  (cond ((and (featurep 'apps/spotify-browser-player)
+	      (hub/spotify-browser-player-waiting-p)) 'connecting)
+	(emms-player-playing-p (if emms-player-paused-p 'paused 'playing))
 	((hub/music--selected-p) 'stopped)
 	(t 'empty)))
 
 (defun hub/music--playing-p ()
   "Return non-nil when a live EMMS player can accept seek controls."
-  (and emms-player-playing-p t))
+  (and emms-player-playing-p (not (eq (hub/music-playback-state) 'connecting)) t))
 
 (defun hub/music--transport-available-p ()
   "Return non-nil when playback can start or navigate an existing selection."
