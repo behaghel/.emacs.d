@@ -12,7 +12,8 @@
 
 (cl-defstruct (hub/spotify-browser-player--occurrence (:constructor hub/spotify-browser-player--create))
   "One EMMS selection, including separate selections of the same URI."
-  id seq track timer finish-timer pending armed ending near)
+  id seq track timer finish-timer pending armed ending near
+  connecting playlist selection revision activation-deadline)
 (defvar hub/spotify-browser-player--run nil "Current occurrence, never a second playlist.")
 (defvar hub/spotify-browser-player--serial 0 "Monotonic selection identity.")
 (defvar hub/spotify-player-last-error nil "Safe backend failure metadata.")
@@ -21,6 +22,27 @@
   "Return non-nil for the active owned RUN."
   (and run (eq run hub/spotify-browser-player--run)
        (eq emms-player-playing-p 'emms-player-spotify-browser)))
+
+(defun hub/spotify-browser-player-waiting-p ()
+  "Return non-nil while a Spotify Play request awaits browser audio."
+  (and (hub/spotify-browser-player--current-p hub/spotify-browser-player--run)
+       (hub/spotify-browser-player--occurrence-connecting hub/spotify-browser-player--run) t))
+
+(defun hub/spotify-browser-player--selection-current-p (run)
+  "Check that RUN still names the unchanged requested occurrence."
+  (let ((playlist (hub/spotify-browser-player--occurrence-playlist run)))
+    (and (buffer-live-p playlist) (eq playlist emms-playlist-buffer)
+	 (with-current-buffer playlist
+	   (and emms-playlist-selected-marker
+		(equal (marker-position emms-playlist-selected-marker)
+		       (hub/spotify-browser-player--occurrence-selection run))
+		(eq (emms-playlist-selected-track) (hub/spotify-browser-player--occurrence-track run))
+		(= (buffer-chars-modified-tick) (hub/spotify-browser-player--occurrence-revision run)))))))
+
+(defun hub/spotify-browser-player--selection-changed ()
+  "Cancel preparation when the listener selects another queue occurrence."
+  (when (hub/spotify-browser-player-waiting-p)
+    (hub/spotify-browser-player--stop)))
 
 (defun hub/spotify-browser-player--release (run)
   "Invalidate RUN before allowing callbacks or another backend to proceed."
@@ -32,6 +54,7 @@
 (defun hub/spotify-browser-player--stopped ()
   "Release EMMS clocks without invoking natural queue advancement."
   (when (eq emms-player-playing-p 'emms-player-spotify-browser)
+    (setq emms-player-paused-p nil)
     (let ((emms-player-stopped-p t)) (emms-player-stopped))))
 
 (defun hub/spotify-browser-player--stop ()
@@ -39,7 +62,9 @@
   (when-let* ((run hub/spotify-browser-player--run))
     (hub/spotify-browser-player--release run)
     (unwind-protect
-	(hub/spotify-browser-stop (hub/spotify-browser-player--occurrence-id run))
+	;; No play command exists during preparation, so there is no decoder to stop.
+	(unless (hub/spotify-browser-player--occurrence-connecting run)
+	  (hub/spotify-browser-stop (hub/spotify-browser-player--occurrence-id run)))
       (hub/spotify-browser-player--stopped))))
 
 (defun hub/spotify-browser-player--lost ()
@@ -48,7 +73,7 @@
     (hub/spotify-browser-player--release run)
     (setq hub/spotify-player-last-error '(:stage browser :reason receiver-lost))
     (hub/spotify-browser-player--stopped)
-    (message "Spotify receiver lost; queue not advanced. M-x hub/spotify-browser-connect")))
+    (message "Spotify receiver lost; queue not advanced. Play again to prepare audio")))
 
 (defun hub/spotify-browser-player--fail (run &optional kind status)
   "Stop RUN with finite KIND and HTTP STATUS metadata, never raw messages."
@@ -71,24 +96,73 @@
   (setf (hub/spotify-browser-player--occurrence-timer run)
 	(run-at-time seconds nil (lambda () (hub/spotify-browser-player--fail run "timeout")))))
 
-(defun hub/spotify-browser-player--start (track)
-  "Play TRACK through the explicitly activated official SDK receiver."
-  (unless (hub/spotify-browser-ready-p)
-    (user-error "Connect and Enable audio first: M-x hub/spotify-browser-connect"))
-  (when-let* ((duration (emms-track-get track 'info-playing-time)) (_ (numberp duration)))
-    (emms-track-set track 'info-playing-time (max 0 (floor duration))))
-  (let ((run (hub/spotify-browser-player--create :id (cl-incf hub/spotify-browser-player--serial) :track track)))
-    (setq hub/spotify-browser-player--run run hub/spotify-player-last-error nil)
-    (emms-player-started 'emms-player-spotify-browser)
+(defun hub/spotify-browser-player--begin (run)
+  "Start RUN once after preparation, with the normal startup deadline."
+  (when (hub/spotify-browser-player--current-p run)
+    (when (timerp (hub/spotify-browser-player--occurrence-timer run))
+      (cancel-timer (hub/spotify-browser-player--occurrence-timer run)))
+    (setf (hub/spotify-browser-player--occurrence-connecting run) nil)
+    (when emms-player-paused-p
+      (setq emms-player-paused-p nil)
+      (run-hooks 'emms-player-paused-hook)
+      (run-hook-with-args 'emms-player-time-set-functions 0))
     (hub/spotify-browser-player--deadline run 30)
     (condition-case nil
 	(setf (hub/spotify-browser-player--occurrence-seq run)
 	      (hub/spotify-browser-send "play" (hub/spotify-browser-player--occurrence-id run)
-					`((uri . ,(emms-track-get track 'name)))))
+					`((uri . ,(emms-track-get (hub/spotify-browser-player--occurrence-track run) 'name)))))
       (error (hub/spotify-browser-player--fail run "transport")))))
+
+(defun hub/spotify-browser-player--await-audio (run)
+  "Resume RUN only if its queue occurrence and activation are valid."
+  (when (and (hub/spotify-browser-player--current-p run)
+	     (hub/spotify-browser-player--occurrence-connecting run))
+    (cond
+     ((not (hub/spotify-browser-player--selection-current-p run))
+      (hub/spotify-browser-player--stop)
+      (message "Spotify request cancelled because the queue changed"))
+     ((not (hub/spotify-browser-live-p)) (hub/spotify-browser-player--fail run "transport"))
+     ((hub/spotify-browser-ready-p) (hub/spotify-browser-player--begin run))
+     ((>= (float-time) (hub/spotify-browser-player--occurrence-activation-deadline run))
+      (hub/spotify-browser-player--fail run "timeout")))))
+
+(defun hub/spotify-browser-player--start (track)
+  "Prepare audio for an explicit TRACK request without changing the queue."
+  (when-let* ((duration (emms-track-get track 'info-playing-time)) (_ (numberp duration)))
+    (emms-track-set track 'info-playing-time (max 0 (floor duration))))
+  (let* ((waiting (not (hub/spotify-browser-ready-p)))
+	 (playlist emms-playlist-buffer)
+	 (run (hub/spotify-browser-player--create
+	       :id (cl-incf hub/spotify-browser-player--serial) :track track
+	       :connecting waiting :playlist playlist
+	       :selection (when (buffer-live-p playlist)
+			    (with-current-buffer playlist
+			      (when emms-playlist-selected-marker
+				(marker-position emms-playlist-selected-marker))))
+	       :revision (when (buffer-live-p playlist)
+			   (with-current-buffer playlist (buffer-chars-modified-tick))))))
+    (when waiting
+      (hub/spotify-browser-connect)
+      (unless (and (not emms-player-playing-p) (hub/spotify-browser-player--selection-current-p run))
+	(user-error "Spotify request cancelled because the queue changed")))
+    (setq hub/spotify-browser-player--run run hub/spotify-player-last-error nil)
+    (emms-player-started 'emms-player-spotify-browser)
+    (when (hub/spotify-browser-player--current-p run)
+      (if waiting
+	  (progn
+	    ;; Keep EMMS ownership for Stop/Next, but do not run its playback clock.
+	    (setq emms-player-paused-p t)
+	    (run-hooks 'emms-player-paused-hook)
+	    (setf (hub/spotify-browser-player--occurrence-activation-deadline run) (+ (float-time) 300)
+		  (hub/spotify-browser-player--occurrence-timer run)
+		  (run-at-time 0.1 0.1 (lambda () (hub/spotify-browser-player--await-audio run))))
+	    (message "Spotify waiting for audio; click Enable audio in the current receiver tab"))
+	(hub/spotify-browser-player--begin run)))))
 
 (defun hub/spotify-browser-player--control (kind &optional data)
   "Send KIND and DATA for the current occurrence, invalidating older endings."
+  (when (hub/spotify-browser-player-waiting-p)
+    (user-error "Waiting for browser audio; use Stop or the player toggle to cancel"))
   (when-let* ((run hub/spotify-browser-player--run))
     (setf (hub/spotify-browser-player--occurrence-pending run) t
 	  (hub/spotify-browser-player--occurrence-ending run) nil
@@ -160,6 +234,7 @@
 (emms-player-set emms-player-spotify-browser 'seek (lambda (seconds) (hub/spotify-browser-player--control "seek" `((seconds . ,seconds)))))
 (setq hub/spotify-browser-event-function #'hub/spotify-browser-player--event)
 (add-hook 'hub/spotify-browser-lost-hook #'hub/spotify-browser-player--lost)
+(add-hook 'emms-playlist-selection-changed-hook #'hub/spotify-browser-player--selection-changed)
 
 (provide 'apps/spotify-browser-player)
 ;;; spotify-browser-player.el ends here

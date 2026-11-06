@@ -33,9 +33,9 @@ async function stop(child) {
   const closed = new Promise(resolve => child.once('close', resolve)); child.kill('SIGTERM'); await closed;
 }
 test('real Chrome activates the receiver, drives a mixed EMMS queue, and renders safe SDK errors', {
-  skip: !fs.existsSync(chromePath), timeout: 60000
+  skip: !fs.existsSync(chromePath), timeout: 120000
 }, async context => {
-  for (const screen of ['ready', 'mixed', 'controls', 'error']) await context.test(screen, async () => {
+  for (const screen of ['ready', 'mixed', 'controls', 'automatic', 'cancel', 'selection', 'inactive', 'error', 'pre-error']) await context.test(screen, async () => {
     const port = await freePort(), profile = fs.mkdtempSync(path.join(os.tmpdir(), 'spotify-browser-ui-'));
     let emacs, chrome, client;
     try {
@@ -53,7 +53,28 @@ test('real Chrome activates the receiver, drives a mixed EMMS queue, and renders
       await client.call('Emulation.setDeviceMetricsOverride', { width: 800, height: 440, deviceScaleFactor: 1, mobile: false });
       await client.call('Page.navigate', { url: origin + '/#synthetic-capability' });
       const evaluate = async expression => (await client.call('Runtime.evaluate', { expression, returnByValue: true })).result.value;
+      const screenshot = async name => {
+        const shot = await client.call('Page.captureScreenshot', { format: 'png' });
+        fs.writeFileSync(path.join(os.tmpdir(), `spotify-browser-ui-${name}.png`), Buffer.from(shot.data, 'base64'));
+      };
+      if (screen === 'pre-error') {
+        await waitFor(() => evaluate('document.getElementById("status").textContent.includes("SDK error:")'));
+        const failed = await (await fetch(origin + '/fixture-state')).json();
+        assert.equal(failed.failed, true);
+        assert.doesNotMatch(await evaluate('document.body.textContent'), /PRIVATE/);
+        await screenshot(screen); return;
+      }
       await waitFor(() => evaluate('Boolean(document.getElementById("activate") && !document.getElementById("activate").disabled)'));
+      if (['automatic', 'cancel', 'selection'].includes(screen)) {
+        const waiting = await (await fetch(origin + '/fixture-state')).json();
+        assert.equal(waiting.waiting, true);
+        assert.equal(await evaluate('window.fixtureStarts'), 0);
+        assert.equal(await evaluate('document.title'), 'Enable audio — Emacs Spotify');
+        assert.equal(await evaluate('document.getElementById("authorize").disabled'), true);
+        if (screen === 'automatic') await screenshot('activating');
+        if (screen === 'cancel') assert.ok((await fetch(origin + '/fixture-stop')).ok);
+        if (screen === 'selection') assert.ok((await fetch(origin + '/fixture-select')).ok);
+      }
       await evaluate('document.getElementById("activate").click(); true');
       if (screen === 'error') {
         await waitFor(() => evaluate('document.getElementById("status").textContent.includes("SDK error: playback_error")'));
@@ -65,7 +86,25 @@ test('real Chrome activates the receiver, drives a mixed EMMS queue, and renders
           assert.equal(state.local, 1);
           assert.equal(await evaluate('window.fixtureStarts'), 2);
         }
-        if (screen === 'controls') {
+        if (screen === 'automatic') {
+          await waitFor(() => evaluate('window.fixtureStarts === 1'));
+          assert.ok((await fetch(origin + '/fixture-connect')).ok);
+          const active = await (await fetch(origin + '/fixture-state')).json();
+          assert.equal(active.opens, 1); assert.equal(active.waiting, false);
+          assert.equal(active.playing, true); assert.equal(active.error, false);
+        } else if (['cancel', 'selection'].includes(screen)) {
+          await sleep(300);
+          const cancelled = await (await fetch(origin + '/fixture-state')).json();
+          assert.equal(cancelled.waiting, false); assert.equal(cancelled.playing, false);
+          assert.equal(cancelled.local, 0); assert.equal(cancelled.error, false);
+          assert.equal(await evaluate('window.fixtureStarts'), 0);
+        } else if (screen === 'inactive') {
+          assert.ok((await fetch(origin + '/fixture-disconnect')).ok);
+          await waitFor(() => evaluate('document.title === "Inactive — Emacs Spotify"'));
+          assert.equal(await evaluate('document.getElementById("status").textContent'),
+            'Inactive — this tab is no longer connected to Emacs.');
+          assert.equal(await evaluate('["authorize","activate","disconnect"].every(id => document.getElementById(id).disabled)'), true);
+        } else if (screen === 'controls') {
           await waitFor(async () => (await (await fetch(origin + '/fixture-state')).json()).playing);
           for (const action of ['seek', 'pause', 'seek', 'pause']) {
             assert.ok((await fetch(origin + '/fixture-' + action)).ok);
@@ -85,10 +124,9 @@ test('real Chrome activates the receiver, drives a mixed EMMS queue, and renders
           assert.equal(await evaluate('window.fixtureStarts'), 1);
         } else assert.equal(await evaluate('document.getElementById("status").textContent'), 'Ready — control playback in Emacs');
       }
-      const shot = await client.call('Page.captureScreenshot', { format: 'png' });
-      fs.writeFileSync(path.join(os.tmpdir(), `spotify-browser-ui-${screen}.png`), Buffer.from(shot.data, 'base64'));
+      await screenshot(screen);
     } finally {
-      if (client) client.close(); await stop(chrome); await stop(emacs); fs.rmSync(profile, { recursive: true, force: true });
+      if (client) client.close(); await stop(chrome); await stop(emacs); fs.rmSync(profile, { recursive: true, force: true, maxRetries: 3, retryDelay: 100 });
     }
   });
 });

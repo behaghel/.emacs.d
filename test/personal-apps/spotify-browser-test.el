@@ -36,6 +36,28 @@
     (while (and (not (funcall predicate)) (< (float-time) deadline)) (accept-process-output nil 0.01))
     (should (funcall predicate))))
 
+(ert-deftest hub/spotify-browser-connect-reuses-current-preparation ()
+  "Repeated Connect during preparation preserves the receiver and never rereads pass."
+  (hub/spotify-browser-test--session
+   (let ((context hub/spotify-browser--context) (server hub/spotify-browser--server))
+     (cl-letf (((symbol-function 'auth-source-pass-get)
+		(lambda (&rest _) (ert-fail "Existing receiver reread credentials")))
+	       ((symbol-function 'hub/spotify-sdk-probe--open-chrome)
+		(lambda (&rest _) (ert-fail "Existing receiver opened another tab"))))
+       (hub/spotify-browser-connect)
+       (should (eq context hub/spotify-browser--context))
+       (should (eq server hub/spotify-browser--server))))))
+
+(ert-deftest hub/spotify-browser-fatal-receiver-is-not-ready ()
+  "An activated but failed SDK must be prepared again before another Play request."
+  (hub/spotify-browser-test--session
+   (let ((hub/spotify-browser--socket 'synthetic-socket)
+	 (hub/spotify-browser--ready t) (hub/spotify-browser--failed t))
+     (setf (hub/spotify-sdk-probe--context-token hub/spotify-browser--context) "SYNTHETIC-TOKEN"
+	   (hub/spotify-sdk-probe--context-expires hub/spotify-browser--context) (+ (float-time) 300))
+     (cl-letf (((symbol-function 'websocket-openp) (lambda (_) t)))
+       (should-not (hub/spotify-browser-ready-p))))))
+
 (ert-deftest hub/spotify-browser-private-routes-do-not-leak-token-or-control-address ()
   "Assets are public but bridge configuration and tokens require the capability."
   (hub/spotify-browser-test--session

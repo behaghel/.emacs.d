@@ -19,6 +19,7 @@
 (defvar hub/spotify-browser--socket nil "Single capability-authenticated browser.")
 (defvar hub/spotify-browser--context nil "Owned ephemeral authorization context.")
 (defvar hub/spotify-browser--ready nil "Non-nil after explicit audio activation.")
+(defvar hub/spotify-browser--failed nil "Non-nil after a fatal error in the current receiver.")
 (defvar hub/spotify-browser--serial 0 "Monotonic command identity, never a playlist.")
 (defvar hub/spotify-browser--timer nil "Owned readiness and heartbeat timer.")
 (defvar hub/spotify-browser--pong 0 "Last authenticated browser response time.")
@@ -29,9 +30,20 @@
 (defvar hub/spotify-browser-event-function nil "Consumer of safe occurrence events.")
 (defvar hub/spotify-browser-lost-hook nil "Functions notified when this receiver is lost.")
 
+(defun hub/spotify-browser-live-p ()
+  "Return non-nil for the owned receiver, including bounded browser preparation."
+  (and hub/spotify-browser--context
+       (eq hub/spotify-browser--context hub/spotify-sdk-probe--session)
+       (not hub/spotify-browser--failed)
+       (process-live-p (hub/spotify-sdk-probe--context-listener hub/spotify-browser--context))
+       (process-live-p hub/spotify-browser--server)
+       (if hub/spotify-browser--socket
+	   (websocket-openp hub/spotify-browser--socket)
+	 (< (- (float-time) hub/spotify-browser--pong) 30))))
+
 (defun hub/spotify-browser-ready-p ()
   "Return non-nil only for an activated, authenticated, live SDK receiver."
-  (and hub/spotify-browser--ready hub/spotify-browser--socket
+  (and hub/spotify-browser--ready (not hub/spotify-browser--failed) hub/spotify-browser--socket
        (websocket-openp hub/spotify-browser--socket)
        (eq hub/spotify-browser--context hub/spotify-sdk-probe--session)
        (or (hub/spotify-sdk-probe--valid-token-p hub/spotify-browser--context)
@@ -41,7 +53,7 @@
 (defun hub/spotify-browser--cleanup ()
   "Invalidate ownership before closing resources and notifying the backend."
   (let ((server hub/spotify-browser--server))
-    (setq hub/spotify-browser--ready nil hub/spotify-browser--socket nil
+    (setq hub/spotify-browser--ready nil hub/spotify-browser--failed nil hub/spotify-browser--socket nil
 	  hub/spotify-browser--server nil hub/spotify-browser--context nil)
     (when (timerp hub/spotify-browser--timer) (cancel-timer hub/spotify-browser--timer))
     (setq hub/spotify-browser--timer nil)
@@ -93,6 +105,7 @@
 	 ((equal type "ready")
 	  (setq hub/spotify-browser--ready (eq (alist-get 'ready json) t)))
 	 ((member type '("ack" "state" "ended" "error"))
+	  (when (equal type "error") (setq hub/spotify-browser--failed t))
 	  (when (and (equal type "ack") (eql (alist-get 'seq json) hub/spotify-browser--wait-seq)
 		     (eql (alist-get 'run json) hub/spotify-browser--wait-run))
 	    (setq hub/spotify-browser--stop-acked t))
@@ -150,41 +163,45 @@ With prefix REAUTHORIZE, request fresh Spotify consent."
   (interactive "P")
   (when (member hub/spotify-browser-token-entry (list hub/spotify-token-entry hub/spotify-client-id-entry))
     (user-error "Playback authorization needs a separate pass entry"))
-  (hub/spotify-browser-disconnect)
-  (condition-case err
-      (progn
-	(hub/spotify-sdk-probe "" nil #'hub/spotify-browser--route #'hub/spotify-browser--cleanup
-			       0 (unless reauthorize hub/spotify-browser-token-entry))
-	;; Fresh consent still saves its new playback grant after skipping restore.
-	(setf (hub/spotify-sdk-probe--context-token-entry hub/spotify-sdk-probe--session)
-	      hub/spotify-browser-token-entry)
-	(setq hub/spotify-browser--context hub/spotify-sdk-probe--session
-	      hub/spotify-browser--server
-	      (make-network-process
-	       :name "Emacs Spotify browser" :server t :host "127.0.0.1" :family 'ipv4 :service 0
-	       :noquery t :filter-multibyte nil :filter #'hub/spotify-browser--filter
-	       :log (lambda (server client event)
-		      (if (>= (cl-count server websocket-server-websockets :key #'websocket-server-conn) 8)
-			  (delete-process client)
-			(websocket-server-accept server client event)
-			(let ((ws (process-get client :websocket)))
-			  (run-at-time 3 nil (lambda ()
-					       (unless (eq ws hub/spotify-browser--socket) (websocket-close ws)))))))
-	       :plist (list :on-open (lambda (ws)
-				       (unless (equal (websocket-origin ws)
-						      (hub/spotify-sdk-probe--origin hub/spotify-browser--context))
-					 (websocket-close ws)))
-			    :on-message #'hub/spotify-browser--message
-			    :on-close (lambda (ws) (when (eq ws hub/spotify-browser--socket)
-						     (hub/spotify-browser-disconnect)))
-			    :on-error (lambda (ws &rest _)
-					(if (eq ws hub/spotify-browser--socket)
-					    (hub/spotify-browser-disconnect)
-					  (websocket-close ws)))))
-	      hub/spotify-browser--pong (float-time) hub/spotify-browser--tick (float-time)
-	      hub/spotify-browser--timer (run-at-time 1 1 #'hub/spotify-browser--heartbeat))
-	(message "Receiver opened; saved authorization is reused when available. Enable audio in Chrome"))
-    ((error quit) (hub/spotify-browser-disconnect) (signal (car err) (cdr err)))))
+  (if (and (not reauthorize) (hub/spotify-browser-live-p))
+      (message (if (hub/spotify-browser-ready-p)
+		   "Spotify receiver already connected"
+		 "Spotify receiver already open; Enable audio in its current Chrome tab"))
+    (hub/spotify-browser-disconnect)
+    (condition-case err
+	(progn
+	  (hub/spotify-sdk-probe "" nil #'hub/spotify-browser--route #'hub/spotify-browser--cleanup
+				 0 (unless reauthorize hub/spotify-browser-token-entry))
+	  ;; Fresh consent still saves its new playback grant after skipping restore.
+	  (setf (hub/spotify-sdk-probe--context-token-entry hub/spotify-sdk-probe--session)
+		hub/spotify-browser-token-entry)
+	  (setq hub/spotify-browser--context hub/spotify-sdk-probe--session
+		hub/spotify-browser--server
+		(make-network-process
+		 :name "Emacs Spotify browser" :server t :host "127.0.0.1" :family 'ipv4 :service 0
+		 :noquery t :filter-multibyte nil :filter #'hub/spotify-browser--filter
+		 :log (lambda (server client event)
+			(if (>= (cl-count server websocket-server-websockets :key #'websocket-server-conn) 8)
+			    (delete-process client)
+			  (websocket-server-accept server client event)
+			  (let ((ws (process-get client :websocket)))
+			    (run-at-time 3 nil (lambda ()
+						 (unless (eq ws hub/spotify-browser--socket) (websocket-close ws)))))))
+		 :plist (list :on-open (lambda (ws)
+					 (unless (equal (websocket-origin ws)
+							(hub/spotify-sdk-probe--origin hub/spotify-browser--context))
+					   (websocket-close ws)))
+			      :on-message #'hub/spotify-browser--message
+			      :on-close (lambda (ws) (when (eq ws hub/spotify-browser--socket)
+						       (hub/spotify-browser-disconnect)))
+			      :on-error (lambda (ws &rest _)
+					  (if (eq ws hub/spotify-browser--socket)
+					      (hub/spotify-browser-disconnect)
+					    (websocket-close ws)))))
+		hub/spotify-browser--pong (float-time) hub/spotify-browser--tick (float-time)
+		hub/spotify-browser--timer (run-at-time 1 1 #'hub/spotify-browser--heartbeat))
+	  (message "Receiver opened; saved authorization is reused when available. Enable audio in Chrome"))
+      ((error quit) (hub/spotify-browser-disconnect) (signal (car err) (cdr err))))))
 
 (defun hub/spotify-browser-send (kind run &optional data)
   "Send command KIND for occurrence RUN with controlled DATA; return its identity."

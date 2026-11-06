@@ -66,6 +66,15 @@ test('cancelling a pending load destroys the SDK before acknowledging stop', asy
   resolve(); await pending;
   assert.ok(!f.sent.some(x => x.type === 'ack' && x.seq === 1));
 });
+test('normal retirement aborts pending work once without emitting an SDK error or late ACK', async () => {
+  const f = fixture(); let resolve;
+  f.receiver.play = (_uri, signal) => new Promise(done => { resolve = done; f.signal = signal; });
+  const pending = f.receiver.command({ kind: 'play', run: 1, seq: 1, uri }); await flush();
+  f.receiver.retire(); f.receiver.retire();
+  assert.equal(f.destroyed, 1); assert.equal(f.signal.aborted, true);
+  resolve(); await pending;
+  assert.deepEqual(f.sent, []);
+});
 test('a stopped occurrence cannot complete a later occurrence of the same URI', async () => {
   const f = fixture(); await start(f); await f.receiver.command({ kind: 'stop', run: 1, seq: 2 });
   await start(f, 2, 3); await f.emit(0, true, true);
