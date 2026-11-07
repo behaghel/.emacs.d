@@ -300,6 +300,16 @@
 	   (when hub/spotify-player--run (hub/spotify-player--stop))
 	   (when (process-live-p server) (delete-process server))))))))
 
+(ert-deftest hub/spotify-player-retains-artwork-metadata-without-fetching ()
+  "Queue construction retains an album image location without authorization or I/O."
+  (let* ((emms-track-initialize-functions nil)
+	 (metadata (hub/spotify-player-test--raw-track)))
+    (setf (alist-get 'album metadata)
+	  '((name . "Fixture album") (images . (((url . "https://i.scdn.co/image/cover123") (width . 640))))))
+    (cl-letf (((symbol-function 'url-retrieve) (lambda (&rest _) (ert-fail "Track creation fetched a cover"))))
+      (should (equal (emms-track-get (hub/spotify-player-track metadata) 'info-artwork-url)
+		     "https://i.scdn.co/image/cover123")))))
+
 (ert-deftest hub/spotify-player-milliseconds-feed-integer-emms-time ()
   "Library and receiver milliseconds stay compatible with the real EMMS clock."
   (hub/spotify-player-test--with-queue

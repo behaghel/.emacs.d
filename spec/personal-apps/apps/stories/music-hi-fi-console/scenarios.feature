@@ -1,4 +1,4 @@
-@story:music-hi-fi-console @domain:personal-apps/apps @priority:must @status:ready
+@story:music-hi-fi-console @domain:personal-apps/apps @priority:must @status:in-progress
 Feature: A native Hi-Fi console that belongs in the editor
   As an Emacs listener working while a mixed playlist plays
   I want a composed, readable player with a living spectrum
@@ -57,6 +57,26 @@ Feature: A native Hi-Fi console that belongs in the editor
     Then the library and audio readiness states are shown separately
     And I see a Reconnect audio action instead of a raw service error
     And using recovery preserves my existing queue
+
+  @wireframe:music-hifi-console-playing.svg
+  Scenario: Artwork arrives without interrupting the editor
+    Given the current track has a cover in its retained metadata or local album folder
+    When the cover becomes available
+    Then it fits intact beside the native track text with source attribution where required
+    And its arrival preserves document point, player reading position and the EMMS queue
+    And clock redraws reuse the cover without new downloads or authorization
+
+  @wireframe:music-hifi-console-playing.svg
+  Scenario Outline: Late artwork cannot restore an obsolete view
+    Given the current cover is still loading
+    When I <action>
+    Then the previous cover cannot update an obsolete view
+    And a late response cannot replace the new track's artwork or reopen the console
+    And artwork cancellation does not stop or advance playback
+    Examples:
+      | action               |
+      | select another track |
+      | dismiss the console  |
 
   @wireframe:music-hifi-console-playing.svg
   Scenario: Dismiss the console without ending the listening session

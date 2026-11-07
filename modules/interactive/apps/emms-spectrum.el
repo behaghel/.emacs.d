@@ -8,6 +8,7 @@
 
 (require 'hub-utils)
 (require 'apps/emms-player)
+(require 'apps/music-console)
 (require 'cl-lib)
 (require 'subr-x)
 (require 'svg)
@@ -29,7 +30,7 @@ An explicit executable name or absolute path overrides profile discovery."
   :type 'integer
   :group 'hub/emms-spectrum)
 
-(defcustom hub/emms-spectrum-height 80
+(defcustom hub/emms-spectrum-height 32
   "Pixel height of the spectrum, from 32 through 256."
   :type 'integer
   :group 'hub/emms-spectrum)
@@ -96,16 +97,17 @@ Reject malformed, out-of-range, or excessively long partial frames."
   (let* ((svg (svg-create width height))
 	 (step (/ (float width) (length values)))
 	 (bar-width (max 1 (- step 3))))
-    (svg-rectangle svg 0 0 width height :fill "#101410")
+    (svg-rectangle svg 0 0 width height :fill (hub/music-console-color 'default t))
     (cl-loop for value across values for index from 0
 	     for pixels = (round (* height (/ (max 0 (min 1000 value)) 1000.0)))
 	     do (svg-rectangle svg (* index step) (- height pixels) bar-width pixels
 			       :class "spectrum-bar"
-			       :fill (cond ((> value 850) "#e06c75")
-					   ((> value 600) "#e5c07b")
-					   (t "#55d755"))))
+			       :fill (hub/music-console-color
+				      (cond ((> value 850) 'error)
+					    ((> value 600) 'warning)
+					    (t 'success)))))
     (cl-loop for y from 8 below height by 8
-	     do (svg-line svg 0 y width y :stroke "#101410" :stroke-width 2))
+	     do (svg-line svg 0 y width y :stroke (hub/music-console-color 'default t) :stroke-width 2))
     svg))
 
 (defun hub/emms-spectrum--visible-window ()
@@ -124,7 +126,8 @@ Reject malformed, out-of-range, or excessively long partial frames."
   "Update only the spectrum overlay, without editing text or changing focus."
   (when-let* ((window (hub/emms-spectrum--visible-window)))
     (when (overlay-buffer hub/emms-spectrum--overlay)
-      (let* ((width (max 160 (min 960 (window-body-width window t))))
+      (let* ((width (max 32 (min 960 (or (overlay-get hub/emms-spectrum--overlay 'hub/music-width)
+					 (window-body-width window t)))))
 	     (values (or hub/emms-spectrum--values (make-vector hub/emms-spectrum-bars 0)))
 	     (image (svg-image (hub/emms-spectrum--svg values width hub/emms-spectrum-height)
 			       :ascent 'center)))
@@ -136,13 +139,16 @@ Reject malformed, out-of-range, or excessively long partial frames."
   "Insert spectrum status and an image placeholder in a player render."
   (cond
    ((and hub/emms-spectrum--process (process-live-p hub/emms-spectrum--process))
-    (insert "Spectrum: system output · v stop\n")
     (when (overlayp hub/emms-spectrum--overlay) (delete-overlay hub/emms-spectrum--overlay))
+    (when hub/emms-spectrum--render-indent (hub/music-console--at hub/emms-spectrum--render-indent))
     (let ((start (point)))
-      (insert " \n\n")
+      (insert " \n")
       (setq hub/emms-spectrum--overlay (make-overlay start (1+ start)))
       (overlay-put hub/emms-spectrum--overlay 'evaporate t)
-      (hub/emms-spectrum--draw)))
+      (overlay-put hub/emms-spectrum--overlay 'hub/music-width hub/emms-spectrum--render-width)
+      (hub/emms-spectrum--draw))
+    (when hub/emms-spectrum--render-indent (hub/music-console--at hub/emms-spectrum--render-indent))
+    (insert "System mix · Spectrum: system output · v stop\n"))
    (hub/emms-spectrum--diagnostic
     (insert (propertize (concat "Spectrum: unavailable — " hub/emms-spectrum--diagnostic "\n\n")
 			'face 'warning)))))
@@ -209,14 +215,21 @@ Retain DIAGNOSTIC as an explanation when stopping because of a failure."
   "Handle an owned PROCESS exiting with EVENT; never automatically restart it."
   (when (and (eq process hub/emms-spectrum--process)
 	     (memq (process-status process) '(exit signal failed)))
-    (let ((details (when (buffer-live-p hub/emms-spectrum--stderr)
-		     (with-current-buffer hub/emms-spectrum--stderr
-		       (buffer-substring-no-properties (point-min) (min (point-max) 1025))))))
+    (let* ((details (when (buffer-live-p hub/emms-spectrum--stderr)
+		      (with-current-buffer hub/emms-spectrum--stderr
+			(buffer-substring-no-properties (point-min) (min (point-max) 1025)))))
+	   (permission (and (eq system-type 'darwin) details
+			    (string-match-p "AudioTap permissions missing" details))))
       (hub/emms-spectrum--fail
-       (concat "CAVA " (string-trim event) ". "
-	       (when (eq system-type 'darwin)
-		 "Check System Audio Recording permission for Emacs/your terminal in System Settings. ")
-	       "Press v to retry. " details)))))
+       (concat
+	(when permission "System Audio Recording Only permission missing. ")
+	"CAVA " (string-trim event) ". "
+	(when permission
+	  (concat "In System Settings > Privacy & Security > Screen & System Audio Recording, "
+		  "allow Emacs (or its launching terminal) in the lower System Audio Recording Only list. "
+		  "The upper screen-recording list does not satisfy CAVA's check. "
+		  "Quit and reopen that app. "))
+	"Press v to retry. " details)))))
 
 (defun hub/emms-spectrum--fit ()
   "Fit the visible player after an explicit toggle, never during animation."

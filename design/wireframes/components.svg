@@ -95,22 +95,22 @@
         <text x="1160" y="25">? Actions</text>
       </g>
     </symbol>
-    <symbol id="atom-music-transport-button" viewBox="0 0 152 30">
-      <rect width="152" height="30" rx="5" fill="#222b40"/>
+    <symbol id="atom-music-transport-button" viewBox="0 0 152 27">
+      <rect width="152" height="27" rx="5" fill="#222b40"/>
     </symbol>
-    <symbol id="molecule-music-controls" viewBox="0 0 1280 50">
-      <rect width="1280" height="50" fill="#171c2c"/>
+    <symbol id="molecule-music-controls" viewBox="0 0 1280 43">
+      <rect width="1280" height="43" fill="#171c2c"/>
       <path d="M0 .5H1280" stroke="#2c354c"/>
       <!-- First action (SPC) is supplied by the page for the actual state. -->
-      <g font-family="Ubuntu Mono, monospace" font-size="16" fill="#c4c8d4">
-        <text x="220" y="31">c <tspan fill="#9ba5ba">−10s</tspan></text>
-        <text x="345" y="31">r <tspan fill="#9ba5ba">+30s</tspan></text>
-        <text x="480" y="31">s <tspan fill="#9ba5ba">Previous</tspan></text>
-        <text x="660" y="31">t <tspan fill="#9ba5ba">Next</tspan></text>
-        <text x="805" y="31">v <tspan fill="#9ba5ba">Spectrum</tspan></text>
-        <text x="930" y="31">l <tspan fill="#9ba5ba">Liked Songs</tspan></text>
-        <text x="1060" y="31">? <tspan fill="#9ba5ba">Actions</tspan></text>
-        <text x="1170" y="31">q <tspan fill="#9ba5ba">Close</tspan></text>
+      <g font-family="Ubuntu Mono, monospace" font-size="16" fill="#aab6ff" data-face="hub/music-console-key">
+        <text x="220" y="26">c <tspan fill="#9ba5ba">−10s</tspan></text>
+        <text x="345" y="26">r <tspan fill="#9ba5ba">+30s</tspan></text>
+        <text x="480" y="26">s <tspan fill="#9ba5ba">Previous</tspan></text>
+        <text x="660" y="26">t <tspan fill="#9ba5ba">Next</tspan></text>
+        <text x="805" y="26">v <tspan fill="#9ba5ba">Spectrum</tspan></text>
+        <text x="930" y="26">l <tspan fill="#9ba5ba">Liked Songs</tspan></text>
+        <text x="1060" y="26">? <tspan fill="#9ba5ba">Actions</tspan></text>
+        <text x="1170" y="26">q <tspan fill="#9ba5ba">Close</tspan></text>
       </g>
     </symbol>
     <symbol id="organism-music-up-next" viewBox="0 0 330 185">
@@ -143,7 +143,8 @@
       <use href="#molecule-music-navigation" width="1280" height="40"/>
       <path d="M150 39H206" stroke="#9fe0c2" stroke-width="2"/>
       <path d="M875 64V244" stroke="#2c354c"/>
-      <use href="#molecule-music-controls" y="270" width="1280" height="50"/>
+      <!-- 16px after the system-mix caption's descender edge; padded footer surface. -->
+      <use href="#molecule-music-controls" y="277" width="1280" height="43"/>
     </symbol>
     <symbol id="template-music-workspace" viewBox="0 0 1280 720">
       <rect width="1280" height="720" fill="#0d0e1c"/>

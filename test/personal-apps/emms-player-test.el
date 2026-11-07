@@ -26,6 +26,7 @@
 (require 'context-panels)
 (require 'evil)
 (require 'apps/emms-player)
+(require 'apps/music-artwork)
 
 
 (defmacro hub/emms-player-test--with-playlist (&rest body)
@@ -85,13 +86,14 @@
      (hub/emms-player-open)
      (should (derived-mode-p 'hub/emms-player-mode))
      (should (eq (window-parameter (selected-window) 'window-side) 'bottom))
-     (should (string-match-p "Playing — First song" (buffer-string)))
+     (should (string-match-p "Playing" (buffer-string)))
+     (should (string-match-p "First song" (buffer-string)))
      (should (string-match-p "1:00 / 3:00" (buffer-string)))
-     (should (string-match-p "Playlist: 7:00" (buffer-string)))
+     (should (string-match-p "Queue 7:00" (buffer-string)))
      (should (string-match-p "Next song" (buffer-string)))
      (should (string-match-p (regexp-quote "[==========--------------------]")
 			     (buffer-string)))
-     (should (text-property-any (point-min) (point-max) 'face 'highlight))
+     (should (text-property-any (point-min) (point-max) 'hub/music-role 'title))
      (should (equal original (with-current-buffer playlist (buffer-string)))))))
 
 (ert-deftest hub/emms-player-normal-state-controls-match-global-prefix ()
@@ -156,9 +158,9 @@
    (let ((emms-playlist-buffer nil)
 	 (emms-player-playing-p nil))
      (hub/emms-player-open)
-     (should (string-match-p "Stopped — No track" (buffer-string)))
-     (should (string-match-p "Playlist: 0:00" (buffer-string)))
-     (should (string-match-p "No tracks. Use M-x emms-play-file" (buffer-string))))))
+     (should (string-match-p "Empty" (buffer-string)))
+     (should (string-match-p "Queue 0:00" (buffer-string)))
+     (should (string-match-p "Choose Liked Songs or your editable queue" (buffer-string))))))
 
 (ert-deftest hub/emms-player-unknown-duration-is-not-counted-as-zero ()
   "AC-5: Unknown metadata does not turn into misleading zero durations."
@@ -167,7 +169,7 @@
    (emms-track-set first 'info-playing-time nil)
    (hub/emms-player-open)
    (should (string-match-p "1:00 / --:-- (unknown)" (buffer-string)))
-   (should (string-match-p (regexp-quote "Playlist: 4:00 + 1 unknown") (buffer-string)))))
+   (should (string-match-p (regexp-quote "Queue 4:00 + 1 unknown") (buffer-string)))))
 
 (ert-deftest hub/emms-player-progress-refresh-preserves-focus-and-source-point ()
   "AC-6: Progress ticks update only the visible player and preserve editing position."
@@ -183,6 +185,87 @@
      (should (= position (point)))
      (with-current-buffer hub/emms-player-buffer-name
        (should (string-match-p "1:30 / 3:00" (buffer-string)))))))
+
+(ert-deftest hub/emms-player-refresh-preserves-native-player-position ()
+  "Clock and metadata redraws preserve the player's own reading position too."
+  (skip-unless (fboundp 'context-panels-open-docked-view))
+  (hub/emms-player-test--with-playlist
+   (hub/emms-player-open)
+   (goto-char (point-min))
+   (search-forward "First song")
+   (let ((position (point)) (window (selected-window)))
+     (hub/emms-player--refresh)
+     (should (= position (point)))
+     (should (= position (window-point window)))
+     (should (eq window (selected-window))))))
+
+(ert-deftest hub/emms-player-artwork-arrival-preserves-focus-and-reading-position ()
+  "A public cover replaces its placeholder once, without touching the document or queue."
+  (hub/emms-player-test--with-playlist
+   (require 'apps/music-artwork)
+   (emms-track-set first 'type 'url)
+   (emms-track-set first 'name "spotify:track:4uLU6hMCjMI75M1A2tKUQC")
+   (emms-track-set first 'info-artwork-url "https://i.scdn.co/image/arrival")
+   (let ((hub/music-artwork--cache (make-hash-table :test #'equal)) callback (requests 0))
+     (cl-letf (((symbol-function 'display-graphic-p) (lambda (&rest _) t))
+	       ((symbol-function 'image-type-available-p) (lambda (_) t))
+	       ((symbol-function 'svg-image) (lambda (&rest _) '(image :type svg :data "<svg/>")))
+	       ((symbol-function 'image-flush) #'ignore)
+	       ((symbol-function 'hub/music-artwork-request)
+		(lambda (key done)
+		  (cl-incf requests) (setq callback done)
+		  (puthash key (hub/music-artwork--make) hub/music-artwork--cache))))
+       (hub/emms-player-open)
+       (should (= requests 1))
+       (goto-char (point-min)) (search-forward "First song")
+       (let ((player-point (point))
+	     (queue (with-current-buffer playlist (buffer-string))))
+	 (select-window (get-buffer-window source))
+	 (insert "Keep writing here")
+	 (let ((document-point (point)) (window (selected-window)))
+	   (let ((entry (hub/music-artwork-cached '(remote . "https://i.scdn.co/image/arrival"))))
+	     (setf (hub/music-artwork--entry-state entry) 'ready
+		   (hub/music-artwork--entry-data entry) "fixture-raster-bytes"
+		   (hub/music-artwork--entry-type entry) 'png))
+	   (funcall callback)
+	   (hub/emms-player--refresh)
+	   (should (= requests 1))
+	   (should (eq window (selected-window)))
+	   (should (= document-point (point)))
+	   (with-current-buffer hub/emms-player-buffer-name
+	     (should (= player-point (point)))
+	     (should (string-match-p "Album artwork" (buffer-string))))
+	   (should (equal queue (with-current-buffer playlist (buffer-string)))))
+	 (hub/emms-player-close)
+	 (funcall callback)
+	 (should-not (get-buffer-window hub/emms-player-buffer-name)))))))
+
+(ert-deftest hub/emms-player-old-artwork-callback-cannot-redraw-new-track ()
+  "Selecting another occurrence retires the old cover callback, not playback."
+  (hub/emms-player-test--with-playlist
+   (emms-track-set first 'type 'url)
+   (emms-track-set first 'name "spotify:track:4uLU6hMCjMI75M1A2tKUQC")
+   (emms-track-set second 'type 'url)
+   (emms-track-set second 'name "spotify:track:1111111111111111111111")
+   (emms-track-set first 'info-artwork-url "https://i.scdn.co/image/first")
+   (emms-track-set second 'info-artwork-url "https://i.scdn.co/image/second")
+   (let ((hub/music-artwork--cache (make-hash-table :test #'equal)) callbacks)
+     (cl-letf (((symbol-function 'display-graphic-p) (lambda (&rest _) t))
+	       ((symbol-function 'image-type-available-p) (lambda (_) t))
+	       ((symbol-function 'svg-image) (lambda (&rest _) '(image :type svg :data "<svg/>")))
+	       ((symbol-function 'hub/music-artwork-request)
+		(lambda (key done) (push done callbacks)
+		  (puthash key (hub/music-artwork--make) hub/music-artwork--cache))))
+       (hub/emms-player-open)
+       (let ((old (car callbacks)))
+	 (with-current-buffer playlist
+	   (goto-char (point-min)) (forward-line 1) (emms-playlist-select (point)))
+	 (hub/emms-player--refresh)
+	 (should (= (length callbacks) 2))
+	 (cl-letf (((symbol-function 'hub/emms-player--refresh)
+		    (lambda (&rest _) (ert-fail "Retired cover redrew a different track"))))
+	   (funcall old))
+	 (should emms-player-playing-p))))))
 
 (ert-deftest hub/emms-player-requires-dock-capability-with-actionable-error ()
   "An older framework fails clearly instead of quietly dropping docking semantics."
@@ -204,9 +287,9 @@
 	 (emms-playlist-insert-track second)
 	 (emms-playlist-select selected))))
    (hub/emms-player-open)
-   (should (string-match-p "▶ 3. First song" (buffer-string)))
+   (should (string-match-p "Now playing · 3 / 4" (buffer-string)))
    (should (string-match-p "4. Next song" (buffer-string)))
-   (should-not (string-match-p "▶ 1." (buffer-string)))))
+   (should-not (string-match-p "Now playing · 1 / 4" (buffer-string)))))
 
 (ert-deftest hub/emms-player-module-keeps-playback-dependencies-lazy ()
   "Loading personal app configuration does not load playback or panel packages."

@@ -16,6 +16,6 @@
     </g>
     <use href="components.svg#molecule-music-spectrum-off" x="198" y="210" width="610" height="40"/>
     <g font-family="Ubuntu Mono, monospace" fill="#9ba5ba"><text x="920" y="78" font-size="14">UP NEXT</text><text x="920" y="125" font-size="18">No queued tracks</text><text x="920" y="154" font-size="15">0 tracks · — / —</text></g>
-    <text x="41" y="301" font-family="Ubuntu Mono, monospace" font-size="16" fill="#9ba5ba">SPC  Play</text>
+    <text x="41" y="303" font-family="Ubuntu Mono, monospace" font-size="16" fill="#aab6ff">SPC<tspan fill="#9ba5ba">  Play</tspan></text>
   </g>
 </svg>

@@ -234,15 +234,17 @@
       (when transient--prefix (transient-quit-all)))))
 
 (ert-deftest hub/music-rendered-player-state-includes-icon-and-text ()
-  "The existing player also gains state icons without changing its layout or commands."
+  "Native console playback states retain both their icon and readable text."
   (require 'apps/emms-player)
   (dolist (state '("Playing" "Paused" "Stopped"))
-    (let ((hub/emms-player--timer nil) (hub/emms-player-render-hook nil))
+    (let* ((hub/emms-player--timer nil) (hub/emms-player-render-hook nil)
+	   (emms-track-initialize-functions nil)
+	   (track (emms-track 'file "/tmp/music-state.ogg")))
       (unwind-protect
 	  (with-temp-buffer
 	    (hub/emms-player-mode)
 	    (cl-letf (((symbol-function 'hub/emms-player--snapshot)
-		       (lambda () (list :state state :tracks nil :elapsed 0 :upcoming nil)))
+		       (lambda () (list :state state :tracks (list track) :current track :index 0 :elapsed 0)))
 		      ((symbol-function 'char-displayable-p) (lambda (_) t)))
 	      (let ((inhibit-read-only t)) (hub/emms-player--render nil nil))
 	      (should (string-match-p (regexp-quote (substring-no-properties
