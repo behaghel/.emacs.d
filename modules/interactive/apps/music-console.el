@@ -391,8 +391,10 @@ Ignore the newline's font height so small padding is not inflated to a text row.
 		     "Choose Liked Songs or your editable queue."))
 	 (state-label (hub/music-state-label
 		       (pcase state ("Playing" 'playing) ("Paused" 'paused)
-			      ("Waiting for audio" 'connecting) ("Seeking" 'seeking)
-			      ("Empty" 'empty) (_ 'stopped))))
+			      ("Waiting for audio" 'connecting)
+			      ("Seeking" (if (plist-get snapshot :paused) 'paused 'playing))
+			      ("Empty" 'empty) (_ 'stopped))
+		       (when (equal state "Seeking") "Seeking")))
 	 (normal (hub/music-console--metrics 'hub/music-console-meta))
 	 (brand-metrics (hub/music-console--max-metrics normal '(20 . 5)))
 	 (metrics

@@ -48,8 +48,8 @@ with the same behavior as `'ml`; `?` opens the action palette.
 - While a browser seek awaits acknowledgement, progress uses only the receiver's
   last confirmed position; absent confirmation remains explicitly unknown.
   The time caption remains stable without transient confirmation annotations.
-  Pause/Resume retains its actual EMMS meaning even while the displayed state is
-  Seeking. A later control's acknowledgement covers preceding serial controls;
+  The transport icon and Pause/Resume action retain the actual EMMS playing or
+  paused state even while the displayed text is Seeking. A later control's acknowledgement covers preceding serial controls;
   an older acknowledgement does not clear a newer pending state.
 - The spectrum retains its [explicit-consent lifecycle](README.md#spectrum-analyzer)
   and is labelled as system mix. Redrawing visible information does not move point,
