@@ -246,6 +246,40 @@
        (should (= notifications 1))
        (should (= (plist-get (hub/emms-player--snapshot) :elapsed) 132))))))
 
+(ert-deftest hub/spotify-browser-player-seek-keeps-transport-icon-and-action ()
+  "Both seek directions keep the real transport icon and action through SDK state and ACK."
+  (require 'apps/emms-player)
+  (require 'apps/music-console)
+  (dolist (paused '(nil t))
+    (hub/spotify-browser-player-test--queue
+     (emms-start)
+     (let ((run hub/spotify-browser-player--run))
+       (hub/spotify-browser-player-test--event run "state" '((position . 102000) (duration . 274000)))
+       (when paused
+	 (emms-pause)
+	 (hub/spotify-browser-player-test--event run "ack"))
+       (cl-labels ((check-frame
+		     (seeking)
+		     (should (eq (and emms-player-paused-p t) paused))
+		     (let ((snapshot (hub/emms-player--snapshot))
+			   (label (hub/music-state-label
+				   (if paused 'paused 'playing)
+				   (when seeking "Seeking"))))
+		       (with-temp-buffer
+			 (cl-letf (((symbol-function 'hub/music-console--columns) (lambda () 140)))
+			   (hub/music-console-render snapshot))
+			 (should (string-match-p (regexp-quote label) (buffer-string)))
+			 (should (string-match-p (if paused "SPC Resume" "SPC Pause") (buffer-string)))
+			 (should-not (string-match-p "SPC Play" (buffer-string)))))))
+	 (dolist (seconds '(30 -10))
+	   (check-frame nil)
+	   (emms-seek seconds)
+	   (check-frame t)
+	   (hub/spotify-browser-player-test--event run "state" '((position . 132000) (duration . 274000)))
+	   (check-frame t)
+	   (hub/spotify-browser-player-test--event run "ack")
+	   (check-frame nil)))))))
+
 (ert-deftest hub/spotify-browser-player-seeking-without-a-sample-stays-unknown ()
   "A very early seek never promotes an optimistic clock value to confirmed progress."
   (require 'apps/emms-player)

@@ -4,7 +4,7 @@
   <g transform="translate(0 400)">
     <use href="components.svg#template-music-console" width="1280" height="320"/>
     <use href="components.svg#organism-music-current-track" y="40" width="820" height="200"/>
-    <text x="590" y="76" font-family="Ubuntu Mono, monospace" font-size="14" fill="#f2c68d">↻ SEEKING · +30s REQUESTED</text>
+    <text x="590" y="76" font-family="Ubuntu Mono, monospace" font-size="14" fill="#9fe0c2">▶ SEEKING · +30s REQUESTED</text>
     <rect x="198" y="166" width="226" height="4" rx="2" fill="#9ba5ba"/>
     <g font-family="Ubuntu Mono, monospace" font-size="15" fill="#9ba5ba"><text x="198" y="190">1:42</text><text x="808" y="190" text-anchor="end">4:34</text></g>
     <use href="components.svg#molecule-music-spectrum-off" x="198" y="210" width="610" height="40"/>
