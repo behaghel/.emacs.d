@@ -69,6 +69,13 @@
       } else throw Error('unknown command');
       if (this.current(run)) {
         run.busy = false; run.near = null;
+        // EMMS applies relative seeks optimistically. Publish the last actual
+        // SDK position under the latest serial control before acknowledging it,
+        // including paused/clamped seeks and Pause queued behind a seek.
+        if (Number.isFinite(run.position) && Number.isFinite(run.duration)) {
+          this.send({ type: 'state', run: run.id, seq: run.seq,
+            position: Math.floor(run.position), duration: Math.floor(run.duration) });
+        }
         this.send({ type: 'ack', run: command.run, seq: command.seq });
       }
     }
@@ -120,6 +127,9 @@
       if (run.awaiting !== null) {
         if (!Number.isFinite(state.position) || Math.abs(state.position - run.awaiting) > 1500) return;
         run.awaiting = null; this.wake();
+        if (Number.isFinite(state.position) && state.position >= 0 && Number.isFinite(state.duration) && state.duration > 0) {
+          run.position = state.position; run.duration = state.duration;
+        }
       }
       if (state.paused) {
         if (run.armed && run.accepted && !run.paused && !run.busy && run.awaiting === null && run.near &&

@@ -233,6 +233,21 @@
 	    (should (hub/music-palette--active-p))))
       (when transient--prefix (transient-quit-all)))))
 
+(ert-deftest hub/music-palette-pause-change-refreshes-during-pending-seek ()
+  "Toggle availability refreshes even while the displayed Seeking state stays unchanged."
+  (require 'apps/music-palette)
+  (let ((hub/music-palette--last-state nil) (transient--buffer nil)
+	(emms-player-playing-p t) (emms-player-paused-p nil) (refreshes 0))
+    (cl-letf (((symbol-function 'hub/music-palette--active-p) (lambda () t))
+	      ((symbol-function 'hub/music-playback-state) (lambda () 'seeking))
+	      ((symbol-function 'transient--refresh-transient) (lambda () (cl-incf refreshes))))
+      (hub/music-palette--refresh)
+      (should (string-match-p "Pause" (hub/music-palette--toggle-description)))
+      (setq emms-player-paused-p t)
+      (hub/music-palette--refresh)
+      (should (string-match-p "Resume" (hub/music-palette--toggle-description)))
+      (should (= refreshes 2)))))
+
 (ert-deftest hub/music-rendered-player-state-includes-icon-and-text ()
   "Native console playback states retain both their icon and readable text."
   (require 'apps/emms-player)

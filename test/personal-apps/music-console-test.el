@@ -212,6 +212,21 @@
       (should (equal (get-text-property (point-min) 'hub/music-url)
 		     "https://open.spotify.com/track/4uLU6hMCjMI75M1A2tKUQC")))))
 
+(ert-deftest hub/music-console-seeking-keeps-real-toggle-and-honest-time ()
+  "Seeking feedback does not turn Pause/Resume into Play or invent an unknown position."
+  (dolist (paused '(nil t))
+    (let ((snapshot (hub/music-console-test--snapshot)))
+      (setq snapshot (plist-put snapshot :state "Seeking")
+	    snapshot (plist-put snapshot :paused paused))
+      (hub/music-console-test--render 140 snapshot
+				      (should (string-match-p "Seeking" (buffer-string)))
+				      (should (string-match-p "last confirmed" (buffer-string)))
+				      (should (string-match-p (if paused "SPC Resume" "SPC Pause") (buffer-string))))
+      (setq snapshot (plist-put snapshot :elapsed nil))
+      (hub/music-console-test--render 140 snapshot
+				      (should (string-match-p "--:-- / 4:34" (buffer-string)))
+				      (should (string-match-p "Progress unavailable" (buffer-string)))))))
+
 (ert-deftest hub/music-console-proportional-metadata-respects-pixel-budget ()
   "Wide native glyphs fit their column while the full metadata remains inspectable."
   (with-temp-buffer

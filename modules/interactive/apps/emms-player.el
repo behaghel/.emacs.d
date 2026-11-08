@@ -93,6 +93,7 @@
 (declare-function hub/music-console-render "apps/music-console" (snapshot))
 (declare-function hub/music-console-prepare-artwork "apps/music-console" (snapshot))
 (declare-function hub/music-console-cancel-artwork "apps/music-console" ())
+(declare-function hub/spotify-browser-player-position "apps/spotify-browser-player" ())
 
 (defun hub/emms-player--duration (track)
   "Return TRACK's known positive duration in seconds, or nil."
@@ -137,13 +138,14 @@
 		(setq index (if (= start (point-min)) 0
 			      (length (emms-playlist-tracks-in-region
 				       (point-min) start))))))))))
-    (let ((waiting (eq (hub/music-playback-state) 'connecting)))
-      (list :tracks tracks :current current :index index
-	    :elapsed (if (and emms-player-playing-p (not waiting)) emms-playing-time 0)
-	    :state (cond (waiting "Waiting for audio")
-			 (emms-player-paused-p "Paused")
-			 (emms-player-playing-p "Playing")
-			 (t "Stopped"))))))
+    (let ((state (hub/music-playback-state)))
+      (list :tracks tracks :current current :index index :paused emms-player-paused-p
+	    :elapsed (cond ((eq state 'connecting) 0)
+			   ((eq state 'seeking) (hub/spotify-browser-player-position))
+			   (emms-player-playing-p emms-playing-time)
+			   (t 0))
+	    :state (pcase state ('connecting "Waiting for audio") ('seeking "Seeking")
+			  ('paused "Paused") ('playing "Playing") (_ "Stopped"))))))
 
 (defun hub/emms-player--cancel-timer ()
   "Stop refreshing the playback view."
@@ -288,6 +290,9 @@
 					   emms-playlist-selection-changed-hook emms-playlist-source-inserted-hook
 					   emms-playlist-cleared-hook))
     (add-hook hook #'hub/emms-player--refresh)))
+
+(with-eval-after-load 'apps/spotify-browser-player
+  (add-hook 'hub/spotify-browser-player-status-hook #'hub/emms-player--refresh))
 
 (provide 'apps/emms-player)
 ;;; emms-player.el ends here

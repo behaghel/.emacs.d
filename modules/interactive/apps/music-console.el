@@ -288,9 +288,10 @@ Only visible graphical artwork starts image I/O."
 
 (defun hub/music-console--bar (elapsed duration width graphic)
   "Insert honest progress from ELAPSED and DURATION, at WIDTH pixels if GRAPHIC."
-  (let* ((ratio (if duration (max 0.0 (min 1.0 (/ elapsed (float duration)))) 0.0))
+  (let* ((known (and duration (numberp elapsed)))
+	 (ratio (if known (max 0.0 (min 1.0 (/ elapsed (float duration)))) 0.0))
 	 (filled (floor (* ratio 30)))
-	 (fallback (if duration (format "[%s%s]" (make-string filled ?=) (make-string (- 30 filled) ?-))
+	 (fallback (if known (format "[%s%s]" (make-string filled ?=) (make-string (- 30 filled) ?-))
 		     "Progress unavailable"))
 	 (start (point)))
     (insert fallback)
@@ -298,7 +299,7 @@ Only visible graphical artwork starts image I/O."
     (when graphic
       (let ((svg (svg-create width 4)))
 	(svg-rectangle svg 0 0 width 4 :rx 2 :fill (hub/music-console-color 'shadow))
-	(when duration
+	(when known
 	  (svg-rectangle svg 0 0 (* width ratio) 4 :rx 2 :fill (hub/music-console-color 'success)))
 	(add-text-properties start (point) (list 'display (svg-image svg :ascent 'center)))))))
 
@@ -309,9 +310,10 @@ Ignore the newline's font height so small padding is not inflated to a text row.
 		      'hub/music-role role)
 	  (propertize "\n" 'line-height t)))
 
-(defun hub/music-console--controls (columns state)
-  "Insert native transport buttons that wrap within COLUMNS, respecting STATE."
+(defun hub/music-console--controls (columns state &optional paused)
+  "Insert native transport buttons in COLUMNS, respecting STATE and PAUSED."
   (let ((actions `((,(cond ((equal state "Waiting for audio") "SPC Cancel request")
+			   ((equal state "Seeking") (if paused "SPC Resume" "SPC Pause"))
 			   ((equal state "Playing") "SPC Pause")
 			   ((equal state "Paused") "SPC Resume") (t "SPC Play")) . hub/emms-player-toggle)
 		   ("c -10s" . hub/emms-seek-backward-10) ("r +30s" . hub/emms-seek-forward-30)
@@ -380,7 +382,8 @@ Ignore the newline's font height so small padding is not inflated to a text row.
 	 (index (or (plist-get snapshot :index) 0))
 	 (state (if track (plist-get snapshot :state) "Empty"))
 	 (duration (hub/emms-player--duration track))
-	 (elapsed (max 0 (or (plist-get snapshot :elapsed) 0)))
+	 (elapsed (and (numberp (plist-get snapshot :elapsed))
+		       (max 0 (plist-get snapshot :elapsed))))
 	 (next (seq-take (nthcdr (1+ index) tracks) 2))
 	 (current-title (if track (hub/emms-player--title track) "No track selected"))
 	 (metadata (if track (format "%s · %s" (hub/music-console--text track 'info-artist "Unknown artist")
@@ -452,7 +455,8 @@ Ignore the newline's font height so small padding is not inflated to a text row.
 		 (3 (hub/music-console--bar elapsed duration meta-width graphic))
 		 (4 (hub/music-console--clip
 		     (format "%s / %s%s" (hub/emms-player--time elapsed) (hub/emms-player--time duration)
-			     (if (and track (not duration)) " (unknown)" "")) columns))
+			     (cond ((equal state "Seeking") (if elapsed " · last confirmed" " · awaiting position"))
+				   ((and track (not duration)) " (unknown)") (t ""))) columns))
 		 (5 (when track
 		      (hub/music-console--clip
 		       (format "%s · %d / %d%s"
@@ -486,7 +490,7 @@ Ignore the newline's font height so small padding is not inflated to a text row.
     (unless (hub/music--spectrum-on-p)
       (when graphic (hub/music-console--at meta-x))
       (insert (propertize "System mix · Spectrum off · v enable\n" 'face 'hub/music-console-muted)))
-    (hub/music-console--controls columns state)
+    (hub/music-console--controls columns state (plist-get snapshot :paused))
     (unless wide (hub/music-console--up-next snapshot columns graphic))))
 
 (provide 'apps/music-console)

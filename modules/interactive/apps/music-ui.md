@@ -45,6 +45,11 @@ with the same behavior as `'ml`; `?` opens the action palette.
   ASCII marker while retaining the full label. Library authorization and Spotify audio readiness are separate
   states. Recovery actions preserve the queue and reuse the existing connection
   commands without exposing credentials or raw service responses.
+- While a browser seek awaits acknowledgement, progress uses only the receiver's
+  last confirmed position; absent confirmation remains explicitly unknown.
+  Pause/Resume retains its actual EMMS meaning even while the displayed state is
+  Seeking. A later control's acknowledgement covers preceding serial controls;
+  an older acknowledgement does not clear a newer pending state.
 - The spectrum retains its [explicit-consent lifecycle](README.md#spectrum-analyzer)
   and is labelled as system mix. Redrawing visible information does not move point,
   steal focus, reopen dismissed views or perform network work repeatedly.

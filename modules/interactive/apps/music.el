@@ -31,6 +31,7 @@
 (declare-function emms-playlist-mode-go "emms-playlist-mode" ())
 (declare-function hub/spotify-browser-ready-p "apps/spotify-browser" ())
 (declare-function hub/spotify-browser-player-waiting-p "apps/spotify-browser-player" ())
+(declare-function hub/spotify-browser-player-seeking-p "apps/spotify-browser-player" ())
 (declare-function hub/spotify-auth--session-p "apps/spotify-auth" (object))
 (declare-function hub/spotify-auth--session-access-token "apps/spotify-auth" (context))
 (declare-function hub/spotify-auth--session-expires-at "apps/spotify-auth" (context))
@@ -119,6 +120,8 @@ Use an ASCII marker if the current font cannot display the icon."
   "Return known playback state without starting or querying any backend."
   (cond ((and (featurep 'apps/spotify-browser-player)
 	      (hub/spotify-browser-player-waiting-p)) 'connecting)
+	((and (featurep 'apps/spotify-browser-player)
+	      (hub/spotify-browser-player-seeking-p)) 'seeking)
 	(emms-player-playing-p (if emms-player-paused-p 'paused 'playing))
 	((hub/music--selected-p) 'stopped)
 	(t 'empty)))
