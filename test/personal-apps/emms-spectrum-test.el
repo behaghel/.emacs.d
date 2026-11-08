@@ -207,10 +207,25 @@
        (should (string-match-p "AudioTap permissions missing" hub/emms-spectrum--diagnostic))
        (should (string-match-p "Press v to retry" hub/emms-spectrum--diagnostic))
        (if (eq platform 'darwin)
-	   (should (string-match-p "System Audio" hub/emms-spectrum--diagnostic))
+	   (progn
+	     (should (string-match-p "System Audio Recording Only" hub/emms-spectrum--diagnostic))
+	     (should (string-match-p "lower" hub/emms-spectrum--diagnostic))
+	     (should (string-match-p "upper" hub/emms-spectrum--diagnostic)))
 	 (should-not (string-match-p "System Audio" hub/emms-spectrum--diagnostic)))
        (should (= starts 1))
        (should emms-player-playing-p)))))
+
+(ert-deftest hub/emms-spectrum-nonpermission-failure-does-not-blame-macos-privacy ()
+  "A macOS format or device failure does not send the listener to permission settings."
+  (let ((system-type 'darwin))
+    (hub/emms-spectrum-test--with-player
+     (setq fake-command (list hub/emms-spectrum-program "--batch" "-Q" "--eval"
+			      "(progn (princ \"Unsupported tap format\" #'external-debugging-output) (kill-emacs 1))"))
+     (hub/emms-spectrum-toggle)
+     (cl-loop repeat 40 while hub/emms-spectrum--process do (accept-process-output nil 0.05))
+     (should (string-match-p "Unsupported tap format" hub/emms-spectrum--diagnostic))
+     (should-not (string-match-p "permission\\|System Settings" hub/emms-spectrum--diagnostic))
+     (should-not hub/emms-spectrum--process))))
 
 (ert-deftest hub/emms-spectrum-protocol-coalesces-fragmented-frames ()
   "AC-5: Keep the latest complete frame across process-output boundaries."
@@ -240,6 +255,36 @@
     (should (string-match-p "method = raw" config))
     (should (string-match-p "data_format = ascii" config))
     (should-not (string-match-p "auto_input\\|portaudio" config))))
+
+(ert-deftest hub/emms-spectrum-console-width-survives-animation ()
+  "Capture stays inside its console region even after the render binding ends."
+  (hub/emms-spectrum-test--with-player
+   (hub/emms-spectrum-toggle)
+   (let (widths)
+     (cl-letf (((symbol-function 'svg-image)
+		(lambda (svg &rest _)
+		  (push (dom-attr svg 'width) widths)
+		  '(image :type svg :data "<svg/>"))))
+       (with-current-buffer hub/emms-player-buffer-name
+	 (let ((inhibit-read-only t)
+	       (hub/emms-spectrum--render-width 411)
+	       (hub/emms-spectrum--render-indent 37))
+	   (hub/emms-spectrum--insert)))
+       (hub/emms-spectrum--draw)
+       (should (= (length widths) 2))
+       (should (cl-every (lambda (width) (= width 411)) widths))))))
+
+(ert-deftest hub/emms-spectrum-colors-follow-theme-roles ()
+  "Changing the theme roles changes the spectrum without a fixed neon palette."
+  (cl-letf (((symbol-function 'hub/music-console-color)
+	     (lambda (face &optional _background)
+	       (pcase face ('success "#123456") ('warning "#456789")
+		      ('error "#789abc") (_ "#010203")))))
+    (let* ((svg (hub/emms-spectrum--svg [200 700 950] 160 32))
+	   (bars (cl-remove-if-not (lambda (node) (equal (dom-attr node 'class) "spectrum-bar"))
+				   (dom-by-tag svg 'rect))))
+      (should (equal (mapcar (lambda (node) (dom-attr node 'fill)) bars)
+		     '("#123456" "#456789" "#789abc"))))))
 
 (ert-deftest hub/emms-spectrum-svg-has-bounded-pixel-bars ()
   "SVG geometry is pixel-based, bounded, and does not use terminal glyph bars."

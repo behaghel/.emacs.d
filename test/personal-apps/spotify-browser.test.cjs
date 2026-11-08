@@ -88,8 +88,22 @@ test('seeking while paused acknowledges the new paused position without requirin
   const seek = f.receiver.command({ kind: 'seek', run: 1, seq: 3, seconds: 3 });
   await flush(); assert.deepEqual(f.seeks, [4200]);
   await f.tick(4200, true); await seek;
-  assert.ok(f.sent.some(x => x.type === 'ack' && x.seq === 3));
+  const sample = f.sent.findIndex(x => x.type === 'state' && x.seq === 3 && x.position === 4200);
+  const ack = f.sent.findIndex(x => x.type === 'ack' && x.seq === 3);
+  assert.ok(sample >= 0 && sample < ack, 'paused seek reports its confirmed position before ACK');
   assert.ok(!f.sent.some(x => x.type === 'ended'));
+});
+
+test('a queued Pause reports the confirmed clamped seek position under its latest control identity', async () => {
+  const f = fixture(); await start(f);
+  await f.receiver.command({ kind: 'pause', run: 1, seq: 2 });
+  const seek = f.receiver.command({ kind: 'seek', run: 1, seq: 3, seconds: 100 });
+  await flush(); assert.deepEqual(f.seeks, [9000]);
+  const pause = f.receiver.command({ kind: 'pause', run: 1, seq: 4 });
+  await f.tick(9000, true); await seek; await pause;
+  const sample = f.sent.findIndex(x => x.type === 'state' && x.seq === 4 && x.position === 9000 && x.duration === 10000);
+  const ack = f.sent.findIndex(x => x.type === 'ack' && x.seq === 4);
+  assert.ok(sample >= 0 && sample < ack, 'latest ACK cannot leave EMMS with an optimistic out-of-range time');
 });
 
 test('a late unsolicited playing state after stopping disconnects instead of overlapping local audio', async () => {

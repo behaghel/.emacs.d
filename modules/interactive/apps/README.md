@@ -51,6 +51,19 @@ status: draft
 The [music presentation and access contract](music-ui.md) governs the native Hi-Fi
 console, keyboard cockpit and consistent music entry points.
 
+### Artwork loading
+
+- Covers use retained Spotify album image locations, metadata already present in
+  the loaded Liked Songs view, or known cover files beside a local track. Resolving
+  a cover never requests Spotify metadata, reads authorization, or rewrites EMMS.
+- Public image requests omit cookies and credentials, reject redirects and
+  authentication challenges, and have bounded download time, bytes and cache size.
+  Covers are cached only in memory, never in a persistent image collection.
+- Painting reads cached data. Track changes and hiding or closing the view retire
+  pending work; late replies cannot replace another track or reopen the player.
+  Failed downloads retain a placeholder rather than retrying on clock ticks.
+  `M-x hub/music-console-retry-artwork` explicitly retries the visible cover.
+
 ### Spectrum analyzer
 
 - The analyzer is opt-in: `v` in the player or `'mv` outside toggles it. Opening,
@@ -70,7 +83,11 @@ console, keyboard cockpit and consistent music entry points.
   launches a shell, installs tools, or enables capture.
 - Missing CAVA, unavailable SVG display, process failure, or malformed output
   leaves playback usable and reports how to recover. macOS audio-capture
-  permission is controlled by the user in System Settings.
+  permission is controlled by the user in System Settings. CoreAudio taps require
+  the lower **System Audio Recording Only** list under **Privacy & Security →
+  Screen & System Audio Recording**. The upper screen-recording grant does not
+  satisfy CAVA's audio-only permission check. The authorized app is Emacs or its
+  responsible launching terminal; microphone access is not required.
 
 ## Spotify Library
 
@@ -94,6 +111,9 @@ console, keyboard cockpit and consistent music entry points.
 - `a` appends a playable Liked Songs row to the current EMMS playlist without
   interrupting playback. `RET` appends and starts that occurrence, preserving the
   rest of the queue. Sorting and pagination do not change the selected track.
+  Spotify URI metadata comes from the retained Spotify response; constructing
+  those tracks excludes EMMS's generic file-info initializer. Local media retain
+  their normal metadata initialization.
 - EMMS is the sole playlist authority. Spotify URI tracks use a dedicated receiver;
   other media retain the configured free-software players. A running browser and
   its licensed media runtime are allowed. Neither the Spotify desktop app nor a

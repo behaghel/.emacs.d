@@ -51,5 +51,20 @@
       (call-interactively #'hub/emms-seek-forward-30)
       (should (equal (nreverse offsets) '(-10 30))))))
 
+(ert-deftest hub/emms-fetches-from-established-mirror ()
+  "EMMS bootstrap uses the HTTPS mirror rather than depending on Savannah."
+  (with-temp-buffer
+    (insert-file-contents
+     (expand-file-name "modules/interactive/apps/elfeed.el" hub/emms-test--root))
+    (goto-char (point-min))
+    (let (form)
+      (while (not (and (listp form) (eq (car form) 'use-package)
+		       (eq (cadr form) 'emms)))
+	(setq form (read (current-buffer))))
+      (let ((recipe (plist-get (cddr form) :straight)))
+	(should (eq (plist-get recipe :host) 'github))
+	(should (equal (plist-get recipe :repo) "emacsmirror/emms"))
+	(should (eq (plist-get recipe :protocol) 'https))))))
+
 (provide 'emms-test)
 ;;; emms-test.el ends here

@@ -90,6 +90,10 @@
 (declare-function context-panels-close-bottom-view "context-panels" ())
 (declare-function emms-play-file "emms-source-file" (file))
 (declare-function emms-seek "emms" (duration))
+(declare-function hub/music-console-render "apps/music-console" (snapshot))
+(declare-function hub/music-console-prepare-artwork "apps/music-console" (snapshot))
+(declare-function hub/music-console-cancel-artwork "apps/music-console" ())
+(declare-function hub/spotify-browser-player-position "apps/spotify-browser-player" ())
 
 (defun hub/emms-player--duration (track)
   "Return TRACK's known positive duration in seconds, or nil."
@@ -134,60 +138,30 @@
 		(setq index (if (= start (point-min)) 0
 			      (length (emms-playlist-tracks-in-region
 				       (point-min) start))))))))))
-    (let ((waiting (eq (hub/music-playback-state) 'connecting)))
-      (list :tracks tracks :current current :index index
-	    :elapsed (if (and emms-player-playing-p (not waiting)) emms-playing-time 0)
-	    :state (cond (waiting "Waiting for audio")
-			 (emms-player-paused-p "Paused")
-			 (emms-player-playing-p "Playing")
-			 (t "Stopped"))))))
+    (let ((state (hub/music-playback-state)))
+      (list :tracks tracks :current current :index index :paused emms-player-paused-p
+	    :elapsed (cond ((eq state 'connecting) 0)
+			   ((eq state 'seeking) (hub/spotify-browser-player-position))
+			   (emms-player-playing-p emms-playing-time)
+			   (t 0))
+	    :state (pcase state ('connecting "Waiting for audio") ('seeking "Seeking")
+			  ('paused "Paused") ('playing "Playing") (_ "Stopped"))))))
 
 (defun hub/emms-player--cancel-timer ()
   "Stop refreshing the playback view."
   (when (timerp hub/emms-player--timer)
     (cancel-timer hub/emms-player--timer))
-  (setq hub/emms-player--timer nil))
+  (setq hub/emms-player--timer nil)
+  (when (fboundp 'hub/music-console-cancel-artwork)
+    (hub/music-console-cancel-artwork)))
 
 (defun hub/emms-player--render (_source _view)
   "Render the current playback state, independent of SOURCE and VIEW."
-  (let* ((snapshot (hub/emms-player--snapshot))
-	 (tracks (plist-get snapshot :tracks))
-	 (current (plist-get snapshot :current))
-	 (duration (hub/emms-player--duration current))
-	 (elapsed (max 0 (or (plist-get snapshot :elapsed) 0)))
-	 (filled (if duration (min 30 (floor (* 30 (/ elapsed (float duration))))) 0))
-	 (total 0) (unknown 0)
-	 (index (plist-get snapshot :index)))
-    (dolist (track tracks)
-      (if-let* ((seconds (hub/emms-player--duration track)))
-	  (setq total (+ total seconds))
-	(cl-incf unknown)))
-    (insert (propertize (format "%s — %s\n"
-				(hub/music-state-label
-				 (pcase (plist-get snapshot :state)
-				   ("Playing" 'playing) ("Paused" 'paused)
-				   ("Waiting for audio" 'connecting) (_ 'stopped)))
-				(hub/emms-player--title current)) 'face 'bold))
-    (insert (format "[%s%s] %s / %s%s\n"
-		    (make-string filled ?=) (make-string (- 30 filled) ?-)
-		    (hub/emms-player--time elapsed) (hub/emms-player--time duration)
-		    (if (and current (not duration)) " (unknown)" "")))
-    (insert (format "Playlist: %s%s · %d tracks\n\n"
-		    (hub/emms-player--time total)
-		    (if (> unknown 0) (format " + %d unknown" unknown) "")
-		    (length tracks)))
-    (run-hooks 'hub/emms-player-render-hook)
-    (if (not tracks)
-	(insert "No tracks. Use M-x emms-play-file to load audio.\n")
-      (cl-loop for track in (seq-take (nthcdr index tracks) 4)
-	       for number from (1+ index)
-	       for selected = (and current (= number (1+ index)))
-	       for row = (format "%s %d. %s  %s\n" (if selected "▶" " ")
-				 number (hub/emms-player--title track)
-				 (hub/emms-player--time (hub/emms-player--duration track)))
-	       do (insert (if selected (propertize row 'face 'highlight) row))))
-    (insert "\nSPC play/pause · c -10s · r +30s · t next · s previous · v spectrum · l Liked Songs · ? actions · q close\n"))
-  (setq-local mode-name "EMMS Player")
+  (require 'apps/music-console)
+  (let ((snapshot (hub/emms-player--snapshot)))
+    (hub/music-console-prepare-artwork snapshot)
+    (hub/music-console-render snapshot))
+  (setq-local mode-name "Music")
   (unless (timerp hub/emms-player--timer)
     (setq hub/emms-player--timer (run-at-time 1 1 #'hub/emms-player--refresh))))
 
@@ -198,10 +172,18 @@
 	(hub/emms-player--cancel-timer)
       (condition-case err
 	  (with-current-buffer buffer
-	    (let ((inhibit-read-only t))
-	      (save-excursion
-		(erase-buffer)
-		(hub/emms-player--render nil nil))))
+	    (let ((inhibit-read-only t)
+		  (position (point))
+		  (windows (mapcar (lambda (window)
+				     (list window (window-point window) (window-start window)))
+				   (get-buffer-window-list buffer nil t))))
+	      (erase-buffer)
+	      (hub/emms-player--render nil nil)
+	      (goto-char (min position (point-max)))
+	      (dolist (state windows)
+		(when (window-live-p (car state))
+		  (set-window-point (car state) (min (cadr state) (point-max)))
+		  (set-window-start (car state) (min (caddr state) (point-max)) t)))))
 	(error
 	 (hub/emms-player--cancel-timer)
 	 (message "EMMS player refresh failed: %s" (error-message-string err)))))))
@@ -209,6 +191,8 @@
 (define-derived-mode hub/emms-player-mode special-mode "EMMS Player"
   "Read-only docked playback display with normal-state Bepo controls."
   (setq-local truncate-lines t)
+  (setq-local line-spacing 0)
+  (setq-local display-line-numbers nil)
   (add-hook 'kill-buffer-hook #'hub/emms-player--cancel-timer nil t))
 
 (defun hub/emms-player--source ()
@@ -236,12 +220,16 @@
        (list :name 'emms :icon "♫"
 	     :collect-bottom-views
 	     (lambda (_source)
-	       (list (list :id 'player :label "Player" :docked t :height 11
+	       (list (list :id 'player :label "Player" :docked t :height (if (display-graphic-p)
+									     (max 11 (ceiling (/ 320.0 (frame-char-height)))) 11)
 			   :buffer-name hub/emms-player-buffer-name
 			   :mode #'hub/emms-player-mode
 			   :render #'hub/emms-player--render)))))
       (context-panels-mode 1))
-    (context-panels-open-bottom-view '(emms . player) source t)))
+    (context-panels-open-bottom-view '(emms . player) source t)
+    ;; The initial panel render precedes window creation. Prepare covers only
+    ;; after the view is actually visible; hidden projections perform no I/O.
+    (hub/emms-player--refresh)))
 
 (defun hub/emms-player-close ()
   "Dismiss the shared bottom player without stopping playback."
@@ -302,6 +290,9 @@
 					   emms-playlist-selection-changed-hook emms-playlist-source-inserted-hook
 					   emms-playlist-cleared-hook))
     (add-hook hook #'hub/emms-player--refresh)))
+
+(with-eval-after-load 'apps/spotify-browser-player
+  (add-hook 'hub/spotify-browser-player-status-hook #'hub/emms-player--refresh))
 
 (provide 'apps/emms-player)
 ;;; emms-player.el ends here

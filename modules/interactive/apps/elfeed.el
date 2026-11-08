@@ -52,6 +52,7 @@
 ;;   (elfeed-web-start))
 
 (use-package emms
+  :straight (:host github :repo "emacsmirror/emms" :protocol https)
   :commands (emms emms-play-file emms-seek)
   :config
   (emms-all)

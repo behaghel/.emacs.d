@@ -21,7 +21,8 @@
 	  (emms-player-paused-p nil) (emms-player-delay 0) (emms-repeat-track nil) (emms-single-track nil)
 	  (emms-player-started-hook nil) (emms-player-stopped-hook nil) (emms-player-finished-hook nil)
 	  (emms-player-paused-hook nil) (emms-player-next-function #'emms-next-noerror)
-	  (hub/spotify-browser-player--run nil) (serial 0) commands stops files
+	  (hub/spotify-browser-player--run nil)
+	  (hub/spotify-browser-player-status-hook nil) (serial 0) commands stops files
 	  (hub/spotify-browser-player-test--local-player (emms-player (lambda (track) (push (emms-track-get track 'name) files)
 									(emms-player-started 'hub/spotify-browser-player-test--local-player))
 								      #'ignore (lambda (track) (eq (emms-track-get track 'type) 'file))))
@@ -71,6 +72,57 @@
 	 (should (= (length commands) 1))
 	 (should (equal (caar commands) "play"))
 	 (should (eq run hub/spotify-browser-player--run)))))))
+
+(ert-deftest hub/spotify-browser-player-liked-songs-ret-awaits-audio ()
+  "Library RET preserves the queue and plays its appended occurrence once after activation."
+  (require 'apps/spotify)
+  (require 'emms-info)
+  (hub/spotify-browser-player-test--queue
+   (let ((ready nil) (connections 0) pending-info
+	 (emms-track-initialize-functions '(emms-info-initialize-track))
+	 (emms-info-functions nil) (emms-info-asynchronously t)
+	 (emms-info-asynchronous-tracks 0)
+	 (original (with-current-buffer playlist
+		     (nreverse (emms-playlist-tracks-in-region (point-min) (point-max))))))
+     (with-current-buffer playlist (emms-playlist-mode))
+     (cl-letf (((symbol-function 'hub/spotify-browser-ready-p) (lambda () ready))
+	       ((symbol-function 'hub/spotify-browser-live-p) (lambda () t))
+	       ((symbol-function 'hub/spotify-browser-connect)
+		(lambda (&rest _)
+		  (cl-incf connections)
+		  ;; GPG yields to EMMS's real deferred metadata callbacks.
+		  (dolist (job (reverse pending-info)) (apply (car job) (cdr job)))))
+	       ((symbol-function 'emms-later-do) (lambda (&rest job) (push job pending-info))))
+       (with-temp-buffer
+	 (hub/spotify-library-mode)
+	 (hub/spotify--received
+	  0 200 '((total . 1)
+		  (items . (((track . ((uri . "spotify:track:4uLU6hMCjMI75M1A2tKUQC")
+				       (name . "Synthetic liked song") (duration_ms . 180000))))))) nil)
+	 (goto-char (point-min))
+	 (while (and (not (eobp)) (null (tabulated-list-get-id))) (forward-line 1))
+	 (call-interactively (lookup-key hub/spotify-library-mode-map (kbd "RET"))))
+       (should (= connections 1))
+       (should (hub/spotify-browser-player-waiting-p))
+       (should-not commands)
+       (should-not pending-info)
+       ;; The exclusion is local to Spotify construction, not a global hook edit.
+       (let ((local (emms-track 'file "/tmp/synthetic-local.ogg")))
+	 (should (eq (caar pending-info) 'emms-info-really-initialize-track))
+	 (should (eq (cadar pending-info) local)))
+       (let ((run hub/spotify-browser-player--run))
+	 (with-current-buffer playlist
+	   (let ((tracks (nreverse (emms-playlist-tracks-in-region (point-min) (point-max)))))
+	     (should (equal (butlast tracks) original))
+	     (should (eq (emms-playlist-selected-track) (car (last tracks))))))
+	 (setq ready t)
+	 (hub/spotify-browser-player--await-audio run)
+	 (hub/spotify-browser-player--await-audio run)
+	 (should (eq run hub/spotify-browser-player--run))
+	 (should-not (hub/spotify-browser-player-waiting-p))
+	 (should-not emms-player-paused-p)
+	 (should (= (length commands) 1))
+	 (should (equal (caar commands) "play")))))))
 
 (ert-deftest hub/spotify-browser-player-preparation-is-visible-and-toggle-cancels ()
   "The console shows waiting, not playback; its transport toggle cancels preparation."
@@ -159,6 +211,75 @@
        (hub/spotify-browser-player--finish second)
        (should-not emms-player-playing-p)))
    (should (= (cl-count "play" commands :key #'car :test #'equal) 2))))
+
+(ert-deftest hub/spotify-browser-player-seeking-shows-only-confirmed-position ()
+  "Pending seeks expose receiver-confirmed time, not EMMS's optimistic seek offset."
+  (require 'apps/emms-player)
+  (require 'emms-playing-time)
+  (hub/spotify-browser-player-test--queue
+   (let ((emms-playing-time 0)
+	 (emms-player-time-set-functions '(emms-playing-time-set))
+	 (emms-player-seeked-functions '(emms-playing-time-seek))
+	 (notifications 0))
+     (emms-start)
+     (let* ((run hub/spotify-browser-player--run)
+	    (old (hub/spotify-browser-player--occurrence-seq run))
+	    (hub/spotify-browser-player-status-hook (list (lambda () (cl-incf notifications)))))
+       (hub/spotify-browser-player-test--event run "state" '((position . 102000) (duration . 274000)))
+       (emms-seek 30)
+       (should (= emms-playing-time 132))
+       (should (eq (hub/music-playback-state) 'seeking))
+       (let ((snapshot (hub/emms-player--snapshot)))
+	 (should (equal (plist-get snapshot :state) "Seeking"))
+	 (should (= (plist-get snapshot :elapsed) 102)))
+       (setq emms-playing-time 140)
+       (should (= (plist-get (hub/emms-player--snapshot) :elapsed) 102))
+       (hub/spotify-browser-player--event
+	`((type . "ack") (run . ,(hub/spotify-browser-player--occurrence-id run)) (seq . ,old)))
+       (should (hub/spotify-browser-player-seeking-p))
+       (should (zerop notifications))
+       (hub/spotify-browser-player-test--event run "state" '((position . 132000) (duration . 274000)))
+       (should (= (plist-get (hub/emms-player--snapshot) :elapsed) 132))
+       (hub/spotify-browser-player-test--event run "ack")
+       (should-not (hub/spotify-browser-player-seeking-p))
+       (should (eq (hub/music-playback-state) 'playing))
+       (should (= notifications 1))
+       (should (= (plist-get (hub/emms-player--snapshot) :elapsed) 132))))))
+
+(ert-deftest hub/spotify-browser-player-seeking-without-a-sample-stays-unknown ()
+  "A very early seek never promotes an optimistic clock value to confirmed progress."
+  (require 'apps/emms-player)
+  (hub/spotify-browser-player-test--queue
+   (let ((emms-playing-time 30))
+     (emms-start)
+     (emms-seek 30)
+     (should (eq (hub/music-playback-state) 'seeking))
+     (should-not (hub/spotify-browser-player-position))
+     (should-not (plist-get (hub/emms-player--snapshot) :elapsed)))))
+
+(ert-deftest hub/spotify-browser-player-pause-during-seek-keeps-pending-feedback ()
+  "A later Pause does not hide an unconfirmed seek or allow its older ACK to clear it."
+  (require 'apps/emms-player)
+  (hub/spotify-browser-player-test--queue
+   (emms-start)
+   (let ((run hub/spotify-browser-player--run))
+     (hub/spotify-browser-player-test--event run "state" '((position . 102000) (duration . 274000)))
+     (emms-seek 30)
+     (let ((seek-sequence (hub/spotify-browser-player--occurrence-seq run)))
+       (emms-pause)
+       (should (eq (hub/music-playback-state) 'seeking))
+       (should (plist-get (hub/emms-player--snapshot) :paused))
+       (hub/spotify-browser-player--event
+	`((type . "ack") (run . ,(hub/spotify-browser-player--occurrence-id run)) (seq . ,seek-sequence)))
+       (should (hub/spotify-browser-player-seeking-p))
+       (hub/spotify-browser-player-test--event run "ack")
+       (should (eq (hub/music-playback-state) 'paused)))
+     (emms-seek -10)
+     (should (eq (hub/music-playback-state) 'seeking))
+     (emms-next)
+     (hub/spotify-browser-player-test--event run "ack")
+     (should-not (hub/spotify-browser-player-seeking-p))
+     (should (eq emms-player-playing-p 'hub/spotify-browser-player-test--local-player)))))
 
 (ert-deftest hub/spotify-browser-player-controls-invalidate-old-completion ()
   "Pending pause/seek and older sequence numbers cannot advance the playlist."

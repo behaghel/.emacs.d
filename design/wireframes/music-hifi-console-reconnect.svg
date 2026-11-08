@@ -10,6 +10,6 @@
     <text x="212" y="232" font-family="Ubuntu Mono, monospace" font-size="16" fill="#f2c68d" data-action="reconnect-audio">Reconnect audio</text>
     <text x="418" y="231" font-family="Ubuntu Mono, monospace" font-size="15" fill="#9fe0c2">Liked Songs available</text>
     <use href="components.svg#organism-music-up-next" x="920" y="64" width="330" height="185"/>
-    <text x="41" y="301" font-family="Ubuntu Mono, monospace" font-size="16" fill="#9ba5ba">SPC  Play</text>
+    <text x="41" y="303" font-family="Ubuntu Mono, monospace" font-size="16" fill="#aab6ff">SPC<tspan fill="#9ba5ba">  Play</tspan></text>
   </g>
 </svg>

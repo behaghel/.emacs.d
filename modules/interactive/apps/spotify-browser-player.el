@@ -13,10 +13,13 @@
 (cl-defstruct (hub/spotify-browser-player--occurrence (:constructor hub/spotify-browser-player--create))
   "One EMMS selection, including separate selections of the same URI."
   id seq track timer finish-timer pending armed ending near
-  connecting playlist selection revision activation-deadline)
+  connecting playlist selection revision activation-deadline
+  seek-pending position)
 (defvar hub/spotify-browser-player--run nil "Current occurrence, never a second playlist.")
 (defvar hub/spotify-browser-player--serial 0 "Monotonic selection identity.")
 (defvar hub/spotify-player-last-error nil "Safe backend failure metadata.")
+(defvar hub/spotify-browser-player-status-hook nil
+  "Hook refreshing read-only presentation after a seek acknowledgement.")
 
 (defun hub/spotify-browser-player--current-p (run)
   "Return non-nil for the active owned RUN."
@@ -27,6 +30,16 @@
   "Return non-nil while a Spotify Play request awaits browser audio."
   (and (hub/spotify-browser-player--current-p hub/spotify-browser-player--run)
        (hub/spotify-browser-player--occurrence-connecting hub/spotify-browser-player--run) t))
+
+(defun hub/spotify-browser-player-seeking-p ()
+  "Return non-nil while an owned seek awaits the current control acknowledgement."
+  (and (hub/spotify-browser-player--current-p hub/spotify-browser-player--run)
+       (hub/spotify-browser-player--occurrence-seek-pending hub/spotify-browser-player--run) t))
+
+(defun hub/spotify-browser-player-position ()
+  "Return the active receiver's last confirmed position in seconds, or nil."
+  (when (hub/spotify-browser-player--current-p hub/spotify-browser-player--run)
+    (hub/spotify-browser-player--occurrence-position hub/spotify-browser-player--run)))
 
 (defun hub/spotify-browser-player--selection-current-p (run)
   "Check that RUN still names the unchanged requested occurrence."
@@ -164,6 +177,10 @@
   (when (hub/spotify-browser-player-waiting-p)
     (user-error "Waiting for browser audio; use Stop or the player toggle to cancel"))
   (when-let* ((run hub/spotify-browser-player--run))
+    ;; Pause/Resume can queue behind a seek. Keep its presentation pending until
+    ;; the latest ACK confirms that the receiver's serial command chain finished.
+    (when (equal kind "seek")
+      (setf (hub/spotify-browser-player--occurrence-seek-pending run) t))
     (setf (hub/spotify-browser-player--occurrence-pending run) t
 	  (hub/spotify-browser-player--occurrence-ending run) nil
 	  (hub/spotify-browser-player--occurrence-near run) nil)
@@ -201,12 +218,16 @@
        ((eql (alist-get 'seq json) (hub/spotify-browser-player--occurrence-seq run))
 	(pcase type
 	  ("ack"
-	   (setf (hub/spotify-browser-player--occurrence-pending run) nil)
-	   (when (hub/spotify-browser-player--occurrence-armed run)
-	     (cancel-timer (hub/spotify-browser-player--occurrence-timer run))))
+	   (let ((seeking (hub/spotify-browser-player--occurrence-seek-pending run)))
+	     (setf (hub/spotify-browser-player--occurrence-pending run) nil
+		   (hub/spotify-browser-player--occurrence-seek-pending run) nil)
+	     (when (hub/spotify-browser-player--occurrence-armed run)
+	       (cancel-timer (hub/spotify-browser-player--occurrence-timer run)))
+	     (when seeking (run-hooks 'hub/spotify-browser-player-status-hook))))
 	  ("state"
 	   (let ((position (alist-get 'position json)) (duration (alist-get 'duration json)))
 	     (when (and (integerp position) (>= position 0) (integerp duration) (> duration 0))
+	       (setf (hub/spotify-browser-player--occurrence-position run) (floor position 1000))
 	       (emms-track-set (hub/spotify-browser-player--occurrence-track run) 'info-playing-time (floor duration 1000))
 	       (run-hook-with-args 'emms-player-time-set-functions (floor position 1000))
 	       (when (>= position 1000)

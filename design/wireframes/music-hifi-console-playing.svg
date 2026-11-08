@@ -10,7 +10,7 @@
     <use href="components.svg#molecule-music-spectrum" x="198" y="210" width="610" height="32"/>
     <text x="198" y="258" font-family="Ubuntu Mono, monospace" font-size="13" fill="#9ba5ba">SYSTEM MIX · v off</text>
     <use href="components.svg#organism-music-up-next" x="920" y="64" width="330" height="185"/>
-    <use href="components.svg#atom-music-transport-button" x="28" y="280" width="152" height="30"/>
-    <text x="41" y="301" font-family="Ubuntu Mono, monospace" font-size="16" fill="#f3ece3" data-action="play-pause">SPC  Pause</text>
+    <use href="components.svg#atom-music-transport-button" x="28" y="285" width="152" height="27"/>
+    <text x="41" y="303" font-family="Ubuntu Mono, monospace" font-size="16" fill="#aab6ff" data-action="play-pause">SPC<tspan fill="#9fe0c2">  Pause</tspan></text>
   </g>
 </svg>

@@ -57,7 +57,8 @@
 (defun hub/music-palette--refresh ()
   "Refresh changed availability without moving focus or calling a backend."
   (if (not (hub/music-palette--active-p)) (hub/music-palette--cleanup)
-    (let ((state (list (hub/music-playback-state) (and (hub/music--transport-available-p) t)
+    (let ((state (list (hub/music-playback-state) emms-player-paused-p
+		       (and (hub/music--transport-available-p) t)
 		       (hub/music-audio-ready-p) (hub/music-library-authorized-p)
 		       (hub/music--spectrum-on-p) (and (hub/music--spectrum-available-p) t)
 		       (frame-width))))
