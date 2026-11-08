@@ -111,6 +111,9 @@ console, keyboard cockpit and consistent music entry points.
 - `a` appends a playable Liked Songs row to the current EMMS playlist without
   interrupting playback. `RET` appends and starts that occurrence, preserving the
   rest of the queue. Sorting and pagination do not change the selected track.
+  Spotify URI metadata comes from the retained Spotify response; constructing
+  those tracks excludes EMMS's generic file-info initializer. Local media retain
+  their normal metadata initialization.
 - EMMS is the sole playlist authority. Spotify URI tracks use a dedicated receiver;
   other media retain the configured free-software players. A running browser and
   its licensed media runtime are allowed. Neither the Spotify desktop app nor a

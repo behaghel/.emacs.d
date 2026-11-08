@@ -455,8 +455,7 @@ Ignore the newline's font height so small padding is not inflated to a text row.
 		 (3 (hub/music-console--bar elapsed duration meta-width graphic))
 		 (4 (hub/music-console--clip
 		     (format "%s / %s%s" (hub/emms-player--time elapsed) (hub/emms-player--time duration)
-			     (cond ((equal state "Seeking") (if elapsed " · last confirmed" " · awaiting position"))
-				   ((and track (not duration)) " (unknown)") (t ""))) columns))
+			     (if (and track (not duration)) " (unknown)" "")) columns))
 		 (5 (when track
 		      (hub/music-console--clip
 		       (format "%s · %d / %d%s"

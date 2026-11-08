@@ -73,6 +73,57 @@
 	 (should (equal (caar commands) "play"))
 	 (should (eq run hub/spotify-browser-player--run)))))))
 
+(ert-deftest hub/spotify-browser-player-liked-songs-ret-awaits-audio ()
+  "Library RET preserves the queue and plays its appended occurrence once after activation."
+  (require 'apps/spotify)
+  (require 'emms-info)
+  (hub/spotify-browser-player-test--queue
+   (let ((ready nil) (connections 0) pending-info
+	 (emms-track-initialize-functions '(emms-info-initialize-track))
+	 (emms-info-functions nil) (emms-info-asynchronously t)
+	 (emms-info-asynchronous-tracks 0)
+	 (original (with-current-buffer playlist
+		     (nreverse (emms-playlist-tracks-in-region (point-min) (point-max))))))
+     (with-current-buffer playlist (emms-playlist-mode))
+     (cl-letf (((symbol-function 'hub/spotify-browser-ready-p) (lambda () ready))
+	       ((symbol-function 'hub/spotify-browser-live-p) (lambda () t))
+	       ((symbol-function 'hub/spotify-browser-connect)
+		(lambda (&rest _)
+		  (cl-incf connections)
+		  ;; GPG yields to EMMS's real deferred metadata callbacks.
+		  (dolist (job (reverse pending-info)) (apply (car job) (cdr job)))))
+	       ((symbol-function 'emms-later-do) (lambda (&rest job) (push job pending-info))))
+       (with-temp-buffer
+	 (hub/spotify-library-mode)
+	 (hub/spotify--received
+	  0 200 '((total . 1)
+		  (items . (((track . ((uri . "spotify:track:4uLU6hMCjMI75M1A2tKUQC")
+				       (name . "Synthetic liked song") (duration_ms . 180000))))))) nil)
+	 (goto-char (point-min))
+	 (while (and (not (eobp)) (null (tabulated-list-get-id))) (forward-line 1))
+	 (call-interactively (lookup-key hub/spotify-library-mode-map (kbd "RET"))))
+       (should (= connections 1))
+       (should (hub/spotify-browser-player-waiting-p))
+       (should-not commands)
+       (should-not pending-info)
+       ;; The exclusion is local to Spotify construction, not a global hook edit.
+       (let ((local (emms-track 'file "/tmp/synthetic-local.ogg")))
+	 (should (eq (caar pending-info) 'emms-info-really-initialize-track))
+	 (should (eq (cadar pending-info) local)))
+       (let ((run hub/spotify-browser-player--run))
+	 (with-current-buffer playlist
+	   (let ((tracks (nreverse (emms-playlist-tracks-in-region (point-min) (point-max)))))
+	     (should (equal (butlast tracks) original))
+	     (should (eq (emms-playlist-selected-track) (car (last tracks))))))
+	 (setq ready t)
+	 (hub/spotify-browser-player--await-audio run)
+	 (hub/spotify-browser-player--await-audio run)
+	 (should (eq run hub/spotify-browser-player--run))
+	 (should-not (hub/spotify-browser-player-waiting-p))
+	 (should-not emms-player-paused-p)
+	 (should (= (length commands) 1))
+	 (should (equal (caar commands) "play")))))))
+
 (ert-deftest hub/spotify-browser-player-preparation-is-visible-and-toggle-cancels ()
   "The console shows waiting, not playback; its transport toggle cancels preparation."
   (require 'apps/emms-player)

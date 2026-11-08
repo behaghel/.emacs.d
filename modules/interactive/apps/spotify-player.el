@@ -259,8 +259,13 @@ Never contains response bodies, event messages, credentials or track metadata.")
 
 (defun hub/spotify-player-track (metadata)
   "Make an EMMS URL track from inert Spotify METADATA."
-  (let ((track (emms-track 'url (alist-get 'uri metadata)))
-	(duration (alist-get 'duration_ms metadata)))
+  ;; Spotify already supplies these fields.  EMMS's generic file-info reader
+  ;; defers a playlist rewrite even for URLs; during GPG unlock that rewrite
+  ;; can invalidate a pending occurrence without any listener queue edit.
+  (let* ((emms-track-initialize-functions
+	  (remq 'emms-info-initialize-track emms-track-initialize-functions))
+	 (track (emms-track 'url (alist-get 'uri metadata)))
+	 (duration (alist-get 'duration_ms metadata)))
     (dolist (entry `((info-title . ,(alist-get 'name metadata))
 		     (info-artist . ,(mapconcat (lambda (a) (or (alist-get 'name a) ""))
 						(alist-get 'artists metadata) ", "))

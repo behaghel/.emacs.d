@@ -220,11 +220,13 @@
 	    snapshot (plist-put snapshot :paused paused))
       (hub/music-console-test--render 140 snapshot
 				      (should (string-match-p "Seeking" (buffer-string)))
-				      (should (string-match-p "last confirmed" (buffer-string)))
+				      (should (string-match-p "1:42 / 4:34" (buffer-string)))
+				      (should-not (string-match-p "last confirmed\\|awaiting position" (buffer-string)))
 				      (should (string-match-p (if paused "SPC Resume" "SPC Pause") (buffer-string))))
       (setq snapshot (plist-put snapshot :elapsed nil))
       (hub/music-console-test--render 140 snapshot
 				      (should (string-match-p "--:-- / 4:34" (buffer-string)))
+				      (should-not (string-match-p "last confirmed\\|awaiting position" (buffer-string)))
 				      (should (string-match-p "Progress unavailable" (buffer-string)))))))
 
 (ert-deftest hub/music-console-proportional-metadata-respects-pixel-budget ()

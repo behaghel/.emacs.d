@@ -47,6 +47,7 @@ with the same behavior as `'ml`; `?` opens the action palette.
   commands without exposing credentials or raw service responses.
 - While a browser seek awaits acknowledgement, progress uses only the receiver's
   last confirmed position; absent confirmation remains explicitly unknown.
+  The time caption remains stable without transient confirmation annotations.
   Pause/Resume retains its actual EMMS meaning even while the displayed state is
   Seeking. A later control's acknowledgement covers preceding serial controls;
   an older acknowledgement does not clear a newer pending state.

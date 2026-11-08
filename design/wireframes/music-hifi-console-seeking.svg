@@ -6,7 +6,7 @@
     <use href="components.svg#organism-music-current-track" y="40" width="820" height="200"/>
     <text x="590" y="76" font-family="Ubuntu Mono, monospace" font-size="14" fill="#f2c68d">↻ SEEKING · +30s REQUESTED</text>
     <rect x="198" y="166" width="226" height="4" rx="2" fill="#9ba5ba"/>
-    <g font-family="Ubuntu Mono, monospace" font-size="15" fill="#9ba5ba"><text x="198" y="190">1:42 · last confirmed</text><text x="808" y="190" text-anchor="end">4:34</text></g>
+    <g font-family="Ubuntu Mono, monospace" font-size="15" fill="#9ba5ba"><text x="198" y="190">1:42</text><text x="808" y="190" text-anchor="end">4:34</text></g>
     <use href="components.svg#molecule-music-spectrum-off" x="198" y="210" width="610" height="40"/>
     <use href="components.svg#organism-music-up-next" x="920" y="64" width="330" height="185"/>
     <use href="components.svg#atom-music-transport-button" x="28" y="285" width="152" height="27"/>
