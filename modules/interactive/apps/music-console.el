@@ -123,7 +123,7 @@ Optional PIXELS also bounds proportional typography on graphical displays."
 (defun hub/music-console--metrics (face &optional text)
   "Return FACE's ascent/descent, including fallback fonts needed by TEXT."
   (let* ((frame (hub/music-console--frame))
-	 (graphic (display-graphic-p frame))
+	 (graphic (and (display-graphic-p frame) (fboundp 'font-info)))
 	 (font (and graphic (face-font face frame)))
 	 (fonts (list font))
 	 (info (and font (font-info font frame)))

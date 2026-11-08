@@ -132,6 +132,15 @@
       (erase-buffer)
       (should-not (overlay-buffer surface)))))
 
+(ert-deftest hub/music-console-metrics-without-native-font-api ()
+  "Terminal-only builds remain safe when graphical rendering is simulated."
+  (cl-letf (((symbol-function 'display-graphic-p) (lambda (&rest _) t))
+	    ((symbol-function 'font-info) nil)
+	    ((symbol-function 'face-font) (lambda (&rest _) "terminal")))
+    (let ((metrics (hub/music-console--metrics 'hub/music-console-meta "Fixture")))
+      (should (> (car metrics) 0))
+      (should (> (cdr metrics) 0)))))
+
 (ert-deftest hub/music-console-cover-metrics-include-fallback-fonts ()
   "Non-Latin metadata cannot introduce seams through taller fallback font metrics."
   (cl-letf (((symbol-function 'display-graphic-p) (lambda (&rest _) t))
