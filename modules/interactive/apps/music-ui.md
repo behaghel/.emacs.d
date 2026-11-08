@@ -34,17 +34,26 @@ with the same behavior as `'ml`; `?` opens the action palette.
   status. Browsing selection and the playing occurrence are visually distinct.
 - Progress, queue duration and upcoming entries reflect EMMS state. Missing
   metadata and partial duration totals remain explicit; the view does not invent
-  artwork, waveforms or playback progress.
+  artwork, waveforms or playback progress. Upcoming track titles are distinct from
+  their quieter artist/source lines. Service links remain on individual entries;
+  Spotify content shares a section-level brand mark rather than repeating one
+  beside each artist. The smaller whole-queue count and duration share the transport
+  footer, right-aligned when space permits and on their own footer line otherwise.
 - Artwork remains intact with source attribution and service links where required.
   A deliberate placeholder represents absent artwork. Controls do not cover art.
 - Typography, spacing, progress and spectrum share a visual vocabulary derived from
   Emacs faces. Music-specific styling does not replace the editor's global theme or
-  fonts. Text remains navigable; SVG supplements rather than replaces buffer text.
+  fonts. The current title is large, the artist is normal-sized, and album, source
+  and secondary details are smaller. Playback state and actionable warnings remain
+  prominent. Text remains navigable; SVG supplements rather than replaces buffer text.
 - Waiting-for-audio, playing, paused, seeking, stopped, empty and reconnect-needed states pair an
   icon with meaningful text, not colour alone. Unavailable font glyphs use an
   ASCII marker while retaining the full label. Library authorization and Spotify audio readiness are separate
-  states. Recovery actions preserve the queue and reuse the existing connection
-  commands without exposing credentials or raw service responses.
+  states. Healthy receiver readiness does not add a player badge; the position reads
+  "Track N of M". Missing browser audio adds "Enable audio in Chrome" or
+  "Reconnect Spotify audio" beside that position rather than replacing it. Readiness means the receiver can accept commands, not
+  that sound is audible. Recovery actions preserve the queue and reuse the existing
+  connection commands without exposing credentials or raw service responses.
 - While a browser seek awaits acknowledgement, progress uses only the receiver's
   last confirmed position; absent confirmation remains explicitly unknown.
   The time caption remains stable without transient confirmation annotations.
@@ -52,7 +61,9 @@ with the same behavior as `'ml`; `?` opens the action palette.
   paused state even while the displayed text is Seeking. A later control's acknowledgement covers preceding serial controls;
   an older acknowledgement does not clear a newer pending state.
 - The spectrum retains its [explicit-consent lifecycle](README.md#spectrum-analyzer)
-  and is labelled as system mix. Redrawing visible information does not move point,
+  with "Spectrum off" while inactive and "Spectrum · all computer audio" while active.
+  The footer owns the keyboard hint rather than duplicating it beside the spectrum.
+  Redrawing visible information does not move point,
   steal focus, reopen dismissed views or perform network work repeatedly.
 - Narrow layouts remain usable without horizontal scrolling, reducing secondary
   content before hiding essential track, state and control information.

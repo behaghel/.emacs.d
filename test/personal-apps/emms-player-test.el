@@ -89,7 +89,7 @@
      (should (string-match-p "Playing" (buffer-string)))
      (should (string-match-p "First song" (buffer-string)))
      (should (string-match-p "1:00 / 3:00" (buffer-string)))
-     (should (string-match-p "Queue 7:00" (buffer-string)))
+     (should (string-match-p "2 tracks · 7:00" (buffer-string)))
      (should (string-match-p "Next song" (buffer-string)))
      (should (string-match-p (regexp-quote "[==========--------------------]")
 			     (buffer-string)))
@@ -159,7 +159,7 @@
 	 (emms-player-playing-p nil))
      (hub/emms-player-open)
      (should (string-match-p "Empty" (buffer-string)))
-     (should (string-match-p "Queue 0:00" (buffer-string)))
+     (should (string-match-p "0 tracks · 0:00" (buffer-string)))
      (should (string-match-p "Choose Liked Songs or your editable queue" (buffer-string))))))
 
 (ert-deftest hub/emms-player-unknown-duration-is-not-counted-as-zero ()
@@ -169,7 +169,7 @@
    (emms-track-set first 'info-playing-time nil)
    (hub/emms-player-open)
    (should (string-match-p "1:00 / --:-- (unknown)" (buffer-string)))
-   (should (string-match-p (regexp-quote "Queue 4:00 + 1 unknown") (buffer-string)))))
+   (should (string-match-p (regexp-quote "2 tracks · 4:00 + 1 unknown") (buffer-string)))))
 
 (ert-deftest hub/emms-player-progress-refresh-preserves-focus-and-source-point ()
   "AC-6: Progress ticks update only the visible player and preserve editing position."
@@ -287,9 +287,9 @@
 	 (emms-playlist-insert-track second)
 	 (emms-playlist-select selected))))
    (hub/emms-player-open)
-   (should (string-match-p "Now playing · 3 / 4" (buffer-string)))
+   (should (string-match-p "Track 3 of 4" (buffer-string)))
    (should (string-match-p "4. Next song" (buffer-string)))
-   (should-not (string-match-p "Now playing · 1 / 4" (buffer-string)))))
+   (should-not (string-match-p "Track 1 of 4" (buffer-string)))))
 
 (ert-deftest hub/emms-player-module-keeps-playback-dependencies-lazy ()
   "Loading personal app configuration does not load playback or panel packages."

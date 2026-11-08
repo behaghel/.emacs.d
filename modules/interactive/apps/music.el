@@ -37,6 +37,7 @@
 (declare-function hub/spotify-auth--session-expires-at "apps/spotify-auth" (context))
 
 (autoload 'hub/music-palette "apps/music-palette" "Show the native music action palette." t)
+(autoload 'hub/music-search "apps/music-search" "Search existing EMMS queue occurrences." t)
 (autoload 'hub/spotify-liked-songs "apps/spotify" nil t)
 (autoload 'hub/spotify-connect "apps/spotify-auth" nil t)
 (autoload 'hub/spotify-browser-connect "apps/spotify-browser" nil t)
@@ -52,6 +53,7 @@
   '(("'mm" hub/emms-player-open "Player")
     ("'ml" hub/spotify-liked-songs "Liked Songs")
     ("'mq" hub/music-queue "Queue")
+    ("'m/" hub/music-search "Search queue")
     ("'m?" hub/music-palette "Music actions")
     ("'m SPC" hub/emms-player-toggle "Play/pause")
     ("'mp" hub/emms-player-toggle "Play/pause")

@@ -51,6 +51,15 @@ status: draft
 The [music presentation and access contract](music-ui.md) governs the native Hi-Fi
 console, keyboard cockpit and consistent music entry points.
 
+- `'m/` and the palette's `/` search the current EMMS queue using native completion.
+  Candidates expose title, artist, album, duration and the numbered queue occurrence;
+  the prompt states the queue-only coverage. Browsing and cancellation do not alter
+  playback, focus, queue selection or capture consent.
+- `RET` plays the selected existing occurrence without appending or rebuilding the
+  queue, including when the same track occurs more than once. Queue changes during
+  completion or a Stop acknowledgement reject obsolete candidates with an actionable
+  retry message rather than choosing a different occurrence.
+
 ### Artwork loading
 
 - Covers use retained Spotify album image locations, metadata already present in

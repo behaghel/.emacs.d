@@ -35,7 +35,7 @@ Feature: Music navigation at the speed of the editor
     Then Liked Songs opens or receives focus in the shared bottom slot
     And it behaves like the global "'ml" shortcut without changing playback or capture
 
-  @wireframe:music-cockpit-search.svg
+  @wireframe:music-cockpit-search.svg @wireframe:music-cockpit-search-queue.svg
   Scenario: Search without playing the selection merely by moving over it
     When I press "'m/" and type a query
     Then I see candidates with clear Queue or Liked Songs provenance
@@ -45,7 +45,7 @@ Feature: Music navigation at the speed of the editor
     When I cancel the search
     Then I return to my prior editing context with playback unchanged
 
-  @wireframe:music-cockpit-search.svg
+  @wireframe:music-cockpit-search.svg @wireframe:music-cockpit-search-queue.svg
   Scenario Outline: Explicitly act on a search candidate
     Given I have selected a <source> candidate
     When I invoke <action>
@@ -56,6 +56,15 @@ Feature: Music navigation at the speed of the editor
       | Liked Songs  | RET           | that track is appended and played           |
       | Liked Songs  | M-RET         | that track is appended without interruption |
       | Queue        | RET           | that existing occurrence is selected and played |
+
+  @wireframe:music-cockpit-search-queue.svg
+  Scenario: Reject an obsolete queue occurrence without interrupting playback
+    Given queue search is open while music is playing
+    When I edit or replace the queue before accepting a candidate
+    And I press "RET" on that stale candidate
+    Then I am asked to search again
+    And no different occurrence is played or appended
+    And the existing playback is not stopped
 
   @wireframe:music-cockpit-palette-access.svg
   Scenario: Discover music actions without remembering M-x commands

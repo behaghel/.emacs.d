@@ -118,7 +118,8 @@
      (should (overlayp hub/emms-spectrum--overlay))
      (should (eq (plist-get (cdr (overlay-get hub/emms-spectrum--overlay 'display)) :type) 'svg))
      (with-current-buffer hub/emms-player-buffer-name
-       (should (string-match-p "Spectrum: system output" (buffer-string)))))))
+       (should (string-match-p "Spectrum · all computer audio" (buffer-string)))
+       (should-not (string-match-p "System mix\\|v stop" (buffer-string)))))))
 
 (ert-deftest hub/emms-spectrum-hidden-stops-and-does-not-restart ()
   "AC-3: Hiding the player stops its process, timer and files without stopping music."

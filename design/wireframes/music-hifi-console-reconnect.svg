@@ -6,10 +6,12 @@
     <use href="components.svg#organism-music-current-track" y="40" width="820" height="200"/>
     <text x="590" y="76" font-family="Ubuntu Mono, monospace" font-size="14" fill="#f2c68d">⚠ AUDIO NEEDS RECONNECT</text>
     <g font-family="Ubuntu Mono, monospace" font-size="15" fill="#9ba5ba"><text x="198" y="190">— / 4:34 · stopped here</text></g>
-    <rect x="198" y="208" width="196" height="36" rx="5" fill="#222b40"/>
-    <text x="212" y="232" font-family="Ubuntu Mono, monospace" font-size="16" fill="#f2c68d" data-action="reconnect-audio">Reconnect audio</text>
-    <text x="418" y="231" font-family="Ubuntu Mono, monospace" font-size="15" fill="#9fe0c2">Liked Songs available</text>
+    <text x="198" y="232" font-family="Ubuntu Mono, monospace" font-size="13" fill="#9ba5ba">Track 1 of 3</text>
+    <rect x="316" y="208" width="250" height="36" rx="5" fill="#222b40"/>
+    <text x="330" y="232" font-family="Ubuntu Mono, monospace" font-size="16" fill="#f2c68d" data-action="reconnect-audio">Reconnect Spotify audio</text>
+    <text x="600" y="231" font-family="Ubuntu Mono, monospace" font-size="15" fill="#9fe0c2">Liked Songs available</text>
     <use href="components.svg#organism-music-up-next" x="920" y="64" width="330" height="185"/>
     <text x="41" y="303" font-family="Ubuntu Mono, monospace" font-size="16" fill="#aab6ff">SPC<tspan fill="#9ba5ba">  Play</tspan></text>
+    <use href="components.svg#molecule-music-queue-summary" x="952" y="285" width="300" height="27"/>
   </g>
 </svg>

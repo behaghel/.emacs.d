@@ -21,6 +21,10 @@
   "Native music metadata." :group 'hub/music)
 (defface hub/music-console-muted '((t :inherit shadow))
   "Secondary information and quiet decoration." :group 'hub/music)
+(defface hub/music-console-detail '((t :inherit (shadow fixed-pitch) :height 0.9 :underline nil))
+  "Smaller album, source and secondary details, relative to the editor's fonts." :group 'hub/music)
+(defface hub/music-console-queue-total '((t :inherit (shadow fixed-pitch) :height 0.9))
+  "Subordinate whole-queue summary, distinct from individual upcoming tracks." :group 'hub/music)
 (defface hub/music-console-control '((t :inherit (shadow fixed-pitch) :underline nil))
   "Quiet, non-underlined transport hints; actions remain native buttons." :group 'hub/music)
 (defface hub/music-console-key '((t :inherit (link fixed-pitch) :underline nil))
@@ -267,14 +271,16 @@ Only visible graphical artwork starts image I/O."
 
 (add-hook 'hub/emms-player-close-hook #'hub/music-console-cancel-artwork)
 
-(defun hub/music-console--brand (track graphic)
-  "Insert TRACK's native source attribution, optionally with a GRAPHIC brand mark."
+(defun hub/music-console--brand (track graphic &optional quiet)
+  "Insert TRACK's attribution with optional GRAPHIC mark or QUIET text styling."
   (let* ((url (hub/music-console--url track))
 	 (label (hub/music-console--source track))
+	 (face (if quiet 'hub/music-console-detail '(link hub/music-console-detail)))
 	 (start (point)))
     (when (and url graphic) (insert-image (hub/music-console--logo) "○") (insert " "))
-    (if (not url) (insert label)
-      (insert-text-button label 'follow-link t 'face 'link 'hub/music-url url
+    (if (not url) (insert (propertize label 'face 'hub/music-console-detail))
+      (insert-text-button label 'follow-link t 'face face 'hub/music-url url
+			  'help-echo "Open track on Spotify"
 			  'action (lambda (_button) (browse-url url))))
     (add-text-properties start (point) (list 'hub/music-role 'source 'hub/music-url url))))
 
@@ -310,8 +316,8 @@ Ignore the newline's font height so small padding is not inflated to a text row.
 		      'hub/music-role role)
 	  (propertize "\n" 'line-height t)))
 
-(defun hub/music-console--controls (columns state &optional paused)
-  "Insert native transport buttons in COLUMNS, respecting STATE and PAUSED."
+(defun hub/music-console--controls (columns state &optional paused tracks)
+  "Insert controls and TRACKS' summary in COLUMNS for STATE and PAUSED."
   (let ((actions `((,(cond ((equal state "Waiting for audio") "SPC Cancel request")
 			   ((equal state "Seeking") (if paused "SPC Resume" "SPC Pause"))
 			   ((equal state "Playing") "SPC Pause")
@@ -320,14 +326,16 @@ Ignore the newline's font height so small padding is not inflated to a text row.
 		   ("s Previous" . hub/emms-player-previous) ("t Next" . hub/emms-player-next)
 		   ("v Spectrum" . hub/emms-spectrum-toggle) ("l Liked Songs" . hub/spotify-liked-songs)
 		   ("? Actions" . hub/music-palette) ("q Close" . hub/emms-player-close)))
-	(used 0)
+	(used 0) wrapped line-start
 	(graphic (display-graphic-p (hub/music-console--frame))))
     (if graphic (hub/music-console--vertical-space 16 'control-gap)
       (insert "\n"))
     (let ((start (point)))
       (when graphic (hub/music-console--vertical-space 8 'control-padding))
+      (setq line-start (point))
       (dolist (action actions)
-	(when (> (+ used (length (car action)) 3) columns) (insert "\n") (setq used 0))
+	(when (> (+ used (length (car action)) 3) columns)
+	  (insert "\n") (setq used 0 wrapped t line-start (point)))
 	(when (> used 0) (insert "   ") (cl-incf used 3))
 	(let ((button-start (point)))
 	  (hub/music-console--action (car action) (cdr action)
@@ -336,6 +344,21 @@ Ignore the newline's font height so small padding is not inflated to a text row.
 	  (add-face-text-property button-start (+ button-start (string-match " " (car action)))
 				  'hub/music-console-key))
 	(cl-incf used (length (car action))))
+      (let ((summary (format "%d tracks · %s" (length tracks) (hub/music-console--total tracks))))
+	(if graphic
+	    (let* ((width (max 1 (- (* columns (frame-char-width (hub/music-console--frame))) 12)))
+		   (summary-width (min width (string-pixel-width
+					      (propertize summary 'face 'hub/music-console-queue-total))))
+		   (x (max 0 (- width summary-width)))
+		   (buttons-width (string-pixel-width (buffer-substring line-start (point)))))
+	      (when (or wrapped (> (+ buttons-width 24) x)) (insert "\n"))
+	      (hub/music-console--at x)
+	      (hub/music-console--clip summary columns 'hub/music-console-queue-total 'queue-total width))
+	  (when (or wrapped (> (+ used (string-width summary) 3) columns))
+	    (insert "\n") (setq used 0))
+	  (let ((clipped (truncate-string-to-width summary columns nil nil "…")))
+	    (insert (make-string (max 0 (- columns used (string-width clipped))) ?\s))
+	    (hub/music-console--clip summary columns 'hub/music-console-queue-total 'queue-total))))
       (insert "\n")
       (when graphic (hub/music-console--vertical-space 8 'control-padding))
       ;; Apply only a background, so the surface cannot flatten token/label colours.
@@ -345,29 +368,100 @@ Ignore the newline's font height so small padding is not inflated to a text row.
 	(overlay-put surface 'face `(:background ,(hub/music-console-color 'hub/music-console-chrome t)
 						 :extend t))))))
 
-(defun hub/music-console--artist-source (track columns graphic)
-  "Insert TRACK's artist and attributed source inside COLUMNS, optionally GRAPHIC."
-  (let ((reserved (+ 3 (length (hub/music-console--source track))
-		     (if (and graphic (hub/music-console--spotify-p track))
-			 (1+ (ceiling (/ 24.0 (frame-char-width (hub/music-console--frame))))) 0))))
+(defun hub/music-console--bottom-align (start metric face)
+  "Lower text since START within METRIC's existing descent, measuring FACE.
+Leave one pixel of clearance so font rounding cannot enlarge the hero's row."
+  (let* ((own (hub/music-console--metrics face (buffer-substring-no-properties start (point))))
+	 (space (- (cdr metric) (cdr own) 1)))
+    ;; Relative raising scales per font. Keep a mixed fallback-font row on its
+    ;; natural baseline instead of shifting Latin and non-Latin glyphs differently.
+    (when (and (> space 0) (equal own (hub/music-console--metrics face)))
+      (add-text-properties start (point)
+			   (list 'display `(raise ,(- (/ space (float (max 1 (+ (car own) (cdr own))))))))))))
+
+(defun hub/music-console--up-next-heading (next columns graphic)
+  "Attribute Spotify items in NEXT once, within the COLUMNS-wide GRAPHIC heading."
+  (let* ((track (seq-find #'hub/music-console--spotify-p next))
+	 (reserved (if track (if graphic (ceiling (/ 36.0 (frame-char-width (hub/music-console--frame)))) 10) 0)))
+    (hub/music-console--clip "UP NEXT" (max 1 (- columns reserved)) 'hub/music-console-muted)
+    (when track
+      (if (not graphic) (progn (insert " · ") (hub/music-console--brand track nil t))
+	(insert (propertize " " 'display '(space :width (12))))
+	(let ((start (point)) (url (hub/music-console--url track)))
+	  (insert-image (hub/music-console--logo) "Spotify")
+	  (make-text-button start (point) 'follow-link t 'face 'hub/music-console-control
+			    'keymap button-map 'hub/music-role 'source 'hub/music-url url
+			    'help-echo "Open track on Spotify"
+			    'action (lambda (_button) (browse-url url))))))))
+
+(defun hub/music-console--up-next-title (track number columns &optional metric)
+  "Insert TRACK's NUMBER and title in COLUMNS, fitting optional row METRIC."
+  (let ((start (point)))
+    (hub/music-console--clip (format "%d. %s" number (hub/emms-player--title track))
+			     columns 'hub/music-console-meta 'up-next-title
+			     (when (display-graphic-p (hub/music-console--frame))
+			       (* columns (frame-char-width (hub/music-console--frame)))))
+    (when metric (hub/music-console--bottom-align start metric 'hub/music-console-meta))))
+
+(defun hub/music-console--artist-source (track columns graphic &optional metric)
+  "Insert TRACK's quiet artist/source within COLUMNS.
+Use GRAPHIC pixel fitting and optional row METRIC."
+  (let* ((start (point))
+	 (reserved (+ 3 (length (hub/music-console--source track))))
+	 (pixels (and graphic (* (max 1 (- columns reserved))
+				 (frame-char-width (hub/music-console--frame))))))
     (hub/music-console--clip (hub/music-console--text track 'info-artist "Unknown artist")
-			     (max 1 (- columns reserved)) 'hub/music-console-muted)
+			     (max 1 (- columns reserved)) 'hub/music-console-detail 'up-next-artist pixels)
     (insert " · ")
-    (hub/music-console--brand track graphic)))
+    (hub/music-console--brand track nil t)
+    (when metric (hub/music-console--bottom-align start metric 'hub/music-console-detail))))
 
 (defun hub/music-console--up-next (snapshot columns &optional graphic)
   "Insert SNAPSHOT's successors as native text in COLUMNS, optionally GRAPHIC."
   (let* ((tracks (plist-get snapshot :tracks)) (index (or (plist-get snapshot :index) 0))
 	 (next (seq-take (nthcdr (1+ index) tracks) 2)))
-    (insert (propertize "UP NEXT\n" 'face 'hub/music-console-muted))
+    (hub/music-console--up-next-heading next columns graphic)
+    (insert "\n")
     (if (not next) (insert "End of queue\n")
       (cl-loop for track in next for number from (+ index 2) do
-	       (hub/music-console--clip (format "%d. %s" number (hub/emms-player--title track)) columns)
+	       (hub/music-console--up-next-title track number columns)
 	       (insert "\n")
 	       (hub/music-console--artist-source track columns graphic)
-	       (insert "\n")))
-    (hub/music-console--clip (format "Queue %s · %d tracks" (hub/music-console--total tracks) (length tracks)) columns)
-    (insert "\n")))
+	       (insert "\n")))))
+
+(defun hub/music-console--metadata (track text columns pixels)
+  "Insert TRACK's artist and album TEXT in COLUMNS, bounded by PIXELS."
+  (if (not track)
+      (hub/music-console--clip text columns 'hub/music-console-detail 'empty-hint pixels)
+    (let* ((start (point))
+	   (artist (hub/music-console--text track 'info-artist "Unknown artist")))
+      (hub/music-console--clip text columns 'hub/music-console-meta 'artist pixels)
+      (let ((album (+ start (length artist) 3)))
+	(when (< album (point))
+	  (add-text-properties (+ start (length artist)) (point) '(face hub/music-console-detail))
+	  (add-text-properties album (point) '(hub/music-role album)))))))
+
+(defun hub/music-console--track-context (track index count state columns pixels)
+  "Insert TRACK's position and connection notice within COLUMNS and PIXELS.
+INDEX and COUNT describe the queue; STATE describes playback, not audibility."
+  (let* ((position (format "Track %d of %d" (1+ index) count))
+	 (notice (when (hub/music-console--spotify-p track)
+		   (cond ((equal state "Waiting for audio") "Enable audio in Chrome")
+			 ((hub/music-audio-ready-p) nil)
+			 ((featurep 'apps/spotify-browser) "Reconnect Spotify audio"))))
+	 (start (point)))
+    (hub/music-console--clip (concat position (when notice (concat " · " notice)))
+			     columns (if notice 'warning 'hub/music-console-detail)
+			     'track-position pixels)
+    (when notice
+      (let ((warning-start (+ start (length position) 3)))
+	(add-text-properties start (min warning-start (point)) '(face hub/music-console-detail))
+	(when (< warning-start (point))
+	  (add-text-properties warning-start (point) '(hub/music-role connection-notice))
+	  (when (equal notice "Reconnect Spotify audio")
+	    (make-text-button warning-start (point) 'follow-link t 'face 'warning
+			      'help-echo "Prepare Chrome audio; playback starts only on Play"
+			      'action (lambda (_button) (call-interactively #'hub/spotify-browser-connect)))))))))
 
 (defun hub/music-console-render (snapshot)
   "Insert SNAPSHOT as a native, responsive Hi-Fi console without external work."
@@ -400,7 +494,8 @@ Ignore the newline's font height so small padding is not inflated to a text row.
 	 (metrics
 	  (list
 	   (hub/music-console--max-metrics
-	    (if (hub/music-console--spotify-p track) brand-metrics normal)
+	    (if (or (hub/music-console--spotify-p track)
+		    (and wide (seq-some #'hub/music-console--spotify-p next))) brand-metrics normal)
 	    (hub/music-console--metrics 'hub/music-console-meta state-label))
 	   (hub/music-console--max-metrics
 	    normal (hub/music-console--metrics 'hub/music-console-title current-title)
@@ -425,7 +520,7 @@ Ignore the newline's font height so small padding is not inflated to a text row.
 	 (meta-x (if art (+ left size 26) left))
 	 (queue-x (- width 360))
 	 (meta-width (max 100 (- (if wide (- queue-x 112) (- width 28)) meta-x))))
-    ;; Navigation is native text; unimplemented search is deliberately absent.
+    ;; Navigation is native text and delegates to the lazy music entry points.
     (let ((start (point)))
       (insert "MUSIC · Player   ")
       (hub/music-console--action "Liked Songs" #'hub/spotify-liked-songs)
@@ -451,37 +546,31 @@ Ignore the newline's font height so small padding is not inflated to a text row.
 		 (1 (hub/music-console--clip current-title
 					     (- columns 2)
 					     'hub/music-console-title 'title (and graphic meta-width)))
-		 (2 (hub/music-console--clip
-		     metadata
-		     (if graphic (floor (/ meta-width char-width)) columns) 'hub/music-console-muted))
+		 (2 (hub/music-console--metadata
+		     track metadata (if graphic (floor (/ meta-width char-width)) columns)
+		     (and graphic meta-width)))
 		 (3 (hub/music-console--bar elapsed duration meta-width graphic))
 		 (4 (hub/music-console--clip
 		     (format "%s / %s%s" (hub/emms-player--time elapsed) (hub/emms-player--time duration)
 			     (if (and track (not duration)) " (unknown)" "")) columns))
 		 (5 (when track
-		      (hub/music-console--clip
-		       (format "%s · %d / %d%s"
-			       (if (equal state "Stopped") "Selected" "Now playing")
-			       (1+ index) (length tracks)
-			       (if (not (hub/music-console--spotify-p track)) ""
-				 (concat " · " (cond ((hub/music-audio-ready-p) "Audio ready")
-						     ((equal state "Waiting for audio") "Enable audio in Chrome")
-						     ((featurep 'apps/spotify-browser) "Audio needs connection")
-						     (t "Audio not checked")))))
-		       columns 'hub/music-console-muted nil (and graphic meta-width)))))
+		      (hub/music-console--track-context track index (length tracks) state
+							columns (and graphic meta-width)))))
 	       (when wide
 		 (hub/music-console--at queue-x)
-		 (let* ((next-track (nth (if (< row 3) 0 1) next))
-			(text (pcase row
-				(0 "UP NEXT")
-				((or 1 3) (if next-track (format "%d. %s" (+ index (if (= row 1) 2 3))
-								 (hub/emms-player--title next-track))
-					    (if (= row 1) "End of queue" "")))
-				((or 2 4) "")
-				(5 (format "Queue %s · %d tracks" (hub/music-console--total tracks) (length tracks))))))
-		   (if (and (memq row '(2 4)) next-track)
-		       (hub/music-console--artist-source next-track (floor (/ 330 char-width)) graphic)
-		     (hub/music-console--clip text (floor (/ 330 char-width)) 'hub/music-console-muted))))
+		 (let ((next-track (nth (if (< row 3) 0 1) next))
+		       (queue-columns (floor (/ 330 char-width))))
+		   (pcase row
+		     (0 (hub/music-console--up-next-heading next queue-columns graphic))
+		     ((or 1 3)
+		      (if next-track
+			  (hub/music-console--up-next-title next-track (+ index (if (= row 1) 2 3))
+							    queue-columns metric)
+			(when (= row 1)
+			  (hub/music-console--clip "End of queue" queue-columns 'hub/music-console-muted))))
+		     ((or 2 4)
+		      (when next-track
+			(hub/music-console--artist-source next-track queue-columns graphic metric))))))
 	       (insert (propertize "\n" 'line-height t))))
     ;; Optional capture retains its existing explicit lifecycle. Render hooks do
     ;; not start it, and the off state must not resemble a live signal.
@@ -490,8 +579,9 @@ Ignore the newline's font height so small padding is not inflated to a text row.
       (run-hooks 'hub/emms-player-render-hook))
     (unless (hub/music--spectrum-on-p)
       (when graphic (hub/music-console--at meta-x))
-      (insert (propertize "System mix · Spectrum off · v enable\n" 'face 'hub/music-console-muted)))
-    (hub/music-console--controls columns state (plist-get snapshot :paused))
+      (insert (propertize "Spectrum off\n" 'face 'hub/music-console-detail
+			  'help-echo "No audio is captured while off; use the footer's spectrum action")))
+    (hub/music-console--controls columns state (plist-get snapshot :paused) tracks)
     (unless wide (hub/music-console--up-next snapshot columns graphic))))
 
 (provide 'apps/music-console)
