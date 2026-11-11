@@ -35,6 +35,30 @@ Feature: Music navigation at the speed of the editor
     Then Liked Songs opens or receives focus in the shared bottom slot
     And it behaves like the global "'ml" shortcut without changing playback or capture
 
+  @wireframe:music-cockpit-liked-songs.svg @wireframe:music-hifi-console-playing.svg
+  Scenario Outline: Keep controls and metadata below scrolling content
+    Given I am viewing <view> in the shared bottom panel
+    When I scroll its content or resize the panel
+    Then its key-reminder strip remains at the panel's bottom edge
+    And its optional metadata is readable without replacing the key hints
+    And metadata moves to its own footer line when space is limited
+    And rendering does not change selection, playback, authorization or capture
+    When I close the panel
+    Then both content and footer close without disturbing my document
+    Examples:
+      | view        |
+      | Player      |
+      | Liked Songs |
+
+  @wireframe:music-cockpit-liked-songs.svg
+  Scenario: Use the same music navigation in every music view
+    Given a music view has focus
+    Then "m" opens Player and "l" opens Liked Songs
+    And "+" opens the existing EMMS queue and "/" opens Search
+    And "?" opens Actions and "q" closes the panel
+    And Liked Songs uses "g+" to load more and "gr" to refresh
+    And minibuffer text is not intercepted by music navigation
+
   @wireframe:music-cockpit-search.svg @wireframe:music-cockpit-search-queue.svg
   Scenario: Search without playing the selection merely by moving over it
     When I press "'m/" and type a query
@@ -66,6 +90,26 @@ Feature: Music navigation at the speed of the editor
     And no different occurrence is played or appended
     And the existing playback is not stopped
 
+  @wireframe:music-cockpit-search.svg
+  Scenario: Search the retained library without fetching or needing a queue
+    Given some Liked Songs are loaded and the current queue is empty
+    When I search music
+    Then the loaded songs remain searchable with honest partial-library coverage
+    And no library page, authorization or playback preview is requested
+    When the loaded library is refreshed or closed before I accept a candidate
+    Then that obsolete candidate cannot append or play a track
+
+  @wireframe:music-cockpit-search.svg @wireframe:music-cockpit-liked-songs.svg
+  Scenario: Distinguish actual playback from a highlighted candidate
+    Given the same Spotify track occurs twice in the queue and is in Liked Songs
+    And only the second queue occurrence is playing
+    When I browse another candidate
+    Then only the second queue occurrence has the queue playback marker
+    And the matching library song has the same actual playback state
+    And pausing changes the markers without moving my browsing position
+    And seeking retains the underlying playing or paused marker
+    And stopping removes the markers without fetching or reopening the library
+
   @wireframe:music-cockpit-palette-access.svg
   Scenario: Discover music actions without remembering M-x commands
     When I press "'m?" or request help in the player
@@ -78,6 +122,6 @@ Feature: Music navigation at the speed of the editor
 
   @wireframe:music-cockpit-palette-access.svg
   Scenario: Open the existing editable queue rather than a shadow playlist
-    When I press "'mq"
+    When I press "'m+"
     Then the current EMMS queue receives focus
     And queue editing and ordering remain owned by EMMS

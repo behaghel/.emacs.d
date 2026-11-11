@@ -8,18 +8,19 @@
       <rect x="173" y="15" width="2" height="24" fill="#9fe0c2"/>
       <text x="770" y="32" font-size="14" fill="#9ba5ba">Queue 3 + Liked 50/1,482 · loaded only</text>
       <text x="28" y="76" font-size="14" fill="#9ba5ba" letter-spacing="1">QUEUE · 1 MATCH</text>
+      <text x="28" y="110" font-size="17" fill="#9fe0c2">▶</text>
       <text x="58" y="110" font-size="19" fill="#f3ece3">Low Light</text>
       <text x="440" y="110" font-size="17" fill="#c4c8d4">Quiet Geometry</text>
       <text x="840" y="110" font-size="15" fill="#9ba5ba">4:34 · existing occurrence #1</text>
-      <use href="components.svg#atom-music-spotify" x="28" y="142" width="17" height="17"/>
+      <use href="components.svg#atom-music-spotify" x="25" y="138" width="24" height="24"/>
       <text x="58" y="155" font-size="14" fill="#9ba5ba" letter-spacing="1">LIKED SONGS · 2 MATCHES / 50 LOADED ↗</text>
       <rect x="20" y="170" width="1240" height="38" rx="4" fill="#222b40"/>
-      <text x="28" y="196" font-size="21" fill="#f3ece3">›</text>
+      <text x="28" y="196" font-size="17" fill="#9fe0c2">▶</text>
       <g font-size="19" fill="#f3ece3"><text x="58" y="196">Low Light</text><text x="58" y="239">Low Light (live)</text></g>
       <g font-size="17" fill="#c4c8d4"><text x="440" y="196">Quiet Geometry</text><text x="440" y="239">Quiet Geometry</text></g>
       <g font-size="15" fill="#9ba5ba"><text x="840" y="196">4:34 · Still / Motion</text><text x="840" y="239">5:08 · At the Observatory</text></g>
       <text x="28" y="305" font-size="15" fill="#c4c8d4">RET Play   M-RET Enqueue liked song   C-g Back</text>
-      <text x="812" y="305" font-size="14" fill="#9ba5ba">Selection is not playback · no autoplay</text>
+      <text x="812" y="305" font-size="14" fill="#9ba5ba">Highlight selects · ▶ marks playback</text>
     </g>
   </g>
 </svg>

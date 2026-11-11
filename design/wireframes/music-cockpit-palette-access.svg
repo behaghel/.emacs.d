@@ -11,7 +11,7 @@
       <g font-size="18" fill="#f3ece3">
         <text x="28" y="126"><tspan fill="#9fe0c2">l</tspan>   Liked Songs</text>
         <text x="28" y="156"><tspan fill="#9fe0c2">Q</tspan>   Edit queue</text>
-        <text x="28" y="186"><tspan fill="#9fe0c2">/</tspan>   Search queue</text>
+        <text x="28" y="186"><tspan fill="#9fe0c2">/</tspan>   Search music</text>
         <text x="28" y="216"><tspan fill="#9fe0c2">m</tspan>   Focus player</text>
         <text x="460" y="126"><tspan fill="#9fe0c2">SPC</tspan> ⏸ Pause</text>
         <text x="460" y="156"><tspan fill="#9fe0c2">c</tspan>   −10s</text>
@@ -20,7 +20,7 @@
         <text x="460" y="246"><tspan fill="#9fe0c2">t</tspan>   Next</text>
         <text x="900" y="126"><tspan fill="#9fe0c2">v</tspan>   Spectrum off</text>
       </g>
-      <g font-size="14" fill="#9ba5ba"><text x="300" y="126">'ml</text><text x="300" y="156">'mq</text><text x="300" y="186">'m/</text><text x="300" y="216">'mm</text></g>
+      <g font-size="14" fill="#9ba5ba"><text x="300" y="126">'ml</text><text x="300" y="156">'m+</text><text x="300" y="186">'m/</text><text x="300" y="216">'mm</text></g>
       <g font-size="16" fill="#9ba5ba"><text x="900" y="156">b   ● Spotify audio ready</text><text x="900" y="186">L   ● Library authorized</text></g>
       <text x="28" y="305" font-size="15" fill="#c4c8d4">q / ESC Back to editor</text>
       <text x="600" y="305" font-size="14" fill="#9ba5ba">Same playback commands · capture remains opt-in</text>

@@ -581,7 +581,9 @@ INDEX and COUNT describe the queue; STATE describes playback, not audibility."
       (when graphic (hub/music-console--at meta-x))
       (insert (propertize "Spectrum off\n" 'face 'hub/music-console-detail
 			  'help-echo "No audio is captured while off; use the footer's spectrum action")))
-    (hub/music-console--controls columns state (plist-get snapshot :paused) tracks)
+    (unless (and (boundp 'context-panels-footer-spec)
+		 (plist-get context-panels-footer-spec :footer))
+      (hub/music-console--controls columns state (plist-get snapshot :paused) tracks))
     (unless wide (hub/music-console--up-next snapshot columns graphic))))
 
 (provide 'apps/music-console)

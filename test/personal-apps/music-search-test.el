@@ -14,54 +14,15 @@
 (require 'emms-playlist-mode)
 (autoload 'hub/music-search "apps/music-search" nil t)
 (defvar hub/music-search-test--player nil)
+(defvar hub/spotify-buffer-name)
+(defvar hub/music-search--operation)
+(dolist (package '("consult" "compat"))
+  (add-to-list 'load-path
+	       (expand-file-name package (or (getenv "STRAIGHT_BUILD_PATH")
+					     (expand-file-name "straight/build" default-directory)))))
 
-(defmacro hub/music-search-test--queue (&rest body)
-  "Run BODY with duplicate track objects in a real mixed EMMS playlist."
-  (declare (indent 0))
-  `(let* ((emms-playlist-buffer nil) (emms-playlist-buffers nil)
-	  (emms-track-initialize-functions nil) (emms-cache-get-function nil)
-	  (emms-cache-set-function nil) (emms-cache-modified-function nil)
-	  (emms-player-playing-p nil) (emms-player-paused-p nil)
-	  (emms-player-started-hook nil) (emms-player-stopped-hook nil)
-	  (emms-player-finished-hook nil) (emms-player-paused-hook nil)
-	  (playlist (emms-playlist-new " *music search queue*"))
-	  (document (generate-new-buffer " *music search document*"))
-	  (duplicate (emms-track 'url "spotify:track:4uLU6hMCjMI75M1A2tKUQC"))
-	  positions started (stopped 0)
-	  (hub/music-search-test--player
-	   (emms-player
-	    (lambda (track)
-	      (push (list track (with-current-buffer playlist
-				  (marker-position emms-playlist-selected-marker))) started)
-	      (emms-player-started 'hub/music-search-test--player))
-	    (lambda () (cl-incf stopped) (emms-player-stopped))
-	    (lambda (_) t)))
-	  (emms-player-list '(hub/music-search-test--player)))
-     (setq emms-playlist-buffer playlist)
-     (emms-track-set duplicate 'info-title "Low Light")
-     (emms-track-set duplicate 'info-artist "Quiet Geometry")
-     (emms-track-set duplicate 'info-album "Still / Motion")
-     (emms-track-set duplicate 'info-playing-time 274)
-     (unwind-protect
-	 (save-window-excursion
-	   (with-current-buffer playlist
-	     (dolist (track (list duplicate (emms-track 'file "/tmp/local.ogg") duplicate))
-	       (push (point) positions)
-	       (emms-playlist-insert-track track))
-	     (setq positions (nreverse positions))
-	     (emms-playlist-select (car positions)))
-	   (switch-to-buffer document)
-	   (insert "An unchanged writing buffer.") (goto-char 4)
-	   (cl-letf (((symbol-function 'auth-source-pass-get)
-		      (lambda (&rest _) (ert-fail "Search read credentials")))
-		     ((symbol-function 'url-retrieve)
-		      (lambda (&rest _) (ert-fail "Search fetched metadata")))
-		     ((symbol-function 'make-process)
-		      (lambda (&rest _) (ert-fail "Search started a process"))))
-	     ,@body))
-       (when emms-player-playing-p (emms-stop))
-       (dolist (buffer (list playlist document))
-	 (when (buffer-live-p buffer) (kill-buffer buffer))))))
+(require 'music-test-helpers
+	 (expand-file-name "music-test-helpers" (file-name-directory (or load-file-name buffer-file-name))))
 
 (ert-deftest hub/music-search-ret-plays-the-existing-duplicate-occurrence ()
   "Queue RET selects occurrence #3, not the first equal URI or a new queue item."
@@ -177,6 +138,7 @@
 (ert-deftest hub/music-search-input-map-keeps-spaces-as-text ()
   "The completion-local map accepts spaces without changing global completion keys."
   (require 'apps/music-search)
+  (should (eq (lookup-key hub/music-search-map (kbd "M-RET")) #'hub/music-search--enqueue))
   (let ((original (lookup-key minibuffer-local-must-match-map (kbd "SPC"))))
     (with-temp-buffer
       (use-local-map minibuffer-local-must-match-map)
@@ -184,6 +146,79 @@
       (should (eq (lookup-key (current-local-map) (kbd "SPC")) #'self-insert-command))
       (should-not (eq (current-local-map) minibuffer-local-must-match-map)))
     (should (equal original (lookup-key minibuffer-local-must-match-map (kbd "SPC"))))))
+
+(ert-deftest hub/music-search-loaded-library-works-without-a-queue ()
+  "Loaded-only coverage is honest; RET delegates the retained record to Play."
+  (hub/music-search-test--queue
+   (hub/music-search-test--library
+    (setq emms-playlist-buffer nil)
+    (cl-letf (((symbol-function 'completing-read)
+	       (lambda (prompt collection &rest _)
+		 (should (string-match-p "1/1482 loaded" prompt))
+		 (let ((candidates (all-completions "Retained" collection)))
+		   (should (= (length candidates) 1))
+		   (should (string-match-p "Liked #1" (car candidates)))
+		   (car candidates)))))
+      (hub/music-search))
+    (should (equal added (list (list raw t))))
+    (should (zerop stopped))
+    (should-not started)
+    (should (eq (current-buffer) document)))))
+
+(ert-deftest hub/music-search-enqueue-is-explicit-and-does-not-interrupt ()
+  "M-RET delegates append-only, preserving the playing queue and document."
+  (hub/music-search-test--queue
+   (hub/music-search-test--library
+    (emms-start)
+    (let ((before (with-current-buffer playlist (buffer-string))))
+      (cl-letf (((symbol-function 'completing-read)
+		 (lambda (_prompt collection &rest _)
+		   (setq hub/music-search--operation 'enqueue)
+		   (car (all-completions "Retained" collection)))))
+	(hub/music-search))
+      (should (equal added (list (list raw nil))))
+      (should (equal before (with-current-buffer playlist (buffer-string))))
+      (should (zerop stopped))
+      (should (= (length started) 1))))))
+
+(ert-deftest hub/music-search-stale-library-records-cannot-mutate-the-queue ()
+  "Refresh, removal, in-place mutation and closed buffers reject old actions."
+  (dolist (change '(refresh removal mutate killed))
+    (hub/music-search-test--queue
+     (hub/music-search-test--library
+      (emms-start)
+      (cl-letf (((symbol-function 'completing-read)
+		 (lambda (_prompt collection &rest _)
+		   (let ((choice (car (all-completions "Retained" collection))))
+		     (with-current-buffer library
+		       (pcase change
+			 ('refresh (cl-incf hub/spotify--generation))
+			 ('removal (setq hub/spotify--tracks nil))
+			 ('mutate (setcdr (assq 'uri raw) "spotify:track:0000000000000000000000"))
+			 ('killed (kill-buffer library))))
+		     choice))))
+	(should-error (hub/music-search) :type 'user-error))
+      (should-not added)
+      (should (zerop stopped))
+      (should (= (length started) 1))))))
+
+(ert-deftest hub/music-search-unavailable-library-actions-are-passive ()
+  "An unavailable record remains searchable but neither explicit action mutates."
+  (dolist (operation '(play enqueue))
+    (hub/music-search-test--queue
+     (hub/music-search-test--library
+      (push '(is_playable . :false) raw)
+      (with-current-buffer library (setq hub/spotify--tracks (list (cons 0 raw))))
+      (cl-letf (((symbol-function 'completing-read)
+		 (lambda (_prompt collection &rest _)
+		   (setq hub/music-search--operation operation)
+		   (let ((candidate (car (all-completions "Retained" collection))))
+		     (should (string-match-p "unavailable" candidate))
+		     candidate))))
+	(should-error (hub/music-search) :type 'user-error))
+      (should-not added)
+      (should-not started)
+      (should (zerop stopped))))))
 
 (provide 'music-search-test)
 ;;; music-search-test.el ends here

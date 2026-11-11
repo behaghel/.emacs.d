@@ -15,10 +15,14 @@
 (defvar evil-normal-state-map)
 (defvar hub/emms-player-mode-map)
 (defvar hub/spotify-library-mode-map)
+(defvar hub/spotify-buffer-name)
+(defvar hub/spotify--total)
+(defvar hub/spotify--tracks)
 (defvar emms-player-playing-p nil)
 (defvar emms-player-paused-p nil)
 (defvar emms-playlist-buffer nil)
 (defvar emms-playlist-mode-center-when-go)
+(defvar emms-playlist-mode-map)
 (defvar hub/spotify-auth--context nil)
 (defvar hub/emms-spectrum--process nil)
 (defvar hub/emms-player-buffer-name "*EMMS Player*")
@@ -37,7 +41,7 @@
 (declare-function hub/spotify-auth--session-expires-at "apps/spotify-auth" (context))
 
 (autoload 'hub/music-palette "apps/music-palette" "Show the native music action palette." t)
-(autoload 'hub/music-search "apps/music-search" "Search existing EMMS queue occurrences." t)
+(autoload 'hub/music-search "apps/music-search" "Search the queue and already loaded Liked Songs." t)
 (autoload 'hub/spotify-liked-songs "apps/spotify" nil t)
 (autoload 'hub/spotify-connect "apps/spotify-auth" nil t)
 (autoload 'hub/spotify-browser-connect "apps/spotify-browser" nil t)
@@ -52,8 +56,9 @@
 (defconst hub/music--bindings
   '(("'mm" hub/emms-player-open "Player")
     ("'ml" hub/spotify-liked-songs "Liked Songs")
-    ("'mq" hub/music-queue "Queue")
-    ("'m/" hub/music-search "Search queue")
+    ("'m+" hub/music-queue "Queue")
+    ("'mq" hub/music-queue "Queue (use 'm+)")
+    ("'m/" hub/music-search "Search music")
     ("'m?" hub/music-palette "Music actions")
     ("'m SPC" hub/emms-player-toggle "Play/pause")
     ("'mp" hub/emms-player-toggle "Play/pause")
@@ -71,12 +76,11 @@
 
 (defun hub/music--local-help ()
   "Install local navigation and palette access in loaded music views only."
-  (dolist (variable '(hub/emms-player-mode-map hub/spotify-library-mode-map))
+  (dolist (variable '(hub/emms-player-mode-map hub/spotify-library-mode-map emms-playlist-mode-map))
     (when (and (boundp variable) (keymapp (symbol-value variable)))
       (let ((map (symbol-value variable))
-	    (bindings (append '(("?" . hub/music-palette))
-			      (when (eq variable 'hub/emms-player-mode-map)
-				'(("l" . hub/spotify-liked-songs))))))
+	    (bindings '(("m" . hub/emms-player-open) ("l" . hub/spotify-liked-songs)
+			("+" . hub/music-queue) ("/" . hub/music-search) ("?" . hub/music-palette))))
 	(dolist (binding bindings)
 	  (define-key map (kbd (car binding)) (cdr binding))
 	  (when (featurep 'evil)
@@ -87,6 +91,7 @@
   (hub/music--local-help))
 (with-eval-after-load 'apps/emms-player (hub/music--local-help))
 (with-eval-after-load 'apps/spotify (hub/music--local-help))
+(with-eval-after-load 'emms-playlist-mode (hub/music--local-help))
 (with-eval-after-load 'which-key
   (which-key-add-key-based-replacements "' m" "Music")
   (dolist (binding hub/music--bindings)
@@ -127,6 +132,15 @@ Use an ASCII marker if the current font cannot display the icon."
 	(emms-player-playing-p (if emms-player-paused-p 'paused 'playing))
 	((hub/music--selected-p) 'stopped)
 	(t 'empty)))
+
+(defun hub/music-loaded-library-buffer ()
+  "Return an already loaded library buffer without loading or fetching anything."
+  (when (and (boundp 'hub/spotify-buffer-name) (stringp hub/spotify-buffer-name))
+    (when-let* ((buffer (get-buffer hub/spotify-buffer-name)))
+      (with-current-buffer buffer
+	(when (and (derived-mode-p 'hub/spotify-library-mode)
+		   (boundp 'hub/spotify--total) (numberp hub/spotify--total))
+	  buffer)))))
 
 (defun hub/music--playing-p ()
   "Return non-nil when a live EMMS player can accept seek controls."

@@ -16,7 +16,7 @@ or playlist authority.
 |---------|--------|
 | `'mm` | Open or focus the docked player |
 | `'ml` | Open or focus Spotify Liked Songs |
-| `'mq` | Open the current editable EMMS queue |
+| `'m+` | Open the current editable EMMS queue |
 | `'m/` | Search music |
 | `'m?` | Show the music action palette |
 
@@ -26,6 +26,25 @@ filter when its data remains valid. Opening a view never starts playback, change
 the queue or enables spectrum capture. Existing player and prefixed transport
 bindings retain their meanings. In the player, `l` opens or focuses Liked Songs
 with the same behavior as `'ml`; `?` opens the action palette.
+
+Music views use `m` for Player, `l` for Liked Songs, `+` for Queue, `/` for Search,
+`?` for Actions and `q` for Close. Liked Songs uses `g+` for Load more and `gr` for
+Refresh. Query typing remains ordinary minibuffer input.
+
+## Shared panel chrome
+
+Context-panel providers share native tabs and a fixed bottom footer. Tabs expose
+all available provider views, not just music. Switching views preserves their
+browsing state and never starts playback or capture. Painting the tabs does not
+initialize a provider, fetch data or authorize an account.
+
+The footer stays at the panel's bottom edge independently of content length,
+scrolling or sorting. Each provider supplies its relevant key hints and optional
+metadata. Music supplies whole-queue count/duration or loaded-library coverage;
+the framework owns the shared layout. Metadata is right-aligned when it fits and
+wraps onto another footer line otherwise. The footer retains the player's
+background-only surface, accent keys, neutral labels, theme-derived primary
+emphasis, 16-pixel outer separation and 8-pixel padding.
 
 ## Hi-Fi console
 
@@ -68,8 +87,29 @@ with the same behavior as `'ml`; `?` opens the action palette.
 - Narrow layouts remain usable without horizontal scrolling, reducing secondary
   content before hiding essential track, state and control information.
 
+## Shared music rows
+
+Queue occurrences and retained Liked Songs metadata project into read-only rows
+with title, artist, album, duration and provenance. Display labels are not action
+identity. Queue rows retain their exact playlist occurrence, including duplicate
+track objects; library rows retain their original loaded record and generation.
+A stale source is rejected before mutation. Formatting never constructs a playable
+track, accesses credentials or fetches metadata.
+
+Playing and paused markers describe transport state, not the highlighted browsing
+candidate. A queue marker identifies only the active occurrence; a library marker
+identifies the matching Spotify URI. Waiting for audio is distinct from playing.
+Seeking retains the underlying playing or paused marker. Stopped rows have no
+playing marker. Library status redraws preserve focus and browsing position and
+never authorize, fetch, reopen a view or start playback.
+
 ## Keyboard cockpit
 
+- Search combines the current queue and already loaded Liked Songs through native
+  source-grouped completion. It does not load library configuration or fetch a page
+  merely to discover candidates; an empty queue does not prevent searching a loaded
+  library. Unavailable library records remain identifiable and reject playback or
+  enqueue before any queue mutation.
 - Search states its source coverage and loaded portion. Moving among candidates or
   inspecting their metadata does not play or enqueue them. Cancelling restores the
   prior editing context without changing playback.

@@ -52,7 +52,7 @@
 	  (require 'apps/music)
 	  ,@(when (eq order 'before) '((require 'evil)))
 	  (dolist (binding '(("'ml" . hub/spotify-liked-songs) ("'mm" . hub/emms-player-open)
-			     ("'mq" . hub/music-queue) ("'m/" . hub/music-search) ("'m?" . hub/music-palette)
+			     ("'m+" . hub/music-queue) ("'m/" . hub/music-search) ("'m?" . hub/music-palette)
 			     ("'mc" . hub/emms-seek-backward-10) ("'mr" . hub/emms-seek-forward-30)))
 	    (unless (eq (lookup-key evil-normal-state-map (kbd (car binding))) (cdr binding))
 	      (error "Missing music binding: %s" (car binding))))
@@ -153,7 +153,7 @@
 	       (transient--show)
 	       (unless (string-match-p "Liked Songs" (with-current-buffer transient--buffer (buffer-string)))
 		 (error "Palette not rendered"))
-	       (unless (string-match-p "Search queue" (with-current-buffer transient--buffer (buffer-string)))
+	       (unless (string-match-p "Search music" (with-current-buffer transient--buffer (buffer-string)))
 		 (error "Search missing from palette"))
 	       (transient-quit-all)
 	       (dolist (feature '(emms apps/spotify apps/spotify-auth apps/emms-spectrum apps/music-search))
@@ -267,6 +267,31 @@
 	      (should (string-match-p (regexp-quote (substring-no-properties
 						     (hub/music-state-label (intern (downcase state))))) (buffer-string)))))
 	(hub/emms-player--cancel-timer)))))
+
+(ert-deftest hub/music-local-navigation-matches-prefix-and-preserves-query-input ()
+  "Every music view shares navigation; library paging does not consume Queue's +."
+  (require 'apps/emms-player)
+  (require 'apps/spotify)
+  (dolist (map (list hub/emms-player-mode-map hub/spotify-library-mode-map emms-playlist-mode-map))
+    (with-temp-buffer
+      (use-local-map map) (evil-local-mode 1) (evil-normal-state)
+      (dolist (binding '(("m" . hub/emms-player-open) ("l" . hub/spotify-liked-songs)
+			 ("+" . hub/music-queue) ("/" . hub/music-search) ("?" . hub/music-palette)))
+	(should (eq (key-binding (kbd (car binding))) (cdr binding))))))
+  (should (eq (lookup-key hub/spotify-library-mode-map (kbd "gr")) #'hub/spotify-refresh))
+  (should (eq (lookup-key hub/spotify-library-mode-map (kbd "g+")) #'hub/spotify-load-more)))
+
+(ert-deftest hub/music-library-footer-reports-loaded-metadata-without-fetching ()
+  "Library controls and optional metadata are passive provider data."
+  (require 'apps/music-footer)
+  (with-temp-buffer
+    (setq-local hub/spotify--tracks '((0 . ((name . "One")))) hub/spotify--total 1482)
+    (cl-letf (((symbol-function 'hub/spotify-refresh) (lambda () (ert-fail "Footer fetched data")))
+	      ((symbol-function 'auth-source-pass-get) (lambda (&rest _) (ert-fail "Footer read credentials"))))
+      (let ((footer (hub/music-library-footer nil nil)))
+	(should (equal (plist-get footer :metadata) "1 of 1482 loaded"))
+	(should (equal (mapcar (lambda (action) (plist-get action :key)) (plist-get footer :actions))
+		       '("RET" "a" "g+" "gr" "m" "+" "/" "?" "q")))))))
 
 (provide 'music-test)
 ;;; music-test.el ends here
