@@ -10,6 +10,8 @@
 (require 'cl-lib)
 (require 'context-panels)
 (require 'apps/spotify)
+(require 'music-test-helpers
+	 (expand-file-name "music-test-helpers" (file-name-directory (or load-file-name buffer-file-name))))
 
 (ert-deftest hub/spotify-pkce-matches-rfc-7636 ()
   "PKCE uses the RFC 7636 S256 challenge, without base64 padding."
@@ -54,7 +56,7 @@
 	    (should buffer-read-only)
 	    (should (string-match-p "First song" (buffer-string)))
 	    (should (string-match-p "3:00" (buffer-string)))
-	    (should (string-match-p "1 of 1" header-line-format))
+	    (should (string-match-p "1 of 1" (hub/music-test--view-text)))
 	    (kill-buffer (current-buffer))
 	    (switch-to-buffer source)
 	    (setq hub/spotify-auth--context nil)

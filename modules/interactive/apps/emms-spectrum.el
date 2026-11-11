@@ -148,7 +148,9 @@ Reject malformed, out-of-range, or excessively long partial frames."
       (overlay-put hub/emms-spectrum--overlay 'hub/music-width hub/emms-spectrum--render-width)
       (hub/emms-spectrum--draw))
     (when hub/emms-spectrum--render-indent (hub/music-console--at hub/emms-spectrum--render-indent))
-    (insert "System mix · Spectrum: system output · v stop\n"))
+    (insert (propertize "Spectrum · all computer audio\n"
+			'face 'hub/music-console-detail
+			'help-echo "All application and system audio output; never the microphone")))
    (hub/emms-spectrum--diagnostic
     (insert (propertize (concat "Spectrum: unavailable — " hub/emms-spectrum--diagnostic "\n\n")
 			'face 'warning)))))

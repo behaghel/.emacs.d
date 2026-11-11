@@ -3,27 +3,29 @@
   <use href="components.svg#template-music-workspace" width="1280" height="720"/>
   <g transform="translate(0 400)">
     <use href="components.svg#template-music-cockpit-panel" width="1280" height="320"/>
-    <path d="M276 39H426" stroke="#9fe0c2" stroke-width="2"/>
-    <use href="components.svg#atom-music-spotify" x="28" y="54" width="20" height="20"/>
+    <rect x="132" y="7" width="160" height="28" rx="4" fill="#222b40"/>
+    <text x="142" y="25" font-family="Ubuntu Mono, monospace" font-size="15" fill="#9fe0c2">Liked Songs</text>
+    <use href="components.svg#atom-music-spotify" x="26" y="52" width="24" height="24"/>
     <g font-family="Ubuntu Mono, monospace">
       <text x="59" y="70" font-size="16" fill="#f3ece3">LIKED SONGS ↗</text>
-      <text x="940" y="70" font-size="15" fill="#9ba5ba">50 of 1,482 loaded</text>
-      <g font-size="14" fill="#9ba5ba"><text x="56" y="105">TRACK</text><text x="440" y="105">ARTIST</text><text x="740" y="105">ALBUM</text><text x="1090" y="105">TIME</text></g>
+      <text x="1248" y="305" text-anchor="end" font-size="13" fill="#9ba5ba">50 of 1482 loaded</text>
+      <g font-size="14" fill="#9ba5ba"><text x="56" y="105">TRACK</text><text x="440" y="105">ARTIST</text><text x="740" y="105">ALBUM</text><text x="1090" y="105">TIME</text><text x="1170" y="105">SOURCE</text></g>
       <rect x="20" y="156" width="1240" height="38" rx="4" fill="#222b40"/>
       <g font-size="18" fill="#f3ece3">
-        <text x="56" y="142" fill="#9fe0c2">Low Light</text>
+        <text x="56" y="142">Low Light</text>
         <text x="56" y="181">The Long Way Home</text>
         <text x="56" y="220">Quiet Streets</text>
         <text x="56" y="259">Hold the Window</text>
       </g>
-      <g font-size="17" fill="#c4c8d4">
-        <text x="440" y="142">Quiet Geometry</text><text x="740" y="142">Still / Motion</text><text x="1090" y="142">4:34</text>
-        <text x="440" y="181">Northbound</text><text x="740" y="181">Distances</text><text x="1090" y="181">4:59</text>
-        <text x="440" y="220">City Weather</text><text x="740" y="220">After Hours</text><text x="1090" y="220">6:07</text>
-        <text x="440" y="259">The Small Hours</text><text x="740" y="259">Open Rooms</text><text x="1090" y="259">3:48</text>
+      <g font-size="18" fill="#c4c8d4">
+        <text x="440" y="142">Quiet Geometry</text><text x="740" y="142" font-size="15" fill="#9ba5ba">Still / Motion</text><text x="1090" y="142" font-size="15" fill="#9ba5ba">4:34</text>
+        <text x="440" y="181">Northbound</text><text x="740" y="181" font-size="15" fill="#9ba5ba">Distances</text><text x="1090" y="181" font-size="15" fill="#9ba5ba">4:59</text>
+        <text x="440" y="220">City Weather</text><text x="740" y="220" font-size="15" fill="#9ba5ba">After Hours</text><text x="1090" y="220" font-size="15" fill="#9ba5ba">6:07</text>
+        <text x="440" y="259">The Small Hours</text><text x="740" y="259" font-size="15" fill="#9ba5ba">Open Rooms</text><text x="1090" y="259" font-size="15" fill="#9ba5ba">3:48</text>
       </g>
-      <text x="28" y="142" font-size="16" fill="#9fe0c2">▶</text><text x="28" y="181" font-size="21" fill="#f3ece3">›</text>
-      <text x="750" y="305" font-size="15" fill="#c4c8d4">a Enqueue   RET Play   + More   q Close</text>
+      <text x="28" y="142" font-size="16" fill="#9fe0c2">▶</text>
+      <g font-size="15" fill="#9ba5ba"><text x="1170" y="142">Spotify ↗</text><text x="1170" y="181">Spotify ↗</text><text x="1170" y="220">Spotify ↗</text><text x="1170" y="259">Spotify ↗</text></g>
+      <text x="28" y="305" font-size="14" fill="#9ba5ba"><tspan fill="#aab6ff">RET</tspan> <tspan fill="#9fe0c2">Play</tspan>   <tspan fill="#aab6ff">a</tspan> Enqueue   <tspan fill="#aab6ff">g+</tspan> More   <tspan fill="#aab6ff">gr</tspan> Refresh   <tspan fill="#aab6ff">m</tspan> Player   <tspan fill="#aab6ff">+</tspan> Queue   <tspan fill="#aab6ff">/</tspan> Search   <tspan fill="#aab6ff">?</tspan> Actions   <tspan fill="#aab6ff">q</tspan> Close</text>
     </g>
   </g>
 </svg>

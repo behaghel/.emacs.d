@@ -15,10 +15,14 @@
 (defvar evil-normal-state-map)
 (defvar hub/emms-player-mode-map)
 (defvar hub/spotify-library-mode-map)
+(defvar hub/spotify-buffer-name)
+(defvar hub/spotify--total)
+(defvar hub/spotify--tracks)
 (defvar emms-player-playing-p nil)
 (defvar emms-player-paused-p nil)
 (defvar emms-playlist-buffer nil)
 (defvar emms-playlist-mode-center-when-go)
+(defvar emms-playlist-mode-map)
 (defvar hub/spotify-auth--context nil)
 (defvar hub/emms-spectrum--process nil)
 (defvar hub/emms-player-buffer-name "*EMMS Player*")
@@ -29,6 +33,12 @@
 (declare-function emms-playlist-new "emms" (&optional name))
 (declare-function emms-playlist-set-playlist-buffer "emms" (&optional buffer))
 (declare-function emms-playlist-mode-go "emms-playlist-mode" ())
+(declare-function emms-playlist-mode-bury-buffer "emms-playlist-mode" ())
+(declare-function hub/emms-player--source "apps/emms-player" ())
+(declare-function context-panels-register-provider "context-panels" (provider))
+(declare-function context-panels-adopt-bottom-view-buffer "context-panels" (buffer id &optional source select))
+(declare-function context-panels-mode "context-panels" (&optional arg))
+(declare-function context-panels-close-bottom-view "context-panels" ())
 (declare-function hub/spotify-browser-ready-p "apps/spotify-browser" ())
 (declare-function hub/spotify-browser-player-waiting-p "apps/spotify-browser-player" ())
 (declare-function hub/spotify-browser-player-seeking-p "apps/spotify-browser-player" ())
@@ -37,6 +47,7 @@
 (declare-function hub/spotify-auth--session-expires-at "apps/spotify-auth" (context))
 
 (autoload 'hub/music-palette "apps/music-palette" "Show the native music action palette." t)
+(autoload 'hub/music-search "apps/music-search" "Search the queue and already loaded Liked Songs." t)
 (autoload 'hub/spotify-liked-songs "apps/spotify" nil t)
 (autoload 'hub/spotify-connect "apps/spotify-auth" nil t)
 (autoload 'hub/spotify-browser-connect "apps/spotify-browser" nil t)
@@ -51,7 +62,9 @@
 (defconst hub/music--bindings
   '(("'mm" hub/emms-player-open "Player")
     ("'ml" hub/spotify-liked-songs "Liked Songs")
-    ("'mq" hub/music-queue "Queue")
+    ("'m+" hub/music-queue "Queue")
+    ("'mq" hub/music-queue "Queue (use 'm+)")
+    ("'m/" hub/music-search "Search music")
     ("'m?" hub/music-palette "Music actions")
     ("'m SPC" hub/emms-player-toggle "Play/pause")
     ("'mp" hub/emms-player-toggle "Play/pause")
@@ -69,12 +82,13 @@
 
 (defun hub/music--local-help ()
   "Install local navigation and palette access in loaded music views only."
-  (dolist (variable '(hub/emms-player-mode-map hub/spotify-library-mode-map))
+  (dolist (variable '(hub/emms-player-mode-map hub/spotify-library-mode-map emms-playlist-mode-map))
     (when (and (boundp variable) (keymapp (symbol-value variable)))
       (let ((map (symbol-value variable))
-	    (bindings (append '(("?" . hub/music-palette))
-			      (when (eq variable 'hub/emms-player-mode-map)
-				'(("l" . hub/spotify-liked-songs))))))
+	    (bindings '(("m" . hub/emms-player-open) ("l" . hub/spotify-liked-songs)
+			("+" . hub/music-queue) ("/" . hub/music-search) ("?" . hub/music-palette))))
+	(when (eq variable 'emms-playlist-mode-map)
+	  (push '("q" . hub/music-queue-close) bindings))
 	(dolist (binding bindings)
 	  (define-key map (kbd (car binding)) (cdr binding))
 	  (when (featurep 'evil)
@@ -85,6 +99,7 @@
   (hub/music--local-help))
 (with-eval-after-load 'apps/emms-player (hub/music--local-help))
 (with-eval-after-load 'apps/spotify (hub/music--local-help))
+(with-eval-after-load 'emms-playlist-mode (hub/music--local-help))
 (with-eval-after-load 'which-key
   (which-key-add-key-based-replacements "' m" "Music")
   (dolist (binding hub/music--bindings)
@@ -126,6 +141,15 @@ Use an ASCII marker if the current font cannot display the icon."
 	((hub/music--selected-p) 'stopped)
 	(t 'empty)))
 
+(defun hub/music-loaded-library-buffer ()
+  "Return an already loaded library buffer without loading or fetching anything."
+  (when (and (boundp 'hub/spotify-buffer-name) (stringp hub/spotify-buffer-name))
+    (when-let* ((buffer (get-buffer hub/spotify-buffer-name)))
+      (with-current-buffer buffer
+	(when (and (derived-mode-p 'hub/spotify-library-mode)
+		   (boundp 'hub/spotify--total) (numberp hub/spotify--total))
+	  buffer)))))
+
 (defun hub/music--playing-p ()
   "Return non-nil when a live EMMS player can accept seek controls."
   (and emms-player-playing-p (not (eq (hub/music-playback-state) 'connecting)) t))
@@ -155,6 +179,27 @@ Use an ASCII marker if the current font cannot display the icon."
       (and (display-graphic-p) (image-type-available-p 'svg)
 	   (get-buffer-window hub/emms-player-buffer-name (selected-frame)))))
 
+(defun hub/music--queue-views (_source)
+  "Offer the existing EMMS queue without creating, copying or rendering it."
+  (when (buffer-live-p emms-playlist-buffer)
+    (list (list :id 'queue :label "Queue" :docked t :buffer emms-playlist-buffer
+		:footer #'hub/music-queue-footer))))
+
+(defun hub/music--register-queue-view (source)
+  "Register the actual queue for SOURCE only when native tab adoption is supported."
+  (when (fboundp 'context-panels-tabs-format)
+    (with-current-buffer source
+      (context-panels-register-provider
+       (list :name 'emms-queue :icon "♫" :collect-bottom-views #'hub/music--queue-views)))))
+
+(defun hub/music-queue-close ()
+  "Close a managed queue panel, or retain the ordinary EMMS bury behavior."
+  (interactive)
+  (if (and (window-parameter (selected-window) 'context-panels-protected)
+	   (fboundp 'context-panels-close-bottom-view))
+      (context-panels-close-bottom-view)
+    (emms-playlist-mode-bury-buffer)))
+
 ;;;###autoload
 (defun hub/music-queue ()
   "Focus the current editable EMMS playlist without playing or clearing tracks."
@@ -162,8 +207,18 @@ Use an ASCII marker if the current font cannot display the icon."
   (require 'emms-playlist-mode)
   (unless (buffer-live-p emms-playlist-buffer)
     (emms-playlist-set-playlist-buffer (emms-playlist-new)))
-  (let ((emms-playlist-mode-center-when-go nil))
-    (emms-playlist-mode-go)))
+  (require 'context-panels)
+  (if (and (fboundp 'context-panels-tabs-format)
+	   (not (and (eq (current-buffer) emms-playlist-buffer)
+		     (not (window-parameter (selected-window) 'context-panels-protected)))))
+      (progn
+	(require 'apps/emms-player)
+	(let ((source (hub/emms-player--source)))
+	  (hub/music--register-queue-view source)
+	  (with-current-buffer source (context-panels-mode 1))
+	  (context-panels-adopt-bottom-view-buffer emms-playlist-buffer '(emms-queue . queue) source t)))
+    (let ((emms-playlist-mode-center-when-go nil))
+      (emms-playlist-mode-go))))
 
 (provide 'apps/music)
 ;;; music.el ends here

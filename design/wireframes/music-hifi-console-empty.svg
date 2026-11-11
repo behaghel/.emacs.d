@@ -12,10 +12,11 @@
     <rect x="198" y="166" width="206" height="34" rx="5" fill="#222b40"/>
     <g font-family="Ubuntu Mono, monospace" font-size="16" fill="#9fe0c2">
       <text x="212" y="188" data-action="liked-songs">'ml  Liked Songs</text>
-      <text x="438" y="188" data-action="queue">'mq  Open queue</text>
+      <text x="438" y="188" data-action="queue">'m+  Open queue</text>
     </g>
     <use href="components.svg#molecule-music-spectrum-off" x="198" y="210" width="610" height="40"/>
-    <g font-family="Ubuntu Mono, monospace" fill="#9ba5ba"><text x="920" y="78" font-size="14">UP NEXT</text><text x="920" y="125" font-size="18">No queued tracks</text><text x="920" y="154" font-size="15">0 tracks · — / —</text></g>
+    <g font-family="Ubuntu Mono, monospace" fill="#9ba5ba"><text x="920" y="78" font-size="14">UP NEXT</text><text x="920" y="125" font-size="18">No queued tracks</text></g>
     <text x="41" y="303" font-family="Ubuntu Mono, monospace" font-size="16" fill="#aab6ff">SPC<tspan fill="#9ba5ba">  Play</tspan></text>
+    <text x="1252" y="303" text-anchor="end" font-family="Ubuntu Mono, monospace" font-size="13" fill="#9ba5ba">0 tracks · 0:00</text>
   </g>
 </svg>

@@ -18,7 +18,7 @@
         <text x="460" y="202"><tspan fill="#9fe0c2">s</tspan> Prev   <tspan fill="#9fe0c2">t</tspan> Next</text>
         <text x="900" y="126"><tspan fill="#9fe0c2">v</tspan>   Spectrum off</text>
       </g>
-      <g font-size="14" fill="#9ba5ba"><text x="300" y="126">'ml</text><text x="300" y="164">'m/</text><text x="300" y="202">'mq</text><text x="300" y="240">'mm</text></g>
+      <g font-size="14" fill="#9ba5ba"><text x="300" y="126">'ml</text><text x="300" y="164">'m/</text><text x="300" y="202">'m+</text><text x="300" y="240">'mm</text></g>
       <g font-size="16" fill="#9ba5ba"><text x="900" y="164">b   Connect audio · ready</text><text x="900" y="202">L   Authorize library · connected</text></g>
       <text x="28" y="305" font-size="15" fill="#c4c8d4">q / ESC Back to editor</text>
       <text x="600" y="305" font-size="14" fill="#9ba5ba">Same playback commands · no new queue · capture remains opt-in</text>

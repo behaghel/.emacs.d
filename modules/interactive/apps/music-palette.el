@@ -85,6 +85,9 @@
 (transient-define-suffix hub/music-palette--liked ()
 			 "Open the existing Liked Songs view."
 			 (interactive) (call-interactively #'hub/spotify-liked-songs))
+(transient-define-suffix hub/music-palette--search ()
+			 "Search the queue and loaded Liked Songs without playback preview."
+			 (interactive) (call-interactively #'hub/music-search))
 (transient-define-suffix hub/music-palette--player ()
 			 "Focus the existing docked player."
 			 (interactive) (call-interactively #'hub/emms-player-open))
@@ -120,7 +123,8 @@
 			 [:description hub/music-palette--heading
 				       ["GO TO"
 					("l" "Liked Songs  'ml" hub/music-palette--liked)
-					("Q" "Edit queue   'mq" hub/music-queue)
+					("+" "Edit queue   'm+" hub/music-queue)
+					("/" "Search music 'm/" hub/music-palette--search)
 					("m" "Focus player 'mm" hub/music-palette--player)]
 				       ["TRANSPORT"
 					("SPC" hub/music-palette--toggle :description hub/music-palette--toggle-description

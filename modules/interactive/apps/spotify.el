@@ -9,6 +9,8 @@
 
 (require 'hub-utils)
 (require 'apps/spotify-auth)
+(require 'apps/music-row)
+(require 'apps/music-footer)
 (require 'tabulated-list)
 (require 'cl-lib)
 (require 'subr-x)
@@ -34,6 +36,9 @@
   "Number of rows fetched so far.")
 (defvar-local hub/spotify--retry-at 0
   "Earliest allowed retry after Spotify rate limiting.")
+(defvar-local hub/spotify--playback-key nil
+  "Last rendered transport state; this cache never owns playback.")
+
 (defvar-local hub/spotify--source nil
   "Editing source of this library view.")
 
@@ -43,30 +48,52 @@
 (declare-function context-panels-adopt-bottom-view-buffer
 		  "context-panels" (buffer view-id &optional source-buffer select))
 (declare-function context-panels-close-bottom-view "context-panels" ())
+(declare-function context-panels-footer-update "context-panels-footer" (&optional buffer))
 (declare-function hub/emms-player--source "apps/emms-player" ())
-
-(defun hub/spotify--text (value fallback)
-  "Return VALUE as safe single-line text, or FALLBACK."
-  (if (and (stringp value) (not (string-empty-p value)))
-      (replace-regexp-in-string "[[:cntrl:]]" " " value) fallback))
+(declare-function hub/emms-player--register-view "apps/emms-player" (source))
 
 (defun hub/spotify--row (item index)
   "Convert saved ITEM into an inert table row identified by INDEX."
-  (let* ((track (alist-get 'track item))
-	 (duration (alist-get 'duration_ms track))
-	 (artists (mapconcat (lambda (artist) (hub/spotify--text (alist-get 'name artist) "Unknown artist"))
-			     (alist-get 'artists track) ", ")))
-    (list index
-	  (vector (hub/spotify--text (alist-get 'name track) "Unavailable track")
-		  (if (string-empty-p artists) "Unknown artist" artists)
-		  (hub/spotify--text (alist-get 'name (alist-get 'album track)) "Unknown album")
-		  (if (and (numberp duration) (> duration 0))
-		      (format "%d:%02d" (/ (floor duration) 60000) (% (/ (floor duration) 1000) 60))
-		    "--:--")))))
+  (list index (hub/music-row-cells (hub/music-row-from-liked (alist-get 'track item) index))))
+
+(defun hub/spotify--setup-rows ()
+  "Apply the shared layout and passive observers without resetting library data."
+  (dolist (hook '(emms-player-started-hook emms-player-paused-hook emms-player-stopped-hook
+					   emms-player-finished-hook hub/spotify-browser-player-status-hook))
+    (add-hook hook #'hub/spotify--refresh-playback))
+  (when (and (boundp 'context-panels-footer-spec) (plist-get context-panels-footer-spec :footer)
+	     (stringp header-line-format)
+	     (or (equal header-line-format "Liked Songs")
+		 (string-match-p "\\`Liked Songs — [0-9]+ of [0-9]+ loaded" header-line-format)))
+    (setq header-line-format (unless (fboundp 'context-panels-tabs-format) "Liked Songs")))
+  (unless (equal (mapcar #'car tabulated-list-format) (mapcar #'car hub/music-row-columns))
+    (setq-local tabulated-list-format (copy-tree hub/music-row-columns t))
+    (when hub/spotify--tracks
+      (setq tabulated-list-entries
+	    (mapcar (lambda (entry) (hub/spotify--row `((track . ,(cdr entry))) (car entry)))
+		    hub/spotify--tracks)))
+    (tabulated-list-init-header)))
+
+(defun hub/spotify--refresh-playback ()
+  "Redraw retained playback markers only when state changes, without fetching."
+  (when-let* ((buffer (hub/music-loaded-library-buffer)))
+    (with-current-buffer buffer
+      (hub/spotify--setup-rows)
+      (let* ((track (hub/music--selected-p))
+	     (key (list emms-player-playing-p emms-player-paused-p (hub/music-playback-state)
+			(when track (emms-track-name track)))))
+	(unless (equal key hub/spotify--playback-key)
+	  (setq hub/spotify--playback-key key
+		tabulated-list-entries
+		(mapcar (lambda (entry) (hub/spotify--row `((track . ,(cdr entry))) (car entry)))
+			hub/spotify--tracks))
+	  (when hub/spotify--tracks (tabulated-list-print t)))))))
 
 (defun hub/spotify--render ()
   "Render loaded rows without selecting a window."
+  (hub/spotify--setup-rows)
   (tabulated-list-print t)
+  (when (fboundp 'context-panels-footer-update) (context-panels-footer-update (current-buffer)))
   (unless tabulated-list-entries
     (let ((inhibit-read-only t))
       (goto-char (point-max))
@@ -100,9 +127,12 @@
 		hub/spotify--offset (+ offset (length items))
 		hub/spotify--total (alist-get 'total json)
 		header-line-format
-		(format "Liked Songs — %d of %d loaded · a enqueue · RET play · %sgr refresh · q close"
-			hub/spotify--offset hub/spotify--total
-			(if (< hub/spotify--offset hub/spotify--total) "+ more · " ""))))
+		(if (and (boundp 'context-panels-footer-spec)
+			 (plist-get context-panels-footer-spec :footer))
+		    (unless (fboundp 'context-panels-tabs-format) "Liked Songs")
+		  (format "Liked Songs — %d of %d loaded · a enqueue · RET play · %sgr refresh · q close"
+			  hub/spotify--offset hub/spotify--total
+			  (if (< hub/spotify--offset hub/spotify--total) "g+ more · " "")))))
       (error (setq header-line-format "Liked Songs — Invalid response; gr to retry · q close")))))
   (hub/spotify--render))
 
@@ -167,21 +197,21 @@
 
 (define-derived-mode hub/spotify-library-mode tabulated-list-mode "Spotify Library"
   "Read-only library with explicit loading and no playback side effects."
-  (setq-local tabulated-list-format [("Title" 32 t) ("Artist" 24 t) ("Album" 24 t) ("Time" 7 nil)]
-	      tabulated-list-use-header-line nil
-	      truncate-lines t)
-  (tabulated-list-init-header))
+  (setq-local tabulated-list-use-header-line nil truncate-lines t)
+  (hub/spotify--setup-rows))
 
 (define-key hub/spotify-library-mode-map (kbd "a") #'hub/spotify-add-selected)
 (define-key hub/spotify-library-mode-map (kbd "RET") #'hub/spotify-play-selected)
-(define-key hub/spotify-library-mode-map (kbd "g") #'hub/spotify-refresh)
+(define-key hub/spotify-library-mode-map (kbd "g") (make-sparse-keymap))
+(define-key hub/spotify-library-mode-map (kbd "gr") #'hub/spotify-refresh)
+(define-key hub/spotify-library-mode-map (kbd "g+") #'hub/spotify-load-more)
 (define-key hub/spotify-library-mode-map (kbd "q") #'hub/spotify-close)
-(define-key hub/spotify-library-mode-map (kbd "+") #'hub/spotify-load-more)
+(define-key hub/spotify-library-mode-map (kbd "+") #'hub/music-queue)
 (with-eval-after-load 'evil
   (evil-define-key 'normal hub/spotify-library-mode-map
 		   (kbd "a") #'hub/spotify-add-selected
 		   (kbd "RET") #'hub/spotify-play-selected
-		   (kbd "+") #'hub/spotify-load-more
+		   (kbd "g+") #'hub/spotify-load-more
 		   (kbd "gr") #'hub/spotify-refresh
 		   (kbd "q") #'hub/spotify-close))
 
@@ -190,7 +220,8 @@
   (when-let* ((buffer (get-buffer hub/spotify-buffer-name)))
     (when (eq source (buffer-local-value 'hub/spotify--source buffer))
       (list (list :id 'spotify-library :label "Liked Songs"
-		  :buffer-name hub/spotify-buffer-name :mode #'hub/spotify-library-mode)))))
+		  :buffer-name hub/spotify-buffer-name :mode #'hub/spotify-library-mode
+		  :footer #'hub/music-library-footer)))))
 
 ;;;###autoload
 (defun hub/spotify-liked-songs ()
@@ -204,10 +235,13 @@
       (unless (derived-mode-p 'hub/spotify-library-mode) (hub/spotify-library-mode))
       (setq hub/spotify--source source))
     (with-current-buffer source
+      (hub/emms-player--register-view source)
       (context-panels-register-provider
        (list :name 'spotify-library :icon "music" :collect-bottom-views #'hub/spotify--views)))
-    (context-panels-mode 1)
+    (hub/music--register-queue-view source)
+    (with-current-buffer source (context-panels-mode 1))
     (context-panels-adopt-bottom-view-buffer buffer 'spotify-library source t)
+    (with-current-buffer buffer (hub/spotify--setup-rows))
     (unless (or hub/spotify--busy
 		(and hub/spotify--total
 		     (or (zerop hub/spotify--total) hub/spotify--tracks)))

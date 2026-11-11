@@ -51,6 +51,23 @@ status: draft
 The [music presentation and access contract](music-ui.md) governs the native Hi-Fi
 console, keyboard cockpit and consistent music entry points.
 
+- `'m/` and the palette's `/` search the current EMMS queue and already loaded Liked
+  Songs through source-grouped native completion. Candidates expose title, artist,
+  album, duration, provenance and actual playback state; the prompt states the
+  retained library's loaded portion. Search never fetches or authorizes a library.
+  Browsing and cancellation do not alter playback, focus, queue selection or capture consent.
+- Liked Songs and search share read-only row metadata. The library table separates
+  playback state from title sorting and browsing selection, with smaller secondary
+  details and per-track Spotify service links. Playback-only redraws reuse retained
+  records without moving focus or reopening the library.
+- On a library search result, `RET` appends and plays; `M-RET` appends without
+  interruption. Unavailable, refreshed, removed or closed-library records cannot
+  mutate playback or the queue.
+- `RET` plays the selected existing occurrence without appending or rebuilding the
+  queue, including when the same track occurs more than once. Queue changes during
+  completion or a Stop acknowledgement reject obsolete candidates with an actionable
+  retry message rather than choosing a different occurrence.
+
 ### Artwork loading
 
 - Covers use retained Spotify album image locations, metadata already present in

@@ -27,6 +27,9 @@ Feature: A native Hi-Fi console that belongs in the editor
     Then the shared bottom player receives focus without replacing my document
     And I see clear track identity, source, progress, queue duration and upcoming tracks
     And the artwork, controls and system-mix spectrum share a coherent visual hierarchy
+    And upcoming entries have clear title and artist rows with quiet, service-linked attribution
+    And the smaller queue count and duration share the transport footer without crowding its controls
+    And normal connection readiness adds no badge or redundant keyboard hint
     And rendering does not move document point or change the playlist
 
   @wireframe:music-hifi-console-paused.svg @wireframe:music-hifi-console-seeking.svg

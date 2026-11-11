@@ -9,6 +9,7 @@
 
 (require 'hub-utils)
 (require 'apps/music)
+(require 'apps/music-footer)
 (require 'cl-lib)
 (require 'subr-x)
 (require 'seq)
@@ -88,6 +89,7 @@
 (declare-function context-panels-open-bottom-view "context-panels" (id &optional source select))
 (declare-function context-panels-open-docked-view "context-panels" (buffer &optional select))
 (declare-function context-panels-close-bottom-view "context-panels" ())
+(declare-function context-panels-footer-update "context-panels-footer" (&optional buffer))
 (declare-function emms-play-file "emms-source-file" (file))
 (declare-function emms-seek "emms" (duration))
 (declare-function hub/music-console-render "apps/music-console" (snapshot))
@@ -161,6 +163,7 @@
   (let ((snapshot (hub/emms-player--snapshot)))
     (hub/music-console-prepare-artwork snapshot)
     (hub/music-console-render snapshot))
+  (when (fboundp 'context-panels-footer-update) (context-panels-footer-update (current-buffer)))
   (setq-local mode-name "Music")
   (unless (timerp hub/emms-player--timer)
     (setq hub/emms-player--timer (run-at-time 1 1 #'hub/emms-player--refresh))))
@@ -207,6 +210,19 @@
     (unless window (user-error "The EMMS player needs an ordinary editing window"))
     (window-buffer window)))
 
+(defun hub/emms-player--register-view (source)
+  "Offer the player for SOURCE without opening it or initializing playback."
+  (with-current-buffer source
+    (context-panels-register-provider
+     (list :name 'emms :icon "♫" :collect-bottom-views
+	   (lambda (_source)
+	     (list (list :id 'player :label "Player" :docked t
+			 :height (if (display-graphic-p)
+				     (max 11 (ceiling (/ 320.0 (frame-char-height)))) 11)
+			 :buffer-name hub/emms-player-buffer-name
+			 :mode #'hub/emms-player-mode :footer #'hub/music-player-footer
+			 :render #'hub/emms-player--render)))))))
+
 (defun hub/emms-player-open ()
   "Open and focus the docked music player without starting playback."
   (interactive)
@@ -216,15 +232,8 @@
   (require 'emms)
   (let ((source (hub/emms-player--source)))
     (with-current-buffer source
-      (context-panels-register-provider
-       (list :name 'emms :icon "♫"
-	     :collect-bottom-views
-	     (lambda (_source)
-	       (list (list :id 'player :label "Player" :docked t :height (if (display-graphic-p)
-									     (max 11 (ceiling (/ 320.0 (frame-char-height)))) 11)
-			   :buffer-name hub/emms-player-buffer-name
-			   :mode #'hub/emms-player-mode
-			   :render #'hub/emms-player--render)))))
+      (hub/emms-player--register-view source)
+      (hub/music--register-queue-view source)
       (context-panels-mode 1))
     (context-panels-open-bottom-view '(emms . player) source t)
     ;; The initial panel render precedes window creation. Prepare covers only
