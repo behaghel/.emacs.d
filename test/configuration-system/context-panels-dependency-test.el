@@ -159,5 +159,22 @@ SOURCE is `managed', `development', or `invalid'."
     (should-not (zerop status))
     (should (string-match-p "CONTEXT_PANELS_PATH" output))))
 
+(ert-deftest hub/context-dependency-ci-cache-never-restores-tracked-source ()
+  "Cache archives cannot overwrite a committed pin or reuse another lockfile."
+  (let* ((default-directory hub/context-dependency-test--root)
+	 (workflow (with-temp-buffer
+		     (insert-file-contents ".github/workflows/emacs.yml") (buffer-string)))
+	 (pattern (concat "^[[:blank:]]+" (regexp-quote "${{ github.workspace }}/") "\\([^\n]+\\)$"))
+	 (offset 0) (paths 0))
+    (while (string-match pattern workflow offset)
+      (let ((path (match-string 1 workflow)))
+	(setq offset (match-end 0))
+	(cl-incf paths)
+	(with-temp-buffer
+	  (should (zerop (process-file "git" nil (current-buffer) nil "ls-files" "--" path)))
+	  (should (string-empty-p (buffer-string))))))
+    (should (> paths 0))
+    (should-not (string-match-p "^[[:blank:]]+restore-keys:" workflow))))
+
 (provide 'context-panels-dependency-test)
 ;;; context-panels-dependency-test.el ends here
