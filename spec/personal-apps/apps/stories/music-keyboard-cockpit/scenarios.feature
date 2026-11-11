@@ -50,6 +50,19 @@ Feature: Music navigation at the speed of the editor
       | Player      |
       | Liked Songs |
 
+  @wireframe:music-cockpit-liked-songs.svg @wireframe:music-hifi-console-playing.svg
+  Scenario: Switch all available providers through one native bar
+    Given music and non-music providers offer bottom views for my document
+    When I open a bottom view
+    Then the native bar lists all available provider views with a clear selected tab
+    And drawing it does not initialize, fetch, play or enable capture
+    When I press "C-Tab" or "C-S-Tab"
+    Then the next or previous provider view receives focus
+    And returning to a view preserves its browsing position and scrolling
+    When I press "C-c v" and cancel the named chooser
+    Then the current view, focus, queue and playback remain unchanged
+    And an ordinary copy of the same buffer retains its own navigation bindings
+
   @wireframe:music-cockpit-liked-songs.svg
   Scenario: Use the same music navigation in every music view
     Given a music view has focus

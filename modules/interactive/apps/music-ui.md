@@ -34,7 +34,11 @@ Refresh. Query typing remains ordinary minibuffer input.
 ## Shared panel chrome
 
 Context-panel providers share native tabs and a fixed bottom footer. Tabs expose
-all available provider views, not just music. Switching views preserves their
+all available provider views, not just music. `C-Tab` and `C-S-Tab` move to the
+next and previous view; `C-c v` chooses a view by name through native completion.
+These bindings are scoped to managed panel windows and do not replace bindings
+in ordinary copies of adopted buffers. The Queue tab adopts the actual editable
+EMMS playlist without clearing, copying, reordering or selecting a track. Switching views preserves their
 browsing state and never starts playback or capture. Painting the tabs does not
 initialize a provider, fetch data or authorize an account.
 

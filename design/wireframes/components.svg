@@ -85,15 +85,17 @@
     <symbol id="molecule-music-spectrum" viewBox="0 0 610 32">
       <path fill="#9fe0c2" d="M0 28h7v4H0z M15 24h7v8h-7z M30 20h7v12h-7z M45 14h7v18h-7z M60 9h7v23h-7z M75 3h7v29h-7z M90 8h7v24h-7z M105 16h7v16h-7z M120 20h7v12h-7z M135 17h7v15h-7z M150 11h7v21h-7z M165 6h7v26h-7z M180 0h7v32h-7z M195 4h7v28h-7z M210 11h7v21h-7z M225 16h7v16h-7z M240 19h7v13h-7z M255 22h7v10h-7z M270 18h7v14h-7z M285 10h7v22h-7z M300 4h7v28h-7z M315 8h7v24h-7z M330 14h7v18h-7z M345 20h7v12h-7z M360 23h7v9h-7z M375 18h7v14h-7z M390 13h7v19h-7z M405 9h7v23h-7z M420 15h7v17h-7z M435 21h7v11h-7z M450 23h7v9h-7z M465 25h7v7h-7z M480 21h7v11h-7z M495 18h7v14h-7z M510 23h7v9h-7z M525 26h7v6h-7z M540 28h7v4h-7z M555 27h7v5h-7z M570 29h7v3h-7z M585 30h7v2h-7z M600 29h7v3h-7z"/>
     </symbol>
-    <symbol id="molecule-music-navigation" viewBox="0 0 1280 40">
+    <symbol id="molecule-context-panel-tabs" viewBox="0 0 1280 40">
       <rect width="1280" height="40" fill="#171c2c"/>
-      <path d="M0 39.5H1280" stroke="#2c354c"/>
       <g font-family="Ubuntu Mono, monospace" font-size="15" fill="#9ba5ba">
-        <text x="28" y="25" fill="#f3ece3" letter-spacing="2">MUSIC</text>
-        <text x="150" y="25">Player</text><text x="276" y="25">Liked Songs  'ml</text>
-        <text x="510" y="25">Queue  'mq</text><text x="1010" y="25">'m/ Search</text>
-        <text x="1160" y="25">? Actions</text>
+        <text x="28" y="25">Player</text><text x="142" y="25">Liked Songs</text>
+        <text x="326" y="25">Queue</text><text x="442" y="25">Comments</text>
+        <text x="600" y="25">Sync</text>
+        <text x="1040" y="25" font-size="13">Views · C-c v</text>
       </g>
+    </symbol>
+    <symbol id="molecule-music-navigation" viewBox="0 0 1280 40">
+      <use href="#molecule-context-panel-tabs" width="1280" height="40"/>
     </symbol>
     <symbol id="atom-music-transport-button" viewBox="0 0 152 27">
       <rect width="152" height="27" rx="5" fill="#222b40"/>
@@ -147,7 +149,8 @@
     <symbol id="template-music-console" viewBox="0 0 1280 320">
       <rect width="1280" height="320" fill="#0d0e1c"/>
       <use href="#molecule-music-navigation" width="1280" height="40"/>
-      <path d="M150 39H206" stroke="#9fe0c2" stroke-width="2"/>
+      <rect x="20" y="7" width="96" height="28" rx="4" fill="#222b40"/>
+      <text x="28" y="25" font-family="Ubuntu Mono, monospace" font-size="15" fill="#9fe0c2">Player</text>
       <path d="M875 64V244" stroke="#2c354c"/>
       <!-- 16px outside gap and 8px inner padding. Pages supply the small right-hand queue summary. -->
       <use href="#molecule-music-controls" y="277" width="1280" height="43"/>

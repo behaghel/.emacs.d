@@ -293,5 +293,20 @@
 	(should (equal (mapcar (lambda (action) (plist-get action :key)) (plist-get footer :actions))
 		       '("RET" "a" "g+" "gr" "m" "+" "/" "?" "q")))))))
 
+(ert-deftest hub/music-queue-provider-projects-the-live-playlist-without-rendering-it ()
+  "The queue tab refers to EMMS's actual buffer, never a rendered copy."
+  (let ((emms-playlist-buffer nil) (emms-playlist-buffers nil)
+	(emms-track-initialize-functions nil) playlist)
+    (unwind-protect
+	(progn
+	  (setq playlist (emms-playlist-new " *music queue descriptor*") emms-playlist-buffer playlist)
+	  (with-current-buffer playlist (emms-playlist-insert-track (emms-track 'file "/tmp/queue.ogg")))
+	  (let ((before (with-current-buffer playlist (buffer-string)))
+		(view (car (hub/music--queue-views nil))))
+	    (should (eq (plist-get view :buffer) playlist))
+	    (should-not (plist-get view :render))
+	    (should (equal before (with-current-buffer playlist (buffer-string))))))
+      (when (buffer-live-p playlist) (kill-buffer playlist)))))
+
 (provide 'music-test)
 ;;; music-test.el ends here

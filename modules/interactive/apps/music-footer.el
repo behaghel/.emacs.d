@@ -11,6 +11,7 @@
 (defvar hub/spotify--total)
 (declare-function hub/emms-player--snapshot "apps/emms-player" ())
 (declare-function hub/music-console--total "apps/music-console" (tracks))
+(declare-function emms-playlist-tracks-in-region "emms" (beginning end))
 
 (defun hub/music-footer--navigation (view)
   "Return shared navigation actions, omitting VIEW's own destination."
@@ -19,8 +20,9 @@
      '((:key "m" :label "Player" :command hub/emms-player-open :select t)))
    (unless (eq view 'liked)
      '((:key "l" :label "Liked Songs" :command hub/spotify-liked-songs :select t)))
-   '((:key "+" :label "Queue" :command hub/music-queue :select t)
-     (:key "/" :label "Search" :command hub/music-search :select t)
+   (unless (eq view 'queue)
+     '((:key "+" :label "Queue" :command hub/music-queue :select t)))
+   '((:key "/" :label "Search" :command hub/music-search :select t)
      (:key "?" :label "Actions" :command hub/music-palette :select t))))
 
 (defun hub/music-player-footer (_source _view)
@@ -55,6 +57,18 @@
 	:metadata (if (numberp hub/spotify--total)
 		      (format "%d of %d loaded" (length hub/spotify--tracks) hub/spotify--total)
 		    "Library not loaded")))
+
+(defun hub/music-queue-footer (_source _view)
+  "Return controls and totals for the actual displayed EMMS queue."
+  (require 'apps/music-console)
+  (let ((tracks (save-excursion
+		  (save-restriction
+		    (widen) (emms-playlist-tracks-in-region (point-min) (point-max))))))
+    (list :actions
+	  (append '((:key "RET" :label "Play" :command emms-playlist-mode-play-smart :primary t))
+		  (hub/music-footer--navigation 'queue)
+		  '((:key "q" :label "Close" :command hub/music-queue-close :select t)))
+	  :metadata (format "%d tracks · %s" (length tracks) (hub/music-console--total tracks)))))
 
 (provide 'apps/music-footer)
 ;;; music-footer.el ends here

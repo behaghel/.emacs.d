@@ -50,6 +50,7 @@
 (declare-function context-panels-close-bottom-view "context-panels" ())
 (declare-function context-panels-footer-update "context-panels-footer" (&optional buffer))
 (declare-function hub/emms-player--source "apps/emms-player" ())
+(declare-function hub/emms-player--register-view "apps/emms-player" (source))
 
 (defun hub/spotify--row (item index)
   "Convert saved ITEM into an inert table row identified by INDEX."
@@ -62,8 +63,9 @@
     (add-hook hook #'hub/spotify--refresh-playback))
   (when (and (boundp 'context-panels-footer-spec) (plist-get context-panels-footer-spec :footer)
 	     (stringp header-line-format)
-	     (string-match-p "\\`Liked Songs — [0-9]+ of [0-9]+ loaded" header-line-format))
-    (setq header-line-format "Liked Songs"))
+	     (or (equal header-line-format "Liked Songs")
+		 (string-match-p "\\`Liked Songs — [0-9]+ of [0-9]+ loaded" header-line-format)))
+    (setq header-line-format (unless (fboundp 'context-panels-tabs-format) "Liked Songs")))
   (unless (equal (mapcar #'car tabulated-list-format) (mapcar #'car hub/music-row-columns))
     (setq-local tabulated-list-format (copy-tree hub/music-row-columns t))
     (when hub/spotify--tracks
@@ -127,7 +129,7 @@
 		header-line-format
 		(if (and (boundp 'context-panels-footer-spec)
 			 (plist-get context-panels-footer-spec :footer))
-		    "Liked Songs"
+		    (unless (fboundp 'context-panels-tabs-format) "Liked Songs")
 		  (format "Liked Songs — %d of %d loaded · a enqueue · RET play · %sgr refresh · q close"
 			  hub/spotify--offset hub/spotify--total
 			  (if (< hub/spotify--offset hub/spotify--total) "g+ more · " "")))))
@@ -233,9 +235,11 @@
       (unless (derived-mode-p 'hub/spotify-library-mode) (hub/spotify-library-mode))
       (setq hub/spotify--source source))
     (with-current-buffer source
+      (hub/emms-player--register-view source)
       (context-panels-register-provider
        (list :name 'spotify-library :icon "music" :collect-bottom-views #'hub/spotify--views)))
-    (context-panels-mode 1)
+    (hub/music--register-queue-view source)
+    (with-current-buffer source (context-panels-mode 1))
     (context-panels-adopt-bottom-view-buffer buffer 'spotify-library source t)
     (with-current-buffer buffer (hub/spotify--setup-rows))
     (unless (or hub/spotify--busy

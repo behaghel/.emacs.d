@@ -3,7 +3,8 @@
   <use href="components.svg#template-music-workspace" width="1280" height="720"/>
   <g transform="translate(0 400)">
     <use href="components.svg#template-music-cockpit-panel" width="1280" height="320"/>
-    <path d="M276 39H426" stroke="#9fe0c2" stroke-width="2"/>
+    <rect x="132" y="7" width="160" height="28" rx="4" fill="#222b40"/>
+    <text x="142" y="25" font-family="Ubuntu Mono, monospace" font-size="15" fill="#9fe0c2">Liked Songs</text>
     <use href="components.svg#atom-music-spotify" x="26" y="52" width="24" height="24"/>
     <g font-family="Ubuntu Mono, monospace">
       <text x="59" y="70" font-size="16" fill="#f3ece3">LIKED SONGS ↗</text>
