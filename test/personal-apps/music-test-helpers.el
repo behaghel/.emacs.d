@@ -73,9 +73,9 @@
   (declare (indent 0))
   `(let* ((hub/spotify-buffer-name " *music search loaded library*")
 	  (library (generate-new-buffer hub/spotify-buffer-name))
-	  (raw '((uri . "spotify:track:4uLU6hMCjMI75M1A2tKUQC")
-		 (name . "Retained song") (artists . (((name . "Library artist"))))
-		 (album . ((name . "Retained album"))) (duration_ms . 181000)))
+	  (raw (copy-tree '((uri . "spotify:track:4uLU6hMCjMI75M1A2tKUQC")
+			    (name . "Retained song") (artists . (((name . "Library artist"))))
+			    (album . ((name . "Retained album"))) (duration_ms . 181000))))
 	  added)
      (unwind-protect
 	 (progn
