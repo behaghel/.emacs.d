@@ -13,5 +13,11 @@ Intro prose should remain prose.
 - Headings stay headings.
 - Lists stay lists.
 
+** Heading depth coverage
+*** Level three /emphasis/
+**** Level four
+***** Level five
+****** Level six
+
 * Executive summary
 A paragraph after lists should not inherit list state.

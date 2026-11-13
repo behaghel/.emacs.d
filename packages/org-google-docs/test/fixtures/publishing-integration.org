@@ -1,0 +1,9 @@
+*** Release [[confluence-status:Green][Ready Bépo 😀]]
+
+- Before block
+
+#+BEGIN_EXAMPLE
+literal.
+#+END_EXAMPLE
+
+- After block

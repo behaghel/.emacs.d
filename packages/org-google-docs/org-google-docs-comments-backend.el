@@ -20,6 +20,8 @@
 (require 'subr-x)
 (require 'url-util)
 
+(declare-function gdocs-api--request "gdocs-api" (method url callback &rest arguments))
+
 (defvar gdocs-api--drive-base-url)
 
 (defun org-google-docs-comments-backend--source-file (record operation)

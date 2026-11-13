@@ -1,0 +1,38 @@
+#+title: Offline Google Docs pipeline walkthrough
+
+* Walkthrough
+This is a disposable local source, not a linked Google Doc.  The semantic gdocs
+source is real, but networking, credential lookup, and uploads are unavailable.
+No Google account is configured.  Manual synchronization is enforced in this
+session.  The only permitted external program is the local diff tool used by
+Emacs diff previews; shells, curl, and other subprocesses remain blocked.
+
+1. Run =M-x org-google-docs-demo-preview=.  Inspect =:local-ir= and
+   =:local-requests= in the read-only trace.  They must contain actual conversion
+   output, not an error plist.  No remote JSON is fetched.
+2. Run =M-x org-google-docs-demo-roundtrip=.  Inspect the separate read-only,
+   soft-word-wrapped Org buffer for Bépo, bold text, the list, and source code.  Whitespace and metadata
+   may normalize; this does not claim byte-for-byte Org fidelity.
+3. Return to =draft.org=, edit the sample paragraph, and preview again.  The local
+   requests should reflect your change, while preview never rewrites the source.
+4. To inspect fail-closed preflight, temporarily append an anonymous inline
+   footnote such as =[fn::Unsupported inline note]=.  Preview should reject it
+   locally, before any remote mutation.  Remove it to restore the happy path.
+
+The base trace is not a final upload request stream: image enrichment and native
+footnotes have additional stages.  No create, push, pull, authentication, or live
+Docs JSON conformance is verified by this walkthrough.  Do not use a prefix on
+the upstream debug command: that normally requests a remote fetch.  The launcher
+blocks such I/O even if accidentally invoked.  Exit Emacs to remove this source,
+previews, and temporary state.
+
+* Sample content
+Bépo keeps *document meaning* visible before publishing.  This sample has no
+linked remote document or account metadata.
+
+- First list item
+- Second list item
+
+#+begin_src python :eval never-export
+print("Bépo & <XML>")
+#+end_src

@@ -12,10 +12,12 @@
 
 (require 'org-google-docs-comments-remote)
 
+(declare-function gdocs-api-list-comments "gdocs-api" (file-id callback &optional account))
+
 (defun org-google-docs-comments--require-upstream-library (library)
   "Require upstream gdocs LIBRARY or signal an actionable error."
   (unless (require library nil 'noerror)
-    (user-error "Missing upstream gdocs library `%s'; install and configure benthamite/gdocs" library)))
+    (user-error "Missing upstream gdocs library `%s'; install the semantic-capable gdocs dependency (see the Org Google Docs manual)" library)))
 
 (defun org-google-docs-comments--file-property (property)
   "Return top-level Org PROPERTY from the file property drawer, or nil."

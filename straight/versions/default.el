@@ -50,7 +50,7 @@
  ("external-completion" . "97533a017162bb0029255a28f216bf14b13196b7")
  ("f.el" . "931b6d0667fe03e7bf1c6c282d6d8d7006143c52")
  ("flymake" . "672e657179adb5da1fd2302cdbe14b07e05518eb")
- ("gdocs" . "af2878147f48b1bcf821ae946de6821545da9aff")
+ ("gdocs" . "cd36c33ae1af37a9264ca9604eb55ca1d658e29a")
  ("general.el" . "a48768f85a655fe77b5f45c2880b420da1b1b9c3")
  ("ggtags" . "4e3630c30fb836872b5d8f2ae3e5d5ae003365d8")
  ("gh.el" . "b1551245d3404eac6394abaebe1a9e0b2c504235")

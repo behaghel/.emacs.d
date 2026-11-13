@@ -23,6 +23,8 @@
 
 (require 'org-google-docs)
 
+(defvar gdocs-style-definitions)
+
 (defconst org-google-docs-live-conformance--test-directory
   (file-name-directory (or load-file-name buffer-file-name))
   "Directory containing the live conformance test file.")
@@ -37,7 +39,7 @@
 
 (defun org-google-docs-live-conformance--enabled-p ()
   "Return non-nil when live conformance tests should run."
-  (getenv "ORG_GOOGLE_DOCS_LIVE_TESTS"))
+  (equal (getenv "ORG_GOOGLE_DOCS_LIVE_TESTS") "1"))
 
 (defun org-google-docs-live-conformance--account ()
   "Return the Google Docs account for live conformance tests."
@@ -70,9 +72,6 @@ write a token file so batch API calls can refresh without launching OAuth."
 (defun org-google-docs-live-conformance--configure-accounts ()
   "Configure live-test Google account credentials when possible."
   (org-google-docs-live-conformance--configure-env-account)
-  (when (and (not (and (boundp 'gdocs-accounts) gdocs-accounts))
-	     (fboundp 'hub/org-google-docs-configure-accounts-from-auth-source))
-    (hub/org-google-docs-configure-accounts-from-auth-source 'noerror))
   (and (boundp 'gdocs-accounts) gdocs-accounts))
 
 (defun org-google-docs-live-conformance--require-live ()
@@ -475,6 +474,33 @@ STARTER receives two callbacks: success and error."
   "Appending one trailing paragraph to a fresh fixture emits a tiny local diff."
   (org-google-docs-live-conformance--assert-append-diff
    "plain-heading-list.org"))
+
+(defun org-google-docs-live-conformance--themed-headings (assertion)
+  "Run ASSERTION with representative bold heading styles and all six levels."
+  (org-google-docs-live-conformance--require-live)
+  (let ((gdocs-style-definitions
+	 (append (cl-loop for level from 1 to 6
+			  collect (list (intern (format "gdocs-heading-%d" level))
+					:parent (intern (format "heading-%d" level))
+					:text (append '(:font-family "Inter")
+						      (when (>= level 3) '(:bold t)))))
+		 gdocs-style-definitions)))
+    (funcall assertion "headings-all-levels.org")))
+
+(ert-deftest org-google-docs-live-conformance-themed-headings-create-fetch ()
+  "Heading presentation does not introduce semantic bold across six levels."
+  (org-google-docs-live-conformance--themed-headings
+   #'org-google-docs-live-conformance--assert-create-fetch))
+
+(ert-deftest org-google-docs-live-conformance-themed-headings-immediate-diff ()
+  "A fetched themed heading fixture needs no immediate corrective push."
+  (org-google-docs-live-conformance--themed-headings
+   #'org-google-docs-live-conformance--assert-immediate-diff))
+
+(ert-deftest org-google-docs-live-conformance-themed-headings-append-diff ()
+  "Appending prose does not rewrite already synchronized themed headings."
+  (org-google-docs-live-conformance--themed-headings
+   #'org-google-docs-live-conformance--assert-append-diff))
 
 (ert-deftest org-google-docs-live-conformance-lists-create-fetch ()
   "Nested, numbered, and checkbox lists survive create/fetch canonicalization."

@@ -1,0 +1,98 @@
+From 9c8c2cc2c750b89a317ba6f4205dce06a202af13 Mon Sep 17 00:00:00 2001
+From: Hubert Behaghel <behaghel@gmail.com>
+Date: Sat, 31 Oct 2026 22:26:47 +0100
+Subject: [PATCH] fix(convert): preserve Org block separators
+
+Keep blank separators around semantic blocks and list boundaries without splitting consecutive list items. Record legacy all-code paragraph groups as example blocks for the following separator decision.
+
+Add source round-trip/idempotence and legacy-code/list regressions. All 177 converter tests pass, including the new regressions. The full 629-test suite retains the same four unrelated unexpected failures reproduced on the 627-test base; changed functions compile strictly. Whole-file strict compilation still stops at the unchanged line-1061 docstring width warning.
+---
+ gdocs-convert.el           | 16 +++++++++++-----
+ test/gdocs-convert-test.el | 32 ++++++++++++++++++++++++++++++++
+ 2 files changed, 43 insertions(+), 5 deletions(-)
+
+diff --git a/gdocs-convert.el b/gdocs-convert.el
+index 27f7c8e..43b202e 100644
+--- a/gdocs-convert.el
++++ b/gdocs-convert.el
+@@ -1547,7 +1547,8 @@ collected at the end under a conventional `* Footnotes' section."
+             (push (format "#+BEGIN_EXAMPLE\n%s\n#+END_EXAMPLE"
+                           (s-join "\n" (nreverse code-lines)))
+                   parts)
+-            (setq prev-type 'paragraph)
++            (setq prev-element (list :type 'example-block)
++                  prev-type 'example-block)
+             (setq list-counter 0 prev-list-level nil)))
+          ;; Normal element
+          (t
+@@ -1629,15 +1630,20 @@ already round-trip via named ranges."
+ 
+ (defun gdocs-convert--needs-blank-line-p (previous element)
+   "Return non-nil if a blank line is needed before ELEMENT.
+-PREVIOUS is the previous IR element.  In particular, keep a blank line after Org
+-headings even when the section starts with a list; otherwise a later parse can
++PREVIOUS is the previous IR element.  Separate semantic blocks and list
++boundaries while keeping consecutive list items compact.  Keep a blank line
++after headings even when a section starts with a list, so a later parse cannot
+ merge the heading text into that list item."
+   (when previous
+     (let ((previous-type (plist-get previous :type))
+           (previous-style (plist-get previous :style))
+           (type (plist-get element :type))
+-          (list-info (plist-get element :list)))
+-      (or (and (eq previous-type 'paragraph)
++          (list-info (plist-get element :list))
++          (block-types '(source-block example-block quote-block callout-block)))
++      (or (memq previous-type block-types)
++          (memq type block-types)
++          (and list-info (not (plist-get previous :list)))
++          (and (eq previous-type 'paragraph)
+                (gdocs-convert--heading-style-p previous-style))
+           (eq type 'table)
+           (eq type 'horizontal-rule)
+diff --git a/test/gdocs-convert-test.el b/test/gdocs-convert-test.el
+index d9c805e..e6acd5b 100644
+--- a/test/gdocs-convert-test.el
++++ b/test/gdocs-convert-test.el
+@@ -1332,6 +1332,38 @@
+     (should (equal (gdocs-convert-ir-to-org ir)
+                    "* Section\n\n- First item\n"))))
+ 
++(ert-deftest gdocs-convert-test-round-trip-keeps-structural-blank-separators ()
++  "Paragraphs, lists, and semantic blocks retain readable Org separation."
++  (let* ((source (concat "* Example\n\nFirst paragraph.\n\nSecond paragraph.\n\n"
++                         "- Before block\n- Same list\n\n"
++                         "#+begin_src python\nprint(1)\n#+end_src\n\n"
++                         "#+begin_quote\nQuoted text.\n#+end_quote\n\n"
++                         "#+begin_example\nLiteral text.\n\nStill literal.\n#+end_example\n\n"
++                         "- After block\n  - Nested item\n\nFinal paragraph.\n"))
++         (expected (concat "* Example\n\nFirst paragraph.\n\nSecond paragraph.\n\n"
++                           "- Before block\n- Same list\n\n"
++                           "#+BEGIN_SRC python\nprint(1)\n#+END_SRC\n\n"
++                           "#+BEGIN_QUOTE\nQuoted text.\n#+END_QUOTE\n\n"
++                           "#+BEGIN_EXAMPLE\nLiteral text.\n\nStill literal.\n#+END_EXAMPLE\n\n"
++                           "- After block\n  - Nested item\n\nFinal paragraph.\n"))
++         (result (gdocs-convert-ir-to-org (gdocs-convert-org-string-to-ir source))))
++    (should (equal expected result))
++    (should (equal result
++                   (gdocs-convert-ir-to-org (gdocs-convert-org-string-to-ir result))))))
++
++(ert-deftest gdocs-convert-test-code-paragraph-group-separated-from-following-list ()
++  "Legacy code paragraphs stay grouped and separated from the next list."
++  (let ((ir '((:type paragraph :style normal :contents ((:text "one" :code t)))
++              (:type paragraph :style normal :contents ((:text "two" :code t)))
++              (:type paragraph :style normal :list (:type bullet :level 0)
++                     :contents ((:text "Item one")))
++              (:type paragraph :style normal :list (:type bullet :level 1)
++                     :contents ((:text "Nested item")))
++              (:type paragraph :style normal :list (:type bullet :level 0)
++                     :contents ((:text "Item two"))))))
++    (should (equal (gdocs-convert-ir-to-org ir)
++                   "#+BEGIN_EXAMPLE\none\ntwo\n#+END_EXAMPLE\n\n- Item one\n  - Nested item\n- Item two\n"))))
++
+ ;; ---------------------------------------------------------------------------
+ ;;; Property drawer reader
+ 
+-- 
+2.51.2
+

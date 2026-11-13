@@ -71,6 +71,9 @@ else
         for test_file in "${inventory[@]}"; do
           case "$test_file" in
             "packages/$package/test/"*) add_test "$test_file" ;;
+            test/publishing/google-docs/*)
+              if [ "$package" = org-google-docs ]; then add_test "$test_file"; fi
+              ;;
           esac
         done
         ;;

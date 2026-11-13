@@ -316,6 +316,7 @@
 		   "Publish: Restyle typographic blocks"
 		   "Pull: Pull Google Doc into buffer"
 		   "Pull: Preview forced pull diff"
+		   "Pull: Replace local body from Google (backup first)"
 		   "Images: Cache pulled remote images"
 		   "Open: Open linked Google Doc in browser"
 		   "Comments: Import comments"

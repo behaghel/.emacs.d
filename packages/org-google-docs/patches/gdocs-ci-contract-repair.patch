@@ -1,0 +1,302 @@
+From 590a2e4afdb873b0bd8a9eb41501d0df18aea723 Mon Sep 17 00:00:00 2001
+From: Hubert Behaghel <behaghel@gmail.com>
+Date: Fri, 13 Nov 2026 16:20:37 +0100
+Subject: [PATCH] fix(ci): provision Compat and verify current semantic
+ contracts
+
+Clean source reproduction: full strict compilation and all 655 SDK tests pass. Provide Transient its Compat dependency, resolve compilation warnings without disabling checks, and replace four obsolete representation expectations with block round-trip/provider-marker and local AUTHOR metadata contracts. Adapter sandbox: 102 pass, 25 live skipped.
+---
+ .github/workflows/test.yml   |  1 +
+ Makefile                     |  3 +-
+ gdocs-api.el                 |  4 +-
+ gdocs-convert.el             | 61 +++++++++++++++--------------
+ gdocs-sync.el                |  2 +-
+ test/gdocs-roundtrip-test.el | 75 ++++++++++++++++++++++++++----------
+ 6 files changed, 90 insertions(+), 56 deletions(-)
+
+diff --git a/.github/workflows/test.yml b/.github/workflows/test.yml
+index 533d9a7..71ac85b 100644
+--- a/.github/workflows/test.yml
++++ b/.github/workflows/test.yml
+@@ -24,6 +24,7 @@ jobs:
+           git clone --depth 1 https://github.com/magit/transient.git ../transient
+           git clone --depth 1 https://github.com/tarsius/cond-let.git ../cond-let
+           git clone --depth 1 https://github.com/tarsius/llama.git ../llama
++          git clone --depth 1 https://github.com/emacs-straight/compat.git ../compat
+       - name: Byte-compile
+         run: make compile
+       - name: Run tests
+diff --git a/Makefile b/Makefile
+index bc59626..1981cd6 100644
+--- a/Makefile
++++ b/Makefile
+@@ -7,7 +7,8 @@ LOAD_PATH := -L $(CURDIR) -L test \
+              -L $(ELPACA_REPOS)transient/lisp \
+              -L $(ELPACA_REPOS)cond-let \
+              -L $(ELPACA_REPOS)seq \
+-             -L $(ELPACA_REPOS)llama
++             -L $(ELPACA_REPOS)llama \
++             -L $(ELPACA_REPOS)compat
+ 
+ TEST_FILES = \
+   test/gdocs-test-helpers.el \
+diff --git a/gdocs-api.el b/gdocs-api.el
+index 7175456..ed5c754 100644
+--- a/gdocs-api.el
++++ b/gdocs-api.el
+@@ -223,12 +223,12 @@ Return a MIME type string based on the file extension."
+       (_ (error "Unsupported image type: %s (supported: png, jpg, jpeg, gif, webp, svg)" ext)))))
+ 
+ (defun gdocs-api--send-multipart-upload (token file-path mime-type
+-                                               metadata callback account)
++                                               metadata callback _account)
+   "Send a multipart upload request to Google Drive.
+ TOKEN is the OAuth access token.  FILE-PATH is the local file.
+ MIME-TYPE is the file's MIME type.  METADATA is the JSON metadata
+ string.  CALLBACK receives the parsed JSON response.  ACCOUNT is
+-the account name for error reporting."
++reserved for caller compatibility."
+   ;; Multipart uploads are sent with curl directly instead of through `plz'.
+   ;; `plz' feeds both its curl config and request body through stdin; Google
+   ;; Drive intermittently treats larger binary multipart payloads sent this way
+diff --git a/gdocs-convert.el b/gdocs-convert.el
+index b0b85d3..2a3e5f1 100644
+--- a/gdocs-convert.el
++++ b/gdocs-convert.el
+@@ -913,9 +913,9 @@ heading cache and append a #heading=h.ID fragment."
+ 
+ (defun gdocs-convert--timestamp-to-runs (timestamp inherited-props)
+   "Convert TIMESTAMP to a native Google Docs date run.
+-INHERITED-PROPS carries parent formatting.  The original Org timestamp syntax is
+-kept as the run text so Org output can reconstruct the source form when the IR is
+-not pushed to Google Docs."
++INHERITED-PROPS carries parent formatting.  The original Org timestamp
++syntax is kept as the run text so Org output can reconstruct the source
++form when the IR is not pushed to Google Docs."
+   (let ((raw (org-element-interpret-data timestamp))
+         (year (org-element-property :year-start timestamp))
+         (month (org-element-property :month-start timestamp))
+@@ -2783,6 +2783,18 @@ may have trailing whitespace-only runs before it."
+       (list :type (intern type)
+             :level (string-to-number level)))))
+ 
++(defconst gdocs-convert--unchecked-checkbox-glyphs
++  '("☐" "□" "❏" "❑" "◻" "⬜")
++  "Google Docs glyph symbols observed for unchecked checklist items.")
++
++(defconst gdocs-convert--checked-checkbox-glyphs
++  '("☑" "✓" "✔")
++  "Google Docs glyph symbols observed for checked checklist items.")
++
++(defconst gdocs-convert--partial-checkbox-glyphs
++  '("☒")
++  "Google Docs glyph symbols observed for partial checklist items.")
++
+ (defun gdocs-convert--docs-check-state (list-props nesting-level)
+   "Return checkbox state plist from LIST-PROPS at NESTING-LEVEL."
+   (let* ((nesting (alist-get 'listProperties list-props))
+@@ -2920,18 +2932,6 @@ nested lists as separate list objects where the sub-list has nestingLevel 0
+         'number)
+        (t 'bullet)))))
+ 
+-(defconst gdocs-convert--unchecked-checkbox-glyphs
+-  '("☐" "□" "❏" "❑" "◻" "⬜")
+-  "Google Docs glyph symbols observed for unchecked checklist items.")
+-
+-(defconst gdocs-convert--checked-checkbox-glyphs
+-  '("☑" "✓" "✔")
+-  "Google Docs glyph symbols observed for checked checklist items.")
+-
+-(defconst gdocs-convert--partial-checkbox-glyphs
+-  '("☒")
+-  "Google Docs glyph symbols observed for partial checklist items.")
+-
+ (defun gdocs-convert--checkbox-glyph-p (glyph-type glyph-symbol)
+   "Return non-nil if GLYPH-TYPE or GLYPH-SYMBOL indicates a checkbox."
+   (or (equal glyph-type "CHECKBOX")
+@@ -3295,10 +3295,10 @@ indent after bullet creation."
+ 
+ (defun gdocs-convert--image-to-requests (element index)
+   "Create insertInlineImage requests for image ELEMENT at INDEX.
+-ELEMENT must contain `:uri' or `:source-uri'.  Images without a fetchable URI are
+-left to adapter preflight code and produce no requests.  When ELEMENT has a
+-`:caption', insert it as visible text in the following paragraph for v1 semantic
+-preservation."
++ELEMENT must contain `:uri' or `:source-uri'.  Images without a fetchable
++URI are left to adapter preflight code and produce no requests.
++When ELEMENT has a `:caption', insert it as visible text in the following
++paragraph for v1 semantic preservation."
+   (if-let* ((uri (or (plist-get element :uri)
+                     (plist-get element :source-uri))))
+       (let* ((caption (plist-get element :caption))
+@@ -3348,23 +3348,23 @@ preservation."
+                       (endIndex . ,(1+ index))))))))))
+ 
+ (defun gdocs-convert-make-logical-style-requests
+-    (style-name paragraph-start paragraph-end &optional text-start text-end segment-id)
++    (style-name start-index end-index &optional text-start text-end segment-id)
+   "Create paragraph/text requests for logical STYLE-NAME.
+-PARAGRAPH-START and PARAGRAPH-END target paragraph style in the body.  When
+-TEXT-START and TEXT-END are non-nil, also create text style requests.  Optional
+-SEGMENT-ID targets the text style request at a non-body segment."
++START-INDEX and END-INDEX target paragraph style in the body.  When
++TEXT-START and TEXT-END are non-nil, also create text style requests.
++Optional SEGMENT-ID targets the text style request at a non-body segment."
+   (delq nil
+         (list (gdocs-convert--logical-style-paragraph-request
+-               style-name paragraph-start paragraph-end)
++               style-name start-index end-index)
+               (when (and text-start text-end)
+                 (gdocs-convert--logical-style-text-request
+                  style-name text-start text-end segment-id)))))
+ 
+-(defun gdocs-convert--caption-style-requests (paragraph-start paragraph-end
+-                                                text-start text-end)
++(defun gdocs-convert--caption-style-requests
++    (start-index end-index text-start text-end)
+   "Create logical image-caption style requests for caption ranges."
+   (gdocs-convert-make-logical-style-requests
+-   'gdocs-image-caption paragraph-start paragraph-end text-start text-end))
++   'gdocs-image-caption start-index end-index text-start text-end))
+ 
+ (defun gdocs-convert--make-image-caption-marker-requests (element text-start text-end)
+   "Create semantic marker requests for image caption ELEMENT.
+@@ -3401,7 +3401,6 @@ clear any inherited formatting before per-run styles are applied."
+          (prefix (gdocs-convert--list-leading-prefix element))
+          (prefix-len (gdocs-convert--string-to-utf16-length prefix))
+          (text-start (+ index prefix-len))
+-         (text (gdocs-convert--runs-to-plain-text contents))
+          (insert-data (gdocs-convert--make-inline-insert-requests
+                        contents index prefix))
+          (text-len (plist-get insert-data :length))
+@@ -4039,9 +4038,9 @@ and :preset (bullet preset string)."
+ 
+ (defun gdocs-convert--callout-list-post-bullet-indent-resets (element-ranges)
+   "Return final indent resets for callout list paragraphs.
+-These run after `createParagraphBullets'.  They keep paragraph shading full-width
+-inside callout panels while native nesting level has already been assigned from
+-leading tabs."
++These run after `createParagraphBullets'.  They keep paragraph shading
++full-width inside callout panels while native nesting level has already
++been assigned from leading tabs."
+   (let (requests)
+     (dolist (range element-ranges (nreverse requests))
+       (let* ((element (plist-get range :element))
+diff --git a/gdocs-sync.el b/gdocs-sync.el
+index 1733661..f8b066f 100644
+--- a/gdocs-sync.el
++++ b/gdocs-sync.el
+@@ -919,7 +919,7 @@ markers do not cause false mismatches."
+                   (string-join new-footnotes " > ")))))
+ 
+ (defun gdocs-sync--block-count-diagnostics (old-blocks new-blocks)
+-  "Return diagnostics for semantic block counts dropped from OLD-BLOCKS to NEW-BLOCKS."
++  "Report semantic block count drops from OLD-BLOCKS to NEW-BLOCKS."
+   (let (diagnostics)
+     (dolist (entry old-blocks diagnostics)
+       (let* ((type (car entry))
+diff --git a/test/gdocs-roundtrip-test.el b/test/gdocs-roundtrip-test.el
+index 3f9f741..d49fb49 100644
+--- a/test/gdocs-roundtrip-test.el
++++ b/test/gdocs-roundtrip-test.el
+@@ -142,11 +142,21 @@
+     (should (eq (plist-get elem :style) 'normal))))
+ 
+ (ert-deftest gdocs-roundtrip/org-quote-block ()
+-  "A quote block produces :style quote."
+-  (let* ((ir (gdocs-roundtrip-test--org-to-ir
+-              "#+BEGIN_QUOTE\nQuoted text.\n#+END_QUOTE"))
+-         (elem (gdocs-roundtrip-test--find-ir-element ir 'paragraph 'quote)))
+-    (should elem)))
++  "A semantic quote block retains its body and emits provider markers."
++  (let* ((source "#+BEGIN_QUOTE\nQuoted text.\n#+END_QUOTE\n")
++         (ir (gdocs-roundtrip-test--org-to-ir source))
++         (element (gdocs-roundtrip-test--find-ir-element ir 'quote-block)))
++    (should element)
++    (should (equal (mapcar #'gdocs-convert--runs-to-plain-text
++                          (plist-get element :paragraphs))
++                   '("Quoted text.")))
++    (should (equal (gdocs-convert-ir-to-org ir) source))
++    (should (seq-some
++             (lambda (request)
++               (when-let* ((marker (alist-get 'createNamedRange request)))
++                 (string-prefix-p "gdocs-org-marker:quote-block:"
++                                  (alist-get 'name marker))))
++             (gdocs-convert-ir-to-docs-requests ir)))))
+ 
+ (ert-deftest gdocs-roundtrip/org-center-block ()
+   "A center block is parsed into IR."
+@@ -164,20 +174,36 @@
+     (should ir)))
+ 
+ (ert-deftest gdocs-roundtrip/org-example-block ()
+-  "An example block produces code-formatted IR elements."
+-  (let* ((ir (gdocs-roundtrip-test--org-to-ir
+-              "#+BEGIN_EXAMPLE\nExample text.\n#+END_EXAMPLE")))
+-    (should ir)
+-    ;; Example blocks should produce runs with :code t
+-    (let ((code-run (gdocs-roundtrip-test--find-run-with-prop ir :code)))
+-      (should code-run))))
++  "A semantic example block retains literal lines and provider markers."
++  (let* ((source "#+BEGIN_EXAMPLE\nExample text.\n#+END_EXAMPLE\n")
++         (ir (gdocs-roundtrip-test--org-to-ir source))
++         (element (gdocs-roundtrip-test--find-ir-element ir 'example-block)))
++    (should element)
++    (should (equal (plist-get element :lines) '("Example text.")))
++    (should (equal (gdocs-convert-ir-to-org ir) source))
++    (should (seq-some
++             (lambda (request)
++               (when-let* ((marker (alist-get 'createNamedRange request)))
++                 (string-prefix-p "gdocs-org-marker:example-block:"
++                                  (alist-get 'name marker))))
++             (gdocs-convert-ir-to-docs-requests ir)))))
+ 
+ (ert-deftest gdocs-roundtrip/org-src-block ()
+-  "A src block produces a :gdocs-marker of type src-block."
+-  (let* ((ir (gdocs-roundtrip-test--org-to-ir
+-              "#+BEGIN_SRC python\nprint('hi')\n#+END_SRC"))
+-         (elem (gdocs-roundtrip-test--find-marker ir 'src-block)))
+-    (should elem)))
++  "A semantic source block retains code, language, and provider markers."
++  (let* ((source "#+BEGIN_SRC python\nprint('hi')\n#+END_SRC\n")
++         (ir (gdocs-roundtrip-test--org-to-ir source))
++         (element (gdocs-roundtrip-test--find-ir-element ir 'source-block)))
++    (should element)
++    (should (equal (plist-get element :language) "python"))
++    (should (equal (plist-get element :lines) '("print('hi')")))
++    (should (equal (gdocs-convert-ir-to-org ir) source))
++    (should (seq-some
++             (lambda (request)
++               (when-let* ((marker (alist-get 'createNamedRange request)))
++                 (and (string-prefix-p "gdocs-org-marker:src-block:"
++                                       (alist-get 'name marker))
++                      (string-suffix-p ":python" (alist-get 'name marker)))))
++             (gdocs-convert-ir-to-docs-requests ir)))))
+ 
+ (ert-deftest gdocs-roundtrip/org-special-block ()
+   "A special block (e.g., #+BEGIN_WARNING) is parsed into IR."
+@@ -392,10 +418,17 @@
+     (should elem)))
+ 
+ (ert-deftest gdocs-roundtrip/org-keyword-author ()
+-  "#+AUTHOR produces a marker with :type keyword."
+-  (let* ((ir (gdocs-roundtrip-test--org-to-ir "#+AUTHOR: Test"))
+-         (elem (gdocs-roundtrip-test--find-marker ir 'keyword)))
+-    (should elem)))
++  "AUTHOR remains local metadata rather than a published body marker."
++  (let ((source "#+AUTHOR: Test\n\nBody.\n"))
++    (with-temp-buffer
++      (org-mode)
++      (insert source)
++      (let* ((ir (gdocs-convert-org-buffer-to-ir))
++             (requests (gdocs-convert-ir-to-docs-requests ir)))
++        (should (equal (buffer-string) source))
++        (should (equal (gdocs-convert-ir-to-org ir) "Body.\n"))
++        (should-not (gdocs-roundtrip-test--find-marker ir 'keyword))
++        (should-not (string-match-p "AUTHOR\\|Test" (json-encode requests)))))))
+ 
+ ;; ---------------------------------------------------------------------------
+ ;;; 1g. Inline elements
+-- 
+2.51.2
+

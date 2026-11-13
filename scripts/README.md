@@ -63,7 +63,7 @@ status: draft
 - `scripts/elisp-package-standalone` shares source-only copying, temporary-home
   isolation, dependency checks, ERT, strict compilation, and interactive samples
   for the verified comments, suggestions, marginalia, static-site, export-sync,
-  Confluence, and Copilot workflows. The focused commands below retain their `--batch` and `--interactive` interfaces.
+  Confluence, Copilot, and Google Docs workflows. The focused commands below retain their `--batch` and `--interactive` interfaces.
 - `scripts/org-comments-standalone` verifies the comments package with only
   Emacs built-ins and its declared context-panels dependency. Dependency paths
   come from `CONTEXT_PANELS_PATH` or the configured Straight build directory;
@@ -104,6 +104,15 @@ status: draft
   personal AI configuration, account, or model service is used. Networking,
   credential lookup, and external processes fail closed. Usage and provider
   limits are documented in the [package manual](../packages/org-copilot/README.org).
+- `scripts/org-google-docs-standalone` verifies the adapter without personal
+  configuration, using an explicit `GDOCS_PATH` or the cached build's semantic
+  gdocs source plus its declared dependencies. It validates conversion seams
+  without authentication and offers local preflight/IR/request and round-trip
+  diagnostics. Live-test authorization and credential environment variables are
+  removed from the child environment. Network/credential access and subprocesses
+  fail closed, except the local `diff` executable used by Emacs diff previews.
+  Fixture results do not claim live Google Docs conformance. Setup and limits
+  are documented in the [package manual](../packages/org-google-docs/README.org).
 - Source and package-local tests run from disposable copies outside the checkout,
   with a temporary home and no undeclared sibling or personal helper load paths.
   Emacs network connections are disabled. Failures in ERT or strict compilation

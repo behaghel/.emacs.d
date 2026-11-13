@@ -1,0 +1,4 @@
+#!/usr/bin/env bash
+# Verify the Google Docs adapter with source-only dependencies and no live I/O.
+set -euo pipefail
+exec "$(dirname "$0")/elisp-package-standalone" org-google-docs "$@"

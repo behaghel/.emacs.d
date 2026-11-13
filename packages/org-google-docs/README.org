@@ -1,0 +1,129 @@
+#+title: Org Google Docs adapter manual
+
+* Source setup and dependency boundary
+This adapter remains in the configuration checkout; no separate repository or
+archive publication is assumed.  It requires Emacs 29.1+, Org 9.6+,
+org-comments 0.1.0+, and ox-sync 0.1.0+ (including their declared UI dependency
+closure).  Put those sources on =load-path= before requiring the facade:
+
+#+begin_src emacs-lisp
+(dolist (directory '("packages/org-comments" "packages/ox-sync"
+                     "packages/org-google-docs"))
+  (add-to-list 'load-path (expand-file-name directory "/path/to/checkout/")))
+(require 'org-google-docs)
+#+end_src
+
+Loading is safe without gdocs or credentials.  Conversion/sync needs the
+semantic-capable =behaghel/gdocs= source selected by the consumer configuration,
+not an arbitrary upstream version.  This repository pins it in
+=straight/versions/default.el=.  Its dependency closure includes dash, s, plz,
+and transient.  An explicit =GDOCS_PATH= selects a development source checkout;
+invalid selections fail instead of silently falling back.
+
+Personal account mappings, auth-source lookup, styles, and keybindings stay in
+=modules/interactive/org/google-docs.el= and its style libraries, not this package.
+Do not put credentials or OAuth tokens in Org documents, fixtures, or diagnostics.
+When configuring gdocs independently, explicitly select manual synchronization:
+
+#+begin_src emacs-lisp
+(setq gdocs-auto-push-on-save nil
+      gdocs-auto-pull-on-open nil)
+#+end_src
+
+The upstream client's defaults are not a substitute for consumer policy.
+
+* Standalone local diagnostics
+From a devenv shell, with existing cached source dependencies:
+
+#+begin_src sh
+GDOCS_PATH=/path/to/semantic-gdocs \
+STRAIGHT_BUILD_PATH=/path/to/straight/build \
+./scripts/org-google-docs-standalone
+
+GDOCS_PATH=/path/to/semantic-gdocs \
+STRAIGHT_BUILD_PATH=/path/to/straight/build \
+./scripts/org-google-docs-standalone --interactive
+#+end_src
+
+=GDOCS_PATH= defaults to the configured build tree's =gdocs/= directory.
+=CONTEXT_PANELS_PATH= can override the Context Panels source location separately.
+No sources are downloaded or modified.  The launcher copies only Elisp, package
+fixtures, and walkthrough sources into a disposable directory, then uses
+=emacs -Q= with temporary HOME/XDG directories and no personal helpers/modules.
+It validates real gdocs conversion seams, runs offline package tests, and compiles
+all adapter/example libraries with warnings treated as errors.
+
+The sandbox removes live-test authorization and Google credential environment
+variables without printing their values.  Networking, credential lookup, and
+subprocesses fail closed; the only subprocess exception is the resolved local
+=diff= executable used by Emacs's pull-diff preview.  Shells and curl remain
+blocked.  This is a controlled developer workflow, not a security boundary for
+arbitrary untrusted Elisp.
+
+The [[file:examples/standalone.org][interactive walkthrough]] starts with an unlinked local Org document:
+- =org-google-docs-demo-preview= runs local preflight and opens the real pipeline
+  trace.  Inspect =:local-ir= and =:local-requests=; neither should be an error.
+- =org-google-docs-demo-roundtrip= renders actual Org → IR → Org output in a
+  separate read-only, soft-word-wrapped buffer. Wrapping adds no newlines or
+  edits to the converted text. Source remains unchanged; whitespace can normalize.
+- Modify source and preview again to inspect changed local request planning.
+- An anonymous inline footnote is rejected locally before mutation.
+
+The trace does not authenticate, upload, fetch remote JSON, or create/push/pull a
+live document.  Image URI enrichment and native-footnote mutation have additional
+stages; raw local requests are not a final upload stream.  The dependency's
+local conversion/diff behavior is exercised, not Google API normalization or
+remote fidelity.  All temporary source/state is removed when Emacs exits.
+
+* Recover from conflicting local and remote edits
+=M-x org-google-docs-pull-replace-local= treats Google's current body as
+canonical, without merging local edits or writing to Google. It fetches and
+validates conversion before asking once for confirmation. Editing remains
+available during fetch. After confirmation, the complete current buffer,
+including unsaved edits, is backed up before the body is replaced and saved.
+The success message includes the backup path; its location follows upstream
+=gdocs-pull-backup-directory=, defaulting to the source directory.
+
+Local file metadata, including title, date, file tags, identifier, and document
+link, remains local; sync receipts are updated. Remote constructs the importer
+cannot represent, such as unsupported smart chips, block recovery before
+confirmation. Cancellation and failed fetch, conversion, or backup leave local
+content unchanged. This command does not repair formatting defects already in
+Google's content. =org-google-docs-pull-diff= remains an optional preview.
+
+* Tests and live conformance
+Reusable package tests live in =test/= here and use fixtures/mock provider calls.
+Tests importing this configuration's semantic auditor/specimen live in the
+consumer integration suite under =test/publishing/google-docs/=.  The reusable
+classifier consumes plain audit data rather than private Hub libraries.
+
+Live tests are separate, explicitly opt-in, and create real Google Docs.  Only
+=ORG_GOOGLE_DOCS_LIVE_TESTS=1= enables them; unset, empty, =0=, and =false= do not.
+The standalone launcher always removes that flag, even if the parent environment
+contains it.  Live authentication and remote-mutation authorization are a
+separate operator decision, not part of an offline readiness check.
+
+* Fidelity and diagnostics
+Uniform bold across a fetched heading is canonicalized as heading presentation,
+not =*bold*= around its title. Partial bold that still contrasts in Google,
+italic, and other visible inline emphasis are retained. The importer does not
+reconstruct authored emphasis that Google's heading styling made invisible.
+This rule does not remove bold from ordinary body text.
+
+The heading lifecycle fixture covers levels 1–6, Unicode, visible italic text,
+exact heading font-request ranges, and no-op diff stability. Its returned JSON
+is representative test data, not a captured live Google response. Separate
+opt-in themed live cases cover create/fetch, immediate diff, and append/diff;
+skipping them does not establish live fidelity or Google font rendering.
+
+Run =M-x org-google-docs-debug-pipeline= before live trial-and-error.  Without a
+prefix it records only local planning.  A prefix additionally requests remote
+JSON/IR/diff inspection for the linked document and therefore requires explicit
+network/account access.  Diagnostic buffers may contain document text, but must
+never contain credential payloads or OAuth tokens.
+
+Recognized unsupported forms fail before remote mutation.  Image caches,
+source-adjacent sidecars, provider IDs, and upstream link metadata retain their
+existing identities.  Pull previews suppress auto-sync controls dynamically
+across the upstream callback boundary and operate on temporary buffers/files,
+not the original authored document.
