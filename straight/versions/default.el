@@ -58,7 +58,7 @@
  ("gnu-elpa-mirror" . "733b67f4c90d8a52f0f7745d36ce5670c0422f08")
  ("gnuplot" . "afa58d7e5c37641813931bad7b26ade3c60f5ad0")
  ("goto-chg" . "72f556524b88e9d30dc7fc5b0dc32078c166fda7")
- ("gptel" . "3bc90bdfb97a7d8051b4aada66bd0609d1e26faa")
+ ("gptel" . "65280701b87dc32cbe6cf9c07f1b88fdf035085c")
  ("gptel-agent" . "5eb9fac975b65df04cf62e2eeffaa79273fbf965")
  ("ht.el" . "1c49aad1c820c86f7ee35bf9fff8429502f60fef")
  ("htmlize" . "fa644880699adea3770504f913e6dddbec90c076")

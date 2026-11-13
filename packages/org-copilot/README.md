@@ -65,6 +65,11 @@ Write an executive summary of this document.
 #+end_src
 ```
 
+The gptel generator requires an explicitly configured effective backend and
+model before making a request. It does not delegate missing configuration to
+gptel's default-provider selection. Authentication route and model selection
+remain consumer-owned; offline/custom generators do not require gptel.
+
 Evaluation stores raw Org in `#+RESULTS:` with hidden freshness metadata. Export preflight does not re-evaluate fresh blocks; missing/stale blocks ask before generation and ask again before exporting unreviewed content.
 
 For generated diagrams/code, use `:output src:LANG` and optional `:file`:

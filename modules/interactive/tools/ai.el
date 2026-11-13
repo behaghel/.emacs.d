@@ -5,6 +5,16 @@
 
 ;;; Code:
 
+(defvar gptel-api-key)
+(defvar gptel--known-backends)
+(defvar gptel--openai-oauth-token-file)
+(defvar org-copilot-gptel-backend)
+(defvar org-copilot-gptel-model)
+
+(declare-function gptel-make-openai-oauth "gptel-openai-oauth")
+(declare-function gptel-openai-oauth-p "gptel-openai-oauth")
+(declare-function gptel-backend-models "gptel-request")
+
 (defgroup hub/ai nil
   "Personal AI integration settings."
   :group 'tools)
@@ -19,7 +29,7 @@
   :type 'boolean
   :group 'hub/ai)
 
-(defcustom hub/gptel-openai-oauth-model 'gpt-6.1-luna
+(defcustom hub/gptel-openai-oauth-model 'gpt-6-luna
   "Default model for the ChatGPT subscription OAuth gptel backend."
   :type 'symbol
   :group 'hub/ai)
@@ -44,6 +54,45 @@
 	  (setq hub/gptel--cached-api-key secret))
 	secret)))
 
+(defun hub/gptel-secure-oauth-cache ()
+  "Restrict an existing subscription cache to its owner without reading it."
+  (when (and (boundp 'gptel--openai-oauth-token-file)
+	     (stringp gptel--openai-oauth-token-file)
+	     (file-exists-p gptel--openai-oauth-token-file))
+    (set-file-modes gptel--openai-oauth-token-file #o600)))
+
+(defun hub/gptel-write-private-oauth-token (write file token)
+  "Call WRITE for FILE and TOKEN with owner-only file permissions.
+Create parent directories before restricting file creation modes.  Restore
+process-wide creation modes even if writing fails; never log TOKEN."
+  (make-directory (file-name-directory file) t)
+  (when (file-exists-p file)
+    (set-file-modes file #o600))
+  (let ((modes (default-file-modes)))
+    (unwind-protect
+	(progn
+	  (set-default-file-modes #o600)
+	  (funcall write file token))
+      (set-default-file-modes modes))))
+
+(with-eval-after-load 'gptel-oauth
+  (advice-add 'gptel-oauth--write-token :around
+	      #'hub/gptel-write-private-oauth-token))
+
+(defun hub/gptel-subscription-backend ()
+  "Return the registered ChatGPT subscription backend without replacing it.
+Preserve its authenticated state.  A conflicting named API backend is an
+error, not permission to replace it or select a different billing route."
+  (require 'gptel-openai-oauth)
+  (unless (fboundp 'gptel--openai-oauth-default-backend)
+    (user-error
+     "Subscription adapter is outdated; install the gptel revision pinned in straight/versions/default.el and rebuild gptel"))
+  (hub/gptel-secure-oauth-cache)
+  (let ((backend (alist-get "OpenAI-sub" gptel--known-backends nil nil #'equal)))
+    (when (and backend (not (gptel-openai-oauth-p backend)))
+      (user-error "OpenAI-sub is not a ChatGPT subscription backend"))
+    (or backend (gptel-make-openai-oauth "OpenAI-sub"))))
+
 (defun hub/gptel-configure-openai-oauth ()
   "Configure gptel's subscription OAuth without activating Org Copilot.
 Fail closed instead of falling back to an API-key backend."
@@ -53,7 +102,7 @@ Fail closed instead of falling back to an API-key backend."
     (condition-case err
 	(progn
 	  (require 'gptel-openai-oauth)
-	  (setq gptel-backend (gptel-make-openai-oauth "OpenAI-sub")
+	  (setq gptel-backend (hub/gptel-subscription-backend)
 		gptel-model hub/gptel-openai-oauth-model))
       (error
        (message "gptel: ChatGPT subscription OAuth unavailable: %s"
@@ -113,6 +162,39 @@ Fail closed instead of falling back to an API-key backend."
 ;; Review requests precede mode activation, unlike the chat/panel commands.
 (with-eval-after-load 'org-copilot-llm
   (advice-add 'org-copilot-review-dwim :before #'hub/org-copilot-enable-gptel))
+
+(defun hub/org-copilot-babel-with-subscription (generate &rest args)
+  "Call GENERATE with ARGS using the selected subscription authentication.
+Configure at request time, independently of mode activation and gptel's
+main-library load order.  Never fall back to API billing or another model."
+  (if (not hub/gptel-use-openai-oauth)
+      (apply generate args)
+    (let ((gptel-api-key nil)
+	  (org-copilot-gptel-backend nil)
+	  (org-copilot-gptel-model hub/gptel-openai-oauth-model))
+      (condition-case err
+	  (progn
+	    (unless (and org-copilot-gptel-model
+			 (symbolp org-copilot-gptel-model))
+	      (user-error "Select a ChatGPT subscription model"))
+	    (require 'gptel-openai-oauth)
+	    (setq org-copilot-gptel-backend (hub/gptel-subscription-backend))
+	    (unless (gptel-openai-oauth-p org-copilot-gptel-backend)
+	      (user-error "Configured backend is not ChatGPT subscription OAuth"))
+	    (unless (memq org-copilot-gptel-model
+			  (gptel-backend-models org-copilot-gptel-backend))
+	      (user-error
+	       "Model %s is not listed by the subscription adapter; select a supported model explicitly"
+	       org-copilot-gptel-model)))
+	(error
+	 (user-error
+	  "Copilot Babel: ChatGPT subscription setup failed: %s. No API fallback was attempted"
+	  (error-message-string err))))
+      (apply generate args))))
+
+(with-eval-after-load 'ob-copilot
+  (advice-add 'org-copilot-babel-gptel-generate :around
+	      #'hub/org-copilot-babel-with-subscription))
 
 (with-eval-after-load 'gptel
   (hub/gptel-agent-enable-tools))
