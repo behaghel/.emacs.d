@@ -10,6 +10,7 @@
 
 (require 'cl-lib)
 (require 'ert)
+(require 'subr-x)
 
 (defconst hub/ai-lifecycle-test--file (expand-file-name (or load-file-name buffer-file-name))
   "Absolute path to this test file, also loaded by isolated child processes.")
@@ -26,6 +27,9 @@
 
 (defvar hub/ai-lifecycle-test--external-calls 0
   "Number of forbidden external operations attempted in the child process.")
+
+(defvar hub/ai-lifecycle-test--models nil
+  "Model catalogue declared by the fixture subscription backend.")
 
 (defvar hub/ai-lifecycle-test--recipes nil
   "Package recipes recorded instead of installing packages in the child.")
@@ -118,6 +122,91 @@ Leave the mode disabled so the caller's next explicit enable retries setup."
   (should-not org-copilot--overlays)
   (should-not (context-panels-registered-provider 'copilot))
   (princ "AI-LIFECYCLE:RETRY\n"))
+
+(defun hub/ai-lifecycle-test--exercise-babel (fault)
+  "Exercise the real Babel path with optional subscription setup FAULT."
+  (require 'use-package)
+  (require 'straight)
+  (require 'auth-source-pass)
+  (require 'url)
+  (setq org-modules nil straight-use-package-by-default t)
+  (straight-use-package-mode 1)
+  (cl-letf (((symbol-function 'straight-use-package) (lambda (&rest _) t))
+	    ((symbol-function 'auth-source-pass-get) #'hub/ai-lifecycle-test--forbid-external)
+	    ((symbol-function 'auth-source-search) #'hub/ai-lifecycle-test--forbid-external)
+	    ((symbol-function 'url-retrieve) #'hub/ai-lifecycle-test--forbid-external)
+	    ((symbol-function 'url-retrieve-synchronously) #'hub/ai-lifecycle-test--forbid-external)
+	    ((symbol-function 'make-network-process) #'hub/ai-lifecycle-test--forbid-external)
+	    ((symbol-function 'open-network-stream) #'hub/ai-lifecycle-test--forbid-external)
+	    ((symbol-function 'call-process) #'hub/ai-lifecycle-test--forbid-external)
+	    ((symbol-function 'process-file) #'hub/ai-lifecycle-test--forbid-external)
+	    ((symbol-function 'start-process) #'hub/ai-lifecycle-test--forbid-external)
+	    ((symbol-function 'make-process) #'hub/ai-lifecycle-test--forbid-external))
+    (hub/ai-lifecycle-test--load-config)
+    (require 'ob-copilot)
+    (require 'gptel-openai-oauth)
+    (hub/ai-lifecycle-test--load-config)
+    (should (eq hub/gptel-openai-oauth-model 'gpt-6-luna))
+    (let ((count 0))
+      (advice-mapc
+       (lambda (function _properties)
+	 (when (eq function #'hub/org-copilot-babel-with-subscription)
+	   (cl-incf count)))
+       'org-copilot-babel-gptel-generate)
+      (should (= count 1)))
+    (setq hub/gptel-use-openai-oauth t
+	  hub/gptel-openai-oauth-model (if (eq fault 'unlisted-model)
+					   'fixture-unlisted-model 'fixture-supported-model)
+	  gptel--known-backends (when (eq fault 'registry-api)
+				  '(("OpenAI-sub" . fixture-api)))
+	  gptel-backend (when (eq fault 'stale-api) 'fixture-api)
+	  gptel-model nil
+	  org-copilot-gptel-backend (when (eq fault 'stale-api) 'fixture-api)
+	  org-copilot-gptel-model nil)
+    (when (eq fault 'outdated-adapter)
+      (fmakunbound 'gptel--openai-oauth-default-backend))
+    (let ((original-constructor (symbol-function 'gptel-make-openai-oauth))
+	  (calls 0) (constructions 0) observed-backend observed-model)
+      (cl-letf (((symbol-function 'gptel-make-openai-oauth)
+		 (lambda (&rest args)
+		   (cl-incf constructions)
+		   (pcase fault
+		     ('unavailable (error "Fixture OAuth unavailable"))
+		     ('invalid-backend nil)
+		     (_ (apply original-constructor args)))))
+		((symbol-function 'gptel-request)
+		 (lambda (_prompt &rest args)
+		   (cl-incf calls)
+		   (should-not gptel-api-key)
+		   ;; Emulate gptel's provider/model fallback without any I/O.
+		   (setq observed-backend (or gptel-backend 'fixture-api)
+			 observed-model (if (memq gptel-model hub/ai-lifecycle-test--models)
+					    gptel-model 'fixture-fallback-model))
+		   (let ((callback (plist-get args :callback)))
+		     (funcall callback "{\"output\":\"Generated via subscription.\"}" nil)
+		     (when (plist-get args :stream) (funcall callback t nil))))))
+	(with-temp-buffer
+	  (org-mode)
+	  (insert "#+begin_src copilot\nWrite a summary.\n#+end_src\n\n#+RESULTS:\nOld reviewed result.\n")
+	  (goto-char (point-min))
+	  (let ((before (buffer-string)) (org-confirm-babel-evaluate nil))
+	    (if (memq fault '(unavailable invalid-backend unlisted-model outdated-adapter registry-api))
+		(progn
+		  (should-error (org-babel-execute-src-block) :type 'user-error)
+		  (should (zerop calls))
+		  (should (equal (buffer-string) before)))
+	      (org-babel-execute-src-block)
+	      (should (= calls 1))
+	      (should (eq observed-backend 'fixture-backend))
+	      (should (eq observed-model 'fixture-supported-model))
+	      (should (string-match-p "Generated via subscription" (buffer-string)))
+	      ;; Repeating generation retains the already configured backend.
+	      (org-babel-execute-src-block)
+	      (should (= calls 2))
+	      (should (= constructions 1)))
+	    (should-not org-copilot-mode)))))
+    (should (zerop hub/ai-lifecycle-test--external-calls))
+    (princ "AI-BABEL:PASS\n")))
 
 (defun hub/ai-lifecycle-test--exercise (order fault &optional recovery-route)
   "Exercise the lifecycle with load ORDER and optional negative-control FAULT.
@@ -241,7 +330,7 @@ Return the exit status and output; see `hub/ai-lifecycle-test--exercise'."
 	  (hub/ai-lifecycle-test--write
 	   root "gptel.el"
 	   (concat "(defvar gptel-api-key nil)\n(defvar gptel-backend nil)\n"
-		   "(defvar gptel-model nil)\n"
+		   "(defvar gptel-model nil)\n(defvar gptel--known-backends nil)\n"
 		   "(dolist (command '(gptel gptel-send gptel-request))\n"
 		   "  (defalias command #'hub/ai-lifecycle-test--forbid-external))\n"
 		   "(provide 'gptel)\n"))
@@ -250,7 +339,13 @@ Return the exit status and output; see `hub/ai-lifecycle-test--exercise'."
 	   "(defun gptel-agent-update () nil)\n(provide 'gptel-agent)\n")
 	  (hub/ai-lifecycle-test--write
 	   root "gptel-openai-oauth.el"
-	   (concat "(defun gptel-make-openai-oauth (&rest _args) 'fixture-backend)\n"
+	   (concat "(defun gptel-make-openai-oauth (_name &rest args)\n"
+		   " (setq hub/ai-lifecycle-test--models (or (plist-get args :models) '(fixture-supported-model fixture-luna-model)))\n"
+		   " (setf (alist-get _name gptel--known-backends nil nil #'equal) 'fixture-backend)\n"
+		   " 'fixture-backend)\n"
+		   "(defun gptel-backend-models (_backend) hub/ai-lifecycle-test--models)\n"
+		   "(defun gptel-openai-oauth-p (backend) (eq backend 'fixture-backend))\n"
+		   "(defun gptel--openai-oauth-default-backend () 'fixture-backend)\n"
 		   "(provide 'gptel-openai-oauth)\n"))
 	  (hub/ai-lifecycle-test--write
 	   root "org-copilot-gptel.el"
@@ -259,6 +354,8 @@ Return the exit status and output; see `hub/ai-lifecycle-test--exercise'."
 		   "(defun org-copilot-gptel-enable ()\n"
 		   "  (hub/ai-lifecycle-test--configure-adapter 'api-key))\n"
 		   "(provide 'org-copilot-gptel)\n"))
+	  (when (eq order 'babel)
+	    (delete-file (expand-file-name "org-copilot-gptel.el" root)))
 	  (let ((paths (list root
 			     (expand-file-name "use-package" build)
 			     (expand-file-name "straight" build)
@@ -284,7 +381,9 @@ Return the exit status and output; see `hub/ai-lifecycle-test--exercise'."
 			     "-l" hub/ai-lifecycle-test--file
 			     "--eval" (prin1-to-string
 				       `(condition-case err
-					    (hub/ai-lifecycle-test--exercise ',order ',fault ',recovery-route)
+					    (if (eq ',order 'babel)
+						(hub/ai-lifecycle-test--exercise-babel ',fault)
+					      (hub/ai-lifecycle-test--exercise ',order ',fault ',recovery-route))
 					  (error
 					   (princ (format "AI-LIFECYCLE:FAIL %S\n" err))
 					   (kill-emacs 1)))))))))
@@ -358,6 +457,181 @@ Return the exit status and output; see `hub/ai-lifecycle-test--exercise'."
 	      (should (equal status 0))
 	      (should (string-match-p "AI-LIFECYCLE:RETRY\n" output))
 	      (should (string-match-p "AI-LIFECYCLE:PASS\n" output)))))
+
+(ert-deftest hub/ai-babel-subscription-route-survives-cold-start-and-stale-api ()
+  "Babel configures subscription OAuth without mode activation or model fallback."
+  (dolist (fault '(nil stale-api))
+    (pcase-let ((`(,status ,output) (hub/ai-lifecycle-test--run 'babel fault)))
+      (ert-info ((format "Babel route fixture:\n%s" output))
+		(should (equal status 0))
+		(should (string-match-p "AI-BABEL:PASS" output))))))
+
+(ert-deftest hub/ai-babel-subscription-failure-never-requests-or-changes-results ()
+  "Missing or invalid OAuth setup cannot fall back to API billing."
+  (dolist (fault '(unavailable invalid-backend unlisted-model outdated-adapter registry-api))
+    (pcase-let ((`(,status ,output) (hub/ai-lifecycle-test--run 'babel fault)))
+      (ert-info ((format "Babel setup failure fixture:\n%s" output))
+		(should (equal status 0))
+		(should (string-match-p "AI-BABEL:PASS" output))))))
+
+(ert-deftest hub/ai-real-oauth-login-selector-and-backend-reuse ()
+  "Real dependency selection returns an object and retains authenticated state."
+  (let* ((build (expand-file-name (or (getenv "STRAIGHT_BUILD_PATH") "straight/build")
+				  hub/ai-lifecycle-test--root))
+	 (source (or (getenv "GPTEL_PATH") (expand-file-name "gptel" build)))
+	 (home (make-temp-file "ai-real-oauth-" t))
+	 (default-directory (file-name-as-directory home))
+	 (process-environment (copy-sequence process-environment))
+	 (paths (cons source (cl-remove-if-not #'file-directory-p
+					       (directory-files build t "\\`[^.]")))))
+    (unwind-protect
+	(progn
+	  (setenv "HOME" home)
+	  (with-temp-buffer
+	    (let* ((program
+		    `(progn
+		       (require 'cl-lib)
+		       (require 'gptel-openai-oauth)
+		       (let* ((gptel-backend nil)
+			      (gptel--known-backends nil)
+			      (backend (gptel-make-openai-oauth "OpenAI-sub")))
+			 ;; Evaluate only interactive argument selection, never login.
+			 (unless (eq (car (eval (cadr (interactive-form
+						       #'gptel-openai-oauth-login)) t)) backend)
+			   (error "OAuth login selector returned an entry instead of a backend"))
+			 (with-temp-buffer
+			   (insert-file-contents
+			    ,(expand-file-name "modules/interactive/tools/ai.el"
+					       hub/ai-lifecycle-test--root))
+			   (goto-char (point-min))
+			   (condition-case nil
+			       (while t
+				 (let ((form (read (current-buffer))))
+				   (when (or (and (eq (car-safe form) 'defun)
+						  (memq (cadr form)
+							'(hub/gptel-subscription-backend
+							  hub/gptel-secure-oauth-cache
+							  hub/gptel-write-private-oauth-token)))
+					     (and (eq (car-safe form) 'with-eval-after-load)
+						  (equal (cadr form) '(quote gptel-oauth))))
+				     (eval form t))))
+			     (end-of-file nil)))
+			 (setf (gptel-openai-oauth-token backend) 'fixture-state)
+			 (unless (and (eq (hub/gptel-subscription-backend) backend)
+				      (eq (gptel-openai-oauth-token backend) 'fixture-state))
+			   (error "Subscription setup replaced existing authenticated state"))
+			 ;; Exercise only synthetic cache data under the temp HOME.
+			 (unless (file-in-directory-p gptel--openai-oauth-token-file
+						      user-emacs-directory)
+			   (error "Fixture cache escaped its temporary directory"))
+			 (let ((fixture (list :access_token "fixture-only"
+					      :refresh_token "fixture-only"
+					      :expires_at (+ (float-time) 3600))))
+			   (gptel-oauth--write-token gptel--openai-oauth-token-file fixture)
+			   (unless (= (file-modes gptel--openai-oauth-token-file) #o600)
+			     (error "New OAuth cache was not private"))
+			   (let ((modes (default-file-modes)))
+			     (condition-case nil
+				 (hub/gptel-write-private-oauth-token
+				  (lambda (&rest _) (error "Fixture write failed"))
+				  gptel--openai-oauth-token-file fixture)
+			       (error nil))
+			     (unless (= (default-file-modes) modes)
+			       (error "Failed OAuth write changed process file creation modes")))
+			   (set-file-modes gptel--openai-oauth-token-file #o644)
+			   (gptel-oauth--write-token gptel--openai-oauth-token-file fixture)
+			   (unless (= (file-modes gptel--openai-oauth-token-file) #o600)
+			     (error "OAuth cache write left credentials readable by others"))
+			   (set-file-modes gptel--openai-oauth-token-file #o644)
+			   (hub/gptel-subscription-backend)
+			   (unless (= (file-modes gptel--openai-oauth-token-file) #o600)
+			     (error "Existing OAuth cache was not secured"))
+			   (setf (gptel-openai-oauth-token backend) nil)
+			   (cl-letf (((symbol-function 'gptel-openai-oauth-login)
+				      (lambda (&rest _) (error "Unexpected reauthentication")))
+				     ((symbol-function 'gptel--openai-oauth-refresh)
+				      (lambda (&rest _) (error "Unexpected network refresh"))))
+			     (gptel--openai-oauth-ensure backend)
+			     (unless (equal (gptel-openai-oauth-token backend) fixture)
+			       (error "Cached subscription login was not restored"))))
+			 ;; Build the request locally: no headers, auth, or HTTP.
+			 (let* ((gptel-backend backend)
+				(gptel-model 'gpt-6-luna)
+				(gptel-stream t)
+				(payload (gptel--request-data backend nil)))
+			   (unless (and (equal (plist-get payload :model) "gpt-6-luna")
+					(eq (plist-get payload :stream) t)
+					(eq (plist-get payload :store) :json-false))
+			     (error "Subscription request changed model or streaming semantics"))))
+		       (message "REAL-OAUTH:PASS")))
+		   (status
+		    (apply #'call-process
+			   (expand-file-name invocation-name invocation-directory)
+			   nil t nil
+			   (append '("--batch" "-Q")
+				   (cl-mapcan (lambda (path) (list "-L" path)) paths)
+				   (list "--eval" (format "(setq user-emacs-directory %S)" home)
+					 "--eval" (prin1-to-string program))))))
+	      (ert-info ((buffer-string))
+			(should (equal status 0))
+			(should (string-match-p "REAL-OAUTH:PASS" (buffer-string)))))))
+      (delete-directory home t))))
+
+(ert-deftest hub/ai-ci-provisions-pinned-oauth-source-without-a-build-cache ()
+  "CI selects the locked SDK explicitly even with no optional gptel build."
+  (let ((script
+	 (with-temp-buffer
+	   (insert-file-contents
+	    (expand-file-name ".github/workflows/emacs.yml"
+			      hub/ai-lifecycle-test--root))
+	   (should (re-search-forward
+		    "^      - name: Prepare pinned gptel for OAuth contract tests$" nil t))
+	   (should (re-search-forward "^        run: |$" nil t))
+	   (forward-line)
+	   (let (lines)
+	     (while (looking-at "          \\(.*\\)$")
+	       (push (match-string-no-properties 1) lines)
+	       (forward-line))
+	     (string-join (nreverse lines) "\n"))))
+	(root (make-temp-file "ai-ci-source-" t))
+	(pin "1111111111111111111111111111111111111111")
+	(process-environment (copy-sequence process-environment)))
+    (unwind-protect
+	(let ((default-directory (file-name-as-directory root)))
+	  (make-directory (expand-file-name "straight/versions" root) t)
+	  (hub/ai-lifecycle-test--write root "straight/versions/default.el"
+					(format "((\"gptel\" . %S))\n" pin))
+	  ;; Record Git operations; the regression never accesses the network.
+	  (with-temp-file (expand-file-name "git" root)
+	    (insert "#!/bin/sh\nset -eu\n"
+		    "printf '%s\\n' \"$*\" >> \"$FIXTURE_GIT_LOG\"\n"
+		    "case \"$*\" in\n"
+		    "  *'rev-parse HEAD'*) printf '%s\\n' \"$FIXTURE_PIN\" ;;\n"
+		    "  *checkout*) touch \"$2/gptel-openai-oauth.el\" ;;\n"
+		    "esac\n"))
+	  (set-file-modes (expand-file-name "git" root) #o755)
+	  (setenv "PATH" (concat root path-separator (getenv "PATH")))
+	  (setenv "RUNNER_TEMP" root)
+	  (setenv "GITHUB_ENV" (expand-file-name "github-env" root))
+	  (setenv "FIXTURE_GIT_LOG" (expand-file-name "git-log" root))
+	  (setenv "FIXTURE_PIN" pin)
+	  (setenv "HOME" root)
+	  (setenv "GPTEL_PATH" nil)
+	  (with-temp-buffer
+	    (let ((status (call-process "bash" nil t nil "-eu" "-c" script)))
+	      (ert-info ((buffer-string)) (should (equal status 0)))))
+	  (with-temp-buffer
+	    (insert-file-contents (expand-file-name "git-log" root))
+	    (should (string-match-p
+		     (regexp-quote
+		      (concat "fetch --depth=1 https://github.com/karthink/gptel.git " pin))
+		     (buffer-string))))
+	  (with-temp-buffer
+	    (insert-file-contents (expand-file-name "github-env" root))
+	    (should (string-match-p
+		     (regexp-quote (concat "GPTEL_PATH=" root "/gptel-oauth-contract"))
+		     (buffer-string)))))
+      (delete-directory root t))))
 
 (provide 'ai-activation-lifecycle-test)
 ;;; ai-activation-lifecycle-test.el ends here
