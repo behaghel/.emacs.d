@@ -119,9 +119,23 @@ never authorize, fetch, reopen a view or start playback.
   prior editing context without changing playback.
 - Search input accepts ordinary text and spaces. Transport keys do not intercept
   minibuffer typing. Playback and enqueue actions are explicit and distinguishable.
-- Playing a queue candidate selects that existing occurrence; playing a library
-  candidate uses the existing append-and-play behavior. Enqueueing a library
-  candidate uses the existing append-without-interruption behavior.
+- Search combines a loaded Liked record with matching queue occurrences by exact
+  Spotify track URI, never by title. Each queued occurrence stays distinct and
+  carries Queue + Liked provenance; the redundant library-only hit is absent.
+  Different recordings and local files remain distinct. Loaded coverage counts
+  retained library records, including those represented by combined results.
+- Playing a queue or combined candidate selects that existing occurrence without
+  appending. Playing a library-only candidate uses the existing append-and-play
+  behavior. Enqueueing a library-only or combined candidate appends exactly one
+  copy without interruption. A queue-only candidate does not gain a library action.
+  Each action validates the retained source it acts on: the exact queue occurrence
+  for Play, or the loaded library record and generation for append.
+- The existing Embark action menu exposes Play (`p`) and Append (`a`) for music
+  search results. These actions use the same retained row identities and source
+  validation as RET and M-RET, never parsing a label or looking up a replacement
+  by title or URI. Opening, inspecting or cancelling the menu is passive. A target
+  whose identity has been stripped or whose acted-on source is stale is rejected
+  before queue mutation or playback interruption.
 - The palette exposes navigation, transport, spectrum and connection actions with
   discoverable keys and current availability. It does not create a second set of
   playback semantics. Closing it returns to the previous context.

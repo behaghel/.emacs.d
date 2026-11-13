@@ -94,6 +94,48 @@ Feature: Music navigation at the speed of the editor
       | Liked Songs  | M-RET         | that track is appended without interruption |
       | Queue        | RET           | that existing occurrence is selected and played |
 
+  @wireframe:music-cockpit-search.svg @wireframe:music-cockpit-search-queue.svg
+  Scenario: Combine overlapping sources without losing deliberate queue duplicates
+    Given the same Spotify URI occurs at queue positions 1 and 3 and in loaded Liked Songs
+    And another loaded recording has the same title but a different Spotify URI
+    When I search music
+    Then I see both exact queue occurrences with Queue + Liked provenance
+    And there is no third library-only hit for their shared URI
+    And the different recording stays separately searchable
+    And loaded-library coverage still includes the combined record
+    When I press "RET" on the combined occurrence at position 3
+    Then that existing occurrence is selected and played without appending
+
+  @wireframe:music-cockpit-search.svg
+  Scenario: Explicitly append from a combined result without interrupting playback
+    Given a search result represents an existing queue occurrence and a loaded Liked record
+    When I press "M-RET" on that result
+    Then exactly one copy of its retained Liked record is appended
+    And current playback and the selected queue occurrence are unchanged
+    When the loaded record is refreshed, removed or closed before append
+    Then the stale append action is rejected before mutation or interruption
+
+  @wireframe:music-cockpit-search.svg @wireframe:music-cockpit-search-queue.svg
+  Scenario Outline: Use native contextual actions on the retained search result
+    Given a <source> music search result is selected
+    When I open the existing Embark menu with "C-."
+    Then the menu offers Play and Append without fetching or changing playback
+    When I choose <action>
+    Then <result>
+    And the same retained identity and stale-source guards apply as RET and M-RET
+    Examples:
+      | source        | action | result                                        |
+      | Queue         | p      | that exact existing occurrence plays          |
+      | Liked Songs   | p      | that retained library track appends and plays |
+      | Queue + Liked | a      | one retained copy appends without interruption |
+
+  @wireframe:music-cockpit-search.svg
+  Scenario: Inspect or cancel contextual music actions without side effects
+    Given I am browsing music search while a track is playing
+    When I open the Embark menu and cancel it without choosing an action
+    Then no track is appended, selected, stopped or started
+    And a target without its retained identity cannot invoke a music action
+
   @wireframe:music-cockpit-search-queue.svg
   Scenario: Reject an obsolete queue occurrence without interrupting playback
     Given queue search is open while music is playing

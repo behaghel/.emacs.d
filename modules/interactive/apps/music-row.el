@@ -33,7 +33,7 @@
 (cl-defstruct (hub/music-row (:constructor hub/music-row--create))
   "An inert source identity with normalized display metadata."
   origin track metadata playlist position revision index library generation
-  uri title artist album seconds playable)
+  uri title artist album seconds playable liked-row)
 
 (defun hub/music-row--text (value fallback)
   "Return single-line VALUE, or FALLBACK when it contains no useful text."
@@ -86,10 +86,11 @@
 
 (defun hub/music-row-label (row)
   "Return searchable metadata and provenance for ROW, not its action identity."
-  (format "%s — %s · %s  %s  [%s #%d · %s%s]"
+  (format "%s — %s · %s  %s  [%s #%d%s · %s%s]"
 	  (hub/music-row-title row) (hub/music-row-artist row) (hub/music-row-album row)
 	  (hub/music-row-time row) (if (eq (hub/music-row-origin row) 'queue) "Queue" "Liked")
-	  (1+ (hub/music-row-index row)) (hub/music-row-service row)
+	  (1+ (hub/music-row-index row)) (if (hub/music-row-liked-row row) " + Liked" "")
+	  (hub/music-row-service row)
 	  (if (hub/music-row-playable row) "" " · unavailable")))
 
 (defun hub/music-row-status (row)

@@ -22,6 +22,9 @@
 (defvar hub/spotify--tracks)
 (defvar hub/spotify--total)
 (defvar +vertico-current-arrow)
+(defvar embark-keymap-alist)
+(defvar embark-default-action-overrides)
+(defvar embark-general-map)
 (declare-function vertico--exhibit "vertico" ())
 (autoload 'hub/spotify-player-add "apps/spotify-player" nil nil)
 
@@ -44,6 +47,22 @@
   (when library
     (with-current-buffer library
       (mapcar (lambda (entry) (hub/music-row-from-liked (cdr entry) (car entry) library)) hub/spotify--tracks))))
+
+(defun hub/music-search--combine (queue liked)
+  "Combine QUEUE occurrences with LIKED rows by exact Spotify URI.
+Retain each queue occurrence and its matching library identity; remove only
+redundant library hits.  Neither source is fetched or changed."
+  (let ((by-uri (make-hash-table :test #'equal))
+	(represented (make-hash-table :test #'equal)))
+    (dolist (row liked)
+      (let ((uri (hub/music-row-uri row)))
+	(when (and (stringp uri) (string-match-p "\\`spotify:track:[[:alnum:]]\\{22\\}\\'" uri))
+	  (puthash uri row by-uri))))
+    (dolist (row queue)
+      (when-let* ((match (gethash (hub/music-row-uri row) by-uri)))
+	(setf (hub/music-row-liked-row row) match)
+	(puthash (hub/music-row-uri row) t represented)))
+    (cons queue (cl-remove-if (lambda (row) (gethash (hub/music-row-uri row) represented)) liked))))
 
 (defun hub/music-search--target (target)
   "Resolve TARGET's retained row property, never parsing its display text."
@@ -93,6 +112,8 @@
 
 (defun hub/music-search--act (row operation)
   "Perform explicit OPERATION on validated ROW through existing queue owners."
+  (when (and (eq operation 'enqueue) (hub/music-row-liked-row row))
+    (setq row (hub/music-row-liked-row row)))
   (hub/music-row-assert-current row)
   (if (eq (hub/music-row-origin row) 'liked)
       (hub/spotify-player-add (hub/music-row-metadata row) (eq operation 'play))
@@ -102,17 +123,44 @@
     (with-current-buffer (hub/music-row-playlist row) (emms-playlist-select (hub/music-row-position row)))
     (emms-start)))
 
+(defun hub/music-search-embark-play (target)
+  "Play TARGET's retained occurrence or append and play its retained library row.
+This is a non-command Embark action so target properties survive dispatch."
+  (hub/music-search--act (hub/music-search--target target) 'play))
+
+(defun hub/music-search-embark-append (target)
+  "Append one copy from TARGET's retained Liked record without interruption.
+This is a non-command Embark action so target properties survive dispatch."
+  (hub/music-search--act (hub/music-search--target target) 'enqueue))
+
+(defvar hub/music-search-embark-map
+  (let ((map (make-sparse-keymap)))
+    (define-key map (kbd "p") '(menu-item "Play" hub/music-search-embark-play))
+    (define-key map (kbd "a") '(menu-item "Append one copy" hub/music-search-embark-append))
+    map)
+  "Music result actions using retained identities, not text input injection.")
+
+(with-eval-after-load 'embark
+  (set-keymap-parent hub/music-search-embark-map embark-general-map)
+  (setf (alist-get 'hub/music-track embark-keymap-alist) 'hub/music-search-embark-map)
+  (setf (alist-get 'hub/music-track embark-default-action-overrides) #'hub/music-search-embark-play))
+
 ;;;###autoload
 (defun hub/music-search ()
   "Search the queue and loaded Liked Songs without previews or fetching.
-RET plays the existing queue occurrence or appends and plays a library song.
-M-RET appends a library song without interruption; C-g changes nothing."
+RET plays an existing queue occurrence, or appends and plays a library-only
+song.
+M-RET appends from retained Liked Songs, including combined queue results,
+without interruption.  Matching Spotify URIs share provenance.
+C-g changes nothing."
   (interactive)
   (let* ((library (hub/music-loaded-library-buffer))
-	 (queue (hub/music-search--queue emms-playlist-buffer))
-	 (liked (hub/music-search--liked library))
+	 (loaded (hub/music-search--liked library))
+	 (sources (hub/music-search--combine (hub/music-search--queue emms-playlist-buffer) loaded))
+	 (queue (car sources))
+	 (liked (cdr sources))
 	 (coverage (if library
-		       (format "Liked: %d/%d loaded" (length liked) (buffer-local-value 'hub/spotify--total library))
+		       (format "Liked: %d/%d loaded" (length loaded) (buffer-local-value 'hub/spotify--total library))
 		     "queue only · Liked not loaded"))
 	 (hub/music-search--operation 'play)
 	 (timer (run-at-time 0.5 0.5 #'hub/music-search--refresh-status)))
@@ -125,8 +173,9 @@ M-RET appends a library song without interruption; C-g changes nothing."
 		      (consult--multi
 		       (list (hub/music-search--source "Queue" ?q queue)
 			     (hub/music-search--source coverage ?l liked))
-		       :prompt (format "Music (Queue: %d · %s) — RET Play%s, C-g Back: "
-				       (length queue) coverage (if liked ", M-RET Enqueue liked" ""))
+		       :prompt (format "Music (Queue: %d · %s) — RET Play%s%s, C-g Back: "
+				       (length queue) coverage (if loaded ", M-RET Enqueue liked" "")
+				       (if (fboundp 'embark-act) ", C-. Actions" ""))
 		       :require-match t :sort nil :keymap hub/music-search-map :history 'hub/music-search--history))))
 	      (when (plist-get (cdr choice) :match)
 		(hub/music-search--act (hub/music-search--target (car choice)) hub/music-search--operation)))))
