@@ -19,7 +19,10 @@ status: draft
 - Formatting/checkdoc/parse failures should be visible before commit.
 - Full-load checks must not hide required module failures.
 - Measurement tooling must not change runtime behavior or claim improvements without before/after data.
-- CI cache and package version behavior should remain reproducible.
+- CI cache and package version behavior should remain reproducible. Dependency
+  caches contain only generated artifacts, never tracked source or version files.
+  Restored dependency artifacts match the selected Emacs version and committed
+  lockfile; a fallback cache does not replace or bypass a new package pin.
 - Entering the development shell installs hooks but does not run test or
   pre-commit suites. Checks run on commit, in CI, or through explicit commands.
 

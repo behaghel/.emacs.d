@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="800" height="440" viewBox="0 0 800 440">
+  <!-- SCREEN: Browser receiver; STORY: spotify-player; STATE: awaiting audio activation; DOMAIN: personal-apps/apps
+       Existing screen geometry is unchanged. Tab title: Enable audio — Emacs Spotify. -->
+  <use href="components.svg#template-spotify-browser" width="800" height="440"/>
+  <g font-family="Arial, sans-serif" font-size="14">
+    <rect x="40" y="204" width="720" height="56" rx="5" fill="#e2e8f0"/>
+    <text x="56" y="238" fill="#172033">Click Enable audio, then return to Emacs</text>
+    <use href="components.svg#atom-sdk-probe-button" x="40" y="284" width="172" height="40" color="#64748b"/>
+    <use href="components.svg#atom-sdk-probe-button" x="232" y="284" width="172" height="40" color="#2354c5"/>
+    <use href="components.svg#atom-sdk-probe-button" x="424" y="284" width="172" height="40" color="#2354c5"/>
+    <g fill="white"><text x="69" y="309">Authorize Spotify</text><text x="275" y="309">Enable audio</text><text x="474" y="309">Disconnect</text></g>
+  </g>
+</svg>

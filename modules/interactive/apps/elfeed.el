@@ -5,6 +5,8 @@
 
 ;;; Code:
 
+(require 'apps/emms-player)
+
 (use-package elfeed
   :straight (:depth full)
   :commands elfeed
@@ -50,14 +52,13 @@
 ;;   (elfeed-web-start))
 
 (use-package emms
-  :commands (emms)
-  :bind (:map evil-normal-state-map
-	      ("'mp" . emms-pause)
-	      ("'mm" . emms))
+  :straight (:host github :repo "emacsmirror/emms" :protocol https)
+  :commands (emms emms-play-file emms-seek)
   :config
   (emms-all)
   (emms-default-players)
   (setq emms-player-list '(emms-player-vlc-playlist emms-player-vlc emms-player-mplayer emms-player-mpg321 emms-player-ogg123))
+  (when (fboundp 'hub/spotify-player-register) (hub/spotify-player-register))
   (defun browse-with-emms (url &optional _new-window) (emms-play-url url))
   (setq browse-url-browser-function '(("mp3$" . browse-with-emms)
 				      ("." . browse-url-default-browser))))

@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="900" height="316" viewBox="0 0 900 316">
+  <!-- SCREEN: Shared EMMS Player and minibuffer; STORY: spotify-player; STATE: receiver failure; DOMAIN: personal-apps/apps -->
+  <use href="components.svg#template-music-player" width="900" height="280"/>
+  <g font-family="monospace" font-size="14" fill="#ffffff">
+    <text x="16" y="30" font-weight="bold">Stopped — Artist — Selected song</text>
+    <text x="16" y="58">[------------------------------] 0:00 / 3:00</text>
+    <text x="16" y="86">Playlist: 5:00 · 2 tracks</text>
+    <text x="16" y="122">▶ 1. Artist — Selected song  3:00</text>
+    <text x="16" y="148">  2. Local recording  2:00</text>
+    <use href="components.svg#molecule-emms-controls" x="16" y="208" width="880" height="24"/>
+  </g>
+  <!-- Actionable diagnostic is in the minibuffer, not injected into the playlist. -->
+  <rect y="280" width="900" height="36" fill="#202020"/>
+  <text x="16" y="304" font-family="monospace" font-size="13" fill="#ffffff">Headless Spotify stopped: stage=/player/play, reason=playback, kind=restricted. Queue not advanced.</text>
+</svg>

@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="900" height="280" viewBox="0 0 900 280">
+  <!-- SCREEN: Shared EMMS Player; STORY: spotify-player; STATE: mixed queue playing; DOMAIN: personal-apps/apps. Typography/colors follow the active Emacs theme. -->
+  <use href="components.svg#template-music-player" width="900" height="280"/>
+  <g font-family="monospace" font-size="14" fill="#ffffff">
+    <text x="16" y="30" font-weight="bold">Playing — Artist — Selected song</text>
+    <text x="16" y="58">[==========--------------------] 1:00 / 3:00</text>
+    <text x="16" y="86">Playlist: 8:00 · 3 tracks</text>
+    <text x="16" y="122">▶ 1. Artist — Selected song  3:00</text>
+    <text x="16" y="148">  2. Local recording  2:00</text>
+    <text x="16" y="174">  3. Artist — Another Spotify song  3:00</text>
+    <use href="components.svg#molecule-emms-controls" x="16" y="208" width="880" height="24"/>
+  </g>
+  <!-- Spotify desktop is closed. The headless receiver does not own another queue. -->
+</svg>

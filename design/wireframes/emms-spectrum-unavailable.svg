@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="900" height="280" viewBox="0 0 900 280">
+  <!-- SCREEN: Docked EMMS player. STORY: emms-spectrum. STATE: capture failed, playback unaffected. DOMAIN: personal-apps/apps. Diagnostic names the concrete failure; no automatic retry or microphone fallback. -->
+  <use xlink:href="components.svg#template-emms-player" width="900" height="280"/>
+  <g font-family="monospace" font-size="16" fill="#eeeeee">
+    <text x="16" y="28" font-weight="bold">Playing — First song</text>
+    <text x="16" y="57">[==========--------------------] 1:00 / 3:00</text>
+    <text x="16" y="86">Playlist: 7:00 · 2 tracks</text>
+    <text x="16" y="119" fill="#e5c07b">Spectrum: unavailable — allow system-audio capture, then press v to retry.</text>
+    <text x="16" y="154" fill="#88c0d0" font-weight="bold">▶ 1. First song  3:00</text>
+    <text x="16" y="183">  2. Next song   4:00</text>
+  </g>
+  <use xlink:href="components.svg#molecule-emms-controls" x="16" y="211" width="880" height="24"/>
+</svg>

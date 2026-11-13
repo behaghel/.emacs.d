@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="720" viewBox="0 0 1280 720">
+  <!-- SCREEN: Hi-Fi console; STORY: music-hi-fi-console; STATE: seek pending, last confirmed position; DOMAIN: personal-apps/apps -->
+  <use href="components.svg#template-music-workspace" width="1280" height="720"/>
+  <g transform="translate(0 400)">
+    <use href="components.svg#template-music-console" width="1280" height="320"/>
+    <use href="components.svg#organism-music-current-track" y="40" width="820" height="200"/>
+    <text x="590" y="76" font-family="Ubuntu Mono, monospace" font-size="14" fill="#9fe0c2">▶ SEEKING · +30s REQUESTED</text>
+    <rect x="198" y="166" width="226" height="4" rx="2" fill="#9ba5ba"/>
+    <g font-family="Ubuntu Mono, monospace" font-size="15" fill="#9ba5ba"><text x="198" y="190">1:42</text><text x="808" y="190" text-anchor="end">4:34</text></g>
+    <use href="components.svg#molecule-music-spectrum-off" x="198" y="210" width="610" height="40"/>
+    <use href="components.svg#organism-music-up-next" x="920" y="64" width="330" height="185"/>
+    <use href="components.svg#atom-music-transport-button" x="28" y="285" width="152" height="27"/>
+    <text x="41" y="303" font-family="Ubuntu Mono, monospace" font-size="16" fill="#aab6ff">SPC<tspan fill="#9fe0c2">  Pause</tspan></text>
+    <text x="198" y="207" font-family="Ubuntu Mono, monospace" font-size="13" fill="#9ba5ba">Track 1 of 3</text>
+    <use href="components.svg#molecule-music-queue-summary" x="952" y="285" width="300" height="27"/>
+  </g>
+</svg>

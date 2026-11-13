@@ -1,0 +1,27 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="720" viewBox="0 0 1280 720">
+  <!-- SCREEN: Music action palette; STORY: music-keyboard-cockpit; STATE: playing, audio ready, library connected, spectrum off; DOMAIN: personal-apps/apps. A native transient, not a second player. -->
+  <use href="components.svg#template-music-workspace" width="1280" height="720"/>
+  <g transform="translate(0 400)">
+    <use href="components.svg#template-music-command-surface" width="1280" height="320"/>
+    <text x="28" y="34" font-family="ETBembo, Georgia, serif" font-size="32" fill="#f3ece3">Music</text>
+    <text x="160" y="32" font-family="Ubuntu Mono, monospace" font-size="16" fill="#c4c8d4">▶ Playing · Low Light · Quiet Geometry</text>
+    <text x="820" y="32" font-family="Ubuntu Mono, monospace" font-size="14" fill="#9fe0c2">● AUDIO READY · ✓ LIBRARY CONNECTED</text>
+    <g font-family="Ubuntu Mono, monospace">
+      <g fill="#9ba5ba" font-size="14" letter-spacing="1"><text x="28" y="88">GO TO</text><text x="460" y="88">TRANSPORT</text><text x="900" y="88">CONNECTION / VIEW</text></g>
+      <g font-size="18" fill="#f3ece3">
+        <text x="28" y="126"><tspan fill="#9fe0c2">l</tspan>   Liked Songs</text>
+        <text x="28" y="164"><tspan fill="#9fe0c2">/</tspan>   Find music</text>
+        <text x="28" y="202"><tspan fill="#9fe0c2">Q</tspan>   Edit queue</text>
+        <text x="28" y="240"><tspan fill="#9fe0c2">m</tspan>   Focus player</text>
+        <text x="460" y="126"><tspan fill="#9fe0c2">SPC</tspan> Pause</text>
+        <text x="460" y="164"><tspan fill="#9fe0c2">c</tspan> −10s   <tspan fill="#9fe0c2">r</tspan> +30s</text>
+        <text x="460" y="202"><tspan fill="#9fe0c2">s</tspan> Prev   <tspan fill="#9fe0c2">t</tspan> Next</text>
+        <text x="900" y="126"><tspan fill="#9fe0c2">v</tspan>   Spectrum off</text>
+      </g>
+      <g font-size="14" fill="#9ba5ba"><text x="300" y="126">'ml</text><text x="300" y="164">'m/</text><text x="300" y="202">'m+</text><text x="300" y="240">'mm</text></g>
+      <g font-size="16" fill="#9ba5ba"><text x="900" y="164">b   Connect audio · ready</text><text x="900" y="202">L   Authorize library · connected</text></g>
+      <text x="28" y="305" font-size="15" fill="#c4c8d4">q / ESC Back to editor</text>
+      <text x="600" y="305" font-size="14" fill="#9ba5ba">Same playback commands · no new queue · capture remains opt-in</text>
+    </g>
+  </g>
+</svg>

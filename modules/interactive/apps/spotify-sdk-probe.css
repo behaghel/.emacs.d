@@ -1,0 +1,30 @@
+* { box-sizing: border-box; }
+body { margin: 0; background: #f8fafc; color: #172033; font: 14px Arial, sans-serif; }
+main { position: relative; width: min(800px, 100vw); min-height: 440px; }
+h1 { position: absolute; left: 40px; top: 45px; margin: 0; font-size: 24px; line-height: 29px; }
+p { margin: 0; }
+.description { position: absolute; left: 40px; right: 40px; top: 88px; line-height: 20px; }
+.permissions { position: absolute; left: 40px; right: 40px; top: 124px; font-size: 12px; line-height: 17px; }
+#track { position: absolute; left: 40px; right: 40px; top: 164px; color: #17643a; line-height: 20px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+p#track { color: inherit; }
+#status { position: absolute; left: 40px; right: 40px; top: 204px; min-height: 56px; padding: 18px 16px; background: #e2e8f0; border-radius: 5px; line-height: 20px; }
+.controls { position: absolute; left: 40px; top: 284px; display: flex; gap: 20px; }
+button { width: 172px; height: 40px; border: 0; border-radius: 5px; background: #2354c5; color: white; font: inherit; cursor: pointer; }
+button:disabled { background: #64748b; cursor: default; }
+.duration { position: absolute; left: 40px; right: 40px; top: 346px; line-height: 20px; }
+.privacy { position: absolute; left: 40px; right: 40px; top: 382px; font-size: 12px; line-height: 17px; }
+main:has(#trace-box:not([hidden])) { min-height: 752px; }
+#trace-box { position: absolute; left: 40px; right: 40px; top: 424px; }
+#trace-box h2 { margin: 0 0 11px; font-size: 14px; line-height: 17px; }
+#trace { margin: 0; height: 260px; padding: 16px; border-radius: 5px; background: #e2e8f0; font: 12px/18px monospace; white-space: pre-wrap; overflow-wrap: anywhere; overflow: auto; }
+@media (max-width: 640px) {
+  main { min-height: 560px; }
+  h1, .description, .permissions, #track, #status, .duration, .privacy { left: 20px; right: 20px; }
+  h1 { font-size: 21px; }
+  .controls { left: 20px; right: 20px; gap: 10px; flex-wrap: wrap; }
+  button { width: 150px; }
+  .duration { top: 400px; }
+  .privacy { top: 456px; }
+  main:has(#trace-box:not([hidden])) { min-height: 848px; }
+  #trace-box { left: 20px; right: 20px; top: 520px; }
+}
