@@ -50,12 +50,88 @@ status: draft
 - Configuration tests and each package's tests run in separate batch Emacs
   processes so independent ERT names and test stubs do not collide. All selected
   suites are attempted even when one fails.
+- The ERT runner clears inherited `GIT_INDEX_FILE` before starting Emacs. Git
+  operations in nested package repositories and test fixtures use their own
+  indexes, not the committing worktree's staged index. The parent hook environment
+  and other Git configuration are preserved.
 - Test failures and load failures produce a nonzero exit status. Skipped tests
   remain visible as skips, not passes; live-service tests require explicit opt-in.
 - CI runs the full ERT invocation on pushes and pull requests, including changes
   confined to package code or test tooling.
 - Dependency load paths follow the runtime's
   [context-panels source contract](../core/README.md#context-panels-dependency).
+
+## Standalone Package Checks
+
+- `scripts/elisp-package-standalone` shares source-only copying, temporary-home
+  isolation, dependency checks, ERT, strict compilation, and interactive samples
+  for the verified comments, suggestions, marginalia, static-site, export-sync,
+  Confluence, Copilot, and Google Docs workflows. The focused commands below retain their `--batch` and `--interactive` interfaces.
+- `scripts/org-comments-standalone` verifies the comments package with only
+  Emacs built-ins and its declared context-panels dependency. Dependency paths
+  come from `CONTEXT_PANELS_PATH` or the configured Straight build directory;
+  checks do not fetch dependencies or initialize the personal configuration.
+- `scripts/org-suggestions-standalone` verifies the suggestions package with
+  Emacs built-ins only, including the
+  [executable public workflow](../packages/org-suggestions/examples/standalone.org).
+  Its `--interactive` mode opens that walkthrough in clean Emacs for explicit
+  create, reload, preview, accept, and undo operations.
+- `scripts/cp-org-marginalia-standalone` verifies native note collection, metadata,
+  read-only panel display, and jumps to prose references. The collector also has
+  a model-only loading check without context-panels. Setup and manual acceptance
+  are documented in the [package manual](../packages/cp-org-marginalia/README.org).
+- `scripts/hb-static-site-standalone` verifies project-local section/page creation,
+  validation, source-root resolution, and actionable missing-dependency errors
+  with Emacs and Org built-ins only. Its interactive mode opens a disposable Hugo
+  project with directory-local activation, without Denote, ox-hugo, or
+  context-panels. Setup and limits are documented in the
+  [package manual](../packages/hb-static-site/README.org).
+- `scripts/ox-sync-standalone` verifies the export-sync kernel with org-comments,
+  Context Panels, and Magit Section's source dependency closure. The interactive
+  mode uses an offline provider for status, fetch, baseline, content push/pull,
+  and tracking persistence, never live Confluence or Google Docs. Cached source
+  dependencies come from `STRAIGHT_BUILD_PATH`; the check never installs them.
+  Usage and limits are documented in the [package manual](../packages/ox-sync/README.org).
+- `scripts/org-confluence-standalone` verifies local Org/Storage XHTML conversion,
+  facade activation, API fixtures, and actionable dependency errors with only its
+  declared source dependencies. Its package tests also isolate their home/caches
+  and reject unmocked I/O outside the standalone launcher, using guards that
+  ordinary error handlers cannot swallow. Emacs networking and external `process-file`
+  commands are blocked; the interactive demo also disables credential reads,
+  REST transport, browser opening, and Babel evaluation. It does not verify live
+  publishing. Usage is documented in the [package manual](../packages/org-confluence/README.org).
+- `scripts/org-copilot-standalone` verifies adapter-neutral loading, chat, durable
+  proposals, source-faithful diff/accept/undo, and transcript restoration using
+  org-comments, org-suggestions, and Context Panels source. Its scripted adapter
+  queues replies for explicit delivery to their captured source buffer. No gptel,
+  personal AI configuration, account, or model service is used. Networking,
+  credential lookup, and external processes fail closed. Usage and provider
+  limits are documented in the [package manual](../packages/org-copilot/README.org).
+- `scripts/org-google-docs-standalone` verifies the adapter without personal
+  configuration, using an explicit `GDOCS_PATH` or the cached build's semantic
+  gdocs source plus its declared dependencies. It validates conversion seams
+  without authentication and offers local preflight/IR/request and round-trip
+  diagnostics. Live-test authorization and credential environment variables are
+  removed from the child environment. Network/credential access and subprocesses
+  fail closed, except the local `diff` executable used by Emacs diff previews.
+  Fixture results do not claim live Google Docs conformance. Setup and limits
+  are documented in the [package manual](../packages/org-google-docs/README.org).
+- Source and package-local tests run from disposable copies outside the checkout,
+  with a temporary home and no undeclared sibling or personal helper load paths.
+  Emacs network connections are disabled. Failures in ERT or strict compilation
+  return a nonzero status, and temporary files are removed on exit.
+- The comments check's `--interactive` mode opens a disposable source document for its documented
+  [create/reopen/navigate workflow](../packages/org-comments/README.org).
+
+## Package Reference Generation
+
+- `scripts/elisp-package-docs` loads the requested source in `emacs -Q`, without
+  the personal initialization, and generates public command/customization tables.
+- Repository package paths and cached dependency paths are available during
+  generation. `STRAIGHT_BUILD_PATH` selects the dependency build tree; Context
+  Panels follows the [runtime source contract](../core/README.md#context-panels-dependency).
+  Invalid explicit overrides fail clearly. Generation does not install or fetch
+  dependencies.
 
 ## Architecture Lint
 

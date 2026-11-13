@@ -9,7 +9,7 @@
 (require 'org)
 
 (add-to-list 'load-path (expand-file-name ".." (file-name-directory load-file-name)))
-(add-to-list 'load-path (expand-file-name "../../org-sync"
+(add-to-list 'load-path (expand-file-name "../../ox-sync"
 					  (file-name-directory load-file-name)))
 
 (require 'org-google-docs-images)
@@ -92,7 +92,7 @@
 	(org-google-docs-images-test--with-buffer
 	 "#+CAPTION: Logo\n[[https://example.invalid/logo.png]]\n"
 	 (setq buffer-file-name (expand-file-name "doc.org" temporary-file-directory))
-	 (cl-letf (((symbol-function 'org-sync-assets-cache-remote-url)
+	 (cl-letf (((symbol-function 'ox-sync-assets-cache-remote-url)
 		    (lambda (url _directory &optional hint)
 		      (setq cached-hint hint
 			    cached-url url)

@@ -41,9 +41,8 @@ When nil, use the current buffer's `default-directory'."
 (defun org-confluence-process-run (command)
   "Run shell COMMAND and signal `user-error' on failure."
   (unless (org-confluence-api--cfl-available-p)
-    (user-error "Cannot find `%s' on Emacs PATH. Current PATH: %s"
-		org-confluence-api-cfl-command
-		(getenv "PATH")))
+    (user-error "Cannot find `%s'; install cfl or customize `org-confluence-api-cfl-command'"
+		org-confluence-api-cfl-command))
   (let* ((output-buffer org-confluence-process-output-buffer)
 	 (default-directory (or org-confluence-process-working-directory
 				default-directory))
@@ -57,9 +56,8 @@ When nil, use the current buffer's `default-directory'."
 (defun org-confluence-process-run-output (command)
   "Run shell COMMAND and return its trimmed output."
   (unless (org-confluence-api--cfl-available-p)
-    (user-error "Cannot find `%s' on Emacs PATH. Current PATH: %s"
-		org-confluence-api-cfl-command
-		(getenv "PATH")))
+    (user-error "Cannot find `%s'; install cfl or customize `org-confluence-api-cfl-command'"
+		org-confluence-api-cfl-command))
   (let* ((output-buffer org-confluence-process-output-buffer)
 	 (default-directory (or org-confluence-process-working-directory
 				default-directory))

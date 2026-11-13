@@ -180,8 +180,8 @@ domains:
         description: Reusable Org marginalia package, including native footnote/sidenote collection, layout, and context-panel provider integration.
         type: shared-kernel
         code:
-          - packages/org-marginalia/
-        spec: packages/org-marginalia/
+          - packages/cp-org-marginalia/
+        spec: packages/cp-org-marginalia/
       notes:
         description: Note-taking and personal knowledge management workflows.
         type: core
@@ -227,7 +227,6 @@ domains:
         code:
           - modules/interactive/org/confluence.el
           - packages/org-confluence/
-          - test/publishing/confluence/
         spec: packages/org-confluence/
       org-sync:
         description: Provider-neutral Org synchronization helpers shared by bidirectional publishing providers.
@@ -236,8 +235,8 @@ domains:
           - term: Local package
             meaning: Reusable package-style code with neutral defaults, separate from activation and personal configuration modules.
         code:
-          - packages/org-sync/
-        spec: packages/org-sync/
+          - packages/ox-sync/
+        spec: packages/ox-sync/
       google-docs:
         description: Google Docs publishing integration and reusable org-google-docs adapter package code.
         type: supporting
@@ -287,11 +286,26 @@ context-map:
     contract: modules/interactive/org/README.md
 
   - provider: authoring/comments
-    consumers: [publishing/confluence, publishing/google-docs]
+    consumers: [authoring/copilot, publishing/org-sync, publishing/confluence, publishing/google-docs]
     pattern: shared-kernel
     contract: packages/org-comments/README.md
+
+  - provider: authoring/suggestions
+    consumers: [authoring/copilot]
+    pattern: shared-kernel
+    contract: packages/org-suggestions/README.md
+
+  - provider: authoring/copilot
+    consumers: [personal-apps/ai]
+    pattern: customer-supplier
+    contract: packages/org-copilot/README.md
+
+  - provider: authoring/marginalia
+    consumers: [authoring/org]
+    pattern: shared-kernel
+    contract: packages/cp-org-marginalia/README.md
 
   - provider: publishing/org-sync
     consumers: [publishing/confluence, publishing/google-docs]
     pattern: shared-kernel
-    contract: packages/org-sync/README.md
+    contract: packages/ox-sync/README.md

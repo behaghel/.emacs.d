@@ -25,7 +25,34 @@ Supported MVP hunk kinds:
 
 Candidate acceptance is all-or-nothing. If any hunk cannot resolve, no source text is changed and the candidate becomes stale. If an error interrupts source editing, all edits are rolled back; candidate and alternative statuses and session-local rollback history remain unchanged. Only successful acceptance records rollback data, marks the candidate accepted, and supersedes its active alternatives.
 
+## Standalone Contract
+
+The package requires only Emacs and Org. Creating, persisting, reloading,
+previewing, accepting, and undoing a candidate does not require comments,
+Copilot, account configuration, or network access.
+
+Preview resolves every hunk against the live source and shows the text removed
+and added for each supported hunk kind. Unresolved hunks report an actionable
+stale-target error rather than an empty preview. Preview does not modify source
+text, persisted sidecars, or candidate lifecycle state.
+
+Acceptance by candidate ID persists its lifecycle change to the sidecar but
+changes source text in the buffer only; saving the source is a caller decision.
+The low-level undo helper updates the buffer and candidate record. Callers
+persist that record explicitly when using it outside a comment integration.
+
+The [executable standalone walkthrough](examples/standalone.org) demonstrates
+these public operations without an external provider.
+
 ## Sidecar shape
+
+Original and replacement bodies preserve their final-newline state, blank lines,
+trailing horizontal whitespace, and Unicode text across write/load cycles.
+Optional hunk properties `ORG_SUGGESTIONS_ORIGINAL_NO_FINAL_NEWLINE` and
+`ORG_SUGGESTIONS_REPLACEMENT_NO_FINAL_NEWLINE`, when `t`, distinguish a synthetic
+source-block delimiter newline from authored text. Readers remove only that
+synthetic newline. Unmarked blocks retain their literal, newline-terminated
+contents; loading does not infer inline text or rewrite the sidecar.
 
 ```org
 #+title: Suggestions for draft.org

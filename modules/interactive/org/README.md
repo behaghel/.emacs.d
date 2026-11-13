@@ -20,7 +20,7 @@ status: draft
 - Writing helpers should not make batch loads or isolated authoring tests depend on optional interactive packages unless guarded.
 - Machine-specific paths belong in private overrides or defcustoms, not hard-coded shared behavior.
 - Generated PDFs, TeX files, screenshots, and visual diff artifacts belong under runtime output locations, not tracked golden files.
-- Marginalia authoring uses native Org footnotes as the canonical source; the panel is a read-only projection and must jump back to footnote definitions for edits.
+- Marginalia authoring uses native Org footnotes as the canonical source; the panel is a read-only projection whose navigation follows the [marginalia provider contract](../../../packages/cp-org-marginalia/README.md). Definitions remain editable in the source through Org's native footnote navigation.
 - Marginalia stacking preserves source order and may push later notes downward when anchors are close.
 
 ## Marginalia Contract
@@ -78,7 +78,7 @@ Normal-state bindings inside the panel:
 
 | Key | Action |
 | --- | --- |
-| `RET` | Jump to the item's primary target.  For anchored comments this jumps to the source region; for stale comments this jumps to the sidecar heading; for marginalia this jumps to the footnote definition. |
+| `RET` | Jump to the item's primary target.  For anchored comments this jumps to the source region; for stale comments this jumps to the sidecar heading; for marginalia this jumps to the source footnote reference. |
 | `e` | Edit the backing sidecar entry for comment cards, narrowed to the comment body.  Marginalia has no sidecar entry and reports an error. |
 | `p` | Open the bottom page-context panel for the source buffer. |
 | `o` | Open the current remote-linked comment in Confluence. |

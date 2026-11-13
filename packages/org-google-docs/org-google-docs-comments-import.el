@@ -130,7 +130,7 @@ Return `:remote-resolved' when this changes the local TODO state to RESOLVED."
       :remote-resolved)))
 
 (defun org-google-docs-comments-import--update-at-heading (comment source-buffer)
-  "Update sidecar heading at point from normalized Google COMMENT and SOURCE-BUFFER.
+  "Update the sidecar heading from Google COMMENT for SOURCE-BUFFER.
 Return `:remote-resolved' when remote state changed the local TODO state, or
 `:updated' otherwise."
   (let ((status-change (org-google-docs-comments-import--apply-remote-status comment)))

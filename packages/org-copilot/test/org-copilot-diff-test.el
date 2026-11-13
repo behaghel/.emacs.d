@@ -66,6 +66,25 @@
        (should (string-match-p "^-Alpha sentence\." (buffer-string)))
        (should (string-match-p "^+Alpha\." (buffer-string)))))))
 
+(ert-deftest org-copilot-diff-includes-secondary-durable-hunks ()
+  "The Copilot preview shows all executable hunks, not only the comment anchor."
+  (org-copilot-diff-test--with-durable-suggestion
+   (lambda (source comment)
+     (with-current-buffer source
+       (goto-char (point-max))
+       (insert "Beta sentence.\n")
+       (save-buffer)
+       (let* ((threads (org-suggestions-load-sidecar buffer-file-name))
+	      (candidate (car (plist-get (car threads) :candidates))))
+	 (plist-put candidate :hunks
+		    (append (plist-get candidate :hunks)
+			    '((:id "h2" :kind replace :original "Beta sentence."
+				   :replacement "Beta."))))
+	 (org-suggestions-write-sidecar buffer-file-name threads)))
+     (with-current-buffer (org-copilot-diff-open source comment)
+       (should (string-match-p "^-Beta sentence" (buffer-string)))
+       (should (string-match-p "^+Beta" (buffer-string)))))))
+
 (ert-deftest org-copilot-diff-buffer-is-context-panel-associated ()
   "Diff preview buffers keep source association for context-panel follow logic."
   (org-copilot-diff-test--with-durable-suggestion

@@ -1,0 +1,275 @@
+#!/usr/bin/env bash
+# Shared clean-room checks for packages with a verified standalone workflow.
+set -euo pipefail
+
+package=${1:-}
+mode=${2:---batch}
+if [ "$#" -gt 2 ] || { [ "$mode" != --batch ] && [ "$mode" != --interactive ]; }; then
+  echo "Usage: $0 {org-comments|org-suggestions|cp-org-marginalia|hb-static-site|ox-sync|org-confluence|org-copilot|org-google-docs} [--batch|--interactive]" >&2
+  exit 64
+fi
+case "$package" in
+  org-comments|org-suggestions|cp-org-marginalia|hb-static-site|ox-sync|org-confluence|org-copilot|org-google-docs) ;;
+  *) echo "Unsupported standalone package: $package" >&2; exit 64 ;;
+esac
+
+repo_root=$(cd "$(dirname "$0")/.." && pwd)
+package_root="$repo_root/packages/$package"
+context_panels_path=
+if [ "$package" = org-comments ] || [ "$package" = cp-org-marginalia ] \
+  || [ "$package" = ox-sync ] || [ "$package" = org-confluence ] || [ "$package" = org-copilot ] \
+  || [ "$package" = org-google-docs ]; then
+  context_panels_path=${CONTEXT_PANELS_PATH:-${STRAIGHT_BUILD_PATH:-$repo_root/straight/build}/context-panels}
+  for library in context-panels.el context-panels-org.el; do
+    if [ ! -r "$context_panels_path/$library" ]; then
+      echo "Set CONTEXT_PANELS_PATH to a directory containing $library." >&2
+      exit 1
+    fi
+  done
+fi
+
+sandbox=$(mktemp -d "${TMPDIR:-/tmp}/$package-standalone.XXXXXX")
+trap 'rm -rf "$sandbox"' EXIT
+mkdir -p "$sandbox/$package/test" "$sandbox/home"
+# Copy source only: no compiled libraries, private state, or repository helpers.
+cp "$package_root/"*.el "$sandbox/$package/"
+cp "$package_root/test/"*.el "$sandbox/$package/test/"
+if [ -d "$package_root/test/fixtures" ]; then
+  cp -R "$package_root/test/fixtures" "$sandbox/$package/test/"
+fi
+if [ -d "$package_root/examples" ]; then
+  mkdir -p "$sandbox/$package/examples"
+  cp "$package_root/examples/"*.org "$sandbox/$package/examples/"
+  if [ "$package" = hb-static-site ]; then
+    cp "$package_root/examples/hugo.toml" "$package_root/examples/site-settings.sexp" \
+      "$sandbox/$package/examples/"
+  elif [ "$package" = ox-sync ] || [ "$package" = org-confluence ] \
+    || [ "$package" = org-copilot ] || [ "$package" = org-google-docs ]; then
+    cp "$package_root/examples/"*.el "$sandbox/$package/examples/"
+  fi
+fi
+args=(-Q -L "$sandbox/$package")
+allowed="\"$package\""
+if [ -n "$context_panels_path" ]; then
+  mkdir -p "$sandbox/context-panels"
+  # Preserve the public source closure (footer/tabs and future modules), not
+  # compiled files, repository metadata, or private/runtime state.
+  cp "$context_panels_path/"*.el "$sandbox/context-panels/"
+  args+=(-L "$sandbox/context-panels")
+  allowed+=" \"context-panels\""
+fi
+if [ "$package" = org-copilot ]; then
+  for dependency in org-comments org-suggestions; do
+    mkdir -p "$sandbox/$dependency"
+    cp "$repo_root/packages/$dependency/"*.el "$sandbox/$dependency/"
+    args+=(-L "$sandbox/$dependency")
+    allowed+=" \"$dependency\""
+  done
+fi
+if [ "$package" = ox-sync ] || [ "$package" = org-confluence ] || [ "$package" = org-google-docs ]; then
+  mkdir -p "$sandbox/org-comments"
+  cp "$repo_root/packages/org-comments/"*.el "$sandbox/org-comments/"
+  args+=(-L "$sandbox/org-comments")
+  allowed+=" \"org-comments\""
+  if [ "$package" = org-confluence ] || [ "$package" = org-google-docs ]; then
+    mkdir -p "$sandbox/ox-sync"
+    cp "$repo_root/packages/ox-sync/"*.el "$sandbox/ox-sync/"
+    args+=(-L "$sandbox/ox-sync")
+    allowed+=" \"ox-sync\""
+  fi
+  build_root=${STRAIGHT_BUILD_PATH:-$repo_root/straight/build}
+  dependencies=(magit-section compat cond-let llama transient)
+  if [ -r "$build_root/seq/seq.el" ]; then
+    dependencies+=(seq)
+  fi
+  for dependency in "${dependencies[@]}"; do
+    dependency_path="$build_root/$dependency"
+    if [ ! -r "$dependency_path/$dependency.el" ]; then
+      echo "Set STRAIGHT_BUILD_PATH to a build tree containing $dependency/$dependency.el." >&2
+      exit 1
+    fi
+    mkdir -p "$sandbox/$dependency"
+    cp "$dependency_path/"*.el "$sandbox/$dependency/"
+    args+=(-L "$sandbox/$dependency")
+  done
+fi
+if [ "$package" = org-google-docs ]; then
+  build_root=${STRAIGHT_BUILD_PATH:-$repo_root/straight/build}
+  gdocs_path=${GDOCS_PATH:-$build_root/gdocs}
+  for library in gdocs.el gdocs-convert.el gdocs-diff.el gdocs-api.el gdocs-auth.el gdocs-sync.el; do
+    if [ ! -r "$gdocs_path/$library" ]; then
+      echo "Set GDOCS_PATH to the semantic-capable gdocs source containing $library." >&2
+      exit 1
+    fi
+  done
+  mkdir -p "$sandbox/gdocs"
+  cp "$gdocs_path/"*.el "$sandbox/gdocs/"
+  args+=(-L "$sandbox/gdocs")
+  allowed+=" \"gdocs\""
+  for dependency in dash s plz; do
+    dependency_path="$build_root/$dependency"
+    if [ ! -r "$dependency_path/$dependency.el" ]; then
+      echo "Set STRAIGHT_BUILD_PATH to a build tree containing $dependency/$dependency.el." >&2
+      exit 1
+    fi
+    mkdir -p "$sandbox/$dependency"
+    cp "$dependency_path/"*.el "$sandbox/$dependency/"
+    args+=(-L "$sandbox/$dependency")
+  done
+  # A clean-room check never inherits authorization for live document mutation.
+  unset ORG_GOOGLE_DOCS_LIVE_TESTS ORG_GOOGLE_DOCS_LIVE_ACCOUNT
+  unset ORG_GOOGLE_DOCS_CLIENT_ID ORG_GOOGLE_DOCS_CLIENT_SECRET ORG_GOOGLE_DOCS_REFRESH_TOKEN
+fi
+cd "$sandbox"
+export HOME="$sandbox/home"
+export XDG_CONFIG_HOME="$HOME/.config" XDG_CACHE_HOME="$HOME/.cache" XDG_DATA_HOME="$HOME/.local/share"
+unset EMACSLOADPATH EMACSNATIVELOADPATH
+
+isolation="(progn
+  (dolist (library '(\"hub-utils\" \"test-helpers\" \"hb-static-site\"
+                     \"context-panels\" \"org-comments\" \"org-suggestions\"
+                     \"org-copilot\" \"cp-org-marginalia\" \"org-marginalia\"
+                     \"org-sync\" \"ox-sync\" \"org-confluence\" \"org-google-docs\"
+                     \"denote\" \"ox-hugo\" \"evil\" \"gptel\" \"gptel-openai-oauth\"))
+    (unless (member library '($allowed))
+      (when (locate-library library)
+        (error \"Unexpected ambient library: %s\" library))))
+  (advice-add 'make-network-process :override
+              (lambda (&rest _) (error \"Standalone checks do not use the network\"))))"
+
+if [ "$package" = org-confluence ]; then
+  isolation="(progn $isolation
+    (setq org-export-use-babel nil)
+    (advice-add 'process-file :override
+                (lambda (&rest _) (user-error \"Standalone Confluence checks do not run external processes\"))))"
+fi
+
+if [ "$package" = org-copilot ] || [ "$package" = org-google-docs ]; then
+  guard_slug=${package#org-}
+  isolation="(progn $isolation
+    ;; The fixture needs Org core, not unrelated mail/IRC link initialization.
+    (setq org-modules nil gdocs-auto-push-on-save nil gdocs-auto-pull-on-open nil)
+    (put 'org-$guard_slug-standalone-unexpected-io 'error-conditions
+         '(org-$guard_slug-standalone-unexpected-io))
+    (put 'org-$guard_slug-standalone-unexpected-io 'error-message
+         \"Unmocked $package standalone I/O\")
+    (defun org-$guard_slug-standalone--deny-io (operation &rest _arguments)
+      (message \"Unmocked $package standalone I/O: %s\" operation)
+      (signal 'org-$guard_slug-standalone-unexpected-io (list operation)))
+    (dolist (function '(make-network-process process-file call-process
+                        start-process make-process auth-source-search auth-source-pass-get))
+      (advice-add function :override
+                  (apply-partially #'org-$guard_slug-standalone--deny-io function)
+                  '((name . org-$guard_slug-standalone-io-guard)))))"
+fi
+
+if [ "$package" = org-google-docs ]; then
+  isolation="(progn $isolation
+    ;; Emacs diff previews use the declared local diff tool, never a shell/curl.
+    (defvar org-google-docs-standalone--diff-program (executable-find \"diff\"))
+    (unless org-google-docs-standalone--diff-program
+      (error \"The standalone Google Docs preview requires the local diff tool\"))
+    (advice-remove 'call-process 'org-google-docs-standalone-io-guard)
+    (advice-add 'call-process :around
+      (lambda (original program &rest arguments)
+        (if (equal (executable-find program) org-google-docs-standalone--diff-program)
+            (apply original program arguments)
+          (org-google-docs-standalone--deny-io 'call-process)))
+      '((name . org-google-docs-standalone-io-guard))))"
+fi
+
+if [ "$mode" = --interactive ]; then
+  echo "Temporary standalone session; files are removed when Emacs exits."
+  case "$package" in
+    org-google-docs)
+      cp "$package/examples/standalone.org" draft.org
+      echo "Offline Google Docs: M-x org-google-docs-demo-preview; no authentication or uploads."
+      emacs "${args[@]}" --eval "$isolation" -l "$package/examples/org-google-docs-demo.el" draft.org \
+        --eval '(progn (switch-to-buffer (current-buffer)) (org-google-docs-demo-start))'
+      ;;
+    org-copilot)
+      cp "$package/examples/standalone.org" draft.org
+      echo "Scripted offline chat: send answer or edit, then M-x org-copilot-demo-respond."
+      emacs "${args[@]}" --eval "$isolation" -l "$package/examples/org-copilot-demo.el" draft.org \
+        --eval '(progn (switch-to-buffer (current-buffer)) (org-copilot-demo-start))'
+      ;;
+    org-confluence)
+      cp "$package/examples/standalone.org" draft.org
+      echo "Preview with M-x org-confluence-demo-preview; import with M-x org-confluence-demo-roundtrip."
+      emacs "${args[@]}" --eval "$isolation" -l "$package/examples/org-confluence-demo.el" draft.org \
+        --eval '(progn (switch-to-buffer (current-buffer)) (org-confluence-demo-start))'
+      ;;
+    ox-sync)
+      cp "$package/examples/standalone.org" draft.org
+      echo "In the status panel: f fetch, B baseline, g refresh, c push content, C pull content."
+      emacs "${args[@]}" --eval "$isolation" -l "$package/examples/ox-sync-demo.el" draft.org \
+        --eval '(progn (switch-to-buffer (current-buffer)) (ox-sync-demo-start))'
+      ;;
+    hb-static-site)
+      mkdir -p site/content-org/pages/welcome
+      cp "$package/examples/hugo.toml" site/hugo.toml
+      cp "$package/examples/site-settings.sexp" site/.dir-locals.el
+      cp "$package/examples/standalone.org" site/content-org/pages/welcome/index.org
+      echo "Follow the page's C-c w commands to create and validate section/page sources."
+      # Register safe directory-local variables and mode activation before visiting.
+      emacs "${args[@]}" --eval "$isolation" \
+        --eval '(require (quote hb-static-site))' site/content-org/pages/welcome/index.org \
+        --eval '(switch-to-buffer (current-buffer))'
+      ;;
+    org-comments)
+      printf 'Alpha selected text omega.\n' > draft.org
+      echo "Select 'selected text', M-x org-comments-create, write/save the sidecar."
+      echo "Reopen draft.org, enable org-comments-mode, then M-x org-comments-open."
+      emacs "${args[@]}" --eval "$isolation" draft.org \
+        --eval '(progn (require (quote org-comments)) (org-comments-mode 1))'
+      ;;
+    org-suggestions)
+      echo "Evaluate each walkthrough block with C-c C-c, inspecting results before continuing."
+      emacs "${args[@]}" --eval "$isolation" "$package/examples/standalone.org" \
+        --eval '(progn (require (quote org-suggestions)) (require (quote ob-emacs-lisp)))'
+      ;;
+    cp-org-marginalia)
+      cp "$package/examples/standalone.org" draft.org
+      echo "Press RET on each note row; point should return to its source reference."
+      emacs "${args[@]}" --eval "$isolation" draft.org \
+        --eval '(progn (require (quote cp-org-marginalia-context-panel))
+                       ;; Command-line file visiting precedes its first display.
+                       (switch-to-buffer (current-buffer))
+                       (cp-org-marginalia-context-panel-mode 1)
+                       (context-panels-open (current-buffer)))'
+      ;;
+  esac
+else
+  if [ "$package" = cp-org-marginalia ]; then
+    echo "Model-only load: Emacs and Org, without context-panels."
+    emacs --batch -Q -L "$sandbox/$package" --eval "$isolation" \
+      --eval '(progn (require (quote cp-org-marginalia))
+                     (when (featurep (quote context-panels))
+                       (error "The collector unexpectedly loaded context-panels")))'
+  fi
+  if [ "$package" = org-google-docs ]; then
+    echo "Real semantic gdocs conversion source: validate seams without authentication."
+    emacs --batch "${args[@]}" --eval "$isolation" \
+      --eval '(progn (require (quote org-google-docs))
+                     (require (quote gdocs-convert))
+                     (require (quote gdocs-diff))
+                     (org-google-docs-check-gdocs-loaded))'
+  fi
+  tests=()
+  for test_file in "$sandbox/$package/test/"*-test.el; do
+    tests+=(-l "$test_file")
+  done
+  echo "Standalone ERT: $package and its declared dependencies only."
+  emacs --batch "${args[@]}" --eval "$isolation" -l ert \
+    "${tests[@]}" -f ert-run-tests-batch-and-exit
+  echo "Strict byte compilation: warnings are errors."
+  compile_files=("$sandbox/$package/"*.el)
+  if [ "$package" = ox-sync ] || [ "$package" = org-confluence ] \
+    || [ "$package" = org-copilot ] || [ "$package" = org-google-docs ]; then
+    compile_files+=("$sandbox/$package/examples/"*.el)
+  fi
+  emacs --batch "${args[@]}" --eval "$isolation" \
+    --eval '(setq byte-compile-error-on-warn t)' \
+    -f batch-byte-compile "${compile_files[@]}"
+  echo "Standalone $package checks passed."
+fi

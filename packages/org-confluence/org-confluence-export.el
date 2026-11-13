@@ -7,7 +7,7 @@
 
 (require 'org)
 (require 'ol)
-(require 'org-sync-assets)
+(require 'ox-sync-assets)
 (require 'ox)
 (require 'seq)
 (require 'subr-x)
@@ -114,7 +114,7 @@ storage-format images."
 
 (defun org-confluence--local-image-link-p (link)
   "Return non-nil when LINK is a plain local image link."
-  (org-sync-assets-image-link-p link))
+  (ox-sync-assets-image-link-p link))
 
 (defun org-confluence--status (colour title)
   "Return Confluence storage XHTML for a status macro with COLOUR and TITLE."
@@ -160,7 +160,7 @@ storage-format images."
 
 (defun org-confluence--standalone-image-link (paragraph)
   "Return PARAGRAPH's standalone local image link, or nil."
-  (org-sync-assets-standalone-image-link paragraph))
+  (ox-sync-assets-standalone-image-link paragraph))
 
 (defun org-confluence--caption (element info)
   "Return ELEMENT caption text using INFO, or nil."
@@ -169,23 +169,23 @@ storage-format images."
 
 (defun org-confluence--resolve-image-path (path)
   "Resolve local image PATH for the current Org buffer."
-  (org-sync-assets-resolve-local-image path nil 'require-buffer-file))
+  (ox-sync-assets-resolve-local-image path nil 'require-buffer-file))
 
 (defun org-confluence--maybe-resolve-image-path (path)
   "Resolve local image PATH, or return nil when it does not exist."
-  (org-sync-assets-maybe-resolve-local-image path nil 'require-buffer-file))
+  (ox-sync-assets-maybe-resolve-local-image path nil 'require-buffer-file))
 
 (defun org-confluence--hashed-attachment-filename-p (filename)
   "Return non-nil when FILENAME looks like a generated Confluence attachment."
-  (org-sync-assets-hashed-filename-p filename))
+  (ox-sync-assets-hashed-filename-p filename))
 
 (defun org-confluence--hashed-image-filename (path)
   "Return a content-hashed Confluence attachment filename for PATH."
-  (org-sync-assets-hashed-filename path))
+  (ox-sync-assets-hashed-filename path))
 
 (defun org-confluence--image-asset (link)
   "Return an upload asset plist for image LINK."
-  (org-sync-assets-entry
+  (ox-sync-assets-entry
    (org-element-lineage link '(paragraph) t)
    link
    (list :reuse-imported-missing-source t
@@ -221,7 +221,7 @@ single generated attachment filename maps to different source files."
 When SUBTREEP is non-nil, inspect only the current Org subtree.  Each asset is
 a plist with `:path' as an absolute source file and `:filename' as the
 Confluence attachment basename."
-  (let* ((plan (org-sync-assets-plan-buffer
+  (let* ((plan (ox-sync-assets-plan-buffer
 		(list :subtreep subtreep
 		      :reuse-imported-missing-source t
 		      :require-buffer-file-for-relative t)))

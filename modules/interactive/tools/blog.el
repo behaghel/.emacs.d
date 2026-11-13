@@ -1,13 +1,14 @@
 ;;; blog.el --- Static-site publishing compatibility entrypoint -*- lexical-binding: t; -*-
 
 ;;; Commentary:
-;; Personal static-site workflow now lives in reusable `hb-static-site'.  This
-;; entrypoint keeps the historical `tools/blog' feature and old command aliases
-;; available for interactive configuration.
+;; Reusable mechanics live in `hb-static-site'.  Personal prose activation,
+;; bindings, discovery labels, and historical command aliases stay here.
 
 ;;; Code:
 
 (require 'hb-static-site)
+
+(declare-function writing/enable-basics "writing/writing")
 
 (use-package ox-hugo
   :commands (org-hugo-auto-export-mode org-hugo-export-wim-to-md)
@@ -44,9 +45,30 @@ Prefer `hb-static-site-posts-subdirectory' plus project-local `denote-directory'
 (defalias 'hub/blog-validate-buffer #'hb-static-site-validate-buffer)
 (defalias 'hub/blog-validate-and-export-buffer #'hb-static-site-validate-and-export-buffer)
 
+(defun hub/blog--enable-prose ()
+  "Apply personal prose setup when enabling static-site mode."
+  (when (and hb-static-site-mode (fboundp 'writing/enable-basics))
+    (writing/enable-basics)))
+
+(add-hook 'hb-static-site-mode-hook #'hub/blog--enable-prose)
+
 (with-eval-after-load 'evil
+  (when (fboundp 'evil-define-key)
+    (evil-define-key 'normal hb-static-site-mode-map
+		     (kbd ",w n") #'hb-static-site-create-post
+		     (kbd ",w s") #'hb-static-site-create-section
+		     (kbd ",w p") #'hb-static-site-create-page
+		     (kbd ",w P") #'hb-static-site-create-basic-page
+		     (kbd ",w o") #'hb-static-site-find-page
+		     (kbd ",w e") #'hb-static-site-export-buffer
+		     (kbd ",w E") #'hb-static-site-export-all
+		     (kbd ",w v") #'hb-static-site-validate-buffer))
   (when (boundp 'evil-normal-state-map)
     (define-key evil-normal-state-map (kbd ",np") #'hb-static-site-create-post)))
+
+(with-eval-after-load 'which-key
+  (when (fboundp 'which-key-add-key-based-replacements)
+    (which-key-add-key-based-replacements "C-c w" "static site")))
 
 (provide 'tools/blog)
 ;;; blog.el ends here

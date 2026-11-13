@@ -28,7 +28,17 @@ Info manual.
 
 * Installation from a checkout
 
+The package requires Emacs 29.1+, Org 9.6+, and =context-panels= 0.1.0+,
+including its =context-panels-org.el= library.  Obtain =context-panels= from
+[[https://github.com/behaghel/context-panels][behaghel/context-panels]] or use an existing compatible installation.  No
+Copilot, publishing adapter, private configuration, or credentials are needed
+for local comments.  If using Emacs's built-in Org, ensure it meets the declared
+minimum version; otherwise install a compatible Org separately.
+
+For source directories on disk:
+
 #+begin_src emacs-lisp
+(add-to-list 'load-path "/path/to/context-panels")
 (add-to-list 'load-path "/path/to/org-comments")
 (require 'org-comments)
 (add-hook 'org-mode-hook #'org-comments-mode)
@@ -47,6 +57,44 @@ Info manual.
 
 By default the mode shows inline and page-comment overlays.  Set
 =org-comments-enable-overlays= to nil for a commands-only setup.
+
+* Standalone verification in this repository
+
+From the configuration repository root, run:
+
+#+begin_src shell
+CONTEXT_PANELS_PATH=/path/to/context-panels \
+  devenv -q shell -- ./scripts/org-comments-standalone
+#+end_src
+
+When =CONTEXT_PANELS_PATH= is unset, the check uses
+=STRAIGHT_BUILD_PATH/context-panels=, defaulting to this checkout's
+=straight/build/context-panels=.  A missing dependency fails visibly; the check
+does not download packages or load =init.el=.
+
+The check copies package source, its tests, and the two context-panels libraries
+into a temporary directory.  It uses a temporary home, plain =emacs -Q=, and no
+sibling packages, configuration libraries, or shared repository test helpers.
+It runs the full package ERT suite, including create/reopen/panel navigation,
+then byte-compiles the package with warnings treated as errors.  Emacs network
+connections are disabled during the check.  Temporary files are removed on exit.
+
+For a hands-on acceptance session, append =--interactive=:
+
+#+begin_src shell
+CONTEXT_PANELS_PATH=/path/to/context-panels \
+  devenv -q shell -- ./scripts/org-comments-standalone --interactive
+#+end_src
+
+1. Select =selected text= in the sample document.
+2. Run =M-x org-comments-create=, write a comment in the sidecar, and save it.
+3. Confirm the source document still contains only its original text.
+4. Kill both file buffers, reopen =draft.org=, and enable =org-comments-mode=.
+5. Run =M-x org-comments-open= and press =RET= on the comment row.  Point returns
+   to the original selected text.
+
+This session uses disposable files, not your own documents.  Exit Emacs when
+finished; the sample source and sidecar are then deleted.
 
 * Backend identity resolution
 

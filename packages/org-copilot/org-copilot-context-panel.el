@@ -130,8 +130,8 @@ previous overlay already claimed the focused face."
 
 (defun org-copilot-context-panel-provider ()
   "Return the Org Copilot context-panel provider descriptor.
-Copilot contributes chat and transient auxiliary behavior only; comment side-panel
-UI is owned by the unified `org-comments' provider."
+Copilot contributes chat and transient auxiliary behavior only.
+Comment side-panel UI is owned by the unified `org-comments' provider."
   (list :name 'copilot
 	:icon "🤖"
 	:priority 20
@@ -193,13 +193,32 @@ UI is owned by the unified `org-comments' provider."
 ;; Context-panels owns window reconciliation.  Remove the obsolete callback
 ;; as well when reloading this library in an already-running Emacs session.
 (remove-hook 'window-selection-change-functions
-	     #'org-copilot--window-selection-changed)
+	     'org-copilot--window-selection-changed)
+
+(defun org-copilot--close-source-views ()
+  "Close views owned by the dying source without killing its sidecar buffers."
+  (let ((source (current-buffer))
+	(side context-panels-side-panel-buffer)
+	(bottom context-panels-bottom-panel-buffer))
+    (dolist (buffer (delete-dups
+		     (list side bottom
+			   (and (boundp 'org-copilot-diff-buffer-name)
+				(get-buffer org-copilot-diff-buffer-name)))))
+      (when (and (buffer-live-p buffer)
+		 (eq (buffer-local-value 'context-panels-source-buffer buffer) source))
+	(cond
+	 ((eq buffer side) (context-panels-close))
+	 ((eq buffer bottom) (context-panels-close-bottom-view))
+	 (t (org-copilot--close-buffer-window buffer)))))))
 
 (defun org-copilot-context-panel-enable ()
   "Enable Org Copilot as a context-panel provider in the current buffer."
   (when (fboundp 'org-comments-mode)
     (org-comments-mode 1))
   (context-panels-register-provider (org-copilot-context-panel-provider))
+  ;; Keep this source-local finalizer even if mode is disabled before buffer
+  ;; death: views already opened for this source still need ownership cleanup.
+  (add-hook 'kill-buffer-hook #'org-copilot--close-source-views nil t)
   (context-panels-mode 1))
 
 (defun org-copilot-context-panel-disable ()

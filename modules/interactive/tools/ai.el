@@ -155,6 +155,13 @@ Fail closed instead of falling back to an API-key backend."
   (when (bound-and-true-p org-copilot-mode)
     (hub/org-copilot-enable-gptel)))
 
+(defun hub/org-copilot-chat-editing-state ()
+  "Enter insert state in personal Copilot chat buffers when Evil is available."
+  (when (fboundp 'evil-insert-state)
+    (evil-insert-state)))
+
+(add-hook 'org-copilot-chat-mode-hook #'hub/org-copilot-chat-editing-state)
+
 ;; Also undo the former automatic activation when this config is reloaded.
 (remove-hook 'org-mode-hook #'org-copilot-mode)
 (add-hook 'org-copilot-mode-hook #'hub/org-copilot-configure-on-activation)

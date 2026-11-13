@@ -1,0 +1,33 @@
+#+title: Offline Org Copilot walkthrough
+
+* Walkthrough
+This is a disposable copy.  No model, gptel installation, account, or credentials
+are needed.  Replies are scripted fixtures, not generated advice.  The launcher
+blocks networking, credential lookup, and external processes.
+
+1. In the bottom chat, use =C-c C-f= to reach the prompt.  Type =answer= and
+   press =RET=.  It stays pending until =M-x org-copilot-demo-respond=.
+2. Deliver that reply.  Only =draft.copilot.org= should appear; the source remains
+   unchanged.  =C-x C-f= can inspect that transcript beside =draft.org=.
+3. Send =edit= and deliver the queued reply in the same way.  A linked comment
+   and executable proposal appear in =draft.comments.org= and
+   =draft.suggestions.org=.  The Intro below is still unchanged.
+4. In the chat, press =C-c C-n= to focus the proposal, then run
+   =M-x org-copilot-view-diff-at-point=.  Inspect the proposed Bépo replacement.
+   Run =M-x org-copilot-accept-at-point= from the diff to apply it explicitly.
+5. From the source or its chat, =M-x org-copilot-demo-undo= delegates to the real
+   org-suggestions undo API.  The original Intro body should return exactly.
+   Copilot's legacy comment-local =/undo= is not implemented by this helper.
+6. Save and close the source, reopen =draft.org=, and explicitly run
+   =M-x org-copilot-chat=.  Its transcript restores from the sidecar without a
+   model request.  For more scripted replies, run =M-x org-copilot-demo-start=.
+
+You may deliver a queued reply while another buffer is current: it still belongs
+to its original source.  Sending any prompt other than =edit= produces the same
+scripted answer.  Review has no adapter configured and diagnoses that explicitly.
+Nothing verifies real gptel transport, authentication, provider schema compliance,
+or live model quality.  Exit this Emacs to remove all temporary files.
+
+* Intro
+Alpha draft.
+Unchanged second line.

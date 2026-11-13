@@ -56,5 +56,18 @@
     (goto-char (point-min))
     (should-not (search-forward "docs/config.org" nil t))))
 
+(ert-deftest hub/google-docs-dependency-uses-pinned-source-not-patch-copies ()
+  "The semantic dependency is an ordinary pinned source revision, not patches."
+  (let ((directory (expand-file-name "packages/org-google-docs/"
+				     hub/config-authority-test--root)))
+    (should-not (directory-files-recursively directory "\\.patch\\'")))
+  (with-temp-buffer
+    (insert-file-contents
+     (expand-file-name "straight/versions/default.el"
+		       hub/config-authority-test--root))
+    (let ((revision (cdr (assoc "gdocs" (read (current-buffer))))))
+      (should (stringp revision))
+      (should (string-match-p "\\`[[:xdigit:]]\\{40\\}\\'" revision)))))
+
 (provide 'config-authority-test)
 ;;; config-authority-test.el ends here

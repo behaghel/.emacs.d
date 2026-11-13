@@ -1,0 +1,25 @@
+#+title: Standalone marginalia
+
+This document uses native named Org footnotes only.  No comment sidecars,
+accounts, publishing adapters, or AI packages are involved.
+
+Open the side panel with M-x context-panels-open.  In the panel, press RET on
+each note row: point should return to its reference in the prose below, not to
+its definition.  Disabling cp-org-marginalia-context-panel-mode does not alter this
+source document.
+
+A sentence with a local sidenote.[fn:side]
+Another sentence with a traditional footnote.[fn:foot]
+
+* Notes
+
+[fn:side] *Sidenote body.* An ordinary named footnote uses the default note kind.
+
+[fn:foot]
+:PROPERTIES:
+:HUB_NOTE_KIND: footnote
+:HUB_NOTE_STATUS: open
+:HUB_NOTE_SOURCE: local
+:HUB_NOTE_REMOTE_ID: demo-foot
+:END:
+Traditional footnote body.  Metadata is not part of the rendered body.

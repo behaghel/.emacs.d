@@ -1,0 +1,4 @@
+#!/usr/bin/env bash
+# Verify the offline Copilot package workflow in a disposable source-only copy.
+set -euo pipefail
+exec "$(dirname "$0")/elisp-package-standalone" org-copilot "$@"

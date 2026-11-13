@@ -13,27 +13,13 @@ This repository has a mature Org ↔ Confluence publishing and sync workflow, bu
 - Source-content semantic gaps are tracked in [`docs/source-content-semantics.md`](docs/source-content-semantics.md); styling parity is intentionally a later epic.
 - `org-google-docs-semantics.el` classifies a typographic semantic audit into Google Docs `supported`, `degraded`, `unsupported`, and `deferred` buckets without depending on local `hub-*` modules.
 - `org-google-docs-footnotes.el` extracts a native-footnote push plan for named Org footnotes before any Google Docs mutation, wires the `gdocs` footnote-reference seam into `org-google-docs-push`, filters Org-only footnote definitions out of push-time IR, and provides two-phase request helpers for descending-index `createFootnote` requests followed by body insertion into returned footnote segments.
-- `patches/gdocs-footnote-reference-seam.patch` records the minimal upstream `gdocs` seam needed to expose exact footnote-reference indices without placeholder text search.
-- `patches/gdocs-footnote-diff-seam.patch` records the complementary upstream diff change needed for zero-width footnote runs to count as semantic paragraph changes.
-- `patches/gdocs-footnote-pull-seam.patch` records the upstream conversion change that imports native Google Docs footnotes as ordinary Org footnote references and definitions.
-- `patches/gdocs-standalone-image-ir-seam.patch` records the upstream conversion change that preserves standalone Org image links as image IR instead of literal file-link text.
-- `patches/gdocs-image-uri-insert-seam.patch` records the upstream conversion change that emits `insertInlineImage` requests for image IR with fetchable URIs.
-- `patches/gdocs-drive-public-permission-helper.patch` records the upstream API helper used to make uploaded Drive image files fetchable by Google Docs.
-- `patches/gdocs-drive-raw-multipart-upload.patch` records the upstream upload fix needed for Drive media uploads to send raw multipart bodies with a final boundary.
-- `patches/gdocs-image-caption-text.patch` records the upstream conversion change that renders image captions as visible text after inserted images.
-- `patches/gdocs-image-caption-diff-key.patch` records the upstream diff change that treats image caption changes as semantic image changes.
-- `patches/gdocs-inline-image-pull-uri.patch` records the upstream conversion change that preserves Google Docs inline image source/content URIs on pull.
-- `patches/gdocs-image-caption-marker-pull.patch` records the upstream conversion change that marks pushed captions with a neutral semantic style name and reconstructs `#+CAPTION:` from that marker on pull.
-- `patches/gdocs-image-block-spacing.patch` records the upstream conversion change that keeps image blocks separated from surrounding paragraphs in pulled Org output.
-- `patches/gdocs-image-caption-diff-range.patch` records the upstream conversion fix that makes a marked caption paragraph part of the image element's document range so repeated pushes replace rather than duplicate captions.
-- `patches/gdocs-image-merge-segment-spacing.patch` records the upstream sync fix that preserves image block spacing when pull uses the three-way merge segment path.
-- Patch files are audit/export artifacts for upstream review; current active seam work is developed and tested directly on the local `~/ws/gdocs` branch.
+- Footnote, image/caption, heading, status-label, block-spacing, and diff seams are ordinary source changes in [`behaghel/gdocs`](https://github.com/behaghel/gdocs), selected by `straight/versions/default.el`. The [dependency-source contract](README.md#dependency-source) defines source selection; commit history and reviewed dependency PRs provide provenance without duplicated patch files.
 - `docs/native-footnotes-smoke.md` records manual smoke-test scenarios for native footnote push/pull, including repeated references and UI caveats.
 - `docs/native-images-smoke.md` records manual smoke-test scenarios for standalone image and caption push, including debug-pipeline checkpoints.
 - `docs/deep-semantic-smoke.org` is a live end-to-end smoke document for mixed semantic content, Veriff theme styling, generated callout chrome, footnotes, images, flat block lists, tables, and pull-back ownership checks.
 - Live semantic conformance fixtures live under `test/fixtures/` and are exercised by `scripts/org-google-docs-live-conformance` when `ORG_GOOGLE_DOCS_LIVE_TESTS=1` is set.
 - The activation module accepts `ORG_GOOGLE_DOCS_CLIENT_ID`, `ORG_GOOGLE_DOCS_CLIENT_SECRET`, optional `ORG_GOOGLE_DOCS_REFRESH_TOKEN`, and optional `ORG_GOOGLE_DOCS_LIVE_ACCOUNT` so batch/live tests can run without auth-source/pass/YubiKey interaction.
-- The activation module prefers a local `~/ws/gdocs` checkout on branch `org-image-seam`; current semantic conformance depends on the local fork including commit `af28781` (`Stabilize semantic Google Docs round trips`) until those seams are upstreamed or pinned through the package lock.
+- The activation module uses the pinned semantic fork by default. A local development checkout is selected only through the explicit override described in the [dependency-source contract](README.md#dependency-source); it is not a bootstrap requirement or an implicit fallback.
 - This domain is supporting: specs are expected when the package boundary or integration contract changes, but the first implementation should stay small and reversible.
 
 ## Decisions

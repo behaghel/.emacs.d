@@ -311,9 +311,10 @@ that each request uses the index captured before the batch mutation begins."
 (defun org-google-docs-footnotes--utf16-prefix-length (string end)
   "Return UTF-16 length of STRING before character position END."
   (let ((units 0))
-    (dotimes (index end units)
+    (dotimes (index end)
       (setq units (+ units
-		     (if (> (aref string index) #xffff) 2 1))))))
+		     (if (> (aref string index) #xffff) 2 1))))
+    units))
 
 (defun org-google-docs-footnotes--text-run-locations (document)
   "Return text run location plists from Google Docs DOCUMENT."
@@ -586,7 +587,7 @@ modified."
   "Advise ORIG `gdocs-api-batch-update' for native footnote insertion.
 When a push session is active, body updates first insert unique sentinel text.
 After the body update completes, the remote document is fetched, sentinels are
-replaced with native footnotes, and footnote bodies are inserted before CALLBACK.
+replaced with native footnotes; bodies are inserted before CALLBACK.
 Incremental pushes may not touch existing footnote references; in that case no
 sentinel appears in REQUESTS, so the advice deactivates and lets the ordinary
 batch update proceed unchanged."

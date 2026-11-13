@@ -1,0 +1,387 @@
+;;; ox-sync-status-test.el --- Org sync status tests -*- lexical-binding: t; -*-
+
+;;; Commentary:
+;; Tests for the generic Org sync status bottom panel.
+
+;;; Code:
+
+(require 'ert)
+(require 'org)
+(require 'ox-sync)
+(require 'context-panels)
+(require 'org-comments)
+
+(defmacro ox-sync-status-test--with-providers (providers &rest body)
+  "Bind ox-sync status PROVIDERS while running BODY."
+  (declare (indent 1))
+  `(let ((ox-sync-providers ,providers))
+     ,@body))
+
+(defun ox-sync-status-test--fake-provider (&optional detect-result fetch-result callbacks)
+  "Return a fake ox-sync provider.
+DETECT-RESULT overrides detection, FETCH-RESULT is returned by fetch, and
+CALLBACKS supplies action callbacks such as `:pull-content'."
+  (append
+   (list :kind 'fake
+	 :detect (lambda (_source-buffer)
+		   (or detect-result
+		       (list :kind 'fake :remote-id "doc-1" :title "Fake Doc")))
+	 :fetch (lambda (&rest _args) fetch-result))
+   callbacks))
+
+(ert-deftest ox-sync-detects-single-provider ()
+  "Provider detection returns the one matching document descriptor."
+  (with-temp-buffer
+    (org-mode)
+    (ox-sync-status-test--with-providers
+     (list (ox-sync-status-test--fake-provider))
+     (let ((descriptor (ox-sync-detect-document (current-buffer))))
+       (should (equal (plist-get descriptor :kind) 'fake))
+       (should (equal (plist-get descriptor :remote-id) "doc-1"))))))
+
+(ert-deftest ox-sync-errors-without-provider ()
+  "Provider detection fails clearly when no adapter matches."
+  (with-temp-buffer
+    (org-mode)
+    (ox-sync-status-test--with-providers nil
+					 (should-error (ox-sync-detect-document (current-buffer))
+						       :type 'user-error))))
+
+(ert-deftest ox-sync-status-opens-bottom-view ()
+  "Status opens a generic context-panels bottom view for the source buffer."
+  (with-temp-buffer
+    (org-mode)
+    (ox-sync-status-test--with-providers
+     (list (ox-sync-status-test--fake-provider))
+     (let ((source (current-buffer)))
+       (ox-sync-status)
+       (let ((panel (buffer-local-value 'context-panels-bottom-panel-buffer
+					source)))
+	 (should (buffer-live-p panel))
+	 (with-current-buffer panel
+	   (should (derived-mode-p 'ox-sync-status-mode))
+	   (should (derived-mode-p 'magit-section-mode))
+	   (should (eq context-panels-source-buffer source))
+	   (should (string-match-p "Org Sync: fake doc-1" (buffer-string)))
+	   (should (string-match-p "Unknown" (buffer-string)))
+	   (should (string-match-p "Content[[:space:]]+unknown" (buffer-string)))
+	   (should (string-match-p "Comments[[:space:]]+unknown" (buffer-string)))))))))
+
+(ert-deftest ox-sync-source-marker-summarizes-domain-counts ()
+  "Source marker summarizes sync status with domain counts."
+  (let* ((directory (make-temp-file "ox-sync-status" t))
+	 (source-file (expand-file-name "source.org" directory)))
+    (unwind-protect
+	(progn
+	  (with-temp-file source-file (insert "Body\n"))
+	  (ox-sync-store-write
+	   source-file
+	   '(:provider (:kind fake :remote-id "doc-1")
+		       :domains ((content :fetched-remote-ref (:version "1"))
+				 (comments :fetched-remote-ref (:hash "remote-comments")))))
+	  (with-current-buffer (find-file-noselect source-file)
+	    (org-mode)
+	    (ox-sync-status-test--with-providers
+	     (list (ox-sync-status-test--fake-provider))
+	     (ox-sync-mode 1)
+	     (ox-sync-baseline)
+	     (should (string-match-p "⇅ clean"
+				     (overlay-get ox-sync-source-marker-overlay
+						  'after-string)))
+	     (goto-char (point-max))
+	     (insert "Local edit\n")
+	     (ox-sync-refresh)
+	     (should (string-match-p "⇅ ↑1"
+				     (overlay-get ox-sync-source-marker-overlay
+						  'after-string))))))
+      (when-let* ((buffer (find-buffer-visiting source-file)))
+	(kill-buffer buffer))
+      (delete-directory directory t))))
+
+(ert-deftest ox-sync-refresh-renders-content-ahead-after-local-edit ()
+  "Refreshing after local source edits renders content ahead."
+  (let* ((directory (make-temp-file "ox-sync-status" t))
+	 (source-file (expand-file-name "source.org" directory)))
+    (unwind-protect
+	(progn
+	  (with-temp-file source-file (insert "Body\n"))
+	  (ox-sync-store-write
+	   source-file
+	   '(:provider (:kind fake :remote-id "doc-1")
+		       :domains ((content :fetched-remote-ref (:version "1"))
+				 (comments :fetched-remote-ref (:hash "remote-comments")))))
+	  (with-current-buffer (find-file-noselect source-file)
+	    (org-mode)
+	    (ox-sync-status-test--with-providers
+	     (list (ox-sync-status-test--fake-provider))
+	     (ox-sync-status)
+	     (ox-sync-baseline)
+	     (with-current-buffer (find-buffer-visiting source-file)
+	       (goto-char (point-max))
+	       (insert "Local edit\n")
+	       (ox-sync-refresh))
+	     (with-current-buffer (get-buffer ox-sync-status-buffer-name)
+	       (should (string-match-p "Content[[:space:]]+ahead" (buffer-string)))
+	       (should (string-match-p "Head: ⇅ ↑1" (buffer-string)))))))
+      (when-let* ((buffer (find-buffer-visiting source-file)))
+	(kill-buffer buffer))
+      (delete-directory directory t))))
+
+(ert-deftest ox-sync-refresh-renders-comments-ahead-after-local-comment ()
+  "Refreshing after local sidecar comment edits renders comments ahead."
+  (let* ((directory (make-temp-file "ox-sync-status" t))
+	 (source-file (expand-file-name "source.org" directory)))
+    (unwind-protect
+	(progn
+	  (with-temp-file source-file (insert "Alpha beta gamma\n"))
+	  (ox-sync-store-write
+	   source-file
+	   '(:provider (:kind fake :remote-id "doc-1")
+		       :domains ((content :fetched-remote-ref (:version "1"))
+				 (comments :fetched-remote-ref (:hash "remote-comments")))))
+	  (with-current-buffer (find-file-noselect source-file)
+	    (org-mode)
+	    (ox-sync-status-test--with-providers
+	     (list (ox-sync-status-test--fake-provider))
+	     (ox-sync-status)
+	     (ox-sync-baseline)
+	     (with-current-buffer (find-buffer-visiting source-file)
+	       (goto-char (point-min))
+	       (search-forward "Alpha")
+	       (org-comments-append-to-sidecar
+		(org-comments-create-record source-file
+					    (match-beginning 0) (match-end 0)
+					    "Review this." "c1" "Alice" "now"))
+	       (ox-sync-refresh))
+	     (with-current-buffer (get-buffer ox-sync-status-buffer-name)
+	       (should (string-match-p "Comments[[:space:]]+ahead" (buffer-string)))
+	       (should (string-match-p "Head: ⇅ ↑1" (buffer-string)))))))
+      (when-let* ((buffer (find-buffer-visiting source-file)))
+	(kill-buffer buffer))
+      (delete-directory directory t))))
+
+(ert-deftest ox-sync-fetch-updates-remote-tracking-only ()
+  "Fetching writes remote refs without mutating source or comments sidecars."
+  (let* ((directory (make-temp-file "ox-sync-status" t))
+	 (source-file (expand-file-name "source.org" directory)))
+    (unwind-protect
+	(progn
+	  (with-temp-file source-file (insert "Alpha beta gamma\n"))
+	  (ox-sync-store-write
+	   source-file
+	   '(:provider (:kind fake :remote-id "doc-1")
+		       :domains ((content :fetched-remote-ref (:version "1"))
+				 (comments :fetched-remote-ref (:hash "comments-v1")))))
+	  (with-current-buffer (find-file-noselect source-file)
+	    (org-mode)
+	    (goto-char (point-min))
+	    (search-forward "Alpha")
+	    (org-comments-append-to-sidecar
+	     (org-comments-create-record source-file
+					 (match-beginning 0) (match-end 0)
+					 "Review this." "c1" "Alice" "now"))
+	    (let ((source-before (buffer-string))
+		  (comments-before (with-temp-buffer
+				     (insert-file-contents (org-comments-sidecar-path source-file))
+				     (buffer-string))))
+	      (ox-sync-status-test--with-providers
+	       (list (ox-sync-status-test--fake-provider
+		      nil
+		      '(:provider fake :remote-id "doc-1" :fetched-at "now"
+				  :domains ((content :remote-ref (:version "2"))
+					    (comments :remote-ref (:hash "comments-v2" :count 1))))))
+	       (ox-sync-status)
+	       (ox-sync-baseline)
+	       (ox-sync-fetch)
+	       (let* ((tracking (ox-sync-store-read source-file))
+		      (content (alist-get 'content (plist-get tracking :domains)))
+		      (comments (alist-get 'comments (plist-get tracking :domains))))
+		 (should (equal (plist-get content :fetched-remote-ref)
+				'(:version "2")))
+		 (should (equal (plist-get comments :fetched-remote-ref)
+				'(:hash "comments-v2" :count 1)))
+		 (with-current-buffer (get-buffer ox-sync-status-buffer-name)
+		   (should (string-match-p "Content[[:space:]]+behind" (buffer-string)))
+		   (should (string-match-p "Comments[[:space:]]+behind" (buffer-string))))))
+	      (with-current-buffer (find-buffer-visiting source-file)
+		(should (equal source-before (buffer-string))))
+	      (with-temp-buffer
+		(insert-file-contents (org-comments-sidecar-path source-file))
+		(should (equal comments-before (buffer-string)))))))
+      (when-let* ((buffer (find-buffer-visiting source-file)))
+	(kill-buffer buffer))
+      (delete-directory directory t))))
+
+(ert-deftest ox-sync-pull-dispatches-behind-domains-and-advances-base ()
+  "Aggregate pull dispatches behind domains and records them as clean."
+  (let* ((directory (make-temp-file "ox-sync-status" t))
+	 (source-file (expand-file-name "source.org" directory))
+	 calls)
+    (unwind-protect
+	(progn
+	  (with-temp-file source-file (insert "Body\n"))
+	  (ox-sync-store-write
+	   source-file
+	   '(:provider (:kind fake :remote-id "doc-1")
+		       :domains ((content :fetched-remote-ref (:version "1"))
+				 (comments :fetched-remote-ref (:hash "comments-v1")))))
+	  (with-current-buffer (find-file-noselect source-file)
+	    (org-mode)
+	    (ox-sync-status-test--with-providers
+	     (list (ox-sync-status-test--fake-provider
+		    nil
+		    '(:provider fake :remote-id "doc-1" :fetched-at "now"
+				:domains ((content :remote-ref (:version "2"))
+					  (comments :remote-ref (:hash "comments-v2"))))
+		    (list :pull-content (lambda (&rest _) (push 'content calls) t)
+			  :pull-comments (lambda (&rest _) (push 'comments calls) t))))
+	     (ox-sync-status)
+	     (ox-sync-baseline)
+	     (ox-sync-fetch)
+	     (ox-sync-pull)
+	     (should (equal (sort calls #'string<) '(comments content)))
+	     (with-current-buffer (get-buffer ox-sync-status-buffer-name)
+	       (should (string-match-p "Head: ⇅ clean" (buffer-string)))))))
+      (when-let* ((buffer (find-buffer-visiting source-file)))
+	(kill-buffer buffer))
+      (delete-directory directory t))))
+
+(ert-deftest ox-sync-push-dispatches-ahead-domains-and-advances-base ()
+  "Aggregate push dispatches ahead domains and records them as clean."
+  (let* ((directory (make-temp-file "ox-sync-status" t))
+	 (source-file (expand-file-name "source.org" directory))
+	 calls)
+    (unwind-protect
+	(progn
+	  (with-temp-file source-file (insert "Body\n"))
+	  (ox-sync-store-write
+	   source-file
+	   '(:provider (:kind fake :remote-id "doc-1")
+		       :domains ((content :fetched-remote-ref (:version "1"))
+				 (comments :fetched-remote-ref (:hash "comments-v1")))))
+	  (with-current-buffer (find-file-noselect source-file)
+	    (org-mode)
+	    (ox-sync-status-test--with-providers
+	     (list (ox-sync-status-test--fake-provider
+		    nil
+		    '(:domains ((content :remote-ref (:version "2"))))
+		    (list :push-content (lambda (&rest _) (push 'content calls) t))))
+	     (ox-sync-status)
+	     (ox-sync-baseline)
+	     (with-current-buffer (find-buffer-visiting source-file)
+	       (goto-char (point-max))
+	       (insert "Local edit\n")
+	       (ox-sync-push))
+	     (should (equal calls '(content)))
+	     (should (equal (plist-get
+			     (plist-get (ox-sync-domain-entry
+					 (ox-sync-store-read source-file) 'content)
+					:base-remote-ref)
+			     :version)
+			    "2"))
+	     (with-current-buffer (get-buffer ox-sync-status-buffer-name)
+	       (should (string-match-p "Head: ⇅ clean" (buffer-string)))))))
+      (when-let* ((buffer (find-buffer-visiting source-file)))
+	(kill-buffer buffer))
+      (delete-directory directory t))))
+
+(ert-deftest ox-sync-push-refuses-diverged-domain ()
+  "Aggregate push refuses diverged domains."
+  (let* ((directory (make-temp-file "ox-sync-status" t))
+	 (source-file (expand-file-name "source.org" directory)))
+    (unwind-protect
+	(progn
+	  (with-temp-file source-file (insert "Body\n"))
+	  (ox-sync-store-write
+	   source-file
+	   '(:provider (:kind fake :remote-id "doc-1")
+		       :domains ((content :fetched-remote-ref (:version "1"))
+				 (comments :fetched-remote-ref (:hash "comments-v1")))))
+	  (with-current-buffer (find-file-noselect source-file)
+	    (org-mode)
+	    (ox-sync-status-test--with-providers
+	     (list (ox-sync-status-test--fake-provider
+		    nil
+		    '(:provider fake :remote-id "doc-1" :fetched-at "now"
+				:domains ((content :remote-ref (:version "2"))))))
+	     (ox-sync-status)
+	     (ox-sync-baseline)
+	     (with-current-buffer (find-buffer-visiting source-file)
+	       (goto-char (point-max))
+	       (insert "Local edit\n")
+	       (ox-sync-fetch)
+	       (should-error (ox-sync-push) :type 'user-error)))))
+      (when-let* ((buffer (find-buffer-visiting source-file)))
+	(kill-buffer buffer))
+      (delete-directory directory t))))
+
+(ert-deftest ox-sync-reset-tracking-archives-sidecar-and-clears-refs ()
+  "Reset archives old tracking and initializes current identity only."
+  (let* ((directory (make-temp-file "ox-sync-status" t))
+	 (source-file (expand-file-name "source.org" directory)))
+    (unwind-protect
+	(progn
+	  (with-temp-file source-file (insert "Body\n"))
+	  (ox-sync-store-write
+	   source-file
+	   '(:provider (:kind fake :remote-id "old-doc")
+		       :domains ((content :base-local-ref (:hash "old-local")
+					  :base-remote-ref (:version "old-remote")
+					  :fetched-remote-ref (:version "new-remote")))))
+	  (with-current-buffer (find-file-noselect source-file)
+	    (org-mode)
+	    (ox-sync-status-test--with-providers
+	     (list (ox-sync-status-test--fake-provider))
+	     (ox-sync-status)
+	     (ox-sync-reset-tracking nil)
+	     (let ((tracking (ox-sync-store-read source-file))
+		   (backups (file-expand-wildcards
+			     (concat (ox-sync-store-path source-file) ".*.bak"))))
+	       (should (= 1 (length backups)))
+	       (should (equal (plist-get (plist-get tracking :provider) :remote-id)
+			      "doc-1"))
+	       (should-not (plist-get tracking :domains))
+	       (should (equal (with-temp-buffer
+				(insert-file-contents source-file)
+				(buffer-string))
+			      "Body\n"))
+	       (with-current-buffer (get-buffer ox-sync-status-buffer-name)
+		 (should (string-match-p "Head: ⇅ ?" (buffer-string))))))))
+      (when-let* ((buffer (find-buffer-visiting source-file)))
+	(kill-buffer buffer))
+      (delete-directory directory t))))
+
+(ert-deftest ox-sync-baseline-records-base-refs-and-renders-clean ()
+  "Baselining stores current/fetched ref pairs and renders clean domains."
+  (let* ((directory (make-temp-file "ox-sync-status" t))
+	 (source-file (expand-file-name "source.org" directory)))
+    (unwind-protect
+	(progn
+	  (with-temp-file source-file (insert "Body\n"))
+	  (ox-sync-store-write
+	   source-file
+	   '(:provider (:kind fake :remote-id "doc-1")
+		       :domains ((content :fetched-remote-ref (:version "1"))
+				 (comments :fetched-remote-ref (:hash "remote-comments")))))
+	  (with-current-buffer (find-file-noselect source-file)
+	    (org-mode)
+	    (ox-sync-status-test--with-providers
+	     (list (ox-sync-status-test--fake-provider))
+	     (ox-sync-status)
+	     (ox-sync-baseline)
+	     (let* ((tracking (ox-sync-store-read source-file))
+		    (content (alist-get 'content (plist-get tracking :domains)))
+		    (comments (alist-get 'comments (plist-get tracking :domains)))
+		    (panel (get-buffer ox-sync-status-buffer-name)))
+	       (should (plist-get content :base-local-ref))
+	       (should (plist-get content :base-remote-ref))
+	       (should (plist-get comments :base-local-ref))
+	       (should (plist-get comments :base-remote-ref))
+	       (with-current-buffer panel
+		 (should (string-match-p "Head: ⇅ clean" (buffer-string)))))))
+	  (when-let* ((buffer (find-buffer-visiting source-file)))
+	    (kill-buffer buffer))
+	  (delete-directory directory t)))))
+
+(provide 'ox-sync-status-test)
+;;; ox-sync-status-test.el ends here

@@ -196,6 +196,9 @@ people-cache context."
     (plist-put copy :current
 	       (org-comments-context-panel--comment-key-equal-p copy active-key))
     (plist-put copy :icon (org-comments-panel-render--provider-icon copy))
+    ;; Source highlighting belongs to the comments range overlays.  Opt out
+    ;; of the generic anchor-to-line overlay when the side panel is open.
+    (plist-put copy :active-source-range nil)
     (when source-file
       (plist-put copy :source-file source-file)
       (plist-put copy :sidecar-file

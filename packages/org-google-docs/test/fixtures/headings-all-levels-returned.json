@@ -1,0 +1,85 @@
+{
+  "body": {
+    "content": [
+      {"startIndex": 0, "endIndex": 1, "sectionBreak": {}},
+      {
+        "startIndex": 1, "endIndex": 11,
+        "paragraph": {
+          "paragraphStyle": {"namedStyleType": "HEADING_1"},
+          "elements": [{"startIndex": 1, "endIndex": 11, "textRun": {
+            "content": "Section 1\n", "textStyle": {"bold": false}
+          }}]
+        }
+      },
+      {
+        "startIndex": 11, "endIndex": 21,
+        "paragraph": {
+          "paragraphStyle": {"namedStyleType": "HEADING_2"},
+          "elements": [{"startIndex": 11, "endIndex": 21, "textRun": {
+            "content": "Section 2\n", "textStyle": {"bold": false}
+          }}]
+        }
+      },
+      {
+        "startIndex": 21, "endIndex": 37,
+        "paragraph": {
+          "paragraphStyle": {"namedStyleType": "HEADING_3"},
+          "elements": [
+            {"startIndex": 21, "endIndex": 26, "textRun": {
+              "content": "Bépo ", "textStyle": {"bold": true}
+            }},
+            {"startIndex": 26, "endIndex": 33, "textRun": {
+              "content": "careful", "textStyle": {"bold": true, "italic": true}
+            }},
+            {"startIndex": 33, "endIndex": 37, "textRun": {
+              "content": " 😀\n", "textStyle": {"bold": true}
+            }}
+          ]
+        }
+      },
+      {
+        "startIndex": 37, "endIndex": 47,
+        "paragraph": {
+          "paragraphStyle": {"namedStyleType": "HEADING_4"},
+          "elements": [{"startIndex": 37, "endIndex": 47, "textRun": {
+            "content": "Section 4\n", "textStyle": {"bold": true}
+          }}]
+        }
+      },
+      {
+        "startIndex": 47, "endIndex": 57,
+        "paragraph": {
+          "paragraphStyle": {"namedStyleType": "HEADING_5"},
+          "elements": [{"startIndex": 47, "endIndex": 57, "textRun": {
+            "content": "Section 5\n", "textStyle": {"bold": true}
+          }}]
+        }
+      },
+      {
+        "startIndex": 57, "endIndex": 67,
+        "paragraph": {
+          "paragraphStyle": {"namedStyleType": "HEADING_6"},
+          "elements": [{"startIndex": 57, "endIndex": 67, "textRun": {
+            "content": "Section 6\n", "textStyle": {"bold": true}
+          }}]
+        }
+      },
+      {
+        "startIndex": 67, "endIndex": 78,
+        "paragraph": {
+          "elements": [
+            {"startIndex": 67, "endIndex": 72, "textRun": {
+              "content": "Body ", "textStyle": {"bold": false}
+            }},
+            {"startIndex": 72, "endIndex": 76, "textRun": {
+              "content": "bold", "textStyle": {"bold": true}
+            }},
+            {"startIndex": 76, "endIndex": 78, "textRun": {
+              "content": ".\n", "textStyle": {"bold": false}
+            }}
+          ]
+        }
+      }
+    ]
+  }
+}

@@ -1,0 +1,265 @@
+;;; ox-sync-assets.el --- Shared Org sync asset planning -*- lexical-binding: t; -*-
+
+;;; Commentary:
+;; Provider-neutral Org asset helpers for bidirectional sync packages.
+;; Provider packages own remote upload/download APIs; this library owns local Org
+;; image detection, path resolution, generated filenames, and missing-source
+;; classification.
+
+;;; Code:
+
+(require 'cl-lib)
+(require 'org)
+(require 'org-element)
+(require 'seq)
+(require 'subr-x)
+(require 'url)
+(require 'url-http)
+
+(defvar url-http-response-status)
+
+(defgroup ox-sync-assets nil
+  "Shared Org synchronization asset helpers."
+  :group 'org)
+
+(defcustom ox-sync-assets-image-extensions
+  '("png" "jpg" "jpeg" "gif" "webp" "svg")
+  "Local image extensions considered by Org sync providers."
+  :type '(repeat string)
+  :group 'ox-sync-assets)
+
+(defcustom ox-sync-assets-cache-directory "assets/org-sync"
+  "Default relative directory used to cache remote Org sync assets."
+  :type 'directory
+  :group 'ox-sync-assets)
+
+(defun ox-sync-assets-diagnostic (code message &rest properties)
+  "Return an asset diagnostic with CODE, MESSAGE, and PROPERTIES."
+  (append (list :code code :message message) properties))
+
+(defun ox-sync-assets-blank-string-p (object)
+  "Return non-nil when OBJECT is only whitespace text."
+  (and (stringp object) (string-blank-p object)))
+
+(defun ox-sync-assets-http-link-p (object)
+  "Return non-nil when OBJECT is an undescribed HTTP(S) link."
+  (and (not (stringp object))
+       (eq (org-element-type object) 'link)
+       (member (org-element-property :type object) '("http" "https"))
+       (null (org-element-contents object))))
+
+(defun ox-sync-assets-image-link-p (object)
+  "Return non-nil when OBJECT is an undescribed local image link."
+  (and (not (stringp object))
+       (eq (org-element-type object) 'link)
+       (string= (org-element-property :type object) "file")
+       (null (org-element-contents object))
+       (member (downcase (or (file-name-extension
+			      (org-element-property :path object))
+			     ""))
+	       ox-sync-assets-image-extensions)))
+
+(defun ox-sync-assets-standalone-link (paragraph predicate)
+  "Return PARAGRAPH's standalone link matching PREDICATE, or nil."
+  (let ((objects (seq-remove #'ox-sync-assets-blank-string-p
+			     (org-element-contents paragraph))))
+    (when (and (= (length objects) 1)
+	       (funcall predicate (car objects)))
+      (car objects))))
+
+(defun ox-sync-assets-standalone-image-link (paragraph)
+  "Return PARAGRAPH's standalone local image link, or nil."
+  (ox-sync-assets-standalone-link paragraph #'ox-sync-assets-image-link-p))
+
+(defun ox-sync-assets-standalone-remote-link (paragraph)
+  "Return PARAGRAPH's standalone remote HTTP(S) link, or nil."
+  (ox-sync-assets-standalone-link paragraph #'ox-sync-assets-http-link-p))
+
+(defun ox-sync-assets-caption (paragraph)
+  "Return PARAGRAPH caption text, or nil."
+  (when-let* ((caption (org-element-property :caption paragraph)))
+    (string-trim (org-element-interpret-data caption))))
+
+(defun ox-sync-assets-absolute-path (path &optional base-directory require-buffer-file)
+  "Return absolute file PATH using BASE-DIRECTORY or current buffer context.
+When REQUIRE-BUFFER-FILE is non-nil, relative paths in unsaved buffers signal a
+`user-error' instead of falling back to `default-directory'."
+  (cond
+   ((file-name-absolute-p path) (expand-file-name path))
+   (base-directory (expand-file-name path base-directory))
+   (buffer-file-name (expand-file-name path (file-name-directory buffer-file-name)))
+   (require-buffer-file
+    (user-error "Cannot resolve relative image path in unsaved Org buffer: %s" path))
+   (t (expand-file-name path default-directory))))
+
+(defun ox-sync-assets-resolve-local-image (path &optional base-directory require-buffer-file)
+  "Resolve local image PATH or signal a clear `user-error'."
+  (let ((absolute-path (ox-sync-assets-absolute-path
+			path base-directory require-buffer-file)))
+    (unless (file-readable-p absolute-path)
+      (user-error "Image file is not readable: %s" path))
+    absolute-path))
+
+(defun ox-sync-assets-maybe-resolve-local-image (path &optional base-directory require-buffer-file)
+  "Resolve local image PATH, or return nil when it is unreadable."
+  (condition-case nil
+      (ox-sync-assets-resolve-local-image path base-directory require-buffer-file)
+    (user-error nil)))
+
+(defun ox-sync-assets-hashed-filename-p (filename)
+  "Return non-nil when FILENAME looks like a generated sync asset name."
+  (string-match-p "-[0-9a-f]\\{12\\}\\.[^.]+\\'" filename))
+
+(defun ox-sync-assets-hashed-filename (path)
+  "Return a stable generated asset filename for PATH.
+This intentionally matches the existing Confluence filename scheme for
+incremental migration compatibility."
+  (let* ((extension (file-name-extension path t))
+	 (stem (file-name-sans-extension (file-name-nondirectory path)))
+	 (hash (substring (secure-hash 'sha256 path) 0 12)))
+    (format "%s-%s%s" stem hash extension)))
+
+(defun ox-sync-assets-entry (paragraph link &optional options)
+  "Return an image asset entry for PARAGRAPH and LINK.
+OPTIONS is a plist.  `:reuse-imported-missing-source' marks generated/imported
+filenames with missing local sources as reusable instead of failing."
+  (let* ((source-link (org-element-property :path link))
+	 (source-path (ox-sync-assets-maybe-resolve-local-image
+		       source-link nil
+		       (plist-get options :require-buffer-file-for-relative)))
+	 (basename (file-name-nondirectory source-link))
+	 (imported-p (ox-sync-assets-hashed-filename-p basename))
+	 (reuse-imported (plist-get options :reuse-imported-missing-source))
+	 (filename (cond
+		    (imported-p basename)
+		    (source-path (ox-sync-assets-hashed-filename source-path))
+		    (t basename)))
+	 (entry (list :source-link source-link
+		      :path source-path
+		      :source-path source-path
+		      :absolute-path (or source-path
+					 (ox-sync-assets-absolute-path
+					  source-link nil
+					  (plist-get options
+						     :require-buffer-file-for-relative)))
+		      :filename filename
+		      :begin (org-element-property :begin paragraph)
+		      :end (org-element-property :end paragraph))))
+    (when-let* ((caption (ox-sync-assets-caption paragraph)))
+      (setq entry (append entry (list :caption caption))))
+    (when (and imported-p reuse-imported (not source-path))
+      (setq entry (append entry (list :missing-source t))))
+    entry))
+
+(defun ox-sync-assets--content-type-extension (content-type url)
+  "Return file extension for CONTENT-TYPE or URL."
+  (or (cdr (assoc (car (split-string (or content-type "") ";"))
+		  '(("image/png" . ".png")
+		    ("image/jpeg" . ".jpg")
+		    ("image/gif" . ".gif")
+		    ("image/webp" . ".webp")
+		    ("image/svg+xml" . ".svg"))))
+      (when-let* ((extension (file-name-extension
+			      (url-filename (url-generic-parse-url url)))))
+	(concat "." extension))
+      ".img"))
+
+(defun ox-sync-assets--url-filename-stem (url)
+  "Return a useful filename stem from URL, or nil."
+  (let* ((path (url-filename (url-generic-parse-url url)))
+	 (basename (and path (file-name-nondirectory path)))
+	 (stem (and basename (file-name-sans-extension basename))))
+    (unless (string-blank-p (or stem ""))
+      stem)))
+
+(defun ox-sync-assets-safe-filename-stem (hint &optional fallback)
+  "Return filesystem-safe filename stem from HINT or FALLBACK."
+  (let* ((raw (string-trim (or hint fallback "image")))
+	 (downcased (downcase raw))
+	 (safe (replace-regexp-in-string "[^[:alnum:]]+" "-" downcased))
+	 (trimmed (string-trim safe "-+" "-+")))
+    (if (string-empty-p trimmed) "image" trimmed)))
+
+(defun ox-sync-assets-cache-filename (url content-type &optional hint)
+  "Return stable cache filename for URL, CONTENT-TYPE, and optional HINT."
+  (concat (ox-sync-assets-safe-filename-stem
+	   hint (ox-sync-assets--url-filename-stem url))
+	  "-" (substring (secure-hash 'sha256 url) 0 12)
+	  (ox-sync-assets--content-type-extension content-type url)))
+
+(defun ox-sync-assets--response-header (header)
+  "Return response HEADER value from the current URL buffer."
+  (save-excursion
+    (goto-char (point-min))
+    (let ((case-fold-search t)
+	  (end (or (and (boundp 'url-http-end-of-headers)
+			url-http-end-of-headers)
+		   (save-excursion
+		     (re-search-forward "\r?\n\r?\n" nil 'move)
+		     (point)))))
+      (when (re-search-forward
+	     (format "^%s:[[:space:]]*\\(.*\\)$" (regexp-quote header))
+	     end t)
+	(string-trim-right (match-string 1))))))
+
+(defun ox-sync-assets-cache-remote-url (url directory &optional hint)
+  "Download URL into DIRECTORY and return the local file path.
+This generic helper does not add provider credentials.  Callers should pass URLs
+that are already fetchable by Emacs.  HINT, when non-nil, is used to build a
+human-readable filename stem."
+  (let ((buffer (url-retrieve-synchronously url t t 30)))
+    (unless buffer
+      (user-error "Could not fetch remote asset: %s" url))
+    (unwind-protect
+	(with-current-buffer buffer
+	  (unless (and (boundp 'url-http-response-status)
+		       (<= 200 url-http-response-status 299))
+	    (user-error "Could not fetch remote asset %s: HTTP %s"
+			url url-http-response-status))
+	  (let* ((content-type (ox-sync-assets--response-header "content-type"))
+		 (filename (ox-sync-assets-cache-filename url content-type hint))
+		 (path (expand-file-name filename directory)))
+	    (make-directory directory t)
+	    (goto-char (point-min))
+	    (re-search-forward "\r?\n\r?\n" nil 'move)
+	    (write-region (point) (point-max) path nil 'silent)
+	    path))
+      (kill-buffer buffer))))
+
+(defun ox-sync-assets-missing-diagnostics (assets)
+  "Return missing-file diagnostics for ASSETS."
+  (cl-loop for asset in assets
+	   unless (or (plist-get asset :missing-source)
+		      (file-readable-p (plist-get asset :absolute-path)))
+	   collect (ox-sync-assets-diagnostic
+		    :missing-image-file
+		    (format "Image file is not readable: %s"
+			    (plist-get asset :source-link))
+		    :path (plist-get asset :source-link)
+		    :absolute-path (plist-get asset :absolute-path))))
+
+;;;###autoload
+(defun ox-sync-assets-plan-buffer (&optional options)
+  "Return standalone image asset plan for the current Org buffer.
+  OPTIONS is passed to `ox-sync-assets-entry'.  When `:subtreep' is non-nil,
+  inspect only the current Org subtree."
+  (unless (derived-mode-p 'org-mode)
+    (org-mode))
+  (save-restriction
+    (when (plist-get options :subtreep)
+      (unless (org-at-heading-p)
+	(org-back-to-heading))
+      (org-narrow-to-subtree))
+    (let* ((tree (org-element-parse-buffer))
+	   (assets (org-element-map tree 'paragraph
+				    (lambda (paragraph)
+				      (when-let* ((link (ox-sync-assets-standalone-image-link
+							 paragraph)))
+					(ox-sync-assets-entry paragraph link options)))))
+	   (diagnostics (ox-sync-assets-missing-diagnostics assets)))
+      (list :ready-p (null diagnostics)
+	    :assets assets
+	    :diagnostics diagnostics))))
+
+(provide 'ox-sync-assets)
+;;; ox-sync-assets.el ends here

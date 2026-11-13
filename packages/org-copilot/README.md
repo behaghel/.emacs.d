@@ -7,6 +7,8 @@ status: draft
 
 Org-native AI authoring assistance for review, chat, and executable edit suggestions.
 
+Source setup and the offline workflow are documented in the [package manual](README.org).
+
 Org Copilot keeps AI output visible as review artifacts. It does not silently mutate the source document: proposed edits become comments/suggestions first, and source text changes only when you accept a suggestion.
 
 ## Activation
@@ -17,6 +19,24 @@ configure its adapters. Explicitly enabling `org-copilot-mode` or opening Copilo
 chat/panels activates the integration. Disabling the mode removes its provider and
 source overlays. Window tracking belongs to context-panels, not a global Copilot
 selection hook.
+
+## Package boundary
+
+The facade declares Context Panels, org-comments, and org-suggestions as package
+dependencies. Its source-only workflow runs without personal modules, gptel,
+authentication, or a model service. Concrete LLM adapters remain opt-in;
+unconfigured review reports its missing adapter rather than choosing a provider.
+
+Reusable chat mode does not select an Evil state. Personal adapter activation,
+authentication, model choices, and modal editing policy belong to consumer
+configuration. Package-local tests do not load that configuration.
+
+Offline scripted replies use the real chat, parsing, comment, suggestion, and
+sidecar paths. Linked suggestion previews delegate to org-suggestions and show
+the actual source edits, not merely a comment anchor or primary-hunk summary.
+Proposals preserve source text until explicit acceptance and do not claim
+live-provider conformance. Authored sidecar formats and identifiers remain
+stable.
 
 ## What it stores
 
@@ -110,8 +130,17 @@ the visible/desired side panel and bottom chat restore and retarget to that
 source. Explicitly closing the panels disables automatic restoration until you
 open them again.
 
+Delivering a proposal refreshes source highlights and the comments panel without
+requiring focus/navigation first, respecting the panel-opening preference and
+viewport filtering. Killing a source closes its owned side, chat, and diff views
+even when its sidecars remain visible. Sidecar buffers/files and views retargeted
+to another source are left intact. Teardown is source-local, not a global
+selection hook.
+
 Transient suggestion/diff previews are not auto-restored; reopen them from the
-focused artifact when needed.
+focused artifact when needed. A diff preview keeps the chat and its fixed
+controls visible and usable. Splitting or closing ordinary source/preview
+windows preserves the native panel layout.
 
 ## Suggested workflow
 

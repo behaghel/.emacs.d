@@ -138,9 +138,7 @@ assistant message, or a plist with `:message' and optional `:comments'.  Normal
 (define-derived-mode org-copilot-chat-mode fundamental-mode "Org-Copilot-Chat"
   "Major mode for Org Copilot bottom chat buffers."
   (setq buffer-read-only nil)
-  (setq-local mode-line-format '(" " (:eval (org-copilot-chat--status-line))))
-  (when (fboundp 'evil-insert-state)
-    (evil-insert-state)))
+  (setq-local mode-line-format '(" " (:eval (org-copilot-chat--status-line)))))
 
 (defun org-copilot-chat--protect-window (window panel-buffer source-buffer)
   "Protect WINDOW for PANEL-BUFFER and SOURCE-BUFFER when supported."
@@ -583,16 +581,8 @@ prompt active.  Source target overlays remain visible as dim context markers."
 (defun org-copilot-chat-sync-diff (source-buffer)
   "Open or close suggestion diff to match SOURCE-BUFFER's chat focus."
   (if-let* ((comment (org-copilot-chat--focused-suggestion-comment source-buffer)))
-      (let* ((buffer (org-copilot-diff-open source-buffer comment))
-	     (window (display-buffer-in-side-window
-		      buffer
-		      '((side . bottom)
-			(slot . 0)
-			(window-height . 12)
-			(window-parameters
-			 . ((no-other-window . t)
-			    (no-delete-other-windows . t)))))))
-	(org-copilot-chat--protect-window window buffer source-buffer))
+      (let ((buffer (org-copilot-diff-open source-buffer comment)))
+	(org-copilot--display-diff-buffer source-buffer buffer t))
     (org-copilot-chat--close-stale-diff)))
 
 (defun org-copilot-chat-goto-prompt ()

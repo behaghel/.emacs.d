@@ -1,0 +1,28 @@
+#+title: Standalone static-site workflow
+#+hugo_base_dir: ../../..
+#+hugo_section: /
+#+hugo_bundle: welcome
+
+* Work in this disposable Hugo project
+
+This page is inside content-org/pages/welcome.  The project's .dir-locals.el
+selects its content directory and activates Site mode.  Automatic export is
+disabled in this sample, so creating or saving files does not attempt export.
+
+1. Press C-c w v to validate this page.
+2. Press C-c w s to create a section: slug notes, title Notes.  Save the new
+   _index.org with C-x C-s.
+3. Press C-c w p to create a leaf-bundle page: section notes, slug first-page,
+   title First page.  The new file should be content-org/notes/first-page/index.org
+   and Site mode should remain active.  Save it, then press C-c w v.
+4. Press C-c w e to try export.  In this minimal session, ox-hugo is deliberately
+   absent: expect an actionable installation error, not generated Markdown.
+5. Press C-c w n to try creating a Denote post.  Denote is deliberately absent:
+   expect an actionable installation error before any post is created.
+
+Page and section creation need only Emacs and Org.  Denote supplies timestamped
+post naming; ox-hugo supplies Markdown export.  A Hugo theme must provide any
+callout or media-callout shortcodes used by exported content.
+
+No real site is used and no Hugo build or server is started.  Exit this sample
+Emacs when finished; the temporary project and all created files are deleted.

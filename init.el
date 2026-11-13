@@ -42,7 +42,7 @@
 (add-to-list 'load-path (expand-file-name "packages/org-suggestions" user-emacs-directory))
 (add-to-list 'load-path (expand-file-name "packages/org-copilot" user-emacs-directory))
 (add-to-list 'load-path (expand-file-name "packages/org-confluence" user-emacs-directory))
-(add-to-list 'load-path (expand-file-name "packages/org-marginalia" user-emacs-directory))
+(add-to-list 'load-path (expand-file-name "packages/cp-org-marginalia" user-emacs-directory))
 (add-to-list 'load-path (expand-file-name "packages/hb-static-site" user-emacs-directory))
 
 ;; Legacy settings/ folder is being retired; do not add it to load-path.

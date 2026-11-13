@@ -1,0 +1,4 @@
+#!/usr/bin/env bash
+# Verify export synchronization with an offline provider and declared dependencies.
+set -euo pipefail
+exec "$(dirname "$0")/elisp-package-standalone" ox-sync "$@"

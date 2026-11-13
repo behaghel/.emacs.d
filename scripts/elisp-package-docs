@@ -46,13 +46,34 @@ load_abs="$(cd "$(dirname "$load_file")" && pwd)/$(basename "$load_file")"
 out_abs="$(mkdir -p "$out_dir" && cd "$out_dir" && pwd)"
 command_prefix="${command_prefix:-$prefix}"
 
-emacs --batch -Q \
-  -L "$repo_root" \
-  -L "$repo_root/lisp" \
-  -L "$repo_root/packages/org-comments" \
-  -L "$repo_root/modules" \
-  -L "$repo_root/modules/org" \
-  -L "$(dirname "$load_abs")" \
+load_args=(-L "$repo_root" -L "$repo_root/lisp"
+  -L "$repo_root/modules" -L "$repo_root/modules/org" -L "$(dirname "$load_abs")")
+for package_dir in "$repo_root/packages/"*/; do
+  if [ -d "$package_dir" ]; then
+    load_args+=(-L "$package_dir")
+  fi
+done
+build_root=${STRAIGHT_BUILD_PATH:-$repo_root/straight/build}
+context_panels_path=${CONTEXT_PANELS_PATH:-$build_root/context-panels}
+if [ -n "${CONTEXT_PANELS_PATH:-}" ]; then
+  for library in context-panels.el context-panels-org.el; do
+    if [ ! -r "$context_panels_path/$library" ]; then
+      echo "CONTEXT_PANELS_PATH must contain readable $library: $context_panels_path" >&2
+      exit 1
+    fi
+  done
+fi
+for dependency in context-panels compat transient cond-let llama magit-section seq; do
+  dependency_path="$build_root/$dependency"
+  if [ "$dependency" = context-panels ]; then
+    dependency_path="$context_panels_path"
+  fi
+  if [ -d "$dependency_path" ]; then
+    load_args+=(-L "$dependency_path")
+  fi
+done
+
+emacs --batch -Q "${load_args[@]}" \
   -l "$load_abs" --eval "
 (progn
   (require 'subr-x)

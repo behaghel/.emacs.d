@@ -517,6 +517,9 @@ PREVIOUS-KIND provides neighboring context."
 (defun org-confluence-import-storage-to-org (xhtml &optional directory)
   "Convert Confluence storage XHTML string XHTML to Org text.
 DIRECTORY, when non-nil, is used to resolve Confluence people labels."
+  (unless (and (fboundp 'libxml-available-p) (libxml-available-p)
+	       (fboundp 'libxml-parse-html-region))
+    (user-error "Confluence import requires an Emacs build with libxml2 support"))
   (let ((org-confluence-import--directory directory))
     (with-temp-buffer
       (insert (org-confluence-import--preserve-cdata xhtml))

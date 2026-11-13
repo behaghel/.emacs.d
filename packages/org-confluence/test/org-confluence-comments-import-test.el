@@ -7,6 +7,9 @@
 
 (require 'cl-lib)
 (require 'ert)
+(require 'org-confluence-test-support
+	 (expand-file-name "org-confluence-test-support.el"
+			   (file-name-directory (or load-file-name buffer-file-name))))
 (require 'org-comments-core)
 (require 'org-confluence-comments-import)
 

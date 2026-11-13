@@ -1,0 +1,4 @@
+#!/usr/bin/env bash
+# Check the marginalia model and Context Panels provider in clean Emacs.
+set -euo pipefail
+exec "$(dirname "$0")/elisp-package-standalone" cp-org-marginalia "$@"

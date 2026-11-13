@@ -1,0 +1,4 @@
+#!/usr/bin/env bash
+# Preserve the suggestions check entrypoint while sharing isolation machinery.
+set -euo pipefail
+exec "$(dirname "$0")/elisp-package-standalone" org-suggestions "$@"

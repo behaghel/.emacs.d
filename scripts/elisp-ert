@@ -3,6 +3,11 @@ set -euo pipefail
 
 export HOME=${HOME:-$PWD}
 
+# Git hooks export the committing worktree's index.  Nested Git operations
+# during package setup or tests must use their own repository's index instead.
+# This affects test children only; the parent hook and Git configuration remain.
+unset GIT_INDEX_FILE
+
 # One inventory serves full runs, changed-path selection, and --list.
 mapfile -t inventory < <(
   find test packages -type f -name '*-test.el' \
@@ -43,6 +48,9 @@ else
       init.el|core/*.el|early-init.el)
         add_test test/configuration-system/smoke-test.el
         ;;
+      modules/interactive/tools/blog.el)
+        add_test test/publishing/blog/blog-integration-test.el
+        ;;
       modules/interactive/navigation/perspective-auto.el)
         add_test test/interactive-foundation/navigation/perspective-auto-test.el
         ;;
@@ -63,12 +71,11 @@ else
         for test_file in "${inventory[@]}"; do
           case "$test_file" in
             "packages/$package/test/"*) add_test "$test_file" ;;
+            test/publishing/google-docs/*)
+              if [ "$package" = org-google-docs ]; then add_test "$test_file"; fi
+              ;;
           esac
         done
-        if [ "$package" = "org-confluence" ]; then
-          add_test test/publishing/confluence/org-confluence-api-test.el
-          add_test test/publishing/confluence/org-confluence-export-test.el
-        fi
         ;;
       scripts/approval-refresh-overdrive-page1.el|scripts/export-demo-adaptive-cards.el)
         add_test test/authoring/documents/org-latex-pdf-export-test.el

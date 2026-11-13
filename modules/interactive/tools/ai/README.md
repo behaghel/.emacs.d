@@ -29,6 +29,8 @@ status: draft
   browser sign-in.
 - Babel generation does not enable Copilot mode or change the source buffer's
   editing context. Passive loading does not configure its request route.
+- Personal Copilot chat buffers enter Evil insert state when Evil is available;
+  the reusable package does not choose a modal editing state.
 - Reloading AI configuration preserves Copilot activation state and does not
   duplicate activation hooks or review advice.
 - If the selected Copilot adapter cannot load on activation, configuration

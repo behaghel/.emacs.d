@@ -1,0 +1,52 @@
+{
+  "body": {
+    "content": [
+      {
+        "startIndex": 1, "endIndex": 23,
+        "paragraph": {
+          "paragraphStyle": {"namedStyleType": "HEADING_3"},
+          "elements": [{"startIndex": 1, "endIndex": 23, "textRun": {
+            "content": "Release Ready Bépo 😀\n", "textStyle": {"bold": true}
+          }}]
+        }
+      },
+      {
+        "startIndex": 23, "endIndex": 36,
+        "paragraph": {
+          "bullet": {"listId": "list-1", "nestingLevel": 0},
+          "elements": [{"startIndex": 23, "endIndex": 36, "textRun": {"content": "Before block\n"}}]
+        }
+      },
+      {
+        "startIndex": 36, "endIndex": 45,
+        "paragraph": {
+          "elements": [{"startIndex": 36, "endIndex": 45, "textRun": {
+            "content": "literal.\n", "textStyle": {"weightedFontFamily": {"fontFamily": "Courier New"}}
+          }}]
+        }
+      },
+      {
+        "startIndex": 45, "endIndex": 57,
+        "paragraph": {
+          "bullet": {"listId": "list-1", "nestingLevel": 0},
+          "elements": [{"startIndex": 45, "endIndex": 57, "textRun": {"content": "After block\n"}}]
+        }
+      }
+    ]
+  },
+  "lists": {"list-1": {"listProperties": {"nestingLevels": [{"glyphSymbol": "•"}]}}},
+  "namedRanges": {
+    "gdocs-org-marker:status:run-9:confluence-status:Green:1": {
+      "namedRanges": [{"namedRangeId": "fixture-status", "ranges": [{"startIndex": 9, "endIndex": 22}]}]
+    },
+    "gdocs-org-marker:list-state:elem-002:bullet:0": {
+      "namedRanges": [{"namedRangeId": "fixture-list-before", "ranges": [{"startIndex": 23, "endIndex": 35}]}]
+    },
+    "gdocs-org-marker:list-state:elem-004:bullet:0": {
+      "namedRanges": [{"namedRangeId": "fixture-list-after", "ranges": [{"startIndex": 45, "endIndex": 56}]}]
+    },
+    "gdocs-org-marker:example-block:elem-003:elem-003": {
+      "namedRanges": [{"namedRangeId": "fixture-example", "ranges": [{"startIndex": 36, "endIndex": 44}]}]
+    }
+  }
+}

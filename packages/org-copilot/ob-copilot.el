@@ -22,6 +22,8 @@
 (require 'org-copilot-gptel)
 (require 'subr-x)
 
+(declare-function gptel-request "gptel")
+
 (defgroup org-copilot-babel nil
   "Org Babel integration for Org Copilot."
   :group 'org-copilot)

@@ -1,4 +1,11 @@
-;;; hb-static-site.el --- Personal static-site authoring helpers -*- lexical-binding: t; -*-
+;;; hb-static-site.el --- Project-local Hugo authoring helpers -*- lexical-binding: t; -*-
+
+;; Author: Hubert Behaghel
+;; Maintainer: Hubert Behaghel
+;; Version: 0.1.0
+;; Package-Requires: ((emacs "29.1") (org "9.6"))
+;; Keywords: outlines, tools
+;; URL: https://github.com/behaghel/.emacs.d/tree/master/packages/hb-static-site
 
 ;;; Commentary:
 ;; Minimal reusable workflow glue for Hugo static sites authored as Org files,
@@ -9,7 +16,7 @@
 ;;   ((nil . ((denote-directory . "content-org")
 ;;            (denote-prompts . (subdirectory title keywords))
 ;;            (org-hugo-base-dir . ".")))
-;;    ("content-org/" . ((org-mode . ((eval . (hb-static-site-mode)))))))
+;;    ("content-org/" . ((org-mode . ((eval . (hb-static-site-mode 1)))))))
 ;;
 ;; Keep site-specific paths in .dir-locals.el.  This library derives posts and
 ;; pages from the active project/local variables and does not hardcode any one
@@ -19,8 +26,19 @@
 
 (require 'autoinsert)
 (require 'org)
+(require 'org-element)
+(require 'project)
 (require 'seq)
 (require 'subr-x)
+
+(declare-function denote "denote"
+		  (&optional title keywords file-type directory date template signature identifier))
+(declare-function denote-keywords-prompt "denote"
+		  (&optional prompt-text initial-keywords infer-from-files-matching-regexp))
+(declare-function org-hugo-export-wim-to-md "ox-hugo"
+		  (&optional all-subtrees async visible-only noerror))
+(declare-function org-hugo-auto-export-mode "org-hugo-auto-export-mode" (&optional arg))
+(declare-function yas-expand-snippet "yasnippet" (snippet &optional start end expand-env))
 
 (defvar denote-directory nil
   "External Denote variable naming the active note directory.")
@@ -40,7 +58,7 @@
   (or (null value) (stringp value)))
 
 (defgroup hb-static-site nil
-  "Personal Hugo/Org/Denote static-site workflow."
+  "Project-local Hugo/Org/Denote static-site workflow."
   :group 'applications)
 
 (defcustom hb-static-site-content-org-directory nil
@@ -117,29 +135,6 @@ When nil, derive the directory from `denote-directory', then from
     map)
   "Keymap for `hb-static-site-mode'.")
 
-(with-eval-after-load 'evil
-  (when (fboundp 'evil-define-key)
-    (evil-define-key 'normal hb-static-site-mode-map
-		     (kbd ",w n") #'hb-static-site-create-post)
-    (evil-define-key 'normal hb-static-site-mode-map
-		     (kbd ",w s") #'hb-static-site-create-section)
-    (evil-define-key 'normal hb-static-site-mode-map
-		     (kbd ",w p") #'hb-static-site-create-page)
-    (evil-define-key 'normal hb-static-site-mode-map
-		     (kbd ",w P") #'hb-static-site-create-basic-page)
-    (evil-define-key 'normal hb-static-site-mode-map
-		     (kbd ",w o") #'hb-static-site-find-page)
-    (evil-define-key 'normal hb-static-site-mode-map
-		     (kbd ",w e") #'hb-static-site-export-buffer)
-    (evil-define-key 'normal hb-static-site-mode-map
-		     (kbd ",w E") #'hb-static-site-export-all)
-    (evil-define-key 'normal hb-static-site-mode-map
-		     (kbd ",w v") #'hb-static-site-validate-buffer)))
-
-(with-eval-after-load 'which-key
-  (when (fboundp 'which-key-add-key-based-replacements)
-    (which-key-add-key-based-replacements "C-c w" "static site")))
-
 (defun hb-static-site--expand-directory (directory &optional base)
   "Return expanded DIRECTORY with a trailing slash, or nil.
 
@@ -159,9 +154,8 @@ subdirectory."
 
 (defun hb-static-site--project-root ()
   "Return the current project root, or `default-directory' when unavailable."
-  (or (when (require 'project nil 'noerror)
-	(when-let* ((project (project-current nil)))
-	  (car (project-roots project))))
+  (or (when-let* ((project (project-current nil)))
+	(project-root project))
       default-directory))
 
 (defun hb-static-site-hugo-base-dir ()
@@ -173,6 +167,11 @@ subdirectory."
        org-hugo-base-dir)
       (t root))
      root)))
+
+(defun hb-static-site--relative-hugo-base-dir (file)
+  "Return the Hugo base directory relative to generated FILE."
+  (directory-file-name
+   (file-relative-name (hb-static-site-hugo-base-dir) (file-name-directory file))))
 
 (defun hb-static-site-content-org-directory ()
   "Return the active Org source directory for the current static site."
@@ -384,14 +383,16 @@ When BUNDLE is non-nil, add `hugo_bundle' for a Hugo leaf bundle."
 $0
 " title base-dir section slug (if bundle (format "#+hugo_bundle: %s\n" slug) "")))
 
-(defun hb-static-site--section-template (title section)
-  "Return an Org/YAS template for section TITLE and SECTION."
+(defun hb-static-site--section-template (title section base-dir)
+  "Return an Org/YAS template for section TITLE and SECTION at BASE-DIR.
+
+BASE-DIR is the Hugo root relative to the generated section file."
   (format "#+title: %s
-#+hugo_base_dir: ../..
+#+hugo_base_dir: %s
 #+hugo_section: %s
 
 $0
-" title section))
+" title base-dir section))
 
 (defun hb-static-site--create-denote-file (directory title keywords front-matter)
   "Create a Denote Org file in DIRECTORY with TITLE, KEYWORDS and FRONT-MATTER."
@@ -430,7 +431,8 @@ The content root is derived from .dir-locals.el variables such as
 	       (concat (file-name-as-directory slug) "_index.org")
 	       (hb-static-site--content-org-directory-or-error))))
     (hb-static-site--auto-insert-template
-     file (hb-static-site--section-template title slug))))
+     file (hb-static-site--section-template
+	   title slug (hb-static-site--relative-hugo-base-dir file)))))
 
 (defun hb-static-site--page-path-parts (path)
   "Return normalized path parts for page PATH."
@@ -473,7 +475,8 @@ it creates a Hugo leaf bundle that can own local page resources."
 	 (directory (hb-static-site--page-directory parts))
 	 (file (expand-file-name (concat slug ".org") directory)))
     (hb-static-site--auto-insert-template
-     file (hb-static-site--page-template title section slug "../.."))))
+     file (hb-static-site--page-template
+	   title section slug (hb-static-site--relative-hugo-base-dir file)))))
 
 ;;;###autoload
 (defun hb-static-site-create-page (path title)
@@ -490,7 +493,8 @@ images."
 	 (directory (hb-static-site--page-directory parts t))
 	 (file (expand-file-name "index.org" directory)))
     (hb-static-site--auto-insert-template
-     file (hb-static-site--page-template title section slug "../../.." t))))
+     file (hb-static-site--page-template
+	   title section slug (hb-static-site--relative-hugo-base-dir file) t))))
 
 ;;;###autoload
 (defun hb-static-site-find-page ()
@@ -599,18 +603,18 @@ subtrees in the buffer."
 (define-minor-mode hb-static-site-mode
   "Minor mode for editing an Org source buffer in a Hugo static site.
 
-The mode is intentionally small: it uses project-local variables, enables
-pleasant prose editing when those helpers exist, sets local Denote/Hugo
-defaults, and gracefully skips optional packages that are not loaded."
+The mode uses project-local variables, enables visual line wrapping, sets
+local Denote/Hugo defaults, and gracefully skips unavailable optional packages.
+Personal prose setup belongs in consumer mode hooks."
   :lighter " Site"
   :keymap hb-static-site-mode-map
   (if hb-static-site-mode
       (progn
+	(setq-local org-hugo-base-dir (hb-static-site-hugo-base-dir))
 	(setq-local denote-directory (hb-static-site-content-org-directory))
 	(setq-local denote-prompts '(subdirectory title keywords))
 	(setq-local denote-org-front-matter hb-static-site-org-front-matter)
 	(when (fboundp 'visual-line-mode) (visual-line-mode 1))
-	(when (fboundp 'writing/enable-basics) (writing/enable-basics))
 	(hb-static-site--enable-auto-export))
     (when (and (boundp 'org-hugo-auto-export-mode) org-hugo-auto-export-mode)
       (org-hugo-auto-export-mode -1))))

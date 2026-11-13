@@ -1,0 +1,4 @@
+#!/usr/bin/env bash
+# Verify local Confluence conversion without accounts or remote operations.
+set -euo pipefail
+exec "$(dirname "$0")/elisp-package-standalone" org-confluence "$@"

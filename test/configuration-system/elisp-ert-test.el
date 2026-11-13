@@ -68,6 +68,14 @@
 	    "packages/example/test/example-test.el")
 	   '(0 "packages/example/test/example-test.el\n")))))
 
+(ert-deftest hub/ert-runner-selects-personal-blog-integration-from-module-changes ()
+  "Blog activation changes select configuration tests, not just package tests."
+  (hub/ert-runner-test--with-repository
+   (hub/ert-runner-test--write root "test/publishing/blog/blog-integration-test.el" "")
+   (should
+    (equal (hub/ert-runner-test--run "--list" "modules/interactive/tools/blog.el")
+	   '(0 "test/publishing/blog/blog-integration-test.el\n")))))
+
 (ert-deftest hub/ert-runner-preserves-focused-configuration-selection ()
   "Explicit configuration test paths remain independently runnable."
   (hub/ert-runner-test--with-repository
@@ -134,6 +142,36 @@
      (should-not (zerop status))
      (should (string-match-p "Fixture load failure" output))
      (should (string-match-p "passed.*hub/fixture-later" output)))))
+
+(ert-deftest hub/ert-runner-protects-hook-index-from-nested-git ()
+  "Git in a test fixture cannot overwrite the index inherited from a hook."
+  (hub/ert-runner-test--with-repository
+   ;; Keep fixture setup independent of any enclosing commit's Git routing.
+   (dolist (variable '("GIT_INDEX_FILE" "GIT_DIR" "GIT_WORK_TREE" "GIT_COMMON_DIR"
+		       "GIT_OBJECT_DIRECTORY" "GIT_ALTERNATE_OBJECT_DIRECTORIES"))
+     (setenv variable nil))
+   (should (zerop (process-file "git" nil nil nil "init" "--quiet")))
+   (hub/ert-runner-test--write root "staged.txt" "Keep this staged.\n")
+   (should (zerop (process-file "git" nil nil nil "add" "--" "staged.txt")))
+   (should (zerop (process-file "git" nil nil nil "init" "--quiet" "foreign")))
+   (hub/ert-runner-test--write root "foreign/checkout.txt" "Foreign repository.\n")
+   (hub/ert-runner-test--write
+    root "test/configuration-system/example-test.el"
+    (concat "(ert-deftest hub/fixture-foreign-git ()\n"
+	    "  (let ((default-directory (expand-file-name \"foreign/\")))\n"
+	    "    (should (zerop (process-file \"git\" nil nil nil\n"
+	    "                                \"add\" \"--\" \"checkout.txt\")))))\n"))
+   (let* ((index (expand-file-name ".git/index" root))
+	  (before (with-temp-buffer
+		    (insert-file-contents-literally index)
+		    (secure-hash 'sha256 (current-buffer)))))
+     (setenv "GIT_INDEX_FILE" index)
+     (pcase-let ((`(,status ,output) (hub/ert-runner-test--run)))
+       (ert-info (output) (should (equal status 0))))
+     (should (equal before (with-temp-buffer
+			     (insert-file-contents-literally index)
+			     (secure-hash 'sha256 (current-buffer)))))
+     (should (file-exists-p (expand-file-name "foreign/.git/index" root))))))
 
 (provide 'elisp-ert-test)
 ;;; elisp-ert-test.el ends here

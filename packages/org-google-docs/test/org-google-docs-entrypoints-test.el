@@ -9,7 +9,7 @@
 (require 'ert)
 
 (add-to-list 'load-path (expand-file-name ".." (file-name-directory load-file-name)))
-(add-to-list 'load-path (expand-file-name "../../org-sync"
+(add-to-list 'load-path (expand-file-name "../../ox-sync"
 					  (file-name-directory load-file-name)))
 
 (require 'org-google-docs)
@@ -316,6 +316,7 @@
 		   "Publish: Restyle typographic blocks"
 		   "Pull: Pull Google Doc into buffer"
 		   "Pull: Preview forced pull diff"
+		   "Pull: Replace local body from Google (backup first)"
 		   "Images: Cache pulled remote images"
 		   "Open: Open linked Google Doc in browser"
 		   "Comments: Import comments"

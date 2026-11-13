@@ -1,5 +1,12 @@
 ;;; org-google-docs.el --- Org Google Docs adapter facade -*- lexical-binding: t; -*-
 
+;; Author: Hubert Behaghel
+;; Maintainer: Hubert Behaghel
+;; Version: 0.1.0
+;; Package-Requires: ((emacs "29.1") (org "9.6") (org-comments "0.1.0") (ox-sync "0.1.0"))
+;; Keywords: outlines, tools, convenience
+;; URL: https://github.com/behaghel/.emacs.d/tree/master/packages/org-google-docs
+
 ;;; Commentary:
 ;; Safe-loading facade for a Google Docs publishing adapter.  Body sync is
 ;; delegated to upstream gdocs when it is installed; this package adds a stable
@@ -14,11 +21,17 @@
 (require 'url-util)
 
 (autoload 'org-google-docs-comments-import "org-google-docs-comments-import" nil t)
+(autoload 'org-google-docs-pull-replace-local "org-google-docs-recovery" nil t)
 (require 'org-google-docs-comments-backend)
-(require 'org-sync nil 'noerror)
+(require 'ox-sync)
 (require 'org-google-docs-footnotes)
 (require 'org-google-docs-images)
 
+(declare-function gdocs-auth-select-account "gdocs-auth" (&optional prompt))
+(declare-function gdocs-auth-get-access-token "gdocs-auth"
+		  (account callback &optional errback))
+(declare-function gdocs-mode "gdocs" (&optional argument))
+(declare-function gdocs-sync--init-from-properties "gdocs-sync" ())
 (declare-function gdocs-api-get-file-metadata "gdocs-api"
 		  (file-id callback &optional account))
 (declare-function gdocs-api-get-document "gdocs-api"
@@ -35,6 +48,12 @@
 (declare-function gdocs-sync--apply-pull "gdocs-sync" (json revision-id))
 (declare-function gdocs-sync--set-status "gdocs-sync" (status))
 (declare-function gdocs-sync-push "gdocs-sync" ())
+
+;; Declare, but do not initialize, optional upstream controls: preview bindings
+;; must be dynamic even when this facade is compiled before gdocs is loaded.
+(defvar gdocs-auto-push-on-save)
+(defvar gdocs-auto-pull-on-open)
+(defvar gdocs-pull-integrity-checks-enable)
 
 (defgroup org-google-docs nil
   "Org-facing Google Docs publishing adapter."
@@ -56,8 +75,8 @@ Set this to nil before rebuilding the map to leave the mode map unbound."
 
 (defcustom org-google-docs-gdocs-repository nil
   "Optional local gdocs checkout used for semantic publishing.
-When non-nil, `org-google-docs-ensure-gdocs-loaded' loads gdocs files from this
-checkout in dependency order and checks that required semantic seams are present.
+When non-nil, `org-google-docs-ensure-gdocs-loaded' loads files from this
+checkout in dependency order and checks for required semantic seams.
 Leave nil to use the normally installed gdocs package."
   :type '(choice (const :tag "Use installed gdocs" nil) directory)
   :group 'org-google-docs)
@@ -80,7 +99,7 @@ Leave nil to use the normally installed gdocs package."
 (defun org-google-docs--upstream-command (command)
   "Return upstream gdocs COMMAND symbol or signal an actionable error."
   (unless (fboundp command)
-    (user-error "Missing upstream gdocs command `%s'; install and configure benthamite/gdocs" command))
+    (user-error "Missing upstream gdocs command `%s'; install the semantic-capable gdocs dependency (see the Org Google Docs manual)" command))
   command)
 
 (defun org-google-docs--call-upstream (command)
@@ -117,7 +136,7 @@ Leave nil to use the normally installed gdocs package."
 (defun org-google-docs--require-upstream-library (library)
   "Require upstream gdocs LIBRARY or signal an actionable error."
   (unless (require library nil 'noerror)
-    (user-error "Missing upstream gdocs library `%s'; install and configure benthamite/gdocs" library)))
+    (user-error "Missing upstream gdocs library `%s'; install the semantic-capable gdocs dependency (see the Org Google Docs manual)" library)))
 
 (defun org-google-docs--local-gdocs-file (file)
   "Return absolute path to local gdocs FILE."
@@ -461,6 +480,7 @@ text has not changed."
     ("Publish: Restyle typographic blocks" . org-google-docs-push-restyle-current)
     ("Pull: Pull Google Doc into buffer" . org-google-docs-pull)
     ("Pull: Preview forced pull diff" . org-google-docs-pull-diff)
+    ("Pull: Replace local body from Google (backup first)" . org-google-docs-pull-replace-local)
     ("Images: Cache pulled remote images" . org-google-docs-images-cache-remote-images)
     ("Open: Open linked Google Doc in browser" . org-google-docs-open)
     ("Comments: Import comments" . org-google-docs-comments-import)
@@ -627,6 +647,7 @@ push state stuck even though the remote mutation completed or failed elsewhere."
 LOCAL-SNAPSHOT is the source content snapshot used for the comparison.
 TEMP-BUFFER is the buffer containing the forced pull result.  TEMP-DIR is kept
 for inspection while the preview is open."
+  (ignore temp-dir)
   (let* ((source-name (buffer-name source-buffer))
 	 (buffer-name (format "*org-google-docs-pull-diff: %s*" source-name))
 	 (diff (org-google-docs--pull-diff-unified local-snapshot pulled-file))
@@ -846,7 +867,7 @@ OAuth flow when a valid token already exists."
       (and (hash-table-p doc) (gethash "title" doc))))
 
 (defun org-google-docs-remote-describe-url (url)
-  "Return org-sync descriptor for Google Docs URL, or nil."
+  "Return ox-sync descriptor for Google Docs URL, or nil."
   (let ((trimmed (string-trim url)))
     (when (string-match "docs\\.google\\.com/document/d/\\([^/?#]+\\)" trimmed)
       (let* ((id (match-string 1 trimmed))
@@ -977,8 +998,8 @@ OAuth flow when a valid token already exists."
 			:title remote-name)
 	  :signals signals)))
 
-(when (fboundp 'org-sync-remote-register-provider)
-  (org-sync-remote-register-provider
+(when (fboundp 'ox-sync-remote-register-provider)
+  (ox-sync-remote-register-provider
    :kind "google-docs"
    :describe-url #'org-google-docs-remote-describe-url
    :pull #'org-google-docs-remote-pull

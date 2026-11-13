@@ -126,15 +126,68 @@
 	      (replace (car hunks))
 	      (insert (cadr hunks)))
 	 (should (eq (plist-get replace :kind) 'replace))
-	 (should (equal (plist-get replace :original) "Alpha
-"))
-	 (should (equal (plist-get replace :replacement) "Beta
-"))
+	 (should (equal (plist-get replace :original) "Alpha"))
+	 (should (equal (plist-get replace :replacement) "Beta"))
 	 (should (eq (plist-get insert :kind) 'insert))
 	 (should (equal (plist-get insert :anchor-text) "Beta"))
 	 (should (eq (plist-get insert :placement) 'after))
-	 (should (equal (plist-get insert :replacement) "Gamma
-")))))))
+	 (should (equal (plist-get insert :replacement) "Gamma")))))))
+
+(ert-deftest org-suggestions-sidecar-preserves-original-and-replacement-text ()
+  "Sidecar round-trips preserve inline text, whitespace, and final newlines."
+  (dolist (texts '(("Alpha" "Beta")
+		   ("Alpha\n" "Beta\n")
+		   ("Alpha\n\n" "Beta\n\n")
+		   ("Alpha\nsecond line" "Beta\nsecond line")
+		   ("" "")
+		   (" \t" "\t ")
+		   ("\n" "\n\n")
+		   ("café 漢字" "Révisé λ")))
+    (org-suggestions-test--with-source-file
+     "Source.\n"
+     (lambda (file)
+       (let ((thread
+	      (list :id "manual-thread"
+		    :candidates
+		    (list (list :id "manual-1" :status 'active
+				:hunks
+				(list (list :id "h1" :kind 'replace
+					    :original (car texts)
+					    :replacement (cadr texts))))))))
+	 (org-suggestions-write-sidecar file (list thread))
+	 (dotimes (_ 2)
+	   (let* ((loaded (org-suggestions-load-sidecar file))
+		  (candidate (car (plist-get (car loaded) :candidates)))
+		  (hunk (car (plist-get candidate :hunks))))
+	     (should (equal (plist-get hunk :original) (car texts)))
+	     (should (equal (plist-get hunk :replacement) (cadr texts)))
+	     (org-suggestions-write-sidecar file loaded))))))))
+
+(ert-deftest org-suggestions-sidecar-loads-unmarked-legacy-text ()
+  "Legacy blocks without newline markers retain their literal final newline."
+  (org-suggestions-test--with-source-file
+   "Alpha\n"
+   (lambda (file)
+     (with-temp-file (org-suggestions-sidecar-path file)
+       (insert "#+org_suggestions_schema_version: 1\n"
+	       "#+todo: ACTIVE ACCEPTED | ARCHIVED\n\n"
+	       "* Thread legacy\n:PROPERTIES:\n:ORG_SUGGESTIONS_THREAD_ID: legacy\n:END:\n\n"
+	       "** ACTIVE legacy-1\n:PROPERTIES:\n:ORG_SUGGESTIONS_ID: legacy-1\n:END:\n\n"
+	       "*** Hunk h1\n:PROPERTIES:\n:ORG_SUGGESTIONS_HUNK_ID: h1\n"
+	       ":ORG_SUGGESTIONS_HUNK_KIND: replace\n:END:\n\n"
+	       "**** Original\n#+begin_src org\nAlpha\n#+end_src\n\n"
+	       "**** Replacement\n#+begin_src org\nBeta\n#+end_src\n"))
+     (let* ((threads (org-suggestions-load-sidecar file))
+	    (candidate (car (plist-get (car threads) :candidates)))
+	    (hunk (car (plist-get candidate :hunks))))
+       (should (equal (plist-get hunk :original) "Alpha\n"))
+       (should (equal (plist-get hunk :replacement) "Beta\n"))
+       (org-suggestions-write-sidecar file threads)
+       (let* ((reloaded (org-suggestions-load-sidecar file))
+	      (stored (car (plist-get (car reloaded) :candidates)))
+	      (stored-hunk (car (plist-get stored :hunks))))
+	 (should (equal (plist-get stored-hunk :original) "Alpha\n"))
+	 (should (equal (plist-get stored-hunk :replacement) "Beta\n")))))))
 
 (defun org-suggestions-test--candidate (id status hunks &rest props)
   "Return candidate ID with STATUS, HUNKS, and PROPS."

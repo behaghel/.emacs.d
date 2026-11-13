@@ -84,22 +84,32 @@ entrypoint.
 
 When used from this repository, no separate installation is required.
 
-When extracted as a package, the intended setup should look like this:
+For a separate consumer of this source checkout, make the dependencies available
+first: Emacs 29.1+, Org 9.6+, org-comments 0.1.0+, and ox-sync 0.1.0+.  The latter
+packages also require Context Panels and Magit Section's dependency closure.
+No separate org-confluence repository or package archive submission is assumed.
 
 #+begin_src emacs-lisp
-(use-package org-confluence
-  :straight (:type git :host github :repo "behaghel/org-confluence")
-  :commands (org-confluence-mode
-             org-confluence-mode-maybe
-             org-confluence-publish
-             org-confluence-publish-dwim
-             org-confluence-pull
-             org-confluence-sync-current)
-  :hook (org-mode . org-confluence-mode-maybe)
-  :init
-  (setq org-confluence-api-base-url "https://example.atlassian.net"
-        org-confluence-api-default-space "~personal"))
+(dolist (directory '("packages/org-comments" "packages/ox-sync"
+                     "packages/org-confluence"))
+  (add-to-list 'load-path (expand-file-name directory "/path/to/checkout/")))
+(require 'org-confluence)
+(add-hook 'org-mode-hook #'org-confluence-mode-maybe)
+(setq org-confluence-api-base-url "https://example.atlassian.net"
+      org-confluence-api-default-space "~personal")
 #+end_src
+
+Local Storage XHTML conversion needs neither cfl nor credentials.  Import also
+requires an Emacs build with native libxml2 support; an unsupported build gets
+an actionable user error before conversion.
+
+Live CLI-backed page/attachment operations require the external =cfl= executable
+selected by =org-confluence-api-cfl-command=.  Cloud REST paths read the config
+selected by =org-confluence-api-cfl-config-file= (default
+=~/.config/cfl/config.yml=).  The existing scalar reader recognizes base URL,
+email, API-token, and optional cloud-ID fields; it is not a general YAML parser.
+Keep credential files outside this checkout and never put tokens in Org source.
+The offline check below does not validate live CLI compatibility or authentication.
 
 =org-confluence-mode= registers the Confluence =org-comments= backend and, when
 =org-confluence-enable-org-comments-mode= is non-nil, enables
@@ -120,6 +130,8 @@ mode map without a default binding, or set it to another key sequence and call
 
 ** Export and publish
 
+- =org-confluence-export-as-xhtml= opens a temporary Storage XHTML preview;
+  the native Org export shortcut is =C-c C-e C X=.
 - =org-confluence-export-to-xhtml= writes Confluence Storage XHTML for the
   current Org buffer or subtree.
 - =org-confluence-publish= updates an existing Confluence page identified by
@@ -201,6 +213,42 @@ See =docs/extension-points.org= for mode activation, =org-comments= backend
 registration, people-store customization, storage XHTML conversion, optional
 sync-status UI callbacks, and package-boundary expectations.
 
+* Offline standalone workflow
+
+From this checkout's root:
+
+#+begin_src sh
+devenv -q shell -- ./scripts/org-confluence-standalone
+devenv -q shell -- ./scripts/org-confluence-standalone --interactive
+#+end_src
+
+The batch check copies source, package-local tests, examples, org-comments,
+ox-sync, Context Panels, and the Magit Section dependency closure to a disposable
+sandbox.  It uses =emacs -Q= with a temporary HOME, no personal helpers or
+configuration modules, and warnings-as-errors compilation.  Emacs network
+connections and external =process-file= commands are blocked.  No dependencies
+are downloaded; use =STRAIGHT_BUILD_PATH= and =CONTEXT_PANELS_PATH= for existing
+source dependency locations when needed.
+
+The interactive [[file:examples/standalone.org][walkthrough]] activates local Confluence/Org-comments integration:
+- =org-confluence-demo-preview= exports into the normal Storage XHTML buffer.
+- =org-confluence-demo-roundtrip= imports that preview into a separate read-only
+  Org buffer.  Re-export after source edits before importing the preview again.
+- =org-confluence-demo-check-cli= reports the missing-cfl diagnostic without
+  starting a process, dumping PATH, or moving to another buffer or position.
+
+Inspect the fixture's headings, bold text, callout title/type, date, lists, and
+verbatim code.  Conversion does not rewrite the source.  HTML spacing is
+normalized; the sample does not claim byte-for-byte Org fidelity, attachment
+transfer, or support for every Confluence construct.
+
+The demo disables Babel evaluation, credential reads, HTTP transport, CLI
+execution, and browser opening in its isolated Emacs.  =C-c C-e C X= is local
+preview; =C-c C-e C C= and =C-c C-e C O= are publishing commands, not previews.
+Remote actions remain disabled even if a real cfl happens to be on PATH.
+The existing Confluence status report is retained, not migrated to ox-sync.
+Exit the sample Emacs to remove its temporary source and previews.
+
 * Development
 
 Generate this reference from defcustoms/commands with:
@@ -213,34 +261,20 @@ scripts/elisp-package-docs \
   --out packages/org-confluence/docs/generated
 #+end_src
 
-Run the focused package tests with:
+All conversion, API, people-store, and facade tests live under =test/= inside
+this package.  They require a dedicated batch process: fixture support relocates
+HOME and runtime caches, and rejects unmocked credential reads, network access,
+and external processes even when best-effort code catches ordinary errors.
+Explicit temporary config/transport fixtures remain available.  Do not load the
+test support into a personal interactive Emacs; it refuses that environment.
+The repository runner selects the tests together from package changes:
 
 #+begin_src shell
-devenv -q shell -- env HOME=$PWD emacs --batch -Q \
-  -L packages/org-comments \
-  -L packages/org-confluence \
-  -L lisp \
-  -l ert \
-  -l packages/org-confluence/test/org-confluence-entrypoints-test.el \
-  -l packages/org-confluence/test/org-confluence-comments-backend-test.el \
-  -f ert-run-tests-batch-and-exit
+devenv -q shell -- ./scripts/elisp-ert packages/org-confluence/org-confluence.el
 #+end_src
 
-Run the broader repository Confluence tests with:
-
-#+begin_src shell
-devenv -q shell -- env HOME=$PWD emacs --batch -Q \
-  -L . \
-  -L packages/org-comments \
-  -L packages/org-confluence \
-  -L lisp \
-  -l ert \
-  -l test/test-helpers.el \
-  -l test/publishing/confluence/confluence-people-test.el \
-  -l test/publishing/confluence/org-confluence-api-test.el \
-  -l test/publishing/confluence/org-confluence-export-test.el \
-  -f ert-run-tests-batch-and-exit
-#+end_src
+Use =org-confluence-standalone= above for the source-only clean-room check;
+its transport mocks and process guards do not claim live-service verification.
 
 Before handoff, also run package byte-compile/lint, =load-check=, and the docs
 generation command above.
