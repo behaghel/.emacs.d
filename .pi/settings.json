@@ -1,5 +1,6 @@
 {
   "packages": [
-    "npm:@behaghel/pi-domain-tree@0.4.0"
+    "npm:@behaghel/pi-domain-tree@0.4.0",
+    "~/nixos-config/marketplace/plugins/emacs"
   ]
 }
