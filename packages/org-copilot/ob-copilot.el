@@ -337,6 +337,10 @@ unreviewed generated content."
   "Generate Copilot Babel output for REQUEST using gptel synchronously."
   (unless (fboundp 'gptel-request)
     (user-error "Org Copilot Babel requires gptel"))
+  (unless (or org-copilot-gptel-backend gptel-backend)
+    (user-error "Copilot Babel has no backend; configure your intended authentication route"))
+  (unless (or org-copilot-gptel-model gptel-model)
+    (user-error "Copilot Babel has no model; select one for your intended backend"))
   (let ((done nil)
 	(response-text nil)
 	(error-message nil)

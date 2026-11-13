@@ -260,6 +260,23 @@
 		     (list :prompt "Write." :context "" :output "org"))
 		    :type 'user-error))))
 
+(ert-deftest ob-copilot-gptel-generator-rejects-missing-route ()
+  "A missing backend or model stops before gptel can select a default provider."
+  (dolist (missing '(backend model))
+    (let ((gptel-backend nil)
+	  (gptel-model nil)
+	  (org-copilot-gptel-backend (unless (eq missing 'backend) 'test-backend))
+	  (org-copilot-gptel-model (unless (eq missing 'model) 'test-model))
+	  (calls 0))
+      (cl-letf (((symbol-function 'gptel-request)
+		 (lambda (_prompt &rest args)
+		   (cl-incf calls)
+		   (funcall (plist-get args :callback) "Unexpected" nil))))
+	(should-error (org-copilot-babel-gptel-generate
+		       '(:prompt "Write." :context "" :output "org"))
+		      :type 'user-error)
+	(should (zerop calls))))))
+
 (ert-deftest ob-copilot-malformed-response-errors ()
   "Malformed Copilot Babel responses fail closed."
   (let ((org-confirm-babel-evaluate nil)
