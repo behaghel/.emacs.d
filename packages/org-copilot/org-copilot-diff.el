@@ -259,20 +259,42 @@ Rollback now belongs to `org-suggestions' session-local undo support."
 	(org-copilot-refresh-overlays)))
     (org-copilot-diff--refresh-panel-buffer source-buffer)))
 
-(defun org-copilot--display-diff-buffer (source-buffer buffer)
-  "Display diff BUFFER for SOURCE-BUFFER and select its window."
-  (let ((window (display-buffer-in-side-window
-		 buffer
-		 '((side . bottom)
-		   (slot . 0)
-		   (window-height . 12)
+(defun org-copilot--display-diff-buffer (source-buffer buffer &optional preserve-selection)
+  "Display diff BUFFER below SOURCE-BUFFER.
+Select its window unless PRESERVE-SELECTION is non-nil."
+  ;; A second bottom side slot cannot coexist with the chat's atomic footer
+  ;; under Emacs's side-window invariants.  Keep the transient preview below
+  ;; the ordinary source window, without replacing the persistent chat view.
+  (let* ((source-window (get-buffer-window source-buffer))
+	 (existing-window (get-buffer-window buffer))
+	 (height
+	  (if (window-live-p source-window)
+	      (progn
+		;; A short frame may leave fewer than two minimum-height
+		;; ordinary windows above the chat.  Borrow only the space
+		;; needed for a legal split, respecting native resize limits.
+		(let ((needed (- (* 2 window-min-height)
+				 (window-total-height source-window))))
+		  (when (and (not existing-window) (> needed 0)
+			     (>= (window-resizable source-window needed) needed))
+		    (window-resize source-window needed)))
+		(min 12 (max window-min-height
+			     (/ (window-total-height source-window) 2))))
+	    12))
+	 (action `((window-height . ,height)
 		   (window-parameters
 		    . ((no-other-window . t)
-		       (no-delete-other-windows . t)))))))
+		       (no-delete-other-windows . t)))))
+	 (window (or existing-window
+		     (when (window-live-p source-window)
+		       (with-selected-window source-window
+			 (display-buffer-below-selected buffer action)))
+		     (display-buffer-pop-up-window buffer action))))
     (when (window-live-p window)
       (when (fboundp 'context-panels-protect-window)
 	(context-panels-protect-window window buffer source-buffer))
-      (select-window window))))
+      (unless preserve-selection (select-window window))
+      window)))
 
 ;;;###autoload
 (defun org-copilot-view-diff-at-point ()

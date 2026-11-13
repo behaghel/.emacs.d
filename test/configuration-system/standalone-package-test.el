@@ -14,6 +14,48 @@
    (locate-dominating-file (or load-file-name buffer-file-name) "domains.yaml"))
   "Repository root containing the standalone launchers.")
 
+(ert-deftest hub/standalone-copies-context-panels-source-dependency-closure ()
+  "The copier includes new source modules but excludes compiled/private files."
+  (let* ((directory (make-temp-file "standalone-context-closure-" t))
+	 (dependency (expand-file-name "dependency" directory))
+	 (wrapper (expand-file-name "emacs" directory))
+	 (real-emacs (expand-file-name invocation-name invocation-directory))
+	 (process-environment (copy-sequence process-environment)))
+    (unwind-protect
+	(progn
+	  (make-directory dependency)
+	  (dolist (entry '(("context-panels.el" . "(require 'context-panels-fixture-extra)\n(provide 'context-panels)\n")
+			   ("context-panels-org.el" . "(provide 'context-panels-org)\n")
+			   ("context-panels-fixture-extra.el" . "(provide 'context-panels-fixture-extra)\n")
+			   ("must-not-copy.elc" . "not compiled source")
+			   ("must-not-copy.txt" . "fixture-only private state")))
+	    (with-temp-file (expand-file-name (car entry) dependency)
+	      (insert (cdr entry))))
+	  (with-temp-file wrapper
+	    (insert "#!/usr/bin/env bash\nset -euo pipefail\n"
+		    "for arg in \"$@\"; do\n"
+		    "  if [[ -d \"$arg\" && -r \"$arg/context-panels.el\" ]]; then\n"
+		    "    exec \"$STANDALONE_TEST_EMACS\" --batch -Q -L \"$arg\" --eval "
+		    "'(progn (require (quote context-panels)) "
+		    "(unless (featurep (quote context-panels-fixture-extra)) "
+		    "(error \"Transitive source module is absent\")) "
+		    "(dolist (file (quote (\"must-not-copy.elc\" \"must-not-copy.txt\"))) "
+		    "(when (file-exists-p (expand-file-name file "
+		    "(file-name-directory (locate-library \"context-panels\")))) "
+		    "(error \"Non-source dependency state was copied\"))))'\n"
+		    "  fi\ndone\nexit 1\n"))
+	  (set-file-modes wrapper #o755)
+	  (setenv "STANDALONE_TEST_EMACS" real-emacs)
+	  (setenv "CONTEXT_PANELS_PATH" dependency)
+	  (setenv "PATH" (concat directory path-separator (getenv "PATH")))
+	  (with-temp-buffer
+	    (let ((status (process-file
+			   (expand-file-name "scripts/cp-org-marginalia-standalone"
+					     hub/standalone-package-test--root)
+			   nil (list t t) nil "--interactive")))
+	      (ert-info ((buffer-string)) (should (zerop status))))))
+      (delete-directory directory t))))
+
 (ert-deftest hub/standalone-marginalia-startup-opens-right-panel ()
   "Startup opens the marginalia panel on the right, not the popup fallback below."
   (let* ((directory (make-temp-file "standalone-launcher-test" t))

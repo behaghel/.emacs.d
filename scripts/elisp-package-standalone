@@ -52,8 +52,9 @@ args=(-Q -L "$sandbox/$package")
 allowed="\"$package\""
 if [ -n "$context_panels_path" ]; then
   mkdir -p "$sandbox/context-panels"
-  cp "$context_panels_path/context-panels.el" \
-    "$context_panels_path/context-panels-org.el" "$sandbox/context-panels/"
+  # Preserve the public source closure (footer/tabs and future modules), not
+  # compiled files, repository metadata, or private/runtime state.
+  cp "$context_panels_path/"*.el "$sandbox/context-panels/"
   args+=(-L "$sandbox/context-panels")
   allowed+=" \"context-panels\""
 fi

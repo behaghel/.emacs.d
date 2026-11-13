@@ -581,16 +581,8 @@ prompt active.  Source target overlays remain visible as dim context markers."
 (defun org-copilot-chat-sync-diff (source-buffer)
   "Open or close suggestion diff to match SOURCE-BUFFER's chat focus."
   (if-let* ((comment (org-copilot-chat--focused-suggestion-comment source-buffer)))
-      (let* ((buffer (org-copilot-diff-open source-buffer comment))
-	     (window (display-buffer-in-side-window
-		      buffer
-		      '((side . bottom)
-			(slot . 0)
-			(window-height . 12)
-			(window-parameters
-			 . ((no-other-window . t)
-			    (no-delete-other-windows . t)))))))
-	(org-copilot-chat--protect-window window buffer source-buffer))
+      (let ((buffer (org-copilot-diff-open source-buffer comment)))
+	(org-copilot--display-diff-buffer source-buffer buffer t))
     (org-copilot-chat--close-stale-diff)))
 
 (defun org-copilot-chat-goto-prompt ()

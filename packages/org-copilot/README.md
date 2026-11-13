@@ -138,7 +138,9 @@ to another source are left intact. Teardown is source-local, not a global
 selection hook.
 
 Transient suggestion/diff previews are not auto-restored; reopen them from the
-focused artifact when needed.
+focused artifact when needed. A diff preview keeps the chat and its fixed
+controls visible and usable. Splitting or closing ordinary source/preview
+windows preserves the native panel layout.
 
 ## Suggested workflow
 
