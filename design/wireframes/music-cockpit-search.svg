@@ -17,7 +17,7 @@
       <use href="components.svg#atom-music-spotify" x="25" y="195" width="24" height="24"/>
       <text x="58" y="212" font-size="14" fill="#9ba5ba" letter-spacing="1">LIKED SONGS · 1 MATCH / 50 LOADED ↗</text>
       <text x="58" y="249" font-size="18" fill="#f3ece3">Low Light (live) — Quiet Geometry · At the Observatory  5:08  [Liked #12 · Spotify]</text>
-      <text x="28" y="305" font-size="15" fill="#c4c8d4">RET Play existing   M-RET Append one copy   C-g Back</text>
+      <text x="28" y="305" font-size="15" fill="#c4c8d4">RET Play existing   M-RET Append   C-. Actions   C-g Back</text>
       <text x="812" y="305" font-size="14" fill="#9ba5ba">Highlight selects · ▶ marks playback</text>
     </g>
   </g>

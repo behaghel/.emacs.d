@@ -22,6 +22,9 @@
 (defvar hub/spotify--tracks)
 (defvar hub/spotify--total)
 (defvar +vertico-current-arrow)
+(defvar embark-keymap-alist)
+(defvar embark-default-action-overrides)
+(defvar embark-general-map)
 (declare-function vertico--exhibit "vertico" ())
 (autoload 'hub/spotify-player-add "apps/spotify-player" nil nil)
 
@@ -120,6 +123,28 @@ redundant library hits.  Neither source is fetched or changed."
     (with-current-buffer (hub/music-row-playlist row) (emms-playlist-select (hub/music-row-position row)))
     (emms-start)))
 
+(defun hub/music-search-embark-play (target)
+  "Play TARGET's retained occurrence or append and play its retained library row.
+This is a non-command Embark action so target properties survive dispatch."
+  (hub/music-search--act (hub/music-search--target target) 'play))
+
+(defun hub/music-search-embark-append (target)
+  "Append one copy from TARGET's retained Liked record without interruption.
+This is a non-command Embark action so target properties survive dispatch."
+  (hub/music-search--act (hub/music-search--target target) 'enqueue))
+
+(defvar hub/music-search-embark-map
+  (let ((map (make-sparse-keymap)))
+    (define-key map (kbd "p") '(menu-item "Play" hub/music-search-embark-play))
+    (define-key map (kbd "a") '(menu-item "Append one copy" hub/music-search-embark-append))
+    map)
+  "Music result actions using retained identities, not text input injection.")
+
+(with-eval-after-load 'embark
+  (set-keymap-parent hub/music-search-embark-map embark-general-map)
+  (setf (alist-get 'hub/music-track embark-keymap-alist) 'hub/music-search-embark-map)
+  (setf (alist-get 'hub/music-track embark-default-action-overrides) #'hub/music-search-embark-play))
+
 ;;;###autoload
 (defun hub/music-search ()
   "Search the queue and loaded Liked Songs without previews or fetching.
@@ -148,8 +173,9 @@ C-g changes nothing."
 		      (consult--multi
 		       (list (hub/music-search--source "Queue" ?q queue)
 			     (hub/music-search--source coverage ?l liked))
-		       :prompt (format "Music (Queue: %d · %s) — RET Play%s, C-g Back: "
-				       (length queue) coverage (if loaded ", M-RET Enqueue liked" ""))
+		       :prompt (format "Music (Queue: %d · %s) — RET Play%s%s, C-g Back: "
+				       (length queue) coverage (if loaded ", M-RET Enqueue liked" "")
+				       (if (fboundp 'embark-act) ", C-. Actions" ""))
 		       :require-match t :sort nil :keymap hub/music-search-map :history 'hub/music-search--history))))
 	      (when (plist-get (cdr choice) :match)
 		(hub/music-search--act (hub/music-search--target (car choice)) hub/music-search--operation)))))

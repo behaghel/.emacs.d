@@ -115,6 +115,27 @@ Feature: Music navigation at the speed of the editor
     When the loaded record is refreshed, removed or closed before append
     Then the stale append action is rejected before mutation or interruption
 
+  @wireframe:music-cockpit-search.svg @wireframe:music-cockpit-search-queue.svg
+  Scenario Outline: Use native contextual actions on the retained search result
+    Given a <source> music search result is selected
+    When I open the existing Embark menu with "C-."
+    Then the menu offers Play and Append without fetching or changing playback
+    When I choose <action>
+    Then <result>
+    And the same retained identity and stale-source guards apply as RET and M-RET
+    Examples:
+      | source        | action | result                                        |
+      | Queue         | p      | that exact existing occurrence plays          |
+      | Liked Songs   | p      | that retained library track appends and plays |
+      | Queue + Liked | a      | one retained copy appends without interruption |
+
+  @wireframe:music-cockpit-search.svg
+  Scenario: Inspect or cancel contextual music actions without side effects
+    Given I am browsing music search while a track is playing
+    When I open the Embark menu and cancel it without choosing an action
+    Then no track is appended, selected, stopped or started
+    And a target without its retained identity cannot invoke a music action
+
   @wireframe:music-cockpit-search-queue.svg
   Scenario: Reject an obsolete queue occurrence without interrupting playback
     Given queue search is open while music is playing

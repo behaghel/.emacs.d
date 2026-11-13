@@ -130,6 +130,12 @@ never authorize, fetch, reopen a view or start playback.
   copy without interruption. A queue-only candidate does not gain a library action.
   Each action validates the retained source it acts on: the exact queue occurrence
   for Play, or the loaded library record and generation for append.
+- The existing Embark action menu exposes Play (`p`) and Append (`a`) for music
+  search results. These actions use the same retained row identities and source
+  validation as RET and M-RET, never parsing a label or looking up a replacement
+  by title or URI. Opening, inspecting or cancelling the menu is passive. A target
+  whose identity has been stripped or whose acted-on source is stale is rejected
+  before queue mutation or playback interruption.
 - The palette exposes navigation, transport, spectrum and connection actions with
   discoverable keys and current availability. It does not create a second set of
   playback semantics. Closing it returns to the previous context.
