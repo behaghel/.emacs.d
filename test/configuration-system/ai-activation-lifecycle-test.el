@@ -10,6 +10,7 @@
 
 (require 'cl-lib)
 (require 'ert)
+(require 'subr-x)
 
 (defconst hub/ai-lifecycle-test--file (expand-file-name (or load-file-name buffer-file-name))
   "Absolute path to this test file, also loaded by isolated child processes.")
@@ -575,6 +576,62 @@ Return the exit status and output; see `hub/ai-lifecycle-test--exercise'."
 			(should (equal status 0))
 			(should (string-match-p "REAL-OAUTH:PASS" (buffer-string)))))))
       (delete-directory home t))))
+
+(ert-deftest hub/ai-ci-provisions-pinned-oauth-source-without-a-build-cache ()
+  "CI selects the locked SDK explicitly even with no optional gptel build."
+  (let ((script
+	 (with-temp-buffer
+	   (insert-file-contents
+	    (expand-file-name ".github/workflows/emacs.yml"
+			      hub/ai-lifecycle-test--root))
+	   (should (re-search-forward
+		    "^      - name: Prepare pinned gptel for OAuth contract tests$" nil t))
+	   (should (re-search-forward "^        run: |$" nil t))
+	   (forward-line)
+	   (let (lines)
+	     (while (looking-at "          \\(.*\\)$")
+	       (push (match-string-no-properties 1) lines)
+	       (forward-line))
+	     (string-join (nreverse lines) "\n"))))
+	(root (make-temp-file "ai-ci-source-" t))
+	(pin "1111111111111111111111111111111111111111")
+	(process-environment (copy-sequence process-environment)))
+    (unwind-protect
+	(let ((default-directory (file-name-as-directory root)))
+	  (make-directory (expand-file-name "straight/versions" root) t)
+	  (hub/ai-lifecycle-test--write root "straight/versions/default.el"
+					(format "((\"gptel\" . %S))\n" pin))
+	  ;; Record Git operations; the regression never accesses the network.
+	  (with-temp-file (expand-file-name "git" root)
+	    (insert "#!/bin/sh\nset -eu\n"
+		    "printf '%s\\n' \"$*\" >> \"$FIXTURE_GIT_LOG\"\n"
+		    "case \"$*\" in\n"
+		    "  *'rev-parse HEAD'*) printf '%s\\n' \"$FIXTURE_PIN\" ;;\n"
+		    "  *checkout*) touch \"$2/gptel-openai-oauth.el\" ;;\n"
+		    "esac\n"))
+	  (set-file-modes (expand-file-name "git" root) #o755)
+	  (setenv "PATH" (concat root path-separator (getenv "PATH")))
+	  (setenv "RUNNER_TEMP" root)
+	  (setenv "GITHUB_ENV" (expand-file-name "github-env" root))
+	  (setenv "FIXTURE_GIT_LOG" (expand-file-name "git-log" root))
+	  (setenv "FIXTURE_PIN" pin)
+	  (setenv "HOME" root)
+	  (setenv "GPTEL_PATH" nil)
+	  (with-temp-buffer
+	    (let ((status (call-process "bash" nil t nil "-eu" "-c" script)))
+	      (ert-info ((buffer-string)) (should (equal status 0)))))
+	  (with-temp-buffer
+	    (insert-file-contents (expand-file-name "git-log" root))
+	    (should (string-match-p
+		     (regexp-quote
+		      (concat "fetch --depth=1 https://github.com/karthink/gptel.git " pin))
+		     (buffer-string))))
+	  (with-temp-buffer
+	    (insert-file-contents (expand-file-name "github-env" root))
+	    (should (string-match-p
+		     (regexp-quote (concat "GPTEL_PATH=" root "/gptel-oauth-contract"))
+		     (buffer-string)))))
+      (delete-directory root t))))
 
 (provide 'ai-activation-lifecycle-test)
 ;;; ai-activation-lifecycle-test.el ends here
