@@ -16,7 +16,7 @@
 (defvar hub/music-search-test--player nil)
 (defvar hub/spotify-buffer-name)
 (defvar hub/music-search--operation)
-(dolist (package '("consult" "compat"))
+(dolist (package '("consult" "compat" "embark" "embark-consult"))
   (add-to-list 'load-path
 	       (expand-file-name package (or (getenv "STRAIGHT_BUILD_PATH")
 					     (expand-file-name "straight/build" default-directory)))))
@@ -169,6 +169,7 @@
   "M-RET delegates append-only, preserving the playing queue and document."
   (hub/music-search-test--queue
    (hub/music-search-test--library
+    (setcdr (assq 'uri raw) "spotify:track:0000000000000000000001")
     (emms-start)
     (let ((before (with-current-buffer playlist (buffer-string))))
       (cl-letf (((symbol-function 'completing-read)
@@ -186,6 +187,7 @@
   (dolist (change '(refresh removal mutate killed))
     (hub/music-search-test--queue
      (hub/music-search-test--library
+      (setcdr (assq 'uri raw) "spotify:track:0000000000000000000001")
       (emms-start)
       (cl-letf (((symbol-function 'completing-read)
 		 (lambda (_prompt collection &rest _)
@@ -207,6 +209,7 @@
   (dolist (operation '(play enqueue))
     (hub/music-search-test--queue
      (hub/music-search-test--library
+      (setcdr (assq 'uri raw) "spotify:track:0000000000000000000001")
       (push '(is_playable . :false) raw)
       (with-current-buffer library (setq hub/spotify--tracks (list (cons 0 raw))))
       (cl-letf (((symbol-function 'completing-read)
@@ -219,6 +222,154 @@
       (should-not added)
       (should-not started)
       (should (zerop stopped))))))
+
+(ert-deftest hub/music-search-combined-results-retain-exact-occurrences-and-recordings ()
+  "Two queued copies plus one matching Liked record remain two exact results."
+  (hub/music-search-test--queue
+   (hub/music-search-test--library
+    (let ((other (copy-tree raw))
+	  (before (with-current-buffer playlist (buffer-string))))
+      (setcdr (assq 'uri other) "spotify:track:0000000000000000000001")
+      (setcdr (assq 'name other) "Low Light")
+      (with-current-buffer library (setq hub/spotify--tracks (list (cons 0 raw) (cons 1 other))))
+      (cl-letf (((symbol-function 'completing-read)
+		 (lambda (prompt collection &rest _)
+		   (let ((candidates (all-completions "" collection)))
+		     (should (string-match-p "2/1482 loaded" prompt))
+		     (should (= (length candidates) 4))
+		     (should (= (length (all-completions "Low Light" collection)) 3))
+		     (should-not (all-completions "Retained" collection))
+		     (should (= (cl-count-if (lambda (candidate) (string-match-p (regexp-quote "+ Liked") candidate)) candidates) 2))
+		     (should (cl-find-if (lambda (candidate) (string-match-p "Liked #2" candidate)) candidates))
+		     (cl-find-if (lambda (candidate) (string-match-p "Queue #3" candidate)) candidates)))))
+	(hub/music-search))
+      (should (= (length started) 1))
+      (should (= (cadar started) (nth 2 positions)))
+      (should (eq (caar started) duplicate))
+      (should-not added)
+      (should (equal before (with-current-buffer playlist (buffer-string))))))))
+
+(ert-deftest hub/music-search-combined-enqueue-delegates-one-copy-without-interruption ()
+  "A combined result's append action uses the retained Liked record, not queue Play."
+  (hub/music-search-test--queue
+   (hub/music-search-test--library
+    (emms-start)
+    (setq emms-player-paused-p t)
+    (cl-letf (((symbol-function 'completing-read)
+	       (lambda (_prompt collection &rest _)
+		 (setq hub/music-search--operation 'enqueue)
+		 (cl-find-if (lambda (candidate) (string-match-p "Queue #3" candidate))
+			     (all-completions "" collection)))))
+      (hub/music-search))
+    (should (equal added (list (list raw nil))))
+    (should (= (length started) 1))
+    (should (zerop stopped))
+    (should emms-player-paused-p)
+    (should (= (with-current-buffer playlist (marker-position emms-playlist-selected-marker)) (car positions))))))
+
+(ert-deftest hub/music-search-combined-enqueue-rejects-obsolete-liked-records ()
+  "Combined append validates its retained library identity before any mutation."
+  (dolist (change '(refresh removal mutate killed unavailable))
+    (hub/music-search-test--queue
+     (hub/music-search-test--library
+      (when (eq change 'unavailable) (push '(is_playable . :false) raw)
+	    (with-current-buffer library (setq hub/spotify--tracks (list (cons 0 raw)))))
+      (emms-start)
+      (cl-letf (((symbol-function 'completing-read)
+		 (lambda (_prompt collection &rest _)
+		   (let ((candidate (cl-find-if (lambda (value) (string-match-p "Queue #3" value))
+						(all-completions "" collection))))
+		     (setq hub/music-search--operation 'enqueue)
+		     (with-current-buffer library
+		       (pcase change
+			 ('refresh (cl-incf hub/spotify--generation))
+			 ('removal (setq hub/spotify--tracks nil))
+			 ('mutate (setcdr (assq 'uri raw) "spotify:track:0000000000000000000000"))
+			 ('killed (kill-buffer library))))
+		     candidate))))
+	(should (string-match-p (if (eq change 'unavailable) "no playable Spotify track" "Loaded Liked Songs changed")
+				(error-message-string (should-error (hub/music-search) :type 'user-error)))))
+      (should-not added)
+      (should (zerop stopped))
+      (should (= (length started) 1))))))
+
+(ert-deftest hub/music-search-combined-validates-only-the-source-of-the-chosen-action ()
+  "Refreshing Likes does not redirect Queue Play; editing the queue does not redirect append."
+  (dolist (operation '(play enqueue))
+    (hub/music-search-test--queue
+     (hub/music-search-test--library
+      (emms-start)
+      (cl-letf (((symbol-function 'completing-read)
+		 (lambda (_prompt collection &rest _)
+		   (let ((candidate (cl-find-if (lambda (value) (string-match-p "Queue #3" value))
+						(all-completions "" collection))))
+		     (setq hub/music-search--operation operation)
+		     (if (eq operation 'play)
+			 (with-current-buffer library (cl-incf hub/spotify--generation))
+		       (with-current-buffer playlist
+			 (let ((inhibit-read-only t))
+			   (goto-char (point-max))
+			   (emms-playlist-insert-track (emms-track 'file "/tmp/another.ogg")))))
+		     candidate))))
+	(hub/music-search))
+      (if (eq operation 'play)
+	  (progn (should (= (length started) 2))
+		 (should (= (cadar started) (nth 2 positions)))
+		 (should-not added))
+	(should (equal added (list (list raw nil))))
+	(should (zerop stopped))
+	(should (= (length started) 1)))))))
+
+(ert-deftest hub/music-search-embark-dispatch-preserves-retained-target-identities ()
+  "Real Embark dispatch keeps properties for exact Play and retained Append."
+  (require 'apps/music-search)
+  (require 'embark)
+  (dolist (operation '(queue-play library-play combined-append))
+    (hub/music-search-test--queue
+     (hub/music-search-test--library
+      (let* ((queue (hub/music-search--queue playlist))
+	     (liked (hub/music-search--liked library))
+	     (row (pcase operation
+		    ('library-play (car liked))
+		    ('combined-append (nth 2 (car (hub/music-search--combine queue liked))))
+		    (_ (nth 2 queue))))
+	     (target (propertize (hub/music-row-label row) 'hub/music-row row))
+	     (overriding-terminal-local-map (embark--action-keymap 'hub/music-track nil))
+	     (action (key-binding (kbd (if (eq operation 'combined-append) "a" "p")) t)))
+	(should (eq action (if (eq operation 'combined-append)
+			       'hub/music-search-embark-append 'hub/music-search-embark-play)))
+	(embark--act action (list :type 'hub/music-track :target target))
+	(pcase operation
+	  ('queue-play (should (= (length started) 1))
+		       (should (= (cadar started) (nth 2 positions))) (should-not added))
+	  ('library-play (should (equal added (list (list raw t)))) (should-not started))
+	  ('combined-append (should (equal added (list (list raw nil)))) (should-not started))))))))
+
+(ert-deftest hub/music-search-embark-rejects-stripped-and-stale-identities ()
+  "Embark never reconstructs a lost identity or bypasses source validation."
+  (require 'apps/music-search)
+  (require 'embark)
+  (dolist (change '(stripped queue library))
+    (hub/music-search-test--queue
+     (hub/music-search-test--library
+      (let* ((rows (car (hub/music-search--combine (hub/music-search--queue playlist)
+						   (hub/music-search--liked library))))
+	     (target (propertize (hub/music-row-label (nth 2 rows)) 'hub/music-row (nth 2 rows)))
+	     (overriding-terminal-local-map (embark--action-keymap 'hub/music-track nil))
+	     (action (key-binding (kbd (if (eq change 'library) "a" "p")) t)))
+	(emms-start)
+	(pcase change
+	  ('stripped (setq target (substring-no-properties target)))
+	  ('queue (with-current-buffer playlist
+		    (let ((inhibit-read-only t)) (goto-char (point-max))
+			 (emms-playlist-insert-track (emms-track 'file "/tmp/changed.ogg")))))
+	  ('library (with-current-buffer library (cl-incf hub/spotify--generation))))
+	(should (eq action (if (eq change 'library)
+			       'hub/music-search-embark-append 'hub/music-search-embark-play)))
+	(should-error (embark--act action (list :type 'hub/music-track :target target)) :type 'user-error)
+	(should-not added)
+	(should (= (length started) 1))
+	(should (zerop stopped)))))))
 
 (provide 'music-search-test)
 ;;; music-search-test.el ends here
