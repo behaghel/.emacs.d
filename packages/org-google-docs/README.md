@@ -15,6 +15,9 @@ The adapter publishes and synchronizes Org documents with Google Docs while dele
 
 The repository configuration uses the semantic-capable
 [`behaghel/gdocs`](https://github.com/behaghel/gdocs) fork, pinned through Straight.
+Dependency behavior comes from ordinary source commits in that fork, not
+exported patch copies or a local patch-application layer. Git history and
+reviewed pull requests provide provenance.
 An ordinary installation does not depend on a checkout under `~/ws/` or select a
 less capable upstream implementation when that directory is absent.
 
