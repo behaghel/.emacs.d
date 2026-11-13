@@ -15,7 +15,7 @@
  ("compat" . "ac70b4d347fe22bcd0228c763bf804673086a621")
  ("cond-let" . "21b9e9835756ff5cd1acb971cf9eb56fff671c8b")
  ("consult" . "540ad1e59ef80b1c8dd712cbbaae8957533ad02c")
- ("context-panels" . "9fe932548567ffaaf5bae43929e1c07a7afbfbff")
+ ("context-panels" . "0f278517f7a20f82fbf9b64bc72820c6dfef7795")
  ("corfu" . "4a9c67da16eb64cadaa4bfcc16713188145c83da")
  ("dash.el" . "d3a84021dbe48dba63b52ef7665651e0cf02e915")
  ("dashboard" . "176d641a55543bda1f0c7506fb954702350c1857")
