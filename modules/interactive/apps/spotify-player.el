@@ -254,6 +254,8 @@ Never contains response bodies, event messages, credentials or track metadata.")
 (defun hub/spotify-player-register ()
   "Register the official browser backend while preserving local media players."
   (require 'apps/spotify-browser-player)
+  (require 'apps/emms-local)
+  (hub/emms-register-local-players)
   (setq emms-player-list (delq 'emms-player-spotify-headless emms-player-list))
   (add-to-list 'emms-player-list 'emms-player-spotify-browser))
 
