@@ -3,7 +3,7 @@
 ;; Author: Hubert Behaghel
 ;; Maintainer: Hubert Behaghel
 ;; Version: 0.1.0
-;; Package-Requires: ((emacs "29.1") (org "9.6") (context-panels "0.4.0"))
+;; Package-Requires: ((emacs "29.1") (org "9.6") (context-panels "0.5.0"))
 ;; Keywords: outlines, convenience
 ;; URL: https://github.com/behaghel/.emacs.d/tree/master/packages/cp-org-marginalia
 
@@ -45,13 +45,20 @@
 (defalias 'cp-org-marginalia-context-panel-jump-at-point
   #'context-panels-jump-at-point)
 
+(defun cp-org-marginalia-context-panel--item-help (_source-buffer _item)
+  "Describe native-note navigation without advertising comment operations."
+  (concat (context-panels-command-description
+	   #'context-panels-jump-at-point "Jump to source reference")
+	  "\n\nEdit the note through Org's native footnote navigation."))
+
 (defun cp-org-marginalia-context-panel-provider ()
   "Return the cp-org-marginalia context-panel provider descriptor."
   (list :name 'marginalia
 	:icon "📝"
 	:priority 20
 	:collect-side-items #'cp-org-marginalia-collect
-	:present-side-item #'cp-org-marginalia-context-panel--presentation))
+	:present-side-item #'cp-org-marginalia-context-panel--presentation
+	:item-help #'cp-org-marginalia-context-panel--item-help))
 
 ;;;###autoload
 (define-minor-mode cp-org-marginalia-context-panel-mode

@@ -846,7 +846,9 @@
   "Panel actions are owned by `org-comments-panel-mode-map'."
   (with-temp-buffer
     (org-comments-panel-mode)
-    (should (eq (local-key-binding (kbd "?")) #'org-comments-help-current-ui))
+    (should (eq (local-key-binding (kbd "?")) #'hub/context-panels-describe-item))
+    (should (eq (local-key-binding (kbd "]c")) #'hub/context-panels-next-row))
+    (should (eq (local-key-binding (kbd "[c")) #'hub/context-panels-previous-row))
     (should (eq (local-key-binding (kbd "U")) #'org-comments-push))
     (should (eq (local-key-binding (kbd "RET")) #'context-panels-jump-at-point))
     (should (eq (local-key-binding (kbd "o")) #'org-comments-open-remote))

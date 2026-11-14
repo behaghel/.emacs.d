@@ -576,5 +576,16 @@
      (should (equal (plist-get (plist-get called :comment) :source-file)
 		    source-file)))))
 
+(ert-deftest org-comments-non-comment-row-rejects-action-adapter-before-resolution ()
+  "An unrelated row cannot use an adapter's neighbouring/source comment."
+  (with-temp-buffer
+    (insert (propertize "A native note" 'context-panels-item '(:provider marginalia :id "note")))
+    (goto-char (point-min))
+    (let* ((called nil)
+	   (org-comments-current-comment-function
+	    (lambda () (setq called t) '(:id "neighbour"))))
+      (should-error (org-comments-current-comment) :type 'user-error)
+      (should-not called))))
+
 (provide 'org-comments-panel-actions-test)
 ;;; org-comments-panel-actions-test.el ends here

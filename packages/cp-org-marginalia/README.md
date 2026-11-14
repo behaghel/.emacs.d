@@ -26,7 +26,7 @@ Confluence publishing, personal keybindings, or edit/delete/toggle actions.
 
 ## Activation
 
-The package declares Emacs 29.1+, Org 9.6+, and context-panels 0.4.0+.
+The package declares Emacs 29.1+, Org 9.6+, and context-panels 0.5.0+.
 Loading a library does not enable its buffer-local mode or modify source text.
 Local display and reference navigation require no comments package, private
 configuration, accounts, or network access.

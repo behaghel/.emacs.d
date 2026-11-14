@@ -4,7 +4,7 @@
 * Purpose and requirements
 
 =cp-org-marginalia= projects native named Org footnotes and sidenotes into
-=context-panels=.  It declares Emacs 29.1+, Org 9.6+, and context-panels 0.4.0+.
+=context-panels=.  It declares Emacs 29.1+, Org 9.6+, and context-panels 0.5.0+.
 No comments package, account, publishing adapter, or AI package is required.
 
 =cp-org-marginalia.el= provides collection and layout helpers without activating

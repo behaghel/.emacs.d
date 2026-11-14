@@ -34,7 +34,36 @@
 		  org-copilot-diff-mode))
     (evil-set-initial-state mode 'normal)))
 
+(defun hub/context-panels--side-row-context-p ()
+  "Return non-nil when the current buffer is a source's mixed side panel."
+  (and (buffer-live-p context-panels-source-buffer)
+       (null context-panels-view-id)))
+
+(defun hub/context-panels-next-row ()
+  "Move to the next mixed side row, preserving legacy bottom-view behavior."
+  (interactive)
+  (if (hub/context-panels--side-row-context-p)
+      (context-panels-next-row)
+    (org-comments-next-item-at-point)))
+
+(defun hub/context-panels-previous-row ()
+  "Move to the previous mixed side row without moving its source."
+  (interactive)
+  (if (hub/context-panels--side-row-context-p)
+      (context-panels-previous-row)
+    (org-comments-previous-item-at-point)))
+
+(defun hub/context-panels-describe-item ()
+  "Describe the selected mixed side item, retaining legacy bottom-view help."
+  (interactive)
+  (if (hub/context-panels--side-row-context-p)
+      (context-panels-describe-item)
+    (org-comments-help-current-ui)))
+
 (with-eval-after-load 'org-comments-panel
+  (define-key org-comments-panel-mode-map (kbd "]c") #'hub/context-panels-next-row)
+  (define-key org-comments-panel-mode-map (kbd "[c") #'hub/context-panels-previous-row)
+  (define-key org-comments-panel-mode-map (kbd "?") #'hub/context-panels-describe-item)
   (define-key org-comments-panel-mode-map (kbd "v")
 	      #'org-copilot-visualize-at-point)
   (with-eval-after-load 'evil
@@ -55,8 +84,9 @@
        ("q" . org-comments-close-current-ui)
        ("r" . org-comments-reply)
        ("z" . org-comments-panel-filter-map)
-       ("]c" . org-comments-next-item-at-point)
-       ("[c" . org-comments-previous-item-at-point)))))
+       ("?" . hub/context-panels-describe-item)
+       ("]c" . hub/context-panels-next-row)
+       ("[c" . hub/context-panels-previous-row)))))
 
 (with-eval-after-load 'org-copilot-chat
   (with-eval-after-load 'evil
