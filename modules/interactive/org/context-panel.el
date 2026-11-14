@@ -60,10 +60,22 @@
       (context-panels-describe-item)
     (org-comments-help-current-ui)))
 
+(defun hub/context-panels--bind-row-keys ()
+  "Bind common row keys without deferred macros capturing lexical map values."
+  (let ((bindings '(("]c" . hub/context-panels-next-row)
+		    ("[c" . hub/context-panels-previous-row)
+		    ("?" . hub/context-panels-describe-item))))
+    (dolist (binding bindings)
+      (define-key org-comments-panel-mode-map (kbd (car binding)) (cdr binding))
+      (when (fboundp 'evil-define-key*)
+	(evil-define-key* 'normal org-comments-panel-mode-map
+			  (kbd (car binding)) (cdr binding))))
+    (when (and (fboundp 'evil-normalize-keymaps)
+	       (eq (current-local-map) org-comments-panel-mode-map))
+      (evil-normalize-keymaps))))
+
 (with-eval-after-load 'org-comments-panel
-  (define-key org-comments-panel-mode-map (kbd "]c") #'hub/context-panels-next-row)
-  (define-key org-comments-panel-mode-map (kbd "[c") #'hub/context-panels-previous-row)
-  (define-key org-comments-panel-mode-map (kbd "?") #'hub/context-panels-describe-item)
+  (hub/context-panels--bind-row-keys)
   (define-key org-comments-panel-mode-map (kbd "v")
 	      #'org-copilot-visualize-at-point)
   (with-eval-after-load 'evil
@@ -83,10 +95,8 @@
        ("U" . org-comments-push)
        ("q" . org-comments-close-current-ui)
        ("r" . org-comments-reply)
-       ("z" . org-comments-panel-filter-map)
-       ("?" . hub/context-panels-describe-item)
-       ("]c" . hub/context-panels-next-row)
-       ("[c" . hub/context-panels-previous-row)))))
+       ("z" . org-comments-panel-filter-map)))
+    (hub/context-panels--bind-row-keys)))
 
 (with-eval-after-load 'org-copilot-chat
   (with-eval-after-load 'evil

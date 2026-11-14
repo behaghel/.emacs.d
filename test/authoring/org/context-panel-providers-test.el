@@ -275,5 +275,50 @@
 	  (hub/context-panels-describe-item)
 	  (should (eq called 'help)))))))
 
+(ert-deftest hub/context-panel-row-bindings-work-with-real-evil-after-lexical-reload ()
+  "Real Evil resolves scoped row keys after selective lexical definition reload."
+  (let* ((default-directory (file-truename default-directory))
+	 (build (or (getenv "STRAIGHT_BUILD_PATH") "straight/build"))
+	 (evil (expand-file-name "evil" build))
+	 (goto-chg (expand-file-name "goto-chg" build))
+	 (module (expand-file-name "modules/interactive/org/context-panel.el"))
+	 (home (make-temp-file "context-real-evil-" t))
+	 (process-environment (copy-sequence process-environment)))
+    (unwind-protect
+	(progn
+	  (skip-unless (file-readable-p (expand-file-name "evil.el" evil)))
+	  (setenv "HOME" home)
+	  (with-temp-buffer
+	    (should
+	     (zerop
+	      (call-process
+	       (expand-file-name invocation-name invocation-directory) nil t nil
+	       "--batch" "-Q" "-L" evil "-L" goto-chg "-l" "ert" "-l" "evil"
+	       "--eval"
+	       (prin1-to-string
+		`(progn
+		   (defvar org-comments-panel-mode-map (make-sparse-keymap))
+		   (with-temp-buffer
+		     (insert-file-contents ,module)
+		     (goto-char (point-min))
+		     (condition-case nil
+			 (while t
+			   (let ((form (read (current-buffer))))
+			     (when (and (eq (car-safe form) 'defun)
+					(eq (cadr form) 'hub/context-panels--bind-row-keys))
+			       (eval form t))))
+		       (end-of-file nil)))
+		   (define-key evil-normal-state-map (kbd "r") #'evil-forward-char)
+		   (with-temp-buffer
+		     (use-local-map org-comments-panel-mode-map)
+		     (evil-local-mode 1)
+		     (evil-normal-state)
+		     (hub/context-panels--bind-row-keys)
+		     (should (eq (key-binding (kbd "?")) #'hub/context-panels-describe-item))
+		     (should (eq (key-binding (kbd "]c")) #'hub/context-panels-next-row))
+		     (should (eq (key-binding (kbd "[c")) #'hub/context-panels-previous-row))
+		     (should (eq (key-binding (kbd "r")) #'evil-forward-char))))))))))
+      (delete-directory home t))))
+
 (provide 'context-panel-providers-test)
 ;;; context-panel-providers-test.el ends here
