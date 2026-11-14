@@ -52,7 +52,7 @@
 	  (require 'apps/music)
 	  ,@(when (eq order 'before) '((require 'evil)))
 	  (dolist (binding '(("'ml" . hub/spotify-liked-songs) ("'mm" . hub/emms-player-open)
-			     ("'m+" . hub/music-queue) ("'m/" . hub/music-search) ("'m?" . hub/music-palette)
+			     ("'mQ" . hub/music-queue) ("'m+" . hub/music-add-file) ("'m/" . hub/music-search) ("'m?" . hub/music-palette)
 			     ("'mc" . hub/emms-seek-backward-10) ("'mr" . hub/emms-seek-forward-30)))
 	    (unless (eq (lookup-key evil-normal-state-map (kbd (car binding))) (cdr binding))
 	      (error "Missing music binding: %s" (car binding))))
@@ -220,6 +220,40 @@
       (when transient--prefix (transient-quit-all))
       (kill-buffer source))))
 
+(ert-deftest hub/music-palette-closes-without-breaking-the-docked-player-footer ()
+  "Actions closes with q or Escape while the Player's atomic footer stays owned."
+  (require 'apps/music-palette)
+  (require 'apps/emms-player)
+  (require 'context-panels-footer)
+  (let ((source (generate-new-buffer " *music actions document*"))
+	(display-policy transient-display-buffer-action)
+	(emms-playlist-buffer nil) (emms-player-playing-p nil))
+    (unwind-protect
+	(save-window-excursion
+	  (switch-to-buffer source)
+	  (insert "Document remains unchanged.")
+	  (hub/emms-player-open)
+	  (let* ((body (selected-window))
+		 (footer (context-panels-footer-restore-window body)))
+	    (should (window-live-p footer))
+	    (dolist (key '("q" "<escape>"))
+	      (call-interactively #'hub/music-palette)
+	      (transient--show)
+	      (let ((menu transient--window))
+		(should (window-live-p menu))
+		(should-not (eq menu body))
+		(should-not (window-parameter menu 'window-side))
+		(execute-kbd-macro (kbd key))
+		(should-not (window-live-p menu))
+		(should (eq (selected-window) body))
+		(should (eq (context-panels-footer-restore-window body) footer))
+		(should-not transient--prefix)
+		(should-not hub/music-palette--timer)))
+	    (should (eq display-policy transient-display-buffer-action))))
+      (when transient--prefix (transient-quit-all))
+      (hub/emms-player--cancel-timer)
+      (kill-buffer source))))
+
 (ert-deftest hub/music-palette-adapts-to-narrow-frames ()
   "A narrow palette stacks groups, and widening restores columns without closing it."
   (require 'apps/music-palette)
@@ -276,10 +310,41 @@
     (with-temp-buffer
       (use-local-map map) (evil-local-mode 1) (evil-normal-state)
       (dolist (binding '(("m" . hub/emms-player-open) ("l" . hub/spotify-liked-songs)
-			 ("+" . hub/music-queue) ("/" . hub/music-search) ("?" . hub/music-palette)))
+			 ("Q" . hub/music-queue) ("+" . hub/music-add-file) ("/" . hub/music-search) ("?" . hub/music-palette)))
 	(should (eq (key-binding (kbd (car binding))) (cdr binding))))))
   (should (eq (lookup-key hub/spotify-library-mode-map (kbd "gr")) #'hub/spotify-refresh))
   (should (eq (lookup-key hub/spotify-library-mode-map (kbd "g+")) #'hub/spotify-load-more)))
+
+(ert-deftest hub/music-queue-search-keeps-native-limit-prefix-loadable ()
+  "Music search overrides only Evil's layer, before or after native limit setup."
+  (dolist (order '(early late legacy-reload))
+    (should
+     (string-match-p
+      "MUSIC-LIMIT-PREFIX-OK"
+      (hub/music-test--cold
+       `(progn
+	  (add-to-list 'load-path ,(file-name-directory (locate-library "emms")))
+	  (require 'evil)
+	  (require 'emms-playlist-mode)
+	  ,@(when (eq order 'early) '((require 'emms-playlist-limit)))
+	  (require 'apps/music)
+	  ,@(when (eq order 'legacy-reload)
+	      '((define-key emms-playlist-mode-map (kbd "/") #'hub/music-search)
+		(load (locate-library "apps/music") nil t)))
+	  (require 'emms-playlist-limit)
+	  (hub/music--local-help)
+	  ;; Reloading the native extension must remain safe as well.
+	  (load (locate-library "emms-playlist-limit") nil t)
+	  (unless (keymapp (lookup-key emms-playlist-mode-map (kbd "/")))
+	    (error "Native EMMS limit prefix was overwritten"))
+	  (unless (eq (lookup-key emms-playlist-mode-map (kbd "/ n")) #'emms-playlist-limit-to-name)
+	    (error "Native name filtering is missing"))
+	  (with-temp-buffer
+	    (use-local-map emms-playlist-mode-map)
+	    (evil-local-mode 1) (evil-normal-state)
+	    (unless (eq (key-binding (kbd "/")) #'hub/music-search)
+	      (error "Music search unavailable in normal state")))
+	  (princ "MUSIC-LIMIT-PREFIX-OK")))))))
 
 (ert-deftest hub/music-library-footer-reports-loaded-metadata-without-fetching ()
   "Library controls and optional metadata are passive provider data."
@@ -291,7 +356,7 @@
       (let ((footer (hub/music-library-footer nil nil)))
 	(should (equal (plist-get footer :metadata) "1 of 1482 loaded"))
 	(should (equal (mapcar (lambda (action) (plist-get action :key)) (plist-get footer :actions))
-		       '("RET" "a" "g+" "gr" "m" "+" "/" "?" "q")))))))
+		       '("RET" "a" "M-RET" "g+" "gr" "m" "Q" "+" "/" "?" "q")))))))
 
 (ert-deftest hub/music-queue-provider-projects-the-live-playlist-without-rendering-it ()
   "The queue tab refers to EMMS's actual buffer, never a rendered copy."

@@ -7,6 +7,7 @@
 ;;; Code:
 (require 'hub-utils)
 (require 'apps/music-row)
+(require 'apps/music-queue-actions)
 (require 'consult)
 (require 'cl-lib)
 
@@ -14,9 +15,9 @@
 (defvar hub/music-search-map
   (let ((map (make-sparse-keymap)))
     (define-key map (kbd "SPC") #'self-insert-command)
-    (define-key map (kbd "M-RET") #'hub/music-search--enqueue)
     map)
   "Music-specific completion keys composed above the native frontend map.")
+(define-key hub/music-search-map (kbd "M-RET") #'hub/music-search--next)
 (defvar hub/music-search--operation 'play "Explicit action in the active search.")
 (defvar-local hub/music-search--active nil "Non-nil in a music search minibuffer.")
 (defvar hub/spotify--tracks)
@@ -90,10 +91,10 @@ Reapply semantic field faces even if a completion style drops input properties."
 	    (add-face-text-property 0 (length line) 'vertico-current 'append line))
 	  line)))))
 
-(defun hub/music-search--enqueue ()
-  "Accept the current completion with the explicit append-only action."
+(defun hub/music-search--next ()
+  "Accept the current completion with an explicit add-next action."
   (interactive)
-  (setq hub/music-search--operation 'enqueue)
+  (setq hub/music-search--operation 'next)
   (condition-case error
       (progn (call-interactively (key-binding (kbd "RET")))
 	     ;; A successful exit throws out of the minibuffer.  Completion-only
@@ -107,7 +108,8 @@ Reapply semantic field faces even if a completion style drops input properties."
   (when (boundp '+vertico-current-arrow) (setq-local +vertico-current-arrow nil))
   (use-local-map (copy-keymap (current-local-map)))
   (local-set-key (kbd "SPC") #'self-insert-command)
-  (local-set-key (kbd "M-RET") #'hub/music-search--enqueue))
+  (local-set-key (kbd "-") #'self-insert-command)
+  (local-set-key (kbd "M-RET") #'hub/music-search--next))
 
 (defun hub/music-search--refresh-status ()
   "Refresh active Vertico annotations without selecting or previewing a track."
@@ -118,16 +120,19 @@ Reapply semantic field faces even if a completion style drops input properties."
 
 (defun hub/music-search--act (row operation)
   "Perform explicit OPERATION on validated ROW through existing queue owners."
-  (when (and (eq operation 'enqueue) (hub/music-row-liked-row row))
-    (setq row (hub/music-row-liked-row row)))
-  (hub/music-row-assert-current row)
-  (if (eq (hub/music-row-origin row) 'liked)
-      (hub/spotify-player-add (hub/music-row-metadata row) (eq operation 'play))
-    (unless (eq operation 'play) (user-error "Queue rows are already queued; RET plays that occurrence"))
-    (emms-stop)
+  (unless (memq operation '(play enqueue next remove)) (user-error "Unknown music action"))
+  (cond
+   ((eq operation 'remove) (hub/music-row-remove row))
+   ((memq operation '(enqueue next))
+    (hub/music-row-add row (if (eq operation 'next) 'next 'end)))
+   (t
     (hub/music-row-assert-current row)
-    (with-current-buffer (hub/music-row-playlist row) (emms-playlist-select (hub/music-row-position row)))
-    (emms-start)))
+    (if (eq (hub/music-row-origin row) 'liked)
+	(hub/spotify-player-add (hub/music-row-metadata row) t)
+      (emms-stop)
+      (hub/music-row-assert-current row)
+      (with-current-buffer (hub/music-row-playlist row) (emms-playlist-select (hub/music-row-position row)))
+      (emms-start)))))
 
 (defun hub/music-search-embark-play (target)
   "Play TARGET's retained occurrence or append and play its retained library row.
@@ -135,9 +140,19 @@ This is a non-command Embark action so target properties survive dispatch."
   (hub/music-search--act (hub/music-search--target target) 'play))
 
 (defun hub/music-search-embark-append (target)
-  "Append one copy from TARGET's retained Liked record without interruption.
+  "Append one copy of TARGET's retained queue or Liked item without interruption.
 This is a non-command Embark action so target properties survive dispatch."
   (hub/music-search--act (hub/music-search--target target) 'enqueue))
+
+(defun hub/music-search-embark-next (target)
+  "Insert TARGET's retained item next, preserving properties through Embark.
+This is a non-command action so target identity is not stripped."
+  (hub/music-search--act (hub/music-search--target target) 'next))
+
+(defun hub/music-search-embark-remove (target)
+  "Remove TARGET's exact retained queue occurrence, never guessing from a URI.
+This is a non-command action so target properties survive Embark dispatch."
+  (hub/music-search--act (hub/music-search--target target) 'remove))
 
 (defvar hub/music-search-embark-map
   (let ((map (make-sparse-keymap)))
@@ -145,6 +160,9 @@ This is a non-command Embark action so target properties survive dispatch."
     (define-key map (kbd "a") '(menu-item "Append one copy" hub/music-search-embark-append))
     map)
   "Music result actions using retained identities, not text input injection.")
+
+(define-key hub/music-search-embark-map (kbd "-") '(menu-item "Remove occurrence" hub/music-search-embark-remove))
+(define-key hub/music-search-embark-map (kbd "n") '(menu-item "Add copy next" hub/music-search-embark-next))
 
 (with-eval-after-load 'embark
   (set-keymap-parent hub/music-search-embark-map embark-general-map)
@@ -156,7 +174,7 @@ This is a non-command Embark action so target properties survive dispatch."
   "Search the queue and loaded Liked Songs without previews or fetching.
 RET plays an existing queue occurrence, or appends and plays a library-only
 song.
-M-RET appends from retained Liked Songs, including combined queue results,
+M-RET inserts a copy next from an exact queue occurrence or retained Liked row,
 without interruption.  Matching Spotify URIs share provenance.
 C-g changes nothing."
   (interactive)
@@ -180,7 +198,7 @@ C-g changes nothing."
 		       (list (hub/music-search--source "Queue" ?q queue)
 			     (hub/music-search--source coverage ?l liked))
 		       :prompt (format "Music (Queue: %d · %s) — RET Play%s%s, C-g Back: "
-				       (length queue) coverage (if loaded ", M-RET Enqueue liked" "")
+				       (length queue) coverage ", M-RET Next"
 				       (if (fboundp 'embark-act) ", C-. Actions" ""))
 		       :require-match t :sort nil :keymap hub/music-search-map :history 'hub/music-search--history))))
 	      (when (plist-get (cdr choice) :match)

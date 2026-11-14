@@ -1,5 +1,5 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="720" viewBox="0 0 1280 720">
-  <!-- SCREEN: Music access palette; STORY: music-keyboard-cockpit; STATE: playing, receiver ready, queue search available; DOMAIN: personal-apps/apps. Search explicitly identifies its source coverage. -->
+<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="1040" viewBox="0 0 1280 1040">
+  <!-- SCREEN: Music access palette; STORY: music-keyboard-cockpit; STATE: Actions in a normal window above the docked Player; q/Escape preserve its atomic footer; playing, receiver ready; DOMAIN: personal-apps/apps. Search explicitly identifies its source coverage. -->
   <use href="components.svg#template-music-workspace" width="1280" height="720"/>
   <g transform="translate(0 400)">
     <use href="components.svg#template-music-command-surface" width="1280" height="320"/>
@@ -11,8 +11,9 @@
       <g font-size="18" fill="#f3ece3">
         <text x="28" y="126"><tspan fill="#9fe0c2">l</tspan>   Liked Songs</text>
         <text x="28" y="156"><tspan fill="#9fe0c2">Q</tspan>   Edit queue</text>
-        <text x="28" y="186"><tspan fill="#9fe0c2">/</tspan>   Search music</text>
-        <text x="28" y="216"><tspan fill="#9fe0c2">m</tspan>   Focus player</text>
+        <text x="28" y="186"><tspan fill="#9fe0c2">+</tspan>   Append file</text>
+        <text x="28" y="216"><tspan fill="#9fe0c2">/</tspan>   Search music</text>
+        <text x="28" y="246"><tspan fill="#9fe0c2">m</tspan>   Focus player</text>
         <text x="460" y="126"><tspan fill="#9fe0c2">SPC</tspan> ⏸ Pause</text>
         <text x="460" y="156"><tspan fill="#9fe0c2">c</tspan>   −10s</text>
         <text x="460" y="186"><tspan fill="#9fe0c2">r</tspan>   +30s</text>
@@ -20,10 +21,22 @@
         <text x="460" y="246"><tspan fill="#9fe0c2">t</tspan>   Next</text>
         <text x="900" y="126"><tspan fill="#9fe0c2">v</tspan>   Spectrum off</text>
       </g>
-      <g font-size="14" fill="#9ba5ba"><text x="300" y="126">'ml</text><text x="300" y="156">'m+</text><text x="300" y="186">'m/</text><text x="300" y="216">'mm</text></g>
+      <g font-size="14" fill="#9ba5ba"><text x="300" y="126">'ml</text><text x="300" y="156">'mQ</text><text x="300" y="186">'m+</text><text x="300" y="216">'m/</text><text x="300" y="246">'mm</text></g>
       <g font-size="16" fill="#9ba5ba"><text x="900" y="156">b   ● Spotify audio ready</text><text x="900" y="186">L   ● Library authorized</text></g>
       <text x="28" y="305" font-size="15" fill="#c4c8d4">q / ESC Back to editor</text>
       <text x="600" y="305" font-size="14" fill="#9ba5ba">Same playback commands · capture remains opt-in</text>
+    </g>
+  </g>
+  <g transform="translate(0 720)">
+    <use href="components.svg#template-music-console-stacked-footer" width="1280" height="320"/>
+    <use href="components.svg#organism-music-current-track" y="44" width="820" height="200"/>
+    <use href="components.svg#organism-music-up-next" x="910" y="64" width="330" height="185"/>
+    <rect x="198" y="170" width="403" height="4" rx="2" fill="#9fe0c2"/>
+    <g font-family="Ubuntu Mono, monospace">
+      <text x="198" y="205" font-size="18" fill="#c4c8d4">3:02 / 4:34</text>
+      <text x="198" y="237" font-size="16" fill="#9fe0c2">▶ Playing · Spectrum off</text>
+      <text x="28" y="286" font-size="14" fill="#9fe0c2">SPC Pause</text>
+      <text x="1248" y="310" text-anchor="end" font-size="14" fill="#9ba5ba">3 tracks · 12:45</text>
     </g>
   </g>
 </svg>

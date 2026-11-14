@@ -354,6 +354,28 @@
      (should-not emms-player-playing-p)
      (should-not files))))
 
+(ert-deftest hub/spotify-browser-player-removal-requires-stop-and-ignores-old-ending ()
+  "Mixed queue removal needs browser silence and late endings cannot advance twice."
+  (require 'apps/music-queue-actions)
+  (dolist (unconfirmed '(nil t))
+    (hub/spotify-browser-player-test--queue
+     (emms-start)
+     (let ((run hub/spotify-browser-player--run)
+	   (target (car (hub/music-row-queue playlist))))
+       (if unconfirmed
+	   (cl-letf (((symbol-function 'hub/spotify-browser-stop)
+		      (lambda (_) (user-error "Spotify stop unconfirmed"))))
+	     (should-error (hub/music-row-remove target) :type 'user-error)
+	     (should (= (length (hub/music-row-queue playlist)) 3))
+	     (should-not files))
+	 (hub/music-row-remove target)
+	 (should (= (length (hub/music-row-queue playlist)) 2))
+	 (should (equal files '("/tmp/local.wav")))
+	 (should (equal stops (list (hub/spotify-browser-player--occurrence-id run)))))
+       (hub/spotify-browser-player-test--event run "ended")
+       (hub/spotify-browser-player--finish run)
+       (should (equal files (unless unconfirmed '("/tmp/local.wav"))))))))
+
 (ert-deftest hub/spotify-browser-engine-node-tests ()
   "Exercise the actual browser occurrence and cancellation state machine."
   (with-temp-buffer

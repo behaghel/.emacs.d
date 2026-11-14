@@ -48,6 +48,10 @@
 
 (autoload 'hub/music-palette "apps/music-palette" "Show the native music action palette." t)
 (autoload 'hub/music-search "apps/music-search" "Search the queue and already loaded Liked Songs." t)
+(autoload 'hub/music-add-file "apps/music-queue-actions" "Append a local file by path." t)
+(autoload 'hub/music-append "apps/music-queue-actions" "Append a copy of the focused item." t)
+(autoload 'hub/music-add-next "apps/music-queue-actions" "Insert a copy of the focused item next." t)
+(autoload 'hub/music-remove "apps/music-queue-actions" "Remove the focused exact queue occurrence." t)
 (autoload 'hub/music-queue-listing-mode "apps/music-queue" "Style existing EMMS queue spans." t)
 (autoload 'hub/spotify-liked-songs "apps/spotify" nil t)
 (autoload 'hub/spotify-connect "apps/spotify-auth" nil t)
@@ -63,8 +67,9 @@
 (defconst hub/music--bindings
   '(("'mm" hub/emms-player-open "Player")
     ("'ml" hub/spotify-liked-songs "Liked Songs")
-    ("'m+" hub/music-queue "Queue")
-    ("'mq" hub/music-queue "Queue (use 'm+)")
+    ("'mQ" hub/music-queue "Queue")
+    ("'m+" hub/music-add-file "Append file")
+    ("'mq" hub/music-queue "Queue (use 'mQ)")
     ("'m/" hub/music-search "Search music")
     ("'m?" hub/music-palette "Music actions")
     ("'m SPC" hub/emms-player-toggle "Play/pause")
@@ -87,11 +92,22 @@
     (when (and (boundp variable) (keymapp (symbol-value variable)))
       (let ((map (symbol-value variable))
 	    (bindings '(("m" . hub/emms-player-open) ("l" . hub/spotify-liked-songs)
-			("+" . hub/music-queue) ("/" . hub/music-search) ("?" . hub/music-palette))))
+			("Q" . hub/music-queue) ("+" . hub/music-add-file)
+			("M-RET" . hub/music-add-next) ("/" . hub/music-search) ("?" . hub/music-palette))))
+	(unless (eq variable 'hub/spotify-library-mode-map)
+	  (push '("a" . hub/music-append) bindings)
+	  (push '("-" . hub/music-remove) bindings))
 	(when (eq variable 'emms-playlist-mode-map)
+	  ;; Older local setup replaced the native / prefix.  Remove only our
+	  ;; own legacy binding so EMMS can define / n, / a, etc. on load.
+	  (when (eq (lookup-key map (kbd "/")) #'hub/music-search)
+	    (define-key map (kbd "/") nil))
 	  (push '("q" . hub/music-queue-close) bindings))
 	(dolist (binding bindings)
-	  (define-key map (kbd (car binding)) (cdr binding))
+	  ;; Keep EMMS's base / prefix intact.  Music search belongs in the
+	  ;; normal/motion auxiliary maps, not the map native modules extend.
+	  (unless (and (eq variable 'emms-playlist-mode-map) (equal (car binding) "/"))
+	    (define-key map (kbd (car binding)) (cdr binding)))
 	  (when (featurep 'evil)
 	    (evil-define-key* '(normal motion) map (kbd (car binding)) (cdr binding))))))))
 

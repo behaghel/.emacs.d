@@ -67,10 +67,25 @@ Feature: Music navigation at the speed of the editor
   Scenario: Use the same music navigation in every music view
     Given a music view has focus
     Then "m" opens Player and "l" opens Liked Songs
-    And "+" opens the existing EMMS queue and "/" opens Search
+    And "Q" opens the existing EMMS queue and "+" appends a file by path
+    And "/" opens Search
     And "?" opens Actions and "q" closes the panel
     And Liked Songs uses "g+" to load more and "gr" to refresh
     And minibuffer text is not intercepted by music navigation
+
+  @wireframe:music-cockpit-palette-access.svg
+  Scenario Outline: Close Actions without disturbing the docked Player
+    Given the Player and its fixed footer are visible
+    When I open Actions from the Player
+    Then Actions occupies a normal window above the dock
+    When I press "<key>"
+    Then only the Actions window closes and focus returns to the Player
+    And the Player's footer, playback and queue are unchanged
+
+    Examples:
+      | key    |
+      | q      |
+      | Escape |
 
   @wireframe:music-cockpit-liked-songs.svg @wireframe:music-cockpit-search.svg
   Scenario: Read the same music hierarchy in Liked Songs and native search
@@ -145,7 +160,7 @@ Feature: Music navigation at the speed of the editor
     Examples:
       | source       | action        | result                                      |
       | Liked Songs  | RET           | that track is appended and played           |
-      | Liked Songs  | M-RET         | that track is appended without interruption |
+      | Liked Songs  | M-RET         | that track is inserted next without interruption |
       | Queue        | RET           | that existing occurrence is selected and played |
 
   @wireframe:music-cockpit-search.svg @wireframe:music-cockpit-search-queue.svg
@@ -160,10 +175,70 @@ Feature: Music navigation at the speed of the editor
     When I press "RET" on the combined occurrence at position 3
     Then that existing occurrence is selected and played without appending
 
+  @wireframe:music-cockpit-queue.svg @wireframe:music-cockpit-queue-next.svg @wireframe:music-cockpit-liked-songs.svg @wireframe:music-cockpit-search.svg
+  Scenario Outline: Distinguish end insertion from next insertion
+    Given A is playing in the queue "A, B, C"
+    And I focus <source>
+    When I use <action>
+    Then the queue order becomes <order>
+    And the original A keeps playing without being restarted or selected again
+    And the existing C remains in its original relative position
+    Examples:
+      | source       | action | order           |
+      | queued C     | a      | A, B, C, C      |
+      | queued C     | M-RET  | A, C, B, C      |
+      | library C    | M-RET  | A, C, B, C      |
+      | file C       | +      | A, B, C, C      |
+
+  @wireframe:music-cockpit-queue.svg
+  Scenario: Add a local file without changing the active view or playback
+    When I press "+"
+    Then the file prompt offers local directories and files with supported extensions
+    And unrelated files are absent without probing media or creating tracks
+    When I choose a readable local audio file by path
+    Then exactly one copy is appended at the end
+    And "Q" opens the Queue while "q" still closes the view
+    And cancelling the file prompt changes nothing
+    And stopped playback stays stopped
+
+  @wireframe:music-cockpit-queue.svg @wireframe:music-cockpit-queue-removed.svg @wireframe:music-cockpit-palette-access.svg
+  Scenario Outline: Remove the selected occurrence without surprising playback
+    Given the queue is A, B, A and its first occurrence is <state>
+    When I press "-" in Player
+    Then the queue is B, A and the first occurrence of B is selected
+    And playback is <result>
+    And the surviving duplicate is not removed
+
+    Examples:
+      | state   | result                     |
+      | playing | playing B                  |
+      | paused  | stopped until I press SPC  |
+      | stopped | stopped until I press SPC  |
+
+  @wireframe:music-cockpit-queue.svg @wireframe:music-cockpit-search-queue.svg
+  Scenario: Remove the focused exact occurrence without guessing from a title
+    Given two queue occurrences have the same track object and title
+    When I press "-" on the non-playing duplicate in Queue
+    Then only that occurrence is removed and playback is unchanged
+    And native Undo can restore the removed occurrence
+    When I remove a retained queue result through "C-. -" in Search
+    Then only its exact occurrence is removed
+    And typing a literal hyphen in the query never removes anything
+    And stale targets and library-only rows are rejected without queue changes
+
+  @wireframe:music-cockpit-queue-removed.svg
+  Scenario: Stop safely when removal has no successor or stop acknowledgement fails
+    Given the last queue occurrence is playing with playlist repeat enabled
+    When I remove it
+    Then playback stops without wrapping or starting a previous occurrence
+    Given browser silence is unconfirmed or the queue changes while waiting for stop
+    When I try removing the playing occurrence
+    Then deletion and automatic restart are blocked
+
   @wireframe:music-cockpit-search.svg
   Scenario: Explicitly append from a combined result without interrupting playback
     Given a search result represents an existing queue occurrence and a loaded Liked record
-    When I press "M-RET" on that result
+    When I choose "a" in its Embark menu
     Then exactly one copy of its retained Liked record is appended
     And current playback and the selected queue occurrence are unchanged
     When the loaded record is refreshed, removed or closed before append
@@ -173,7 +248,7 @@ Feature: Music navigation at the speed of the editor
   Scenario Outline: Use native contextual actions on the retained search result
     Given a <source> music search result is selected
     When I open the existing Embark menu with "C-."
-    Then the menu offers Play and Append without fetching or changing playback
+    Then the menu offers Play, Append and Add next without fetching or changing playback
     When I choose <action>
     Then <result>
     And the same retained identity and stale-source guards apply as RET and M-RET

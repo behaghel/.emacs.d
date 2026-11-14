@@ -18,7 +18,7 @@
       <text x="847" y="172" fill="#989898">Queue #3 ♥ · Spotify</text>
       <rect x="63" y="154" width="2" height="22" fill="#9fe0c2"/>
       <text x="28" y="235" font-size="14" fill="#989898">Native EMMS selection, deletion, move and yank act on these exact occurrences.</text>
-      <text x="28" y="305" font-size="14" fill="#9ba5ba"><tspan fill="#aab6ff">RET</tspan> <tspan fill="#9fe0c2">Play</tspan>   <tspan fill="#aab6ff">m</tspan> Player   <tspan fill="#aab6ff">l</tspan> Liked Songs   <tspan fill="#aab6ff">/</tspan> Search   <tspan fill="#aab6ff">?</tspan> Actions   <tspan fill="#aab6ff">q</tspan> Close</text>
+      <use href="components.svg#molecule-music-queue-footer-actions" y="277" width="1280" height="43"/>
       <text x="1248" y="305" text-anchor="end" font-size="14" fill="#989898">3 tracks · 12:20</text>
     </g>
   </g>

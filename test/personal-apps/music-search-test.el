@@ -138,7 +138,7 @@
 (ert-deftest hub/music-search-input-map-keeps-spaces-as-text ()
   "The completion-local map accepts spaces without changing global completion keys."
   (require 'apps/music-search)
-  (should (eq (lookup-key hub/music-search-map (kbd "M-RET")) #'hub/music-search--enqueue))
+  (should (eq (lookup-key hub/music-search-map (kbd "M-RET")) #'hub/music-search--next))
   (let ((original (lookup-key minibuffer-local-must-match-map (kbd "SPC"))))
     (with-temp-buffer
       (use-local-map minibuffer-local-must-match-map)
@@ -195,7 +195,7 @@
     (should (eq (current-buffer) document)))))
 
 (ert-deftest hub/music-search-enqueue-is-explicit-and-does-not-interrupt ()
-  "M-RET delegates append-only, preserving the playing queue and document."
+  "Explicit append delegates end insertion, preserving playback and document."
   (hub/music-search-test--queue
    (hub/music-search-test--library
     (setcdr (assq 'uri raw) "spotify:track:0000000000000000000001")

@@ -26,7 +26,7 @@
       </g>
       <text x="28" y="142" font-size="16" fill="#9fe0c2">▶</text>
       <g font-size="18" fill="#989898"><text x="847" y="142">Spotify ↗</text><text x="847" y="181">Spotify ↗</text><text x="847" y="220">Spotify ↗</text><text x="847" y="259">Spotify ↗</text></g>
-      <text x="28" y="305" font-size="14" fill="#9ba5ba"><tspan fill="#aab6ff">RET</tspan> <tspan fill="#9fe0c2">Play</tspan>   <tspan fill="#aab6ff">a</tspan> Enqueue   <tspan fill="#aab6ff">g+</tspan> More   <tspan fill="#aab6ff">gr</tspan> Refresh   <tspan fill="#aab6ff">m</tspan> Player   <tspan fill="#aab6ff">+</tspan> Queue   <tspan fill="#aab6ff">/</tspan> Search   <tspan fill="#aab6ff">?</tspan> Actions   <tspan fill="#aab6ff">q</tspan> Close</text>
+      <text x="28" y="305" font-size="14" fill="#9ba5ba"><tspan fill="#aab6ff">RET</tspan> <tspan fill="#9fe0c2">Play</tspan>   <tspan fill="#aab6ff">a</tspan> Append   <tspan fill="#aab6ff">M-RET</tspan> Add next   <tspan fill="#aab6ff">g+</tspan> More   <tspan fill="#aab6ff">gr</tspan> Refresh   <tspan fill="#aab6ff">m</tspan> Player   <tspan fill="#aab6ff">Q</tspan> Queue   <tspan fill="#aab6ff">+</tspan> File   <tspan fill="#aab6ff">/</tspan> Search   <tspan fill="#aab6ff">?</tspan> Actions   <tspan fill="#aab6ff">q</tspan> Close</text>
     </g>
   </g>
 </svg>
