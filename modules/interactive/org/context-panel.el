@@ -6,6 +6,7 @@
 
 ;;; Code:
 
+(require 'hub-utils)
 (require 'org-comments)
 (require 'org-comments-context-panel)
 (require 'context-panels)
@@ -230,7 +231,9 @@
 				   (current-buffer)))))))
 
 (defun hub/context-panels--enable-comments-provider ()
-  "Enable package context providers with personal side-panel naming."
+  "Enable package context providers with personal side-panel presentation."
+  (setq-local context-panels-side-item-spacing 1
+	      context-panels-side-item-body-indent 2)
   (let ((org-comments-panel-buffer-name hub/context-panels-buffer-name)
 	(comments-provider (context-panels-registered-provider 'comments)))
     (when (or (not comments-provider)
@@ -241,6 +244,15 @@
       (cp-org-marginalia-context-panel-mode 1))
     (unless context-panels-mode
       (context-panels-mode 1))))
+
+(defun hub/context-panels--setup-source ()
+  "Prepare context providers for ordinary Org source files without opening UI."
+  (when (and buffer-file-name (derived-mode-p 'org-mode))
+    (context-panels-org-install-defaults)
+    (unless (context-panels-ignored-source-file-p buffer-file-name)
+      (hub/context-panels--enable-comments-provider))))
+
+(add-hook 'org-mode-hook #'hub/context-panels--setup-source)
 
 (defun hub/context-panels--page-open-ui ()
   "Open the configured package page comments UI."

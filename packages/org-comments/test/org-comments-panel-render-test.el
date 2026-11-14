@@ -341,5 +341,20 @@
      nil)
     (should (search-forward "remote missing since 2026-01-01" nil t))))
 
+(ert-deftest org-comments-panel-render-metadata-is-quieter-with-author-colour ()
+  "Metadata gains a relative-size face without replacing the author's face."
+  (with-temp-buffer
+    (org-comments-panel-render-insert-comment
+     '(:type comment :id "meta" :status "OPEN" :author "Alice"
+	     :created-at "2026-11-14" :body "Body stays ordinary."))
+    (goto-char (point-min))
+    (search-forward "Alice")
+    (let ((faces (ensure-list (get-text-property (1- (point)) 'face))))
+      (should (memq 'org-comments-panel-metadata faces))
+      (should (memq (org-comments-panel-render--author-face "Alice") faces)))
+    (search-forward "Body stays")
+    (should-not (memq 'org-comments-panel-metadata
+		      (ensure-list (get-text-property (1- (point)) 'face))))))
+
 (provide 'org-comments-panel-render-test)
 ;;; org-comments-panel-render-test.el ends here

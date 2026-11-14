@@ -34,7 +34,7 @@ status: draft
 - Org uses `,c` as its context prefix: normal-state `,cc` toggles the context panel, while visual-state `,cc` creates sidecar comments from visual selections; `,cf` creates a page/footer sidecar comment; `,cr` creates a local reply under the active remote-linked comment; `,cA` reanchors a stale comment to the visual selection; `,cC` opens the sidecar comments file when it exists; `,cO` opens the current page in Confluence; `,cl` opens the active remote-linked comment in Confluence; `,cj` jumps to the active sidecar heading; `,ce` edits the active sidecar comment body narrowed to its subtree; `,cx` deletes the active source or sidecar comment after confirmation; `,cmo`, `,cmt`, and `,cmr` update the active comment status.
 - Stale comments whose source anchor no longer matches are shown as unanchored warning cards in the context panel instead of disappearing silently; they do not receive source overlays.
 - Page/footer comments are shown as a display-only `[N PAGE comments]` marker below leading Org metadata and can be read in a bottom page-comments window without modifying the source file.
-- The interactive context panel is explicitly opened or toggled with a buffer-local mode; it follows the selected Org buffer while visible and closes when selection moves to a non-Org buffer.
+- The interactive context panel is explicitly opened or toggled with a buffer-local mode; it follows the selected Org buffer while visible and closes when selection moves to a non-Org buffer. Visiting an ordinary Org source prepares both marginalia and comment providers without opening a panel. Both `,cc` and `M-x context-panels-open` therefore include both providers after reopening; auxiliary sidecars remain excluded.
 - Opening the context panel docks visually filled prose toward the panel and renders compact icon/status-chip cards; when point is inside a comment target, the panel focuses that comment so it can be read in full.
 - Inline authoring shortcuts are `<fn` for the default note/sidenote, `<ft` for a forced traditional footnote, and `<ff` for a colon-separated forced traditional footnote.
 
@@ -67,6 +67,7 @@ marginalia footnotes and sidecar review comments.
   heading TODO keyword.  Comment cards end their top line with an emoji-only sync
   badge: `✍️` for unpublished drafts, `🔗` for remote-linked comments, `⚠` for
   missing or dangling remote comments, and `❓` for unconfirmed inline anchors.
+- Mixed items keep source order, with at least one blank line between adjacent items, distinct headers, and two-column body indentation. Body lines wrap within the panel rather than being clipped; provider-specific status, metadata, and actions remain distinct.
 - Overview cards are intentionally compact.  When source point is inside a
   comment target, the panel focuses that comment and shows the full wrapped body.
   Focused side-panel rows show the full thread in place: root body first, then

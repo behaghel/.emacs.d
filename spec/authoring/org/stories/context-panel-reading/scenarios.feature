@@ -1,4 +1,4 @@
-@story:context-panel-reading @domain:authoring/org @priority:must @status:ready
+@story:context-panel-reading @domain:authoring/org @priority:must @status:in-progress
 Feature: Read nearby notes and comments without visual crowding
   As an Org author reviewing a document
   I want clearly separated contextual items that reopen consistently
@@ -50,7 +50,7 @@ Feature: Read nearby notes and comments without visual crowding
     Then each item has a clear icon and header identifying its kind and label or status
     And comment author and date are visually quieter than the header and body
     And bodies are indented two character columns below their headers
-    And one blank text line separates adjacent items
+    And at least one blank text line separates adjacent items
     And body lines wrap inside the panel instead of clipping at its right edge
     And Org emphasis and list structure remain readable
     And HUB_NOTE properties do not appear in note bodies

@@ -29,21 +29,22 @@
   <g id="context-items" font-family="monospace" font-size="14" fill="#f3ece3">
     <!-- Local comment: retain its status, target preview, author/date, and actions. -->
     <g id="local-comment" data-item-id="restart-review" data-target="reviewed-paragraph">
-      <text x="624" y="72" font-weight="bold"><tspan font-family="DejaVu Sans, sans-serif">✍</tspan> Comment  [OPEN]</text>
+      <!-- Retain the comments provider's status/target header; cross-provider
+           header vocabulary harmonization is deferred to a later slice. -->
+      <text x="624" y="72" font-weight="bold">✍ [OPEN] “Review this paragraph.”</text>
       <text x="640" y="96" font-size="13" fill="#9ba5ba">Demo · 2026-11-14</text>
-      <text x="640" y="120" fill="#c4c8d4">“Review this paragraph.”</text>
-      <text x="640" y="144">Local review comment. No remote</text>
-      <text x="640" y="168">provider.</text>
+      <text x="640" y="120">Local review comment. No remote</text>
+      <text x="640" y="144">provider.</text>
     </g>
-    <!-- A 24px blank line follows the last body line; next header is at y=216. -->
+    <!-- A 24px blank line follows the last body line; next header is at y=192. -->
     <g id="sidenote" data-item-id="side" data-target="sidenote-reference">
-      <text x="624" y="216" font-weight="bold">✣ Sidenote · side</text>
-      <text x="640" y="240"><tspan font-weight="bold">*Sidenote body.*</tspan> Unicode ✓.</text>
-      <text x="640" y="264">- A list item for wrapping.</text>
+      <text x="624" y="192" font-weight="bold">✣ Sidenote · side</text>
+      <text x="640" y="216"><tspan font-weight="bold">*Sidenote body.*</tspan> Unicode ✓.</text>
+      <text x="640" y="240">- A list item for wrapping.</text>
     </g>
     <g id="footnote" data-item-id="foot" data-target="footnote-reference">
-      <text x="624" y="312" font-weight="bold">† Footnote · foot</text>
-      <text x="640" y="336">Traditional footnote body.</text>
+      <text x="624" y="288" font-weight="bold">† Footnote · foot</text>
+      <text x="640" y="312">Traditional footnote body.</text>
     </g>
   </g>
 </svg>
