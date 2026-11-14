@@ -8,16 +8,47 @@
 (require 'hub-utils)
 (require 'emms)
 (require 'button)
+(require 'tabulated-list)
 (require 'apps/music)
 (require 'cl-lib)
 (require 'subr-x)
 
 (defvar hub/spotify--generation)
 (defvar hub/spotify--tracks)
+(defvar hub/spotify--playback-key)
+(declare-function hub/spotify--refresh-playback "apps/spotify" ())
 
-(defface hub/music-row-detail '((t (:inherit (shadow fixed-pitch) :height 0.9)))
-  "Secondary music row metadata, relative to the existing editor font."
-  :group 'hub/music)
+(declare-function modus-themes-get-current-theme "modus-themes" ())
+(declare-function modus-themes-get-color-value "modus-themes" (color &optional with-overrides theme))
+
+(defconst hub/music-row--faces
+  '((hub/music-row-title blue link semibold "Primary track title.")
+    (hub/music-row-artist cyan font-lock-type-face normal "Distinct artist accent.")
+    (hub/music-row-album magenta font-lock-keyword-face normal "Secondary album accent.")
+    (hub/music-row-time yellow warning normal "Distinct duration accent.")
+    (hub/music-row-detail fg-dim shadow normal "Quiet listing separators.")
+    (hub/music-row-source fg-dim shadow normal "Quiet provenance, separate from playback."))
+  "Music face, Modus palette name, generic fallback, weight and documentation.
+The active theme owns the colour values, including its palette overrides.")
+
+(defun hub/music-row--apply-faces (&rest _themes)
+  "Apply local music defaults on reload or theme changes.
+Update defface defaults, not user/theme overrides or global parent faces."
+  (dolist (entry hub/music-row--faces)
+    (let* ((colour (when (and (fboundp 'modus-themes-get-color-value)
+			      (fboundp 'modus-themes-get-current-theme)
+			      (car custom-enabled-themes)
+			      (eq (car custom-enabled-themes) (modus-themes-get-current-theme)))
+		     (modus-themes-get-color-value (nth 1 entry) t)))
+	   (spec `((t (:inherit (,(nth 2 entry) fixed-pitch)
+				:height 1.0 :weight ,(nth 3 entry) :slant normal :underline nil)))))
+      (when (stringp colour) (setf (plist-get (cadar spec) :foreground) colour))
+      (custom-declare-face (car entry) spec (nth 4 entry) :group 'hub/music)
+      (face-spec-set (car entry) spec 'face-defface-spec))))
+
+(add-hook 'enable-theme-functions #'hub/music-row--apply-faces)
+(add-hook 'disable-theme-functions #'hub/music-row--apply-faces)
+(hub/music-row--apply-faces)
 
 (defvar hub/music-row-source-map
   (let ((map (make-sparse-keymap)))
@@ -27,8 +58,28 @@
   "Source-link pointer actions; RET remains the table's explicit Play action.")
 
 (defconst hub/music-row-columns
-  [("" 3 nil) ("Title" 32 t) ("Artist" 22 t) ("Album" 22 t) ("Time" 7 nil) ("Source" 11 nil)]
+  [("" 3 nil) ("Title" 32 t) ("Artist" 22 t) ("Album" 22 t)
+   ("Time" 7 nil :right-align t) ("Source" 11 nil)]
   "Native table layout for shared music rows; copy before modifying widths.")
+
+(defun hub/music-row-layout (&optional columns)
+  "Return the shared table schema fitting COLUMNS, with a 53-column minimum.
+Shrink long text fields first; preserve a readable time and provenance column."
+  (let* ((columns (max 53 (or columns (window-body-width))))
+	 (layout (copy-tree hub/music-row-columns t))
+	 (deficit (max 0 (- (+ 5 (cl-loop for column across layout sum (nth 1 column))) columns)))
+	 (minimum [3 12 10 8 5 10]))
+    (while (and (> deficit 0)
+		(cl-some (lambda (index) (> (nth 1 (aref layout index)) (aref minimum index))) '(1 2 3)))
+      (dolist (index '(1 2 3))
+	(when (and (> deficit 0) (> (nth 1 (aref layout index)) (aref minimum index)))
+	  (cl-decf (nth 1 (aref layout index))) (cl-decf deficit))))
+    (dolist (index '(4 5))
+      (let ((shrink (min deficit (- (nth 1 (aref layout index)) (aref minimum index)))))
+	(cl-decf (nth 1 (aref layout index)) shrink) (cl-decf deficit shrink)))
+    (cl-incf (nth 1 (aref layout 5))
+	     (max 0 (- columns (+ 5 (cl-loop for column across layout sum (nth 1 column))))))
+    layout))
 
 (cl-defstruct (hub/music-row (:constructor hub/music-row--create))
   "An inert source identity with normalized display metadata."
@@ -84,14 +135,30 @@
 	((eq (emms-track-type (hub/music-row-track row)) 'file) "Local file")
 	(t "Stream")))
 
+(defun hub/music-row--fields (row)
+  "Return styled title, artist, album and duration for ROW without changing it."
+  (vector (propertize (hub/music-row-title row) 'face 'hub/music-row-title 'hub/music-row-field 'title)
+	  (propertize (hub/music-row-artist row) 'face 'hub/music-row-artist 'hub/music-row-field 'artist)
+	  (propertize (hub/music-row-album row) 'face 'hub/music-row-album 'hub/music-row-field 'album)
+	  (propertize (hub/music-row-time row) 'face 'hub/music-row-time 'hub/music-row-field 'time)))
+
+(defun hub/music-row--provenance (row)
+  "Return ROW's searchable provenance without using it as action identity."
+  (propertize
+   (format "%s #%d%s · %s%s"
+	   (if (eq (hub/music-row-origin row) 'queue) "Queue" "Liked")
+	   (1+ (hub/music-row-index row)) (if (hub/music-row-liked-row row) " + Liked" "")
+	   (hub/music-row-service row) (if (hub/music-row-playable row) "" " · unavailable"))
+   'face 'hub/music-row-source 'hub/music-row-field 'source))
+
 (defun hub/music-row-label (row)
-  "Return searchable metadata and provenance for ROW, not its action identity."
-  (format "%s — %s · %s  %s  [%s #%d%s · %s%s]"
-	  (hub/music-row-title row) (hub/music-row-artist row) (hub/music-row-album row)
-	  (hub/music-row-time row) (if (eq (hub/music-row-origin row) 'queue) "Queue" "Liked")
-	  (1+ (hub/music-row-index row)) (if (hub/music-row-liked-row row) " + Liked" "")
-	  (hub/music-row-service row)
-	  (if (hub/music-row-playable row) "" " · unavailable")))
+  "Return searchable styled fields and provenance, never ROW's action identity."
+  (let ((fields (hub/music-row--fields row)))
+    (concat (aref fields 0) (propertize " — " 'face 'hub/music-row-detail)
+	    (aref fields 1) (propertize " · " 'face 'hub/music-row-detail)
+	    (aref fields 2) "  " (aref fields 3) "  "
+	    (propertize "[" 'face 'hub/music-row-source)
+	    (hub/music-row--provenance row) (propertize "]" 'face 'hub/music-row-source))))
 
 (defun hub/music-row-status (row)
   "Read ROW's actual transport state without changing selection or playback."
@@ -112,7 +179,8 @@
 
 (defun hub/music-row-cells (row)
   "Return native table cells for ROW with a non-selection playback marker."
-  (let* ((status (hub/music-row-status row))
+  (let* ((fields (hub/music-row--fields row))
+	 (status (hub/music-row-status row))
 	 (label (when status (hub/music-state-label status)))
 	 (icon (if label (propertize (car (split-string label " "))
 				     'help-echo label 'hub/music-state status) ""))
@@ -121,14 +189,32 @@
 	 (source (if (and (equal service "Spotify") (stringp uri)
 			  (string-match-p "\\`spotify:track:[[:alnum:]]\\{22\\}\\'" uri))
 		     (let ((url (concat "https://open.spotify.com/track/" (substring uri 14))))
-		       (list "Spotify ↗" 'face 'hub/music-row-detail 'follow-link t
+		       (list (propertize "Spotify ↗" 'hub/music-row-field 'source) 'face 'hub/music-row-source 'follow-link t
 			     'keymap hub/music-row-source-map
 			     'help-echo "Open this track on Spotify"
 			     'action (lambda (_button) (browse-url url))))
-		   (propertize service 'face 'hub/music-row-detail))))
-    (vector icon (hub/music-row-title row) (hub/music-row-artist row)
-	    (propertize (hub/music-row-album row) 'face 'hub/music-row-detail)
-	    (propertize (hub/music-row-time row) 'face 'hub/music-row-detail) source)))
+		   (propertize service 'face 'hub/music-row-source 'hub/music-row-field 'source))))
+    (vector icon (aref fields 0) (aref fields 1) (aref fields 2) (aref fields 3) source)))
+
+(defun hub/music-row-display (row &optional columns fields)
+  "Render ROW with the same native printer and schema as Liked Songs.
+Optional FIELDS are highlighted title/artist/album/time/provenance strings.
+The full search candidate and its retained identity are never replaced."
+  (let* ((layout (hub/music-row-layout columns))
+	 (cells (hub/music-row-cells row))
+	 (source (or (and fields (aref fields 4)) (hub/music-row--provenance row)))
+	 (status (hub/music-row-status row)))
+    (when fields
+      (dotimes (index 4)
+	(when (stringp (aref fields index)) (aset cells (1+ index) (aref fields index)))))
+    (when status
+      (setq source (concat source " · " (propertize (capitalize (symbol-name status))
+						    'face (get-text-property 0 'face (hub/music-state-label status))))))
+    (aset cells 5 (truncate-string-to-width source (nth 1 (aref layout 5)) nil nil t t))
+    (with-temp-buffer
+      (let ((tabulated-list-format layout) (tabulated-list-padding 0))
+	(tabulated-list-print-entry (hub/music-row-index row) cells)
+	(buffer-substring (point-min) (1- (point-max)))))))
 
 (defun hub/music-row-assert-current (row)
   "Reject ROW if its captured source identity or playable record is obsolete."
@@ -150,6 +236,16 @@
 			(equal (hub/music-row-track row) (hub/music-row-metadata row)))))
       (user-error "Loaded Liked Songs changed; search again"))
     (unless (hub/music-row-playable row) (user-error "This row has no playable Spotify track"))))
+
+(defun hub/music-listings-refresh ()
+  "Repaint loaded music listings and local face defaults without fetching.
+Keep library records, the browsing row and playback unchanged."
+  (interactive)
+  (hub/music-row--apply-faces)
+  (when (and (fboundp 'hub/spotify--refresh-playback) (hub/music-loaded-library-buffer))
+    (with-current-buffer (hub/music-loaded-library-buffer)
+      (setq-local hub/spotify--playback-key nil))
+    (hub/spotify--refresh-playback)))
 
 (provide 'apps/music-row)
 ;;; music-row.el ends here

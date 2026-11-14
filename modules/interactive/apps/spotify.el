@@ -56,8 +56,23 @@
   "Convert saved ITEM into an inert table row identified by INDEX."
   (list index (hub/music-row-cells (hub/music-row-from-liked (alist-get 'track item) index))))
 
+(defun hub/spotify--listing-layout ()
+  "Return the shared columns for the visible library, without opening it."
+  (hub/music-row-layout
+   (if-let* ((window (get-buffer-window (current-buffer) t)))
+       (window-body-width window) (frame-width))))
+
+(defun hub/spotify--resize-listing (frame)
+  "Update only an already displayed library's columns after FRAME changes size."
+  (when-let* ((buffer (hub/music-loaded-library-buffer))
+	      (window (get-buffer-window buffer frame)))
+    (with-current-buffer buffer
+      (when (hub/spotify--setup-rows) (tabulated-list-print t)))))
+
 (defun hub/spotify--setup-rows ()
-  "Apply the shared layout and passive observers without resetting library data."
+  "Apply passive observers and shared columns without resetting library data.
+Return non-nil only when the native column schema changes."
+  (add-hook 'window-size-change-functions #'hub/spotify--resize-listing)
   (dolist (hook '(emms-player-started-hook emms-player-paused-hook emms-player-stopped-hook
 					   emms-player-finished-hook hub/spotify-browser-player-status-hook))
     (add-hook hook #'hub/spotify--refresh-playback))
@@ -66,13 +81,15 @@
 	     (or (equal header-line-format "Liked Songs")
 		 (string-match-p "\\`Liked Songs — [0-9]+ of [0-9]+ loaded" header-line-format)))
     (setq header-line-format (unless (fboundp 'context-panels-tabs-format) "Liked Songs")))
-  (unless (equal (mapcar #'car tabulated-list-format) (mapcar #'car hub/music-row-columns))
-    (setq-local tabulated-list-format (copy-tree hub/music-row-columns t))
-    (when hub/spotify--tracks
-      (setq tabulated-list-entries
-	    (mapcar (lambda (entry) (hub/spotify--row `((track . ,(cdr entry))) (car entry)))
-		    hub/spotify--tracks)))
-    (tabulated-list-init-header)))
+  (let ((layout (hub/spotify--listing-layout)))
+    (unless (equal tabulated-list-format layout)
+      (setq-local tabulated-list-format layout)
+      (when hub/spotify--tracks
+	(setq tabulated-list-entries
+	      (mapcar (lambda (entry) (hub/spotify--row `((track . ,(cdr entry))) (car entry)))
+		      hub/spotify--tracks)))
+      (tabulated-list-init-header)
+      t)))
 
 (defun hub/spotify--refresh-playback ()
   "Redraw retained playback markers only when state changes, without fetching."
@@ -241,7 +258,8 @@
     (hub/music--register-queue-view source)
     (with-current-buffer source (context-panels-mode 1))
     (context-panels-adopt-bottom-view-buffer buffer 'spotify-library source t)
-    (with-current-buffer buffer (hub/spotify--setup-rows))
+    (with-current-buffer buffer
+      (when (hub/spotify--setup-rows) (tabulated-list-print t)))
     (unless (or hub/spotify--busy
 		(and hub/spotify--total
 		     (or (zerop hub/spotify--total) hub/spotify--tracks)))

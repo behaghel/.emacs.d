@@ -72,6 +72,36 @@ Feature: Music navigation at the speed of the editor
     And Liked Songs uses "g+" to load more and "gr" to refresh
     And minibuffer text is not intercepted by music navigation
 
+  @wireframe:music-cockpit-liked-songs.svg @wireframe:music-cockpit-search.svg
+  Scenario: Read the same music hierarchy in Liked Songs and native search
+    Given Liked Songs is already loaded and the queue contains music
+    When I browse Liked Songs and search the same track through Vertico
+    Then the title has the same primary accent and emphasis in both listings
+    And artist, album and duration each have their own distinct colour in both listings
+    And separators and provenance remain quieter without becoming playback markers
+    And native selection and query matching remain visible without removing the hierarchy
+    And rendering changes no source records, queue order, playback or authorization
+
+  @wireframe:music-cockpit-liked-songs.svg @wireframe:music-cockpit-search.svg
+  Scenario: Follow the active theme palette without changing global faces
+    Given Liked Songs and music search share retained metadata
+    When I enable a light or dark Modus theme with palette overrides
+    Then title uses blue, artist cyan, album magenta and time yellow from that palette
+    And provenance and separators use the palette's dim foreground
+    And title retains stronger weight and every field retains the same character metrics
+    And global faces, retained identities and playback remain unchanged
+
+  @wireframe:music-cockpit-liked-songs.svg @wireframe:music-cockpit-search.svg
+  Scenario: Keep real columns aligned across listings and narrow views
+    Given a retained track has a long title, a long album and multilingual metadata
+    When I browse Liked Songs and search it in the configured reverse Vertico view
+    Then both listings place marker, title, artist, album, time and provenance in the same order
+    And shared widths keep later columns aligned instead of following the title length
+    And time is right-aligned and long values are ellipsized within their columns
+    And resizing preserves the browsing row and all action identities
+    And search still finds metadata beyond the displayed truncation
+    And RET, M-RET and Embark keep their existing exact-occurrence semantics
+
   @wireframe:music-cockpit-search.svg @wireframe:music-cockpit-search-queue.svg
   Scenario: Search without playing the selection merely by moving over it
     When I press "'m/" and type a query
