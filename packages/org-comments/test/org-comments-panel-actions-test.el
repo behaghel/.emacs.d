@@ -381,7 +381,8 @@
   "Status actions update the sidecar heading and refresh the panel."
   (org-comments-panel-actions-test--with-comment
    (org-comments-panel-mark-resolved)
-   (should (string-match-p "\\[RESOLVED\\]" (buffer-string)))))
+   (should (equal (plist-get (org-comments-panel-current-comment) :status) "RESOLVED"))
+   (should (string-match-p "✓" (buffer-string)))))
 
 (ert-deftest org-comments-panel-actions-status-at-point-uses-adapters ()
   "Generic status command updates comments through action adapters."
@@ -395,7 +396,8 @@
 		   (org-comments-panel-refresh)))
      (org-comments-mark-resolved-at-point)
      (should refreshed)
-     (should (string-match-p "\\[RESOLVED\\]" (buffer-string))))))
+     (should (equal (plist-get (org-comments-panel-current-comment) :status) "RESOLVED"))
+     (should (string-match-p "✓" (buffer-string))))))
 
 (ert-deftest org-comments-panel-actions-resolved-status-dispatches-remote-backend ()
   "Resolved panel status propagates through capable remote backends."

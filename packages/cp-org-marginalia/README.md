@@ -12,8 +12,9 @@ any panels.
 ## Boundary
 
 The package owns native Org footnote collection, `HUB_NOTE_*` parsing, semantic
-note records, kind icons and readable kind/ID labels, its provider descriptor,
-and explicit activation.
+note records, semantic kind icons, its provider descriptor, and explicit
+activation. Visible notes begin with their icon and body; kind labels and internal
+IDs are not repeated in the panel. IDs remain available for stable navigation.
 Its independent layout helper remains available to other callers. Context
 Panels owns row metadata, interaction, viewport placement, and default
 anchor-based navigation; the optional `context-panels-org` library owns Org body
@@ -25,7 +26,7 @@ Confluence publishing, personal keybindings, or edit/delete/toggle actions.
 
 ## Activation
 
-The package declares Emacs 29.1+, Org 9.6+, and context-panels 0.2.0+.
+The package declares Emacs 29.1+, Org 9.6+, and context-panels 0.4.0+.
 Loading a library does not enable its buffer-local mode or modify source text.
 Local display and reference navigation require no comments package, private
 configuration, accounts, or network access.
@@ -59,7 +60,8 @@ With sufficient frame width, the panel opens to the right of its displayed
 source window. When enabled alongside `org-comments`, both providers share the
 same `context-panels` side panel. Rows are ordered by viewport/source position;
 provider priority breaks ties. The collector supplies semantic records without
-precomputing panel placement. The descriptor selects the reusable Org renderer;
+precomputing panel placement. The descriptor declares presentation separately
+from collection and selects the reusable Org body renderer;
 `RET` uses `context-panels-jump-at-point` and its default reference-anchor jump,
 while comment rows retain the comments provider's renderer and action. Marginalia rows bind both terminal `RET` and graphical
 Return events locally, without replacing the panel's major-mode map or other

@@ -1,4 +1,4 @@
-@story:context-provider-harmonization @domain:authoring/org @priority:must @status:draft
+@story:context-provider-harmonization @domain:authoring/org @priority:must @status:in-progress
 Feature: Read and navigate different context providers as one panel
   As an Org author reviewing a document
   I want consistent contextual rows with actions appropriate to each item
@@ -33,17 +33,36 @@ Feature: Read and navigate different context providers as one panel
     And those are the only two context providers participating in this fixture
     And its existing narrow right-side context panel is visible
 
-  # AC-1: A common row anatomy preserves meaningful differences.
+  # AC-1: Icons identify kinds without repeating labels or exposing internal IDs.
   @wireframe:context-provider-harmonization.svg @happy-path
-  Scenario: Read kinds first and details second
+  Scenario: Read the note or conversation immediately beside its icon
     When I read the mixed context panel
-    Then the headers begin with "Comment", "Sidenote" and "Footnote" respectively
-    And the comment header retains its "OPEN" workflow state
-    And the note headers retain their "side" and "foot" identifiers
-    And the comment target preview appears below its header
-    And author and date appear below that preview in quieter text
-    And each body follows its available details without empty placeholder lines
+    Then each native note starts with its icon and actual body on the same line
+    And no separate "Sidenote", "Footnote" or internal note ID label is shown
+    And wrapped note lines align beneath the body rather than beneath its icon
+    And the comment starts with its icon and quoted source target on one line
+    And no separate "Comment" label is shown
+    And author and date appear underneath the target in quieter text
+    And the actual comment message appears below its author and date
     And the comment keeps its local-origin icon and stable author colour
+
+  # AC-6: Thread state belongs beside the target, never beside message authors.
+  @wireframe:context-provider-harmonization.svg
+  @wireframe:context-provider-harmonization-todo.svg
+  @wireframe:context-provider-harmonization-resolved.svg
+  Scenario Outline: Recognize a thread state without a state label or extra line
+    Given the local comment has stored state <state>
+    When I read its first line
+    Then I see <marker> between the comment icon and quoted target
+    And non-default markers have explanatory help in plain English
+    And state is not attached to author/date or repeated for replies
+    And no uppercase state text or dedicated state line is added
+    And the stored workflow state remains unchanged
+    Examples:
+      | state    | marker                         |
+      | OPEN     | no state marker                |
+      | TODO     | an amber diamond meaning To do |
+      | RESOLVED | a quiet green check meaning Resolved |
 
   # AC-2: Panel movement follows rendered rows, without jumping into the source.
   @wireframe:context-provider-harmonization.svg
@@ -92,9 +111,11 @@ Feature: Read and navigate different context providers as one panel
   # AC-5: Common row composition does not flatten rich comment content.
   @wireframe:context-provider-harmonization-focused.svg
   Scenario: Focus an existing local thread without losing its semantics
-    Given the local comment has a reply
+    Given the local comment has two replies
     When I focus that comment using the existing comment focus workflow
-    Then the full root body and reply remain readable within the comment row
-    And reply identity and existing comment actions remain associated with that reply
+    Then the quoted target and thread state appear only once above the conversation
+    And the full root body and both replies remain readable within the comment row
+    And each message has its own author and date above its body
+    And reply identity and existing comment actions remain associated with each reply
     And author metadata, status, warnings and badges are not silently discarded
     And native notes remain notes rather than comment records

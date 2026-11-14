@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 400" width="1000" height="400" role="img" aria-labelledby="title description">
+  <title id="title">Mixed-provider context — To do thread</title>
+  <desc id="description">An amber diamond sits between the comment icon and quoted target. It means To do for the whole thread; author/date remain independent message metadata. No uppercase state label or extra status line is shown.</desc>
+  <!-- SCREEN: Mixed context overview. STORY: authoring/org/context-provider-harmonization.
+       STATE: TODO thread. DOMAIN: authoring/org. ◇ has help text To do.
+       Amber #f2c68d illustrates the current theme's attention/warning role;
+       implementation uses a theme-derived face, not this fixed RGB value. -->
+  <use href="components.svg#template-context-reading" width="1000" height="400"/>
+  <use href="components.svg#organism-context-review-source" width="600" height="400"/>
+  <use href="components.svg#molecule-context-review-comment" x="624" y="58" width="376" height="120"/>
+  <!-- Only the header differs from the shared Open fixture. -->
+  <rect x="624" y="52" width="376" height="25" fill="#0d0e1c"/>
+  <text x="624" y="72" font-family="monospace" font-size="14" font-weight="bold" fill="#f3ece3"><tspan fill="#9ba5ba">✍</tspan> <tspan fill="#f2c68d"><title>To do</title>◇</tspan> “Review this paragraph.”</text>
+  <use href="components.svg#organism-context-review-notes" x="624" y="178" width="376" height="144"/>
+</svg>

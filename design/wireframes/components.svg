@@ -214,20 +214,17 @@
     </symbol>
     <symbol id="molecule-context-review-comment" viewBox="0 0 376 120">
       <g font-family="monospace" font-size="14" fill="#f3ece3">
-        <text y="14" font-weight="bold"><tspan fill="#9ba5ba">✍</tspan> Comment · OPEN</text>
-        <text x="16" y="38" font-size="13" fill="#9ba5ba">“Review this paragraph.”</text>
-        <text x="16" y="62" font-size="13" fill="#9ba5ba"><tspan fill="#feacd0">Demo</tspan> · 2026-11-14</text>
-        <text x="16" y="86">Local review comment. No remote</text>
-        <text x="16" y="110">provider.</text>
+        <text y="14" font-weight="bold"><tspan fill="#9ba5ba">✍</tspan> “Review this paragraph.”</text>
+        <text x="16" y="38" font-size="13" fill="#9ba5ba"><tspan fill="#feacd0">Demo</tspan> · 2026-11-14</text>
+        <text x="16" y="62">Could we make this claim more</text>
+        <text x="16" y="86">specific?</text>
       </g>
     </symbol>
     <symbol id="organism-context-review-notes" viewBox="0 0 376 144">
       <g font-family="monospace" font-size="14" fill="#f3ece3">
-        <text y="14" font-weight="bold"><tspan fill="#9ba5ba">✣</tspan> Sidenote · side</text>
-        <text x="16" y="38"><tspan font-weight="bold">*Sidenote body.*</tspan> Unicode ✓.</text>
-        <text x="16" y="62">- A list item for wrapping.</text>
-        <text y="110" font-weight="bold"><tspan fill="#9ba5ba">†</tspan> Footnote · foot</text>
-        <text x="16" y="134">Traditional footnote body.</text>
+        <text y="14"><tspan fill="#9ba5ba">✣</tspan> <tspan font-weight="bold">*Sidenote body.*</tspan> Unicode ✓.</text>
+        <text x="16" y="38">- A list item for wrapping.</text>
+        <text y="86"><tspan fill="#9ba5ba">†</tspan> Traditional footnote body.</text>
       </g>
     </symbol>
   </defs>

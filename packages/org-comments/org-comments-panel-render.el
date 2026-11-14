@@ -313,13 +313,34 @@ Return non-nil when metadata was inserted."
       (insert " — " body))
     (org-comments-panel-render--buttonize-urls start (point))))
 
+(defun org-comments-panel-render-insert-comment-body (comment)
+  "Insert COMMENT's body/thread and return compact reply regions.
+This does not insert a header or root row properties."
+  (let ((body (org-comments-panel-render--readable-body comment))
+	(replies (plist-get comment :replies))
+	reply-regions)
+    (if (plist-get comment :current)
+	(progn
+	  (org-comments-panel-render--insert-body body)
+	  (org-comments-panel-render--insert-replies comment))
+      (dolist (line (org-comments-panel-render--overview-lines body))
+	(insert line "\n"))
+      (when replies
+	(insert (format "↳ %s repl%s\n"
+			(length replies) (if (= (length replies) 1) "y" "ies")))
+	(dolist (reply replies)
+	  (let ((reply-start (point)))
+	    (insert "  ↳ ")
+	    (org-comments-panel-render--insert-reply-summary reply)
+	    (insert "\n")
+	    (push (list reply-start (point) reply) reply-regions)))))
+    reply-regions))
+
 (defun org-comments-panel-render-insert-comment (comment)
   "Insert rich COMMENT row at point."
   (let* ((start (point))
 	 (status (or (plist-get comment :status) "OPEN"))
 	 (target (or (plist-get comment :target-text) ""))
-	 (body (org-comments-panel-render--readable-body comment))
-	 (replies (plist-get comment :replies))
 	 (stale (org-comments-panel-render--stale-comment-p comment))
 	 (remote-missing (org-comments-panel-render--remote-missing-p comment))
 	 (page-comment (org-comments-panel-render--page-comment-p comment))
@@ -349,22 +370,7 @@ Return non-nil when metadata was inserted."
 	(insert badges))
       (unless (= (point) metadata-start)
 	(insert "\n")))
-    (if (plist-get comment :current)
-	(progn
-	  (org-comments-panel-render--insert-body body)
-	  (org-comments-panel-render--insert-replies comment))
-      (progn
-	(dolist (line (org-comments-panel-render--overview-lines body))
-	  (insert line "\n"))
-	(when replies
-	  (insert (format "↳ %s repl%s\n"
-			  (length replies) (if (= (length replies) 1) "y" "ies")))
-	  (dolist (reply replies)
-	    (let ((reply-start (point)))
-	      (insert "  ↳ ")
-	      (org-comments-panel-render--insert-reply-summary reply)
-	      (insert "\n")
-	      (push (list reply-start (point) reply) reply-regions))))))
+    (setq reply-regions (org-comments-panel-render-insert-comment-body comment))
     (let ((row (copy-sequence comment)))
       (plist-put row :provider 'comments)
       (add-text-properties

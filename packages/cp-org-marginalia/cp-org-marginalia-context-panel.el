@@ -3,7 +3,7 @@
 ;; Author: Hubert Behaghel
 ;; Maintainer: Hubert Behaghel
 ;; Version: 0.1.0
-;; Package-Requires: ((emacs "29.1") (org "9.6") (context-panels "0.2.0"))
+;; Package-Requires: ((emacs "29.1") (org "9.6") (context-panels "0.4.0"))
 ;; Keywords: outlines, convenience
 ;; URL: https://github.com/behaghel/.emacs.d/tree/master/packages/cp-org-marginalia
 
@@ -27,24 +27,15 @@
     ('footnote "†")
     (_ "✣")))
 
-(defun cp-org-marginalia-context-panel--mark-item-icon (item)
-  "Return marginalia ITEM copied with its semantic icon and face."
-  (let ((copy (copy-sequence item)))
-    (setq copy (plist-put copy :icon
-			  (cp-org-marginalia-context-panel--kind-icon
-			   (plist-get copy :kind))))
-    (setq copy (plist-put copy :label
-			  (format "%s · %s"
-				  (if (eq (plist-get item :kind) 'footnote)
-				      "Footnote" "Sidenote")
-				  (plist-get item :id))))
-    (plist-put copy :icon-face 'cp-org-marginalia-context-panel-icon-face)))
+(defun cp-org-marginalia-context-panel--presentation (_source-buffer item)
+  "Describe the icon-led Org body of ITEM without rewriting its record."
+  (list :icon (cp-org-marginalia-context-panel--kind-icon (plist-get item :kind))
+	:icon-face 'cp-org-marginalia-context-panel-icon-face
+	:label nil
+	:render-body #'context-panels-org-render-item-body))
 
-(defun cp-org-marginalia-context-panel-collect-side-items (source-buffer)
-  "Collect semantic marginalia side items for SOURCE-BUFFER."
-  (with-current-buffer source-buffer
-    (mapcar #'cp-org-marginalia-context-panel--mark-item-icon
-	    (cp-org-marginalia-collect))))
+(defalias 'cp-org-marginalia-context-panel-collect-side-items
+  #'cp-org-marginalia-collect)
 
 ;; Preserve callable entrypoints without duplicating framework behavior.
 (defalias 'cp-org-marginalia-context-panel-render-side-item
@@ -59,8 +50,8 @@
   (list :name 'marginalia
 	:icon "📝"
 	:priority 20
-	:collect-side-items #'cp-org-marginalia-context-panel-collect-side-items
-	:render-side-item #'context-panels-org-render-side-item))
+	:collect-side-items #'cp-org-marginalia-collect
+	:present-side-item #'cp-org-marginalia-context-panel--presentation))
 
 ;;;###autoload
 (define-minor-mode cp-org-marginalia-context-panel-mode

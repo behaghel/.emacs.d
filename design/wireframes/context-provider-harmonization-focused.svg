@@ -1,20 +1,25 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 400" width="1000" height="400" role="img" aria-labelledby="title description">
-  <title id="title">Mixed-provider context panel — focused local thread proposal</title>
-  <desc id="description">The focused comment retains its full body and a locally authored reply before the native sidenote and footnote. Reply identity, author colour and comment actions remain intact; common row composition does not turn notes into comments.</desc>
+  <title id="title">Mixed-provider context — one thread, multiple messages</title>
+  <desc id="description">An Open thread has no state marker. Its quoted target appears once, above the root message and two replies. Each message has separate author/date metadata; replies do not acquire thread states. Notes remain icon-led bodies below the conversation.</desc>
   <!-- SCREEN: Mixed context, focused thread. STORY: authoring/org/context-provider-harmonization.
-       STATE: selected comment with one reply. DOMAIN: authoring/org.
-       Same grid and navigation as the overview. Existing focus workflow selects
-       the comment; this page does not introduce automatic source scrolling on
-       panel row movement. Theme-derived highlight colour is illustrative.
-       Return on the root uses its source target. Reply actions use reply identity,
-       never the root or a neighbouring note. No thread-model or storage changes. -->
+       STATE: focused Open comment with two replies. DOMAIN: authoring/org.
+       Thread state belongs beside its quoted target, never beside message authors.
+       Existing focused-thread expansion remains; compact overview is unchanged.
+       No new source scrolling on panel movement. Reply actions retain reply identity. -->
   <use href="components.svg#template-context-reading" width="1000" height="400"/>
-  <rect x="616" y="54" width="376" height="174" fill="#222b40"/>
+  <rect x="616" y="54" width="376" height="222" fill="#222b40"/>
   <use href="components.svg#organism-context-review-source" width="600" height="400"/>
   <use href="components.svg#molecule-context-review-comment" x="624" y="58" width="376" height="120"/>
-  <g id="reply" font-family="monospace" font-size="14" fill="#f3ece3" data-item-id="review-reply">
-    <text x="640" y="192" font-size="13" fill="#9ba5ba">↳ <tspan fill="#feacd0">Demo</tspan> · 2026-11-14</text>
-    <text x="656" y="216">Keep this wording.</text>
+  <g id="replies" font-family="monospace" font-size="14" fill="#f3ece3">
+    <g data-item-id="review-reply-alice">
+      <text x="640" y="168" font-size="13" fill="#9ba5ba">↳ <tspan fill="#9fe0c2">Alice</tspan> · 2026-11-15</text>
+      <text x="656" y="192">Yes—I'll add the supporting</text>
+      <text x="656" y="216">figure.</text>
+    </g>
+    <g data-item-id="review-reply-demo">
+      <text x="640" y="240" font-size="13" fill="#9ba5ba">↳ <tspan fill="#feacd0">Demo</tspan> · 2026-11-15</text>
+      <text x="656" y="264">Thanks, that addresses it.</text>
+    </g>
   </g>
-  <use href="components.svg#organism-context-review-notes" x="624" y="250" width="376" height="144"/>
+  <use href="components.svg#organism-context-review-notes" x="624" y="298" width="376" height="144"/>
 </svg>
