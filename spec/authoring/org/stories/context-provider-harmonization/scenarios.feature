@@ -95,6 +95,19 @@ Feature: Read and navigate different context providers as one panel
       | sidenote |
       | footnote |
 
+  # AC-7: Help can be dismissed from the panel where point remains.
+  @wireframe:context-provider-harmonization-help.svg
+  @wireframe:context-provider-harmonization.svg
+  Scenario: Toggle item help without leaving the side panel
+    Given point is inside a native note body in the side panel
+    When I press "?"
+    Then item help is visible and the side panel remains selected
+    And panel point and source point have not moved
+    When I press "?" again without changing windows
+    Then the help window closes and the side panel stays open and selected
+    And panel point, source point and source scrolling are unchanged
+    And the existing normal-state "q" command still closes the panel itself
+
   # AC-4: Unsupported operations cannot fall through to a neighbouring comment.
   @wireframe:context-provider-harmonization.svg @edge-case
   Scenario Outline: Request a comment operation while reading a note
