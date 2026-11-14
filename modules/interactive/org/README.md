@@ -51,7 +51,7 @@ marginalia footnotes and sidecar review comments.
   commands.
 - The panel follows the selected Org buffer while visible.
 - The panel closes automatically when selection moves to a non-Org buffer.
-- `q` closes the panel when point is inside it.
+- `q` closes the panel when point is inside it, including Evil normal state. It uses the existing panel close adapter; it is distinct from toggling item help with `?`.
 - `M-c`, `M-t`, `M-s`, and `M-r` move focus left/down/up/right consistently, so
   `M-t` moves from the source window down into the page-context panel and `M-s` moves back up.
 - The panel preserves its point across refreshes and focus changes where possible.
@@ -93,7 +93,7 @@ Normal-state bindings inside the panel:
 | `zr` | Toggle showing resolved comments. |
 | `zx` | Toggle showing remote-missing/deleted comments. |
 | `z?` | Show active filter status. |
-| `?` | Show help for the selected item. Native notes advertise reference navigation, not comment operations; comment/reply help uses actual bindings or public command names. |
+| `?` | Toggle help for the selected item without leaving the panel or moving point. Press it again in the panel to dismiss help. Native notes advertise reference navigation, not comment operations; comment/reply help uses actual bindings or public command names. |
 
 When filters differ from defaults, panels show a compact header with active filters, item counts, and the `zz` reset hint. If a reply matches a filter but its root does not, the root thread remains visible as conversation context while non-matching replies are hidden.
 | `]c` | Move to the next rendered context row, wrapping without changing source point or source scrolling. |

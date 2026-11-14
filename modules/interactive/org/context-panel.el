@@ -64,7 +64,8 @@
   "Bind common row keys without deferred macros capturing lexical map values."
   (let ((bindings '(("]c" . hub/context-panels-next-row)
 		    ("[c" . hub/context-panels-previous-row)
-		    ("?" . hub/context-panels-describe-item))))
+		    ("?" . hub/context-panels-describe-item)
+		    ("q" . org-comments-close-current-ui))))
     (dolist (binding bindings)
       (define-key org-comments-panel-mode-map (kbd (car binding)) (cdr binding))
       (when (fboundp 'evil-define-key*)
@@ -93,7 +94,6 @@
        ("p" . org-comments-page-open-at-point)
        ("S" . org-comments-sync)
        ("U" . org-comments-push)
-       ("q" . org-comments-close-current-ui)
        ("r" . org-comments-reply)
        ("z" . org-comments-panel-filter-map)))
     (hub/context-panels--bind-row-keys)))
