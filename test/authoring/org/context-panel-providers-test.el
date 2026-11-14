@@ -84,7 +84,9 @@
 	  (setq source (find-file-noselect file))
 	  (with-current-buffer source
 	    (org-comments-append-to-sidecar
-	     (org-comments-create-record file 1 6 "Comment body." "reading"
+	     (org-comments-create-record file 1 6
+					 "Comment body. Additional words make this paragraph exceed the panel width."
+					 "reading"
 					 "Demo" "2026-11-14")))
 	  (kill-buffer source)
 	  (dolist (opener '(context-panels-open hub/context-panels-toggle-open))
@@ -99,6 +101,12 @@
 		(with-current-buffer panel
 		  (should-not truncate-lines)
 		  (should word-wrap)
+		  (goto-char (point-min))
+		  (search-forward "Comment body.")
+		  (should (> (count-screen-lines (line-beginning-position)
+						 (line-end-position) nil
+						 (get-buffer-window panel))
+			     1))
 		  (should (string-match-p "\n\n✣ Sidenote · side" (buffer-string))))
 		(dolist (case '(("Comment body." . "Alpha")
 				("Sidenote body" . "[fn:side]")
