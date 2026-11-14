@@ -9,6 +9,8 @@
 (require 'cl-lib)
 (require 'org-comments)
 (require 'cp-org-marginalia-context-panel)
+(require 'test-helpers)
+(require 'org/context-panel)
 
 (ert-deftest hub/context-panel-marginalia-and-comments-preserve-row-actions ()
   "Standard Org note rows coexist with rich comments and their custom actions."
@@ -64,6 +66,73 @@
 	  (context-panels-mode -1)
 	  (should (equal (buffer-string) content))
 	  (should-not (buffer-modified-p)))))))
+
+(ert-deftest hub/context-panel-reopened-source-is-readable-through-both-openers ()
+  "Ordinary reopen prepares both providers and preserves mixed navigation."
+  (let* ((directory (make-temp-file "context-panel-reading-" t))
+	 (file (expand-file-name "source.org" directory))
+	 (old-width (frame-width))
+	 source)
+    (unwind-protect
+	(save-window-excursion
+	  (set-frame-width (selected-frame) 160)
+	  (with-temp-file file
+	    (insert "Alpha[fn:side]\nBeta[fn:foot]\n\n"
+		    "[fn:side] *Sidenote body*.\n\n"
+		    "[fn:foot]\n:PROPERTIES:\n:HUB_NOTE_KIND: footnote\n:END:\n\n"
+		    "Footnote body.\n"))
+	  (setq source (find-file-noselect file))
+	  (with-current-buffer source
+	    (org-comments-append-to-sidecar
+	     (org-comments-create-record file 1 6 "Comment body." "reading"
+					 "Demo" "2026-11-14")))
+	  (kill-buffer source)
+	  (dolist (opener '(context-panels-open hub/context-panels-toggle-open))
+	    (setq source (find-file-noselect file))
+	    (switch-to-buffer source)
+	    (let ((content (buffer-string)))
+	      (call-interactively opener)
+	      (should (context-panels-registered-provider 'comments))
+	      (should (context-panels-registered-provider 'marginalia))
+	      (let ((panel context-panels-side-panel-buffer))
+		(should (get-buffer-window panel))
+		(with-current-buffer panel
+		  (should-not truncate-lines)
+		  (should word-wrap)
+		  (should (string-match-p "\n\n✣ Sidenote · side" (buffer-string))))
+		(dolist (case '(("Comment body." . "Alpha")
+				("Sidenote body" . "[fn:side]")
+				("Footnote body." . "[fn:foot]")))
+		  (dolist (key '("RET" "<return>"))
+		    (with-current-buffer panel
+		      (select-window (get-buffer-window panel))
+		      (goto-char (point-min))
+		      (search-forward (car case))
+		      (should (equal (get-text-property (1- (point)) 'line-prefix) "  "))
+		      (execute-kbd-macro (kbd key)))
+		    (should (eq (window-buffer (selected-window)) source))
+		    (with-current-buffer source
+		      (should (looking-at-p (regexp-quote (cdr case))))))))
+	      (with-current-buffer source
+		(should (equal (buffer-string) content))
+		(should-not (buffer-modified-p))
+		(context-panels-close)))
+	    (kill-buffer source)))
+      (when (buffer-live-p source) (kill-buffer source))
+      (dolist (buffer (buffer-list))
+	(when-let* ((path (buffer-file-name buffer)))
+	  (when (string-prefix-p directory path) (kill-buffer buffer))))
+      (set-frame-width (selected-frame) old-width)
+      (delete-directory directory t))))
+
+(ert-deftest hub/context-panel-preparation-excludes-auxiliary-and-temporary-buffers ()
+  "Personal preparation does not activate marginalia in sidecars or parsers."
+  (dolist (file '(nil "/tmp/reading.comments.org" "/tmp/reading.copilot.org"))
+    (with-temp-buffer
+      (setq-local buffer-file-name file)
+      (org-mode)
+      (should-not (context-panels-registered-provider 'marginalia))
+      (should-not (local-variable-p 'context-panels-side-item-body-indent)))))
 
 (provide 'context-panel-providers-test)
 ;;; context-panel-providers-test.el ends here

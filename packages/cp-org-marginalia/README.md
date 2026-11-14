@@ -12,7 +12,8 @@ any panels.
 ## Boundary
 
 The package owns native Org footnote collection, `HUB_NOTE_*` parsing, semantic
-note records and kind icons, its provider descriptor, and explicit activation.
+note records, kind icons and readable kind/ID labels, its provider descriptor,
+and explicit activation.
 Its independent layout helper remains available to other callers. Context
 Panels owns row metadata, interaction, viewport placement, and default
 anchor-based navigation; the optional `context-panels-org` library owns Org body

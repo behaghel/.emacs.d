@@ -33,6 +33,7 @@ Backend detection uses registered detectors and the current source buffer. The p
 - Package keybindings are Org-native and Emacs-native; the package does not install Evil, leader, or Bépo bindings.
 - Generic panels preserve source focus, jump to source or sidecar targets, and render stale or remote-missing state visibly.
 - Opening the side panel preserves the comments package's source highlight ranges and faces; it does not add a whole-line source highlight. Panel rows may highlight the focused comment independently.
+- Author/date metadata is typographically quieter than headers and bodies while retaining stable author colours. Provider-specific status, badges, and actions remain intact when rows share framework spacing and wrapping.
 
 ## Invariants
 

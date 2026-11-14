@@ -1,0 +1,50 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 400" width="1000" height="400" role="img" aria-labelledby="title description">
+  <title id="title">Readable mixed Org context panel — draft</title>
+  <desc id="description">A content-area crop showing an unchanged Org source at left and source-ordered context at right. One local comment, one sidenote, and one traditional footnote have clear headers, subdued metadata, two-column body indentation, wrapping, and one blank line between items.</desc>
+  <!-- SCREEN: Org source with mixed context
+       STORY: authoring/org/context-panel-reading
+       STATE: populated overview, ordinary reopened source
+       DOMAIN: authoring/org
+       SCOPE: content-area crop only. Existing mode lines, panel counters, window
+       lifecycle, and source prose docking are unchanged and outside this crop.
+       GRID: monospace body 14px; 24px line baseline; body inset 16px (two columns);
+       one blank text line between the last body line and the next item header.
+       PALETTE: existing theme roles illustrated using the project dark palette;
+       ink #f3ece3, secondary #c4c8d4, muted #9ba5ba, links #a6b9ff.
+       Navigation: Return/C-m on a body jumps to that item's source anchor.
+       No new on-screen buttons, tabs, provider groups, or source annotations. -->
+  <use href="components.svg#template-context-reading" width="1000" height="400"/>
+  <g id="source" font-family="monospace" font-size="14" fill="#c4c8d4">
+    <text x="24" y="32" fill="#9fe0c2">#+TITLE: Context Panels restart check</text>
+    <text x="24" y="72">Review this paragraph.<tspan fill="#a6b9ff">[fn:side]</tspan></text>
+    <text x="24" y="96">Second paragraph.<tspan fill="#a6b9ff">[fn:foot]</tspan></text>
+    <text x="24" y="152"><tspan fill="#a6b9ff">[fn:side]</tspan> *Sidenote body.* Unicode ✓.</text>
+    <text x="24" y="176">- A list item for wrapping.</text>
+    <text x="24" y="232" fill="#a6b9ff">[fn:foot]</text>
+    <text x="24" y="256" fill="#9ba5ba">:PROPERTIES:</text>
+    <text x="24" y="280" fill="#9ba5ba">:HUB_NOTE_KIND: footnote</text>
+    <text x="24" y="304" fill="#9ba5ba">:END:</text>
+    <text x="24" y="352">Traditional footnote body.</text>
+  </g>
+  <g id="context-items" font-family="monospace" font-size="14" fill="#f3ece3">
+    <!-- Local comment: retain its status, target preview, author/date, and actions. -->
+    <g id="local-comment" data-item-id="restart-review" data-target="reviewed-paragraph">
+      <!-- Retain the comments provider's status/target header; cross-provider
+           header vocabulary harmonization is deferred to a later slice. -->
+      <text x="624" y="72" font-weight="bold">✍ [OPEN] “Review this paragraph.”</text>
+      <text x="640" y="96" font-size="13" fill="#9ba5ba">Demo · 2026-11-14</text>
+      <text x="640" y="120">Local review comment. No remote</text>
+      <text x="640" y="144">provider.</text>
+    </g>
+    <!-- A 24px blank line follows the last body line; next header is at y=192. -->
+    <g id="sidenote" data-item-id="side" data-target="sidenote-reference">
+      <text x="624" y="192" font-weight="bold">✣ Sidenote · side</text>
+      <text x="640" y="216"><tspan font-weight="bold">*Sidenote body.*</tspan> Unicode ✓.</text>
+      <text x="640" y="240">- A list item for wrapping.</text>
+    </g>
+    <g id="footnote" data-item-id="foot" data-target="footnote-reference">
+      <text x="624" y="288" font-weight="bold">† Footnote · foot</text>
+      <text x="640" y="312">Traditional footnote body.</text>
+    </g>
+  </g>
+</svg>

@@ -63,6 +63,11 @@
   "Muted face used for comment timestamps."
   :group 'org-comments)
 
+(defface org-comments-panel-metadata
+  '((t :height 0.9))
+  "Relative size for author/date metadata; existing author colours are retained."
+  :group 'org-comments)
+
 (defconst org-comments-panel-render--author-faces
   [org-comments-panel-author-1
    org-comments-panel-author-2
@@ -220,18 +225,21 @@ Return non-nil when metadata was inserted."
 	 (timestamp (when created-at
 		      (org-comments-panel-render--format-created-at created-at))))
     (when (or author timestamp)
-      (when author
-	(let ((start (point)))
-	  (insert author)
-	  (add-text-properties start (point)
-			       `(face ,(org-comments-panel-render--author-face author)))))
-      (when (and author timestamp)
-	(insert " · "))
-      (when timestamp
-	(let ((start (point)))
-	  (insert timestamp)
-	  (add-text-properties start (point) '(face org-comments-panel-timestamp))))
-      t)))
+      (let ((metadata-start (point)))
+	(when author
+	  (let ((start (point)))
+	    (insert author)
+	    (add-text-properties start (point)
+				 `(face ,(org-comments-panel-render--author-face author)))))
+	(when (and author timestamp)
+	  (insert " · "))
+	(when timestamp
+	  (let ((start (point)))
+	    (insert timestamp)
+	    (add-text-properties start (point) '(face org-comments-panel-timestamp))))
+	(add-face-text-property metadata-start (point)
+				'org-comments-panel-metadata t)
+	t))))
 
 (defun org-comments-panel-render--insert-metadata (comment)
   "Insert author/date metadata for COMMENT when present."

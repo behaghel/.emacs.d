@@ -33,6 +33,11 @@
     (setq copy (plist-put copy :icon
 			  (cp-org-marginalia-context-panel--kind-icon
 			   (plist-get copy :kind))))
+    (setq copy (plist-put copy :label
+			  (format "%s · %s"
+				  (if (eq (plist-get item :kind) 'footnote)
+				      "Footnote" "Sidenote")
+				  (plist-get item :id))))
     (plist-put copy :icon-face 'cp-org-marginalia-context-panel-icon-face)))
 
 (defun cp-org-marginalia-context-panel-collect-side-items (source-buffer)
