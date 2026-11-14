@@ -30,6 +30,14 @@ status: draft
   retains these local backends, and local registration retains Spotify.
 - Registration loads backend definitions only: it does not start players,
   probe media, authorize accounts or change the current queue or transport state.
+- Starting a local WAV/WAVE with unknown duration reads its whole-second duration
+  through local-only `ffprobe`. Known positive durations are preserved; unavailable
+  tools, malformed output or failed probes leave duration explicitly unknown rather
+  than preventing playback. URLs, remote files and other formats are not probed.
+- Elapsed time uses EMMS's native start/pause/resume/seek/stop clock independently
+  of metadata availability. Initialisation preserves the mode-line display preference
+  and never resets an already playing track. Duration enrichment updates track
+  metadata, not playlist text or exact occurrence identities.
 - Playback commands seek backward ten seconds and forward thirty seconds in
   the current EMMS track. Playback and seeking depend on the active external
   player's format and seek support.
