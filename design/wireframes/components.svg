@@ -189,5 +189,11 @@
       <use href="#molecule-music-navigation" width="1280" height="40"/>
       <use href="#molecule-context-panel-footer" y="277" width="1280" height="43"/>
     </symbol>
+    <!-- Context reading: content-area crop, not a change to editor chrome or
+         source-window sizing. Existing face roles supply actual theme colours. -->
+    <symbol id="template-context-reading" viewBox="0 0 1000 400">
+      <rect width="1000" height="400" fill="#0d0e1c"/>
+      <path d="M600 0V400" stroke="#40485c" stroke-width="1"/>
+    </symbol>
   </defs>
 </svg>
