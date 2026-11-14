@@ -11,16 +11,20 @@ any panels.
 
 ## Boundary
 
-The package owns native Org footnote collection, `HUB_NOTE_*` parsing, layout,
-context-panel provider integration, marginalia row rendering, and jump-to-source
-reference behavior.
+The package owns native Org footnote collection, `HUB_NOTE_*` parsing, semantic
+note records and kind icons, its provider descriptor, and explicit activation.
+Its independent layout helper remains available to other callers. Context
+Panels owns row metadata, interaction, viewport placement, and default
+anchor-based navigation; the optional `context-panels-org` library owns Org body
+fontification and wrapped-list indentation. Providers can override rendering and
+navigation for richer interactions.
 
 It does not own Org comments, sidecars, compose flows, filters, help UI,
 Confluence publishing, personal keybindings, or edit/delete/toggle actions.
 
 ## Activation
 
-The package declares Emacs 29.1+, Org 9.6+, and context-panels 0.1.0+.
+The package declares Emacs 29.1+, Org 9.6+, and context-panels 0.2.0+.
 Loading a library does not enable its buffer-local mode or modify source text.
 Local display and reference navigation require no comments package, private
 configuration, accounts, or network access.
@@ -53,11 +57,13 @@ content or create sidecars.
 With sufficient frame width, the panel opens to the right of its displayed
 source window. When enabled alongside `org-comments`, both providers share the
 same `context-panels` side panel. Rows are ordered by viewport/source position;
-provider priority breaks ties. `RET` uses `context-panels-jump-at-point`, so
-marginalia rows jump to their Org footnote reference while comment rows use the
-comments provider action. Marginalia rows bind both terminal `RET` and graphical
+provider priority breaks ties. The collector supplies semantic records without
+precomputing panel placement. The descriptor selects the reusable Org renderer;
+`RET` uses `context-panels-jump-at-point` and its default reference-anchor jump,
+while comment rows retain the comments provider's renderer and action. Marginalia rows bind both terminal `RET` and graphical
 Return events locally, without replacing the panel's major-mode map or other
 providers' bindings. The stable provider ID is `marginalia`; library,
-command, customization, face, and row-property symbols use `cp-org-marginalia`.
+command, customization, and compatibility face symbols use `cp-org-marginalia`.
+Row ownership uses the framework's `context-panels-item` property.
 
 Usage and standalone verification are described in [README.org](README.org).

@@ -20,6 +20,10 @@
 			      :icon)
 		   "📝"))
     (should context-panels-mode)
+    (let ((provider (context-panels-registered-provider 'marginalia)))
+      (should (eq (plist-get provider :render-side-item)
+		  #'context-panels-org-render-side-item))
+      (should-not (plist-get provider :jump-side-item)))
     (cp-org-marginalia-context-panel-mode -1)
     (should-not (context-panels-registered-provider 'marginalia))))
 
@@ -37,7 +41,7 @@
 	    (should (search-forward "✣" nil t))
 	    (goto-char (point-min))
 	    (should (search-forward "Bold" nil t))
-	    (should (get-text-property (point) 'cp-org-marginalia-item))))
+	    (should (get-text-property (point) 'context-panels-item))))
       (when (buffer-live-p source)
 	(kill-buffer source)))))
 
@@ -107,6 +111,20 @@
       (should (eq (key-binding (kbd "<return>")) #'context-panels-jump-at-point))
       (goto-char (point-min))
       (should (eq (key-binding (kbd "RET")) #'ignore)))))
+
+(ert-deftest cp-org-marginalia-context-panel-collects-semantics-without-placement ()
+  "Provider collection preserves note semantics and leaves placement to panels."
+  (with-temp-buffer
+    (org-mode)
+    (insert "Text[fn:one]\n\n[fn:one] Body.\n")
+    (let ((item (car (cp-org-marginalia-context-panel-collect-side-items
+		      (current-buffer)))))
+      (should (equal (plist-get item :id) "one"))
+      (should (equal (plist-get item :icon) "✣"))
+      (should (equal (plist-get item :body) "Body."))
+      (should (integerp (plist-get item :reference-pos)))
+      (should-not (plist-member item :display-line))
+      (should-not (plist-member item :displaced)))))
 
 (provide 'cp-org-marginalia-context-panel-test)
 ;;; cp-org-marginalia-context-panel-test.el ends here
