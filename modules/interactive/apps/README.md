@@ -30,8 +30,8 @@ status: draft
   retains these local backends, and local registration retains Spotify.
 - Registration loads backend definitions only: it does not start players,
   probe media, authorize accounts or change the current queue or transport state.
-- Starting a local WAV/WAVE with unknown duration reads its whole-second duration
-  through local-only `ffprobe`. Known positive durations are preserved; unavailable
+- Starting a local WAV/WAVE or MP3 with unknown duration reads its whole-second
+  duration through local-only `ffprobe`, forcing the corresponding demuxer. Known positive durations are preserved; unavailable
   tools, malformed output or failed probes leave duration explicitly unknown rather
   than preventing playback. URLs, remote files and other formats are not probed.
 - Elapsed time uses EMMS's native start/pause/resume/seek/stop clock independently
@@ -74,8 +74,10 @@ console, keyboard cockpit and consistent music entry points.
   playback state from title sorting and browsing selection, with smaller secondary
   details and per-track Spotify service links. Playback-only redraws reuse retained
   records without moving focus or reopening the library.
-- On a library search result, `RET` appends and plays; `M-RET` appends without
-  interruption. Unavailable, refreshed, removed or closed-library records cannot
+- On a library search result, `RET` appends and plays; `a` appends at the end and
+  `M-RET` inserts next without interruption. A queued item's `M-RET` adds another
+  copy next, never moves its original occurrence. `Q` opens Queue and `+` appends
+  a playable local file chosen by path. Unavailable, refreshed, removed or closed-library records cannot
   mutate playback or the queue.
 - `RET` plays the selected existing occurrence without appending or rebuilding the
   queue, including when the same track occurs more than once. Queue changes during

@@ -16,7 +16,7 @@
       <text x="28" y="179" font-size="17" fill="#9fe0c2">▶</text>
       <g font-size="18" fill="#989898"><text x="847" y="128">Queue #3 ♥ · Spotify</text><text x="847" y="179">Queue #1 ♥ · Spotify · Playing</text></g>
       <text x="28" y="213" font-size="14" fill="#f78fe7">Queue</text>
-      <text x="28" y="253" font-size="15" fill="#9fe0c2">Music (Queue: 3 · Liked: 50/1482 loaded) — RET Play, M-RET Enqueue liked, C-. Actions, C-g Back: <tspan fill="#f3ece3">light</tspan></text>
+      <text x="28" y="253" font-size="15" fill="#9fe0c2">Music (Queue: 3 · Liked: 50/1482 loaded) — RET Play, M-RET Next, C-. Actions, C-g Back: <tspan fill="#f3ece3">light</tspan></text>
       <text x="28" y="305" font-size="14" fill="#9ba5ba">Same marker / title / artist / album / time / provenance columns as Liked Songs. Highlight is not playback.</text>
     </g>
   </g>

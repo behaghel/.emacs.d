@@ -278,21 +278,12 @@ Never contains response bodies, event messages, credentials or track metadata.")
       (emms-track-set track 'info-playing-time (floor duration 1000)))
     track))
 
-(defun hub/spotify-player-add (metadata &optional play)
-  "Append METADATA to EMMS; optionally PLAY the appended occurrence."
+(defun hub/spotify-player-add (metadata &optional play placement)
+  "Insert METADATA at optional PLACEMENT; optionally PLAY the new occurrence.
+PLACEMENT is `end' by default, or `next' after the current EMMS selection."
   (hub/spotify-player-register)
-  (unless (buffer-live-p emms-playlist-buffer)
-    (emms-playlist-set-playlist-buffer (emms-playlist-new)))
-  (let ((track (hub/spotify-player-track metadata)))
-    (with-current-buffer emms-playlist-buffer
-      (save-excursion
-	(goto-char (point-max))
-	(let ((position (point)))
-	  (emms-playlist-insert-track track)
-	  (when play
-	    (emms-stop)
-	    (emms-playlist-select position)))))
-    (when play (emms-start)))
+  (require 'apps/music-queue-actions)
+  (hub/music-queue-insert (hub/spotify-player-track metadata) (or placement 'end) play)
   nil)
 
 (hub/spotify-player-register)

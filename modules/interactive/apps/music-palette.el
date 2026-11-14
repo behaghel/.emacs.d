@@ -85,6 +85,9 @@
 (transient-define-suffix hub/music-palette--liked ()
 			 "Open the existing Liked Songs view."
 			 (interactive) (call-interactively #'hub/spotify-liked-songs))
+(transient-define-suffix hub/music-palette--add-file ()
+			 "Append a local file only after explicit selection."
+			 (interactive) (call-interactively #'hub/music-add-file))
 (transient-define-suffix hub/music-palette--search ()
 			 "Search the queue and loaded Liked Songs without playback preview."
 			 (interactive) (call-interactively #'hub/music-search))
@@ -120,10 +123,15 @@
 (transient-define-prefix hub/music-palette ()
 			 "Show music actions with honest state, availability and icon-plus-text labels."
 			 :refresh-suffixes t
+			 :display-action '(display-buffer-in-direction
+					   (direction . bottom)
+					   (dedicated . t)
+					   (inhibit-same-window . t))
 			 [:description hub/music-palette--heading
 				       ["GO TO"
 					("l" "Liked Songs  'ml" hub/music-palette--liked)
-					("+" "Edit queue   'm+" hub/music-queue)
+					("Q" "Edit queue   'mQ" hub/music-queue)
+					("+" "Append file   'm+" hub/music-palette--add-file)
 					("/" "Search music 'm/" hub/music-palette--search)
 					("m" "Focus player 'mm" hub/music-palette--player)]
 				       ["TRANSPORT"

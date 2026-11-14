@@ -16,7 +16,8 @@ or playlist authority.
 |---------|--------|
 | `'mm` | Open or focus the docked player |
 | `'ml` | Open or focus Spotify Liked Songs |
-| `'m+` | Open the current editable EMMS queue |
+| `'mQ` | Open the current editable EMMS queue |
+| `'m+` | Append a file chosen by path |
 | `'m/` | Search music |
 | `'m?` | Show the music action palette |
 
@@ -27,11 +28,45 @@ the queue or enables spectrum capture. Existing player and prefixed transport
 bindings retain their meanings. In the player, `l` opens or focuses Liked Songs
 with the same behavior as `'ml`; `?` opens the action palette.
 
-Music views use `m` for Player, `l` for Liked Songs, `+` for Queue, `/` for Search,
-`?` for Actions and `q` for Close. Liked Songs uses `g+` for Load more and `gr` for
-Refresh. Query typing remains ordinary minibuffer input.
+Music views use `m` for Player, `l` for Liked Songs, `Q` for Queue, `+` for adding
+a local file by path, `/` for Search, `?` for Actions and `q` for Close. The legacy
+`'mq` queue alias remains available. Liked Songs uses `g+` for Load more and `gr`
+for Refresh. Query typing remains ordinary minibuffer input. Queue search uses
+Evil normal/motion overrides; EMMS's underlying `/` filtering prefix remains
+available to native modules regardless of their initialisation order.
+
+`a` appends one copy at the end; `M-RET` inserts one copy immediately after the
+current EMMS selection. With no selection, next insertion goes first. Neither
+operation starts playback when stopped or interrupts a playing/paused item.
+An already queued item is copied, never moved; intentional duplicates remain.
+The `+` file prompt appends a readable, playable local file; cancellation leaves
+the queue unchanged. File completion keeps local directories for navigation and
+readable files matching registered players' filename-extension regexps. It does
+not construct tracks or probe media while listing candidates. Directories and
+remote paths are not file additions; the chosen file still requires final
+player validation.
+
+`-` in Player removes the selected queue occurrence; in Queue it removes the
+occurrence at point. Search exposes removal through `C-. -`, leaving literal
+hyphens available for query input. Removal never guesses an occurrence from a
+library record or URI, and stale queue targets are rejected. Other occurrences,
+including duplicates of the same track, keep their identity and order.
+
+Removing the playing occurrence stops it before deletion and plays its immediate
+successor. Removing the paused occurrence stops its backend and selects the
+successor without starting it; `SPC` can then play it. Stopped selections do not
+autoplay either. Without a successor playback stays stopped, with the last
+remaining occurrence selected when available. Unconfirmed stops or source and
+selection changes during acknowledgement block deletion and restart. Removing
+any non-selected occurrence does not stop, pause or restart playback.
 
 ## Shared panel chrome
+
+Actions uses a normal Transient window below the main editing area and above
+any docked Player. It does not create a second bottom side window or join the
+Player's atomic body/footer group. `q` and Escape close only Actions and return
+focus to its caller, leaving the Player, footer and playback unchanged. Other
+Transient menus retain their own display policy.
 
 Context-panel providers share native tabs and a fixed bottom footer. Tabs expose
 all available provider views, not just music. `C-Tab` and `C-S-Tab` move to the
@@ -157,9 +192,13 @@ never authorize, fetch, reopen a view or start playback.
   appending. Playing a library-only candidate uses the existing append-and-play
   behavior. Enqueueing a library-only or combined candidate appends exactly one
   copy without interruption. A queue-only candidate does not gain a library action.
+  `M-RET` inserts a copy next instead of appending: queued rows copy their exact
+  occurrence, including local files; library-only rows copy their retained record.
   Each action validates the retained source it acts on: the exact queue occurrence
-  for Play, or the loaded library record and generation for append.
-- The existing Embark action menu exposes Play (`p`) and Append (`a`) for music
+  for Play/queued-copy-next, or the loaded library record and generation for a
+  library append/next operation.
+- The existing Embark action menu exposes Play (`p`), Append (`a`) and Add next
+  (`n`) for music
   search results. These actions use the same retained row identities and source
   validation as RET and M-RET, never parsing a label or looking up a replacement
   by title or URI. Opening, inspecting or cancelling the menu is passive. A target

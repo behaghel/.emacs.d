@@ -25,22 +25,26 @@
   "Configured local media preference, appended without replacing existing players.")
 
 (defun hub/emms-local--read-duration (track)
-  "Fill TRACK's missing whole-second WAV duration on explicit playback.
-Only regular, absolute local WAV/WAVE paths reach ffprobe.  Do not overwrite
-known duration or rewrite playlist text.  Probe failures must not stop audio."
-  (let ((file (emms-track-name track))
-	(known (emms-track-get track 'info-playing-time))
-	(case-fold-search t))
+  "Fill TRACK's missing whole-second WAV/MP3 duration on explicit playback.
+Only regular, absolute local WAV/WAVE or MP3 paths reach ffprobe, with a forced
+matching demuxer.  Preserve known duration and playlist text.  Probe failures
+are nonfatal."
+  (let* ((file (emms-track-name track))
+	 (known (emms-track-get track 'info-playing-time))
+	 (case-fold-search t)
+	 (demuxer (and (stringp file)
+		       (cond ((string-match-p "\\.wave?\\'" file) "wav")
+			     ((string-match-p "\\.mp3\\'" file) "mp3")))))
     (when (and (eq (emms-track-type track) 'file) (stringp file)
 	       (not (file-remote-p file)) (file-name-absolute-p file)
-	       (string-match-p "\\.wave?\\'" file)
+	       demuxer
 	       (not (and (numberp known) (> known 0))) (file-regular-p file))
       (if-let* ((program (executable-find "ffprobe")))
 	  (condition-case err
 	      (with-temp-buffer
 		(let ((default-directory "/") (coding-system-for-read 'utf-8-unix))
 		  (when (eq 0 (call-process program nil (list (current-buffer) t) nil
-					    "-v" "error" "-protocol_whitelist" "file" "-f" "wav"
+					    "-v" "error" "-protocol_whitelist" "file" "-f" demuxer
 					    "-show_entries" "format=duration" "-of"
 					    "default=noprint_wrappers=1:nokey=1" "-i" file))
 		    (let ((output (string-trim (buffer-string))))
@@ -49,11 +53,11 @@ known duration or rewrite playlist text.  Probe failures must not stop audio."
 			  (when (and (>= seconds 1) (< seconds most-positive-fixnum)
 				     (equal file (emms-track-name track)))
 			    (emms-track-set track 'info-playing-time (floor seconds)))))))))
-	    (error (message "Local WAV duration unavailable: %s" (error-message-string err))))
-	(message "Local WAV duration unavailable: ffprobe is not on exec-path")))))
+	    (error (message "Local audio duration unavailable: %s" (error-message-string err))))
+	(message "Local audio duration unavailable: ffprobe is not on exec-path")))))
 
 (defun hub/emms-local--track-started ()
-  "Read missing local WAV duration for the explicitly started EMMS selection."
+  "Read missing local WAV/MP3 duration for the explicitly started EMMS selection."
   (when-let* ((track (and (buffer-live-p emms-playlist-buffer)
 			  (condition-case nil (emms-playlist-current-selected-track) (error nil)))))
     (hub/emms-local--read-duration track)))

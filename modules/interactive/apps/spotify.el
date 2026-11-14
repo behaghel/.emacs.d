@@ -224,11 +224,16 @@ Return non-nil only when the native column schema changes."
 (define-key hub/spotify-library-mode-map (kbd "gr") #'hub/spotify-refresh)
 (define-key hub/spotify-library-mode-map (kbd "g+") #'hub/spotify-load-more)
 (define-key hub/spotify-library-mode-map (kbd "q") #'hub/spotify-close)
-(define-key hub/spotify-library-mode-map (kbd "+") #'hub/music-queue)
+(define-key hub/spotify-library-mode-map (kbd "Q") #'hub/music-queue)
+(define-key hub/spotify-library-mode-map (kbd "+") #'hub/music-add-file)
+(define-key hub/spotify-library-mode-map (kbd "M-RET") #'hub/music-add-next)
 (with-eval-after-load 'evil
   (evil-define-key 'normal hub/spotify-library-mode-map
 		   (kbd "a") #'hub/spotify-add-selected
 		   (kbd "RET") #'hub/spotify-play-selected
+		   (kbd "M-RET") #'hub/music-add-next
+		   (kbd "Q") #'hub/music-queue
+		   (kbd "+") #'hub/music-add-file
 		   (kbd "g+") #'hub/spotify-load-more
 		   (kbd "gr") #'hub/spotify-refresh
 		   (kbd "q") #'hub/spotify-close))

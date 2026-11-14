@@ -1,0 +1,27 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="720" viewBox="0 0 1280 720">
+  <!-- SCREEN: Queue; STORY: music-keyboard-cockpit; STATE: after M-RET on original third occurrence; current first occurrence remains paused, new copy is next, original is fourth; DOMAIN: personal-apps/apps. Fictional metadata. -->
+  <use href="components.svg#template-music-workspace" width="1280" height="720"/>
+  <g transform="translate(0 400)">
+    <use href="components.svg#template-music-cockpit-panel" width="1280" height="320"/>
+    <rect x="309" y="7" width="98" height="28" rx="4" fill="#222b40"/>
+    <text x="320" y="25" font-family="Ubuntu Mono, monospace" font-size="15" fill="#9fe0c2">Queue</text>
+    <use href="components.svg#molecule-music-fixture-row-fields" y="53" width="1280" height="38"/>
+    <use href="components.svg#molecule-music-fixture-row-fields" y="99" width="1280" height="38"/>
+    <use href="components.svg#molecule-music-fixture-row-fields" y="191" width="1280" height="38"/>
+    <g font-family="Ubuntu Mono, monospace" font-size="18">
+      <text x="28" y="80" fill="#b6a0ff">⏸</text>
+      <text x="847" y="80" fill="#989898">Queue #1 ♥ · Spotify · Paused</text>
+      <text x="847" y="126" fill="#989898">Queue #2 ♥ · Spotify</text>
+      <text x="64" y="172" fill="#2fafff" font-weight="600">Paper Lanterns</text>
+      <text x="361" y="172" fill="#00d3d0">Field Recordings</text>
+      <text x="568" y="172" fill="#feacd0">Night Walks</text>
+      <text x="838" y="172" fill="#d0bc00" text-anchor="end">3:12</text>
+      <text x="847" y="172" fill="#989898">Queue #3 · Local file</text>
+      <text x="847" y="218" fill="#989898">Queue #4 ♥ · Spotify</text>
+      <rect x="63" y="200" width="2" height="22" fill="#9fe0c2"/>
+      <text x="28" y="255" font-size="14" fill="#989898">One copy added next. The original stays here; current audio is uninterrupted.</text>
+      <use href="components.svg#molecule-music-queue-footer-actions" y="277" width="1280" height="43"/>
+      <text x="1248" y="305" text-anchor="end" font-size="14" fill="#989898">4 tracks · 16:54</text>
+    </g>
+  </g>
+</svg>
