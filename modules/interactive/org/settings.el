@@ -6,6 +6,11 @@
 ;;; Code:
 
 (require 'hub-utils)
+(require 'org)
+
+;; Sidecar parsing can enter Org during mode-line redisplay.  The optional
+;; agenda-file submenu is unused here and must not be rebuilt by that path.
+(setq org-agenda-file-menu-enabled nil)
 
 (defgroup hub/org nil
   "Customizations for Org paths and behavior."
