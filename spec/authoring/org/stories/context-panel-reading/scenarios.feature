@@ -46,6 +46,7 @@ Feature: Read nearby notes and comments without visual crowding
   # AC-2: Hierarchy and wrapping distinguish items without a provider regrouping.
   @wireframe:context-panel-reading.svg
   Scenario: Read the mixed panel at its normal narrow width
+    Given the panel is narrower than Emacs's automatic partial-width truncation threshold
     When I open the context panel at its configured width
     Then each item has a clear icon and header identifying its kind and label or status
     And comment author and date are visually quieter than the header and body
