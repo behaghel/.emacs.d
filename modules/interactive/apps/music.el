@@ -48,6 +48,7 @@
 
 (autoload 'hub/music-palette "apps/music-palette" "Show the native music action palette." t)
 (autoload 'hub/music-search "apps/music-search" "Search the queue and already loaded Liked Songs." t)
+(autoload 'hub/music-queue-listing-mode "apps/music-queue" "Style existing EMMS queue spans." t)
 (autoload 'hub/spotify-liked-songs "apps/spotify" nil t)
 (autoload 'hub/spotify-connect "apps/spotify-auth" nil t)
 (autoload 'hub/spotify-browser-connect "apps/spotify-browser" nil t)
@@ -185,9 +186,18 @@ Use an ASCII marker if the current font cannot display the icon."
     (list (list :id 'queue :label "Queue" :docked t :buffer emms-playlist-buffer
 		:footer #'hub/music-queue-footer))))
 
+(defun hub/music--style-queue ()
+  "Enable shared columns on the existing EMMS queue without creating one."
+  (when (buffer-live-p emms-playlist-buffer)
+    (with-current-buffer emms-playlist-buffer
+      (when (and (derived-mode-p 'emms-playlist-mode)
+		 (not (bound-and-true-p hub/music-queue-listing-mode)))
+	(hub/music-queue-listing-mode 1)))))
+
 (defun hub/music--register-queue-view (source)
   "Register the actual queue for SOURCE only when native tab adoption is supported."
   (when (fboundp 'context-panels-tabs-format)
+    (hub/music--style-queue)
     (with-current-buffer source
       (context-panels-register-provider
        (list :name 'emms-queue :icon "♫" :collect-bottom-views #'hub/music--queue-views)))))
@@ -208,6 +218,7 @@ Use an ASCII marker if the current font cannot display the icon."
   (unless (buffer-live-p emms-playlist-buffer)
     (emms-playlist-set-playlist-buffer (emms-playlist-new)))
   (require 'context-panels)
+  (hub/music--style-queue)
   (if (and (fboundp 'context-panels-tabs-format)
 	   (not (and (eq (current-buffer) emms-playlist-buffer)
 		     (not (window-parameter (selected-window) 'context-panels-protected)))))

@@ -1,0 +1,25 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="720" viewBox="0 0 1280 720">
+  <!-- SCREEN: Queue; STORY: music-keyboard-cockpit; STATE: actual editable EMMS queue, first occurrence paused, duplicate third occurrence browsed; DOMAIN: personal-apps/apps. Presentation overlays preserve native track spans. Fictional metadata. -->
+  <use href="components.svg#template-music-workspace" width="1280" height="720"/>
+  <g transform="translate(0 400)">
+    <use href="components.svg#template-music-cockpit-panel" width="1280" height="320"/>
+    <rect x="309" y="7" width="98" height="28" rx="4" fill="#222b40"/>
+    <text x="320" y="25" font-family="Ubuntu Mono, monospace" font-size="15" fill="#9fe0c2">Queue</text>
+    <use href="components.svg#molecule-music-fixture-row-fields" y="53" width="1280" height="38"/>
+    <use href="components.svg#molecule-music-fixture-row-fields" y="145" width="1280" height="38"/>
+    <g font-family="Ubuntu Mono, monospace" font-size="18">
+      <text x="28" y="80" fill="#b6a0ff">⏸</text>
+      <text x="847" y="80" fill="#989898">Queue #1 ♥ · Spotify · Paused</text>
+      <text x="64" y="126" fill="#2fafff" font-weight="600">Paper Lanterns</text>
+      <text x="361" y="126" fill="#00d3d0">Field Recordings</text>
+      <text x="568" y="126" fill="#feacd0">Night Walks</text>
+      <text x="838" y="126" fill="#d0bc00" text-anchor="end">3:12</text>
+      <text x="847" y="126" fill="#989898">Queue #2 · Local file</text>
+      <text x="847" y="172" fill="#989898">Queue #3 ♥ · Spotify</text>
+      <rect x="63" y="154" width="2" height="22" fill="#9fe0c2"/>
+      <text x="28" y="235" font-size="14" fill="#989898">Native EMMS selection, deletion, move and yank act on these exact occurrences.</text>
+      <text x="28" y="305" font-size="14" fill="#9ba5ba"><tspan fill="#aab6ff">RET</tspan> <tspan fill="#9fe0c2">Play</tspan>   <tspan fill="#aab6ff">m</tspan> Player   <tspan fill="#aab6ff">l</tspan> Liked Songs   <tspan fill="#aab6ff">/</tspan> Search   <tspan fill="#aab6ff">?</tspan> Actions   <tspan fill="#aab6ff">q</tspan> Close</text>
+      <text x="1248" y="305" text-anchor="end" font-size="14" fill="#989898">3 tracks · 12:20</text>
+    </g>
+  </g>
+</svg>

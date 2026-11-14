@@ -110,6 +110,7 @@ Return non-nil only when the native column schema changes."
   "Render loaded rows without selecting a window."
   (hub/spotify--setup-rows)
   (tabulated-list-print t)
+  (run-hooks 'hub/music-library-changed-hook)
   (when (fboundp 'context-panels-footer-update) (context-panels-footer-update (current-buffer)))
   (unless tabulated-list-entries
     (let ((inhibit-read-only t))
