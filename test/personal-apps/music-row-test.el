@@ -26,7 +26,8 @@
 			(seq-subseq (hub/music-row-cells liked) 1 5)))
 	 (should (equal (hub/music-row-title liked) "Low Light"))
 	 (should (equal (hub/music-row-time liked) "4:34"))
-	 (should (string-match-p "Liked #13" (hub/music-row-label liked)))
+	 (should (string-match-p "♥\\|Liked" (hub/music-row-label liked)))
+	 (should-not (string-match-p "Liked #[0-9]" (hub/music-row-label liked)))
 	 (should (eq (hub/music-row-track liked) raw))
 	 (should (equal before (with-current-buffer playlist (buffer-string)))))))))
 
@@ -274,6 +275,25 @@
 			   (alist-get (cdr role) colours))))
 	  (should (equal before (face-attribute 'default :foreground))))
       (hub/music-row--apply-faces))))
+
+(ert-deftest hub/music-row-provenance-shows-queue-rank-and-heart-without-liked-rank ()
+  "Only queue occurrences have ranks; a heart denotes retained Liked membership."
+  (hub/music-search-test--queue
+   (hub/music-search-test--library
+    (let* ((queued (hub/music-row-from-queue duplicate playlist (nth 2 positions) 17))
+	   (liked (hub/music-row-from-liked raw 42 library)))
+      (cl-letf (((symbol-function 'char-displayable-p) (lambda (_) t)))
+	(should (equal (substring-no-properties (hub/music-row--provenance queued)) "Queue #18 · Spotify"))
+	(setf (hub/music-row-liked-row queued) liked)
+	(should (equal (substring-no-properties (hub/music-row--provenance queued)) "Queue #18 ♥ · Spotify"))
+	(should (equal (substring-no-properties (hub/music-row--provenance liked)) "♥ · Spotify"))
+	(let* ((label (hub/music-row--provenance queued))
+	       (position (string-match-p "♥" label)))
+	  (should (equal (get-text-property position 'help-echo label) "Saved in loaded Liked Songs")))
+	(should (eq (hub/music-row-liked-row queued) liked)))
+      (cl-letf (((symbol-function 'char-displayable-p) (lambda (_) nil)))
+	(should (string-match-p "Liked" (hub/music-row--provenance liked)))
+	(should-not (string-match-p "#[0-9]" (hub/music-row--provenance liked))))))))
 
 (provide 'music-row-test)
 ;;; music-row-test.el ends here

@@ -83,6 +83,17 @@ Feature: Music navigation at the speed of the editor
     And rendering changes no source records, queue order, playback or authorization
 
   @wireframe:music-cockpit-liked-songs.svg @wireframe:music-cockpit-search.svg
+  Scenario: Distinguish queue position from saved status visually
+    Given a track is queued at position 18 and is absent from loaded Liked Songs
+    Then its source flag reads "Queue #18"
+    When the same track is also present in loaded Liked Songs
+    Then its source flag reads "Queue #18 ♥"
+    And a library-only result shows "♥" without a library rank
+    And the heart means saved, never playing or selected
+    And unavailable heart glyphs fall back to readable "Liked" text
+    And Play and Append retain their existing exact source identities
+
+  @wireframe:music-cockpit-liked-songs.svg @wireframe:music-cockpit-search.svg
   Scenario: Follow the active theme palette without changing global faces
     Given Liked Songs and music search share retained metadata
     When I enable a light or dark Modus theme with palette overrides
@@ -129,7 +140,7 @@ Feature: Music navigation at the speed of the editor
     Given the same Spotify URI occurs at queue positions 1 and 3 and in loaded Liked Songs
     And another loaded recording has the same title but a different Spotify URI
     When I search music
-    Then I see both exact queue occurrences with Queue + Liked provenance
+    Then I see both exact queue occurrences with their queue positions and heart flags
     And there is no third library-only hit for their shared URI
     And the different recording stays separately searchable
     And loaded-library coverage still includes the combined record

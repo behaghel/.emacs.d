@@ -6,7 +6,7 @@
     <g font-family="Ubuntu Mono, monospace">
       <g font-size="18">
         <text x="64" y="49" fill="#2fafff" font-weight="600">Low Light (live)</text><text x="361" y="49" fill="#00d3d0">Quiet Geometry</text>
-        <text x="568" y="49" fill="#feacd0">At the Observatory</text><text x="838" y="49" fill="#d0bc00" text-anchor="end">5:08</text><text x="847" y="49" fill="#989898">Liked #12 · Spotify</text>
+        <text x="568" y="49" fill="#feacd0">At the Observatory</text><text x="838" y="49" fill="#d0bc00" text-anchor="end">5:08</text><text x="847" y="49" fill="#989898">♥ · Spotify</text>
       </g>
       <use href="components.svg#atom-music-spotify" x="25" y="65" width="24" height="24"/>
       <text x="59" y="82" font-size="14" fill="#f78fe7">Liked Songs · 50/1,482 loaded</text>
@@ -14,7 +14,7 @@
       <use href="components.svg#molecule-music-fixture-row-fields" y="101" width="1280" height="38"/>
       <use href="components.svg#molecule-music-fixture-row-fields" y="152" width="1280" height="38"/>
       <text x="28" y="179" font-size="17" fill="#9fe0c2">▶</text>
-      <g font-size="18" fill="#989898"><text x="847" y="128">Queue #3 + Liked · Spotify</text><text x="847" y="179">Queue #1 + Liked · Spotify · Playing</text></g>
+      <g font-size="18" fill="#989898"><text x="847" y="128">Queue #3 ♥ · Spotify</text><text x="847" y="179">Queue #1 ♥ · Spotify · Playing</text></g>
       <text x="28" y="213" font-size="14" fill="#f78fe7">Queue</text>
       <text x="28" y="253" font-size="15" fill="#9fe0c2">Music (Queue: 3 · Liked: 50/1482 loaded) — RET Play, M-RET Enqueue liked, C-. Actions, C-g Back: <tspan fill="#f3ece3">light</tspan></text>
       <text x="28" y="305" font-size="14" fill="#9ba5ba">Same marker / title / artist / album / time / provenance columns as Liked Songs. Highlight is not playback.</text>

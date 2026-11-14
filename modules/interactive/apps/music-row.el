@@ -144,12 +144,18 @@ Shrink long text fields first; preserve a readable time and provenance column."
 
 (defun hub/music-row--provenance (row)
   "Return ROW's searchable provenance without using it as action identity."
-  (propertize
-   (format "%s #%d%s · %s%s"
-	   (if (eq (hub/music-row-origin row) 'queue) "Queue" "Liked")
-	   (1+ (hub/music-row-index row)) (if (hub/music-row-liked-row row) " + Liked" "")
-	   (hub/music-row-service row) (if (hub/music-row-playable row) "" " · unavailable"))
-   'face 'hub/music-row-source 'hub/music-row-field 'source))
+  (let* ((queued (eq (hub/music-row-origin row) 'queue))
+	 (liked (or (not queued) (hub/music-row-liked-row row)))
+	 (heart (if (char-displayable-p ?♥) "♥" "Liked")))
+    (propertize
+     (concat (if queued
+		 (concat (format "Queue #%d" (1+ (hub/music-row-index row)))
+			 (when liked (concat " " heart)))
+	       heart)
+	     " · " (hub/music-row-service row)
+	     (if (hub/music-row-playable row) "" " · unavailable"))
+     'face 'hub/music-row-source 'hub/music-row-field 'source
+     'help-echo (when liked "Saved in loaded Liked Songs"))))
 
 (defun hub/music-row-label (row)
   "Return searchable styled fields and provenance, never ROW's action identity."

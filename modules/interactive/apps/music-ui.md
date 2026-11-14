@@ -101,7 +101,12 @@ A stale source is rejected before mutation. Formatting never constructs a playab
 track, accesses credentials or fetches metadata.
 
 Liked Songs and Vertico search use the same native column schema: playback marker,
-title, artist, album, right-aligned time, and provenance. Column widths adapt to the
+title, artist, album, right-aligned time, and provenance. Source flags show
+`Queue #N` for a queue-only occurrence, `Queue #N ♥` for an occurrence also saved
+in loaded Liked Songs, and `♥` for a library-only result. Only queue positions have
+ranks. The heart has readable saved-status help and a `Liked` fallback when the
+font cannot display it; it never denotes playback or browsing selection.
+Column widths adapt to the
 available view width; long values are ellipsized rather than pushing later fields
 out of alignment. Search still matches full retained metadata and acts on retained
 identities, never the truncated display text. Native reverse ordering is preserved.
