@@ -20,7 +20,7 @@
 	(let ((dependency (assq 'context-panels
 				(package-desc-reqs (package-buffer-info)))))
 	  (should dependency)
-	  (should (version-list-<= '(0 1 0) (cadr dependency))))))))
+	  (should (version-list-<= '(0 2 0) (cadr dependency))))))))
 
 (ert-deftest cp-org-marginalia-standalone-displays-notes-and-jumps-to-references ()
   "Both note kinds render without metadata and jump to their prose reference."

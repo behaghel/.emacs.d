@@ -20,7 +20,7 @@ status: draft
 - Writing helpers should not make batch loads or isolated authoring tests depend on optional interactive packages unless guarded.
 - Machine-specific paths belong in private overrides or defcustoms, not hard-coded shared behavior.
 - Generated PDFs, TeX files, screenshots, and visual diff artifacts belong under runtime output locations, not tracked golden files.
-- Marginalia authoring uses native Org footnotes as the canonical source; the panel is a read-only projection whose navigation follows the [marginalia provider contract](../../../packages/cp-org-marginalia/README.md). Definitions remain editable in the source through Org's native footnote navigation.
+- Marginalia authoring uses native Org footnotes as the canonical source; the panel is a read-only projection whose navigation follows the [marginalia provider contract](../../../packages/cp-org-marginalia/README.md). Shared row interaction and the optional Org renderer come from Context Panels; comment rows retain their provider-specific rendering and actions. Definitions remain editable in the source through Org's native footnote navigation.
 - Marginalia stacking preserves source order and may push later notes downward when anchors are close.
 
 ## Marginalia Contract
