@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 400" width="1000" height="400" role="img" aria-labelledby="title description">
+  <title id="title">Mixed-provider context panel — focused local thread proposal</title>
+  <desc id="description">The focused comment retains its full body and a locally authored reply before the native sidenote and footnote. Reply identity, author colour and comment actions remain intact; common row composition does not turn notes into comments.</desc>
+  <!-- SCREEN: Mixed context, focused thread. STORY: authoring/org/context-provider-harmonization.
+       STATE: selected comment with one reply. DOMAIN: authoring/org.
+       Same grid and navigation as the overview. Existing focus workflow selects
+       the comment; this page does not introduce automatic source scrolling on
+       panel row movement. Theme-derived highlight colour is illustrative.
+       Return on the root uses its source target. Reply actions use reply identity,
+       never the root or a neighbouring note. No thread-model or storage changes. -->
+  <use href="components.svg#template-context-reading" width="1000" height="400"/>
+  <rect x="616" y="54" width="376" height="174" fill="#222b40"/>
+  <use href="components.svg#organism-context-review-source" width="600" height="400"/>
+  <use href="components.svg#molecule-context-review-comment" x="624" y="58" width="376" height="120"/>
+  <g id="reply" font-family="monospace" font-size="14" fill="#f3ece3" data-item-id="review-reply">
+    <text x="640" y="192" font-size="13" fill="#9ba5ba">↳ <tspan fill="#feacd0">Demo</tspan> · 2026-11-14</text>
+    <text x="656" y="216">Keep this wording.</text>
+  </g>
+  <use href="components.svg#organism-context-review-notes" x="624" y="250" width="376" height="144"/>
+</svg>
