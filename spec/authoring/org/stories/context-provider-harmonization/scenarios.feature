@@ -1,4 +1,4 @@
-@story:context-provider-harmonization @domain:authoring/org @priority:must @status:done
+@story:context-provider-harmonization @domain:authoring/org @priority:must @status:in-progress
 Feature: Read and navigate different context providers as one panel
   As an Org author reviewing a document
   I want consistent contextual rows with actions appropriate to each item
@@ -106,7 +106,8 @@ Feature: Read and navigate different context providers as one panel
     When I press "?" again without changing windows
     Then the help window closes and the side panel stays open and selected
     And panel point, source point and source scrolling are unchanged
-    And the existing normal-state "q" command still closes the panel itself
+    And the existing normal-state "q" command closes the actual source-associated panel
+    And a provider's changed buffer-name preference does not prevent closing it
 
   # AC-4: Unsupported operations cannot fall through to a neighbouring comment.
   @wireframe:context-provider-harmonization.svg @edge-case

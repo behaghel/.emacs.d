@@ -258,6 +258,11 @@
 		  (let ((help (context-panels-item-help-text)))
 		    (should (string-match-p "[Rr]eply" help))
 		    (should-not (string-match-p "r: reply\\|r    reply" help)))
+		  ;; Reproduce ordinary re-registration restoring package defaults
+		  ;; after a personally named mixed panel is already displayed.
+		  (with-current-buffer source
+		    (let ((org-comments-panel-buffer-name " *different configured panel*"))
+		      (context-panels-register-provider (org-comments-context-panel-provider))))
 		  (execute-kbd-macro (kbd "q"))
 		  (should-not (get-buffer-window panel))
 		  (should (buffer-live-p source))))
