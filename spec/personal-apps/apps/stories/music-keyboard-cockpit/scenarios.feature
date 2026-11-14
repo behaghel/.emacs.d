@@ -83,6 +83,19 @@ Feature: Music navigation at the speed of the editor
     And rendering changes no source records, queue order, playback or authorization
 
   @wireframe:music-cockpit-liked-songs.svg @wireframe:music-cockpit-search.svg
+  @wireframe:music-cockpit-queue.svg
+  Scenario: Share listing columns without replacing the editable EMMS queue
+    Given the actual EMMS queue contains a local file and two deliberate copies of a saved Spotify track
+    When I open its Queue tab
+    Then the queue uses the same title, artist, album, time, source flags and palette as Liked Songs and search
+    And its playing or paused marker identifies the exact active occurrence independently of browsing
+    And styling and resizing preserve playlist text, character revisions, point, selection and undo history
+    When I delete, move or yank a track with native EMMS commands
+    Then the underlying queue changes exactly once and the displayed ranks follow its order
+    And playing the second duplicate selects that existing occurrence without appending
+    And removing the display styling leaves the native playlist text intact
+
+  @wireframe:music-cockpit-liked-songs.svg @wireframe:music-cockpit-search.svg
   Scenario: Distinguish queue position from saved status visually
     Given a track is queued at position 18 and is absent from loaded Liked Songs
     Then its source flag reads "Queue #18"

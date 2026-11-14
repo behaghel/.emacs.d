@@ -29,41 +29,9 @@
 (declare-function vertico--exhibit "vertico" ())
 (autoload 'hub/spotify-player-add "apps/spotify-player" nil nil)
 
-(defun hub/music-search--queue (playlist)
-  "Project PLAYLIST occurrences without moving point or selection."
-  (when (buffer-live-p playlist)
-    (with-current-buffer playlist
-      (save-excursion
-	(save-restriction
-	  (widen)
-	  (goto-char (point-min))
-	  (let ((index 0) rows)
-	    (emms-walk-tracks
-	     (push (hub/music-row-from-queue (emms-playlist-track-at (point)) playlist (point) index) rows)
-	     (cl-incf index))
-	    (nreverse rows)))))))
-
-(defun hub/music-search--liked (library)
-  "Project LIBRARY's already retained records; never load or fetch a page."
-  (when library
-    (with-current-buffer library
-      (mapcar (lambda (entry) (hub/music-row-from-liked (cdr entry) (car entry) library)) hub/spotify--tracks))))
-
-(defun hub/music-search--combine (queue liked)
-  "Combine QUEUE occurrences with LIKED rows by exact Spotify URI.
-Retain each queue occurrence and its matching library identity; remove only
-redundant library hits.  Neither source is fetched or changed."
-  (let ((by-uri (make-hash-table :test #'equal))
-	(represented (make-hash-table :test #'equal)))
-    (dolist (row liked)
-      (let ((uri (hub/music-row-uri row)))
-	(when (and (stringp uri) (string-match-p "\\`spotify:track:[[:alnum:]]\\{22\\}\\'" uri))
-	  (puthash uri row by-uri))))
-    (dolist (row queue)
-      (when-let* ((match (gethash (hub/music-row-uri row) by-uri)))
-	(setf (hub/music-row-liked-row row) match)
-	(puthash (hub/music-row-uri row) t represented)))
-    (cons queue (cl-remove-if (lambda (row) (gethash (hub/music-row-uri row) represented)) liked))))
+(defalias 'hub/music-search--queue #'hub/music-row-queue)
+(defalias 'hub/music-search--liked #'hub/music-row-liked)
+(defalias 'hub/music-search--combine #'hub/music-row-combine)
 
 (defun hub/music-search--target (target)
   "Resolve TARGET's retained row property, never parsing its display text."

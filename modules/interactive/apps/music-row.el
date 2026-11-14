@@ -122,6 +122,45 @@ Shrink long text fields first; preserve a readable time and provenance column."
      :album (hub/music-row--text (alist-get 'name (alist-get 'album track)) "Unknown album")
      :seconds (when (numberp duration) (/ duration 1000.0)))))
 
+(defun hub/music-row-queue (playlist)
+  "Project PLAYLIST occurrences without moving point or selection."
+  (when (buffer-live-p playlist)
+    (with-current-buffer playlist
+      (save-excursion
+	(save-restriction
+	  (widen)
+	  (goto-char (point-min))
+	  (let ((index 0) rows)
+	    (emms-walk-tracks
+	     (push (hub/music-row-from-queue (emms-playlist-track-at (point)) playlist (point) index) rows)
+	     (cl-incf index))
+	    (nreverse rows)))))))
+
+(defun hub/music-row-liked (library)
+  "Project LIBRARY's retained records without fetching or loading anything."
+  (when library
+    (with-current-buffer library
+      (mapcar (lambda (entry) (hub/music-row-from-liked (cdr entry) (car entry) library)) hub/spotify--tracks))))
+
+(defun hub/music-row-combine (queue liked)
+  "Combine QUEUE occurrences with LIKED rows by exact Spotify URI.
+Retain each queue occurrence and its matching library identity; remove only
+redundant library hits.  Neither source is fetched or changed."
+  (let ((by-uri (make-hash-table :test #'equal))
+	(represented (make-hash-table :test #'equal)))
+    (dolist (row liked)
+      (let ((uri (hub/music-row-uri row)))
+	(when (and (stringp uri) (string-match-p "\\`spotify:track:[[:alnum:]]\\{22\\}\\'" uri))
+	  (puthash uri row by-uri))))
+    (dolist (row queue)
+      (when-let* ((match (gethash (hub/music-row-uri row) by-uri)))
+	(setf (hub/music-row-liked-row row) match)
+	(puthash (hub/music-row-uri row) t represented)))
+    (cons queue (cl-remove-if (lambda (row) (gethash (hub/music-row-uri row) represented)) liked))))
+
+(defvar hub/music-library-changed-hook nil
+  "Passive display observers notified after loaded library records are rendered.")
+
 (defun hub/music-row-time (row)
   "Format ROW's known duration without inventing missing time."
   (let ((seconds (hub/music-row-seconds row)))
@@ -221,6 +260,27 @@ The full search candidate and its retained identity are never replaced."
       (let ((tabulated-list-format layout) (tabulated-list-padding 0))
 	(tabulated-list-print-entry (hub/music-row-index row) cells)
 	(buffer-substring (point-min) (1- (point-max)))))))
+
+(defun hub/music-row-plain-display (text)
+  "Resolve native TEXT ellipses and column spaces for a display replacement.
+Emacs does not process nested display replacements.  Keep semantic properties,
+while materializing the table printer's ellipses and fixed-pitch column padding."
+  (let ((position 0) (column 0) pieces)
+    (while (< position (length text))
+      (let* ((end (next-single-property-change position 'display text (length text)))
+	     (display (get-text-property position 'display text))
+	     (replacement (cond ((stringp display) display)
+				((and (consp display) (eq (car display) 'space)
+				      (integerp (plist-get (cdr display) :align-to)))
+				 (make-string (max 0 (- (plist-get (cdr display) :align-to) column)) ?\s))))
+	     (piece (if replacement
+			(apply #'propertize replacement (text-properties-at position text))
+		      (substring text position end))))
+	(remove-list-of-text-properties 0 (length piece) '(display) piece)
+	(cl-incf column (string-width piece))
+	(push piece pieces)
+	(setq position end)))
+    (apply #'concat (nreverse pieces))))
 
 (defun hub/music-row-assert-current (row)
   "Reject ROW if its captured source identity or playable record is obsolete."
