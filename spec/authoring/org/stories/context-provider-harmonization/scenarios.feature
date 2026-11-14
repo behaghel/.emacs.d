@@ -1,4 +1,4 @@
-@story:context-provider-harmonization @domain:authoring/org @priority:must @status:in-progress
+@story:context-provider-harmonization @domain:authoring/org @priority:must @status:done
 Feature: Read and navigate different context providers as one panel
   As an Org author reviewing a document
   I want consistent contextual rows with actions appropriate to each item
