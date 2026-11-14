@@ -471,6 +471,29 @@ When SKIP-COPILOT is non-nil, do not propagate focus to the Copilot chat."
       (setq org-comments-active-panel-overlay (make-overlay start (point) nil t nil))
       (overlay-put org-comments-active-panel-overlay 'face 'org-comments-active-panel-face))))
 
+(defun org-comments-context-panel--item-help (_source-buffer item)
+  "Describe ITEM's comment actions without selecting a backend or executing them."
+  (string-join
+   (append
+    (unless (equal (plist-get item :sync-kind) "reply")
+      (list (format "Thread state: %s"
+		    (pcase (plist-get item :status)
+		      ("TODO" "To do") ("RESOLVED" "Resolved") (_ "Open"))) ""))
+    (mapcar (lambda (entry)
+	      (context-panels-command-description (car entry) (cdr entry)))
+	    (append
+	     '((context-panels-jump-at-point . "Jump to source or sidecar")
+	       (org-comments-edit . "Edit this message")
+	       (org-comments-reply . "Reply")
+	       (org-comments-delete . "Delete this message"))
+	     (unless (equal (plist-get item :sync-kind) "reply")
+	       '((org-comments-mark-open . "Mark thread Open")
+		 (org-comments-mark-todo . "Mark thread To do")
+		 (org-comments-mark-resolved . "Mark thread Resolved")))))
+    (when (plist-get item :remote-id)
+      (list "" "Linked comment operations remain backend-capability gated.")))
+   "\n"))
+
 (defun org-comments-context-panel--presentation (_source-buffer item)
   "Describe ITEM's target, thread state and message details without mutation."
   (let* ((marker (pcase (plist-get item :status)
@@ -502,8 +525,7 @@ When SKIP-COPILOT is non-nil, do not propagate focus to the Copilot chat."
     (list :label (concat marker (format "“%s”" target))
 	  :details (nreverse details)
 	  :render-body #'org-comments-context-panel--render-body
-	  :properties (list 'org-comments-comment item)
-	  :help "RET: jump, r: reply, e: edit, d: delete")))
+	  :properties (list 'org-comments-comment item))))
 
 (defun org-comments-context-panel-provider ()
   "Return the org-comments context-panel provider descriptor."
@@ -513,6 +535,7 @@ When SKIP-COPILOT is non-nil, do not propagate focus to the Copilot chat."
 	:collect-top-markers #'org-comments-context-panel-collect-top-markers
 	:collect-bottom-views #'org-comments-context-panel-collect-bottom-views
 	:present-side-item #'org-comments-context-panel--presentation
+	:item-help #'org-comments-context-panel--item-help
 	:jump-side-item #'org-comments-context-panel-jump-side-item
 	:priority 10
 	:side-panel-mode #'org-comments-panel-mode

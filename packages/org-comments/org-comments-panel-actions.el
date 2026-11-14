@@ -65,8 +65,16 @@
       (get-text-property (max (point-min) (1- (line-end-position))) 'org-comments-comment)
       (user-error "No Org comment at point")))
 
+(defun org-comments--ensure-comment-row ()
+  "Reject non-comment context rows before consulting a source/action adapter."
+  (when (and (context-panels-item-at-point)
+	     (not (or (get-text-property (point) 'org-comments-comment)
+		      (get-text-property (line-beginning-position) 'org-comments-comment))))
+    (user-error "This context item is not a comment; jump to its source to edit it")))
+
 (defun org-comments-current-comment ()
   "Return the current comment using `org-comments-current-comment-function'."
+  (org-comments--ensure-comment-row)
   (funcall org-comments-current-comment-function))
 
 (defun org-comments-current-source-buffer ()

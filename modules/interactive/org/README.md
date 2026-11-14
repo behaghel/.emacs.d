@@ -93,11 +93,11 @@ Normal-state bindings inside the panel:
 | `zr` | Toggle showing resolved comments. |
 | `zx` | Toggle showing remote-missing/deleted comments. |
 | `z?` | Show active filter status. |
-| `?` | Toggle a small help window below the panel. |
+| `?` | Show help for the selected item. Native notes advertise reference navigation, not comment operations; comment/reply help uses actual bindings or public command names. |
 
 When filters differ from defaults, panels show a compact header with active filters, item counts, and the `zz` reset hint. If a reply matches a filter but its root does not, the root thread remains visible as conversation context while non-matching replies are hidden.
-| `]c` | Move to the next context item in the panel, wrapping at the end. |
-| `[c` | Move to the previous context item in the panel, wrapping at the beginning. |
+| `]c` | Move to the next rendered context row, wrapping without changing source point or source scrolling. |
+| `[c` | Move to the previous rendered context row, wrapping without changing source point or source scrolling. |
 | `q` | Close the panel. |
 
 ### Source-buffer comment workflow

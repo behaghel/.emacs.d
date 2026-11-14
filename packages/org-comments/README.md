@@ -30,6 +30,7 @@ Backend detection uses registered detectors and the current source buffer. The p
 
 - `org-comments-mode` provides the generic buffer-local comments experience.
 - Context-panel rows expose the same author-facing command language across providers while capability limits remain explicit.
+- Item help describes the selected comment or reply using effective bindings or public command names. It does not select a backend or authorize operations. Non-comment context rows cannot fall through to a neighbouring/source comment when comment commands or action adapters are invoked.
 - Package keybindings are Org-native and Emacs-native; the package does not install Evil, leader, or Bépo bindings.
 - Generic panels preserve source focus, jump to source or sidecar targets, and render stale or remote-missing state visibly.
 - Opening the side panel preserves the comments package's source highlight ranges and faces; it does not add a whole-line source highlight. Panel rows may highlight the focused comment independently.

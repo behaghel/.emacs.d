@@ -137,6 +137,7 @@ excluded.  Multiple comments linked to the same suggestion thread count once."
 
 (defun org-comments--comment-at-point ()
   "Return sidecar or source comment metadata at point."
+  (org-comments--ensure-comment-row)
   (or (org-comments--sidecar-comment-at-point)
       (org-comments--active-at-point)))
 

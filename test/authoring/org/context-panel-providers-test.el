@@ -54,8 +54,7 @@
 			    #'org-comments-edit))
 		(should (eq (key-binding (kbd "r")) reply-binding))
 		(should (eq (key-binding (kbd "e")) edit-binding))
-		(should (string-match-p "r: reply"
-					(get-text-property (point) 'help-echo)))
+		(should (string-match-p "[Rr]eply" (context-panels-item-help-text)))
 		(context-panels-jump-at-point)
 		(should (eq (current-buffer) source))
 		(should (= (point) 1)))))
@@ -201,6 +200,125 @@
 	      (context-panels-mode -1))))
 	(should (equal (buffer-string) original))
 	(should (equal (plist-get comment :status) state))))))
+
+(ert-deftest hub/context-panel-movement-and-help-follow-the-selected-kind ()
+  "Existing panel keys keep source position and describe only the selected kind."
+  (save-window-excursion
+    (with-temp-buffer
+      (org-mode)
+      (insert "Alpha[fn:one] beta.\n\n[fn:one] A useful note.\n")
+      (goto-char 3)
+      (let* ((source (current-buffer))
+	     (content (buffer-string))
+	     (comment '(:type comment :id "review" :status "OPEN" :author "Demo"
+			      :target-start 1 :target-end 6 :target-text "Alpha"
+			      :body "Could we clarify this?")))
+	(switch-to-buffer source)
+	(cl-letf (((symbol-function 'org-comments-collect)
+		   (lambda (&optional buffer &rest _)
+		     (when (eq (or buffer (current-buffer)) source) (list comment)))))
+	  (context-panels-register-provider (org-comments-context-panel-provider))
+	  (cp-org-marginalia-context-panel-mode 1)
+	  (unwind-protect
+	      (let* ((panel (context-panels-open source))
+		     (panel-window (get-buffer-window panel))
+		     (source-window (get-buffer-window source))
+		     (source-start (window-start source-window))
+		     (source-point (with-current-buffer source (point))))
+		(select-window panel-window)
+		(with-current-buffer panel
+		  (goto-char (point-min))
+		  (search-forward "A useful note")
+		  (execute-kbd-macro (kbd "]c"))
+		  (should (eq (selected-window) panel-window))
+		  (should (eq (plist-get (context-panels-item-at-point) :provider) 'comments))
+		  (execute-kbd-macro (kbd "[c"))
+		  (should (eq (plist-get (context-panels-item-at-point) :provider) 'marginalia))
+		  (should (= (with-current-buffer source (point)) source-point))
+		  (should (= (window-start source-window) source-start))
+		  (let (help)
+		    (cl-letf (((symbol-function 'context-panels-describe-item)
+			       (lambda () (interactive) (setq help (context-panels-item-help-text)))))
+		      (call-interactively (key-binding (kbd "?"))))
+		    (should (string-match-p "A useful note" help))
+		    (should-not (string-match-p "[Rr]eply\\|[Dd]elete\\|[Pp]ush" help)))
+		  (let ((error (should-error (org-comments-edit) :type 'user-error)))
+		    (should (string-match-p "not a comment" (error-message-string error))))
+		  (execute-kbd-macro (kbd "]c"))
+		  (let ((help (context-panels-item-help-text)))
+		    (should (string-match-p "[Rr]eply" help))
+		    (should-not (string-match-p "r: reply\\|r    reply" help)))))
+	    (with-current-buffer source
+	      (context-panels-close)
+	      (cp-org-marginalia-context-panel-mode -1)
+	      (context-panels-unregister-provider 'comments)
+	      (context-panels-mode -1))))
+	(with-current-buffer source
+	  (should (equal (buffer-string) content)))))))
+
+(ert-deftest hub/context-panel-interaction-keeps-bottom-view-adapters ()
+  "Shared side-row commands do not migrate existing bottom-view behavior."
+  (with-temp-buffer
+    (let ((source (current-buffer)) called)
+      (with-temp-buffer
+	(setq-local context-panels-source-buffer source context-panels-view-id 'page-comments)
+	(cl-letf (((symbol-function 'org-comments-next-item-at-point)
+		   (lambda () (setq called 'next)))
+		  ((symbol-function 'org-comments-previous-item-at-point)
+		   (lambda () (setq called 'previous)))
+		  ((symbol-function 'org-comments-help-current-ui)
+		   (lambda () (setq called 'help))))
+	  (hub/context-panels-next-row)
+	  (should (eq called 'next))
+	  (hub/context-panels-previous-row)
+	  (should (eq called 'previous))
+	  (hub/context-panels-describe-item)
+	  (should (eq called 'help)))))))
+
+(ert-deftest hub/context-panel-row-bindings-work-with-real-evil-after-lexical-reload ()
+  "Real Evil resolves scoped row keys after selective lexical definition reload."
+  (let* ((default-directory (file-truename default-directory))
+	 (build (or (getenv "STRAIGHT_BUILD_PATH") "straight/build"))
+	 (evil (expand-file-name "evil" build))
+	 (goto-chg (expand-file-name "goto-chg" build))
+	 (module (expand-file-name "modules/interactive/org/context-panel.el"))
+	 (home (make-temp-file "context-real-evil-" t))
+	 (process-environment (copy-sequence process-environment)))
+    (unwind-protect
+	(progn
+	  (skip-unless (file-readable-p (expand-file-name "evil.el" evil)))
+	  (setenv "HOME" home)
+	  (with-temp-buffer
+	    (should
+	     (zerop
+	      (call-process
+	       (expand-file-name invocation-name invocation-directory) nil t nil
+	       "--batch" "-Q" "-L" evil "-L" goto-chg "-l" "ert" "-l" "evil"
+	       "--eval"
+	       (prin1-to-string
+		`(progn
+		   (defvar org-comments-panel-mode-map (make-sparse-keymap))
+		   (with-temp-buffer
+		     (insert-file-contents ,module)
+		     (goto-char (point-min))
+		     (condition-case nil
+			 (while t
+			   (let ((form (read (current-buffer))))
+			     (when (and (eq (car-safe form) 'defun)
+					(eq (cadr form) 'hub/context-panels--bind-row-keys))
+			       (eval form t))))
+		       (end-of-file nil)))
+		   (define-key evil-normal-state-map (kbd "r") #'evil-forward-char)
+		   (with-temp-buffer
+		     (use-local-map org-comments-panel-mode-map)
+		     (evil-local-mode 1)
+		     (evil-normal-state)
+		     (hub/context-panels--bind-row-keys)
+		     (should (eq (key-binding (kbd "?")) #'hub/context-panels-describe-item))
+		     (should (eq (key-binding (kbd "]c")) #'hub/context-panels-next-row))
+		     (should (eq (key-binding (kbd "[c")) #'hub/context-panels-previous-row))
+		     (should (eq (key-binding (kbd "r")) #'evil-forward-char))))))))))
+      (delete-directory home t))))
 
 (provide 'context-panel-providers-test)
 ;;; context-panel-providers-test.el ends here
