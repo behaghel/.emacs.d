@@ -28,7 +28,7 @@ Info manual.
 
 * Installation from a checkout
 
-The package requires Emacs 29.1+, Org 9.6+, and =context-panels= 0.1.0+,
+The package requires Emacs 29.1+, Org 9.6+, and =context-panels= 0.4.0+,
 including its =context-panels-org.el= library.  Obtain =context-panels= from
 [[https://github.com/behaghel/context-panels][behaghel/context-panels]] or use an existing compatible installation.  No
 Copilot, publishing adapter, private configuration, or credentials are needed

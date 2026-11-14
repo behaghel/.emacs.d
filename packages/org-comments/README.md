@@ -34,6 +34,8 @@ Backend detection uses registered detectors and the current source buffer. The p
 - Generic panels preserve source focus, jump to source or sidecar targets, and render stale or remote-missing state visibly.
 - Opening the side panel preserves the comments package's source highlight ranges and faces; it does not add a whole-line source highlight. Panel rows may highlight the focused comment independently.
 - Author/date metadata is typographically quieter than headers and bodies while retaining stable author colours. Provider-specific status, badges, and actions remain intact when rows share framework spacing and wrapping.
+- Declarative mixed-panel rows start with the comment icon and quoted target. The default `OPEN` state is implicit; `TODO` uses an amber diamond (`◇`) and `RESOLVED` a quiet green check (`✓`) immediately before the target. Faces are theme-derived, and marker help names the state in plain English. Stored workflow values remain unchanged.
+- Thread state belongs to the root conversation, not message authors. Each message has its own author/date and body; replies retain their identities and action context. Shared row composition does not flatten reply metadata or change compact-overview/focused-thread behavior.
 
 ## Invariants
 
@@ -44,6 +46,7 @@ Backend detection uses registered detectors and the current source buffer. The p
 - Remote metadata enters the core model only through neutral fields and public backend operations.
 - Unsupported backend capabilities fail visibly and never silently discard comment state.
 - Tests for provider-neutral behavior use local fixtures or fake backends and require no network access.
+- Formatting comment bodies reuses the hook-free Context Panels Org primitive: rendering does not activate user Org hooks, change the panel's major mode, or initialize workflows in temporary formatting buffers. URL actions remain comments-owned.
 
 ## Related Contracts
 

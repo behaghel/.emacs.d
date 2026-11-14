@@ -443,6 +443,68 @@ When SKIP-COPILOT is non-nil, do not propagate focus to the Copilot chat."
      context-panels-source-buffer
      (org-comments-context-panel--panel-comment-at-point)))))
 
+(defface org-comments-panel-state-todo
+  '((t :inherit warning :weight normal))
+  "Theme-derived attention face for the To do thread marker."
+  :group 'org-comments)
+
+(defface org-comments-panel-state-resolved
+  '((t :inherit success :weight normal))
+  "Theme-derived success face for the Resolved thread marker."
+  :group 'org-comments)
+
+(defun org-comments-context-panel--render-body (source-buffer item)
+  "Insert ITEM's existing conversation body for SOURCE-BUFFER."
+  (setq org-comments-panel-source-buffer source-buffer)
+  (let ((start (save-excursion
+		 (forward-line (- (1+ (length (plist-get item :details)))))
+		 (line-beginning-position)))
+	(regions (org-comments-panel-render-insert-comment-body item)))
+    (dolist (region regions)
+      (pcase-let ((`(,reply-start ,reply-end ,reply) region))
+	(let ((row (copy-sequence reply)))
+	  (plist-put row :provider 'comments)
+	  (add-text-properties reply-start reply-end
+			       `(org-comments-comment ,row context-panels-item ,row)))))
+    (when (plist-get item :current)
+      (org-comments-context-panel--delete-active-panel-overlay)
+      (setq org-comments-active-panel-overlay (make-overlay start (point) nil t nil))
+      (overlay-put org-comments-active-panel-overlay 'face 'org-comments-active-panel-face))))
+
+(defun org-comments-context-panel--presentation (_source-buffer item)
+  "Describe ITEM's target, thread state and message details without mutation."
+  (let* ((marker (pcase (plist-get item :status)
+		   ("TODO" (propertize "◇ " 'face 'org-comments-panel-state-todo
+				       'help-echo "To do"))
+		   ("RESOLVED" (propertize "✓ " 'face 'org-comments-panel-state-resolved
+					   'help-echo "Resolved"))))
+	 (target (org-comments-panel-render--truncate
+		  (org-comments-panel-render--compact (plist-get item :target-text))
+		  org-comments-panel-target-preview-length))
+	 (metadata (with-temp-buffer
+		     (org-comments-panel-render--insert-metadata-inline item)
+		     (let ((badges (org-comments-panel-render--semantic-badges item)))
+		       (unless (string-empty-p badges)
+			 (unless (= (point) (point-min)) (insert " "))
+			 (insert badges)))
+		     (buffer-string)))
+	 details)
+    (when (and (plist-get item :current)
+	       (org-comments-panel-render--stale-comment-p item))
+      (push (propertize "Anchor no longer matches source text." 'face 'warning) details))
+    (when (and (plist-get item :current)
+	       (org-comments-panel-render--remote-missing-p item))
+      (push (propertize
+	     (format "⚠ remote missing%s"
+		     (if-let* ((date (plist-get item :remote-missing-at)))
+			 (format " since %s" date) "")) 'face 'warning) details))
+    (unless (string-empty-p metadata) (push metadata details))
+    (list :label (concat marker (format "“%s”" target))
+	  :details (nreverse details)
+	  :render-body #'org-comments-context-panel--render-body
+	  :properties (list 'org-comments-comment item)
+	  :help "RET: jump, r: reply, e: edit, d: delete")))
+
 (defun org-comments-context-panel-provider ()
   "Return the org-comments context-panel provider descriptor."
   (list :name 'comments
@@ -450,7 +512,7 @@ When SKIP-COPILOT is non-nil, do not propagate focus to the Copilot chat."
 	:collect-side-items #'org-comments-context-panel-collect-side-items
 	:collect-top-markers #'org-comments-context-panel-collect-top-markers
 	:collect-bottom-views #'org-comments-context-panel-collect-bottom-views
-	:render-side-item #'org-comments-context-panel-render-side-item
+	:present-side-item #'org-comments-context-panel--presentation
 	:jump-side-item #'org-comments-context-panel-jump-side-item
 	:priority 10
 	:side-panel-mode #'org-comments-panel-mode

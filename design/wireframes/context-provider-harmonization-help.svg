@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 220" width="640" height="220" role="img" aria-labelledby="title description">
+  <title id="title">Context item help — native note proposal</title>
+  <desc id="description">A content-only crop of native help requested from a sidenote. It identifies the item and its source-reference jump, without advertising comment editing, reply, status, delete or publishing operations.</desc>
+  <!-- SCREEN: Existing help surface, content crop only; not a new modal or footer.
+       STORY: authoring/org/context-provider-harmonization. STATE: sidenote help.
+       DOMAIN: authoring/org. Footer, window placement and Emacs help-buffer chrome
+       are outside this crop and retain existing behaviour. Font 14px monospace.
+       Other notes use their own icon and body excerpt, without internal IDs.
+       Bindings shown must be effective in the originating panel and modal state;
+       otherwise show the public command name. No guessed r/e/d shortcuts.
+       Return is described here, not a new executable button in the help buffer. -->
+  <rect width="640" height="220" fill="#0d0e1c"/>
+  <g font-family="monospace" font-size="14" fill="#f3ece3">
+    <text x="24" y="38" font-weight="bold">✣ Sidenote body. Unicode ✓.</text>
+    <text x="24" y="78" fill="#9ba5ba">Available for this item</text>
+    <text x="24" y="110"><tspan fill="#a6b9ff">Return / C-m</tspan>  Jump to source reference</text>
+    <text x="24" y="150" fill="#c4c8d4">Edit the note through Org's native footnote navigation.</text>
+    <text x="24" y="190" fill="#9ba5ba">No comment record or remote synchronization is involved.</text>
+  </g>
+</svg>

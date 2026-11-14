@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 400" width="1000" height="400" role="img" aria-labelledby="title description">
+  <title id="title">Mixed-provider context — implicit Open state</title>
+  <desc id="description">Notes start with their icons and actual bodies, without kind labels or internal IDs. The comment starts with its icon and quoted source target. Open is implicit. Author/date and the actual comment message follow underneath.</desc>
+  <!-- SCREEN: Mixed context overview. STORY: authoring/org/context-provider-harmonization.
+       STATE: Open comment, no replies. DOMAIN: authoring/org. Content crop only.
+       Accepted vocabulary: no Comment/Sidenote/Footnote labels or internal note IDs.
+       Comment header: comment icon, optional thread-state marker, quoted target.
+       Open has no marker; To do uses amber ◇; Resolved uses subdued green ✓.
+       These are display cues, not changes to stored OPEN/TODO/RESOLVED values.
+       GRID: 14px body, 13px metadata, 24px baselines, 16px/two-column inset.
+       Bodies wrap after their icons, retaining Org formatting and list structure.
+       Return jumps; ]c/[c traverses rows; ? provides item-specific help.
+       Existing window geometry, editor chrome and overview/focus policy remain. -->
+  <use href="components.svg#template-context-reading" width="1000" height="400"/>
+  <use href="components.svg#organism-context-review-source" width="600" height="400"/>
+  <g id="context-items">
+    <use href="components.svg#molecule-context-review-comment" x="624" y="58" width="376" height="120" data-item-id="review"/>
+    <use href="components.svg#organism-context-review-notes" x="624" y="178" width="376" height="144"/>
+  </g>
+</svg>

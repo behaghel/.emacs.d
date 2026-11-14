@@ -281,8 +281,8 @@
     (should (eq (plist-get provider :collect-top-markers)
 		#'org-comments-context-panel-collect-top-markers))
     (should-not (plist-get provider :render-side-panel))
-    (should (eq (plist-get provider :render-side-item)
-		#'org-comments-context-panel-render-side-item))
+    (should (functionp (plist-get provider :present-side-item)))
+    (should-not (plist-get provider :render-side-item))
     (should (eq (plist-get provider :refresh-source-overlays)
 		#'org-comments-context-panel-refresh-source-overlays))))
 

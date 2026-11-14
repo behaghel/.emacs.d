@@ -195,5 +195,37 @@
       <rect width="1000" height="400" fill="#0d0e1c"/>
       <path d="M600 0V400" stroke="#40485c" stroke-width="1"/>
     </symbol>
+    <!-- Mixed-provider review fixtures: shared by overview and focused states.
+         Header baseline 14; subsequent text baselines are 24px apart.
+         Component text is disposable fixture data, not a universal row schema. -->
+    <symbol id="organism-context-review-source" viewBox="0 0 600 400">
+      <g font-family="monospace" font-size="14" fill="#c4c8d4">
+        <text x="24" y="32" fill="#9fe0c2">#+TITLE: Context Panels review check</text>
+        <text x="24" y="72">Review this paragraph.<tspan fill="#a6b9ff">[fn:side]</tspan></text>
+        <text x="24" y="96">Second paragraph.<tspan fill="#a6b9ff">[fn:foot]</tspan></text>
+        <text x="24" y="152"><tspan fill="#a6b9ff">[fn:side]</tspan> *Sidenote body.* Unicode ✓.</text>
+        <text x="24" y="176">- A list item for wrapping.</text>
+        <text x="24" y="232" fill="#a6b9ff">[fn:foot]</text>
+        <text x="24" y="256" fill="#9ba5ba">:PROPERTIES:</text>
+        <text x="24" y="280" fill="#9ba5ba">:HUB_NOTE_KIND: footnote</text>
+        <text x="24" y="304" fill="#9ba5ba">:END:</text>
+        <text x="24" y="352">Traditional footnote body.</text>
+      </g>
+    </symbol>
+    <symbol id="molecule-context-review-comment" viewBox="0 0 376 120">
+      <g font-family="monospace" font-size="14" fill="#f3ece3">
+        <text y="14" font-weight="bold"><tspan fill="#9ba5ba">✍</tspan> “Review this paragraph.”</text>
+        <text x="16" y="38" font-size="13" fill="#9ba5ba"><tspan fill="#feacd0">Demo</tspan> · 2026-11-14</text>
+        <text x="16" y="62">Could we make this claim more</text>
+        <text x="16" y="86">specific?</text>
+      </g>
+    </symbol>
+    <symbol id="organism-context-review-notes" viewBox="0 0 376 144">
+      <g font-family="monospace" font-size="14" fill="#f3ece3">
+        <text y="14"><tspan fill="#9ba5ba">✣</tspan> <tspan font-weight="bold">*Sidenote body.*</tspan> Unicode ✓.</text>
+        <text x="16" y="38">- A list item for wrapping.</text>
+        <text y="86"><tspan fill="#9ba5ba">†</tspan> Traditional footnote body.</text>
+      </g>
+    </symbol>
   </defs>
 </svg>

@@ -6,6 +6,7 @@
 ;;; Code:
 
 (require 'org)
+(require 'context-panels-org)
 (require 'button)
 (require 'org-comments-collaboration)
 (require 'org-comments-core)
@@ -138,24 +139,6 @@
   "Return readable projection of COMMENT body for display."
   (org-comments-preview-plain-text (or (plist-get comment :body) "")))
 
-(defun org-comments-panel-render--org-fontified-text (text)
-  "Return TEXT fontified as Org without changing the current buffer mode."
-  (with-temp-buffer
-    (org-mode)
-    (insert text)
-    (font-lock-ensure (point-min) (point-max))
-    (buffer-string)))
-
-(defun org-comments-panel-render--apply-list-wrap-prefix (start end)
-  "Indent wrapped list continuation lines between START and END by two spaces."
-  (save-excursion
-    (goto-char start)
-    (while (< (point) end)
-      (when (looking-at-p "[[:space:]]*\\([-+*]\\|[0-9]+[.)]\\)[[:space:]]+")
-	(add-text-properties (line-beginning-position) (line-end-position)
-			     '(wrap-prefix "  ")))
-      (forward-line 1))))
-
 (defun org-comments-panel-render--buttonize-urls (start end)
   "Make raw HTTP URLs between START and END clickable."
   (save-excursion
@@ -176,8 +159,8 @@
   "Insert readable comment BODY with Org fontification and wrapping hints."
   (unless (string-empty-p body)
     (let ((start (point)))
-      (insert (org-comments-panel-render--org-fontified-text body) "\n")
-      (org-comments-panel-render--apply-list-wrap-prefix start (point))
+      (context-panels-org-insert-body body)
+      (insert "\n")
       (org-comments-panel-render--buttonize-urls start (point)))))
 
 (defun org-comments-panel-render--format-created-at (created-at)
@@ -313,13 +296,34 @@ Return non-nil when metadata was inserted."
       (insert " — " body))
     (org-comments-panel-render--buttonize-urls start (point))))
 
+(defun org-comments-panel-render-insert-comment-body (comment)
+  "Insert COMMENT's body/thread and return compact reply regions.
+This does not insert a header or root row properties."
+  (let ((body (org-comments-panel-render--readable-body comment))
+	(replies (plist-get comment :replies))
+	reply-regions)
+    (if (plist-get comment :current)
+	(progn
+	  (org-comments-panel-render--insert-body body)
+	  (org-comments-panel-render--insert-replies comment))
+      (dolist (line (org-comments-panel-render--overview-lines body))
+	(insert line "\n"))
+      (when replies
+	(insert (format "↳ %s repl%s\n"
+			(length replies) (if (= (length replies) 1) "y" "ies")))
+	(dolist (reply replies)
+	  (let ((reply-start (point)))
+	    (insert "  ↳ ")
+	    (org-comments-panel-render--insert-reply-summary reply)
+	    (insert "\n")
+	    (push (list reply-start (point) reply) reply-regions)))))
+    reply-regions))
+
 (defun org-comments-panel-render-insert-comment (comment)
   "Insert rich COMMENT row at point."
   (let* ((start (point))
 	 (status (or (plist-get comment :status) "OPEN"))
 	 (target (or (plist-get comment :target-text) ""))
-	 (body (org-comments-panel-render--readable-body comment))
-	 (replies (plist-get comment :replies))
 	 (stale (org-comments-panel-render--stale-comment-p comment))
 	 (remote-missing (org-comments-panel-render--remote-missing-p comment))
 	 (page-comment (org-comments-panel-render--page-comment-p comment))
@@ -349,22 +353,7 @@ Return non-nil when metadata was inserted."
 	(insert badges))
       (unless (= (point) metadata-start)
 	(insert "\n")))
-    (if (plist-get comment :current)
-	(progn
-	  (org-comments-panel-render--insert-body body)
-	  (org-comments-panel-render--insert-replies comment))
-      (progn
-	(dolist (line (org-comments-panel-render--overview-lines body))
-	  (insert line "\n"))
-	(when replies
-	  (insert (format "↳ %s repl%s\n"
-			  (length replies) (if (= (length replies) 1) "y" "ies")))
-	  (dolist (reply replies)
-	    (let ((reply-start (point)))
-	      (insert "  ↳ ")
-	      (org-comments-panel-render--insert-reply-summary reply)
-	      (insert "\n")
-	      (push (list reply-start (point) reply) reply-regions))))))
+    (setq reply-regions (org-comments-panel-render-insert-comment-body comment))
     (let ((row (copy-sequence comment)))
       (plist-put row :provider 'comments)
       (add-text-properties

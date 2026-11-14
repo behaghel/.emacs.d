@@ -3,7 +3,7 @@
 ;; Author: Hubert Behaghel
 ;; Maintainer: Hubert Behaghel
 ;; Version: 0.1.0
-;; Package-Requires: ((emacs "29.1") (org "9.6") (context-panels "0.2.0"))
+;; Package-Requires: ((emacs "29.1") (org "9.6") (context-panels "0.4.0"))
 ;; Keywords: outlines, convenience
 ;; URL: https://github.com/behaghel/.emacs.d/tree/master/packages/cp-org-marginalia
 
@@ -150,13 +150,14 @@
     (_ cp-org-marginalia-default-kind)))
 
 ;;;###autoload
-(defun cp-org-marginalia-collect ()
-  "Collect marginalia records from native Org footnotes in the current buffer."
-  (let ((definitions (cp-org-marginalia--collect-definitions)))
-    (cl-loop for reference in (cp-org-marginalia--collect-references)
-	     for definition = (gethash (plist-get reference :id) definitions)
-	     when definition
-	     collect (append reference definition))))
+(defun cp-org-marginalia-collect (&optional source-buffer)
+  "Collect native Org note records from SOURCE-BUFFER or the current buffer."
+  (with-current-buffer (or source-buffer (current-buffer))
+    (let ((definitions (cp-org-marginalia--collect-definitions)))
+      (cl-loop for reference in (cp-org-marginalia--collect-references)
+	       for definition = (gethash (plist-get reference :id) definitions)
+	       when definition
+	       collect (append reference definition)))))
 
 (defun cp-org-marginalia-layout (notes &optional gap)
   "Return NOTES with display-line and displaced layout properties.
