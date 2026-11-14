@@ -209,7 +209,9 @@
 
 (ert-deftest hub/music-row-truncated-vertico-display-keeps-full-search-and-action-target ()
   "A match beyond visible title truncation still appends its full retained record."
-  (add-to-list 'load-path (expand-file-name "vertico" (getenv "STRAIGHT_BUILD_PATH")))
+  (add-to-list 'load-path
+	       (expand-file-name "vertico" (or (getenv "STRAIGHT_BUILD_PATH")
+					       (expand-file-name "straight/build" default-directory))))
   (require 'vertico)
   (require 'apps/music-search)
   (hub/music-search-test--queue
