@@ -6,6 +6,7 @@
 ;;; Code:
 
 (require 'org)
+(require 'context-panels-org)
 (require 'button)
 (require 'org-comments-collaboration)
 (require 'org-comments-core)
@@ -138,24 +139,6 @@
   "Return readable projection of COMMENT body for display."
   (org-comments-preview-plain-text (or (plist-get comment :body) "")))
 
-(defun org-comments-panel-render--org-fontified-text (text)
-  "Return TEXT fontified as Org without changing the current buffer mode."
-  (with-temp-buffer
-    (org-mode)
-    (insert text)
-    (font-lock-ensure (point-min) (point-max))
-    (buffer-string)))
-
-(defun org-comments-panel-render--apply-list-wrap-prefix (start end)
-  "Indent wrapped list continuation lines between START and END by two spaces."
-  (save-excursion
-    (goto-char start)
-    (while (< (point) end)
-      (when (looking-at-p "[[:space:]]*\\([-+*]\\|[0-9]+[.)]\\)[[:space:]]+")
-	(add-text-properties (line-beginning-position) (line-end-position)
-			     '(wrap-prefix "  ")))
-      (forward-line 1))))
-
 (defun org-comments-panel-render--buttonize-urls (start end)
   "Make raw HTTP URLs between START and END clickable."
   (save-excursion
@@ -176,8 +159,8 @@
   "Insert readable comment BODY with Org fontification and wrapping hints."
   (unless (string-empty-p body)
     (let ((start (point)))
-      (insert (org-comments-panel-render--org-fontified-text body) "\n")
-      (org-comments-panel-render--apply-list-wrap-prefix start (point))
+      (context-panels-org-insert-body body)
+      (insert "\n")
       (org-comments-panel-render--buttonize-urls start (point)))))
 
 (defun org-comments-panel-render--format-created-at (created-at)

@@ -135,5 +135,15 @@
 					  (org-comments-panel-close))
 					(should-not context-panels-side-panel-buffer)))
 
+(ert-deftest org-comments-panel-body-formatting-does-not-run-org-hooks ()
+  "Rendering readable bodies does not activate unrelated user Org workflows."
+  (let* ((calls 0)
+	 (org-mode-hook (list (lambda () (cl-incf calls)))))
+    (with-temp-buffer
+      (org-comments-panel-render--insert-body "*A claim*\n- Supporting evidence")
+      (should (eq major-mode 'fundamental-mode))
+      (should (string-match-p "Supporting evidence" (buffer-string))))
+    (should (= calls 0))))
+
 (provide 'org-comments-panel-test)
 ;;; org-comments-panel-test.el ends here

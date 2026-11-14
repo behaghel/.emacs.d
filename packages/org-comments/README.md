@@ -46,6 +46,7 @@ Backend detection uses registered detectors and the current source buffer. The p
 - Remote metadata enters the core model only through neutral fields and public backend operations.
 - Unsupported backend capabilities fail visibly and never silently discard comment state.
 - Tests for provider-neutral behavior use local fixtures or fake backends and require no network access.
+- Formatting comment bodies reuses the hook-free Context Panels Org primitive: rendering does not activate user Org hooks, change the panel's major mode, or initialize workflows in temporary formatting buffers. URL actions remain comments-owned.
 
 ## Related Contracts
 
