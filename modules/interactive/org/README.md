@@ -18,6 +18,7 @@ status: draft
 - Author-facing semantics must stay separate from class-specific visual styling.
 - Export behavior should be testable from tracked specimens and textual assertions before relying on visual inspection.
 - Writing helpers should not make batch loads or isolated authoring tests depend on optional interactive packages unless guarded.
+- Entering Org mode does not refresh the optional agenda-file submenu, including when comment counters parse sidecars during redisplay. Keyboard agenda commands and comment counters remain available.
 - Machine-specific paths belong in private overrides or defcustoms, not hard-coded shared behavior.
 - Generated PDFs, TeX files, screenshots, and visual diff artifacts belong under runtime output locations, not tracked golden files.
 - Marginalia authoring uses native Org footnotes as the canonical source; the panel is a read-only projection whose navigation follows the [marginalia provider contract](../../../packages/cp-org-marginalia/README.md). Shared row interaction and the optional Org renderer come from Context Panels; comment rows retain their provider-specific rendering and actions. Definitions remain editable in the source through Org's native footnote navigation.
