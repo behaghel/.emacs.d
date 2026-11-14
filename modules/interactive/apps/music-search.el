@@ -22,6 +22,7 @@
 (defvar hub/spotify--tracks)
 (defvar hub/spotify--total)
 (defvar +vertico-current-arrow)
+(defvar vertico--index)
 (defvar embark-keymap-alist)
 (defvar embark-default-action-overrides)
 (defvar embark-general-map)
@@ -83,6 +84,43 @@ redundant library hits.  Neither source is fetched or changed."
 	:items (mapcar (lambda (row)
 			 (let ((label (hub/music-row-label row)))
 			   (cons label (propertize label 'hub/music-row row)))) rows)))
+
+(defun hub/music-search--highlighted-fields (candidate row)
+  "Copy CANDIDATE's match faces into ROW's tagged full metadata fields.
+Reapply semantic field faces even if a completion style drops input properties."
+  (let ((template (hub/music-row-label row)))
+    (vconcat
+     (mapcar
+      (lambda (field)
+	(let* ((begin (text-property-any 0 (length template) 'hub/music-row-field field template))
+	       (end (next-single-property-change begin 'hub/music-row-field template (length template)))
+	       (text (substring template begin end))
+	       (position begin))
+	  (while (< position (min end (length candidate)))
+	    (let* ((next (next-single-property-change position 'face candidate (min end (length candidate))))
+		   (face (get-text-property position 'face candidate)))
+	      (when face (add-face-text-property (- position begin) (- next begin) face nil text))
+	      (setq position next)))
+	  text))
+      '(title artist album time source)))))
+
+(with-eval-after-load 'vertico
+  (cl-defmethod vertico--format-candidate
+    (candidate prefix _suffix index _start &context (hub/music-search--active (eql t)))
+    "Use native table columns only for retained music candidates."
+    (let* ((datum (get-text-property 0 'multi-category candidate))
+	   (target (and (eq (car-safe datum) 'hub/music-track) (cdr datum)))
+	   (row (and (stringp target) (get-text-property 0 'hub/music-row target))))
+      (if (not (hub/music-row-p row)) (cl-call-next-method)
+	;; The default normalizer expands space :align-to properties.  Keep
+	;; the native table geometry and Vertico's normal selection face.
+	(let ((line (concat prefix
+			    (hub/music-row-display row (- (window-body-width) (string-width prefix))
+						   (hub/music-search--highlighted-fields candidate row))
+			    "\n")))
+	  (when (= index vertico--index)
+	    (add-face-text-property 0 (length line) 'vertico-current 'append line))
+	  line)))))
 
 (defun hub/music-search--enqueue ()
   "Accept the current completion with the explicit append-only action."

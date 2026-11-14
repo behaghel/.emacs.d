@@ -147,6 +147,34 @@
       (should-not (eq (current-local-map) minibuffer-local-must-match-map)))
     (should (equal original (lookup-key minibuffer-local-must-match-map (kbd "SPC"))))))
 
+(ert-deftest hub/music-search-reopening-after-queue-clear-shows-only-liked-results ()
+  "Clearing the real EMMS queue removes previous combined provenance on reopen."
+  (require 'apps/music-search)
+  (hub/music-search-test--queue
+   (hub/music-search-test--library
+    (let ((searches 0))
+      (cl-letf (((symbol-function 'completing-read)
+		 (lambda (prompt collection &rest _)
+		   (cl-incf searches)
+		   (let ((candidates (all-completions "" collection)))
+		     (if (= searches 1)
+			 (progn
+			   (should (string-match-p "Queue: 3" prompt))
+			   (should (cl-some (lambda (candidate) (string-match-p "Queue #" candidate)) candidates)))
+		       (should (string-match-p "Queue: 0" prompt))
+		       (should (= (length candidates) 1))
+		       (should (string-match-p "♥\\|Liked" (car candidates)))
+		       (should-not (string-match-p "Liked #[0-9]" (car candidates)))
+		       (should-not (string-match-p "Queue #" (car candidates))))
+		     (signal 'quit nil)))))
+	(condition-case nil (hub/music-search) (quit nil))
+	(with-current-buffer playlist (emms-playlist-clear))
+	(condition-case nil (hub/music-search) (quit nil)))
+      (should (= searches 2)))
+    (should-not added)
+    (should-not started)
+    (should (zerop stopped)))))
+
 (ert-deftest hub/music-search-loaded-library-works-without-a-queue ()
   "Loaded-only coverage is honest; RET delegates the retained record to Play."
   (hub/music-search-test--queue
@@ -157,7 +185,8 @@
 		 (should (string-match-p "1/1482 loaded" prompt))
 		 (let ((candidates (all-completions "Retained" collection)))
 		   (should (= (length candidates) 1))
-		   (should (string-match-p "Liked #1" (car candidates)))
+		   (should (string-match-p "♥\\|Liked" (car candidates)))
+		   (should-not (string-match-p "Liked #[0-9]" (car candidates)))
 		   (car candidates)))))
       (hub/music-search))
     (should (equal added (list (list raw t))))
@@ -239,8 +268,11 @@
 		     (should (= (length candidates) 4))
 		     (should (= (length (all-completions "Low Light" collection)) 3))
 		     (should-not (all-completions "Retained" collection))
-		     (should (= (cl-count-if (lambda (candidate) (string-match-p (regexp-quote "+ Liked") candidate)) candidates) 2))
-		     (should (cl-find-if (lambda (candidate) (string-match-p "Liked #2" candidate)) candidates))
+		     (should (= (cl-count-if (lambda (candidate) (and (string-match-p "Queue #" candidate) (string-match-p "♥\\|Liked" candidate))) candidates) 2))
+		     (should (cl-find-if (lambda (candidate)
+					   (eq (hub/music-row-origin
+						(hub/music-search--target (cdr (get-text-property 0 'multi-category candidate))))
+					       'liked)) candidates))
 		     (cl-find-if (lambda (candidate) (string-match-p "Queue #3" candidate)) candidates)))))
 	(hub/music-search))
       (should (= (length started) 1))

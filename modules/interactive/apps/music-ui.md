@@ -100,6 +100,28 @@ track objects; library rows retain their original loaded record and generation.
 A stale source is rejected before mutation. Formatting never constructs a playable
 track, accesses credentials or fetches metadata.
 
+Liked Songs and Vertico search use the same native column schema: playback marker,
+title, artist, album, right-aligned time, and provenance. Source flags show
+`Queue #N` for a queue-only occurrence, `Queue #N ♥` for an occurrence also saved
+in loaded Liked Songs, and `♥` for a library-only result. Only queue positions have
+ranks. The heart has readable saved-status help and a `Liked` fallback when the
+font cannot display it; it never denotes playback or browsing selection.
+Column widths adapt to the
+available view width; long values are ellipsized rather than pushing later fields
+out of alignment. Search still matches full retained metadata and acts on retained
+identities, never the truncated display text. Native reverse ordering is preserved.
+
+Music roles use the active Modus palette directly, including palette overrides:
+title is `blue` and semibold, artist is `cyan`, album is `magenta`, time is `yellow`,
+and provenance/separators use `fg-dim`. Enabling a theme updates these local faces
+without fetching or changing the global theme faces. Generic themed faces are the
+fallback when no Modus theme is active. Green remains a transport/activity accent. Fixed-pitch
+fields share character metrics. These are local music faces, not global font/theme
+replacements. Refreshing the listing updates already loaded rows without fetching,
+reopening, moving the browsing row or authorizing. Native selection backgrounds
+and completion-match highlighting remain owned by the frontend; playback markers
+remain independent of field colours and browsing selection.
+
 Playing and paused markers describe transport state, not the highlighted browsing
 candidate. A queue marker identifies only the active occurrence; a library marker
 identifies the matching Spotify URI. Waiting for audio is distinct from playing.

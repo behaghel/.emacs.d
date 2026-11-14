@@ -1,20 +1,16 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="1280" height="720" viewBox="0 0 1280 720">
-  <!-- SCREEN: Music search; STORY: music-keyboard-cockpit; STATE: queue-only coverage, duplicate occurrence selected, no playback preview; DOMAIN: personal-apps/apps. Native completion uses the editor's fonts/theme and responsive candidate layout. Fictional metadata. -->
+  <!-- SCREEN: Music search; STORY: music-keyboard-cockpit; STATE: reverse Vertico, queue-only coverage, duplicate occurrence selected, no playback preview; DOMAIN: personal-apps/apps. Shared native columns and theme-derived accents. Fictional metadata. -->
   <use href="components.svg#template-music-workspace" width="1280" height="720"/>
   <g transform="translate(0 400)">
     <use href="components.svg#template-music-command-surface" width="1280" height="320"/>
     <g font-family="Ubuntu Mono, monospace">
-      <text x="28" y="34" font-size="21" fill="#9fe0c2">Music: <tspan fill="#f3ece3">light</tspan></text>
-      <rect x="173" y="15" width="2" height="24" fill="#9fe0c2"/>
-      <text x="800" y="32" font-size="14" fill="#9ba5ba">Queue: 3 · queue only</text>
-      <text x="28" y="76" font-size="14" fill="#9ba5ba" letter-spacing="1">QUEUE · 2 MATCHES</text>
-      <g font-size="18" fill="#f3ece3">
-        <text x="28" y="113">Low Light — Quiet Geometry · Still / Motion  4:34  [Queue #1]</text>
-        <rect x="20" y="136" width="1240" height="38" rx="4" fill="#222b40"/>
-        <text x="28" y="163">Low Light — Quiet Geometry · Still / Motion  4:34  [Queue #3]</text>
-      </g>
-      <text x="28" y="305" font-size="15" fill="#c4c8d4">RET Play existing occurrence   C-g Back</text>
-      <text x="812" y="305" font-size="14" fill="#9ba5ba">Selection is not playback</text>
+      <rect x="20" y="102" width="1240" height="38" rx="4" fill="#222b40"/>
+      <use href="components.svg#molecule-music-fixture-row-fields" y="101" width="1280" height="38"/>
+      <use href="components.svg#molecule-music-fixture-row-fields" y="152" width="1280" height="38"/>
+      <g font-size="18" fill="#989898"><text x="847" y="128">Queue #3 · Spotify</text><text x="847" y="179">Queue #1 · Spotify</text></g>
+      <text x="28" y="213" font-size="14" fill="#f78fe7">Queue</text>
+      <text x="28" y="253" font-size="15" fill="#9fe0c2">Music (Queue: 3 · queue only · Liked not loaded) — RET Play, C-. Actions, C-g Back: <tspan fill="#f3ece3">light</tspan></text>
+      <text x="28" y="305" font-size="14" fill="#9ba5ba">Same columns, restrained provenance and four field accents. Selection is not playback.</text>
     </g>
   </g>
 </svg>

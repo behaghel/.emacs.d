@@ -174,6 +174,16 @@
       <rect width="1280" height="320" fill="#171c2c"/>
       <path d="M0 .5H1280 M0 278.5H1280" stroke="#2c354c"/>
     </symbol>
+    <!-- Shared listing fixture: native marker/title/artist/album/right-aligned time.
+         Page-specific provenance begins at x=847. Colours illustrate Modus Vivendi Tinted. -->
+    <symbol id="molecule-music-fixture-row-fields" viewBox="0 0 1280 38">
+      <g font-family="Ubuntu Mono, monospace" font-size="18">
+        <text x="64" y="27" fill="#2fafff" font-weight="600">Low Light</text>
+        <text x="361" y="27" fill="#00d3d0">Quiet Geometry</text>
+        <text x="568" y="27" fill="#feacd0">Still / Motion</text>
+        <text x="838" y="27" fill="#d0bc00" text-anchor="end">4:34</text>
+      </g>
+    </symbol>
     <symbol id="template-music-cockpit-panel" viewBox="0 0 1280 320">
       <rect width="1280" height="320" fill="#0d0e1c"/>
       <use href="#molecule-music-navigation" width="1280" height="40"/>
