@@ -24,6 +24,12 @@ status: draft
   AIFF/AIF, and WMA open in EMMS. Other file-opening rules remain unchanged.
 - Opening an audio link loads EMMS on demand and passes the file path directly,
   including paths containing spaces.
+- Local-player registration is independent of the feed UI and is idempotent.
+  The configured local preference is VLC playlist/VLC, MPlayer, mpg321, then
+  ogg123; existing registered players keep their order. Spotify registration
+  retains these local backends, and local registration retains Spotify.
+- Registration loads backend definitions only: it does not start players,
+  probe media, authorize accounts or change the current queue or transport state.
 - Playback commands seek backward ten seconds and forward thirty seconds in
   the current EMMS track. Playback and seeking depend on the active external
   player's format and seek support.

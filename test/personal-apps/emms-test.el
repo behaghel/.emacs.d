@@ -23,10 +23,12 @@
   (dolist (extension '("mp3" "wav" "wave" "ogg" "oga" "opus" "flac"
 		       "m4a" "aac" "aiff" "aif" "wma" "MP3" "WAV" "OGG"))
     (let* ((file (make-temp-file "emms audio " nil (concat "." extension)))
-	   played)
+	   played registered)
       (unwind-protect
-	  (cl-letf (((symbol-function 'emms-play-file)
-		     (lambda (path) (setq played path))))
+	  (cl-letf (((symbol-function 'hub/emms-register-local-players)
+		     (lambda () (setq registered t)))
+		    ((symbol-function 'emms-play-file)
+		     (lambda (path) (should registered) (setq played path))))
 	    (with-temp-buffer
 	      (org-mode)
 	      (insert (format "[[file:%s][Listen]]" file))

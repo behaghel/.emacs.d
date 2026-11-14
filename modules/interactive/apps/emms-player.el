@@ -27,8 +27,11 @@
 	  "\\'")
   "File name regexp for audio links opened with EMMS.")
 
+(autoload 'hub/emms-register-local-players "apps/emms-local" nil nil)
+
 (defun hub/emms-open-file (file &optional _link)
   "Play FILE with EMMS, ignoring Org's original LINK argument."
+  (hub/emms-register-local-players)
   (emms-play-file file))
 
 (defun hub/emms-seek-backward-10 ()
