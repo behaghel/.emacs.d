@@ -76,7 +76,9 @@
 (defun org-suggestions--insert-org-block (text)
   "Insert TEXT as an Org source block."
   (insert "#+begin_src org\n")
-  (insert (or text ""))
+  (let ((start (point)))
+    (insert (or text ""))
+    (org-escape-code-in-region start (point)))
   (unless (or (string-empty-p (or text ""))
 	      (string-suffix-p "\n" text))
     (insert "\n"))
@@ -91,6 +93,9 @@
 				      (plist-get hunk :kind))
 	 "ORG_SUGGESTIONS_PRIMARY" (when (plist-get hunk :primary) "t")
 	 "ORG_SUGGESTIONS_SECTION_TITLE" (plist-get hunk :section-title)
+	 "ORG_SUGGESTIONS_SECTION_ID" (plist-get hunk :section-id)
+	 "ORG_SUGGESTIONS_SECTION_CUSTOM_ID" (plist-get hunk :section-custom-id)
+	 "ORG_SUGGESTIONS_ESCAPED" "t"
 	 "ORG_SUGGESTIONS_SECTION_PATH" (org-suggestions--format-path
 					 (plist-get hunk :section-path))
 	 "ORG_SUGGESTIONS_ANCHOR_TEXT" (plist-get hunk :anchor-text)
@@ -103,7 +108,7 @@
 	 "ORG_SUGGESTIONS_REPLACEMENT_NO_FINAL_NEWLINE"
 	 (unless (string-suffix-p "\n" (or (plist-get hunk :replacement) ""))
 	   "t")))
-  (when (plist-member hunk :original)
+  (when (stringp (plist-get hunk :original))
     (insert "\n**** Original\n")
     (org-suggestions--insert-org-block (plist-get hunk :original)))
   (insert "\n**** Replacement\n")
@@ -209,6 +214,7 @@ When NO-FINAL-NEWLINE is non-nil, remove the synthetic delimiter newline."
 (defun org-suggestions--parse-hunk ()
   "Parse hunk at current heading."
   (let ((end (org-suggestions--subtree-end))
+	(escaped (equal (org-entry-get nil "ORG_SUGGESTIONS_ESCAPED") "t"))
 	(original-no-final-newline
 	 (equal (org-entry-get nil "ORG_SUGGESTIONS_ORIGINAL_NO_FINAL_NEWLINE") "t"))
 	(replacement-no-final-newline
@@ -217,6 +223,8 @@ When NO-FINAL-NEWLINE is non-nil, remove the synthetic delimiter newline."
 		    :kind (intern (org-entry-get nil "ORG_SUGGESTIONS_HUNK_KIND"))
 		    :primary (equal (org-entry-get nil "ORG_SUGGESTIONS_PRIMARY") "t")
 		    :section-title (org-entry-get nil "ORG_SUGGESTIONS_SECTION_TITLE")
+		    :section-id (org-entry-get nil "ORG_SUGGESTIONS_SECTION_ID")
+		    :section-custom-id (org-entry-get nil "ORG_SUGGESTIONS_SECTION_CUSTOM_ID")
 		    :section-path (org-suggestions--parse-path
 				   (org-entry-get nil "ORG_SUGGESTIONS_SECTION_PATH"))
 		    :anchor-text (org-entry-get nil "ORG_SUGGESTIONS_ANCHOR_TEXT")
@@ -234,6 +242,10 @@ When NO-FINAL-NEWLINE is non-nil, remove the synthetic delimiter newline."
 	     (setq hunk (plist-put hunk :replacement
 				   (org-suggestions--source-block-body-in-subtree
 				    replacement-no-final-newline))))))))
+    (when escaped
+      (dolist (key '(:original :replacement))
+	(when (stringp (plist-get hunk key))
+	  (plist-put hunk key (org-unescape-code-in-string (plist-get hunk key))))))
     hunk))
 
 (defun org-suggestions--parse-candidate ()
@@ -296,7 +308,7 @@ SIDECAR-FILE defaults to `org-suggestions-sidecar-path'."
 	 (section-title (org-get-heading t t t t))
 	 (section-path (org-get-outline-path t t))
 	 (body-start (save-excursion
-		       (forward-line 1)
+		       (org-end-of-meta-data)
 		       (point)))
 	 (end (save-excursion
 		(org-end-of-subtree t t)
@@ -305,61 +317,71 @@ SIDECAR-FILE defaults to `org-suggestions-sidecar-path'."
 	  :heading-line heading-line
 	  :section-title section-title
 	  :section-path section-path
+	  :section-id (org-entry-get nil "ID")
+	  :section-custom-id (org-entry-get nil "CUSTOM_ID")
 	  :body-start body-start
 	  :end end)))
 
-(defun org-suggestions--all-section-bounds ()
-  "Return all Org section bounds in the current buffer."
-  (let (sections)
-    (org-with-wide-buffer
-     (save-excursion
-       (goto-char (point-min))
-       (while (re-search-forward org-heading-regexp nil t)
-	 (beginning-of-line)
-	 (push (org-suggestions--section-bounds-at-heading) sections)
-	 (org-end-of-subtree t t))))
-    (nreverse sections)))
-
-(defun org-suggestions--find-section-by-path (section-path)
-  "Return section bounds for SECTION-PATH, or nil."
+(defun org-suggestions--matching-sections (predicate)
+  "Return section bounds satisfying PREDICATE in the current buffer."
   (org-with-wide-buffer
    (save-excursion
      (goto-char (point-min))
-     (catch 'found
+     (let ((org-outline-path-cache nil) matches)
        (while (re-search-forward org-heading-regexp nil t)
 	 (beginning-of-line)
-	 (when (equal section-path (org-get-outline-path t t))
-	   (throw 'found (org-suggestions--section-bounds-at-heading)))
-	 (forward-line 1))))))
-
-(defun org-suggestions--find-unique-section-by-title (section-title)
-  "Return unique section bounds for SECTION-TITLE, or nil."
-  (org-with-wide-buffer
-   (save-excursion
-     (goto-char (point-min))
-     (let (matches)
-       (while (re-search-forward org-heading-regexp nil t)
-	 (beginning-of-line)
-	 (when (string= section-title (org-get-heading t t t t))
+	 (when (and (not (org-in-block-p '("src" "example")))
+		    (funcall predicate))
 	   (push (org-suggestions--section-bounds-at-heading) matches))
 	 (forward-line 1))
-       (and (= (length matches) 1) (car matches))))))
+       matches))))
 
 (defun org-suggestions--resolve-section-hunk (hunk)
-  "Resolve section target for HUNK in current buffer."
-  (let ((section-title (plist-get hunk :section-title))
-	(section-path (plist-get hunk :section-path)))
-    (or (and section-path
-	     (org-suggestions--find-section-by-path section-path))
-	(and section-title
-	     (org-suggestions--find-unique-section-by-title section-title)))))
+  "Resolve HUNK uniquely, using stable identity before path/title recovery."
+  (let* ((id (plist-get hunk :section-id))
+	 (custom-id (plist-get hunk :section-custom-id))
+	 (path (plist-get hunk :section-path))
+	 (title (plist-get hunk :section-title))
+	 (matches
+	  (cond
+	   (id (org-suggestions--matching-sections
+		(lambda () (equal id (org-entry-get nil "ID")))))
+	   (custom-id (org-suggestions--matching-sections
+		       (lambda () (equal custom-id (org-entry-get nil "CUSTOM_ID")))))
+	   (t (or (and path (org-suggestions--matching-sections
+			     (lambda () (equal path (org-get-outline-path t t)))))
+		  (and title (org-suggestions--matching-sections
+			      (lambda () (equal title (org-get-heading t t t t))))))))))
+    (and (= (length matches) 1) (car matches))))
+
+(defun org-suggestions-candidate-with-source-context (candidate source-context)
+  "Return a copy of CANDIDATE bound to request-time Org SOURCE-CONTEXT.
+SOURCE-CONTEXT is the source text supplied to a producer, not live callback
+text.  Section baselines and identities come only from this snapshot; missing
+or ambiguous evidence remains unsafe.  No source or sidecar is changed."
+  (let ((copy (copy-tree candidate)))
+    (with-temp-buffer
+      (when (stringp source-context) (insert source-context))
+      (let ((org-mode-hook nil) (org-inhibit-startup t)) (org-mode))
+      (dolist (hunk (plist-get copy :hunks))
+	(when (eq (plist-get hunk :kind) 'section-replace)
+	  ;; Never trust model-supplied original text as baseline evidence.
+	  (setq hunk (plist-put hunk :original nil))
+	  (when-let* ((section (org-suggestions--resolve-section-hunk hunk)))
+	    (dolist (key '(:section-title :section-path :section-id :section-custom-id))
+	      (setq hunk (plist-put hunk key (plist-get section key))))
+	    (plist-put hunk :original
+		       (buffer-substring-no-properties
+			(plist-get section :body-start) (plist-get section :end)))))))
+    copy))
 
 (defun org-suggestions--unique-text-match (text)
   "Return unique cons bounds for TEXT in current buffer, or nil."
   (let (matches)
     (save-excursion
       (goto-char (point-min))
-      (while (search-forward text nil t)
+      (while (and (stringp text) (not (string-empty-p text))
+		  (search-forward text nil t))
 	(push (cons (match-beginning 0) (match-end 0)) matches)))
     (and (= (length matches) 1) (car matches))))
 
@@ -388,25 +410,51 @@ SIDECAR-FILE defaults to `org-suggestions-sidecar-path'."
 			  (plist-get hunk :replacement))
 	    :original ""))))
 
+(defun org-suggestions--mark-overlapping-operations (operations)
+  "Mark overlapping OPERATIONS as conflicts and return the original list."
+  (let ((ordered (sort (delq nil (copy-sequence operations))
+		       (lambda (left right)
+			 (< (plist-get left :start) (plist-get right :start)))))
+	previous)
+    (dolist (operation ordered)
+      (when (and previous
+		 (or (< (plist-get operation :start) (plist-get previous :end))
+		     (= (plist-get operation :start) (plist-get previous :start))))
+	(plist-put operation :conflict "Overlapping candidate hunks"))
+      (when (or (not previous) (> (plist-get operation :end) (plist-get previous :end)))
+	(setq previous operation))))
+  operations)
+
 (defun org-suggestions--resolve-candidate (source-buffer candidate)
-  "Return resolved hunk operations for CANDIDATE in SOURCE-BUFFER."
+  "Return resolved hunk operations and conflicts for CANDIDATE in SOURCE-BUFFER."
   (with-current-buffer source-buffer
-    (cl-loop for hunk in (plist-get candidate :hunks)
-	     collect
-	     (pcase (plist-get hunk :kind)
-	       ('section-replace
-		(when-let* ((section (org-suggestions--resolve-section-hunk hunk)))
-		  (list :hunk hunk
-			:start (plist-get section :body-start)
-			:end (plist-get section :end)
-			:replacement (org-suggestions--normalize-replacement
-				      (plist-get hunk :replacement))
-			:original (buffer-substring-no-properties
-				   (plist-get section :body-start)
-				   (plist-get section :end)))))
-	       ('replace (org-suggestions--resolve-replace-hunk hunk))
-	       ('insert (org-suggestions--resolve-insert-hunk hunk))
-	       (_ nil)))))
+    (org-with-wide-buffer
+     (org-suggestions--mark-overlapping-operations
+      (cl-loop for hunk in (plist-get candidate :hunks)
+	       collect
+	       (pcase (plist-get hunk :kind)
+		 ('section-replace
+		  (when-let* ((section (org-suggestions--resolve-section-hunk hunk)))
+		    (list :hunk hunk
+			  :start (plist-get section :body-start)
+			  :end (plist-get section :end)
+			  :replacement (org-suggestions--normalize-replacement
+					(plist-get hunk :replacement))
+			  :conflict
+			  (cond
+			   ((not (stringp (plist-get hunk :original)))
+			    "Request-time baseline unavailable")
+			   ((not (equal (plist-get hunk :original)
+					(buffer-substring-no-properties
+					 (plist-get section :body-start)
+					 (plist-get section :end))))
+			    "Source changed since baseline"))
+			  :original (buffer-substring-no-properties
+				     (plist-get section :body-start)
+				     (plist-get section :end)))))
+		 ('replace (org-suggestions--resolve-replace-hunk hunk))
+		 ('insert (org-suggestions--resolve-insert-hunk hunk))
+		 (_ nil)))))))
 
 (defun org-suggestions--supersede-alternatives (thread candidate)
   "Mark active alternatives to CANDIDATE in THREAD as superseded."
@@ -429,23 +477,26 @@ SIDECAR-FILE defaults to `org-suggestions-sidecar-path'."
   "Accept CANDIDATE in SOURCE-BUFFER.
 All candidate hunks apply as a single all-or-nothing operation."
   (let ((operations (org-suggestions--resolve-candidate source-buffer candidate)))
-    (unless (and operations (cl-every #'identity operations))
+    (unless (and operations (cl-every #'identity operations)
+		 (not (cl-some (lambda (operation) (plist-get operation :conflict))
+			       operations)))
       (plist-put candidate :status 'stale)
-      (user-error "Suggestion candidate target is stale"))
+      (user-error "Suggestion candidate is stale; preview to compare, then M-x org-suggestions-reconcile-candidate"))
     (setq operations
 	  (sort operations
 		(lambda (left right)
 		  (> (plist-get left :start) (plist-get right :start)))))
     (with-current-buffer source-buffer
-      (save-excursion
-	(atomic-change-group
-	  (dolist (operation operations)
-	    (let ((start (plist-get operation :start))
-		  (end (plist-get operation :end))
-		  (replacement (plist-get operation :replacement)))
-	      (goto-char start)
-	      (delete-region start end)
-	      (insert replacement))))))
+      (org-with-wide-buffer
+       (save-excursion
+	 (atomic-change-group
+	   (dolist (operation operations)
+	     (let ((start (plist-get operation :start))
+		   (end (plist-get operation :end))
+		   (replacement (plist-get operation :replacement)))
+	       (goto-char start)
+	       (delete-region start end)
+	       (insert replacement)))))))
     (push (cons (plist-get candidate :id) operations)
 	  org-suggestions--rollback-data)
     (plist-put candidate :status 'accepted)
@@ -475,6 +526,105 @@ All candidate hunks apply as a single all-or-nothing operation."
 	      (delete-region start end)
 	      (insert original)))))))
   (plist-put candidate :status 'active))
+
+(defvar-local org-suggestions--reconciliation nil
+  "Source, original candidate, revised candidate and editable hunk regions.")
+
+(defvar org-suggestions-reconciliation-mode-map
+  (let ((map (make-sparse-keymap)))
+    (set-keymap-parent map text-mode-map)
+    (define-key map (kbd "C-c C-c") #'org-suggestions-finish-reconciliation)
+    map)
+  "Local map for deliberate suggestion reconciliation.")
+
+(define-derived-mode org-suggestions-reconciliation-mode text-mode "Reconcile"
+  "Compare baseline, current source and editable proposed replacements.
+Only replacement fields are editable.  C-c C-c saves the reconciled proposal,
+not the source.  Acceptance always revalidates its captured current baseline.")
+
+(defun org-suggestions--insert-comparison (text)
+  "Insert protected comparison TEXT, leaving following fields editable."
+  (let ((inhibit-read-only t))
+    (insert (propertize text 'read-only t))
+    (unless (string-empty-p text)
+      (put-text-property (1- (point)) (point) 'rear-nonsticky t))))
+
+;;;###autoload
+(defun org-suggestions-reconcile-candidate (source-buffer candidate-id)
+  "Compare and edit persisted CANDIDATE-ID for SOURCE-BUFFER.
+Return an editable review buffer.  Saving with C-c C-c records the source
+baseline seen here; it neither accepts nor changes the source document."
+  (interactive
+   (let* ((source (current-buffer))
+	  (threads (org-suggestions-load-sidecar (org-suggestions--source-file source))))
+     (list source (completing-read "Reconcile candidate: "
+				   (cl-loop for thread in threads append
+					    (mapcar (lambda (candidate) (plist-get candidate :id))
+						    (plist-get thread :candidates))) nil t))))
+  (let* ((file (org-suggestions--source-file source-buffer))
+	 (match (org-suggestions-find-candidate (org-suggestions-load-sidecar file) candidate-id))
+	 (original (cdr match))
+	 (operations (and original (org-suggestions--resolve-candidate source-buffer original))))
+    (unless (memq (plist-get original :status) '(active stale))
+      (user-error "Choose an active or stale candidate"))
+    (unless (and operations (cl-every #'identity operations))
+      (user-error "Missing or ambiguous target; restore its identity before reconciliation"))
+    (let* ((revised (org-suggestions-candidate-with-source-context
+		     original (with-current-buffer source-buffer
+				(org-with-wide-buffer
+				 (buffer-substring-no-properties (point-min) (point-max))))))
+	   (buffer (generate-new-buffer (format "*Reconcile %s*" candidate-id))))
+      (with-current-buffer buffer
+	(org-suggestions-reconciliation-mode)
+	(let (regions)
+	  (org-suggestions--insert-comparison
+	   "Compare all three versions. Edit Replacement fields only.\nC-c C-c saves the proposal; accept separately. Killing this buffer cancels.\n\n")
+	  (cl-loop for operation in operations
+		   for hunk in (plist-get revised :hunks)
+		   do
+		   (org-suggestions--insert-comparison
+		    (format "Hunk %s\nBaseline:\n%s\nCurrent source:\n%s\nReplacement (editable):\n"
+			    (plist-get hunk :id)
+			    (or (plist-get (plist-get operation :hunk) :original)
+				(plist-get (plist-get operation :hunk) :anchor-text)
+				"<unavailable>")
+			    (plist-get operation :original)))
+		   (let ((start (copy-marker (point))))
+		     (insert (or (plist-get hunk :replacement) ""))
+		     (push (list hunk start (copy-marker (point))) regions))
+		   (org-suggestions--insert-comparison "\n\n"))
+	  (dolist (region regions)
+	    (set-marker-insertion-type (nth 2 region) t))
+	  (setq org-suggestions--reconciliation
+		(list :source source-buffer :original original :revised revised
+		      :regions (nreverse regions))))
+	(goto-char (point-min)))
+      (pop-to-buffer buffer)
+      buffer)))
+
+(defun org-suggestions-finish-reconciliation ()
+  "Persist edited replacements and the reviewed baseline, without accepting."
+  (interactive)
+  (unless org-suggestions--reconciliation
+    (user-error "Not a suggestion reconciliation buffer"))
+  (let* ((state org-suggestions--reconciliation)
+	 (source (plist-get state :source))
+	 (file (org-suggestions--source-file source))
+	 (original (plist-get state :original))
+	 (threads (org-suggestions-load-sidecar file))
+	 (match (org-suggestions-find-candidate threads (plist-get original :id)))
+	 (revised (plist-get state :revised)))
+    (unless (equal (cdr match) original)
+      (user-error "Stored candidate changed; reopen reconciliation before saving"))
+    (dolist (region (plist-get state :regions))
+      (plist-put (car region) :replacement
+		 (buffer-substring-no-properties (nth 1 region) (nth 2 region))))
+    (plist-put revised :status 'active)
+    (setcar (memq (cdr match) (plist-get (car match) :candidates)) revised)
+    (org-suggestions-write-sidecar file threads)
+    (set-buffer-modified-p nil)
+    (message "Reconciled proposal saved; acceptance will revalidate source")
+    (quit-window t)))
 
 (defun org-suggestions-accept-candidate-id (source-buffer candidate-id)
   "Accept persisted suggestion CANDIDATE-ID for SOURCE-BUFFER."
@@ -657,8 +807,13 @@ All candidate hunks apply as a single all-or-nothing operation."
       (user-error "Suggestion candidate target is stale"))
     (mapconcat
      (lambda (operation)
-       (org-suggestions--line-diff (plist-get operation :original)
-				   (plist-get operation :replacement)))
+       (concat
+	(when-let* ((conflict (plist-get operation :conflict)))
+	  (format "CONFLICT %s: %s\nRequest-time baseline:\n%s\nCurrent source → proposed:\n"
+		  (plist-get (plist-get operation :hunk) :id) conflict
+		  (or (plist-get (plist-get operation :hunk) :original) "<unavailable>")))
+	(org-suggestions--line-diff (plist-get operation :original)
+				    (plist-get operation :replacement))))
      operations
      "\n")))
 

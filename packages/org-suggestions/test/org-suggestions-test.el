@@ -36,6 +36,7 @@
 		      :primary t
 		      :section-title "Intro"
 		      :section-path '("Intro")
+		      :original "Old body.\n"
 		      :replacement "Replacement body.\n"))))))
 
 (ert-deftest org-suggestions-sidecar-writes-section-replace-thread ()
@@ -76,16 +77,17 @@
        (should (equal (plist-get hunk :section-title) "Intro"))
        (should (equal (plist-get hunk :replacement) "Replacement body.\n"))))))
 
-(ert-deftest org-suggestions-accept-section-replace-uses-current-body ()
-  "Accepting section replacement replaces the current body, not old text."
+(ert-deftest org-suggestions-accept-section-replace-refuses-changed-body ()
+  "Accepting section replacement never overwrites intervening edits."
   (with-temp-buffer
     (org-mode)
     (insert "* Intro\nEdited after suggestion.\n")
     (let* ((thread (org-suggestions-test--sample-thread))
 	   (candidate (car (plist-get thread :candidates))))
-      (org-suggestions-accept-candidate (current-buffer) thread candidate)
-      (should (equal (buffer-string) "* Intro\nReplacement body.\n"))
-      (should (eq (plist-get candidate :status) 'accepted)))))
+      (should-error (org-suggestions-accept-candidate (current-buffer) thread candidate)
+		    :type 'user-error)
+      (should (equal (buffer-string) "* Intro\nEdited after suggestion.\n"))
+      (should (eq (plist-get candidate :status) 'stale)))))
 
 (ert-deftest org-suggestions-preview-diff-uses-live-section-body ()
   "Section replacement previews compare replacement against live source body."

@@ -25,6 +25,7 @@
   (dolist (case
 	   '(("* Intro\nOld body.\n" "* Intro\nNew body.\n"
 	      (:id "h1" :kind section-replace :section-title "Intro"
+		   :original "Old body.\n"
 		   :replacement "New body.\n")
 	      "-Old body.\n+New body.\n")
 	     ("Alpha.\nOmega.\n" "Revised alpha.\nOmega.\n"
