@@ -370,6 +370,7 @@
 		  (org-google-docs-footnotes-filter-native-footnote-ir
 		   (gdocs-convert-org-string-to-ir text))))
       (should (string-match-p (regexp-quote "😀 *bold* and /italic/ with [[https://example.com][a link]].") pulled))
+      (should (equal (gdocs-diff--element-keys remote) (gdocs-diff--element-keys (native-ir source))))
       (should-not (gdocs-diff-generate remote (native-ir source)))
       (should-not (gdocs-diff-generate remote (native-ir pulled)))
       (let ((create (gdocs-convert-ir-to-docs-requests (native-ir source))))
