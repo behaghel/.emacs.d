@@ -51,7 +51,9 @@
 (autoload 'hub/music-add-file "apps/music-queue-actions" "Append a local file by path." t)
 (autoload 'hub/music-append "apps/music-queue-actions" "Append a copy of the focused item." t)
 (autoload 'hub/music-add-next "apps/music-queue-actions" "Insert a copy of the focused item next." t)
-(autoload 'hub/music-remove "apps/music-queue-actions" "Remove the focused exact queue occurrence." t)
+(autoload 'hub/music-remove "apps/music-queue-actions" "Remove the focused queue occurrence." t)
+(autoload 'hub/music-play "apps/music-queue-actions" "Play the focused music target." t)
+(autoload 'hub/music-action-execute "apps/music-queue-actions" nil nil)
 (autoload 'hub/music-queue-listing-mode "apps/music-queue" "Style existing EMMS queue spans." t)
 (autoload 'hub/spotify-liked-songs "apps/spotify" nil t)
 (autoload 'hub/spotify-connect "apps/spotify-auth" nil t)
@@ -86,17 +88,58 @@
   (dolist (binding hub/music--bindings)
     (define-key evil-normal-state-map (kbd (car binding)) (cadr binding))))
 
+(defconst hub/music-action-definitions
+  '((play :key "RET" :label "Play" :command hub/music-play :target row
+	  :embark-key "p" :embark-command hub/music-search-embark-play :palette-command hub/music-palette--play)
+    (toggle :key "SPC" :label "Play/pause" :command hub/emms-player-toggle :target transport
+	    :embark-key "SPC" :embark-command hub/music-search-embark-toggle :palette-command hub/music-palette--toggle)
+    (append :key "a" :label "Append" :command hub/music-append :target row
+	    :embark-key "a" :embark-command hub/music-search-embark-append :palette-command hub/music-palette--append)
+    (next :key "M-RET" :label "Add next" :hint "Next" :command hub/music-add-next :target row
+	  :embark-key "n" :embark-command hub/music-search-embark-next :palette-command hub/music-palette--add-next)
+    (remove :key "-" :label "Remove" :command hub/music-remove :target row
+	    :embark-key "-" :embark-command hub/music-search-embark-remove :palette-command hub/music-palette--remove))
+  "Single shared action contract for view keys, footers, Actions and Embark.
+Metadata is inert; inspecting this catalog never loads action implementations.")
+
+(defun hub/music-action-definition (action)
+  "Return a copy of the shared definition for ACTION."
+  (or (copy-sequence (cdr (assq action hub/music-action-definitions)))
+      (user-error "Unknown music action: %s" action)))
+
+(defun hub/music-action-bindings ()
+  "Return every shared view binding from the action contract."
+  (mapcar (lambda (entry)
+	    (cons (plist-get (cdr entry) :key) (plist-get (cdr entry) :command)))
+	  hub/music-action-definitions))
+
+(defun hub/music-action-footer (action &optional primary label)
+  "Return footer data for ACTION, optionally PRIMARY with contextual LABEL."
+  (let ((definition (hub/music-action-definition action)))
+    (list :key (plist-get definition :key) :label (or label (plist-get definition :label))
+	  :command (plist-get definition :command) :primary primary
+	  :select (eq (plist-get definition :target) 'row))))
+
+(defun hub/music-action-footers (primary &optional label)
+  "Return all shared footer actions, putting PRIMARY first with optional LABEL."
+  (let ((actions (cons primary (delq primary (mapcar #'car hub/music-action-definitions)))))
+    (mapcar (lambda (action)
+	      (hub/music-action-footer action (eq action primary)
+				       (when (eq action primary) label))) actions)))
+
+(defun hub/music-action-context-p ()
+  "Return non-nil for a view with a focused music-row target."
+  (derived-mode-p 'hub/emms-player-mode 'hub/spotify-library-mode 'emms-playlist-mode))
+
 (defun hub/music--local-help ()
   "Install local navigation and palette access in loaded music views only."
   (dolist (variable '(hub/emms-player-mode-map hub/spotify-library-mode-map emms-playlist-mode-map))
     (when (and (boundp variable) (keymapp (symbol-value variable)))
       (let ((map (symbol-value variable))
-	    (bindings '(("m" . hub/emms-player-open) ("l" . hub/spotify-liked-songs)
-			("Q" . hub/music-queue) ("+" . hub/music-add-file)
-			("M-RET" . hub/music-add-next) ("/" . hub/music-search) ("?" . hub/music-palette))))
-	(unless (eq variable 'hub/spotify-library-mode-map)
-	  (push '("a" . hub/music-append) bindings)
-	  (push '("-" . hub/music-remove) bindings))
+	    (bindings (append (hub/music-action-bindings)
+			      '(("m" . hub/emms-player-open) ("l" . hub/spotify-liked-songs)
+				("Q" . hub/music-queue) ("+" . hub/music-add-file)
+				("/" . hub/music-search) ("?" . hub/music-palette)))))
 	(when (eq variable 'emms-playlist-mode-map)
 	  ;; Older local setup replaced the native / prefix.  Remove only our
 	  ;; own legacy binding so EMMS can define / n, / a, etc. on load.
@@ -117,6 +160,8 @@
 (with-eval-after-load 'apps/emms-player (hub/music--local-help))
 (with-eval-after-load 'apps/spotify (hub/music--local-help))
 (with-eval-after-load 'emms-playlist-mode (hub/music--local-help))
+(dolist (hook '(hub/emms-player-mode-hook hub/spotify-library-mode-hook emms-playlist-mode-hook))
+  (add-hook hook #'hub/music--local-help t))
 (with-eval-after-load 'which-key
   (which-key-add-key-based-replacements "' m" "Music")
   (dolist (binding hub/music--bindings)

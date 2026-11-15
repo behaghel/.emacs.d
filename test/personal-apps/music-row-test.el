@@ -297,5 +297,72 @@
 	(should (string-match-p "Liked" (hub/music-row--provenance liked)))
 	(should-not (string-match-p "#[0-9]" (hub/music-row--provenance liked))))))))
 
+(ert-deftest hub/music-liked-positions-are-bounded-native-projections ()
+  "Liked rows show the earliest queue rank and duplicate hint, not a library rank."
+  (hub/music-search-test--queue
+   (let* ((raw '((uri . "spotify:track:4uLU6hMCjMI75M1A2tKUQC")))
+	  (row (hub/music-row-from-liked raw 999))
+	  (map (hub/music-row-position-map))
+	  (before (with-current-buffer playlist (buffer-string)))
+	  (cell (aref (hub/music-row-cells row (gethash (hub/music-row-uri row) map)) 0)))
+     (should (equal (substring-no-properties cell) "1…"))
+     (should (equal (get-text-property 0 'hub/music-queue-positions cell) '(1 3)))
+     (should (string-match-p "1, 3" (get-text-property 0 'help-echo cell)))
+     (emms-start)
+     (let ((playing (aref (hub/music-row-cells row '(1 3)) 0))
+	   (large (aref (hub/music-row-cells row '(123456789 234567890)) 0)))
+       (should (text-property-any 0 (length playing) 'hub/music-state 'playing playing))
+       (should (string-prefix-p "1… " playing))
+       (should (get-text-property (1- (length playing)) 'hub/music-state playing))
+       (should (<= (string-width large) (nth 1 (aref (hub/music-row-layout 80) 0)))))
+     (should (equal before (with-current-buffer playlist (buffer-string)))))))
+
+(ert-deftest hub/music-liked-positions-follow-native-edits-without-moving-library-point ()
+  "Queue edits preserve the loaded library's records, IDs and browsing point."
+  (require 'apps/spotify)
+  (hub/music-search-test--queue
+   (hub/music-search-test--library
+    (with-current-buffer library
+      (hub/spotify-library-mode)
+      (setq hub/spotify--tracks (list (cons 0 raw)) hub/spotify--generation 7
+	    hub/spotify--total 1482)
+      (hub/spotify--render)
+      (let ((records hub/spotify--tracks) (generation hub/spotify--generation))
+	(goto-char (text-property-any (point-min) (point-max) 'tabulated-list-id 0))
+	(should (string-match-p "1…" (buffer-string)))
+	(hub/spotify--flush-queue)
+	(with-current-buffer playlist
+	  (buffer-enable-undo)
+	  (setq buffer-undo-list nil)
+	  (goto-char (point-min))
+	  (emms-playlist-delete-track)
+	  (let ((inhibit-read-only t)) (delete-char 1)))
+	(should (timerp hub/spotify--queue-timer))
+	(hub/spotify--flush-queue)
+	(should (string-match-p "2" (aref (cadar tabulated-list-entries) 0)))
+	(should (equal (tabulated-list-get-id) 0))
+	(should (eq records hub/spotify--tracks))
+	(should (= generation hub/spotify--generation))
+	(with-current-buffer playlist
+	  (undo-boundary)
+	  (let ((last-command nil)) (emms-playlist-mode-undo)))
+	(hub/spotify--flush-queue)
+	(should (string-match-p "1…" (aref (cadar tabulated-list-entries) 0)))
+	(with-current-buffer playlist (emms-playlist-clear))
+	(hub/spotify--flush-queue)
+	(should (equal (aref (cadar tabulated-list-entries) 0) "")))))))
+
+(ert-deftest hub/music-queue-positions-precede-icons-like-liked-positions ()
+  "Queue and Liked numbers begin at the same column, with activity after them."
+  (hub/music-search-test--queue
+   (let* ((row (car (hub/music-row-queue playlist)))
+	  (third (nth 2 (hub/music-row-queue playlist))))
+     (should (equal (aref (hub/music-row-cells third) 0) "3"))
+     (emms-start)
+     (let ((cell (aref (hub/music-row-cells row) 0)))
+       (should (string-prefix-p "1 " cell))
+       (should-not (get-text-property 0 'hub/music-state cell))
+       (should (get-text-property (1- (length cell)) 'hub/music-state cell))))))
+
 (provide 'music-row-test)
 ;;; music-row-test.el ends here

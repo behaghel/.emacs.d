@@ -84,7 +84,7 @@
 	     (setq-local hub/spotify--tracks (list (cons 0 raw))
 			 hub/spotify--generation 7 hub/spotify--total 1482))
 	   (cl-letf (((symbol-function 'hub/spotify-player-add)
-		      (lambda (track &optional play) (push (list track play) added))))
+		      (lambda (track &optional play _placement) (push (list track play) added))))
 	     ,@body))
        (when (buffer-live-p library) (kill-buffer library)))))
 

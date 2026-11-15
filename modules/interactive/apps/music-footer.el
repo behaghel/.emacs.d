@@ -36,26 +36,21 @@
 		       (if (plist-get snapshot :paused) "Resume" "Pause"))
 		      (t "Play"))))
     (list :actions
-	  (append (list (list :key "SPC" :label label :command 'hub/emms-player-toggle :primary t))
+	  (append (hub/music-action-footers 'toggle label)
 		  '((:key "c" :label "-10s" :command hub/emms-seek-backward-10)
 		    (:key "r" :label "+30s" :command hub/emms-seek-forward-30)
 		    (:key "s" :label "Previous" :command hub/emms-player-previous)
 		    (:key "t" :label "Next" :command hub/emms-player-next)
-		    (:key "v" :label "Spectrum" :command hub/emms-spectrum-toggle)
-		    (:key "a" :label "Append" :command hub/music-append)
-		    (:key "M-RET" :label "Add next" :command hub/music-add-next))
+		    (:key "v" :label "Spectrum" :command hub/emms-spectrum-toggle))
 		  (hub/music-footer--navigation 'player)
-		  '((:key "-" :label "Remove" :command hub/music-remove :select t)
-		    (:key "q" :label "Close" :command hub/emms-player-close :select t)))
+		  '((:key "q" :label "Close" :command hub/emms-player-close :select t)))
 	  :metadata (format "%d tracks · %s" (length tracks) (hub/music-console--total tracks)))))
 
 (defun hub/music-library-footer (_source _view)
   "Return passive Liked Songs actions and loaded-library coverage."
   (list :actions
-	(append '((:key "RET" :label "Play" :command hub/spotify-play-selected :primary t)
-		  (:key "a" :label "Append" :command hub/spotify-add-selected)
-		  (:key "M-RET" :label "Add next" :command hub/music-add-next)
-		  (:key "g+" :label "More" :command hub/spotify-load-more)
+	(append (hub/music-action-footers 'play)
+		'((:key "g+" :label "More" :command hub/spotify-load-more)
 		  (:key "gr" :label "Refresh" :command hub/spotify-refresh))
 		(hub/music-footer--navigation 'liked)
 		'((:key "q" :label "Close" :command hub/spotify-close :select t)))
@@ -70,12 +65,9 @@
 		  (save-restriction
 		    (widen) (emms-playlist-tracks-in-region (point-min) (point-max))))))
     (list :actions
-	  (append '((:key "RET" :label "Play" :command emms-playlist-mode-play-smart :primary t)
-		    (:key "a" :label "Append" :command hub/music-append)
-		    (:key "M-RET" :label "Add next" :command hub/music-add-next))
+	  (append (hub/music-action-footers 'play)
 		  (hub/music-footer--navigation 'queue)
-		  '((:key "-" :label "Remove" :command hub/music-remove :select t)
-		    (:key "q" :label "Close" :command hub/music-queue-close :select t)))
+		  '((:key "q" :label "Close" :command hub/music-queue-close :select t)))
 	  :metadata (format "%d tracks · %s" (length tracks) (hub/music-console--total tracks)))))
 
 (provide 'apps/music-footer)

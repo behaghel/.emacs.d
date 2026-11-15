@@ -35,6 +35,10 @@ for Refresh. Query typing remains ordinary minibuffer input. Queue search uses
 Evil normal/motion overrides; EMMS's underlying `/` filtering prefix remains
 available to native modules regardless of their initialisation order.
 
+`RET` on a Liked Songs or library-only search row prepends one copy at #1 and
+plays it, preserving all previous occurrences in order. `SPC` toggles the current
+transport in Player, Liked Songs and Queue without changing the browsing row.
+
 `a` appends one copy at the end; `M-RET` inserts one copy immediately after the
 current EMMS selection. With no selection, next insertion goes first. Neither
 operation starts playback when stopped or interrupts a playing/paused item.
@@ -46,10 +50,21 @@ not construct tracks or probe media while listing candidates. Directories and
 remote paths are not file additions; the chosen file still requires final
 player validation.
 
+Shared Play, Play/pause, Append, Add next and Remove actions have one definition
+for their keys, labels and commands. View keymaps, fixed footers, the Actions
+palette and music Embark adapters consume that definition rather than maintaining
+independent action sets. Each action uses the same target resolver and effect
+path regardless of its entry point. Transport acts on current playback, not the
+browsing row; row actions require a focused music view or retained search target.
+
 `-` in Player removes the selected queue occurrence; in Queue it removes the
-occurrence at point. Search exposes removal through `C-. -`, leaving literal
+occurrence at point. In Liked Songs it removes the earliest current queue
+occurrence matching the retained song URI—the position shown in its first
+column—while preserving other copies and the saved library record. Unqueued
+songs report that they are not queued. Stale library identities are rejected,
+but an unavailable queued song can still be removed. Search exposes removal through `C-. -`, leaving literal
 hyphens available for query input. Removal never guesses an occurrence from a
-library record or URI, and stale queue targets are rejected. Other occurrences,
+display label; the Liked Songs mapping is explicit, and stale queue targets are rejected. Other occurrences,
 including duplicates of the same track, keep their identity and order.
 
 Removing the playing occurrence stops it before deletion and plays its immediate
@@ -59,6 +74,28 @@ autoplay either. Without a successor playback stays stopped, with the last
 remaining occurrence selected when available. Unconfirmed stops or source and
 selection changes during acknowledgement block deletion and restart. Removing
 any non-selected occurrence does not stop, pause or restart playback.
+
+### Queue feedback
+
+The first column starts with queue position and places any playback icon after
+it, keeping numbers vertically aligned. Queue shows each exact occurrence's
+position; Liked Songs shows the song's earliest position in the current EMMS queue. An ellipsis denotes additional
+occurrences, for example `7…`; an unqueued song has no position. The cell is
+bounded to eight character columns, with all positions available through help.
+These are queue positions, never library ranks. All listings keep matching
+column geometry. Native queue edits, including Undo, refresh the loaded library
+without fetching, moving its browsing row or changing retained record identities.
+
+Successful queue operations report their actual occurrence in the echo area:
+`Appended at #18`, `Prepended at #1`, `Inserted next at #4`, or
+`Removed #4; playing next`.
+Removal distinguishes unchanged playback, stopped selection, preparation and the
+end of the queue. A failed operation does not emit a success message.
+
+During music-search Embark actions, a compact prompt hint exposes Play, Append,
+Next and Remove without creating a window or editing the query. The normal
+Embark help key opens the full menu only on request. Other Embark contexts keep
+their existing indicator policy.
 
 ## Shared panel chrome
 
@@ -189,8 +226,8 @@ never authorize, fetch, reopen a view or start playback.
   Different recordings and local files remain distinct. Loaded coverage counts
   retained library records, including those represented by combined results.
 - Playing a queue or combined candidate selects that existing occurrence without
-  appending. Playing a library-only candidate uses the existing append-and-play
-  behavior. Enqueueing a library-only or combined candidate appends exactly one
+  appending. Playing a library-only candidate prepends and plays a new occurrence
+  at #1, preserving previous queue entries in order. Enqueueing a library-only or combined candidate appends exactly one
   copy without interruption. A queue-only candidate does not gain a library action.
   `M-RET` inserts a copy next instead of appending: queued rows copy their exact
   occurrence, including local files; library-only rows copy their retained record.

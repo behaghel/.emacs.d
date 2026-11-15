@@ -280,7 +280,7 @@ Never contains response bodies, event messages, credentials or track metadata.")
 
 (defun hub/spotify-player-add (metadata &optional play placement)
   "Insert METADATA at optional PLACEMENT; optionally PLAY the new occurrence.
-PLACEMENT is `end' by default, or `next' after the current EMMS selection."
+PLACEMENT is `end' by default, `next' after the current selection, or `first'."
   (hub/spotify-player-register)
   (require 'apps/music-queue-actions)
   (hub/music-queue-insert (hub/spotify-player-track metadata) (or placement 'end) play)

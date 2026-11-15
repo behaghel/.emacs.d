@@ -273,8 +273,7 @@
   (hub/emms-player--command #'emms-previous))
 
 (defconst hub/emms-player--bindings
-  '(("SPC" . hub/emms-player-toggle)
-    ("c" . hub/emms-seek-backward-10)
+  '(("c" . hub/emms-seek-backward-10)
     ("r" . hub/emms-seek-forward-30)
     ("t" . hub/emms-player-next)
     ("s" . hub/emms-player-previous)

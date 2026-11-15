@@ -108,7 +108,7 @@
    (should-not (cl-find-if (lambda (r) (member (cadr r) '("/player/next" "/player/prev"))) requests))))
 
 (ert-deftest hub/spotify-player-library-add-and-ret-preserve-existing-queue ()
-  "AC-1: Enqueue does not interrupt a file; RET appends and selects the new occurrence."
+  "Enqueue leaves a file playing; RET prepends and selects the new occurrence."
   (hub/spotify-player-test--with-queue
    (with-current-buffer playlist
      (emms-playlist-insert-track (emms-track 'file "/tmp/local.wav"))
@@ -125,6 +125,7 @@
    (should (eq emms-player-playing-p 'emms-player-spotify-headless))
    (with-current-buffer playlist
      (should (= (length (emms-playlist-tracks-in-region (point-min) (point-max))) 3))
+     (should (= (marker-position emms-playlist-selected-marker) (point-min)))
      (should (= (emms-track-get (emms-playlist-selected-track) 'info-playing-time) 180)))))
 
 (ert-deftest hub/spotify-player-controls-and-manual-skip-stay-in-emms ()

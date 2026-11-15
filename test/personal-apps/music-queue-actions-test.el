@@ -288,5 +288,89 @@
        (should-not started)
        (should (zerop stopped))))))
 
+(ert-deftest hub/music-queue-feedback-reports-actual-occurrence-and-outcome ()
+  "Every explicit edit reports its actual queue rank, including paused removal."
+  (require 'apps/music-queue-actions)
+  (hub/music-search-test--queue
+   (let (feedback)
+     (cl-letf (((symbol-function 'message)
+		(lambda (format-string &rest args) (setq feedback (apply #'format format-string args)))))
+       (hub/music-queue-insert duplicate 'end)
+       (should (equal feedback "Appended at #4"))
+       (hub/music-queue-insert duplicate 'next)
+       (should (equal feedback "Inserted next at #2"))
+       (hub/music-row-remove (car (last (hub/music-row-queue playlist))))
+       (should (equal feedback "Removed #5; playback unchanged"))
+       (emms-start)
+       (setq emms-player-paused-p t)
+       (hub/music-row-remove (car (hub/music-row-queue playlist)))
+       (should (equal feedback "Removed #1; next selected (stopped)"))
+       (emms-start)
+       (hub/music-row-remove (car (hub/music-row-queue playlist)))
+       (should (equal feedback "Removed #1; playing next"))
+       (setq feedback nil)
+       (cl-letf (((symbol-function 'emms-stop) (lambda () (user-error "Stop unconfirmed"))))
+	 (should-error (hub/music-row-remove (car (hub/music-row-queue playlist))) :type 'user-error))
+       (should-not feedback)))))
+
+(ert-deftest hub/music-queue-prepend-and-play-preserves-original-occurrences ()
+  "Play-now inserts at #1, stops once and preserves all existing occurrences."
+  (require 'apps/music-queue-actions)
+  (hub/music-search-test--queue
+   (let ((original (hub/music-queue-actions-test--tracks playlist)))
+     (emms-start)
+     (hub/music-queue-insert duplicate 'first t)
+     (should (equal (hub/music-queue-actions-test--tracks playlist) (cons duplicate original)))
+     (should (= stopped 1))
+     (should (= (length started) 2))
+     (with-current-buffer playlist
+       (should (= (marker-position emms-playlist-selected-marker) (point-min)))))))
+
+(ert-deftest hub/music-queue-play-now-stop-failure-cannot-prepend ()
+  "An unconfirmed stop leaves the queue untouched rather than prepending silently."
+  (require 'apps/music-queue-actions)
+  (hub/music-search-test--queue
+   (emms-start)
+   (let ((before (with-current-buffer playlist (buffer-string))) attempted)
+     (cl-letf (((symbol-function 'emms-stop)
+		(lambda () (setq attempted t) (user-error "Stop unconfirmed"))))
+       (should-error (hub/music-queue-insert duplicate 'first t) :type 'user-error))
+     (should attempted)
+     (should (equal before (with-current-buffer playlist (buffer-string)))))))
+
+(ert-deftest hub/music-liked-remove-resolves-the-displayed-earliest-occurrence ()
+  "Liked removal follows its visible queue position, without removing the saved song."
+  (require 'apps/music-queue-actions)
+  (hub/music-search-test--queue
+   (hub/music-search-test--library
+    (let ((records (buffer-local-value 'hub/spotify--tracks library)))
+      (emms-start)
+      (setq emms-player-paused-p t)
+      (with-current-buffer library
+	(cl-letf (((symbol-function 'tabulated-list-get-id) (lambda () 0)))
+	  (call-interactively #'hub/music-remove)
+	  (should (equal (gethash (alist-get 'uri raw) (hub/music-row-position-map)) '(2)))
+	  (should (= stopped 1))
+	  (should (= (length started) 1))
+	  (call-interactively #'hub/music-remove)
+	  (should-not (gethash (alist-get 'uri raw) (hub/music-row-position-map)))
+	  (should-error (call-interactively #'hub/music-remove) :type 'user-error)
+	  (should (eq records hub/spotify--tracks))
+	  (should (= hub/spotify--generation 7))))))))
+
+(ert-deftest hub/music-liked-remove-validates-source-without-requiring-playability ()
+  "A stale saved row is rejected, but an unavailable queued song can be removed."
+  (require 'apps/music-queue-actions)
+  (hub/music-search-test--queue
+   (hub/music-search-test--library
+    (setf (alist-get 'is_playable raw) :false)
+    (with-current-buffer library (setcdr (assoc 0 hub/spotify--tracks) raw))
+    (let ((row (hub/music-row-from-liked raw 0 library)))
+      (hub/music-action-execute 'remove row)
+      (should (= (length (hub/music-row-queue playlist)) 2))
+      (with-current-buffer library (cl-incf hub/spotify--generation))
+      (should-error (hub/music-action-execute 'remove row) :type 'user-error)
+      (should (= (length (hub/music-row-queue playlist)) 2))))))
+
 (provide 'music-queue-actions-test)
 ;;; music-queue-actions-test.el ends here

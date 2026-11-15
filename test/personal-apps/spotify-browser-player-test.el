@@ -74,7 +74,7 @@
 	 (should (eq run hub/spotify-browser-player--run)))))))
 
 (ert-deftest hub/spotify-browser-player-liked-songs-ret-awaits-audio ()
-  "Library RET preserves the queue and plays its appended occurrence once after activation."
+  "Library RET prepends and plays once after activation, preserving older rows."
   (require 'apps/spotify)
   (require 'emms-info)
   (hub/spotify-browser-player-test--queue
@@ -113,8 +113,9 @@
        (let ((run hub/spotify-browser-player--run))
 	 (with-current-buffer playlist
 	   (let ((tracks (nreverse (emms-playlist-tracks-in-region (point-min) (point-max)))))
-	     (should (equal (butlast tracks) original))
-	     (should (eq (emms-playlist-selected-track) (car (last tracks))))))
+	     (should (equal (cdr tracks) original))
+	     (should (eq (emms-playlist-selected-track) (car tracks)))
+	     (should (= (marker-position emms-playlist-selected-marker) (point-min)))))
 	 (setq ready t)
 	 (hub/spotify-browser-player--await-audio run)
 	 (hub/spotify-browser-player--await-audio run)

@@ -52,15 +52,47 @@
 (declare-function hub/emms-player--source "apps/emms-player" ())
 (declare-function hub/emms-player--register-view "apps/emms-player" (source))
 
-(defun hub/spotify--row (item index)
-  "Convert saved ITEM into an inert table row identified by INDEX."
-  (list index (hub/music-row-cells (hub/music-row-from-liked (alist-get 'track item) index))))
+(defun hub/spotify--row (item index &optional positions)
+  "Convert saved ITEM to row INDEX using an optional native POSITIONS map."
+  (let* ((track (alist-get 'track item))
+	 (positions (or positions (hub/music-row-position-map))))
+    (list index (hub/music-row-cells (hub/music-row-from-liked track index)
+				     (gethash (alist-get 'uri track) positions)))))
+
+(defun hub/spotify--entries ()
+  "Build retained table entries from one fresh native position projection."
+  (let ((positions (hub/music-row-position-map)))
+    (mapcar (lambda (entry) (hub/spotify--row `((track . ,(cdr entry))) (car entry) positions))
+	    hub/spotify--tracks)))
+
+(defvar hub/spotify--queue-timer nil "Coalesced passive queue repaint timer.")
+
+(defun hub/spotify--flush-queue ()
+  "Repaint queue feedback in the loaded library, never opening or fetching it."
+  (when (timerp hub/spotify--queue-timer) (cancel-timer hub/spotify--queue-timer))
+  (setq hub/spotify--queue-timer nil)
+  (hub/spotify--refresh-playback))
+
+(defun hub/spotify--queue-changed (&rest _changes)
+  "Schedule one loaded-library repaint after an authoritative queue change."
+  (when (and (eq (current-buffer) emms-playlist-buffer)
+	     (hub/music-loaded-library-buffer) (not hub/spotify--queue-timer))
+    (setq hub/spotify--queue-timer (run-at-time 0 nil #'hub/spotify--flush-queue))))
+
+(defun hub/spotify--watch-queue (&optional buffer)
+  "Observe native queue BUFFER, or the playlist whose mode hook is running."
+  (when (and (buffer-live-p (or buffer (current-buffer))) (hub/music-loaded-library-buffer))
+    (with-current-buffer (or buffer (current-buffer))
+      (add-hook 'after-change-functions #'hub/spotify--queue-changed nil t)
+      (add-hook 'kill-buffer-hook #'hub/spotify--queue-changed nil t))))
 
 (defun hub/spotify--listing-layout ()
   "Return the shared columns for the visible library, without opening it."
-  (hub/music-row-layout
-   (if-let* ((window (get-buffer-window (current-buffer) t)))
-       (window-body-width window) (frame-width))))
+  (let ((layout (hub/music-row-layout
+		 (if-let* ((window (get-buffer-window (current-buffer) t)))
+		     (window-body-width window) (frame-width)))))
+    (setcar (aref layout 0) "Queue")
+    layout))
 
 (defun hub/spotify--resize-listing (frame)
   "Update only an already displayed library's columns after FRAME changes size."
@@ -73,6 +105,8 @@
   "Apply passive observers and shared columns without resetting library data.
 Return non-nil only when the native column schema changes."
   (add-hook 'window-size-change-functions #'hub/spotify--resize-listing)
+  (add-hook 'emms-playlist-mode-hook #'hub/spotify--watch-queue)
+  (when (buffer-live-p emms-playlist-buffer) (hub/spotify--watch-queue emms-playlist-buffer))
   (dolist (hook '(emms-player-started-hook emms-player-paused-hook emms-player-stopped-hook
 					   emms-player-finished-hook hub/spotify-browser-player-status-hook))
     (add-hook hook #'hub/spotify--refresh-playback))
@@ -85,30 +119,30 @@ Return non-nil only when the native column schema changes."
     (unless (equal tabulated-list-format layout)
       (setq-local tabulated-list-format layout)
       (when hub/spotify--tracks
-	(setq tabulated-list-entries
-	      (mapcar (lambda (entry) (hub/spotify--row `((track . ,(cdr entry))) (car entry)))
-		      hub/spotify--tracks)))
+	(setq tabulated-list-entries (hub/spotify--entries)))
       (tabulated-list-init-header)
       t)))
 
 (defun hub/spotify--refresh-playback ()
-  "Redraw retained playback markers only when state changes, without fetching."
+  "Redraw retained playback and queue positions when state changes, without fetch."
   (when-let* ((buffer (hub/music-loaded-library-buffer)))
     (with-current-buffer buffer
       (hub/spotify--setup-rows)
       (let* ((track (hub/music--selected-p))
 	     (key (list emms-player-playing-p emms-player-paused-p (hub/music-playback-state)
-			(when track (emms-track-name track)))))
+			(when track (emms-track-name track))
+			(when (buffer-live-p emms-playlist-buffer)
+			  (cons emms-playlist-buffer
+				(with-current-buffer emms-playlist-buffer (buffer-chars-modified-tick)))))))
 	(unless (equal key hub/spotify--playback-key)
 	  (setq hub/spotify--playback-key key
-		tabulated-list-entries
-		(mapcar (lambda (entry) (hub/spotify--row `((track . ,(cdr entry))) (car entry)))
-			hub/spotify--tracks))
+		tabulated-list-entries (hub/spotify--entries))
 	  (when hub/spotify--tracks (tabulated-list-print t)))))))
 
 (defun hub/spotify--render ()
   "Render loaded rows without selecting a window."
   (hub/spotify--setup-rows)
+  (setq tabulated-list-entries (hub/spotify--entries))
   (tabulated-list-print t)
   (run-hooks 'hub/music-library-changed-hook)
   (when (fboundp 'context-panels-footer-update) (context-panels-footer-update (current-buffer)))
@@ -136,8 +170,9 @@ Return non-nil only when the native column schema changes."
    (t
     (condition-case nil
 	(let* ((items (alist-get 'items json))
+	       (positions (hub/music-row-position-map))
 	       (rows (cl-loop for item in items for index from offset
-			      collect (hub/spotify--row item index)))
+			      collect (hub/spotify--row item index positions)))
 	       (tracks (cl-loop for item in items for index from offset
 				collect (cons index (alist-get 'track item)))))
 	  (setq hub/spotify--tracks (if (zerop offset) tracks (append hub/spotify--tracks tracks))
@@ -179,19 +214,13 @@ Return non-nil only when the native column schema changes."
 		  (hub/spotify--received offset status json retry)))))))))))
 
 (defun hub/spotify-add-selected (&optional play)
-  "Append the selected row to EMMS, optionally PLAY it without clearing the queue."
+  "Append the selected row, or prepend and PLAY it, without clearing the queue."
   (interactive)
-  (let* ((track (cdr (assoc (tabulated-list-get-id) hub/spotify--tracks)))
-	 (uri (alist-get 'uri track)))
-    (unless (and (stringp uri)
-		 (string-match-p "\\`spotify:track:[[:alnum:]]\\{22\\}\\'" uri)
-		 (or (not (assq 'is_playable track)) (alist-get 'is_playable track)))
-      (user-error "This row has no playable Spotify track"))
-    (hub/spotify-player-add track play))
+  (hub/music-action-execute (if play 'play 'append))
   nil)
 
 (defun hub/spotify-play-selected ()
-  "Append and play the selected row through EMMS and its headless backend."
+  "Prepend and play the selected row through native EMMS."
   (interactive)
   (hub/spotify-add-selected t))
 
@@ -218,20 +247,14 @@ Return non-nil only when the native column schema changes."
   (setq-local tabulated-list-use-header-line nil truncate-lines t)
   (hub/spotify--setup-rows))
 
-(define-key hub/spotify-library-mode-map (kbd "a") #'hub/spotify-add-selected)
-(define-key hub/spotify-library-mode-map (kbd "RET") #'hub/spotify-play-selected)
 (define-key hub/spotify-library-mode-map (kbd "g") (make-sparse-keymap))
 (define-key hub/spotify-library-mode-map (kbd "gr") #'hub/spotify-refresh)
 (define-key hub/spotify-library-mode-map (kbd "g+") #'hub/spotify-load-more)
 (define-key hub/spotify-library-mode-map (kbd "q") #'hub/spotify-close)
 (define-key hub/spotify-library-mode-map (kbd "Q") #'hub/music-queue)
 (define-key hub/spotify-library-mode-map (kbd "+") #'hub/music-add-file)
-(define-key hub/spotify-library-mode-map (kbd "M-RET") #'hub/music-add-next)
 (with-eval-after-load 'evil
   (evil-define-key 'normal hub/spotify-library-mode-map
-		   (kbd "a") #'hub/spotify-add-selected
-		   (kbd "RET") #'hub/spotify-play-selected
-		   (kbd "M-RET") #'hub/music-add-next
 		   (kbd "Q") #'hub/music-queue
 		   (kbd "+") #'hub/music-add-file
 		   (kbd "g+") #'hub/spotify-load-more

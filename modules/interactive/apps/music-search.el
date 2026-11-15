@@ -27,6 +27,8 @@
 (defvar embark-keymap-alist)
 (defvar embark-default-action-overrides)
 (defvar embark-general-map)
+(defvar embark-indicators)
+(defvar embark-help-key)
 (declare-function vertico--exhibit "vertico" ())
 (autoload 'hub/spotify-player-add "apps/spotify-player" nil nil)
 
@@ -102,9 +104,41 @@ Reapply semantic field faces even if a completion style drops input properties."
 	     (setq hub/music-search--operation 'play))
     (error (setq hub/music-search--operation 'play) (signal (car error) (cdr error)))))
 
+(defun hub/music-search--indicator ()
+  "Return a music-only Embark indicator that never opens an action window.
+Replace the prompt's display while choosing; leave query text and rows intact."
+  (let ((buffer (current-buffer)) overlay)
+    (lambda (&optional keymap _targets _prefix)
+      (if (null keymap)
+	  (when (overlayp overlay) (delete-overlay overlay) (setq overlay nil))
+	(when (buffer-live-p buffer)
+	  (with-current-buffer buffer
+	    (when (minibufferp)
+	      (unless (overlayp overlay)
+		(setq overlay (make-overlay (point-min) (minibuffer-prompt-end) buffer)))
+	      (let* ((help (if (boundp 'embark-help-key) (or embark-help-key "C-h") "C-h"))
+		     (hint (concat
+			    (mapconcat (lambda (action)
+					 (concat (propertize (car action) 'face 'minibuffer-prompt) " "
+						 (propertize (cdr action) 'face 'default)))
+				       (append
+					(mapcar (lambda (entry)
+						  (let ((definition (cdr entry)))
+						    (cons (plist-get definition :embark-key)
+							  (or (plist-get definition :hint)
+							      (plist-get definition :label)))))
+						hub/music-action-definitions)
+					(list (cons help "More"))) "  ") ": ")))
+		(overlay-put overlay 'display
+			     (truncate-string-to-width hint
+						       (max 1 (1- (window-body-width (active-minibuffer-window))))
+						       nil nil "…"))
+		(overlay-put overlay 'help-echo hint)))))))))
+
 (defun hub/music-search--minibuffer-setup ()
   "Keep query input native and distinguish browsing highlight from playback."
-  (setq-local hub/music-search--active t)
+  (setq-local hub/music-search--active t
+	      embark-indicators '(hub/music-search--indicator))
   (when (boundp '+vertico-current-arrow) (setq-local +vertico-current-arrow nil))
   (use-local-map (copy-keymap (current-local-map)))
   (local-set-key (kbd "SPC") #'self-insert-command)
@@ -120,22 +154,10 @@ Reapply semantic field faces even if a completion style drops input properties."
 
 (defun hub/music-search--act (row operation)
   "Perform explicit OPERATION on validated ROW through existing queue owners."
-  (unless (memq operation '(play enqueue next remove)) (user-error "Unknown music action"))
-  (cond
-   ((eq operation 'remove) (hub/music-row-remove row))
-   ((memq operation '(enqueue next))
-    (hub/music-row-add row (if (eq operation 'next) 'next 'end)))
-   (t
-    (hub/music-row-assert-current row)
-    (if (eq (hub/music-row-origin row) 'liked)
-	(hub/spotify-player-add (hub/music-row-metadata row) t)
-      (emms-stop)
-      (hub/music-row-assert-current row)
-      (with-current-buffer (hub/music-row-playlist row) (emms-playlist-select (hub/music-row-position row)))
-      (emms-start)))))
+  (hub/music-action-execute (if (eq operation 'enqueue) 'append operation) row))
 
 (defun hub/music-search-embark-play (target)
-  "Play TARGET's retained occurrence or append and play its retained library row.
+  "Play TARGET's queue occurrence or prepend and play its retained library row.
 This is a non-command Embark action so target properties survive dispatch."
   (hub/music-search--act (hub/music-search--target target) 'play))
 
@@ -150,19 +172,22 @@ This is a non-command action so target identity is not stripped."
   (hub/music-search--act (hub/music-search--target target) 'next))
 
 (defun hub/music-search-embark-remove (target)
-  "Remove TARGET's exact retained queue occurrence, never guessing from a URI.
+  "Remove TARGET's queue occurrence or its Liked song's displayed queued copy.
 This is a non-command action so target properties survive Embark dispatch."
   (hub/music-search--act (hub/music-search--target target) 'remove))
 
-(defvar hub/music-search-embark-map
-  (let ((map (make-sparse-keymap)))
-    (define-key map (kbd "p") '(menu-item "Play" hub/music-search-embark-play))
-    (define-key map (kbd "a") '(menu-item "Append one copy" hub/music-search-embark-append))
-    map)
-  "Music result actions using retained identities, not text input injection.")
+(defun hub/music-search-embark-toggle (_target)
+  "Toggle current playback, independently of the retained search target.
+This is a non-command adapter, like the other property-safe Embark actions."
+  (hub/music-action-execute 'toggle))
 
-(define-key hub/music-search-embark-map (kbd "-") '(menu-item "Remove occurrence" hub/music-search-embark-remove))
-(define-key hub/music-search-embark-map (kbd "n") '(menu-item "Add copy next" hub/music-search-embark-next))
+(defvar hub/music-search-embark-map (make-sparse-keymap)
+  "Music result actions derived from the shared action contract.")
+
+(dolist (entry hub/music-action-definitions)
+  (let ((definition (cdr entry)))
+    (define-key hub/music-search-embark-map (kbd (plist-get definition :embark-key))
+		(list 'menu-item (plist-get definition :label) (plist-get definition :embark-command)))))
 
 (with-eval-after-load 'embark
   (set-keymap-parent hub/music-search-embark-map embark-general-map)
@@ -172,7 +197,7 @@ This is a non-command action so target properties survive Embark dispatch."
 ;;;###autoload
 (defun hub/music-search ()
   "Search the queue and loaded Liked Songs without previews or fetching.
-RET plays an existing queue occurrence, or appends and plays a library-only
+RET plays an existing queue occurrence, or prepends and plays a library-only
 song.
 M-RET inserts a copy next from an exact queue occurrence or retained Liked row,
 without interruption.  Matching Spotify URIs share provenance.

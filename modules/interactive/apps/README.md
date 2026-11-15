@@ -74,7 +74,7 @@ console, keyboard cockpit and consistent music entry points.
   playback state from title sorting and browsing selection, with smaller secondary
   details and per-track Spotify service links. Playback-only redraws reuse retained
   records without moving focus or reopening the library.
-- On a library search result, `RET` appends and plays; `a` appends at the end and
+- On a library search result, `RET` prepends and plays; `a` appends at the end and
   `M-RET` inserts next without interruption. A queued item's `M-RET` adds another
   copy next, never moves its original occurrence. `Q` opens Queue and `+` appends
   a playable local file chosen by path. Unavailable, refreshed, removed or closed-library records cannot
@@ -142,7 +142,7 @@ console, keyboard cockpit and consistent music entry points.
 ### Spotify playback
 
 - `a` appends a playable Liked Songs row to the current EMMS playlist without
-  interrupting playback. `RET` appends and starts that occurrence, preserving the
+  interrupting playback. `RET` prepends and starts that occurrence at #1, preserving the
   rest of the queue. Sorting and pagination do not change the selected track.
   Spotify URI metadata comes from the retained Spotify response; constructing
   those tracks excludes EMMS's generic file-info initializer. Local media retain

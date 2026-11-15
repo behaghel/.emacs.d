@@ -403,5 +403,45 @@
 	(should (= (length started) 1))
 	(should (zerop stopped)))))))
 
+(ert-deftest hub/music-search-embark-hint-does-not-open-a-window-or-edit-query ()
+  "Music actions replace only the prompt display, preserving the query and layout."
+  (require 'apps/music-search)
+  (with-temp-buffer
+    (insert "Music original prompt: query-with-hyphen")
+    (let* ((original (buffer-string))
+	   (windows (window-list))
+	   (indicator (hub/music-search--indicator)))
+      (cl-letf (((symbol-function 'minibufferp) (lambda (&rest _) t))
+		((symbol-function 'minibuffer-prompt-end) (lambda () 24))
+		((symbol-function 'display-buffer) (lambda (&rest _) (ert-fail "Opened an action window"))))
+	(funcall indicator hub/music-search-embark-map nil nil)
+	(let ((overlay (car (overlays-at (point-min)))))
+	  (should (overlayp overlay))
+	  (should (string-match-p "a Append" (overlay-get overlay 'display)))
+	  (should (string-match-p "- Remove" (overlay-get overlay 'display))))
+	(should (equal original (buffer-string)))
+	(should (equal windows (window-list)))
+	(funcall indicator nil nil nil)
+	(should-not (overlays-in (point-min) (point-max)))))))
+
+(ert-deftest hub/music-search-embark-policy-is-minibuffer-local ()
+  "Only a music search minibuffer replaces the ordinary Embark indicator policy."
+  (let ((embark-indicators '(ordinary-indicator)))
+    (with-temp-buffer
+      (use-local-map (copy-keymap minibuffer-local-map))
+      (hub/music-search--minibuffer-setup)
+      (should (local-variable-p 'embark-indicators))
+      (should (equal embark-indicators '(hub/music-search--indicator))))
+    (should (equal embark-indicators '(ordinary-indicator)))))
+
+(ert-deftest hub/music-action-catalog-drives-embark-with-property-safe-adapters ()
+  "Embark keys and labels come from the shared catalog without command coercion."
+  (require 'apps/music-search)
+  (dolist (entry hub/music-action-definitions)
+    (let* ((definition (cdr entry))
+	   (command (plist-get definition :embark-command)))
+      (should (eq (lookup-key hub/music-search-embark-map (kbd (plist-get definition :embark-key))) command))
+      (should-not (interactive-form command)))))
+
 (provide 'music-search-test)
 ;;; music-search-test.el ends here

@@ -155,7 +155,7 @@
 		 (error "Palette not rendered"))
 	       (unless (string-match-p "Search music" (with-current-buffer transient--buffer (buffer-string)))
 		 (error "Search missing from palette"))
-	       (transient-quit-all)
+	       (transient--emergency-exit)
 	       (dolist (feature '(emms apps/spotify apps/spotify-auth apps/emms-spectrum apps/music-search))
 		 (when (featurep feature) (error "Palette loaded media: %s" feature)))
 	       (princ "MUSIC-PALETTE-COLD-OK"))))))
@@ -183,9 +183,9 @@
 	    (setq emms-player-paused-p t)
 	    (should (string-match-p "Resume" (hub/music-palette--toggle-description)))
 	    (should (string-match-p "Paused" (hub/music-palette--heading)))
-	    (transient-quit-all)
+	    (transient--emergency-exit)
 	    (should emms-player-paused-p)))
-      (when transient--prefix (transient-quit-all))
+      (when transient--prefix (transient--emergency-exit))
       (kill-buffer source))))
 
 (ert-deftest hub/music-palette-keys-delegate-and-return-to-the-document ()
@@ -217,7 +217,7 @@
 	      (should-not hub/music-palette--timer)
 	      (should (eq (current-buffer) source))
 	      (should (= (point) position)))))
-      (when transient--prefix (transient-quit-all))
+      (when transient--prefix (transient--emergency-exit))
       (kill-buffer source))))
 
 (ert-deftest hub/music-palette-closes-without-breaking-the-docked-player-footer ()
@@ -250,7 +250,7 @@
 		(should-not transient--prefix)
 		(should-not hub/music-palette--timer)))
 	    (should (eq display-policy transient-display-buffer-action))))
-      (when transient--prefix (transient-quit-all))
+      (when transient--prefix (transient--emergency-exit))
       (hub/emms-player--cancel-timer)
       (kill-buffer source))))
 
@@ -267,7 +267,7 @@
 	    (hub/music-palette--refresh)
 	    (should-not (with-current-buffer transient--buffer transient-force-single-column))
 	    (should (hub/music-palette--active-p))))
-      (when transient--prefix (transient-quit-all)))))
+      (when transient--prefix (transient--emergency-exit)))))
 
 (ert-deftest hub/music-palette-pause-change-refreshes-during-pending-seek ()
   "Toggle availability refreshes even while the displayed Seeking state stays unchanged."
@@ -356,7 +356,8 @@
       (let ((footer (hub/music-library-footer nil nil)))
 	(should (equal (plist-get footer :metadata) "1 of 1482 loaded"))
 	(should (equal (mapcar (lambda (action) (plist-get action :key)) (plist-get footer :actions))
-		       '("RET" "a" "M-RET" "g+" "gr" "m" "Q" "+" "/" "?" "q")))))))
+		       (append (mapcar (lambda (entry) (plist-get (cdr entry) :key)) hub/music-action-definitions)
+			       '("g+" "gr" "m" "Q" "+" "/" "?" "q"))))))))
 
 (ert-deftest hub/music-queue-provider-projects-the-live-playlist-without-rendering-it ()
   "The queue tab refers to EMMS's actual buffer, never a rendered copy."
@@ -372,6 +373,66 @@
 	    (should-not (plist-get view :render))
 	    (should (equal before (with-current-buffer playlist (buffer-string))))))
       (when (buffer-live-p playlist) (kill-buffer playlist)))))
+
+(ert-deftest hub/music-space-toggles-from-library-and-queue-without-moving-focus ()
+  "SPC resolves to shared transport in both listings, in normal and motion state."
+  (require 'apps/spotify)
+  (require 'apps/emms-player)
+  (hub/music--local-help)
+  (dolist (map (list hub/spotify-library-mode-map emms-playlist-mode-map))
+    (with-temp-buffer
+      ;; This tests listing maps, not a leftover transient's overriding map.
+      (let ((overriding-terminal-local-map nil) (overriding-local-map nil))
+	(use-local-map map)
+	(evil-local-mode 1)
+	(dolist (state '(normal motion))
+	  (evil-change-state state)
+	  (should (eq (key-binding (kbd "SPC")) #'hub/emms-player-toggle)))))))
+
+(ert-deftest hub/music-shared-actions-drive-every-view-keymap-and-footer ()
+  "The same catalog defines all shared action keys, labels and commands in each view."
+  (require 'apps/spotify)
+  (require 'apps/emms-player)
+  (require 'apps/music-console)
+  (require 'apps/music-footer)
+  (hub/music--local-help)
+  (let ((overriding-terminal-local-map nil) (overriding-local-map nil))
+    (dolist (map (list hub/emms-player-mode-map hub/spotify-library-mode-map emms-playlist-mode-map))
+      (with-temp-buffer
+	(use-local-map map) (evil-local-mode 1) (evil-normal-state)
+	(dolist (entry hub/music-action-definitions)
+	  (should (eq (key-binding (kbd (plist-get (cdr entry) :key)))
+		      (plist-get (cdr entry) :command)))))))
+  (let ((emms-playlist-buffer nil) (emms-playlist-buffers nil) playlist)
+    (unwind-protect
+	(progn
+	  (setq playlist (emms-playlist-new " *shared footer actions*"))
+	  (dolist (function '(hub/music-player-footer hub/music-library-footer hub/music-queue-footer))
+	    (with-current-buffer playlist
+	      (let ((actions (plist-get (funcall function nil nil) :actions)))
+		(dolist (entry hub/music-action-definitions)
+		  (let ((action (cl-find (plist-get (cdr entry) :key) actions :key (lambda (item) (plist-get item :key)) :test #'equal)))
+		    (should action)
+		    (should (eq (plist-get action :command) (plist-get (cdr entry) :command)))))))))
+      (when (buffer-live-p playlist) (kill-buffer playlist)))))
+
+(ert-deftest hub/music-shared-actions-drive-live-palette-suffixes ()
+  "Actions presents every catalog entry using lazy, property-safe command relays."
+  (require 'apps/music-palette)
+  (unwind-protect
+      (save-window-excursion
+	(with-temp-buffer
+	  (setq major-mode 'hub/emms-player-mode)
+	  (switch-to-buffer (current-buffer))
+	  (call-interactively #'hub/music-palette)
+	  (transient--show)
+	  (dolist (entry hub/music-action-definitions)
+	    (let* ((definition (cdr entry))
+		   (suffix (cl-find (plist-get definition :key) transient--suffixes
+				    :key (lambda (item) (oref item key)) :test #'equal)))
+	      (should suffix)
+	      (should (eq (oref suffix command) (plist-get definition :palette-command)))))))
+    (when transient--prefix (transient--emergency-exit))))
 
 (provide 'music-test)
 ;;; music-test.el ends here

@@ -9,16 +9,17 @@
     <use href="components.svg#molecule-music-fixture-row-fields" y="99" width="1280" height="38"/>
     <use href="components.svg#molecule-music-fixture-row-fields" y="191" width="1280" height="38"/>
     <g font-family="Ubuntu Mono, monospace" font-size="18">
-      <text x="28" y="80" fill="#b6a0ff">⏸</text>
-      <text x="847" y="80" fill="#989898">Queue #1 ♥ · Spotify · Paused</text>
-      <text x="847" y="126" fill="#989898">Queue #2 ♥ · Spotify</text>
-      <text x="64" y="172" fill="#2fafff" font-weight="600">Paper Lanterns</text>
-      <text x="361" y="172" fill="#00d3d0">Field Recordings</text>
-      <text x="568" y="172" fill="#feacd0">Night Walks</text>
-      <text x="838" y="172" fill="#d0bc00" text-anchor="end">3:12</text>
-      <text x="847" y="172" fill="#989898">Queue #3 · Local file</text>
-      <text x="847" y="218" fill="#989898">Queue #4 ♥ · Spotify</text>
-      <rect x="63" y="200" width="2" height="22" fill="#9fe0c2"/>
+      <text x="46" y="80" fill="#b6a0ff">⏸</text>
+      <g fill="#989898"><text x="28" y="80">1</text><text x="28" y="126">2</text><text x="28" y="172">3</text><text x="28" y="218">4</text></g>
+      <text x="892" y="80" fill="#989898">Queue #1 ♥ · Spotify · Paused</text>
+      <text x="892" y="126" fill="#989898">Queue #2 ♥ · Spotify</text>
+      <text x="109" y="172" fill="#2fafff" font-weight="600">Paper Lanterns</text>
+      <text x="406" y="172" fill="#00d3d0">Field Recordings</text>
+      <text x="613" y="172" fill="#feacd0">Night Walks</text>
+      <text x="883" y="172" fill="#d0bc00" text-anchor="end">3:12</text>
+      <text x="892" y="172" fill="#989898">Queue #3 · Local file</text>
+      <text x="892" y="218" fill="#989898">Queue #4 ♥ · Spotify</text>
+      <rect x="108" y="200" width="2" height="22" fill="#9fe0c2"/>
       <text x="28" y="255" font-size="14" fill="#989898">One copy added next. The original stays here; current audio is uninterrupted.</text>
       <use href="components.svg#molecule-music-queue-footer-actions" y="277" width="1280" height="43"/>
       <text x="1248" y="305" text-anchor="end" font-size="14" fill="#989898">4 tracks · 16:54</text>

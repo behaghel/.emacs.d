@@ -16,14 +16,16 @@
 (autoload 'hub/emms-register-local-players "apps/emms-local" nil nil)
 
 (defun hub/music-queue-insert (track &optional placement play)
-  "Insert TRACK into EMMS at PLACEMENT, either `end' or `next'.
+  "Insert TRACK into EMMS at PLACEMENT: `end', `next', or `first'.
 Next means after the current selection, or first when none exists.  Preserve
 playback and the existing occurrence unless PLAY explicitly requests
 playing the new occurrence."
-  (unless (memq placement '(nil end next)) (user-error "Unknown queue insertion placement"))
+  (unless (memq placement '(nil end next first)) (user-error "Unknown queue insertion placement"))
+  ;; Confirm silence before a play-now operation changes queue identities.
+  (when play (emms-stop))
   (unless (buffer-live-p emms-playlist-buffer)
     (emms-playlist-set-playlist-buffer (emms-playlist-new)))
-  (let (position)
+  (let (position ordinal)
     (with-current-buffer emms-playlist-buffer
       (save-excursion
 	(save-restriction
@@ -31,18 +33,23 @@ playing the new occurrence."
 	  (let ((selected (and (markerp emms-playlist-selected-marker)
 			       (marker-position emms-playlist-selected-marker)
 			       (emms-playlist-track-at emms-playlist-selected-marker))))
-	    (if (eq placement 'next)
-		(if selected
-		    (progn
-		      (goto-char emms-playlist-selected-marker)
-		      (condition-case nil (emms-playlist-next) (error (goto-char (point-max)))))
-		  (goto-char (point-min)))
-	      (goto-char (point-max)))
+	    (pcase placement
+	      ('first (goto-char (point-min)))
+	      ('next
+	       (if selected
+		   (progn
+		     (goto-char emms-playlist-selected-marker)
+		     (condition-case nil (emms-playlist-next) (error (goto-char (point-max)))))
+		 (goto-char (point-min))))
+	      (_ (goto-char (point-max))))
 	    (setq position (point))
 	    (emms-playlist-insert-track track)
-	    (when play (emms-stop))
+	    (setq ordinal (1+ (hub/music-row-index
+			       (cl-find position (hub/music-row-queue emms-playlist-buffer)
+					:key #'hub/music-row-position))))
 	    (when (or play (not selected)) (emms-playlist-select position))))))
     (when play (emms-start))
+    (message "%s at #%d" (pcase placement ('first "Prepended") ('next "Inserted next") (_ "Appended")) ordinal)
     position))
 
 (defun hub/music-row-add (row placement)
@@ -56,6 +63,48 @@ playing the new occurrence."
     (if (eq placement 'next)
 	(hub/spotify-player-add (hub/music-row-metadata row) nil 'next)
       (hub/spotify-player-add (hub/music-row-metadata row) nil))))
+
+(defun hub/music-row-play (row)
+  "Play retained ROW through the shared queue owner, never by display label."
+  (hub/music-row-assert-current row)
+  (if (eq (hub/music-row-origin row) 'liked)
+      (hub/spotify-player-add (hub/music-row-metadata row) t 'first)
+    (emms-stop)
+    (hub/music-row-assert-current row)
+    (with-current-buffer (hub/music-row-playlist row)
+      (emms-playlist-select (hub/music-row-position row)))
+    (emms-start)
+    (message "%s #%d" (if (eq (hub/music-playback-state) 'connecting) "Preparing" "Playing")
+	     (1+ (hub/music-row-index row)))))
+
+(defun hub/music-row-removal-target (row)
+  "Resolve ROW to its exact removal occurrence using the shared view contract.
+A Liked record maps to its earliest live queued URI match, never to a title."
+  (hub/music-row-assert-current row t)
+  (if (eq (hub/music-row-origin row) 'queue) row
+    (or (cl-find (hub/music-row-uri row) (hub/music-row-queue emms-playlist-buffer)
+		 :key #'hub/music-row-uri :test #'equal)
+	(user-error "This song is not queued"))))
+
+(defun hub/music-action-execute (action &optional row)
+  "Execute shared ACTION on retained ROW or the focused view target.
+Transport ignores row focus; every row entry point shares this resolver."
+  (let ((definition (hub/music-action-definition action)))
+    (if (eq (plist-get definition :target) 'transport)
+	(call-interactively (plist-get definition :command))
+      (let ((row (or row (hub/music-queue-action-target))))
+	(pcase action
+	  ('play (hub/music-row-play row))
+	  ('append (hub/music-row-add row 'end))
+	  ('next (hub/music-row-add row 'next))
+	  ('remove (hub/music-row-remove (hub/music-row-removal-target row)))
+	  (_ (user-error "Unknown music action: %s" action)))))))
+
+;;;###autoload
+(defun hub/music-play ()
+  "Play the focused row using the shared exact-occurrence or prepend contract."
+  (interactive)
+  (hub/music-action-execute 'play))
 
 (defun hub/music-row-remove (row)
   "Remove ROW's exact queue occurrence, advancing only if it was playing.
@@ -105,13 +154,22 @@ acknowledgement and source freshness are required before any deletion."
 		   (with-current-buffer playlist
 		     (emms-playlist-selected-track-at-p (hub/music-row-position next))))
 	(user-error "Playback selection changed; play the next occurrence explicitly"))
-      (emms-start))))
+      (emms-start))
+    (message "Removed #%d; %s" (1+ (hub/music-row-index row))
+	     (cond ((not (hub/music-row-queue playlist)) "queue empty")
+		   ((and continue next)
+		    (pcase (hub/music-playback-state)
+		      ('playing "playing next") ('connecting "preparing next")
+		      (_ "next playback requested")))
+		   ((and selected next) "next selected (stopped)")
+		   (selected "stopped (end of queue)")
+		   (t "playback unchanged")))))
 
 ;;;###autoload
 (defun hub/music-remove ()
   "Remove the focused exact queue occurrence, advancing only if it was playing."
   (interactive)
-  (hub/music-row-remove (hub/music-queue-action-target)))
+  (hub/music-action-execute 'remove))
 
 (defun hub/music-queue-action-target ()
   "Return the exact music row focused by the current Player, Queue or library."
@@ -135,13 +193,13 @@ acknowledgement and source freshness are required before any deletion."
 (defun hub/music-append ()
   "Append one copy of the focused music item at the end, without playing it."
   (interactive)
-  (hub/music-row-add (hub/music-queue-action-target) 'end))
+  (hub/music-action-execute 'append))
 
 ;;;###autoload
 (defun hub/music-add-next ()
   "Insert one copy of the focused music item next, without moving or playing it."
   (interactive)
-  (hub/music-row-add (hub/music-queue-action-target) 'next))
+  (hub/music-action-execute 'next))
 
 (defun hub/music-queue--file-candidate-p (file)
   "Keep local directories and FILE names matching registered player extensions.
