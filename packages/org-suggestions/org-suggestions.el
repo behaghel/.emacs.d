@@ -500,6 +500,24 @@ unsafe.  No source or sidecar is changed."
 	(when (equal candidate-id (plist-get candidate :id))
 	  (throw 'found (cons thread candidate)))))))
 
+(defmacro org-suggestions--with-wide-edit (&rest body)
+  "Evaluate BODY widened, preserving point and narrowing across boundary edits."
+  (declare (indent 0) (debug t))
+  (let ((bounds (make-symbol "bounds")))
+    `(save-excursion
+       (let ((,bounds (when (buffer-narrowed-p)
+			(cons (copy-marker (point-min) t)
+			      (copy-marker (point-max) t)))))
+	 (unwind-protect
+	     (progn (widen) ,@body)
+	   (widen)
+	   (when ,bounds
+	     ;; A replacement immediately before the view must not pull its
+	     ;; lower boundary backward to include the replacement text.
+	     (narrow-to-region (car ,bounds) (cdr ,bounds))
+	     (set-marker (car ,bounds) nil)
+	     (set-marker (cdr ,bounds) nil)))))))
+
 (defun org-suggestions-accept-candidate (source-buffer thread candidate)
   "Accept CANDIDATE in SOURCE-BUFFER.
 All candidate hunks apply as a single all-or-nothing operation."
@@ -514,44 +532,44 @@ All candidate hunks apply as a single all-or-nothing operation."
 		(lambda (left right)
 		  (> (plist-get left :start) (plist-get right :start)))))
     (with-current-buffer source-buffer
-      (org-with-wide-buffer
-       (save-excursion
-	 (atomic-change-group
-	   (dolist (operation operations)
-	     (let ((start (plist-get operation :start))
-		   (end (plist-get operation :end))
-		   (replacement (plist-get operation :replacement)))
-	       (goto-char start)
-	       (delete-region start end)
-	       (insert replacement)))))))
+      (org-suggestions--with-wide-edit
+       (atomic-change-group
+	 (dolist (operation operations)
+	   (let ((start (plist-get operation :start))
+		 (end (plist-get operation :end))
+		 (replacement (plist-get operation :replacement)))
+	     (goto-char start)
+	     (delete-region start end)
+	     (insert replacement))))))
     (push (cons (plist-get candidate :id) operations)
 	  org-suggestions--rollback-data)
     (plist-put candidate :status 'accepted)
     (org-suggestions--supersede-alternatives thread candidate)))
 
 (defun org-suggestions-undo-accepted-candidate (source-buffer candidate)
-  "Undo accepted CANDIDATE in SOURCE-BUFFER using session rollback data."
+  "Undo accepted CANDIDATE in SOURCE-BUFFER using session rollback data.
+Preserve the source restriction and point while reverting all hunks."
   (let* ((candidate-id (plist-get candidate :id))
 	 (operations (alist-get candidate-id org-suggestions--rollback-data
 				nil nil #'equal)))
     (unless operations
       (user-error "No rollback data for suggestion candidate"))
     (with-current-buffer source-buffer
-      (save-excursion
-	(atomic-change-group
-	  ;; Undo in reverse application order so earlier length changes
-	  ;; restore the original coordinates of later hunks.
-	  (dolist (operation (reverse operations))
-	    (let* ((start (plist-get operation :start))
-		   (replacement (plist-get operation :replacement))
-		   (end (+ start (length replacement)))
-		   (original (plist-get operation :original)))
-	      (unless (equal (buffer-substring-no-properties start end)
-			     replacement)
-		(user-error "Accepted suggestion text has changed"))
-	      (goto-char start)
-	      (delete-region start end)
-	      (insert original)))))))
+      (org-suggestions--with-wide-edit
+       (atomic-change-group
+	 ;; Undo in reverse application order so earlier length changes
+	 ;; restore the original coordinates of later hunks.
+	 (dolist (operation (reverse operations))
+	   (let* ((start (plist-get operation :start))
+		  (replacement (plist-get operation :replacement))
+		  (end (+ start (length replacement)))
+		  (original (plist-get operation :original)))
+	     (unless (equal (buffer-substring-no-properties start end)
+			    replacement)
+	       (user-error "Accepted suggestion text has changed"))
+	     (goto-char start)
+	     (delete-region start end)
+	     (insert original)))))))
   (plist-put candidate :status 'active))
 
 (defvar-local org-suggestions--reconciliation nil
