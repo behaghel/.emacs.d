@@ -38,6 +38,14 @@ not in reusable package defaults or source documents.  Live authentication and
 model requests are not part of the offline checks below.  Enabling a missing
 adapter fails clearly; no replacement provider is chosen automatically.
 
+* Conversation and editing focus
+Selecting another section or comment keeps the same discussion, including when
+using gptel directly.  The chat and the next model request retain earlier turns;
+focus only identifies the text currently being worked on.  Earlier turns keep
+their original focus metadata.  A pending reply still belongs to the text and
+focus captured when it was requested; navigation does not move its proposal to
+the newly selected section.  Prompt recall follows the conversation as well.
+
 * Offline standalone workflow
 From the checkout root:
 

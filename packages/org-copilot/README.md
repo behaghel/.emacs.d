@@ -51,6 +51,28 @@ Suggestions owns conflict comparison, deliberate reconciliation and revalidation
 at acceptance. Adapters need no second revision policy. Unchanged targets remain
 acceptable after unrelated edits; missing request evidence requires reconciliation.
 
+## Conversation and editing focus
+
+A conversation is independent of its editing focus. Within the chosen
+conversation, selecting a section or comment changes the text and target for the
+current request, not the conversation or its history. Documents remember the
+conversation last selected for them; several documents can refer to the same
+conversation. Starting another conversation is explicit, not a consequence of
+focus navigation.
+
+These semantics apply to every adapter, including direct gptel use. Chat displays
+the chosen conversation, and model requests retain its earlier discussion across
+focus changes. Message context metadata records where a turn occurred; it does
+not partition history into separate chats. Transient pending markers are UI
+state, not authored conversation turns. Earlier focus metadata is retained when
+formatting model history so an earlier reference to “this section” is not
+silently attributed to the newly selected section.
+
+Each request keeps its captured text, focus and proposal evidence. Moving focus
+neither cancels that request nor retargets its reply or proposals. Explicit
+conversation/session reset and source lifetime protections remain independent
+of navigation. A model reply does not silently replace the current editing focus.
+
 ## What it stores
 
 For `draft.org`, Copilot uses source-adjacent Org sidecars:

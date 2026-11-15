@@ -90,7 +90,7 @@
 		(should (string-match-p "Copilot\n  Clarify this sentence" (buffer-string)))
 		(should-not (string-match-p "Comment: Clarify" (buffer-string)))
 		(should-not (string-match-p "Suggestion:" (buffer-string)))
-		(should-not (string-match-p "Earlier general chat" (buffer-string)))
+		(should (string-match-p "Earlier general chat" (buffer-string)))
 		(should-not (string-match-p "Ask Copilot to revise"
 					    (buffer-string)))))))
       (when (buffer-live-p source)
@@ -252,6 +252,7 @@
      'user "Earlier section" nil
      (org-copilot-chat--context-id org-copilot-chat-context))
     (org-copilot-add-chat-message 'user "Earlier full document" nil nil)
+    (org-copilot-add-chat-message 'pending "…")
     (let ((request (org-copilot-chat--request (current-buffer) "Explain")))
       (should (eq (plist-get (plist-get request :chat-context) :type)
 		  'section))
@@ -259,12 +260,12 @@
       (should (string-match-p "\\* Methods" (plist-get request :section-content)))
       (should-not (string-match-p "Intro body"
 				  (plist-get request :section-content)))
-      (should (= (length (plist-get request :messages)) 1))
-      (should (equal (plist-get (car (plist-get request :messages)) :content)
-		     "Earlier section")))))
+      (should (equal (mapcar (lambda (message) (plist-get message :content))
+			     (plist-get request :messages))
+		     '("Earlier section" "Earlier full document"))))))
 
-(ert-deftest org-copilot-chat-request-full-document-uses-source-content-only ()
-  "Full-document chat request includes source content without comment focus."
+(ert-deftest org-copilot-chat-request-full-document-keeps-conversation-history ()
+  "Removing comment focus preserves its discussion in model history."
   (with-temp-buffer
     (org-mode)
     (insert "Alpha sentence.\n")
@@ -274,9 +275,9 @@
     (let ((request (org-copilot-chat--request (current-buffer) "Explain")))
       (should-not (plist-get request :focus-comment-id))
       (should (string-match-p "Alpha sentence" (plist-get request :source-content)))
-      (should (= (length (plist-get request :messages)) 1))
-      (should (equal (plist-get (car (plist-get request :messages)) :content)
-		     "General")))))
+      (should (equal (mapcar (lambda (message) (plist-get message :content))
+			     (plist-get request :messages))
+		     '("General" "Focused"))))))
 
 (ert-deftest org-copilot-chat-navigation-scrolls-source-to-target ()
   "Focusing comments scrolls source windows and moves point to target."
@@ -645,8 +646,8 @@
   (should (eq (lookup-key org-copilot-chat-mode-map (kbd "M-<up>"))
 	      #'org-copilot-chat-recall-last-prompt)))
 
-(ert-deftest org-copilot-chat-recall-last-prompt-uses-current-context ()
-  "M-up recalls the last submitted prompt in the current chat context."
+(ert-deftest org-copilot-chat-recall-last-prompt-follows-conversation ()
+  "M-up recalls the last conversation prompt regardless of editing focus."
   (with-temp-buffer
     (org-mode)
     (let ((source (current-buffer)))
@@ -656,10 +657,10 @@
 	(insert "draft")
 	(org-copilot-chat-recall-last-prompt)
 	(should (equal (org-copilot-chat--prompt-text)
-		       "Full document prompt"))))))
+		       "Other comment prompt"))))))
 
 (ert-deftest org-copilot-chat-recall-last-prompt-errors-without-history ()
-  "Prompt recall signals clearly when there is no current-context history."
+  "Prompt recall signals clearly when the conversation has no history."
   (with-temp-buffer
     (org-mode)
     (let ((source (current-buffer)))
