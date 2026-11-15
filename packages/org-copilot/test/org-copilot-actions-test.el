@@ -29,6 +29,7 @@
 					   (list (list :id "h1"
 						       :kind 'section-replace
 						       :section-title "Intro"
+						       :original "Current body.\n"
 						       :replacement "New body.")))))))
 	    (org-suggestions-write-sidecar source-file (list thread))
 	    (with-temp-buffer

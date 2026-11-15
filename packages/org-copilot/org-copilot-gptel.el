@@ -472,8 +472,12 @@ REQUEST supplies reviewed source bounds for line-range fallback anchoring."
 	       (existing (cl-find thread-id stored
 				  :key (lambda (item) (plist-get item :id))
 				  :test #'equal))
-	       (candidates (org-copilot-gptel--ensure-candidate-ids
-			    (plist-get thread :candidates) thread-id))
+	       (candidates
+		(mapcar (lambda (candidate)
+			  (org-suggestions-candidate-with-source-context
+			   candidate (plist-get request :source-content)))
+			(org-copilot-gptel--ensure-candidate-ids
+			 (plist-get thread :candidates) thread-id)))
 	       (suggestion-ids (mapcar (lambda (candidate)
 					 (plist-get candidate :id))
 				       candidates))

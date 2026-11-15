@@ -21,8 +21,8 @@ Org authors need executable edit proposals that are more precise than comments a
 | MVP hunk kinds | `replace`, `insert`, `section-replace` | Covers current UX without document replacement/delete complexity. |
 | Section replacement | Replacement body only, excluding section heading | Preserves section identity and avoids duplicated headings. |
 | Acceptance | Candidate-level all-or-nothing in MVP | A candidate is a coherent patch; partial apply can change meaning. |
-| Staleness | Candidate becomes `STALE` if any hunk cannot resolve/apply | All-or-nothing acceptance requires candidate-level conflict reporting. |
-| Original text storage | Store original target text for `replace`; store anchor text for `insert`; do not store full original section body for `section-replace` | Avoids sidecar bloat while preserving required anchors and diagnostics. |
+| Staleness | Candidate becomes `STALE` if any target is missing/ambiguous, a section baseline is missing/changed, or hunks overlap | All-or-nothing acceptance protects intervening human edits. |
+| Original text storage | Store relevant request-time section body for `section-replace`, original target text for `replace`, and anchor text for `insert` | Durable comparison and restoration require baseline evidence; unrelated document text is not duplicated. |
 | Undo | Session-local generic undo in MVP; no durable rollback guarantee | Preserves existing immediate UX without bloating sidecars. |
 | Thread status | Derived from child candidates, not independently authoritative | Avoids inconsistent persisted lifecycle. |
 | Session cleanup | Provider/session archive and delete helpers | Lets orchestrators such as Copilot clean current-session artifacts without owning suggestion internals. |
@@ -64,7 +64,13 @@ Optional short candidate label or rationale.
 :ORG_SUGGESTIONS_PRIMARY: t
 :ORG_SUGGESTIONS_SECTION_TITLE: Intro
 :ORG_SUGGESTIONS_SECTION_PATH: Doc/Intro
+:ORG_SUGGESTIONS_ESCAPED: t
 :END:
+
+**** Original
+#+begin_src org
+Original Intro body.
+#+end_src
 
 **** Replacement
 #+begin_src org
@@ -108,7 +114,7 @@ New paragraph.
 ## Acceptance Criteria
 - [x] AC-1: Given an Org source file, when `org-suggestions` creates a thread with one active candidate and one `section-replace` hunk, then `SOURCE.suggestions.org` is written atomically in the documented Org shape.
 - [x] AC-2: Given a persisted suggestions sidecar, when `org-suggestions` loads it, then it restores threads, candidates, hunks, provider ids, lifecycle statuses, and comment/session links without opening UI windows.
-- [x] AC-3: Given an active candidate with a `section-replace` hunk, when accepted after the section body changed, then the current live section body is replaced and the candidate becomes `ACCEPTED` as long as the section resolves uniquely.
+- [x] AC-3: Given a section candidate, when its body changes during inference or after preview, acceptance identifies a conflict without source mutation. Unchanged targets, including after unrelated edits, remain acceptable.
 - [x] AC-4: Given an active candidate with a `replace` hunk, when the original target text cannot be resolved or recovered, then no source text changes and the candidate becomes `STALE` with a hunk-level stale reason.
 - [x] AC-5: Given an active candidate with an `insert` hunk, when the anchor text resolves and placement is `before` or `after`, then the replacement body is inserted at the resolved anchor and the candidate becomes `ACCEPTED`.
 - [x] AC-6: Given a multi-hunk candidate where any hunk cannot resolve, when accepted, then no hunks apply and the candidate becomes `STALE`.
@@ -116,14 +122,17 @@ New paragraph.
 - [x] AC-8: Given an accepted candidate `ai-1`, when a provider creates revision `ai-1.1`, then `ai-1` remains `ACCEPTED`, `ai-1.1` is `ACTIVE`, and both remain under the same thread.
 - [ ] AC-9: Given accepted candidate `ai-1` and later accepted revision `ai-1.1`, then `ai-1` remains `ACCEPTED` and records `SUPERSEDED_BY: ai-1.1` metadata rather than changing status to `SUPERSEDED`.
 - [x] AC-10: Given an accepted candidate in the current Emacs session, when undo is invoked before the source changed incompatibly, then the source reverts as an all-or-nothing operation and candidate status is restored appropriately.
-- [x] AC-11: Given a candidate preview request, when the source changed since creation, then the generated diff compares the candidate hunks against the live source, not stale captured section text.
+- [x] AC-11: Given changed section source, preview shows the request-time baseline and current-to-proposed comparison without mutation. Deliberate reconciliation edits replacement fields, saves a reviewed baseline, and requires normal acceptance to revalidate that baseline. Undo restores pre-acceptance human text.
 - [ ] AC-12: Given unknown newer `org_suggestions_schema_version`, when loading, then the package warns and skips restore/mutation rather than corrupting data.
 - [ ] AC-13: Given an `org-comments` record with `suggestion-thread-id` or `suggestion-ids`, when a public comment-record suggestion action is invoked, then `org-suggestions` resolves the default active candidate and performs the provider-neutral accept/preview/dismiss/undo operation.
 - [ ] AC-14: Given an `org-comments` record without suggestion link metadata, when a public comment-record suggestion action is invoked, then it fails with a clear provider-neutral user error.
 
 ## Invariants
 - No suggestion accept path may mutate the source unless all hunks in the candidate can be applied safely.
-- `section-replace` never uses original section body mismatch as a stale condition; unresolved/non-unique section identity is the stale condition.
+- Section acceptance requires a unique target and exact known baseline body; restored proposals without that evidence are not silently safe.
+- Baseline/identity binding and reconciliation follow the provider-neutral [source-context contract](README.md#source-context-and-reconciliation). Section headings and their metadata survive replacement.
+- Stable IDs cannot fall back to a different path/title when missing or duplicated. Unique title recovery remains available for targets without stable IDs.
+- Known empty baselines differ from missing evidence. Org escaping preserves nested headings and source-block delimiters across sidecar round-trips.
 - Numeric line/range metadata is only a hint; text/section anchors are canonical.
 - Sidecar writes use temporary-file then rename semantics.
 - Suggestions sidecars never store credentials, OAuth tokens, request headers, or raw prompts.

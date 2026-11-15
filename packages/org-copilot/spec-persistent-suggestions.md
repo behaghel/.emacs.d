@@ -19,7 +19,7 @@ The target architecture is DRY: anchoring belongs in comments/shared helpers, ex
 | Comments role | One short linked comment per Copilot-created suggestion thread | Comment acts like a commit message anchored to primary hunk, not the full conversational reply. |
 | Suggestions role | Thread → candidate → hunks | Matches commit/patch analogy while supporting alternatives and revisions. |
 | Copilot role | Provider/orchestrator only; no long-term in-memory comment store | Reduces duplicated UI/model code and improves continuity. |
-| Section stale rule | Section replacement stales only when target section cannot resolve | Recent body edits are irrelevant because section replacement replaces current body. |
+| Section validity | Delegate to the [Org Suggestions source-context contract](../org-suggestions/README.md#source-context-and-reconciliation) | Relevant request-time body and identity protect intervening edits; transport does not own application policy. |
 | Follow-up revisions | Same chat/session and same suggestion thread; new active candidate `ai-1.1` | Preserves conversation continuity and accepted history. |
 | Model context | Live source + transcript + events + comments/suggestions summary | Prevents model from proposing against stale source. |
 | Prompt complexity | Conservative default; complex suggestion threads only when explicitly warranted | Avoids over-leading the model into multi-thread/multi-hunk output. |
@@ -28,7 +28,7 @@ The target architecture is DRY: anchoring belongs in comments/shared helpers, ex
 
 ## Acceptance Criteria
 - [ ] AC-1: Given a user asks Copilot for a section rewrite, when the model returns one valid suggestion thread, then the system persists: a chat assistant message in `SOURCE.copilot.org`, a short linked comment in `SOURCE.comments.org`, and one active candidate with a `section-replace` hunk in `SOURCE.suggestions.org`.
-- [ ] AC-2: Given the user accepts a `section-replace` candidate after editing the section body, when accept runs, then the current live section body is replaced and no stale error occurs solely because body text changed.
+- [x] AC-2: Given a section proposal and a human edit during inference or after preview, acceptance refuses to overwrite the edit. Baseline/current/proposed comparison supports deliberate reconciliation, and acceptance revalidates the reconciled baseline.
 - [ ] AC-3: Given the user accepts `ai-1` and then asks Copilot for a refinement in the same chat, when the next request is built, then it includes live source content, transcript history, and compact suggestion-thread/event context.
 - [ ] AC-4: Given a refinement response for accepted `ai-1`, when installed, then it creates active candidate `ai-1.1` under the same suggestion thread, leaves `ai-1` accepted, and focuses the latest active candidate in chat/UI.
 - [ ] AC-5: Given alternative candidates in the same alternative group, when one is accepted, then other active alternatives are marked `SUPERSEDED` and hidden from default actionable views.
@@ -72,7 +72,7 @@ The target architecture is DRY: anchoring belongs in comments/shared helpers, ex
 | Criterion | Method | Automated? |
 |---|---|---|
 | AC-1, AC-10 | End-to-end fake Copilot response fixture writes three sidecars | Yes |
-| AC-2 | Section accept-after-edit integration test | Yes |
+| AC-2 | Delayed-response, edit-after-preview and reconciliation integration tests | Yes |
 | AC-3, AC-4 | Follow-up refinement request/install test | Yes |
 | AC-5, AC-6 | Suggestion lifecycle unit/integration tests | Yes |
 | AC-7 | Reload/restore fixture test | Yes |
