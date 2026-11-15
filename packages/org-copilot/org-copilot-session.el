@@ -42,6 +42,112 @@ The context has a `:type' key.  Supported values are `full-document',
 `comment', and `section'.  `org-copilot-chat-focus-comment-id' mirrors
 comment contexts for focused chat rendering.")
 
+(cl-defstruct (org-copilot--request (:constructor org-copilot--make-request))
+  "Ephemeral request identity owned by a source session, never persisted."
+  source-buffer source-file session (state 'pending) cancel cleanup)
+
+(defvar-local org-copilot--request-session nil
+  "Identity of the current asynchronous source session.")
+
+(defvar-local org-copilot--requests nil
+  "Requests still owned by this source session, including deferred completion.")
+
+(defun org-copilot-start-request (request)
+  "Return REQUEST with a source-session identity, unless already registered.
+Adapters retain this request for callbacks; obsolete identities are not renewed.
+Navigation neither invalidates requests nor changes their captured context."
+  (if (plist-get request :request-token)
+      request
+    (with-current-buffer (plist-get request :source-buffer)
+      (org-copilot-restore-chat-messages)
+      (unless org-copilot--request-session
+	(setq org-copilot--request-session (list 'session)))
+      (dolist (hook '(kill-buffer-hook change-major-mode-hook))
+	(add-hook hook #'org-copilot--invalidate-requests nil t))
+      (add-hook 'after-set-visited-file-name-hook #'org-copilot--retarget-session nil t)
+      (let ((token (org-copilot--make-request
+		    :source-buffer (current-buffer) :source-file buffer-file-name
+		    :session org-copilot--request-session)))
+	(push token org-copilot--requests)
+	(plist-put (copy-tree request) :request-token token)))))
+
+(defun org-copilot-request-current-p (request &optional state)
+  "Return non-nil if REQUEST still belongs to its source session and STATE.
+With no STATE, accept both pending and deferred installation phases."
+  (when-let* ((token (plist-get request :request-token))
+	      (source (org-copilot--request-source-buffer token)))
+    (and (buffer-live-p source)
+	 (with-current-buffer source
+	   (and (eq source (plist-get request :source-buffer))
+		(eq org-copilot--request-session (org-copilot--request-session token))
+		(equal buffer-file-name (org-copilot--request-source-file token))
+		(memq token org-copilot--requests)
+		(if state (eq state (org-copilot--request-state token))
+		  (memq (org-copilot--request-state token) '(pending installing))))))))
+
+(defun org-copilot--release-request-resources (token)
+  "Release TOKEN's adapter resources once."
+  (when-let* ((cleanup (org-copilot--request-cleanup token)))
+    (setf (org-copilot--request-cleanup token) nil)
+    (funcall cleanup)))
+
+(defun org-copilot-finish-request (request)
+  "Release REQUEST after completion, even if its source has been closed."
+  (when-let* ((token (plist-get request :request-token)))
+    (setf (org-copilot--request-state token) 'finished
+	  (org-copilot--request-cancel token) nil)
+    (when (buffer-live-p (org-copilot--request-source-buffer token))
+      (with-current-buffer (org-copilot--request-source-buffer token)
+	(org-copilot-remove-pending-chat-message request)
+	(setq org-copilot--requests (delq token org-copilot--requests))))
+    (org-copilot--release-request-resources token)))
+
+(defun org-copilot-begin-completion (request)
+  "Claim REQUEST's pending completion once, retaining its deferred fence."
+  (when (org-copilot-request-current-p request 'pending)
+    (let ((token (plist-get request :request-token)))
+      (setf (org-copilot--request-state token) 'installing
+	    (org-copilot--request-cancel token) nil)
+      (with-current-buffer (org-copilot--request-source-buffer token)
+	(org-copilot-remove-pending-chat-message request))
+      (org-copilot--release-request-resources token)
+      t)))
+
+(defun org-copilot-request-set-cancellation (request cancel cleanup)
+  "Register adapter CANCEL and CLEANUP functions for REQUEST.
+CANCEL is best effort; source-session validity never depends on its success."
+  (let ((token (plist-get request :request-token)))
+    (if (org-copilot-request-current-p request 'pending)
+	(setf (org-copilot--request-cancel token) cancel
+	      (org-copilot--request-cleanup token) cleanup)
+      (funcall cleanup))))
+
+(defun org-copilot-cancel-request (request)
+  "Invalidate REQUEST before attempting provider cancellation."
+  (when-let* ((token (plist-get request :request-token)))
+    (let ((cancel (org-copilot--request-cancel token))
+	  (cleanup (org-copilot--request-cleanup token)))
+      ;; Provider abort can synchronously invoke the callback again.
+      (setf (org-copilot--request-cleanup token) nil)
+      (org-copilot-finish-request request)
+      (unwind-protect
+	  (when cancel
+	    (condition-case err (funcall cancel)
+	      (error (message "Org Copilot: cancellation failed: %S" err))))
+	(when cleanup (funcall cleanup))))))
+
+(defun org-copilot--invalidate-requests ()
+  "Invalidate this source's entire session before cancelling its requests."
+  (setq org-copilot--request-session nil)
+  (dolist (token (copy-sequence org-copilot--requests))
+    (org-copilot-cancel-request (list :request-token token))))
+
+(defun org-copilot--retarget-session ()
+  "Detach the old session when this source buffer visits another file."
+  (org-copilot--invalidate-requests)
+  (org-copilot--clear-ephemeral-session)
+  (setq org-copilot--chat-messages-restored-p nil))
+
 (defun org-copilot-comments ()
   "Return visible Copilot comments for the current buffer."
   (if (fboundp 'org-copilot-visible-comments)
@@ -288,6 +394,7 @@ Return the normalized comments."
 
 (defun org-copilot-set-chat-messages (messages)
   "Replace current buffer chat transcript with MESSAGES."
+  (org-copilot--invalidate-requests)
   (setq org-copilot--chat-messages messages))
 
 (defun org-copilot-restore-chat-messages ()
@@ -419,14 +526,16 @@ Return the normalized comments."
   (org-copilot-restore-chat-messages)
   (org-copilot-restore-suggestion-comments))
 
-(defun org-copilot-add-chat-message (role content &optional comment-id context-id)
+(defun org-copilot-add-chat-message (role content &optional comment-id context-id request)
   "Add a chat message with ROLE and CONTENT to the current buffer session.
 When COMMENT-ID is non-nil, associate the message with that AI comment.
-When CONTEXT-ID is non-nil, associate the message with another chat context."
+When CONTEXT-ID is non-nil, associate the message with another chat context.
+REQUEST supplies an ephemeral identity for pending and completed messages."
   (let ((message (list :role role
 		       :content content
 		       :comment-id comment-id
 		       :context-id context-id
+		       :request-id (plist-get request :request-token)
 		       :created-at (format-time-string "%FT%T%z"))))
     (setq org-copilot--chat-messages
 	  (append org-copilot--chat-messages (list message)))
@@ -441,21 +550,15 @@ When CONTEXT-ID is non-nil, associate the message with another chat context."
 	     "ORG_COPILOT_COMMENT_ID" comment-id)))
     message))
 
-(defun org-copilot-remove-pending-chat-message (&optional comment-id context-id)
-  "Remove the last pending chat message for COMMENT-ID and CONTEXT-ID.
-When COMMENT-ID and CONTEXT-ID are nil, remove the last pending message for
-full-document chat."
-  (let ((removed nil))
+(defun org-copilot-remove-pending-chat-message (request)
+  "Remove only the pending message owned by REQUEST, never a context neighbour."
+  (when-let* ((token (plist-get request :request-token)))
     (setq org-copilot--chat-messages
-	  (nreverse
-	   (cl-remove-if
-	    (lambda (message)
-	      (and (not removed)
-		   (eq (plist-get message :role) 'pending)
-		   (equal (plist-get message :comment-id) comment-id)
-		   (equal (plist-get message :context-id) context-id)
-		   (setq removed t)))
-	    (reverse org-copilot--chat-messages))))))
+	  (cl-remove-if
+	   (lambda (message)
+	     (and (eq (plist-get message :role) 'pending)
+		  (eq (plist-get message :request-id) token)))
+	   org-copilot--chat-messages))))
 
 (defun org-copilot--current-session-id ()
   "Return current Copilot session id."
@@ -510,6 +613,7 @@ current session.  With PRESERVE-ARTIFACTS, only clear ephemeral UI state."
   (interactive "P")
   (let ((source-file buffer-file-name)
 	(session-id (org-copilot--current-session-id)))
+    (org-copilot--invalidate-requests)
     (unless preserve-artifacts
       (org-copilot--archive-session-artifacts source-file session-id))
     (org-copilot--clear-ephemeral-session)))
@@ -518,6 +622,7 @@ current session.  With PRESERVE-ARTIFACTS, only clear ephemeral UI state."
   "Hard-delete durable artifacts for the current Copilot session."
   (interactive)
   (when (yes-or-no-p "Hard-delete current Org Copilot session artifacts? ")
+    (org-copilot--invalidate-requests)
     (org-copilot--delete-session-artifacts
      buffer-file-name (org-copilot--current-session-id))
     (org-copilot--clear-ephemeral-session)))

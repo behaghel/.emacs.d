@@ -20,7 +20,15 @@ authentication route, or Evil state.  Explicitly open chat with
 * Adapter configuration
 =org-copilot-chat-function= and =org-copilot-review-function= are the adapter
 entry points.  Their docstrings describe the request/return protocols.  A chat
-adapter can complete asynchronously using the captured source buffer and context.
+adapter can complete asynchronously using the captured request, not the currently
+selected source or context.  Core submission supplies an opaque =:request-token=;
+=org-copilot-start-request= also registers direct adapter calls and never renews
+an existing token.  =org-copilot-begin-completion= must succeed before installing
+an answer or error, and =org-copilot-finish-request= releases completed work.
+Deferred installation additionally checks =org-copilot-request-current-p= with
+state =installing=.  =org-copilot-request-set-cancellation= registers adapter
+cancel/cleanup functions; =org-copilot-cancel-request= fences first, then attempts
+cancellation.  Adapters must retain the registered request through every callback.
 A plain answer belongs only in the transcript.  Executable edits belong in
 =suggestion_threads= and the durable org-suggestions store, never an embedded
 comment-local replacement.
@@ -87,7 +95,12 @@ candidates use =draft.comments.org= and =draft.suggestions.org=.  Existing schem
 provider identifiers, and source-adjacent paths are retained.  Source is canonical;
 sidecars are reviewable artifacts, not authority to mutate it implicitly.
 
-Use explicit preview/accept actions for edits.  =/clear= archives current-session
+Use explicit preview/accept actions for edits.  To stop pending work without
+clearing its conversation or artifacts, use =M-x org-copilot-cancel-requests=
+from source or chat.  The gptel adapter uses isolated cancellation targets so it
+cannot abort another request sharing the same source buffer.
+
+=/clear= archives current-session
 artifacts, =/clear-ui= preserves durable records, and =/erase= is destructive and
 requires confirmation.  The walkthrough does not run cleanup against authored
 files.  Copilot's legacy comment-local =/undo= is reserved/retired; the demo's

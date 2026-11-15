@@ -550,9 +550,15 @@ Return a plist with install counts and a reachability receipt."
 (defun org-copilot-review-dwim ()
   "Review the active region or current Org subtree with the configured adapter."
   (interactive)
-  (let* ((request (org-copilot-review-request-dwim))
-	 (comments (org-copilot--request-review request)))
-    (org-copilot-install-review-comments comments)))
+  (let ((request (org-copilot-start-request (org-copilot-review-request-dwim))))
+    (condition-case err
+	(let ((comments (org-copilot--request-review request)))
+	  (when (and comments (org-copilot-begin-completion request))
+	    (unwind-protect (org-copilot-install-review-comments comments)
+	      (org-copilot-finish-request request))))
+      (error
+       (org-copilot-cancel-request request)
+       (signal (car err) (cdr err))))))
 
 (provide 'org-copilot-llm)
 ;;; org-copilot-llm.el ends here
