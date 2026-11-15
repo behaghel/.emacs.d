@@ -52,7 +52,7 @@
     (should (member 'dates
 		    (org-google-docs-semantics-test--names classification :degraded)))
     (should (member 'footnotes
-		    (org-google-docs-semantics-test--names classification :unsupported)))
+		    (org-google-docs-semantics-test--names classification :supported)))
     (should (member 'standalone-images
 		    (org-google-docs-semantics-test--names classification :unsupported)))
     (should (member 'quote-blocks
@@ -68,7 +68,7 @@
 		 org-google-docs-semantics-test--specimen))
 	 (classification (org-google-docs-semantics-classify-audit audit))
 	 (footnotes (org-google-docs-semantics-test--entry
-		     classification :unsupported 'footnotes))
+		     classification :supported 'footnotes))
 	 (dates (org-google-docs-semantics-test--entry
 		 classification :degraded 'dates))
 	 (marginalia (org-google-docs-semantics-test--entry

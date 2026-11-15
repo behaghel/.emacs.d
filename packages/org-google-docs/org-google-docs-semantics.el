@@ -15,6 +15,10 @@
      :categories ((:inline bold italic underline strike-through code verbatim))
      :reason "Google Docs supports basic rich text and literal inline text."
      :target "Preserve inline rich-text and literal text semantics.")
+    (footnotes
+     :categories ((:inline footnote-references))
+     :reason "Single-paragraph named definitions use native Google Docs footnotes with rich emphasis and links; unsupported forms fail preflight."
+     :target "Preserve references, labels, emphasis and link targets in both directions; update existing native segments for footnote-only edits.")
     (external-links
      :categories ((:inline external-links))
      :reason "Google Docs supports links with labels."
@@ -41,11 +45,7 @@
   "Semantic groups currently treated as degraded by Google Docs.")
 
 (defconst org-google-docs-semantics--unsupported
-  '((footnotes
-     :categories ((:inline footnote-references))
-     :reason "Org footnotes currently degrade to literal text instead of native Google Docs footnotes."
-     :target "Create native Google Docs footnotes and preserve Org references/definitions on pull.")
-    (standalone-images
+  '((standalone-images
      :categories ((:media standalone-images))
      :reason "Standalone image links currently degrade to literal file paths."
      :target "Insert local standalone images as inline Google Docs images before remote mutation.")

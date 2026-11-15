@@ -1,9 +1,9 @@
 ;;; org-google-docs-footnotes.el --- Google Docs footnote planning -*- lexical-binding: t; -*-
 
 ;;; Commentary:
-;; Extract a native Google Docs footnote push plan from Org before any remote
-;; mutation.  This module deliberately stops at semantic planning; applying the
-;; plan to upstream gdocs/Docs API requests is a later slice.
+;; Plan and orchestrate native footnotes before and during explicit pushes.
+;; Rich run conversion and segment-local requests belong to gdocs-convert-footnotes;
+;; this adapter owns source classification, asynchronous API steps and context.
 
 ;;; Code:
 
@@ -21,6 +21,11 @@
 		  (document-id callback &optional account on-error))
 (declare-function gdocs-convert-org-buffer-to-ir "gdocs-convert" ())
 
+(declare-function gdocs-convert-footnote-body-runs "gdocs-convert-footnotes" (definition))
+(declare-function gdocs-convert-footnote-label-requests "gdocs-convert-footnotes" (label index))
+(declare-function gdocs-convert-footnote-body-requests "gdocs-convert-footnotes"
+		  (runs segment-id &optional start-index))
+
 (defvar org-google-docs-footnotes--push-session nil
   "Active native Google Docs footnote push session, or nil.")
 
@@ -37,7 +42,7 @@ one of these definitions-only sections."
 
 (defconst org-google-docs-footnotes--rich-elements
   '(bold italic underline strike-through code verbatim link timestamp)
-  "Org elements treated as rich footnote body formatting for v1 diagnostics.")
+  "Inline Org elements requiring semantic footnote conversion.")
 
 (defun org-google-docs-footnotes--diagnostic (code message &rest properties)
   "Return a diagnostic plist for CODE and MESSAGE with PROPERTIES."
@@ -104,39 +109,28 @@ one of these definitions-only sections."
    ((stringp data) data)
    ((and (listp data) (keywordp (car data))) "")
    ((and (listp data) (symbolp (car data)))
-    (pcase (org-element-type data)
-      ('plain-text data)
-      ((or 'property-drawer 'drawer) "")
-      ((or 'code 'verbatim) (or (org-element-property :value data) ""))
-      ('line-break "\n")
-      ('link
-       (if (org-element-contents data)
-	   (org-google-docs-footnotes--plain-text (org-element-contents data))
-	 (or (org-element-property :raw-link data) "")))
-      (_ (org-google-docs-footnotes--plain-text (org-element-contents data)))))
+    (concat
+     (pcase (org-element-type data)
+       ('plain-text data)
+       ((or 'property-drawer 'drawer) "")
+       ((or 'code 'verbatim) (or (org-element-property :value data) ""))
+       ('line-break "\n")
+       ('link
+	(if (org-element-contents data)
+	    (org-google-docs-footnotes--plain-text (org-element-contents data))
+	  (or (org-element-property :raw-link data) "")))
+       (_ (org-google-docs-footnotes--plain-text (org-element-contents data))))
+     (if (memq (org-element-type data) org-google-docs-footnotes--rich-elements)
+	 (make-string (or (org-element-property :post-blank data) 0) ?\s)
+       "")))
    ((listp data)
     (mapconcat #'org-google-docs-footnotes--plain-text data ""))
    (t "")))
 
 (defun org-google-docs-footnotes--definition-body (definition)
   "Return plain text body for footnote DEFINITION."
-  (let* ((label (regexp-quote (org-google-docs-footnotes--definition-label definition)))
-	 (text (buffer-substring-no-properties
-		(org-element-property :begin definition)
-		(org-element-property :end definition))))
-    (setq text (replace-regexp-in-string
-		(format "\\`[[:space:]]*\\[fn:%s\\][[:space:]]*" label)
-		"" text))
-    (setq text (replace-regexp-in-string
-		"^[[:space:]]*:PROPERTIES:[[:space:]]*\n\\(?:.*\n\\)*?[[:space:]]*:END:[[:space:]]*\n?"
-		"" text))
-    (setq text (replace-regexp-in-string
-		"\\[\\[[^][]+\\]\\[\\([^][]+\\)\\]\\]"
-		"\\1" text))
-    (setq text (replace-regexp-in-string
-		"\\([/*_+=~]\\)\\([^[:space:]][^\n]*?[^[:space:]]\\|[^[:space:]]\\)\\1"
-		"\\2" text))
-    (string-trim text)))
+  (substring-no-properties
+   (string-trim (org-google-docs-footnotes--plain-text definition))))
 
 (defun org-google-docs-footnotes--rich-body-p (definition)
   "Return non-nil when DEFINITION contains rich inline formatting."
@@ -172,8 +166,8 @@ one of these definitions-only sections."
 			     (substring text relative-end)))))
       (not (string-empty-p (string-trim text))))))
 
-(defun org-google-docs-footnotes--collect-degradations (references definitions-by-label)
-  "Return degradation diagnostics for REFERENCES using DEFINITIONS-BY-LABEL."
+(defun org-google-docs-footnotes--collect-degradations (references)
+  "Return degradation diagnostics for repeated REFERENCES."
   (let ((counts (org-google-docs-footnotes--reference-counts references))
 	degradations)
     (maphash (lambda (label count)
@@ -182,13 +176,6 @@ one of these definitions-only sections."
 			:repeated-reference
 			"Repeated Org footnote references become separate Google Docs footnotes."
 			:label label :count count)
-		       degradations))
-	       (when-let* ((definition (gethash label definitions-by-label))
-			   ((org-google-docs-footnotes--rich-body-p definition)))
-		 (push (org-google-docs-footnotes--diagnostic
-			:rich-inline-formatting
-			"Rich inline formatting in footnote bodies is plain text in Google Docs footnote v1."
-			:label label)
 		       degradations)))
 	     counts)
     (nreverse degradations)))
@@ -234,16 +221,32 @@ one of these definitions-only sections."
 	     :mixed-footnotes-section-content
 	     "The conventional footnotes section contains authored content outside footnote definitions.")
 	    diagnostics))
+    (dolist (definition definitions)
+      (condition-case err
+	  (cond
+	   ((fboundp 'gdocs-convert-footnote-body-runs)
+	    (gdocs-convert-footnote-body-runs definition))
+	   ((org-google-docs-footnotes--rich-body-p definition)
+	    (user-error "Update gdocs for rich native footnote conversion")))
+	(user-error
+	 (push (org-google-docs-footnotes--diagnostic
+		:unsupported-footnote-body (error-message-string err)
+		:label (org-google-docs-footnotes--definition-label definition))
+	       diagnostics))))
     (nreverse diagnostics)))
 
-(defun org-google-docs-footnotes--reference-entry (ordinal reference definitions-by-label)
-  "Return native footnote plan entry for REFERENCE at ORDINAL."
+(defun org-google-docs-footnotes--reference-entry (ordinal reference definitions-by-label &optional ready-p)
+  "Plan REFERENCE at ORDINAL using DEFINITIONS-BY-LABEL.
+When READY-P, include rich body runs from the native converter."
   (let* ((label (org-google-docs-footnotes--reference-label reference))
 	 (definition (and label (gethash label definitions-by-label))))
     (list :label label
 	  :ordinal ordinal
 	  :body (and definition
 		     (org-google-docs-footnotes--definition-body definition))
+	  :body-runs (and ready-p definition
+			  (fboundp 'gdocs-convert-footnote-body-runs)
+			  (gdocs-convert-footnote-body-runs definition))
 	  :kind (and definition (org-google-docs-footnotes--note-kind definition))
 	  :begin (org-element-property :begin reference)
 	  :end (org-element-property :end reference))))
@@ -375,9 +378,12 @@ that each request uses the index captured before the batch mutation begins."
 		     (unless (and start end)
 		       (user-error "Missing Google Docs footnote sentinel location for `%s'"
 				   (plist-get reference :label)))
-		     `(((deleteContentRange
-			 . ((range . ((startIndex . ,start) (endIndex . ,end))))))
-		       ((createFootnote . ((location . ((index . ,start)))))))))
+		     (append
+		      `(((deleteContentRange
+			  . ((range . ((startIndex . ,start) (endIndex . ,end))))))
+			((createFootnote . ((location . ((index . ,start)))))))
+		      (when (fboundp 'gdocs-convert-footnote-label-requests)
+			(gdocs-convert-footnote-label-requests (plist-get reference :label) start)))))
 		 references)))
 
 (defun org-google-docs-footnotes--response-replies (response)
@@ -400,15 +406,18 @@ these requests are intended for a second batchUpdate."
     (unless (= (length references) (length replies))
       (user-error "Expected %d createFootnote replies, got %d"
 		  (length references) (length replies)))
-    (cl-mapcar (lambda (reference reply)
-		 (let ((footnote-id (org-google-docs-footnotes--reply-footnote-id reply)))
-		   (unless footnote-id
-		     (user-error "Missing createFootnote footnoteId for label `%s'"
-				 (plist-get reference :label)))
-		   `((insertText . ((text . ,(or (plist-get reference :body) ""))
-				    (location . ((segmentId . ,footnote-id)
-						 (index . 1))))))))
-	       references replies)))
+    (apply #'append
+	   (cl-mapcar (lambda (reference reply)
+			(let ((footnote-id (org-google-docs-footnotes--reply-footnote-id reply)))
+			  (unless footnote-id
+			    (user-error "Missing createFootnote footnoteId for label `%s'"
+					(plist-get reference :label)))
+			  (if-let* ((runs (plist-get reference :body-runs)))
+			      (gdocs-convert-footnote-body-requests runs footnote-id)
+			    (list `((insertText . ((text . ,(or (plist-get reference :body) ""))
+						   (location . ((segmentId . ,footnote-id)
+								(index . 1))))))))))
+		      references replies))))
 
 (defun org-google-docs-footnotes--runs-plain-text (runs)
   "Return plain text for text RUNS."
@@ -424,14 +433,10 @@ these requests are intended for a second batchUpdate."
 	       org-google-docs-footnotes-section-names)))
 
 (defun org-google-docs-footnotes-filter-native-footnote-ir (ir)
-  "Return IR without Org-only footnote definition elements.
-This removes the conventional footnotes section heading and footnote-definition
-IR nodes during native Google Docs footnote push.  The source Org buffer is not
-modified."
-  (seq-remove (lambda (element)
-		(or (eq (plist-get element :type) 'footnote)
-		    (org-google-docs-footnotes--footnotes-heading-ir-p element)))
-	      ir))
+  "Return IR without the Org-only conventional footnotes section heading.
+Retain definitions for native segment diffing.  Request conversion omits them
+from the document body during a native push.  The source buffer is unchanged."
+  (seq-remove #'org-google-docs-footnotes--footnotes-heading-ir-p ir))
 
 (defun org-google-docs-footnotes--around-org-buffer-to-ir (orig)
   "Advise ORIG `gdocs-convert-org-buffer-to-ir' during native footnote push."
@@ -510,6 +515,15 @@ modified."
   "Return SESSION references as a list."
   (append (org-google-docs-footnotes--session-references session) nil))
 
+(defun org-google-docs-footnotes--source-callback (callback)
+  "Return CALLBACK wrapped in the current source buffer's context.
+A dead source is left to CALLBACK's existing lifecycle handling."
+  (let ((source (current-buffer)))
+    (lambda (&rest arguments)
+      (if (buffer-live-p source)
+	  (with-current-buffer source (apply callback arguments))
+	(apply callback arguments)))))
+
 (defun org-google-docs-footnotes--finish-sentinel-push
     (orig document-id response callback account on-error)
   "Replace footnote sentinels in DOCUMENT-ID, then run CALLBACK with RESPONSE."
@@ -522,39 +536,42 @@ modified."
 	      (funcall callback response))
 	  (gdocs-api-get-document
 	   document-id
-	   (lambda (document)
-	     (condition-case err
-		 (let* ((located-references
-			 (org-google-docs-footnotes--sort-references-for-mutation
-			  (org-google-docs-footnotes--locate-sentinels
-			   references document)))
-			(create-requests
-			 (org-google-docs-footnotes-sentinel-create-requests
-			  located-references)))
-		   (funcall
-		    orig document-id create-requests
-		    (lambda (create-response)
-		      (condition-case err
-			  (let ((body-requests
-				 (org-google-docs-footnotes-body-insert-requests
-				  located-references
-				  (org-google-docs-footnotes--create-footnote-response
-				   create-response))))
-			    (if body-requests
-				(funcall orig document-id body-requests
-					 (lambda (_body-response)
-					   (org-google-docs-footnotes--deactivate-session)
-					   (funcall callback response))
-					 account on-error)
-			      (org-google-docs-footnotes--deactivate-session)
-			      (funcall callback response)))
-			((error quit)
-			 (org-google-docs-footnotes--deactivate-session)
-			 (signal (car err) (cdr err)))))
-		    account on-error))
-	       ((error quit)
-		(org-google-docs-footnotes--deactivate-session)
-		(signal (car err) (cdr err)))))
+	   (org-google-docs-footnotes--source-callback
+	    (lambda (document)
+	      (condition-case err
+		  (let* ((located-references
+			  (org-google-docs-footnotes--sort-references-for-mutation
+			   (org-google-docs-footnotes--locate-sentinels
+			    references document)))
+			 (create-requests
+			  (org-google-docs-footnotes-sentinel-create-requests
+			   located-references)))
+		    (funcall
+		     orig document-id create-requests
+		     (org-google-docs-footnotes--source-callback
+		      (lambda (create-response)
+			(condition-case err
+			    (let ((body-requests
+				   (org-google-docs-footnotes-body-insert-requests
+				    located-references
+				    (org-google-docs-footnotes--create-footnote-response
+				     create-response))))
+			      (if body-requests
+				  (funcall orig document-id body-requests
+					   (org-google-docs-footnotes--source-callback
+					    (lambda (_body-response)
+					      (org-google-docs-footnotes--deactivate-session)
+					      (funcall callback response)))
+					   account on-error)
+				(org-google-docs-footnotes--deactivate-session)
+				(funcall callback response)))
+			  ((error quit)
+			   (org-google-docs-footnotes--deactivate-session)
+			   (signal (car err) (cdr err))))))
+		     account on-error))
+		((error quit)
+		 (org-google-docs-footnotes--deactivate-session)
+		 (signal (car err) (cdr err))))))
 	   account on-error)))
     ((error quit)
      (org-google-docs-footnotes--deactivate-session)
@@ -600,13 +617,15 @@ batch update proceed unchanged."
       (if (null active-references)
 	  (progn
 	    (org-google-docs-footnotes--deactivate-session)
-	    (funcall orig document-id requests callback account on-error))
+	    (funcall orig document-id requests
+		     (org-google-docs-footnotes--source-callback callback) account on-error))
 	(plist-put org-google-docs-footnotes--push-session
 		   :references (vconcat active-references))
 	(funcall orig document-id requests
-		 (lambda (response)
-		   (org-google-docs-footnotes--finish-sentinel-push
-		    orig document-id response callback account on-error))
+		 (org-google-docs-footnotes--source-callback
+		  (lambda (response)
+		    (org-google-docs-footnotes--finish-sentinel-push
+		     orig document-id response callback account on-error)))
 		 account on-error)))))
 
 (defun org-google-docs-footnotes-enable-conversion-advice ()
@@ -634,6 +653,9 @@ The returned plist has `:ready-p' non-nil only when blocking diagnostics are
 absent.  This function does not mutate the buffer or any remote document."
   (unless (derived-mode-p 'org-mode)
     (org-mode))
+  ;; Conversion remains optional for loading and plain diagnostic planning.
+  ;; Rich notes require the semantic converter rather than a lossy fallback.
+  (require 'gdocs-convert nil t)
   (let* ((tree (org-element-parse-buffer))
 	 (references (org-element-map tree 'footnote-reference #'identity))
 	 (definitions (org-element-map tree 'footnote-definition #'identity))
@@ -645,14 +667,13 @@ absent.  This function does not mutate the buffer or any remote document."
 	 (definitions-by-label (org-google-docs-footnotes--definitions-by-label definitions))
 	 (diagnostics (org-google-docs-footnotes--collect-diagnostics
 		       references definitions definitions-by-label section))
-	 (degradations (org-google-docs-footnotes--collect-degradations
-			references definitions-by-label)))
+	 (degradations (org-google-docs-footnotes--collect-degradations references)))
     (list :ready-p (null diagnostics)
 	  :references (cl-loop for reference in references
 			       for ordinal from 1
 			       unless (org-google-docs-footnotes--anonymous-reference-p reference)
 			       collect (org-google-docs-footnotes--reference-entry
-					ordinal reference definitions-by-label))
+					ordinal reference definitions-by-label (null diagnostics)))
 	  :definitions-section section
 	  :diagnostics diagnostics
 	  :degradations degradations)))
