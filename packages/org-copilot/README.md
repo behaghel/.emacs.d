@@ -39,9 +39,14 @@ live-provider conformance. Authored sidecar formats and identifiers remain
 stable.
 
 Section proposals use the [Org Suggestions source-context contract](../org-suggestions/README.md#source-context-and-reconciliation).
-A chat request's immutable `:source-content` is the Org text supplied to the
-producer. Installation passes it to `org-suggestions-candidate-with-source-context`;
-it never substitutes callback-time source or a model-supplied baseline. Org
+A chat request's immutable `:source-content` is the accessible Org text supplied
+to the producer; document and section chat do not silently widen that text.
+The request separately captures local `:suggestion-source-context` evidence with
+`org-suggestions-capture-source-context`. Installation passes that evidence to
+`org-suggestions-candidate-with-source-context`, preserving full outline identity
+and canonical baselines while honoring request-time narrowing. The widened local
+snapshot is not sent in the prompt. Installation never substitutes callback-time
+source or a model-supplied baseline. Org
 Suggestions owns conflict comparison, deliberate reconciliation and revalidation
 at acceptance. Adapters need no second revision policy. Unchanged targets remain
 acceptable after unrelated edits; missing request evidence requires reconciliation.

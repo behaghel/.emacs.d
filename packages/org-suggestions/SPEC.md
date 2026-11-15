@@ -130,7 +130,7 @@ New paragraph.
 ## Invariants
 - No suggestion accept path may mutate the source unless all hunks in the candidate can be applied safely.
 - Section acceptance requires a unique target and exact known baseline body; restored proposals without that evidence are not silently safe.
-- Baseline/identity binding and reconciliation follow the provider-neutral [source-context contract](README.md#source-context-and-reconciliation). Section headings and their metadata survive replacement.
+- Baseline/identity binding and reconciliation follow the provider-neutral [source-context contract](README.md#source-context-and-reconciliation). Request-time narrowing limits eligible sections without truncating full outline identity or canonical body baselines; an omitted boundary newline alone does not invalidate unchanged text. Section headings and their metadata survive replacement.
 - Stable IDs cannot fall back to a different path/title when missing or duplicated. Unique title recovery remains available for targets without stable IDs.
 - Known empty baselines differ from missing evidence. Org escaping preserves nested headings and source-block delimiters across sidecar round-trips.
 - Numeric line/range metadata is only a hint; text/section anchors are canonical.

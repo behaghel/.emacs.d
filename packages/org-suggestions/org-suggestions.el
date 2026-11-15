@@ -322,8 +322,27 @@ SIDECAR-FILE defaults to `org-suggestions-sidecar-path'."
 	  :body-start body-start
 	  :end end)))
 
-(defun org-suggestions--matching-sections (predicate)
-  "Return section bounds satisfying PREDICATE in the current buffer."
+(defun org-suggestions-capture-source-context ()
+  "Capture immutable section-binding evidence from the current Org buffer.
+The widened text preserves full outline identity and canonical body boundaries.
+The accessible bounds preserve the author's narrowing; hidden sections cannot
+supply baselines.  This is local evidence, not additional producer prompt text."
+  (let ((bounds (cons (point-min) (point-max))))
+    (org-with-wide-buffer
+     (list :text (buffer-substring-no-properties (point-min) (point-max))
+	   :bounds bounds))))
+
+(defun org-suggestions--section-visible-p (section bounds)
+  "Return non-nil when SECTION is completely accessible within BOUNDS.
+Allow only a final newline just outside the accessible end, as excluded by
+`org-narrow-to-subtree'; do not authorize a truncated body or hidden children."
+  (and (>= (plist-get section :heading-start) (car bounds))
+       (or (<= (plist-get section :end) (cdr bounds))
+	   (and (= (plist-get section :end) (1+ (cdr bounds)))
+		(eq (char-after (cdr bounds)) ?\n)))))
+
+(defun org-suggestions--matching-sections (predicate &optional bounds)
+  "Return sections satisfying PREDICATE and optional accessible BOUNDS."
   (org-with-wide-buffer
    (save-excursion
      (goto-char (point-min))
@@ -332,12 +351,15 @@ SIDECAR-FILE defaults to `org-suggestions-sidecar-path'."
 	 (beginning-of-line)
 	 (when (and (not (org-in-block-p '("src" "example")))
 		    (funcall predicate))
-	   (push (org-suggestions--section-bounds-at-heading) matches))
+	   (let ((section (org-suggestions--section-bounds-at-heading)))
+	     (when (or (not bounds)
+		       (org-suggestions--section-visible-p section bounds))
+	       (push section matches))))
 	 (forward-line 1))
        matches))))
 
-(defun org-suggestions--resolve-section-hunk (hunk)
-  "Resolve HUNK uniquely, using stable identity before path/title recovery."
+(defun org-suggestions--resolve-section-hunk (hunk &optional bounds)
+  "Resolve HUNK uniquely within optional BOUNDS, preferring stable identity."
   (let* ((id (plist-get hunk :section-id))
 	 (custom-id (plist-get hunk :section-custom-id))
 	 (path (plist-get hunk :section-path))
@@ -345,29 +367,34 @@ SIDECAR-FILE defaults to `org-suggestions-sidecar-path'."
 	 (matches
 	  (cond
 	   (id (org-suggestions--matching-sections
-		(lambda () (equal id (org-entry-get nil "ID")))))
+		(lambda () (equal id (org-entry-get nil "ID"))) bounds))
 	   (custom-id (org-suggestions--matching-sections
-		       (lambda () (equal custom-id (org-entry-get nil "CUSTOM_ID")))))
+		       (lambda () (equal custom-id (org-entry-get nil "CUSTOM_ID"))) bounds))
 	   (t (or (and path (org-suggestions--matching-sections
-			     (lambda () (equal path (org-get-outline-path t t)))))
+			     (lambda () (equal path (org-get-outline-path t t))) bounds))
 		  (and title (org-suggestions--matching-sections
-			      (lambda () (equal title (org-get-heading t t t t))))))))))
+			      (lambda () (equal title (org-get-heading t t t t))) bounds)))))))
     (and (= (length matches) 1) (car matches))))
 
 (defun org-suggestions-candidate-with-source-context (candidate source-context)
   "Return a copy of CANDIDATE bound to request-time Org SOURCE-CONTEXT.
-SOURCE-CONTEXT is the source text supplied to a producer, not live callback
-text.  Section baselines and identities come only from this snapshot; missing
-or ambiguous evidence remains unsafe.  No source or sidecar is changed."
-  (let ((copy (copy-tree candidate)))
+SOURCE-CONTEXT is evidence from `org-suggestions-capture-source-context',
+or a complete Org document string for existing producers.  Do not pass
+narrowed fragments as complete documents.  Section baselines and identities
+come only from this snapshot; missing, partial or ambiguous evidence remains
+unsafe.  No source or sidecar is changed."
+  (let ((copy (copy-tree candidate))
+	(text (if (stringp source-context) source-context
+		(plist-get source-context :text)))
+	(bounds (and (listp source-context) (plist-get source-context :bounds))))
     (with-temp-buffer
-      (when (stringp source-context) (insert source-context))
+      (when (stringp text) (insert text))
       (let ((org-mode-hook nil) (org-inhibit-startup t)) (org-mode))
       (dolist (hunk (plist-get copy :hunks))
 	(when (eq (plist-get hunk :kind) 'section-replace)
 	  ;; Never trust model-supplied original text as baseline evidence.
 	  (setq hunk (plist-put hunk :original nil))
-	  (when-let* ((section (org-suggestions--resolve-section-hunk hunk)))
+	  (when-let* ((section (org-suggestions--resolve-section-hunk hunk bounds)))
 	    (dolist (key '(:section-title :section-path :section-id :section-custom-id))
 	      (setq hunk (plist-put hunk key (plist-get section key))))
 	    (plist-put hunk :original
