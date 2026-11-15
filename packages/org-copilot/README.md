@@ -61,6 +61,21 @@ For `draft.org`, Copilot uses source-adjacent Org sidecars:
 
 Pure Q&A answers stay in the Copilot transcript. Executable edits live in `org-suggestions`; comment rows are short descriptions/entry points, not patch payloads.
 
+## Transcript persistence
+
+Copilot transcript append, archive and erase use the same visiting-buffer owner.
+A successful write updates both its contents and visited-file metadata, so a
+new session can persist after archive even while its transcript remains open.
+Persistence preserves the user's point and narrowing and saves complete Org
+contents without bypassing native file locking or supersession checks.
+
+Unsaved transcript edits or an external file change cause persistence to refuse
+before mutation. The user must save or reconcile/reload that transcript before
+retrying. Copilot neither saves unrequested human edits nor automatically reverts
+or kills the visiting buffer. Conversation schemas and native Org archives are
+unchanged. This contract belongs to the Copilot transcript; comments and
+suggestions retain their own persistence contracts.
+
 ## Request and session lifetime
 
 Every chat or review submission belongs to one source buffer, source file and

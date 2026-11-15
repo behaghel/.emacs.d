@@ -1,6 +1,6 @@
 # Spec: Org Copilot Durable Sessions and Suggestion Orchestration
 
-Status: implemented through durable sidecars, restore, linked suggestions, clear/archive/erase, and slash-command UX. Remaining known gap: sidecar mtime conflict protection (AC-8).
+Status: implemented through durable sidecars, restore, linked suggestions, clear/archive/erase, and slash-command UX. Copilot transcript validity follows the [owning persistence contract](README.md#transcript-persistence).
 
 ## Problem
 Org Copilot needs to behave like a durable authoring assistant rather than an ephemeral in-memory comment store. Chat continuity, model-generated review comments, and executable suggestions should survive reloads, remain visible through the standard comment/suggestion systems, and avoid stale conflicts after accepted section rewrites.
@@ -125,7 +125,7 @@ Rules:
 - [x] AC-5: Given an accepted section suggestion and live edits afterward, when the user asks for a refinement in the same chat, then the request includes live source and compact thread/event history, and the new response creates a new active candidate under the same suggestion thread.
 - [ ] AC-6: Given an accepted candidate `ai-1`, when a refinement candidate `ai-1.1` is accepted, then Copilot records an accepted event and `org-suggestions` records supersession metadata without relying on stale old section text.
 - [x] AC-7: Given a source file with existing `SOURCE.copilot.org`, when `org-copilot-chat` opens, then the restored transcript renders in the bottom chat without auto-opening chat during mode enable.
-- [ ] AC-8: Given sidecar mtime changed externally during a live session, when Copilot would write, then it warns and refuses overwrite until reload/force-save.
+- [x] AC-8: Copilot transcript append/archive/erase follow the [visited-buffer and conflict contract](README.md#transcript-persistence).
 - [x] AC-9: Given `org-copilot-clear-session` without prefix, when confirmed, then current session Copilot entries and Copilot-created comments/suggestions for that session are archived using native Org archive behavior.
 - [x] AC-10: Given `C-u org-copilot-clear-session`, when confirmed, then Copilot chat/session state is cleared and durable comments/suggestions are preserved with metadata unchanged.
 - [x] AC-11: Given `org-copilot-erase-session`, when confirmed, then Copilot sidecar entries and Copilot-created comments/suggestions for the session are hard-deleted.
@@ -169,7 +169,7 @@ Implementation notes:
 |---|---|---|
 | AC-1–AC-6 | Parser/install/orchestration ERT tests with fake adapter | Yes |
 | AC-7 | Sidecar restore + chat render ERT test | Yes |
-| AC-8 | Temp-file mtime conflict test | Yes |
+| AC-8 | Visited transcript consistency, unsaved-edit and external-change ERT controls | Yes |
 | AC-9–AC-11 | Clear/archive/erase temp sidecar tests | Yes |
 | AC-12 | Batch load test without gptel hard dependency | Yes |
 

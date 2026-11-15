@@ -30,10 +30,21 @@
 	  (org-copilot-chat-open-panel-on-comments nil)
 	  (org-copilot-gptel-defer-chat-postprocessing nil)
 	  (real-idle (symbol-function 'run-with-idle-timer))
+	  (real-write (symbol-function 'write-region))
 	  callbacks deferred transports scheduled)
      (unwind-protect
 	 (save-window-excursion
-	   (cl-letf (((symbol-function 'gptel-request)
+	   (cl-letf (((symbol-function 'write-region)
+		      (lambda (&rest args)
+			;; Exercise CI's native supersession refusal even on
+			;; builds that do not check other visiting buffers here.
+			(let* ((file (nth 2 args))
+			       (visitor (and (equal file (org-copilot-sidecar-path source-file))
+					     (find-buffer-visiting file))))
+			  (when (and visitor (not (verify-visited-file-modtime visitor)))
+			    (ask-user-about-supersession-threat file)))
+			(apply real-write args)))
+		     ((symbol-function 'gptel-request)
 		      (lambda (_prompt &rest args)
 			(setq callbacks (append callbacks (list (plist-get args :callback))))
 			(push (plist-get args :buffer) transports)))
@@ -62,6 +73,15 @@
 	   (with-current-buffer buffer (set-buffer-modified-p nil))
 	   (kill-buffer buffer)))
        (delete-directory directory t))))
+
+(defun org-copilot-request-test--stamp-transcript (source-file)
+  "Give SOURCE-FILE's visited transcript a distinct, consistent old timestamp.
+The next real write must update both the file and its visiting buffer."
+  (let ((file (org-copilot-sidecar-path source-file)))
+    (when (file-exists-p file)
+      (with-current-buffer (find-file-noselect file)
+	(set-file-times file (seconds-to-time 1000000000))
+	(set-visited-file-modtime)))))
 
 (defun org-copilot-request-test--assert-empty (source-file)
   "Assert no conversation or artifacts were recreated for SOURCE-FILE."
@@ -125,6 +145,7 @@
     (org-copilot-request-test--with-source
      (if review (org-copilot-review-dwim) (org-copilot-chat-send "Old request"))
      (org-copilot-clear-session)
+     (org-copilot-request-test--stamp-transcript source-file)
      (org-copilot-chat-send "New request")
      (let ((before (copy-tree (org-copilot-chat-messages))))
        (funcall (car callbacks) nil '(:status "HTTP/2 503" :error "Old failure"))
@@ -237,13 +258,16 @@
      (funcall (cadr callbacks) "Other answer" '(:status success))
      (funcall (car callbacks) "Intro answer" '(:status success))
      (should (equal (plist-get org-copilot-chat-context :section-title) "Other"))
-     (should (equal (mapcar (lambda (m) (plist-get m :content))
-			    (org-copilot-chat--visible-messages source))
-		    '("Explain Other" "Other answer")))
-     (org-copilot-chat--set-context source intro)
-     (should (equal (mapcar (lambda (m) (plist-get m :content))
-			    (org-copilot-chat--visible-messages source))
-		    '("Explain Intro" "Intro answer"))))))
+     (let ((intro-id (org-copilot-chat--context-id intro))
+	   (other-id (org-copilot-chat--context-id org-copilot-chat-context)))
+       ;; Request ownership is independent of how the UI filters conversation.
+       (should (equal (mapcar (lambda (m)
+				(cons (plist-get m :content) (plist-get m :context-id)))
+			      (org-copilot-chat-messages))
+		      (list (cons "Explain Intro" intro-id)
+			    (cons "Explain Other" other-id)
+			    (cons "Other answer" other-id)
+			    (cons "Intro answer" intro-id))))))))
 
 (ert-deftest org-copilot-request-cancel-isolated-and-independent-of-provider ()
   "Cancellation uses the supported buffer API and fences even failed aborts."
@@ -360,6 +384,7 @@
      (org-copilot-chat-send "Old stream")
      (funcall (car callbacks) "{\"message\":\"Old " '(:status streaming))
      (org-copilot-clear-session)
+     (org-copilot-request-test--stamp-transcript source-file)
      (org-copilot-chat-send "New stream")
      (funcall (car callbacks) "answer\"}" '(:status streaming))
      (funcall (car callbacks) t '(:status success))
