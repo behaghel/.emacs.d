@@ -475,7 +475,8 @@ REQUEST supplies reviewed source bounds for line-range fallback anchoring."
 	       (candidates
 		(mapcar (lambda (candidate)
 			  (org-suggestions-candidate-with-source-context
-			   candidate (plist-get request :source-content)))
+			   candidate (or (plist-get request :suggestion-source-context)
+					 (plist-get request :source-content))))
 			(org-copilot-gptel--ensure-candidate-ids
 			 (plist-get thread :candidates) thread-id)))
 	       (suggestion-ids (mapcar (lambda (candidate)

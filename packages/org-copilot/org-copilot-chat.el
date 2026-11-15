@@ -648,6 +648,7 @@ prompt active.  Source target overlays remain visible as dim context markers."
 	  :context-id (org-copilot-chat--context-id org-copilot-chat-context)
 	  :focus-comment-id org-copilot-chat-focus-comment-id
 	  :source-content (org-copilot-chat--context-source-content)
+	  :suggestion-source-context (org-suggestions-capture-source-context)
 	  :section-content (when (eq (plist-get org-copilot-chat-context
 						:type)
 				     'section)

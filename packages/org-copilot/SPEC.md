@@ -151,7 +151,7 @@ Implementation notes:
 - Pure chat answers remain only in the Copilot transcript.
 - Clear/erase commands operate on the current session id and do not affect artifacts from other sessions.
 - DRY rule: Copilot wraps `org-comments`/`org-suggestions` APIs and must not duplicate anchoring, sidecar, lifecycle, or source mutation logic.
-- Section proposals retain the immutable request's `:source-content` through deferred installation. Copilot supplies it to the [Org Suggestions source-context API](../org-suggestions/README.md#source-context-and-reconciliation), which owns baseline binding, conflicts, reconciliation and acceptance revalidation.
+- Section proposals retain immutable request-time `:suggestion-source-context` evidence through deferred installation. Copilot captures and supplies it through the [Org Suggestions source-context API](../org-suggestions/README.md#source-context-and-reconciliation), which owns identity, baseline binding, conflicts, reconciliation and acceptance revalidation. Model-visible `:source-content` and `:section-content` remain within the author's narrowing; widened local evidence is not additional prompt context.
 
 ## Scope
 **May modify:**

@@ -116,6 +116,7 @@ Replacement body only.
 - `org-suggestions-accept-candidate-id`
 - `org-suggestions-undo-accepted-candidate`
 - `org-suggestions-candidate-diff`
+- `org-suggestions-capture-source-context`
 - `org-suggestions-candidate-with-source-context`
 - `org-suggestions-reconcile-candidate`
 - `org-suggestions-finish-reconciliation`
@@ -133,15 +134,29 @@ Replacement body only.
 
 ## Source context and reconciliation
 
-A producer binds a candidate to the immutable Org text used for its request:
+A producer captures immutable evidence in the source buffer when making its
+request, then binds returned candidates to that evidence:
 
 ```elisp
-(org-suggestions-candidate-with-source-context candidate request-source-text)
+;; At request time, preserving point and narrowing:
+(setq request-context (org-suggestions-capture-source-context))
+;; On response, without rereading the live source:
+(org-suggestions-candidate-with-source-context candidate request-context)
 ```
 
-The returned copy contains only the relevant section baselines and identities,
-not the entire request. Binding never uses a model-supplied original section body
-or newly read callback-time text as evidence. Manual section hunks can supply an
+The local snapshot retains widened Org text and accessible bounds. Full outline
+paths and canonical body boundaries come from that text; only sections whose
+heading and complete body were accessible can supply a baseline. The single
+final newline excluded by `org-narrow-to-subtree` is included in the canonical
+baseline. Truncated bodies, hidden children and hidden targets remain unsafe.
+This evidence is not extra model-visible context: producers keep prompt text
+within the author's narrowing and do not send the widened snapshot.
+
+For compatibility, binding also accepts a complete Org document string, never
+a narrowed fragment presented as a complete document. The returned candidate
+copy contains only relevant section baselines and identities, not the entire
+request. Binding never uses a model-supplied original section body or newly read
+callback-time text as evidence. Manual section hunks can supply an
 exact `:original` baseline directly. Text replacement and insertion still use
 unique exact text anchors.
 
