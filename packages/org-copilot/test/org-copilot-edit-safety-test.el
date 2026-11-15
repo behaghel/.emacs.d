@@ -50,8 +50,14 @@
 	      (pcase timing
 		('after (goto-char (point-min)) (search-forward "Original.")
 			(replace-match "Human edit after preview." t t))
-		('unrelated (goto-char (point-max)) (insert "Unrelated human edit.\n"))))
-	    (let ((before (with-current-buffer source (buffer-string))))
+		('unrelated (goto-char (point-max)) (insert "Unrelated human edit.\n"))
+		('narrowed
+		 (goto-char (point-min)) (search-forward "* Other")
+		 (beginning-of-line) (org-narrow-to-subtree)
+		 (search-forward "Other text."))))
+	    (let ((before (with-current-buffer source (org-with-wide-buffer (buffer-string))))
+		  (view (with-current-buffer source
+			  (list (point-min) (point-max) (point) (buffer-string)))))
 	      (if (memq timing '(during after))
 		  (progn
 		    (should-error (org-suggestions-accept-candidate-id source "safe-1")
@@ -62,11 +68,17 @@
 							source thread candidate))))
 		(let ((accepted (org-suggestions-accept-candidate-id source "safe-1")))
 		  (with-current-buffer source
-		    (should (string-match-p "Proposed" (buffer-string)))
-		    (when (eq timing 'unrelated)
-		      (should (string-match-p "Unrelated human edit" (buffer-string)))))
+		    (org-with-wide-buffer
+		     (should (string-match-p "Proposed" (buffer-string)))
+		     (when (eq timing 'unrelated)
+		       (should (string-match-p "Unrelated human edit" (buffer-string))))))
 		  (org-suggestions-undo-accepted-candidate source accepted)
-		  (should (equal before (with-current-buffer source (buffer-string)))))))))
+		  (should (equal before (with-current-buffer source
+					  (org-with-wide-buffer (buffer-string)))))
+		  (should (equal view (with-current-buffer source
+					(list (point-min) (point-max) (point)
+					      (buffer-string)))))
+		  (should (eq (plist-get accepted :status) 'active)))))))
       (dolist (buffer (buffer-list))
 	(when (or (eq buffer source)
 		  (and source (eq (buffer-local-value 'context-panels-source-buffer buffer) source))
@@ -88,6 +100,10 @@
   "Unchanged targets remain easy to accept, including with unrelated edits."
   (org-copilot-safety--exercise 'unchanged)
   (org-copilot-safety--exercise 'unrelated))
+
+(ert-deftest org-copilot-safety-narrowed-accept-and-undo ()
+  "A captured full-document proposal can be accepted and undone while narrowed."
+  (org-copilot-safety--exercise 'narrowed))
 
 (provide 'org-copilot-edit-safety-test)
 ;;; org-copilot-edit-safety-test.el ends here

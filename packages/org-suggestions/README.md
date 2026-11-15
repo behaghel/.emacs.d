@@ -131,6 +131,11 @@ Replacement body only.
 - `replace` and `insert` require resolvable text anchors.
 - Sidecar writes are atomic temp-file + rename writes.
 - Undo is session-local in the MVP and reverses all candidate hunks together, including length-changing edits. If accepted text has changed incompatibly or an edit fails, undo leaves source text, candidate status, and rollback history unchanged.
+- Acceptance and undo access the complete source independently of its current
+  narrowing. Neither requires manual widening. They preserve the author's
+  restriction and source position where possible, tracking length changes before
+  the visible subtree, on success and failure. Request-time visibility still
+  limits which sections can supply a baseline.
 
 ## Source context and reconciliation
 
