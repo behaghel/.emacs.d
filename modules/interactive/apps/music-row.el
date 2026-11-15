@@ -308,8 +308,9 @@ while materializing the table printer's ellipses and fixed-pitch column padding.
 	(setq position end)))
     (apply #'concat (nreverse pieces))))
 
-(defun hub/music-row-assert-current (row)
-  "Reject ROW if its captured source identity or playable record is obsolete."
+(defun hub/music-row-assert-current (row &optional identity-only)
+  "Reject ROW if its captured source is obsolete or its record is unplayable.
+With IDENTITY-ONLY, permit unavailable records for queue removal, not playback."
   (if (eq (hub/music-row-origin row) 'queue)
       (unless (and (buffer-live-p (hub/music-row-playlist row))
 		   (eq (hub/music-row-playlist row) emms-playlist-buffer)
@@ -327,7 +328,8 @@ while materializing the table printer's ellipses and fixed-pitch column padding.
 			(eq (cdr (assoc (hub/music-row-index row) hub/spotify--tracks)) (hub/music-row-track row))
 			(equal (hub/music-row-track row) (hub/music-row-metadata row)))))
       (user-error "Loaded Liked Songs changed; search again"))
-    (unless (hub/music-row-playable row) (user-error "This row has no playable Spotify track"))))
+    (unless (or identity-only (hub/music-row-playable row))
+      (user-error "This row has no playable Spotify track"))))
 
 (defun hub/music-listings-refresh ()
   "Repaint loaded music listings and local face defaults without fetching.

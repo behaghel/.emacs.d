@@ -107,24 +107,33 @@
       <use href="#molecule-context-panel-footer" width="1280" height="43"/>
       <!-- First action (SPC) is supplied by the page for the actual state. -->
       <g font-family="Ubuntu Mono, monospace" font-size="14" fill="#aab6ff" data-face="context-panels-footer-key">
-        <text x="140" y="26">c <tspan fill="#9ba5ba">−10s</tspan></text>
-        <text x="198" y="26">r <tspan fill="#9ba5ba">+30s</tspan></text>
-        <text x="256" y="26">s <tspan fill="#9ba5ba">Previous</tspan></text>
-        <text x="342" y="26">t <tspan fill="#9ba5ba">Next</tspan></text>
-        <text x="400" y="26">v <tspan fill="#9ba5ba">Spectrum</tspan></text>
-        <text x="486" y="26">a <tspan fill="#9ba5ba">Append</tspan></text>
-        <text x="558" y="26">M-RET <tspan fill="#9ba5ba">Add next</tspan></text>
-        <text x="665" y="26">l <tspan fill="#9ba5ba">Liked Songs</tspan></text>
-        <text x="772" y="26">Q <tspan fill="#9ba5ba">Queue</tspan></text>
-        <text x="837" y="26">+ <tspan fill="#9ba5ba">File</tspan></text>
-        <text x="895" y="26">/ <tspan fill="#9ba5ba">Search</tspan></text>
-        <text x="967" y="26">? <tspan fill="#9ba5ba">Actions</tspan></text>
-        <text x="1046" y="26">- <tspan fill="#9ba5ba">Remove</tspan></text>
-        <text x="1140" y="26">q <tspan fill="#9ba5ba">Close</tspan></text>
+        <text x="107" y="26">RET <tspan fill="#9ba5ba">Play</tspan></text>
+        <text x="179" y="26">a <tspan fill="#9ba5ba">Append</tspan></text>
+        <text x="251" y="26">M-RET <tspan fill="#9ba5ba">Add next</tspan></text>
+        <text x="365" y="26">- <tspan fill="#9ba5ba">Remove</tspan></text>
+        <text x="437" y="26">c <tspan fill="#9ba5ba">−10s</tspan></text>
+        <text x="495" y="26">r <tspan fill="#9ba5ba">+30s</tspan></text>
+        <text x="553" y="26">s <tspan fill="#9ba5ba">Previous</tspan></text>
+        <text x="639" y="26">t <tspan fill="#9ba5ba">Next</tspan></text>
+        <text x="697" y="26">v <tspan fill="#9ba5ba">Spectrum</tspan></text>
+        <text x="783" y="26">l <tspan fill="#9ba5ba">Liked Songs</tspan></text>
+        <text x="890" y="26">Q <tspan fill="#9ba5ba">Queue</tspan></text>
+        <text x="955" y="26">+ <tspan fill="#9ba5ba">File</tspan></text>
+        <text x="1013" y="26">/ <tspan fill="#9ba5ba">Search</tspan></text>
+        <text x="1085" y="26">? <tspan fill="#9ba5ba">Actions</tspan></text>
+        <text x="1164" y="26">q <tspan fill="#9ba5ba">Close</tspan></text>
       </g>
     </symbol>
     <symbol id="molecule-music-queue-footer-actions" viewBox="0 0 1280 43">
-      <text x="28" y="28" font-family="Ubuntu Mono, monospace" font-size="14" fill="#9ba5ba"><tspan fill="#aab6ff">RET</tspan> <tspan fill="#9fe0c2">Play</tspan>   <tspan fill="#aab6ff">SPC</tspan> Play/pause   <tspan fill="#aab6ff">a</tspan> Append   <tspan fill="#aab6ff">M-RET</tspan> Add next   <tspan fill="#aab6ff">m</tspan> Player   <tspan fill="#aab6ff">l</tspan> Liked Songs   <tspan fill="#aab6ff">+</tspan> File   <tspan fill="#aab6ff">/</tspan> Search   <tspan fill="#aab6ff">?</tspan> Actions   <tspan fill="#aab6ff">-</tspan> Remove   <tspan fill="#aab6ff">q</tspan> Close</text>
+      <text x="28" y="28" font-family="Ubuntu Mono, monospace" font-size="14" fill="#9ba5ba"><tspan fill="#aab6ff">RET</tspan> <tspan fill="#9fe0c2">Play</tspan>   <tspan fill="#aab6ff">SPC</tspan> Play/pause   <tspan fill="#aab6ff">a</tspan> Append   <tspan fill="#aab6ff">M-RET</tspan> Add next   <tspan fill="#aab6ff">-</tspan> Remove   <tspan fill="#aab6ff">m</tspan> Player   <tspan fill="#aab6ff">l</tspan> Liked Songs   <tspan fill="#aab6ff">+</tspan> File   <tspan fill="#aab6ff">/</tspan> Search   <tspan fill="#aab6ff">?</tspan> Actions   <tspan fill="#aab6ff">q</tspan> Close</text>
+    </symbol>
+    <symbol id="molecule-music-row-actions" viewBox="0 0 260 150">
+      <g font-family="Ubuntu Mono, monospace" font-size="18" fill="#f3ece3">
+        <text y="22"><tspan fill="#9fe0c2">RET</tspan> Play</text>
+        <text y="52"><tspan fill="#9fe0c2">a</tspan> Append</text>
+        <text y="82"><tspan fill="#9fe0c2">M-RET</tspan> Add next</text>
+        <text y="112"><tspan fill="#9fe0c2">-</tspan> Remove</text>
+      </g>
     </symbol>
     <symbol id="molecule-music-queue-summary" viewBox="0 0 300 27">
       <text x="300" y="18" text-anchor="end" font-family="Ubuntu Mono, monospace" font-size="13" fill="#9ba5ba">3 tracks · 12:45</text>

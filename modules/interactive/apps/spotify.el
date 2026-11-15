@@ -216,14 +216,7 @@ Return non-nil only when the native column schema changes."
 (defun hub/spotify-add-selected (&optional play)
   "Append the selected row, or prepend and PLAY it, without clearing the queue."
   (interactive)
-  (let* ((track (cdr (assoc (tabulated-list-get-id) hub/spotify--tracks)))
-	 (uri (alist-get 'uri track)))
-    (unless (and (stringp uri)
-		 (string-match-p "\\`spotify:track:[[:alnum:]]\\{22\\}\\'" uri)
-		 (or (not (assq 'is_playable track)) (alist-get 'is_playable track)))
-      (user-error "This row has no playable Spotify track"))
-    (if play (hub/spotify-player-add track t 'first)
-      (hub/spotify-player-add track)))
+  (hub/music-action-execute (if play 'play 'append))
   nil)
 
 (defun hub/spotify-play-selected ()
@@ -254,20 +247,14 @@ Return non-nil only when the native column schema changes."
   (setq-local tabulated-list-use-header-line nil truncate-lines t)
   (hub/spotify--setup-rows))
 
-(define-key hub/spotify-library-mode-map (kbd "a") #'hub/spotify-add-selected)
-(define-key hub/spotify-library-mode-map (kbd "RET") #'hub/spotify-play-selected)
 (define-key hub/spotify-library-mode-map (kbd "g") (make-sparse-keymap))
 (define-key hub/spotify-library-mode-map (kbd "gr") #'hub/spotify-refresh)
 (define-key hub/spotify-library-mode-map (kbd "g+") #'hub/spotify-load-more)
 (define-key hub/spotify-library-mode-map (kbd "q") #'hub/spotify-close)
 (define-key hub/spotify-library-mode-map (kbd "Q") #'hub/music-queue)
 (define-key hub/spotify-library-mode-map (kbd "+") #'hub/music-add-file)
-(define-key hub/spotify-library-mode-map (kbd "M-RET") #'hub/music-add-next)
 (with-eval-after-load 'evil
   (evil-define-key 'normal hub/spotify-library-mode-map
-		   (kbd "a") #'hub/spotify-add-selected
-		   (kbd "RET") #'hub/spotify-play-selected
-		   (kbd "M-RET") #'hub/music-add-next
 		   (kbd "Q") #'hub/music-queue
 		   (kbd "+") #'hub/music-add-file
 		   (kbd "g+") #'hub/spotify-load-more

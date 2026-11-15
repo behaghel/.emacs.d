@@ -50,10 +50,21 @@ not construct tracks or probe media while listing candidates. Directories and
 remote paths are not file additions; the chosen file still requires final
 player validation.
 
+Shared Play, Play/pause, Append, Add next and Remove actions have one definition
+for their keys, labels and commands. View keymaps, fixed footers, the Actions
+palette and music Embark adapters consume that definition rather than maintaining
+independent action sets. Each action uses the same target resolver and effect
+path regardless of its entry point. Transport acts on current playback, not the
+browsing row; row actions require a focused music view or retained search target.
+
 `-` in Player removes the selected queue occurrence; in Queue it removes the
-occurrence at point. Search exposes removal through `C-. -`, leaving literal
+occurrence at point. In Liked Songs it removes the earliest current queue
+occurrence matching the retained song URI—the position shown in its first
+column—while preserving other copies and the saved library record. Unqueued
+songs report that they are not queued. Stale library identities are rejected,
+but an unavailable queued song can still be removed. Search exposes removal through `C-. -`, leaving literal
 hyphens available for query input. Removal never guesses an occurrence from a
-library record or URI, and stale queue targets are rejected. Other occurrences,
+display label; the Liked Songs mapping is explicit, and stale queue targets are rejected. Other occurrences,
 including duplicates of the same track, keep their identity and order.
 
 Removing the playing occurrence stops it before deletion and plays its immediate

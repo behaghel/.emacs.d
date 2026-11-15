@@ -238,6 +238,29 @@ Feature: Music navigation at the speed of the editor
     Then the normal Embark menu is available explicitly
     And ordinary non-music Embark indicators are unchanged
 
+  @wireframe:music-cockpit-liked-songs.svg @wireframe:music-cockpit-palette-access.svg @wireframe:music-cockpit-search-queue.svg
+  Scenario Outline: Share queue actions structurally across entry points
+    Given a Liked song has copies at queue positions 2 and 7
+    When I invoke Remove through <entry>
+    Then only the copy at the displayed earliest position 2 is removed
+    And the other copy and the saved library record remain
+    And playback follows the same paused, playing and unchanged rules as Queue removal
+    And the position, feedback and browsing row remain consistent
+
+    Examples:
+      | entry                |
+      | Liked Songs -        |
+      | Liked Songs footer   |
+      | Actions -            |
+      | retained song Embark |
+
+  @wireframe:music-cockpit-liked-songs.svg @wireframe:music-cockpit-queue.svg @wireframe:music-cockpit-palette-access.svg
+  Scenario: Derive shared controls without view-specific omissions
+    Then Player, Liked Songs and Queue expose the same Play, Play/pause, Append, Add next and Remove contract
+    And their keymaps, footers, Actions suffixes and property-safe Embark adapters use that contract
+    And ordinary query spaces and hyphens remain text outside Embark action selection
+    And menu inspection does not load action implementations or contact a backend
+
   @wireframe:music-cockpit-queue.svg @wireframe:music-cockpit-queue-removed.svg @wireframe:music-cockpit-palette-access.svg
   Scenario Outline: Remove the selected occurrence without surprising playback
     Given the queue is A, B, A and its first occurrence is <state>
@@ -261,7 +284,7 @@ Feature: Music navigation at the speed of the editor
     When I remove a retained queue result through "C-. -" in Search
     Then only its exact occurrence is removed
     And typing a literal hyphen in the query never removes anything
-    And stale targets and library-only rows are rejected without queue changes
+    And stale targets and unqueued library rows are rejected without queue changes
 
   @wireframe:music-cockpit-queue-removed.svg
   Scenario: Stop safely when removal has no successor or stop acknowledgement fails

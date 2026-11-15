@@ -434,5 +434,14 @@
       (should (equal embark-indicators '(hub/music-search--indicator))))
     (should (equal embark-indicators '(ordinary-indicator)))))
 
+(ert-deftest hub/music-action-catalog-drives-embark-with-property-safe-adapters ()
+  "Embark keys and labels come from the shared catalog without command coercion."
+  (require 'apps/music-search)
+  (dolist (entry hub/music-action-definitions)
+    (let* ((definition (cdr entry))
+	   (command (plist-get definition :embark-command)))
+      (should (eq (lookup-key hub/music-search-embark-map (kbd (plist-get definition :embark-key))) command))
+      (should-not (interactive-form command)))))
+
 (provide 'music-search-test)
 ;;; music-search-test.el ends here

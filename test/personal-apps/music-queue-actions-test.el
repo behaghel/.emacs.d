@@ -338,5 +338,39 @@
      (should attempted)
      (should (equal before (with-current-buffer playlist (buffer-string)))))))
 
+(ert-deftest hub/music-liked-remove-resolves-the-displayed-earliest-occurrence ()
+  "Liked removal follows its visible queue position, without removing the saved song."
+  (require 'apps/music-queue-actions)
+  (hub/music-search-test--queue
+   (hub/music-search-test--library
+    (let ((records (buffer-local-value 'hub/spotify--tracks library)))
+      (emms-start)
+      (setq emms-player-paused-p t)
+      (with-current-buffer library
+	(cl-letf (((symbol-function 'tabulated-list-get-id) (lambda () 0)))
+	  (call-interactively #'hub/music-remove)
+	  (should (equal (gethash (alist-get 'uri raw) (hub/music-row-position-map)) '(2)))
+	  (should (= stopped 1))
+	  (should (= (length started) 1))
+	  (call-interactively #'hub/music-remove)
+	  (should-not (gethash (alist-get 'uri raw) (hub/music-row-position-map)))
+	  (should-error (call-interactively #'hub/music-remove) :type 'user-error)
+	  (should (eq records hub/spotify--tracks))
+	  (should (= hub/spotify--generation 7))))))))
+
+(ert-deftest hub/music-liked-remove-validates-source-without-requiring-playability ()
+  "A stale saved row is rejected, but an unavailable queued song can be removed."
+  (require 'apps/music-queue-actions)
+  (hub/music-search-test--queue
+   (hub/music-search-test--library
+    (setf (alist-get 'is_playable raw) :false)
+    (with-current-buffer library (setcdr (assoc 0 hub/spotify--tracks) raw))
+    (let ((row (hub/music-row-from-liked raw 0 library)))
+      (hub/music-action-execute 'remove row)
+      (should (= (length (hub/music-row-queue playlist)) 2))
+      (with-current-buffer library (cl-incf hub/spotify--generation))
+      (should-error (hub/music-action-execute 'remove row) :type 'user-error)
+      (should (= (length (hub/music-row-queue playlist)) 2))))))
+
 (provide 'music-queue-actions-test)
 ;;; music-queue-actions-test.el ends here

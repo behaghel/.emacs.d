@@ -61,7 +61,7 @@
 		       (and (hub/music--transport-available-p) t)
 		       (hub/music-audio-ready-p) (hub/music-library-authorized-p)
 		       (hub/music--spectrum-on-p) (and (hub/music--spectrum-available-p) t)
-		       (frame-width))))
+		       (frame-width) major-mode)))
       (unless (equal state hub/music-palette--last-state)
 	(setq hub/music-palette--last-state state)
 	(when (buffer-live-p transient--buffer)
@@ -96,7 +96,7 @@
 			 (interactive) (call-interactively #'hub/emms-player-open))
 (transient-define-suffix hub/music-palette--toggle ()
 			 "Invoke the established play/pause action."
-			 (interactive) (call-interactively #'hub/emms-player-toggle))
+			 (interactive) (hub/music-action-execute 'toggle))
 (transient-define-suffix hub/music-palette--backward ()
 			 "Invoke the established backward seek."
 			 (interactive) (call-interactively #'hub/emms-seek-backward-10))
@@ -119,6 +119,48 @@
 			 "Explicitly authorize the separate read-only library."
 			 (interactive) (call-interactively #'hub/spotify-connect))
 
+(transient-define-suffix hub/music-palette--play ()
+			 "Play the focused target through the shared action contract."
+			 (interactive) (hub/music-action-execute 'play))
+(transient-define-suffix hub/music-palette--append ()
+			 "Append a copy through the shared action contract."
+			 (interactive) (hub/music-action-execute 'append))
+(transient-define-suffix hub/music-palette--add-next ()
+			 "Insert a copy next through the shared action contract."
+			 (interactive) (hub/music-action-execute 'next))
+(transient-define-suffix hub/music-palette--remove ()
+			 "Remove the focused occurrence through the shared action contract."
+			 (interactive) (hub/music-action-execute 'remove))
+
+(defun hub/music-palette--action-spec (action)
+  "Build ACTION's palette adapter from the shared catalog."
+  (let ((definition (hub/music-action-definition action)))
+    (if (eq action 'toggle)
+	(list (plist-get definition :key) (plist-get definition :palette-command)
+	      :description #'hub/music-palette--toggle-description
+	      :transient t :inapt-if-not #'hub/music--transport-available-p)
+      (list (plist-get definition :key) (plist-get definition :label)
+	    (plist-get definition :palette-command) :inapt-if-not #'hub/music-action-context-p))))
+
+(defun hub/music-palette--shared-actions (_children)
+  "Return focused-row palette actions from the shared catalog."
+  (transient-parse-suffixes
+   'hub/music-palette
+   (delq nil (mapcar (lambda (entry)
+		       (when (eq (plist-get (cdr entry) :target) 'row)
+			 (hub/music-palette--action-spec (car entry))))
+		     hub/music-action-definitions))))
+
+(defun hub/music-palette--transport (_children)
+  "Return transport controls with the catalog-owned toggle adapter."
+  (transient-parse-suffixes
+   'hub/music-palette
+   (cons (hub/music-palette--action-spec 'toggle)
+	 '(("c" "−10s" hub/music-palette--backward :transient t :inapt-if-not hub/music--playing-p)
+	   ("r" "+30s" hub/music-palette--forward :transient t :inapt-if-not hub/music--playing-p)
+	   ("s" "Previous" hub/music-palette--previous :transient t :inapt-if-not hub/music--transport-available-p)
+	   ("t" "Next" hub/music-palette--next :transient t :inapt-if-not hub/music--transport-available-p)))))
+
 ;;;###autoload
 (transient-define-prefix hub/music-palette ()
 			 "Show music actions with honest state, availability and icon-plus-text labels."
@@ -134,13 +176,10 @@
 					("+" "Append file   'm+" hub/music-palette--add-file)
 					("/" "Search music 'm/" hub/music-palette--search)
 					("m" "Focus player 'mm" hub/music-palette--player)]
-				       ["TRANSPORT"
-					("SPC" hub/music-palette--toggle :description hub/music-palette--toggle-description
-					 :transient t :inapt-if-not hub/music--transport-available-p)
-					("c" "−10s" hub/music-palette--backward :transient t :inapt-if-not hub/music--playing-p)
-					("r" "+30s" hub/music-palette--forward :transient t :inapt-if-not hub/music--playing-p)
-					("s" "Previous" hub/music-palette--previous :transient t :inapt-if-not hub/music--transport-available-p)
-					("t" "Next" hub/music-palette--next :transient t :inapt-if-not hub/music--transport-available-p)]
+				       [:class transient-column :description "TRANSPORT"
+					       :setup-children hub/music-palette--transport]
+				       [:class transient-column :description "QUEUE"
+					       :setup-children hub/music-palette--shared-actions]
 				       ["CONNECTION / VIEW"
 					("v" hub/music-palette--spectrum :description hub/music-palette--spectrum-description
 					 :inapt-if-not hub/music--spectrum-available-p)
