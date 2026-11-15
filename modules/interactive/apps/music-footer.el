@@ -53,6 +53,7 @@
   "Return passive Liked Songs actions and loaded-library coverage."
   (list :actions
 	(append '((:key "RET" :label "Play" :command hub/spotify-play-selected :primary t)
+		  (:key "SPC" :label "Play/pause" :command hub/emms-player-toggle)
 		  (:key "a" :label "Append" :command hub/spotify-add-selected)
 		  (:key "M-RET" :label "Add next" :command hub/music-add-next)
 		  (:key "g+" :label "More" :command hub/spotify-load-more)
@@ -71,6 +72,7 @@
 		    (widen) (emms-playlist-tracks-in-region (point-min) (point-max))))))
     (list :actions
 	  (append '((:key "RET" :label "Play" :command emms-playlist-mode-play-smart :primary t)
+		    (:key "SPC" :label "Play/pause" :command hub/emms-player-toggle)
 		    (:key "a" :label "Append" :command hub/music-append)
 		    (:key "M-RET" :label "Add next" :command hub/music-add-next))
 		  (hub/music-footer--navigation 'queue)

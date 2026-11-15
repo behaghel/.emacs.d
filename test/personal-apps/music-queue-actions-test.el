@@ -288,5 +288,55 @@
        (should-not started)
        (should (zerop stopped))))))
 
+(ert-deftest hub/music-queue-feedback-reports-actual-occurrence-and-outcome ()
+  "Every explicit edit reports its actual queue rank, including paused removal."
+  (require 'apps/music-queue-actions)
+  (hub/music-search-test--queue
+   (let (feedback)
+     (cl-letf (((symbol-function 'message)
+		(lambda (format-string &rest args) (setq feedback (apply #'format format-string args)))))
+       (hub/music-queue-insert duplicate 'end)
+       (should (equal feedback "Appended at #4"))
+       (hub/music-queue-insert duplicate 'next)
+       (should (equal feedback "Inserted next at #2"))
+       (hub/music-row-remove (car (last (hub/music-row-queue playlist))))
+       (should (equal feedback "Removed #5; playback unchanged"))
+       (emms-start)
+       (setq emms-player-paused-p t)
+       (hub/music-row-remove (car (hub/music-row-queue playlist)))
+       (should (equal feedback "Removed #1; next selected (stopped)"))
+       (emms-start)
+       (hub/music-row-remove (car (hub/music-row-queue playlist)))
+       (should (equal feedback "Removed #1; playing next"))
+       (setq feedback nil)
+       (cl-letf (((symbol-function 'emms-stop) (lambda () (user-error "Stop unconfirmed"))))
+	 (should-error (hub/music-row-remove (car (hub/music-row-queue playlist))) :type 'user-error))
+       (should-not feedback)))))
+
+(ert-deftest hub/music-queue-prepend-and-play-preserves-original-occurrences ()
+  "Play-now inserts at #1, stops once and preserves all existing occurrences."
+  (require 'apps/music-queue-actions)
+  (hub/music-search-test--queue
+   (let ((original (hub/music-queue-actions-test--tracks playlist)))
+     (emms-start)
+     (hub/music-queue-insert duplicate 'first t)
+     (should (equal (hub/music-queue-actions-test--tracks playlist) (cons duplicate original)))
+     (should (= stopped 1))
+     (should (= (length started) 2))
+     (with-current-buffer playlist
+       (should (= (marker-position emms-playlist-selected-marker) (point-min)))))))
+
+(ert-deftest hub/music-queue-play-now-stop-failure-cannot-prepend ()
+  "An unconfirmed stop leaves the queue untouched rather than prepending silently."
+  (require 'apps/music-queue-actions)
+  (hub/music-search-test--queue
+   (emms-start)
+   (let ((before (with-current-buffer playlist (buffer-string))) attempted)
+     (cl-letf (((symbol-function 'emms-stop)
+		(lambda () (setq attempted t) (user-error "Stop unconfirmed"))))
+       (should-error (hub/music-queue-insert duplicate 'first t) :type 'user-error))
+     (should attempted)
+     (should (equal before (with-current-buffer playlist (buffer-string)))))))
+
 (provide 'music-queue-actions-test)
 ;;; music-queue-actions-test.el ends here

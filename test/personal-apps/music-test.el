@@ -356,7 +356,7 @@
       (let ((footer (hub/music-library-footer nil nil)))
 	(should (equal (plist-get footer :metadata) "1 of 1482 loaded"))
 	(should (equal (mapcar (lambda (action) (plist-get action :key)) (plist-get footer :actions))
-		       '("RET" "a" "M-RET" "g+" "gr" "m" "Q" "+" "/" "?" "q")))))))
+		       '("RET" "SPC" "a" "M-RET" "g+" "gr" "m" "Q" "+" "/" "?" "q")))))))
 
 (ert-deftest hub/music-queue-provider-projects-the-live-playlist-without-rendering-it ()
   "The queue tab refers to EMMS's actual buffer, never a rendered copy."
@@ -372,6 +372,21 @@
 	    (should-not (plist-get view :render))
 	    (should (equal before (with-current-buffer playlist (buffer-string))))))
       (when (buffer-live-p playlist) (kill-buffer playlist)))))
+
+(ert-deftest hub/music-space-toggles-from-library-and-queue-without-moving-focus ()
+  "SPC resolves to shared transport in both listings, in normal and motion state."
+  (require 'apps/spotify)
+  (require 'apps/emms-player)
+  (hub/music--local-help)
+  (dolist (map (list hub/spotify-library-mode-map emms-playlist-mode-map))
+    (with-temp-buffer
+      ;; This tests listing maps, not a leftover transient's overriding map.
+      (let ((overriding-terminal-local-map nil) (overriding-local-map nil))
+	(use-local-map map)
+	(evil-local-mode 1)
+	(dolist (state '(normal motion))
+	  (evil-change-state state)
+	  (should (eq (key-binding (kbd "SPC")) #'hub/emms-player-toggle)))))))
 
 (provide 'music-test)
 ;;; music-test.el ends here

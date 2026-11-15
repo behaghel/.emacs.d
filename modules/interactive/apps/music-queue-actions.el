@@ -16,14 +16,16 @@
 (autoload 'hub/emms-register-local-players "apps/emms-local" nil nil)
 
 (defun hub/music-queue-insert (track &optional placement play)
-  "Insert TRACK into EMMS at PLACEMENT, either `end' or `next'.
+  "Insert TRACK into EMMS at PLACEMENT: `end', `next', or `first'.
 Next means after the current selection, or first when none exists.  Preserve
 playback and the existing occurrence unless PLAY explicitly requests
 playing the new occurrence."
-  (unless (memq placement '(nil end next)) (user-error "Unknown queue insertion placement"))
+  (unless (memq placement '(nil end next first)) (user-error "Unknown queue insertion placement"))
+  ;; Confirm silence before a play-now operation changes queue identities.
+  (when play (emms-stop))
   (unless (buffer-live-p emms-playlist-buffer)
     (emms-playlist-set-playlist-buffer (emms-playlist-new)))
-  (let (position)
+  (let (position ordinal)
     (with-current-buffer emms-playlist-buffer
       (save-excursion
 	(save-restriction
@@ -31,18 +33,23 @@ playing the new occurrence."
 	  (let ((selected (and (markerp emms-playlist-selected-marker)
 			       (marker-position emms-playlist-selected-marker)
 			       (emms-playlist-track-at emms-playlist-selected-marker))))
-	    (if (eq placement 'next)
-		(if selected
-		    (progn
-		      (goto-char emms-playlist-selected-marker)
-		      (condition-case nil (emms-playlist-next) (error (goto-char (point-max)))))
-		  (goto-char (point-min)))
-	      (goto-char (point-max)))
+	    (pcase placement
+	      ('first (goto-char (point-min)))
+	      ('next
+	       (if selected
+		   (progn
+		     (goto-char emms-playlist-selected-marker)
+		     (condition-case nil (emms-playlist-next) (error (goto-char (point-max)))))
+		 (goto-char (point-min))))
+	      (_ (goto-char (point-max))))
 	    (setq position (point))
 	    (emms-playlist-insert-track track)
-	    (when play (emms-stop))
+	    (setq ordinal (1+ (hub/music-row-index
+			       (cl-find position (hub/music-row-queue emms-playlist-buffer)
+					:key #'hub/music-row-position))))
 	    (when (or play (not selected)) (emms-playlist-select position))))))
     (when play (emms-start))
+    (message "%s at #%d" (pcase placement ('first "Prepended") ('next "Inserted next") (_ "Appended")) ordinal)
     position))
 
 (defun hub/music-row-add (row placement)
@@ -105,7 +112,16 @@ acknowledgement and source freshness are required before any deletion."
 		   (with-current-buffer playlist
 		     (emms-playlist-selected-track-at-p (hub/music-row-position next))))
 	(user-error "Playback selection changed; play the next occurrence explicitly"))
-      (emms-start))))
+      (emms-start))
+    (message "Removed #%d; %s" (1+ (hub/music-row-index row))
+	     (cond ((not (hub/music-row-queue playlist)) "queue empty")
+		   ((and continue next)
+		    (pcase (hub/music-playback-state)
+		      ('playing "playing next") ('connecting "preparing next")
+		      (_ "next playback requested")))
+		   ((and selected next) "next selected (stopped)")
+		   (selected "stopped (end of queue)")
+		   (t "playback unchanged")))))
 
 ;;;###autoload
 (defun hub/music-remove ()

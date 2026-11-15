@@ -27,6 +27,8 @@
 (defvar embark-keymap-alist)
 (defvar embark-default-action-overrides)
 (defvar embark-general-map)
+(defvar embark-indicators)
+(defvar embark-help-key)
 (declare-function vertico--exhibit "vertico" ())
 (autoload 'hub/spotify-player-add "apps/spotify-player" nil nil)
 
@@ -102,9 +104,35 @@ Reapply semantic field faces even if a completion style drops input properties."
 	     (setq hub/music-search--operation 'play))
     (error (setq hub/music-search--operation 'play) (signal (car error) (cdr error)))))
 
+(defun hub/music-search--indicator ()
+  "Return a music-only Embark indicator that never opens an action window.
+Replace the prompt's display while choosing; leave query text and rows intact."
+  (let ((buffer (current-buffer)) overlay)
+    (lambda (&optional keymap _targets _prefix)
+      (if (null keymap)
+	  (when (overlayp overlay) (delete-overlay overlay) (setq overlay nil))
+	(when (buffer-live-p buffer)
+	  (with-current-buffer buffer
+	    (when (minibufferp)
+	      (unless (overlayp overlay)
+		(setq overlay (make-overlay (point-min) (minibuffer-prompt-end) buffer)))
+	      (let* ((help (if (boundp 'embark-help-key) (or embark-help-key "C-h") "C-h"))
+		     (hint (concat
+			    (mapconcat (lambda (action)
+					 (concat (propertize (car action) 'face 'minibuffer-prompt) " "
+						 (propertize (cdr action) 'face 'default)))
+				       `(("p" . "Play") ("a" . "Append") ("n" . "Next")
+					 ("-" . "Remove") (,help . "More")) "  ") ": ")))
+		(overlay-put overlay 'display
+			     (truncate-string-to-width hint
+						       (max 1 (1- (window-body-width (active-minibuffer-window))))
+						       nil nil "…"))
+		(overlay-put overlay 'help-echo hint)))))))))
+
 (defun hub/music-search--minibuffer-setup ()
   "Keep query input native and distinguish browsing highlight from playback."
-  (setq-local hub/music-search--active t)
+  (setq-local hub/music-search--active t
+	      embark-indicators '(hub/music-search--indicator))
   (when (boundp '+vertico-current-arrow) (setq-local +vertico-current-arrow nil))
   (use-local-map (copy-keymap (current-local-map)))
   (local-set-key (kbd "SPC") #'self-insert-command)
@@ -128,14 +156,14 @@ Reapply semantic field faces even if a completion style drops input properties."
    (t
     (hub/music-row-assert-current row)
     (if (eq (hub/music-row-origin row) 'liked)
-	(hub/spotify-player-add (hub/music-row-metadata row) t)
+	(hub/spotify-player-add (hub/music-row-metadata row) t 'first)
       (emms-stop)
       (hub/music-row-assert-current row)
       (with-current-buffer (hub/music-row-playlist row) (emms-playlist-select (hub/music-row-position row)))
       (emms-start)))))
 
 (defun hub/music-search-embark-play (target)
-  "Play TARGET's retained occurrence or append and play its retained library row.
+  "Play TARGET's queue occurrence or prepend and play its retained library row.
 This is a non-command Embark action so target properties survive dispatch."
   (hub/music-search--act (hub/music-search--target target) 'play))
 
@@ -172,7 +200,7 @@ This is a non-command action so target properties survive Embark dispatch."
 ;;;###autoload
 (defun hub/music-search ()
   "Search the queue and loaded Liked Songs without previews or fetching.
-RET plays an existing queue occurrence, or appends and plays a library-only
+RET plays an existing queue occurrence, or prepends and plays a library-only
 song.
 M-RET inserts a copy next from an exact queue occurrence or retained Liked row,
 without interruption.  Matching Spotify URIs share provenance.

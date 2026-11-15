@@ -124,7 +124,7 @@
       </g>
     </symbol>
     <symbol id="molecule-music-queue-footer-actions" viewBox="0 0 1280 43">
-      <text x="28" y="28" font-family="Ubuntu Mono, monospace" font-size="14" fill="#9ba5ba"><tspan fill="#aab6ff">RET</tspan> <tspan fill="#9fe0c2">Play</tspan>   <tspan fill="#aab6ff">a</tspan> Append   <tspan fill="#aab6ff">M-RET</tspan> Add next   <tspan fill="#aab6ff">m</tspan> Player   <tspan fill="#aab6ff">l</tspan> Liked Songs   <tspan fill="#aab6ff">+</tspan> File   <tspan fill="#aab6ff">/</tspan> Search   <tspan fill="#aab6ff">?</tspan> Actions   <tspan fill="#aab6ff">-</tspan> Remove   <tspan fill="#aab6ff">q</tspan> Close</text>
+      <text x="28" y="28" font-family="Ubuntu Mono, monospace" font-size="14" fill="#9ba5ba"><tspan fill="#aab6ff">RET</tspan> <tspan fill="#9fe0c2">Play</tspan>   <tspan fill="#aab6ff">SPC</tspan> Play/pause   <tspan fill="#aab6ff">a</tspan> Append   <tspan fill="#aab6ff">M-RET</tspan> Add next   <tspan fill="#aab6ff">m</tspan> Player   <tspan fill="#aab6ff">l</tspan> Liked Songs   <tspan fill="#aab6ff">+</tspan> File   <tspan fill="#aab6ff">/</tspan> Search   <tspan fill="#aab6ff">?</tspan> Actions   <tspan fill="#aab6ff">-</tspan> Remove   <tspan fill="#aab6ff">q</tspan> Close</text>
     </symbol>
     <symbol id="molecule-music-queue-summary" viewBox="0 0 300 27">
       <text x="300" y="18" text-anchor="end" font-family="Ubuntu Mono, monospace" font-size="13" fill="#9ba5ba">3 tracks · 12:45</text>
@@ -191,11 +191,15 @@
          Page-specific provenance begins at x=847. Colours illustrate Modus Vivendi Tinted. -->
     <symbol id="molecule-music-fixture-row-fields" viewBox="0 0 1280 38">
       <g font-family="Ubuntu Mono, monospace" font-size="18">
-        <text x="64" y="27" fill="#2fafff" font-weight="600">Low Light</text>
-        <text x="361" y="27" fill="#00d3d0">Quiet Geometry</text>
-        <text x="568" y="27" fill="#feacd0">Still / Motion</text>
-        <text x="838" y="27" fill="#d0bc00" text-anchor="end">4:34</text>
+        <text x="109" y="27" fill="#2fafff" font-weight="600">Low Light</text>
+        <text x="406" y="27" fill="#00d3d0">Quiet Geometry</text>
+        <text x="613" y="27" fill="#feacd0">Still / Motion</text>
+        <text x="883" y="27" fill="#d0bc00" text-anchor="end">4:34</text>
       </g>
+    </symbol>
+    <symbol id="molecule-music-echo-area" viewBox="0 0 1280 28">
+      <rect width="1280" height="28" fill="#0d0e1c"/>
+      <path d="M0 0H1280" stroke="#2c354c"/>
     </symbol>
     <symbol id="template-music-cockpit-panel" viewBox="0 0 1280 320">
       <rect width="1280" height="320" fill="#0d0e1c"/>

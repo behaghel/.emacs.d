@@ -127,7 +127,8 @@
      (let ((display (overlay-get (car hub/music-queue--overlays) 'display)))
        (should-not (text-property-not-all 0 (length display) 'display nil display))
        (should-not (string-match-p "hidden tail" display))
-       (should (string-match-p "Quiet Geometry" display))))))
+       (should (text-property-any 0 (length display) 'hub/music-row-field 'artist display))
+       (should (string-match-p "Quiet" display))))))
 
 (provide 'music-queue-test)
 ;;; music-queue-test.el ends here

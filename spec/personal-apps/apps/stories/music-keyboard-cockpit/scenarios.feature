@@ -26,7 +26,7 @@ Feature: Music navigation at the speed of the editor
     Then Liked Songs opens or receives focus in the shared bottom slot
     And invoking the same shortcut again preserves my existing browsing position and filter
     And browsing does not alter playback, the queue or capture consent
-    And I retain the existing append and append-and-play library actions
+    And a appends while RET prepends and plays the library song
 
   @wireframe:music-cockpit-liked-songs.svg
   Scenario: Reach Liked Songs directly from the player
@@ -159,7 +159,7 @@ Feature: Music navigation at the speed of the editor
     And unrelated queue entries remain unchanged
     Examples:
       | source       | action        | result                                      |
-      | Liked Songs  | RET           | that track is appended and played           |
+      | Liked Songs  | RET           | that track is prepended at #1 and played    |
       | Liked Songs  | M-RET         | that track is inserted next without interruption |
       | Queue        | RET           | that existing occurrence is selected and played |
 
@@ -200,6 +200,43 @@ Feature: Music navigation at the speed of the editor
     And "Q" opens the Queue while "q" still closes the view
     And cancelling the file prompt changes nothing
     And stopped playback stays stopped
+
+  @wireframe:music-cockpit-liked-songs.svg
+  Scenario: Give bounded queue feedback without changing library identity
+    Given Liked Songs is loaded and a song is not queued
+    When I append that song
+    Then its first column shows its queue position and the echo area reports the new occurrence
+    And the browsing row, loaded records and playback are unchanged
+    When I append another copy
+    Then the first column keeps the earliest position with an ellipsis
+    And help lists all its queue positions without widening the eight-column cell
+    And the echo area identifies the newly added occurrence, not its earlier copy
+    When I remove, reorder, undo or clear occurrences through native EMMS editing
+    Then the loaded library reflects the actual queue positions without fetching data
+    And unqueued songs have no queue position or library rank
+
+  @wireframe:music-cockpit-liked-songs.svg @wireframe:music-cockpit-queue.svg
+  Scenario Outline: Share position alignment and transport between listings
+    Given <view> is open while a different row is being browsed
+    Then the first column starts with queue positions, followed by playback icons
+    When I press SPC
+    Then the current track pauses or resumes without moving the browsing row
+    And no occurrence is appended, prepended or moved
+
+    Examples:
+      | view        |
+      | Liked Songs |
+      | Queue       |
+
+  @wireframe:music-cockpit-search-queue.svg
+  Scenario: Choose music Embark actions without reshaping the windows
+    Given music search is open with a selected exact queue occurrence
+    When I press "C-." and wait before choosing an action
+    Then the prompt shows compact Play, Append, Next and Remove hints without an action window
+    And the query text, selected candidate and source window layout are unchanged
+    When I request full help
+    Then the normal Embark menu is available explicitly
+    And ordinary non-music Embark indicators are unchanged
 
   @wireframe:music-cockpit-queue.svg @wireframe:music-cockpit-queue-removed.svg @wireframe:music-cockpit-palette-access.svg
   Scenario Outline: Remove the selected occurrence without surprising playback

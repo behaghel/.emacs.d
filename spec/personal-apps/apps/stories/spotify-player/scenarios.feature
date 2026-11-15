@@ -18,7 +18,7 @@ Feature: One mixed EMMS playlist with official browser Spotify playback
     When I press a on a sorted Liked Songs row
     Then that Spotify track is appended without interrupting playback
     When I press RET on another liked song
-    Then that occurrence is appended and played through EMMS
+    Then that occurrence is prepended at queue position 1 and played through EMMS
     And all previous queue entries remain
 
   @wireframe:spotify-browser-activating.svg @wireframe:spotify-browser-ready.svg

@@ -17,6 +17,8 @@
 (defvar hub/spotify--tracks)
 (defvar hub/spotify--playback-key)
 (declare-function hub/spotify--refresh-playback "apps/spotify" ())
+(declare-function hub/music-queue--refresh "apps/music-queue" (&optional force))
+(declare-function context-panels-footer-update "context-panels-footer" (&optional buffer))
 
 (declare-function modus-themes-get-current-theme "modus-themes" ())
 (declare-function modus-themes-get-color-value "modus-themes" (color &optional with-overrides theme))
@@ -58,7 +60,7 @@ Update defface defaults, not user/theme overrides or global parent faces."
   "Source-link pointer actions; RET remains the table's explicit Play action.")
 
 (defconst hub/music-row-columns
-  [("" 3 nil) ("Title" 32 t) ("Artist" 22 t) ("Album" 22 t)
+  [("" 8 nil) ("Title" 32 t) ("Artist" 22 t) ("Album" 22 t)
    ("Time" 7 nil :right-align t) ("Source" 11 nil)]
   "Native table layout for shared music rows; copy before modifying widths.")
 
@@ -68,7 +70,7 @@ Shrink long text fields first; preserve a readable time and provenance column."
   (let* ((columns (max 53 (or columns (window-body-width))))
 	 (layout (copy-tree hub/music-row-columns t))
 	 (deficit (max 0 (- (+ 5 (cl-loop for column across layout sum (nth 1 column))) columns)))
-	 (minimum [3 12 10 8 5 10]))
+	 (minimum [8 10 8 6 5 10]))
     (while (and (> deficit 0)
 		(cl-some (lambda (index) (> (nth 1 (aref layout index)) (aref minimum index))) '(1 2 3)))
       (dolist (index '(1 2 3))
@@ -135,6 +137,16 @@ Shrink long text fields first; preserve a readable time and provenance column."
 	     (push (hub/music-row-from-queue (emms-playlist-track-at (point)) playlist (point) index) rows)
 	     (cl-incf index))
 	    (nreverse rows)))))))
+
+(defun hub/music-row-position-map ()
+  "Return URI-to-position lists freshly derived from the authoritative queue.
+Positions are one-based.  This render-only projection never owns queue state."
+  (let ((positions (make-hash-table :test #'equal)))
+    (dolist (row (hub/music-row-queue emms-playlist-buffer))
+      (when (stringp (hub/music-row-uri row))
+	(push (1+ (hub/music-row-index row)) (gethash (hub/music-row-uri row) positions))))
+    (maphash (lambda (uri ranks) (puthash uri (nreverse ranks) positions)) positions)
+    positions))
 
 (defun hub/music-row-liked (library)
   "Project LIBRARY's retained records without fetching or loading anything."
@@ -222,9 +234,13 @@ redundant library hits.  Neither source is fetched or changed."
     (if (eq (hub/music-playback-state) 'connecting) 'connecting
       (if emms-player-paused-p 'paused 'playing))))
 
-(defun hub/music-row-cells (row)
-  "Return native table cells for ROW with a non-selection playback marker."
-  (let* ((fields (hub/music-row--fields row))
+(defun hub/music-row-cells (row &optional positions)
+  "Return ROW's native cells with playback marker and optional queue POSITIONS.
+Show only the earliest position, with an ellipsis for duplicates and full help."
+
+  (let* ((positions (or positions (when (eq (hub/music-row-origin row) 'queue)
+				    (list (1+ (hub/music-row-index row))))))
+	 (fields (hub/music-row--fields row))
 	 (status (hub/music-row-status row))
 	 (label (when status (hub/music-state-label status)))
 	 (icon (if label (propertize (car (split-string label " "))
@@ -239,6 +255,16 @@ redundant library hits.  Neither source is fetched or changed."
 			     'help-echo "Open this track on Spotify"
 			     'action (lambda (_button) (browse-url url))))
 		   (propertize service 'face 'hub/music-row-source 'hub/music-row-field 'source))))
+    (when positions
+      (let* ((suffix (if (string-empty-p icon) "" (concat " " icon)))
+	     (number (concat (number-to-string (car positions)) (when (cdr positions) "…")))
+	     (display (truncate-string-to-width number (max 1 (- (nth 1 (aref hub/music-row-columns 0)) (string-width suffix))) nil nil "…")))
+	(setq icon
+	      (concat (propertize display 'face 'hub/music-row-source
+				  'hub/music-queue-positions positions
+				  'help-echo (concat "Queue positions: "
+						     (mapconcat #'number-to-string positions ", ")))
+		      suffix))))
     (vector icon (aref fields 0) (aref fields 1) (aref fields 2) (aref fields 3) source)))
 
 (defun hub/music-row-display (row &optional columns fields)
@@ -308,10 +334,16 @@ while materializing the table printer's ellipses and fixed-pitch column padding.
 Keep library records, the browsing row and playback unchanged."
   (interactive)
   (hub/music-row--apply-faces)
+  (when (and (fboundp 'hub/music-queue--refresh) (buffer-live-p emms-playlist-buffer))
+    (with-current-buffer emms-playlist-buffer
+      (when (bound-and-true-p hub/music-queue-listing-mode) (hub/music-queue--refresh t))))
   (when (and (fboundp 'hub/spotify--refresh-playback) (hub/music-loaded-library-buffer))
     (with-current-buffer (hub/music-loaded-library-buffer)
       (setq-local hub/spotify--playback-key nil))
-    (hub/spotify--refresh-playback)))
+    (hub/spotify--refresh-playback))
+  (when (fboundp 'context-panels-footer-update)
+    (dolist (buffer (list emms-playlist-buffer (hub/music-loaded-library-buffer)))
+      (when (buffer-live-p buffer) (context-panels-footer-update buffer)))))
 
 (provide 'apps/music-row)
 ;;; music-row.el ends here

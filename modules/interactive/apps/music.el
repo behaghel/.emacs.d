@@ -91,7 +91,7 @@
   (dolist (variable '(hub/emms-player-mode-map hub/spotify-library-mode-map emms-playlist-mode-map))
     (when (and (boundp variable) (keymapp (symbol-value variable)))
       (let ((map (symbol-value variable))
-	    (bindings '(("m" . hub/emms-player-open) ("l" . hub/spotify-liked-songs)
+	    (bindings '(("SPC" . hub/emms-player-toggle) ("m" . hub/emms-player-open) ("l" . hub/spotify-liked-songs)
 			("Q" . hub/music-queue) ("+" . hub/music-add-file)
 			("M-RET" . hub/music-add-next) ("/" . hub/music-search) ("?" . hub/music-palette))))
 	(unless (eq variable 'hub/spotify-library-mode-map)
