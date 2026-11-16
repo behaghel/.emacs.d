@@ -1,58 +1,62 @@
-# Native callout smoke checklist
+# Disposable callout and managed-task smoke test
 
-## Status
+Use a new disposable Org file and a disposable Google Doc. Keep automatic push
+turned off. Do not use a real note or publish over a trusted document merely to
+test migration. Offline fixtures do not establish live API acceptance.
 
-Automated fixture support is implemented; live smoke is pending.
-
-## Canonical Org syntax
+Canonical callouts use `#+ATTR_CALLOUT`, with type `info`, `note`, `warning`,
+`tip` or `important` (`info` is the default):
 
 ```org
-#+ATTR_CALLOUT: :type warning :title "Heads up"
+#+ATTR_CALLOUT: :type warning :title "Heads up 😀"
 #+BEGIN_CALLOUT
-Body with *bold*, /italic/, and ~code~.
+First *paragraph*.
+
+- [ ] Open task
+- [X] Done task
+- [-] Partial task
+
+Separate paragraph after the list.
 #+END_CALLOUT
 ```
 
-Supported types:
+## Create and inspect
 
-- `info`
-- `note`
-- `warning`
-- `tip`
-- `important`
+1. Create a source containing two adjacent callouts with identical attributes,
+   a Unicode title, separate prose paragraphs, a list followed by prose, and
+   ordinary tasks outside callouts. Include `[ ]`, `[X]`, `[-]`, nested tasks,
+   bold/italic text, links, inline source and supplementary-plane characters.
+2. Publish a new document. Inspect the pipeline trace/requests when surprising.
+   Tasks should show `☐`, `☑`, `◩` as editable text, not native checkbox controls.
+   Ordinary bullet/number lists should still be native lists.
+3. Verify callout title, paragraph boundaries, full-width shading and list
+   indentation. Check rich-body emphasis, links and inline-source language.
+4. Run `M-x org-google-docs-push-restyle-current` after a style tweak. Verify
+   callout chrome and task state remain correct. Unsupported types, nested
+   blocks and nested callout list shading should fail before remote mutation.
 
-Missing `:type` defaults to `info`.
+## Edit in both directions
 
-## Expected Google Docs rendering
+1. In Docs, replace only `☐` with `☑`, then with `◩`. Leave the following space
+   intact. Pull each edit and verify `[X]`, then `[-]`, without body changes.
+2. Edit the visible callout title. Pull after changing local callout-label
+   configuration; the published prefix, not today's configuration, identifies
+   the title. Verify that adjacent identical callouts remain separate.
+3. In Org, change task state, nesting, body emphasis and inline-source content.
+   Push the linked document. Inspect the visible state and pull it back.
+4. Push again without edits: no content/style/annotation changes should appear.
+   Repeat after changing a task from an ordinary native bullet and back.
+5. Delete a glyph but leave its separator in Docs. Pull should fail before
+   overwriting Org. Restore the canonical glyph and space, then retry manually.
 
-A callout renders as:
+## Native checkbox boundary
 
-```text
-⚠️ Warning — Heads up
-Body with bold, italic, and code.
-```
+Native click-to-toggle checklist completion cannot be synchronized through the
+current documented API. Legacy-marked native checklists should produce an
+explicit error rather than stale/open task state. Unmarked native controls are
+not reliably distinguishable from ordinary bullets; do not claim automatic
+recognition. Migrate only from trusted authoritative Org, or manually establish
+the managed visible-glyph format. Strike-through is not completion evidence.
 
-Generated labels use emoji plus text for scanability/accessibility: `ℹ️ Info`, `📝 Note`, `💡 Tip`, `⚠️ Warning`, and `❗ Important`.
-
-The label paragraph is generated chrome. It is marked separately from body paragraphs and is dropped from the Org body on pull. Body paragraphs and list items remain editable remote content and should pull back into the Org callout body. Callouts compose paragraph/list content only; nested blocks inside callouts are intentionally unsupported and must fail before remote mutation.
-
-## Live checklist
-
-- [ ] Create or push an Org buffer containing info, warning, and titled callouts.
-- [ ] Confirm the generated label paragraph is visible.
-- [ ] Confirm callout body paragraphs and native list items remain editable ordinary Docs text.
-- [ ] Edit body text remotely, pull, and confirm the Org callout body updates.
-- [ ] Confirm the generated label does not appear in the pulled Org body.
-- [ ] Run `M-x org-google-docs-push-restyle-current` after a style tweak and confirm callouts restyle with source/quote blocks.
-- [ ] Confirm unsupported callout types fail before remote mutation.
-
-## Design notes
-
-- The visible label is derived from marker metadata and ignored on pull in v1.
-- Label markers and body markers both store type/title metadata.
-- Label-only callouts preserve an empty callout; body-only callouts preserve the wrapper and recreate the label on next push.
-- Per-type logical styles are present from v1 so the branding pass can tune colors/spacing later without changing semantics.
-- Lists inside callout bodies are preserved as body paragraph elements with list metadata, including unordered, ordered, and nested list levels. This is intentionally built on the same paragraph/list IR foundations as top-level lists rather than a callout-specific list model.
-- Callout composition is deliberately limited to paragraphs and lists. Nested blocks such as tables, source blocks, and quote blocks are rejected fail-closed; blocks do not compose inside blocks.
-- Callouts intentionally do not use the quote indentation style. They use full-width paragraph shading, 6pt paragraph border padding for breathing room inside the shaded block, a small gap below the generated label, and an unmarked empty separator paragraph after each callout because Google Docs paragraph shading can visually merge adjacent shaded paragraphs despite spacing properties.
-- The generated separator paragraph is semantic chrome. Pull conversion includes one immediately following empty paragraph in the owning callout block range so normal and restyle pushes replace the whole generated shape instead of accumulating blank lines.
+Record create, push, edit/push, pull and repeated-push outcomes independently;
+do not label the feature live-verified until this checklist passes.
