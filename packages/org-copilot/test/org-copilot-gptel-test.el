@@ -16,6 +16,59 @@
 
 (setq org-copilot-gptel-defer-chat-postprocessing nil)
 
+(ert-deftest org-copilot-gptel-focus-navigation-keeps-the-conversation ()
+  "Section/comment focus preserves displayed chat and the next model input."
+  (with-temp-buffer
+    (org-mode)
+    (insert "* Intro\nIntro body.\n* Methods\nMethod body.\n")
+    (goto-char (point-min))
+    (let ((source (current-buffer))
+	  (org-copilot-chat-function #'org-copilot-gptel-chat)
+	  (org-copilot-gptel-defer-chat-postprocessing nil)
+	  prompts callbacks intro-id)
+      (cl-letf (((symbol-function 'gptel-request)
+		 (lambda (prompt &rest args)
+		   (push prompt prompts)
+		   (push (plist-get args :callback) callbacks)
+		   nil)))
+	(org-copilot-chat--set-context
+	 source (org-copilot-chat--section-context-at-point))
+	(setq intro-id (org-copilot-chat--context-id org-copilot-chat-context))
+	(org-copilot-chat-send "Use VIOLET_KITE as our example name.")
+	(search-forward "* Methods")
+	(org-copilot-chat--set-context
+	 source (org-copilot-chat--section-context-at-point))
+	(funcall (car callbacks)
+		 "{\"intent\":\"answer\",\"message\":\"Keep VIOLET_KITE in the introduction.\"}"
+		 '(:status success))
+	(should (equal (plist-get org-copilot-chat-context :section-title) "Methods"))
+	(with-current-buffer (org-copilot-chat--buffer source)
+	  (should (string-match-p "Use VIOLET_KITE" (buffer-string)))
+	  (should (string-match-p "Keep VIOLET_KITE" (buffer-string))))
+	(org-copilot-chat-send "Which name did we choose earlier?")
+	(should (string-match-p "Keep VIOLET_KITE" (car prompts)))
+	(should (string-match-p (regexp-quote intro-id) (car prompts)))
+	(should-not (string-match-p "Pending:" (car prompts)))
+	(funcall (car callbacks)
+		 "{\"intent\":\"answer\",\"message\":\"We chose VIOLET_KITE.\"}"
+		 '(:status success))
+	(org-copilot-add-comment
+	 (list :id "focus-note" :status 'active :body "Discuss the method wording."))
+	(org-copilot-chat--set-context source '(:type comment :comment-id "focus-note"))
+	(org-copilot-chat-send "Does that choice still hold?")
+	(should (string-match-p "Keep VIOLET_KITE" (car prompts)))
+	(should (string-match-p "We chose VIOLET_KITE" (car prompts)))
+	(should (string-match-p "Which name did we choose earlier" (car prompts)))
+	(funcall (car callbacks)
+		 "{\"intent\":\"answer\",\"message\":\"Yes, the name is unchanged.\"}"
+		 '(:status success))
+	(with-current-buffer (org-copilot-chat--buffer source)
+	  (should (string-match-p "Use VIOLET_KITE" (buffer-string)))
+	  (should (string-match-p "We chose VIOLET_KITE" (buffer-string)))
+	  (should (string-match-p "Yes, the name is unchanged" (buffer-string))))
+	(should (equal (buffer-string)
+		       "* Intro\nIntro body.\n* Methods\nMethod body.\n"))))))
+
 (ert-deftest org-copilot-gptel-loads-optionally ()
   "The gptel adapter file loads without requiring gptel eagerly."
   (should (featurep 'org-copilot-gptel)))

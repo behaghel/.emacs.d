@@ -16,13 +16,15 @@ status: draft
 - API tokens and provider-specific secrets must remain outside tracked configuration.
 - Optional AI integrations should not break ordinary startup when unavailable.
 - Org Copilot activation is [explicit and buffer-local](../../../../packages/org-copilot/README.md#activation); loading Org or gptel does not enable it or configure its adapters.
-- When subscription OAuth is selected, Copilot Babel generation configures a
-  ChatGPT subscription backend at request time, including on cold startup.
-  Login and generation reuse the registered subscription backend without
-  replacing its authenticated state. Setup failure or a model absent from the
-  adapter catalogue stops generation before a request; an API-key backend or
-  another model is never substituted. Catalogue membership is not proof of
-  account-specific availability: the provider accepts or rejects the model.
+- When subscription OAuth is selected, ordinary gptel, Copilot chat/review and
+  Babel reuse the same consumer-configured subscription backend and model.
+  Activating another adapter does not recreate that backend or replace its
+  authenticated state. Missing model selection, outdated adapter setup or a
+  model absent from the installed adapter's catalogue stops before a request,
+  preventing gptel from silently choosing another model or billing route.
+  Catalogue membership is not proof of account-specific availability: the
+  provider accepts or rejects the exact requested model. Babel configures this
+  route at request time, including on cold startup, without activating Copilot.
 - OAuth cache files are readable and writable only by their owner. Subscription
   setup secures an existing cache without reading its contents, and token writes
   preserve private permissions. A valid cached login is restored without another

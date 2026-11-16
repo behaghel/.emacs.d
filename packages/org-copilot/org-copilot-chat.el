@@ -365,19 +365,9 @@ assistant responses start where the user begins reading."
 	    (set-window-start window position)))))))
 
 (defun org-copilot-chat--visible-messages (source-buffer)
-  "Return chat messages visible for SOURCE-BUFFER's current chat context."
+  "Return SOURCE-BUFFER's conversation messages regardless of editing focus."
   (with-current-buffer source-buffer
-    (let* ((context org-copilot-chat-context)
-	   (context-id (org-copilot-chat--context-id context))
-	   (focus-id org-copilot-chat-focus-comment-id))
-      (cl-remove-if-not
-       (lambda (message)
-	 (pcase (plist-get context :type)
-	   ('comment (equal (plist-get message :comment-id) focus-id))
-	   ('section (equal (plist-get message :context-id) context-id))
-	   (_ (and (null (plist-get message :comment-id))
-		   (null (plist-get message :context-id))))))
-       (org-copilot-chat-messages)))))
+    (org-copilot-chat-messages)))
 
 (defun org-copilot-chat-render (source-buffer)
   "Render the Org Copilot chat transcript for SOURCE-BUFFER."
@@ -643,7 +633,9 @@ prompt active.  Source target overlays remain visible as dim context markers."
     (list :source-buffer source-buffer
 	  :buffer-name (buffer-name source-buffer)
 	  :message message
-	  :messages (org-copilot-chat--visible-messages source-buffer)
+	  :messages (cl-remove-if-not
+		     (lambda (entry) (memq (plist-get entry :role) '(user assistant)))
+		     (org-copilot-chat-messages))
 	  :chat-context org-copilot-chat-context
 	  :context-id (org-copilot-chat--context-id org-copilot-chat-context)
 	  :focus-comment-id org-copilot-chat-focus-comment-id
@@ -1069,19 +1061,19 @@ Slash command completion is offered only when the prompt field is empty."
     (insert text)))
 
 (defun org-copilot-chat--last-user-message (source-buffer)
-  "Return last visible user message content for SOURCE-BUFFER."
+  "Return last user message content in SOURCE-BUFFER's conversation."
   (cl-loop for message in (reverse (org-copilot-chat--visible-messages source-buffer))
 	   when (eq (plist-get message :role) 'user)
 	   return (plist-get message :content)))
 
 ;;;###autoload
 (defun org-copilot-chat-recall-last-prompt ()
-  "Recall the last submitted prompt in the current chat context."
+  "Recall the last submitted prompt in the current conversation."
   (interactive)
   (let* ((source (org-copilot-chat--source-buffer))
 	 (message (org-copilot-chat--last-user-message source)))
     (unless message
-      (user-error "No previous Org Copilot prompt in this context"))
+      (user-error "No previous Org Copilot prompt in this conversation"))
     (org-copilot-chat--set-prompt-text message)))
 
 ;;;###autoload

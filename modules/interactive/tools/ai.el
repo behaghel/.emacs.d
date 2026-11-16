@@ -80,9 +80,12 @@ process-wide creation modes even if writing fails; never log TOKEN."
 	      #'hub/gptel-write-private-oauth-token))
 
 (defun hub/gptel-subscription-backend ()
-  "Return the registered ChatGPT subscription backend without replacing it.
-Preserve its authenticated state.  A conflicting named API backend is an
-error, not permission to replace it or select a different billing route."
+  "Return the registered subscription backend for the selected model.
+Preserve its authenticated state.  A conflicting API backend, outdated adapter
+or unlisted model is an error, not permission to replace the selected route."
+  (unless (and hub/gptel-openai-oauth-model
+	       (symbolp hub/gptel-openai-oauth-model))
+    (user-error "Select a ChatGPT subscription model"))
   (require 'gptel-openai-oauth)
   (unless (fboundp 'gptel--openai-oauth-default-backend)
     (user-error
@@ -91,7 +94,14 @@ error, not permission to replace it or select a different billing route."
   (let ((backend (alist-get "OpenAI-sub" gptel--known-backends nil nil #'equal)))
     (when (and backend (not (gptel-openai-oauth-p backend)))
       (user-error "OpenAI-sub is not a ChatGPT subscription backend"))
-    (or backend (gptel-make-openai-oauth "OpenAI-sub"))))
+    (setq backend (or backend (gptel-make-openai-oauth "OpenAI-sub")))
+    (unless (gptel-openai-oauth-p backend)
+      (user-error "Configured backend is not ChatGPT subscription OAuth"))
+    (unless (memq hub/gptel-openai-oauth-model (gptel-backend-models backend))
+      (user-error
+       "Model %s is not listed by the installed subscription adapter; update to the pinned gptel or explicitly select an available model. No model was substituted"
+       hub/gptel-openai-oauth-model))
+    backend))
 
 (defun hub/gptel-configure-openai-oauth ()
   "Configure gptel's subscription OAuth without activating Org Copilot.
@@ -130,13 +140,16 @@ Fail closed instead of falling back to an API-key backend."
     (gptel-agent-update)))
 
 (defun hub/org-copilot-enable-gptel ()
-  "Configure Org Copilot to use the selected gptel authentication route."
+  "Configure Org Copilot from the consumer's selected gptel profile."
   (if (not (require 'org-copilot-gptel nil 'noerror))
       (message (concat "Org Copilot: org-copilot-gptel adapter unavailable; "
 		       "restore it and re-enable org-copilot-mode"))
     (if hub/gptel-use-openai-oauth
 	(condition-case err
-	    (org-copilot-gptel-use-openai-oauth hub/gptel-openai-oauth-model)
+	    (progn
+	      (setq org-copilot-gptel-backend (hub/gptel-subscription-backend)
+		    org-copilot-gptel-model hub/gptel-openai-oauth-model)
+	      (org-copilot-gptel-enable))
 	  (error
 	   (setq org-copilot-gptel-backend nil
 		 org-copilot-gptel-model nil
@@ -180,19 +193,7 @@ main-library load order.  Never fall back to API billing or another model."
 	  (org-copilot-gptel-backend nil)
 	  (org-copilot-gptel-model hub/gptel-openai-oauth-model))
       (condition-case err
-	  (progn
-	    (unless (and org-copilot-gptel-model
-			 (symbolp org-copilot-gptel-model))
-	      (user-error "Select a ChatGPT subscription model"))
-	    (require 'gptel-openai-oauth)
-	    (setq org-copilot-gptel-backend (hub/gptel-subscription-backend))
-	    (unless (gptel-openai-oauth-p org-copilot-gptel-backend)
-	      (user-error "Configured backend is not ChatGPT subscription OAuth"))
-	    (unless (memq org-copilot-gptel-model
-			  (gptel-backend-models org-copilot-gptel-backend))
-	      (user-error
-	       "Model %s is not listed by the subscription adapter; select a supported model explicitly"
-	       org-copilot-gptel-model)))
+	  (setq org-copilot-gptel-backend (hub/gptel-subscription-backend))
 	(error
 	 (user-error
 	  "Copilot Babel: ChatGPT subscription setup failed: %s. No API fallback was attempted"
