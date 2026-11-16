@@ -162,8 +162,10 @@ Leave the mode disabled so the caller's next explicit enable retries setup."
        'org-copilot-babel-gptel-generate)
       (should (= count 1)))
     (setq hub/gptel-use-openai-oauth t
-	  hub/gptel-openai-oauth-model (if (eq fault 'unlisted-model)
-					   'fixture-unlisted-model 'fixture-supported-model)
+	  hub/gptel-openai-oauth-model (pcase fault
+					 ('unlisted-model 'fixture-unlisted-model)
+					 ('missing-model nil)
+					 (_ 'fixture-supported-model))
 	  gptel--known-backends (when (eq fault 'registry-api)
 				  '(("OpenAI-sub" . fixture-api)))
 	  gptel-backend (when (eq fault 'stale-api) 'fixture-api)
@@ -197,7 +199,7 @@ Leave the mode disabled so the caller's next explicit enable retries setup."
 	  (insert "#+begin_src copilot\nWrite a summary.\n#+end_src\n\n#+RESULTS:\nOld reviewed result.\n")
 	  (goto-char (point-min))
 	  (let ((before (buffer-string)) (org-confirm-babel-evaluate nil))
-	    (if (memq fault '(unavailable invalid-backend unlisted-model outdated-adapter registry-api))
+	    (if (memq fault '(unavailable invalid-backend unlisted-model missing-model outdated-adapter registry-api))
 		(progn
 		  (should-error (org-babel-execute-src-block) :type 'user-error)
 		  (should (zerop calls))
@@ -347,7 +349,7 @@ Return the exit status and output; see `hub/ai-lifecycle-test--exercise'."
 	  (hub/ai-lifecycle-test--write
 	   root "gptel-openai-oauth.el"
 	   (concat "(defun gptel-make-openai-oauth (_name &rest args)\n"
-		   " (setq hub/ai-lifecycle-test--models (or (plist-get args :models) '(fixture-supported-model fixture-luna-model)))\n"
+		   " (setq hub/ai-lifecycle-test--models (or (plist-get args :models) '(fixture-supported-model fixture-luna-model gpt-6-luna)))\n"
 		   " (setf (alist-get _name gptel--known-backends nil nil #'equal) 'fixture-backend)\n"
 		   " 'fixture-backend)\n"
 		   "(defun gptel-backend-models (_backend) hub/ai-lifecycle-test--models)\n"
@@ -356,10 +358,8 @@ Return the exit status and output; see `hub/ai-lifecycle-test--exercise'."
 		   "(provide 'gptel-openai-oauth)\n"))
 	  (hub/ai-lifecycle-test--write
 	   root "org-copilot-gptel.el"
-	   (concat "(defun org-copilot-gptel-use-openai-oauth (&optional _model)\n"
-		   "  (hub/ai-lifecycle-test--configure-adapter 'oauth))\n"
-		   "(defun org-copilot-gptel-enable ()\n"
-		   "  (hub/ai-lifecycle-test--configure-adapter 'api-key))\n"
+	   (concat "(defun org-copilot-gptel-enable ()\n"
+		   "  (hub/ai-lifecycle-test--configure-adapter (if (and (boundp 'org-copilot-gptel-backend) (eq org-copilot-gptel-backend 'fixture-backend)) 'oauth 'api-key)))\n"
 		   "(provide 'org-copilot-gptel)\n"))
 	  (when (eq order 'babel)
 	    (delete-file (expand-file-name "org-copilot-gptel.el" root)))
@@ -475,7 +475,7 @@ Return the exit status and output; see `hub/ai-lifecycle-test--exercise'."
 
 (ert-deftest hub/ai-babel-subscription-failure-never-requests-or-changes-results ()
   "Missing or invalid OAuth setup cannot fall back to API billing."
-  (dolist (fault '(unavailable invalid-backend unlisted-model outdated-adapter registry-api))
+  (dolist (fault '(unavailable invalid-backend unlisted-model missing-model outdated-adapter registry-api))
     (pcase-let ((`(,status ,output) (hub/ai-lifecycle-test--run 'babel fault)))
       (ert-info ((format "Babel setup failure fixture:\n%s" output))
 		(should (equal status 0))
@@ -489,8 +489,15 @@ Return the exit status and output; see `hub/ai-lifecycle-test--exercise'."
 	 (home (make-temp-file "ai-real-oauth-" t))
 	 (default-directory (file-name-as-directory home))
 	 (process-environment (copy-sequence process-environment))
-	 (paths (cons source (cl-remove-if-not #'file-directory-p
-					       (directory-files build t "\\`[^.]")))))
+	 (paths (append
+		 (list source
+		       (or (getenv "CONTEXT_PANELS_PATH")
+			   (expand-file-name "context-panels" build))
+		       (expand-file-name "packages/org-comments" hub/ai-lifecycle-test--root)
+		       (expand-file-name "packages/org-suggestions" hub/ai-lifecycle-test--root)
+		       (expand-file-name "packages/org-copilot" hub/ai-lifecycle-test--root))
+		 (cl-remove-if-not #'file-directory-p
+				   (directory-files build t "\\`[^.]")))))
     (unwind-protect
 	(progn
 	  (setenv "HOME" home)
@@ -499,6 +506,8 @@ Return the exit status and output; see `hub/ai-lifecycle-test--exercise'."
 		    `(progn
 		       (require 'cl-lib)
 		       (require 'gptel-openai-oauth)
+		       (defvar hub/gptel-openai-oauth-model 'gpt-6-luna)
+		       (defvar hub/gptel-use-openai-oauth t)
 		       (let* ((gptel-backend nil)
 			      (gptel--known-backends nil)
 			      (backend (gptel-make-openai-oauth "OpenAI-sub")))
@@ -517,6 +526,7 @@ Return the exit status and output; see `hub/ai-lifecycle-test--exercise'."
 				   (when (or (and (eq (car-safe form) 'defun)
 						  (memq (cadr form)
 							'(hub/gptel-subscription-backend
+							  hub/org-copilot-enable-gptel
 							  hub/gptel-secure-oauth-cache
 							  hub/gptel-write-private-oauth-token)))
 					     (and (eq (car-safe form) 'with-eval-after-load)
@@ -527,6 +537,11 @@ Return the exit status and output; see `hub/ai-lifecycle-test--exercise'."
 			 (unless (and (eq (hub/gptel-subscription-backend) backend)
 				      (eq (gptel-openai-oauth-token backend) 'fixture-state))
 			   (error "Subscription setup replaced existing authenticated state"))
+			 (hub/org-copilot-enable-gptel)
+			 (unless (and (eq org-copilot-gptel-backend backend)
+				      (eq org-copilot-gptel-model 'gpt-6-luna)
+				      (eq (gptel-openai-oauth-token backend) 'fixture-state))
+			   (error "Copilot activation replaced the authenticated subscription backend"))
 			 ;; Exercise only synthetic cache data under the temp HOME.
 			 (unless (file-in-directory-p gptel--openai-oauth-token-file
 						      user-emacs-directory)
@@ -561,11 +576,15 @@ Return the exit status and output; see `hub/ai-lifecycle-test--exercise'."
 			     (gptel--openai-oauth-ensure backend)
 			     (unless (equal (gptel-openai-oauth-token backend) fixture)
 			       (error "Cached subscription login was not restored"))))
-			 ;; Build the request locally: no headers, auth, or HTTP.
+			 ;; Public request preparation must not sanitize away the selection.
+			 ;; Dry-run constructs the actual payload without auth or HTTP.
 			 (let* ((gptel-backend backend)
 				(gptel-model 'gpt-6-luna)
 				(gptel-stream t)
-				(payload (gptel--request-data backend nil)))
+				(request (gptel-request "Synthetic model-selection probe."
+							:dry-run t :stream t
+							:system "Synthetic test." :transforms nil))
+				(payload (plist-get (gptel-fsm-info request) :data)))
 			   (unless (and (equal (plist-get payload :model) "gpt-6-luna")
 					(eq (plist-get payload :stream) t)
 					(eq (plist-get payload :store) :json-false))
