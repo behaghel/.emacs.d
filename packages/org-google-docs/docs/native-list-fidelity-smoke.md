@@ -14,6 +14,8 @@ Do not overwrite a real note. Offline fixtures are not live API acceptance.
 - [X] Task
 
   Task continuation with src_python{  x + 1  }.
+
+- *Term 😀* :: Definition with [[https://example.org][a link]].
 ```
 
 - [ ] Publish a new document. Inspect that parent two visibly has number 2,
@@ -32,6 +34,14 @@ Do not overwrite a real note. Offline fixtures are not live API acceptance.
       paragraphs in Docs. Pull must fail before replacing local content. Restore
       the boundaries or republish trusted Org; do not guess ownership.
 - [ ] Confirm unsupported source blocks inside list items fail before mutation.
+- [ ] Verify description terms, delimiter and rich definitions remain visible;
+      pull and push again without duplicated terms.
+- [ ] Inside a callout, change an open task to partial in Org, push, then pull.
+      The visible glyph must become `◩` and return as `[-]`, not open state.
+- [ ] Change list nesting and body emphasis in the same Org edit, then push.
+      Both native structure and emphasis must update.
+- [ ] Replace a top-level list item with a top-level table, then push. Inspect
+      the pipeline requests: no bullet cleanup should target the new table.
 
 Inspect `M-x org-google-docs-debug-pipeline` and its request trace when surprising.
 Record create, push, edit/push, pull and repeat results separately. Native list

@@ -39,7 +39,7 @@ otherwise using the managed build and its dependencies.
 - Uniform bold across an imported heading is heading presentation, not Org inline emphasis. Partial bold that contrasts with the rest of the heading and other visible emphasis remain content. Invisible authored bold distinctions flattened by heading typography are not reconstructed.
 - Static `status:` and `confluence-status:` labels retain label text, colour, original protocol, and provider marker identity across conversion and diffing. Their presentation is configurable; they do not imply native dropdown option sets. Unsupported colours or rich-label combinations block mutation.
 - Rendered Org separates semantic blocks from adjacent text and lists while keeping consecutive list items compact. Repeated conversion retains those boundaries.
-- List items retain their continuation paragraphs and rich inline content, including paragraphs after child lists. Nested numbered lists resume the parent's counter; continuations neither add bullets nor reset numbering. Managed native continuation annotations preserve item ownership; ambiguous or orphaned annotations block replacement rather than dropping content.
+- List items retain their continuation paragraphs and rich inline content, including paragraphs after child lists. Nested numbered lists resume the parent's counter; continuations neither add bullets nor reset numbering. Managed native continuation annotations preserve item ownership; ambiguous or orphaned annotations block replacement rather than dropping content. Description-list terms retain rich content in visible `term :: definition` bullet text and survive reparse without duplication.
 
 ## Comment Integration
 
