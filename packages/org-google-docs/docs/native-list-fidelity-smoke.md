@@ -39,7 +39,9 @@ Do not overwrite a real note. Offline fixtures are not live API acceptance.
 - [ ] Inside a callout, change an open task to partial in Org, push, then pull.
       The visible glyph must become `◩` and return as `[-]`, not open state.
 - [ ] Change list nesting and body emphasis in the same Org edit, then push.
-      Both native structure and emphasis must update.
+      Both native structure and emphasis must update. Inspect `bullet.nestingLevel`
+      in a fresh API fetch, not only the imported Org or list-state annotations.
+      Repeat with a shallower edit and a preceding Unicode paragraph edit.
 - [ ] Replace a top-level list item with a top-level table, then push. Inspect
       the pipeline requests: no bullet cleanup should target the new table.
 
@@ -48,3 +50,33 @@ Record create, push, edit/push, pull and repeat results separately. Native list
 identity/numbering after bullet removal requires this real-API check; a synthetic
 returned-document fixture cannot establish it. No native checkbox-state inference
 is part of this workflow: tasks use the accepted editable glyph representation.
+
+## Source-isolated checks
+
+`test/org-google-docs-disposable-preflight.el` runs only in a separate batch
+Emacs. Set `GDOCS_PATH` to the reviewed SDK checkout, `STRAIGHT_BUILD_PATH` to
+existing dependencies, and `GDOCS_DISPOSABLE_ARTIFACTS` to a private temporary
+directory. `GDOCS_DISPOSABLE_SOURCE` selects synthetic Org; the SDK's disposable
+fixture is the default. The driver plans requests and records the local debug
+pipeline without authentication or HTTP. Supplying `GDOCS_DISPOSABLE_REMOTE`
+selects inspection of an already fetched synthetic JSON snapshot. Explicit
+`GDOCS_DISPOSABLE_ACTION` values are `create`, `inspect`, `remote-edit`,
+`local-edit`, `repeat-edit`, and `export`; exports require a new destination in
+`GDOCS_DISPOSABLE_EXPORT` and remove document identity and revision.
+
+Keep each sent request plan and fetched snapshot immutable. Use a new fetch
+filename and compare two independent fetches, then parse the pulled Org and
+verify that it also plans no changes. The separate disposable transport helper
+reuses only the installed authenticated API, requires a recorded completed test
+operation, fixes the account to `personal`, and disables automatic retries.
+Never load the test SDK into the running production Emacs or copy credentials.
+Document creation and mutation still require explicit live authorization.
+
+Check raw native properties alongside zero-diff results: parents share the
+intended native list ID at level zero; children have the requested levels;
+continuations have no bullet; structural tabs are absent from paragraph text.
+For mixed native presets, include the group's definition indentation: raw
+`nestingLevel` zero is relative to its own list and can have a nested base offset.
+Visual numbering, indentation and shading require browser inspection. API
+mutations do not establish manual browser editing or native click-to-toggle
+checkbox behavior.
