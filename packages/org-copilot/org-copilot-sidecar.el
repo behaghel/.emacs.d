@@ -50,29 +50,42 @@
 	     return t
 	     do (forward-line 1))))
 
+(defun org-copilot-sidecar--update (sidecar-file edit-function)
+  "Apply EDIT-FUNCTION to SIDECAR-FILE through its current visiting buffer.
+Refuse unsaved edits and stale file evidence before changing anything.  Native
+locking and supersession checks still apply when editing and saving."
+  (make-directory (file-name-directory sidecar-file) t)
+  (with-current-buffer (or (find-buffer-visiting sidecar-file)
+			   (find-file-noselect sidecar-file))
+    (when (buffer-modified-p)
+      (user-error "Copilot transcript has unsaved edits; save before retrying: %s"
+		  sidecar-file))
+    (unless (verify-visited-file-modtime (current-buffer))
+      (user-error "Copilot transcript changed on disk; reload before retrying: %s"
+		  sidecar-file))
+    (unless (derived-mode-p 'org-mode) (org-mode))
+    (save-restriction
+      (widen)
+      (save-excursion
+	(atomic-change-group
+	  (funcall edit-function)
+	  (save-buffer))))))
+
 (defun org-copilot-sidecar--ensure-header (sidecar-file source-file)
-  "Ensure SIDECAR-FILE exists with a header for SOURCE-FILE."
-  (if (file-exists-p sidecar-file)
-      (with-temp-buffer
-	(insert-file-contents sidecar-file)
-	(org-mode)
-	(unless (org-copilot-sidecar--active-session-exists-p "default")
-	  (goto-char (point-max))
-	  (unless (bolp) (insert "\n"))
-	  (insert "\n")
-	  (org-copilot-sidecar--insert-session "default")
-	  (write-region (point-min) (point-max) sidecar-file nil 'silent)))
-    (make-directory (file-name-directory sidecar-file) t)
-    (with-temp-file sidecar-file
-      (insert (format "#+title: Copilot for %s\n"
-		      (file-name-nondirectory source-file)))
-      (insert (format "#+source: %s\n"
-		      (org-copilot-sidecar--relative-source-file
-		       source-file sidecar-file)))
-      (insert (format "#+org_copilot_schema_version: %d\n"
-		      org-copilot-sidecar-schema-version))
-      (insert "#+org_copilot_current_session: default\n\n")
-      (org-copilot-sidecar--insert-session "default"))))
+  "Ensure the current SIDECAR-FILE buffer has a header for SOURCE-FILE."
+  (when (= (buffer-size) 0)
+    (insert (format "#+title: Copilot for %s\n"
+		    (file-name-nondirectory source-file)))
+    (insert (format "#+source: %s\n"
+		    (org-copilot-sidecar--relative-source-file
+		     source-file sidecar-file)))
+    (insert (format "#+org_copilot_schema_version: %d\n"
+		    org-copilot-sidecar-schema-version))
+    (insert "#+org_copilot_current_session: default\n\n"))
+  (unless (org-copilot-sidecar--active-session-exists-p "default")
+    (goto-char (point-max))
+    (unless (bolp) (insert "\n"))
+    (org-copilot-sidecar--insert-session "default")))
 
 (defun org-copilot-sidecar--entry-body (end)
   "Return current heading body text ending before child headings and END."
@@ -97,21 +110,21 @@
   "Append ROLE MESSAGE for SOURCE-FILE to the Copilot sidecar.
 PROPERTIES is a plist of additional Org property names and values."
   (let ((sidecar-file (org-copilot-sidecar-path source-file)))
-    (org-copilot-sidecar--ensure-header sidecar-file source-file)
-    (with-temp-buffer
-      (insert-file-contents sidecar-file)
-      (goto-char (point-max))
-      (unless (bolp) (insert "\n"))
-      (insert (format "*** %s\n" (upcase (symbol-name role))))
-      (insert ":PROPERTIES:\n")
-      (while properties
-	(let ((key (pop properties))
-	      (value (pop properties)))
-	  (when value
-	    (insert (format ":%s: %s\n" key value)))))
-      (insert ":END:\n")
-      (insert (string-trim-right (or message "")) "\n")
-      (write-region (point-min) (point-max) sidecar-file nil 'silent))
+    (org-copilot-sidecar--update
+     sidecar-file
+     (lambda ()
+       (org-copilot-sidecar--ensure-header sidecar-file source-file)
+       (goto-char (point-max))
+       (unless (bolp) (insert "\n"))
+       (insert (format "*** %s\n" (upcase (symbol-name role))))
+       (insert ":PROPERTIES:\n")
+       (while properties
+	 (let ((key (pop properties))
+	       (value (pop properties)))
+	   (when value
+	     (insert (format ":%s: %s\n" key value)))))
+       (insert ":END:\n")
+       (insert (string-trim-right (or message "")) "\n")))
     sidecar-file))
 
 (defun org-copilot-sidecar--message-at-heading ()
@@ -148,35 +161,33 @@ PROPERTIES is a plist of additional Org property names and values."
   "Archive Copilot SESSION-ID subtree for SOURCE-FILE."
   (let ((sidecar-file (org-copilot-sidecar-path source-file)))
     (when (file-exists-p sidecar-file)
-      (with-current-buffer (find-file-noselect sidecar-file)
-	(org-mode)
-	(save-excursion
-	  (goto-char (point-min))
-	  (while (re-search-forward org-heading-regexp nil t)
-	    (goto-char (match-beginning 0))
-	    (if (and (= (org-outline-level) 1)
-		     (equal session-id
-			    (org-entry-get nil "ORG_COPILOT_SESSION_ID")))
-		(org-archive-subtree)
-	      (forward-line 1))))
-	(save-buffer)))))
+      (org-copilot-sidecar--update
+       sidecar-file
+       (lambda ()
+	 (goto-char (point-min))
+	 (while (re-search-forward org-heading-regexp nil t)
+	   (goto-char (match-beginning 0))
+	   (if (and (= (org-outline-level) 1)
+		    (equal session-id
+			   (org-entry-get nil "ORG_COPILOT_SESSION_ID")))
+	       (org-archive-subtree)
+	     (forward-line 1))))))))
 
 (defun org-copilot-sidecar-delete-session (source-file session-id)
   "Delete Copilot SESSION-ID subtree for SOURCE-FILE."
   (let ((sidecar-file (org-copilot-sidecar-path source-file)))
     (when (file-exists-p sidecar-file)
-      (with-temp-buffer
-	(insert-file-contents sidecar-file)
-	(org-mode)
-	(goto-char (point-min))
-	(while (re-search-forward org-heading-regexp nil t)
-	  (goto-char (match-beginning 0))
-	  (if (and (= (org-outline-level) 1)
-		   (equal session-id
-			  (org-entry-get nil "ORG_COPILOT_SESSION_ID")))
-	      (delete-region (point) (save-excursion (org-end-of-subtree t t)))
-	    (forward-line 1)))
-	(write-region (point-min) (point-max) sidecar-file nil 'silent)))))
+      (org-copilot-sidecar--update
+       sidecar-file
+       (lambda ()
+	 (goto-char (point-min))
+	 (while (re-search-forward org-heading-regexp nil t)
+	   (goto-char (match-beginning 0))
+	   (if (and (= (org-outline-level) 1)
+		    (equal session-id
+			   (org-entry-get nil "ORG_COPILOT_SESSION_ID")))
+	       (delete-region (point) (save-excursion (org-end-of-subtree t t)))
+	     (forward-line 1))))))))
 
 (provide 'org-copilot-sidecar)
 ;;; org-copilot-sidecar.el ends here
