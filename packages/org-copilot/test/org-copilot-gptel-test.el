@@ -283,21 +283,15 @@
   "The gptel chat adapter appends assistant callback text to source chat state."
   (with-temp-buffer
     (org-mode)
-    (org-copilot-add-chat-message 'pending "…")
-    (cl-letf (((symbol-function 'gptel-request)
-	       (lambda (_prompt &rest args)
-		 (let ((callback (plist-get args :callback)))
-		   (funcall callback "Assistant answer." (list :status 'success))))))
-      (org-copilot-gptel-chat
-       (list :source-buffer (current-buffer)
-	     :buffer-name (buffer-name)
-	     :message "Explain this"
-	     :messages nil
-	     :focus-comment-id nil))
-      (let ((messages (org-copilot-chat-messages)))
-	(should (= (length messages) 1))
-	(should (eq (plist-get (car messages) :role) 'assistant))
-	(should (equal (plist-get (car messages) :content) "Assistant answer."))))))
+    (let ((org-copilot-chat-function #'org-copilot-gptel-chat))
+      (cl-letf (((symbol-function 'gptel-request)
+		 (lambda (_prompt &rest args)
+		   (funcall (plist-get args :callback) "Assistant answer." '(:status success)))))
+	(org-copilot-chat-send "Explain this")
+	(let ((messages (org-copilot-chat-messages)))
+	  (should (= (length messages) 2))
+	  (should (eq (plist-get (cadr messages) :role) 'assistant))
+	  (should (equal (plist-get (cadr messages) :content) "Assistant answer.")))))))
 
 (ert-deftest org-copilot-gptel-chat-installs-structured-comments ()
   "Chat callback comments become normal Org Copilot review artifacts."
@@ -333,25 +327,20 @@
     (org-mode)
     (insert "* Intro\nBody.\n")
     (let ((context-id "section:(Intro)"))
-      (org-copilot-add-chat-message 'pending "…" nil context-id)
-      (cl-letf (((symbol-function 'gptel-request)
-		 (lambda (_prompt &rest args)
-		   (let ((callback (plist-get args :callback)))
-		     (funcall callback "Section answer."
-			      (list :status "HTTP/2 200"))))))
-	(org-copilot-gptel-chat
-	 (list :source-buffer (current-buffer)
-	       :buffer-name (buffer-name)
-	       :message "Explain this section"
-	       :messages nil
-	       :context-id context-id
-	       :focus-comment-id nil))
-	(let ((messages (org-copilot-chat-messages)))
-	  (should (= (length messages) 1))
-	  (should (eq (plist-get (car messages) :role) 'assistant))
-	  (should (equal (plist-get (car messages) :context-id) context-id))
-	  (should (equal (plist-get (car messages) :content)
-			 "Section answer.")))))))
+      (setq org-copilot-chat-context '(:type section :section-path ("Intro")))
+      (let ((org-copilot-chat-function #'org-copilot-gptel-chat))
+	(cl-letf (((symbol-function 'gptel-request)
+		   (lambda (_prompt &rest args)
+		     (let ((callback (plist-get args :callback)))
+		       (funcall callback "Section answer."
+				(list :status "HTTP/2 200"))))))
+	  (org-copilot-chat-send "Explain this section")
+	  (let ((messages (org-copilot-chat-messages)))
+	    (should (= (length messages) 2))
+	    (should (eq (plist-get (cadr messages) :role) 'assistant))
+	    (should (equal (plist-get (cadr messages) :context-id) context-id))
+	    (should (equal (plist-get (cadr messages) :content)
+			   "Section answer."))))))))
 
 (ert-deftest org-copilot-gptel-parses-chat-section-suggestion-fields ()
   "Chat JSON can carry section suggestion anchors."

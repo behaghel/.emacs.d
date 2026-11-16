@@ -61,6 +61,42 @@ For `draft.org`, Copilot uses source-adjacent Org sidecars:
 
 Pure Q&A answers stay in the Copilot transcript. Executable edits live in `org-suggestions`; comment rows are short descriptions/entry points, not patch payloads.
 
+## Transcript persistence
+
+Copilot transcript append, archive and erase use the same visiting-buffer owner.
+A successful write updates both its contents and visited-file metadata, so a
+new session can persist after archive even while its transcript remains open.
+Persistence preserves the user's point and narrowing and saves complete Org
+contents without bypassing native file locking or supersession checks.
+
+Unsaved transcript edits or an external file change cause persistence to refuse
+before mutation. The user must save or reconcile/reload that transcript before
+retrying. Copilot neither saves unrequested human edits nor automatically reverts
+or kills the visiting buffer. Conversation schemas and native Org archives are
+unchanged. This contract belongs to the Copilot transcript; comments and
+suggestions retain their own persistence contracts.
+
+## Request and session lifetime
+
+Every chat or review submission belongs to one source buffer, source file and
+session instance. Its pending state, answer, error and deferred installation
+belong to that exact request, not merely the most recent message in its context.
+Overlapping requests can complete independently and out of order.
+
+Clear (including UI-only clear), confirmed erase, transcript replacement, source
+retargeting, source closure and request cancellation invalidate obsolete work.
+Late responses and errors cannot recreate conversation, comments or suggestions,
+consume another request's pending state, or append into a later session. Existing
+sidecar archive/preserve/delete semantics and restoration remain unchanged.
+Navigation between document, section and comment contexts does not cancel work
+or redirect its captured response. Review completion does not change a newly
+selected chat context.
+
+Copilot owns this lifecycle independently of provider termination. Adapters use
+supported cancellation when available, but a cancellation attempt is never proof
+that late callbacks have stopped. Request/session identities are ephemeral and
+do not change the durable `default` session identifier or sidecar schemas.
+
 ## Main commands
 
 - `org-copilot-chat` — open the bottom chat for the current Org buffer.
@@ -72,6 +108,7 @@ Pure Q&A answers stay in the Copilot transcript. Executable edits live in `org-s
 - `org-copilot-visualize-at-point` — DWIM visualisation for focused comments and linked durable suggestions.
 - `org-copilot-accept-at-point` — accept focused durable suggestion.
 - `org-copilot-dismiss-at-point` — resolve focused durable comment and dismiss linked suggestions.
+- `org-copilot-cancel-requests` — cancel current source requests from source or chat without deleting conversation or artifacts.
 - `org-copilot-clear-session` — archive current Copilot session artifacts; with prefix, clear UI only.
 - `org-copilot-erase-session` — hard-delete current Copilot session artifacts after confirmation.
 
@@ -207,7 +244,7 @@ Rules:
 ## Architecture
 
 - `org-copilot-chat.el` — chat UI, context switching, slash commands.
-- `org-copilot-session.el` — source-buffer chat state, durable comment/suggestion adapters, and clear/erase orchestration.
+- `org-copilot-session.el` — source-buffer chat state, request/session lifetime and cancellation, durable comment/suggestion adapters, and clear/erase orchestration.
 - `org-copilot-sidecar.el` — `.copilot.org` transcript persistence.
 - `org-copilot-llm.el` — adapter-neutral parsing/normalization.
 - `org-copilot-gptel.el` — optional gptel/ChatGPT OAuth adapter.

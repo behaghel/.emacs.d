@@ -35,6 +35,7 @@
 (declare-function gptel-openai-oauth-p "gptel-openai-oauth")
 (declare-function gptel-make-openai-oauth "gptel-openai-oauth")
 (declare-function gptel-request "gptel")
+(declare-function gptel-abort "gptel-request" (buf))
 
 (defvar gptel-backend nil)
 (defvar gptel-model nil)
@@ -160,12 +161,13 @@ REQUEST supplies reviewed source bounds for line-range fallback anchoring."
 	 (anchored (org-copilot-llm-anchor-comments source-buffer comments request)))
     (message "Org Copilot: installing %d gptel comment(s)" (length anchored))
     (with-current-buffer source-buffer
-      (org-copilot-chat--set-context source-buffer '(:type full-document))
       (org-copilot-install-review-comments anchored)
       (when summary
-	(org-copilot-add-chat-message 'assistant summary nil))
+	(org-copilot-add-chat-message 'assistant summary nil nil request))
       (org-copilot-open))
-    (when summary
+    (when (and summary
+	       (with-current-buffer source-buffer
+		 (eq (plist-get org-copilot-chat-context :type) 'full-document)))
       (org-copilot-gptel--open-general-chat source-buffer))))
 
 (defun org-copilot-gptel--format-chat-message (message)
@@ -576,88 +578,82 @@ chat viewport."
   "Return elapsed milliseconds since START."
   (round (* 1000.0 (- (float-time) start))))
 
-(defun org-copilot-gptel--update-last-assistant-message
-    (source-buffer content &optional comment-id context-id)
-  "Update SOURCE-BUFFER's last matching assistant message to CONTENT."
-  (when (buffer-live-p source-buffer)
-    (with-current-buffer source-buffer
-      (let ((updated nil))
-	(setq org-copilot--chat-messages
-	      (nreverse
-	       (mapcar
-		(lambda (message)
-		  (if (and (not updated)
-			   (eq (plist-get message :role) 'assistant)
-			   (equal (plist-get message :comment-id) comment-id)
-			   (equal (plist-get message :context-id) context-id))
-		      (progn
-			(setq updated t)
-			(plist-put (copy-sequence message) :content content))
-		    message))
-		(reverse org-copilot--chat-messages))))))))
+(defun org-copilot-gptel--update-assistant-message (source-buffer content request)
+  "Update only REQUEST's assistant message in SOURCE-BUFFER to CONTENT."
+  (with-current-buffer source-buffer
+    (let ((token (plist-get request :request-token)))
+      (setq org-copilot--chat-messages
+	    (mapcar (lambda (message)
+		      (if (and (eq (plist-get message :role) 'assistant)
+			       (eq (plist-get message :request-id) token))
+			  (plist-put (copy-sequence message) :content content)
+			message))
+		    org-copilot--chat-messages)))))
 
 (defun org-copilot-gptel--postprocess-chat-response
-    (text source-buffer comment-id context-id request parsed-raw parsed base-message
+    (text source-buffer comment-id _context-id request parsed-raw parsed base-message
 	  parse-ms)
   "Install artifacts for parsed chat response after BASE-MESSAGE is visible."
-  (when (buffer-live-p source-buffer)
-    (let* ((install-start (float-time))
-	   (suggestions-result
-	    (org-copilot-gptel--install-suggestion-threads
-	     source-buffer parsed request))
-	   (install-suggestions-ms
-	    (org-copilot-gptel--milliseconds-since install-start))
-	   (comments-start (float-time))
-	   (install-result
-	    (unless comment-id
-	      (org-copilot-install-chat-comments
-	       source-buffer
-	       (plist-get parsed :comments)
-	       request
-	       (plist-get request :message))))
-	   (install-comments-ms
-	    (org-copilot-gptel--milliseconds-since comments-start))
-	   (message (concat
-		     (org-copilot-llm-append-chat-install-summary
-		      base-message install-result)
-		     (or (org-copilot-gptel--suggestion-install-warning
-			  parsed suggestions-result)
-			 "")))
-	   (debug-start (float-time)))
-      (when (plist-get suggestions-result :thread-ids)
-	(save-selected-window
-	  (with-current-buffer source-buffer
-	    (org-copilot-refresh-overlays)
-	    (org-comments-refresh)
-	    (when (get-buffer-window source-buffer t)
-	      (if org-copilot-chat-open-panel-on-comments
-		  (context-panels-open source-buffer)
-		(when (and (buffer-live-p context-panels-side-panel-buffer)
-			   (get-buffer-window context-panels-side-panel-buffer t))
-		  (context-panels-refresh)))))))
-      (org-copilot-debug-record
-       "Chat response handled"
-       :source-file (buffer-file-name source-buffer)
-       :timing-ms (list :parse parse-ms
-			:install-suggestions install-suggestions-ms
-			:install-comments install-comments-ms)
-       :request request
-       :raw-response text
-       :parsed parsed
-       :dropped-fields (and (not (equal parsed parsed-raw))
-			    (list :before parsed-raw :after parsed))
-       :comment-install-result install-result
-       :suggestion-install-result suggestions-result)
-      (org-copilot-gptel--update-last-assistant-message
-       source-buffer message comment-id context-id)
-      (org-copilot-debug-record
-       "Chat response timing"
-       :timing-ms (list :parse parse-ms
-			:install-suggestions install-suggestions-ms
-			:install-comments install-comments-ms
-			:debug (org-copilot-gptel--milliseconds-since
-				debug-start)))
-      (org-copilot-gptel--render-chat-buffer source-buffer 'assistant))))
+  (when (org-copilot-request-current-p request 'installing)
+    (unwind-protect
+	(let* ((install-start (float-time))
+	       (suggestions-result
+		(org-copilot-gptel--install-suggestion-threads
+		 source-buffer parsed request))
+	       (install-suggestions-ms
+		(org-copilot-gptel--milliseconds-since install-start))
+	       (comments-start (float-time))
+	       (install-result
+		(unless comment-id
+		  (org-copilot-install-chat-comments
+		   source-buffer
+		   (plist-get parsed :comments)
+		   request
+		   (plist-get request :message))))
+	       (install-comments-ms
+		(org-copilot-gptel--milliseconds-since comments-start))
+	       (message (concat
+			 (org-copilot-llm-append-chat-install-summary
+			  base-message install-result)
+			 (or (org-copilot-gptel--suggestion-install-warning
+			      parsed suggestions-result)
+			     "")))
+	       (debug-start (float-time)))
+	  (when (plist-get suggestions-result :thread-ids)
+	    (save-selected-window
+	      (with-current-buffer source-buffer
+		(org-copilot-refresh-overlays)
+		(org-comments-refresh)
+		(when (get-buffer-window source-buffer t)
+		  (if org-copilot-chat-open-panel-on-comments
+		      (context-panels-open source-buffer)
+		    (when (and (buffer-live-p context-panels-side-panel-buffer)
+			       (get-buffer-window context-panels-side-panel-buffer t))
+		      (context-panels-refresh)))))))
+	  (org-copilot-debug-record
+	   "Chat response handled"
+	   :source-file (buffer-file-name source-buffer)
+	   :timing-ms (list :parse parse-ms
+			    :install-suggestions install-suggestions-ms
+			    :install-comments install-comments-ms)
+	   :request request
+	   :raw-response text
+	   :parsed parsed
+	   :dropped-fields (and (not (equal parsed parsed-raw))
+				(list :before parsed-raw :after parsed))
+	   :comment-install-result install-result
+	   :suggestion-install-result suggestions-result)
+	  (org-copilot-gptel--update-assistant-message
+	   source-buffer message request)
+	  (org-copilot-debug-record
+	   "Chat response timing"
+	   :timing-ms (list :parse parse-ms
+			    :install-suggestions install-suggestions-ms
+			    :install-comments install-comments-ms
+			    :debug (org-copilot-gptel--milliseconds-since
+				    debug-start)))
+	  (org-copilot-gptel--render-chat-buffer source-buffer 'assistant))
+      (org-copilot-finish-request request))))
 
 (defun org-copilot-gptel--defer-chat-postprocessing
     (text source-buffer comment-id context-id request parsed-raw parsed base-message
@@ -678,7 +674,7 @@ chat viewport."
 (defun org-copilot-gptel--handle-chat-response
     (text source-buffer comment-id context-id request)
   "Handle complete chat response TEXT for SOURCE-BUFFER."
-  (when (and (stringp text) (buffer-live-p source-buffer))
+  (when (and (stringp text) (org-copilot-begin-completion request))
     (let* ((parse-start (float-time))
 	   (parsed-raw (org-copilot-llm-parse-chat-response text))
 	   (parsed (org-copilot-gptel--drop-disallowed-chat-suggestion
@@ -686,9 +682,8 @@ chat viewport."
 	   (parse-ms (org-copilot-gptel--milliseconds-since parse-start))
 	   (message (plist-get parsed :message)))
       (with-current-buffer source-buffer
-	(org-copilot-remove-pending-chat-message comment-id context-id)
 	(org-copilot-add-chat-message
-	 'assistant message comment-id context-id))
+	 'assistant message comment-id context-id request))
       (org-copilot-gptel--render-chat-buffer source-buffer 'assistant)
       (org-copilot-gptel--defer-chat-postprocessing
        text source-buffer comment-id context-id request parsed-raw parsed message
@@ -696,8 +691,9 @@ chat viewport."
 
 (defun org-copilot-gptel--handle-review-response (text source-buffer request)
   "Handle complete review response TEXT for SOURCE-BUFFER."
-  (when (and (stringp text) (buffer-live-p source-buffer))
-    (org-copilot-gptel--install-response source-buffer text request)))
+  (when (and (stringp text) (org-copilot-begin-completion request))
+    (unwind-protect (org-copilot-gptel--install-response source-buffer text request)
+      (org-copilot-finish-request request))))
 
 (defun org-copilot-gptel--failure-detail (error)
   "Return a human-readable detail string for gptel ERROR."
@@ -735,81 +731,99 @@ chat viewport."
      :info info)
     (message "%s" message)))
 
+(defun org-copilot-gptel--fail-request (operation request prompt response info)
+  "Complete a still-current REQUEST with OPERATION failure RESPONSE and INFO."
+  (when (org-copilot-request-current-p request)
+    (unwind-protect
+	(progn
+	  (org-copilot-begin-completion request)
+	  (org-copilot-gptel--record-failure operation request prompt response info)
+	  (with-current-buffer (plist-get request :source-buffer)
+	    (org-copilot-add-chat-message
+	     'assistant (org-copilot-gptel--failure-message operation response info)
+	     (plist-get request :focus-comment-id) (plist-get request :context-id)
+	     request))
+	  (org-copilot-gptel--render-chat-buffer (plist-get request :source-buffer)))
+      (org-copilot-finish-request request))))
+
+(defun org-copilot-gptel--transport-buffer (source)
+  "Return an isolated gptel cancellation target retaining SOURCE's gptel options.
+The public `gptel-abort' API cancels by buffer, so sharing the source buffer
+would risk cancelling an independent request.  No source text is copied."
+  (let ((buffer (generate-new-buffer " *org-copilot-request*")))
+    (with-current-buffer buffer
+      (setq-local default-directory (buffer-local-value 'default-directory source))
+      (dolist (binding (buffer-local-variables source))
+	(when (and (consp binding)
+		   (string-prefix-p "gptel-" (symbol-name (car binding))))
+	  (set (make-local-variable (car binding)) (cdr binding)))))
+    buffer))
+
+(defun org-copilot-gptel--send (operation request prompt complete)
+  "Send PROMPT for OPERATION and REQUEST, calling COMPLETE on final text.
+Session validity belongs to Copilot; only transport assembly lives here."
+  (when (org-copilot-request-current-p request 'pending)
+    (let* ((source (plist-get request :source-buffer))
+	   (gptel-backend (or org-copilot-gptel-backend gptel-backend))
+	   (gptel-model (or org-copilot-gptel-model gptel-model))
+	   (stream (org-copilot-gptel--stream-required-p gptel-backend))
+	   (transport (org-copilot-gptel--transport-buffer source))
+	   chunks)
+      (org-copilot-request-set-cancellation
+       request
+       (lambda () (when (fboundp 'gptel-abort) (gptel-abort transport)))
+       (lambda () (when (buffer-live-p transport) (kill-buffer transport))))
+      (condition-case err
+	  (gptel-request
+	   prompt :buffer transport :position 1 :stream stream
+	   :callback
+	   (lambda (response info)
+	     (when (org-copilot-request-current-p request 'pending)
+	       (condition-case err
+		   (cond
+		    ((eq response 'abort) (org-copilot-finish-request request))
+		    ((and stream (stringp response)) (push response chunks))
+		    ((org-copilot-gptel--chat-response-complete-p response stream)
+		     (funcall complete
+			      (org-copilot-gptel--chat-response-text response chunks stream)))
+		    ((not response)
+		     (org-copilot-gptel--fail-request operation request prompt response info)))
+		 (error
+		  (org-copilot-gptel--fail-request
+		   operation request prompt response (list :error (error-message-string err))))))))
+	(error
+	 (org-copilot-cancel-request request)
+	 (signal (car err) (cdr err))))))
+  nil)
+
 (defun org-copilot-gptel-chat (request)
   "Request an Org Copilot chat response for REQUEST using gptel."
   (unless (fboundp 'gptel-request)
     (user-error "Org Copilot gptel chat adapter requires gptel"))
-  (let* ((source-buffer (plist-get request :source-buffer))
-	 (comment-id (plist-get request :focus-comment-id))
-	 (context-id (plist-get request :context-id))
+  (let* ((request (org-copilot-start-request request))
 	 (web-tools (org-copilot-gptel--web-tools-for-request request))
 	 (request (if web-tools
 		      (plist-put (copy-sequence request) :web-tools-enabled t)
 		    request))
-	 (prompt (org-copilot-gptel-chat-prompt request))
-	 chunks)
-    (let* ((gptel-backend (or org-copilot-gptel-backend gptel-backend))
-	   (gptel-model (or org-copilot-gptel-model gptel-model))
-	   (stream (org-copilot-gptel--stream-required-p gptel-backend))
-	   (gptel-use-tools (or gptel-use-tools (and web-tools t)))
-	   (gptel-tools (append web-tools gptel-tools)))
-      (gptel-request
-       prompt
-       :stream stream
-       :callback
-       (lambda (response info)
-	 (condition-case err
-	     (cond
-	      ((and stream (stringp response))
-	       (push response chunks))
-	      ((org-copilot-gptel--chat-response-complete-p response stream)
-	       (message "Org Copilot: gptel chat completed status=%S"
-			(plist-get info :status))
-	       (org-copilot-gptel--handle-chat-response
-		(org-copilot-gptel--chat-response-text response chunks stream)
-		source-buffer comment-id context-id request))
-	      ((not response)
-	       (org-copilot-gptel--record-failure
-		"chat" request prompt response info)))
-	   (error
-	    (message "Org Copilot: gptel chat failed error=%S response=%S"
-		     err response))))))
-    nil))
+	 (gptel-use-tools (or gptel-use-tools (and web-tools t)))
+	 (gptel-tools (append web-tools gptel-tools)))
+    (org-copilot-gptel--send
+     "chat" request (org-copilot-gptel-chat-prompt request)
+     (lambda (text)
+       (org-copilot-gptel--handle-chat-response
+	text (plist-get request :source-buffer) (plist-get request :focus-comment-id)
+	(plist-get request :context-id) request)))))
 
 (defun org-copilot-gptel-review (request)
-  "Request an Org Copilot review for REQUEST using gptel.
-The request is asynchronous when using real gptel.  Parsed callback comments are
-installed into REQUEST's `:source-buffer' session."
+  "Request asynchronous review for REQUEST using gptel."
   (unless (fboundp 'gptel-request)
     (user-error "Org Copilot gptel adapter requires gptel"))
-  (let* ((source-buffer (plist-get request :source-buffer))
-	 (prompt (org-copilot-gptel-review-prompt request))
-	 (gptel-backend (or org-copilot-gptel-backend gptel-backend))
-	 (gptel-model (or org-copilot-gptel-model gptel-model))
-	 (stream (org-copilot-gptel--stream-required-p gptel-backend))
-	 chunks)
-    (gptel-request
-     prompt
-     :stream stream
-     :callback
-     (lambda (response info)
-       (condition-case err
-	   (cond
-	    ((and stream (stringp response))
-	     (push response chunks))
-	    ((org-copilot-gptel--chat-response-complete-p response stream)
-	     (message "Org Copilot: gptel review completed status=%S"
-		      (plist-get info :status))
-	     (org-copilot-gptel--handle-review-response
-	      (org-copilot-gptel--chat-response-text response chunks stream)
-	      source-buffer request))
-	    ((not response)
-	     (org-copilot-gptel--record-failure
-	      "review" request prompt response info)))
-	 (error
-	  (message "Org Copilot: gptel review failed error=%S response=%S"
-		   err response)))))
-    nil))
+  (let ((request (org-copilot-start-request request)))
+    (org-copilot-gptel--send
+     "review" request (org-copilot-gptel-review-prompt request)
+     (lambda (text)
+       (org-copilot-gptel--handle-review-response
+	text (plist-get request :source-buffer) request)))))
 
 ;;;###autoload
 (defun org-copilot-gptel-enable ()

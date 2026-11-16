@@ -856,6 +856,15 @@ prompt active.  Source target overlays remain visible as dim context markers."
      "\n")))
 
 ;;;###autoload
+(defun org-copilot-cancel-requests ()
+  "Cancel current source requests without removing conversation or artifacts."
+  (interactive)
+  (let ((source (org-copilot-chat--source-buffer)))
+    (with-current-buffer source
+      (org-copilot--invalidate-requests))
+    (org-copilot-chat--buffer source)))
+
+;;;###autoload
 (defun org-copilot-chat-clear-session-at-point ()
   "Archive the current Org Copilot session from the chat buffer."
   (interactive)
@@ -1106,28 +1115,33 @@ session transcript.  Slash command `/accept' accepts the focused suggestion."
 		       org-copilot-chat-focus-comment-id))
 	 (context-id (with-current-buffer source
 		       (org-copilot-chat--context-id org-copilot-chat-context)))
-	 response
-	 scroll-role)
+	 request)
     (unless (org-copilot-chat--dispatch-command message source)
       (with-current-buffer source
+	(org-copilot-restore-chat-messages)
 	(org-copilot-add-chat-message 'user message comment-id context-id)
-	(setq response
-	      (when org-copilot-chat-function
-		(funcall org-copilot-chat-function
-			 (org-copilot-chat--request source message))))
-	(if-let* ((assistant-message
-		   (org-copilot-chat--adapter-message response)))
-	    (progn
-	      (org-copilot-add-chat-message
-	       'assistant assistant-message comment-id context-id)
-	      (setq scroll-role 'assistant))
-	  (if org-copilot-chat-function
-	      (progn
-		(org-copilot-add-chat-message 'pending "…" comment-id context-id)
-		(setq scroll-role 'pending))
-	    (setq scroll-role 'user))))
-      (org-copilot-chat--buffer source)
-      (org-copilot-chat-scroll-to-last-message source scroll-role))))
+	(when org-copilot-chat-function
+	  (setq request (org-copilot-start-request
+			 (org-copilot-chat--request source message)))
+	  ;; Register pending state before invoking even a synchronous adapter.
+	  (org-copilot-add-chat-message 'pending "…" comment-id context-id request))
+	(org-copilot-chat--buffer source)
+	(org-copilot-chat-scroll-to-last-message source (if request 'pending 'user))
+	(when request
+	  (condition-case err
+	      (let* ((response (funcall org-copilot-chat-function request))
+		     (answer (org-copilot-chat--adapter-message response)))
+		(when (and answer (org-copilot-begin-completion request))
+		  (unwind-protect
+		      (progn
+			(org-copilot-add-chat-message
+			 'assistant answer comment-id context-id request)
+			(org-copilot-chat--buffer source)
+			(org-copilot-chat-scroll-to-last-message source 'assistant))
+		    (org-copilot-finish-request request))))
+	    (error
+	     (org-copilot-cancel-request request)
+	     (signal (car err) (cdr err)))))))))
 
 (provide 'org-copilot-chat)
 ;;; org-copilot-chat.el ends here
