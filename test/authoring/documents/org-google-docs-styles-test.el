@@ -249,14 +249,14 @@
       (should (= (plist-get (plist-get (alist-get (intern (format "gdocs-callout-note-%s" role)) definitions) :paragraph) :space-below) 10)))))
 
 (ert-deftest hub/org-google-docs-callout-prose-has-a-small-left-inset ()
-  "Callout labels and prose get about 0.72ex of inset at the current body font."
+  "Callout labels and prose retain the configured eight-point inner inset."
   (let ((definitions (hub/org-google-docs-style-definitions 'veriff-working)))
     (dolist (role '(label first line last single first-compact line-compact last-compact single-compact))
       (let* ((paragraph (plist-get (alist-get (intern (format "gdocs-callout-note-%s" role)) definitions) :paragraph))
 	     (left (plist-get (cdr (assq 'left (plist-get paragraph :borders))) :padding)))
-	(should (= (plist-get paragraph :indent-start) 4))
-	(should (= (plist-get paragraph :indent-first-line) 4))
-	(should (= left 4))))))
+	(should (= (plist-get paragraph :indent-start) 8))
+	(should (= (plist-get paragraph :indent-first-line) 8))
+	(should (= left 8))))))
 
 (provide 'org-google-docs-styles-test)
 ;;; org-google-docs-styles-test.el ends here
