@@ -125,8 +125,8 @@
 	 (warning-body (alist-get 'gdocs-callout-warning-single definitions))
 	 (tip-label (alist-get 'gdocs-callout-tip-label definitions))
 	 (important-label (alist-get 'gdocs-callout-important-label definitions)))
-    (should (= (plist-get (plist-get warning-label :paragraph) :space-below)
-	       4))
+    (should (= (plist-get (plist-get warning-label :paragraph) :space-below) 0))
+    (should (= (plist-get (cdr (assq 'top (plist-get (plist-get warning-body :paragraph) :borders))) :padding) 4))
     (should (equal (plist-get (plist-get warning-label :paragraph)
 			      :background-color)
 		   "#FBEDE8"))
@@ -211,6 +211,42 @@
 			     "Inter")
 		      (eq (alist-get 'italic style) t))))
 	     requests))))
+
+(ert-deftest hub/org-google-docs-flow-gaps-and-compact-list-presentation ()
+  "Flow paragraphs and separate lists have gaps without expanding list contents."
+  (let ((definitions (hub/org-google-docs-style-definitions 'veriff-working)))
+    (should (= (plist-get (plist-get (alist-get 'gdocs-list-first definitions) :paragraph) :space-above) 6))
+    (should (= (plist-get (plist-get (alist-get 'gdocs-list-item definitions) :paragraph) :space-above) 0))
+    (dolist (role '(line last))
+      (let ((quote (plist-get (alist-get (intern (format "gdocs-quote-block-%s" role)) definitions) :paragraph))
+	    (callout (plist-get (alist-get (intern (format "gdocs-callout-note-%s" role)) definitions) :paragraph)))
+	(should (= (plist-get quote :space-above) 6))
+	;; Internal callout gaps belong inside the shaded rectangle, not in
+	;; outside paragraph spacing that can split the background surface.
+	(should (= (plist-get callout :space-above) 0))
+	(should (= (plist-get (cdr (assq 'top (plist-get callout :borders))) :padding) 6))))
+    (dolist (role '(first line last single))
+      (let ((style (alist-get (intern (format "gdocs-callout-note-%s-compact" role)) definitions)))
+	(should (= (plist-get (plist-get style :paragraph) :space-above) 0))
+	(should (= (plist-get (cdr (assq 'top (plist-get (plist-get style :paragraph) :borders))) :padding)
+		   (if (memq role '(first single)) 4 0)))))))
+
+(ert-deftest hub/org-google-docs-callout-full-width-surface-and-outer-spacing ()
+  "Every callout paragraph has a full-width surface and bounded outer margins."
+  (let ((definitions (hub/org-google-docs-style-definitions 'veriff-working)))
+    (dolist (role '(label first line last single first-compact line-compact last-compact single-compact))
+      (let ((paragraph (plist-get (alist-get (intern (format "gdocs-callout-note-%s" role)) definitions) :paragraph)))
+	(should (stringp (plist-get paragraph :background-color)))
+	(let* ((borders (plist-get paragraph :borders))
+	       (left (or (plist-get (cdr (assq 'left borders)) :padding) (plist-get paragraph :border-padding)))
+	       (right (or (plist-get (cdr (assq 'right borders)) :padding) (plist-get paragraph :border-padding))))
+	  ;; Keep the padded surface inside, not beyond, printing margins.
+	  (should (= (- (min (plist-get paragraph :indent-start)
+			     (plist-get paragraph :indent-first-line)) left) 0))
+	  (should (= (- (plist-get paragraph :indent-end) right) 0)))))
+    (should (= (plist-get (plist-get (alist-get 'gdocs-callout-note-label definitions) :paragraph) :space-above) 10))
+    (dolist (role '(last single last-compact single-compact))
+      (should (= (plist-get (plist-get (alist-get (intern (format "gdocs-callout-note-%s" role)) definitions) :paragraph) :space-below) 10)))))
 
 (provide 'org-google-docs-styles-test)
 ;;; org-google-docs-styles-test.el ends here

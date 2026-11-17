@@ -15,6 +15,13 @@ status: draft
 ## Invariants
 
 - Author-facing semantics must stay separate from class-specific visual styling.
+- Google Docs publishing uses the selected tracked theme for presentation. Tasks
+  align with native list glyph, body and continuation columns at the same level.
+- Prose paragraphs inside typographic blocks and separate lists retain visible
+  separation. List-item contents remain compact; literal code/example blank
+  lines retain their exact content rather than being converted into spacing.
+- Callouts have outer spacing and a continuous themed background across the
+  printable text width, including their list and continuation paragraphs.
 - The backend-neutral typographic semantics contract lives in [`typographic-semantics.md`](typographic-semantics.md).
 - The semantic inventory/audit helper lives in `typographic-semantics.el` and provides `hub/org-typographic-semantics-audit-buffer` and `hub/org-typographic-semantics-audit-file`.
 - The tracked specimen for the contract lives in [`specimens/typographic-semantics.org`](specimens/typographic-semantics.org).

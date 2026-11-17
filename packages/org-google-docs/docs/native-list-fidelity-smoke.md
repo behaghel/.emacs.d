@@ -19,7 +19,9 @@ Do not overwrite a real note. Offline fixtures are not live API acceptance.
 ```
 
 - [ ] Publish a new document. Inspect that parent two visibly has number 2,
-      children have numbers 1 and 2, and the continuation has no extra bullet.
+      children have the expected nested numbering, and the continuation has no
+      extra bullet. Compare task glyph, body, wrapped-line and continuation
+      columns with native list items at the same level.
 - [ ] Pull back. Verify that the parent continuation belongs to parent one,
       not child two, and all emphasis, links, Unicode and literal spaces survive.
 - [ ] Edit continuation text in Docs without splitting its paragraph. Pull and
@@ -29,13 +31,16 @@ Do not overwrite a real note. Offline fixtures are not live API acceptance.
       existing linked document. Inspect visible numbering and paragraph ownership.
 - [ ] Push again unchanged, then pull again: no content or annotation churn.
 - [ ] Exercise the same rich continuation inside a callout. Verify full-width
-      shading and exactly one task glyph for the item.
+      shading through native bullets, task items and continuations, without
+      notches or white seams. Check outer margins, visible prose gaps and exactly
+      one task glyph per item. List contents remain compact; literal code/example
+      blank lines remain exact.
 - [ ] Remove a continuation's owner or split its managed annotation across
       paragraphs in Docs. Pull must fail before replacing local content. Restore
       the boundaries or republish trusted Org; do not guess ownership.
 - [ ] Confirm unsupported source blocks inside list items fail before mutation.
-- [ ] Verify description terms, delimiter and rich definitions remain visible;
-      pull and push again without duplicated terms.
+- [ ] Verify description terms, the reversible `::` delimiter and rich
+      definitions remain visible; pull and push again without duplicated terms.
 - [ ] Inside a callout, change an open task to partial in Org, push, then pull.
       The visible glyph must become `◩` and return as `[-]`, not open state.
 - [ ] Change list nesting and body emphasis in the same Org edit, then push.
@@ -57,11 +62,14 @@ is part of this workflow: tasks use the accepted editable glyph representation.
 Emacs. Set `GDOCS_PATH` to the reviewed SDK checkout, `STRAIGHT_BUILD_PATH` to
 existing dependencies, and `GDOCS_DISPOSABLE_ARTIFACTS` to a private temporary
 directory. `GDOCS_DISPOSABLE_SOURCE` selects synthetic Org; the SDK's disposable
-fixture is the default. The driver plans requests and records the local debug
-pipeline without authentication or HTTP. Supplying `GDOCS_DISPOSABLE_REMOTE`
+fixture is the default. The driver loads tracked publishing styles and the
+source/default theme; `GDOCS_DISPOSABLE_THEME` selects an explicit registered
+theme. Neutral SDK defaults alone do not establish personal visual acceptance.
+The driver plans requests and records the local debug pipeline without
+authentication or HTTP. Supplying `GDOCS_DISPOSABLE_REMOTE`
 selects inspection of an already fetched synthetic JSON snapshot. Explicit
 `GDOCS_DISPOSABLE_ACTION` values are `create`, `inspect`, `remote-edit`,
-`local-edit`, `repeat-edit`, and `export`; exports require a new destination in
+`local-edit`, `repeat-edit`, `style-repair`, and `export`; exports require a new destination in
 `GDOCS_DISPOSABLE_EXPORT` and remove document identity and revision.
 
 Keep each sent request plan and fetched snapshot immutable. Use a new fetch
@@ -69,6 +77,12 @@ filename and compare two independent fetches, then parse the pulled Org and
 verify that it also plans no changes. The separate disposable transport helper
 reuses only the installed authenticated API, requires a recorded completed test
 operation, fixes the account to `personal`, and disables automatic retries.
+The optional PDF export helper reuses the installed account resolver and HTTP
+client, keeps authentication opaque, and writes a new private PDF for rendering.
+It does not mutate the document. Never print private errors, headers or account
+records. `style-repair` is narrowly limited to final callout list chrome on an
+identical semantic source with revision control; it never reapplies named
+styles, which can clear authored emphasis in Docs.
 Never load the test SDK into the running production Emacs or copy credentials.
 Document creation and mutation still require explicit live authorization.
 

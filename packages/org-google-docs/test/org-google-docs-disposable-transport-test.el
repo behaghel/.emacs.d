@@ -58,5 +58,33 @@
 	  (should (eq (plist-get hub/gdocs-disposable-live-state :status) 'complete)))
       (delete-file destination))))
 
+(ert-deftest org-google-docs-disposable-pdf-export-keeps-auth-opaque ()
+  "PDF export reuses the owned account and returns only a saved filename."
+  (let* ((directory (make-temp-file "gdocs-disposable-pdf-" t))
+	 (destination (expand-file-name "render.pdf" directory))
+	 (hub/gdocs-disposable-live-state
+	  '(:operation fetch :status complete :account "personal"
+		       :title "Pi disposable list conformance test" :document-id "synthetic-id"))
+	 calls)
+    (unwind-protect
+	(cl-letf (((symbol-function 'gdocs-auth--resolve-account)
+		   (lambda (account) (should (equal account "personal")) account))
+		  ((symbol-function 'gdocs-auth-get-access-token)
+		   (lambda (account callback &optional _on-error)
+		     (should (equal account "personal")) (funcall callback nil)))
+		  ((symbol-function 'gdocs-api--build-headers) (lambda (&rest _) nil))
+		  ((symbol-function 'plz)
+		   (lambda (method url &rest options)
+		     (push (list method url) calls)
+		     (should (equal (plist-get options :as) (list 'file destination)))
+		     (with-temp-file destination (insert "%PDF-synthetic\n"))
+		     (funcall (plist-get options :then) destination))))
+	  (org-google-docs-disposable-export-pdf destination)
+	  (should (equal calls '((get "https://www.googleapis.com/drive/v3/files/synthetic-id/export?mimeType=application%2Fpdf"))))
+	  (should (eq (plist-get hub/gdocs-disposable-live-state :status) 'complete))
+	  (should (= (file-modes destination) #o600))
+	  (should-error (org-google-docs-disposable-export-pdf destination) :type 'user-error))
+      (delete-directory directory t))))
+
 (provide 'org-google-docs-disposable-transport-test)
 ;;; org-google-docs-disposable-transport-test.el ends here
