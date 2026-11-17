@@ -33,6 +33,7 @@ Backend detection uses registered detectors and the current source buffer. The p
 - Item help describes the selected comment or reply using effective bindings or public command names. It does not select a backend or authorize operations. Non-comment context rows cannot fall through to a neighbouring/source comment when comment commands or action adapters are invoked.
 - Package keybindings are Org-native and Emacs-native; the package does not install Evil, leader, or Bépo bindings.
 - Generic panels preserve source focus, jump to source or sidecar targets, and render stale or remote-missing state visibly.
+- The comments side panel reserves one character column of right margin, keeping card text clear of the window edge without changing source-buffer margins or panel width.
 - Opening the side panel preserves the comments package's source highlight ranges and faces; it does not add a whole-line source highlight. Panel rows may highlight the focused comment independently.
 - Author/date metadata is typographically quieter than headers and bodies while retaining stable author colours. Provider-specific status, badges, and actions remain intact when rows share framework spacing and wrapping.
 - Declarative mixed-panel rows start with the comment icon and quoted target. The default `OPEN` state is implicit; `TODO` uses an amber diamond (`◇`) and `RESOLVED` a quiet green check (`✓`) immediately before the target. Faces are theme-derived, and marker help names the state in plain English. Stored workflow values remain unchanged.

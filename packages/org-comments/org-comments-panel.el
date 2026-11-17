@@ -86,7 +86,8 @@ file updates already-bound maps in long-lived Emacs sessions."
 (org-comments-panel-install-default-keybindings)
 
 (define-derived-mode org-comments-panel-mode special-mode "Org-Comments"
-  "Major mode for the standalone Org comments panel.")
+  "Major mode for the standalone Org comments panel."
+  (setq-local right-margin-width 1))
 
 ;;;###autoload
 (defun org-comments-panel-open ()

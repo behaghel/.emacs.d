@@ -32,6 +32,21 @@
 	 (kill-buffer source-buffer))
        (delete-directory directory t))))
 
+(ert-deftest org-comments-panel-keeps-one-column-right-padding ()
+  "Comment panels retain a right gutter after refresh and reopening."
+  (save-window-excursion
+    (org-comments-panel-actions-test--with-comment
+     (let ((source context-panels-source-buffer))
+       (should (= 1 right-margin-width))
+       (should (= 1 (cdr (window-margins (get-buffer-window (current-buffer))))))
+       (context-panels-refresh)
+       (should (= 1 (cdr (window-margins (get-buffer-window (current-buffer))))))
+       (context-panels-close)
+       (with-current-buffer source
+	 (org-comments-panel-open))
+       (should (= 1 (cdr (window-margins
+			  (get-buffer-window org-comments-panel-buffer-name)))))))))
+
 (ert-deftest org-comments-panel-actions-keymap-binds-help ()
   "Panel binds ? directly to package help-current-ui."
   (should (eq (lookup-key org-comments-panel-mode-map (kbd "?"))
