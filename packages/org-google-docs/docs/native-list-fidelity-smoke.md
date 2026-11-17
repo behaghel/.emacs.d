@@ -21,7 +21,9 @@ Do not overwrite a real note. Offline fixtures are not live API acceptance.
 - [ ] Publish a new document. Inspect that parent two visibly has number 2,
       children have the expected nested numbering, and the continuation has no
       extra bullet. Compare task glyph, body, wrapped-line and continuation
-      columns with native list items at the same level.
+      columns with native list items at the same level in the browser, not only
+      an exported PDF. Open, checked and partial prefixes use an em space and
+      the `gdocs-task-prefix` style without changing authored body typography.
 - [ ] Pull back. Verify that the parent continuation belongs to parent one,
       not child two, and all emphasis, links, Unicode and literal spaces survive.
 - [ ] Edit continuation text in Docs without splitting its paragraph. Pull and
@@ -33,7 +35,9 @@ Do not overwrite a real note. Offline fixtures are not live API acceptance.
 - [ ] Exercise the same rich continuation inside a callout. Verify full-width
       shading through native bullets, task items and continuations, without
       notches or white seams. Check outer margins, visible prose gaps and exactly
-      one task glyph per item. List contents remain compact; literal code/example
+      one task glyph per item. Labels and prose retain their themed inner-left
+      inset, including prose preceding native lists; the shaded edge stays fixed.
+      List contents remain compact; literal code/example
       blank lines remain exact.
 - [ ] Remove a continuation's owner or split its managed annotation across
       paragraphs in Docs. Pull must fail before replacing local content. Restore
@@ -80,7 +84,7 @@ operation, fixes the account to `personal`, and disables automatic retries.
 The optional PDF export helper reuses the installed account resolver and HTTP
 client, keeps authentication opaque, and writes a new private PDF for rendering.
 It does not mutate the document. Never print private errors, headers or account
-records. `style-repair` is narrowly limited to final callout list chrome on an
+records. `style-repair` is narrowly limited to final callout surface/inset repair on an
 identical semantic source with revision control; it never reapplies named
 styles, which can clear authored emphasis in Docs.
 Never load the test SDK into the running production Emacs or copy credentials.

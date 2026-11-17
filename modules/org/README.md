@@ -22,6 +22,9 @@ status: draft
   lines retain their exact content rather than being converted into spacing.
 - Callouts have outer spacing and a continuous themed background across the
   printable text width, including their list and continuation paragraphs.
+  Labels and prose have a small theme-defined inner-left inset; the inset does
+  not move established list columns or shift the shaded surface outside the
+  printable area.
 - The backend-neutral typographic semantics contract lives in [`typographic-semantics.md`](typographic-semantics.md).
 - The semantic inventory/audit helper lives in `typographic-semantics.el` and provides `hub/org-typographic-semantics-audit-buffer` and `hub/org-typographic-semantics-audit-file`.
 - The tracked specimen for the contract lives in [`specimens/typographic-semantics.org`](specimens/typographic-semantics.org).

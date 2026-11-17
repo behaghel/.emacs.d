@@ -185,25 +185,27 @@
 
 (defun hub/org-google-docs--callout-paragraph (theme type space-above space-below)
   "Return callout paragraph style for THEME, TYPE, and spacing values."
-  `(:spacing-mode never-collapse
-		  :space-above ,space-above
-		  :space-below ,space-below
-		  :indent-start 0
-		  :indent-first-line 0
-		  :indent-end 0
-		  :borders ((left :padding 0) (right :padding 0) (top) (bottom))
-		  :border-padding ,(hub/org-google-docs--theme-role
-				    theme 'callout-border-padding)
-		  :border-color ,(hub/org-google-docs--callout-color
-				  theme type "border" 'callout-border)
-		  :background-color ,(hub/org-google-docs--callout-color
-				      theme type "surface" 'callout-surface)))
+  (let ((inset (or (hub/org-google-docs--theme-role theme 'callout-inline-inset) 0)))
+    `(:spacing-mode never-collapse
+		    :space-above ,space-above
+		    :space-below ,space-below
+		    :indent-start ,inset
+		    :indent-first-line ,inset
+		    :indent-end 0
+		    :borders ((left :padding ,inset) (right :padding 0) (top) (bottom))
+		    :border-padding ,(hub/org-google-docs--theme-role
+				      theme 'callout-border-padding)
+		    :border-color ,(hub/org-google-docs--callout-color
+				    theme type "border" 'callout-border)
+		    :background-color ,(hub/org-google-docs--callout-color
+					theme type "surface" 'callout-surface))))
 
 (defun hub/org-google-docs--callout-flow-paragraph (theme type role &optional compact)
   "Return THEME/TYPE callout ROLE spacing inside its surface.
 COMPACT suppresses prose gaps within list contents.  Outer margins remain
 paragraph spacing; inner gaps use border padding so shading stays continuous."
   (let* ((padding (hub/org-google-docs-theme-role theme 'callout-border-padding))
+	 (inset (or (hub/org-google-docs--theme-role theme 'callout-inline-inset) 0))
 	 (last (memq role '(last single)))
 	 (top (cond ((eq role 'label) padding)
 		    ((memq role '(first single)) 4)
@@ -211,7 +213,7 @@ paragraph spacing; inner gaps use border padding so shading stays continuous."
 	 (paragraph (hub/org-google-docs--callout-paragraph
 		     theme type (if (eq role 'label) 10 0) (if last 10 0))))
     (plist-put paragraph :borders
-	       `((left :padding 0) (right :padding 0)
+	       `((left :padding ,inset) (right :padding 0)
 		 (top :padding ,top) (bottom :padding ,(if last padding 0))))
     paragraph))
 
