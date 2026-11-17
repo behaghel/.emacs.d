@@ -15,12 +15,17 @@
 ;;; Code:
 
 (require 'cl-lib)
+(require 'color)
+(require 'face-remap)
 (require 'org)
 (require 'context-panels)
 (require 'subr-x)
 (require 'org-copilot-diff)
 (require 'org-copilot-model)
 (require 'org-copilot-session)
+
+(declare-function org-copilot-mode "org-copilot" (&optional arg))
+(declare-function org-copilot-open-panels "org-copilot" ())
 
 (defcustom org-copilot-chat-buffer-name "*Org Copilot Chat*"
   "Buffer name used for Org Copilot bottom chat views."
@@ -45,6 +50,14 @@ assistant message, or a plist with `:message' and optional `:comments'.  Normal
   "Height of the Org Copilot chat bottom window."
   :type 'natnum
   :group 'org-copilot)
+
+(defcustom org-copilot-chat-input-height 5
+  "Height of the fixed Org Copilot typing area, in lines."
+  :type 'natnum
+  :group 'org-copilot)
+
+(defvar-local org-copilot-chat--input-buffer nil
+  "Source-owned typing buffer; retained when its views are closed.")
 
 (defvar-local org-copilot-chat-source-buffer nil
   "Source buffer associated with the current Org Copilot chat buffer.")
@@ -138,7 +151,74 @@ assistant message, or a plist with `:message' and optional `:comments'.  Normal
 (define-derived-mode org-copilot-chat-mode fundamental-mode "Org-Copilot-Chat"
   "Major mode for Org Copilot bottom chat buffers."
   (setq buffer-read-only nil)
-  (setq-local mode-line-format '(" " (:eval (org-copilot-chat--status-line)))))
+  (setq-local mode-line-format '(" " (:eval (org-copilot-chat--status-line))))
+  (add-hook 'window-buffer-change-functions #'org-copilot-chat--window-shown nil t))
+
+(define-derived-mode org-copilot-chat-input-mode org-copilot-chat-mode "Copilot-Input"
+  "Editable, source-owned typing area, independent of transcript scrolling."
+  (remove-hook 'window-buffer-change-functions #'org-copilot-chat--window-shown t)
+  (setq-local mode-line-format nil)
+  (setq-local header-line-format " ")
+  (setq-local truncate-lines nil)
+  (setq-local word-wrap t)
+  (when-let* ((background (face-background 'default nil t))
+	      (rgb (color-name-to-rgb background)))
+    (face-remap-add-relative
+     'default (list :background
+		    (apply #'color-rgb-to-hex
+			   (append (mapcar (lambda (channel) (+ (* 0.98 channel) 0.02)) rgb) '(2)))))
+    (face-remap-add-relative
+     'header-line (list :height 0.1 :box nil :background
+			(apply #'color-rgb-to-hex
+			       (append (mapcar (lambda (channel) (+ (* 0.92 channel) 0.08)) rgb) '(2)))))))
+
+(defun org-copilot-chat-input-buffer (source-buffer)
+  "Return SOURCE-BUFFER's typing buffer without replacing its unsent draft."
+  (with-current-buffer source-buffer
+    (unless (buffer-live-p org-copilot-chat--input-buffer)
+      (setq org-copilot-chat--input-buffer
+	    (generate-new-buffer (format "*Copilot Input: %s*" (buffer-name source-buffer))))
+      (with-current-buffer org-copilot-chat--input-buffer
+	(org-copilot-chat-input-mode)
+	(setq org-copilot-chat-source-buffer source-buffer
+	      context-panels-source-buffer source-buffer)
+	;; Input is a child of the chat view, not another framework bottom view.
+	(setq context-panels-view-id nil)
+	(insert (propertize "You: " 'face 'org-copilot-chat-you-face
+			    'read-only t 'rear-nonsticky t))
+	(setq org-copilot-chat--prompt-start (copy-marker (point) nil))))
+    org-copilot-chat--input-buffer))
+
+(defun org-copilot-chat--ensure-input (window)
+  "Display the source-owned input below live transcript WINDOW."
+  (when (and (window-live-p window)
+	     (window-parameter window 'context-panels-protected)
+	     (with-current-buffer (window-buffer window)
+	       (and (derived-mode-p 'org-copilot-chat-mode)
+		    (not (derived-mode-p 'org-copilot-chat-input-mode))
+		    (buffer-live-p org-copilot-chat-source-buffer))))
+    (let* ((source (buffer-local-value 'org-copilot-chat-source-buffer (window-buffer window)))
+	   (input (org-copilot-chat-input-buffer source)))
+      (context-panels-footer-display-pane window input org-copilot-chat-input-height))))
+
+(defun org-copilot-chat--window-shown (window)
+  "Schedule the input for transcript WINDOW after layout hooks finish."
+  (when (and (window-live-p window)
+	     (not (derived-mode-p 'org-copilot-chat-input-mode)))
+    (run-with-idle-timer 0 nil #'org-copilot-chat--ensure-input window)))
+
+(defun org-copilot-chat-focus-input (&optional source-buffer noerror)
+  "Focus SOURCE-BUFFER's visible typing area without changing its draft.
+With NOERROR, return nil when its chat is not visible."
+  (let* ((source (or source-buffer (org-copilot-chat--source-buffer)))
+	 (transcript (get-buffer (buffer-local-value 'org-copilot-chat-buffer-name source)))
+	 (window (and transcript (get-buffer-window transcript (selected-frame))))
+	 (child (and window
+		     (eq (buffer-local-value 'org-copilot-chat-source-buffer transcript) source)
+		     (org-copilot-chat--ensure-input window))))
+    (if (window-live-p child)
+	(progn (select-window child) (goto-char (point-max)) (window-buffer child))
+      (unless noerror (user-error "No visible Copilot typing area")))))
 
 (defun org-copilot-chat--protect-window (window panel-buffer source-buffer)
   "Protect WINDOW for PANEL-BUFFER and SOURCE-BUFFER when supported."
@@ -393,24 +473,10 @@ assistant responses start where the user begins reading."
 	   "Ask Copilot about the full document.\n"))))
       (add-text-properties transcript-start (point)
 			   '(read-only t rear-nonsticky (read-only))))
-    (insert (propertize "\n────────────────────────────────\n"
-			'face 'org-copilot-chat-metadata-face
-			'read-only t
-			'rear-nonsticky '(read-only field)))
-    (insert (propertize (format "%s You: "
-				(org-copilot-chat--context-marker source-buffer))
-			'face 'org-copilot-chat-prompt-face
-			'field 'org-copilot-chat-prompt
-			'read-only t
-			'rear-nonsticky '(read-only field)))
-    (setq org-copilot-chat--prompt-start (copy-marker (point) nil))
-    (add-text-properties org-copilot-chat--prompt-start (point-max)
-			 '(field org-copilot-chat-input
-				 read-only nil
-				 front-sticky nil
-				 rear-nonsticky t))
-    (setq buffer-read-only nil)
-    (goto-char org-copilot-chat--prompt-start)))
+    (setq buffer-read-only t)
+    (org-copilot-chat-input-buffer source-buffer)
+    (dolist (window (get-buffer-window-list (current-buffer) nil t))
+      (org-copilot-chat--ensure-input window))))
 
 (defun org-copilot-chat--focused-suggestion-comment (source-buffer)
   "Return focused comment with a suggestion for SOURCE-BUFFER, or nil."
@@ -472,12 +538,8 @@ assistant responses start where the user begins reading."
 	 (window (get-buffer-window buffer t)))
     (org-copilot-chat-sync-diff source-buffer)
     (when (window-live-p window)
-      (select-window window)
-      (with-current-buffer buffer
-	(org-copilot-chat-goto-prompt))
-      (set-window-point window
-			(with-current-buffer buffer
-			  org-copilot-chat--prompt-start)))
+      (org-copilot-chat--ensure-input window)
+      (org-copilot-chat-focus-input source-buffer))
     buffer))
 
 ;;;###autoload
@@ -519,14 +581,7 @@ prompt active.  Source target overlays remain visible as dim context markers."
     (ignore-errors
       (org-comments-context-panel-focus-comment source-buffer comment t)))
   (org-copilot-chat-sync-diff source-buffer)
-  (let ((buffer (org-copilot-chat--buffer source-buffer)))
-    (when-let* ((window (get-buffer-window buffer t)))
-      (with-current-buffer buffer
-	(org-copilot-chat-goto-prompt))
-      (set-window-point window
-			(with-current-buffer buffer
-			  org-copilot-chat--prompt-start)))
-    buffer))
+  (org-copilot-chat--buffer source-buffer))
 
 (defun org-copilot-chat-focus-comment-id (source-buffer comment-id)
   "Focus SOURCE-BUFFER's Copilot chat on COMMENT-ID without stealing focus."
@@ -578,9 +633,7 @@ prompt active.  Source target overlays remain visible as dim context markers."
 (defun org-copilot-chat-goto-prompt ()
   "Move point to the Org Copilot chat prompt."
   (interactive)
-  (unless (markerp org-copilot-chat--prompt-start)
-    (user-error "No Org Copilot prompt field"))
-  (goto-char org-copilot-chat--prompt-start))
+  (org-copilot-chat-focus-input))
 
 (defun org-copilot-chat--buffer (source-buffer)
   "Return the chat buffer for SOURCE-BUFFER, creating it when needed."
@@ -595,10 +648,6 @@ prompt active.  Source target overlays remain visible as dim context markers."
       (setq context-panels-view-id 'copilot-chat)
       (org-copilot-chat-render source-buffer))
     (org-copilot-chat-sync-diff source-buffer)
-    (when-let* ((window (get-buffer-window buffer t)))
-      (set-window-point window
-			(with-current-buffer buffer
-			  org-copilot-chat--prompt-start)))
     buffer))
 
 ;;;###autoload
@@ -798,8 +847,8 @@ prompt active.  Source target overlays remain visible as dim context markers."
        "chat window visible" chat-window (org-copilot-chat--doctor-value chat-window))
       (org-copilot-chat--doctor-check
        "prompt marker valid"
-       (and chat-buffer
-	    (with-current-buffer chat-buffer
+       (and chat-buffer source-live
+	    (with-current-buffer (org-copilot-chat-input-buffer source-buffer)
 	      (markerp org-copilot-chat--prompt-start))))
       ""
       "Session"
@@ -1046,19 +1095,17 @@ Slash command completion is offered only when the prompt field is empty."
 
 (defun org-copilot-chat--prompt-text ()
   "Return current editable prompt text."
-  (unless (markerp org-copilot-chat--prompt-start)
-    (user-error "No Org Copilot prompt field"))
-  (string-trim
-   (buffer-substring-no-properties org-copilot-chat--prompt-start (point-max))))
+  (with-current-buffer (org-copilot-chat-input-buffer (org-copilot-chat--source-buffer))
+    (string-trim
+     (buffer-substring-no-properties org-copilot-chat--prompt-start (point-max)))))
 
 (defun org-copilot-chat--set-prompt-text (text)
   "Replace the current editable prompt with TEXT."
-  (unless (markerp org-copilot-chat--prompt-start)
-    (user-error "No Org Copilot prompt field"))
-  (let ((inhibit-read-only t))
-    (delete-region org-copilot-chat--prompt-start (point-max))
-    (goto-char org-copilot-chat--prompt-start)
-    (insert text)))
+  (with-current-buffer (org-copilot-chat-input-buffer (org-copilot-chat--source-buffer))
+    (let ((inhibit-read-only t))
+      (delete-region org-copilot-chat--prompt-start (point-max))
+      (goto-char org-copilot-chat--prompt-start)
+      (insert text))))
 
 (defun org-copilot-chat--last-user-message (source-buffer)
   "Return last user message content in SOURCE-BUFFER's conversation."
@@ -1082,7 +1129,8 @@ Slash command completion is offered only when the prompt field is empty."
   (interactive)
   (let ((message (org-copilot-chat--prompt-text)))
     (unless (string-empty-p message)
-      (org-copilot-chat-send message))))
+      (org-copilot-chat-send message)
+      (org-copilot-chat--set-prompt-text ""))))
 
 ;;;###autoload
 (defun org-copilot-chat-return-dwim ()

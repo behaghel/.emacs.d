@@ -98,7 +98,27 @@
        ("z" . org-comments-panel-filter-map)))
     (hub/context-panels--bind-row-keys)))
 
+(defun hub/context-panels-focus-bottom-input ()
+  "Move down normally, entering a visible Copilot composer when present."
+  (interactive)
+  (hub/window-focus-far-up)
+  (when-let* ((source (window-parameter (selected-window) 'context-panels-source-buffer)))
+    (when (and (eq (window-parameter (selected-window) 'window-side) 'bottom)
+	       (fboundp 'org-copilot-chat-focus-input)
+	       (org-copilot-chat-focus-input source t)
+	       (fboundp 'evil-insert-state))
+      (evil-insert-state))))
+
+(define-key org-mode-map [remap hub/window-focus-far-up] #'hub/context-panels-focus-bottom-input)
+(define-key context-panels-view-navigation-mode-map
+	    [remap hub/window-focus-far-up] #'hub/context-panels-focus-bottom-input)
+(with-eval-after-load 'org-comments-panel
+  (define-key org-comments-panel-mode-map
+	      [remap hub/window-focus-far-up] #'hub/context-panels-focus-bottom-input))
+
 (with-eval-after-load 'org-copilot-chat
+  (define-key org-copilot-chat-mode-map
+	      [remap hub/window-focus-far-up] #'hub/context-panels-focus-bottom-input)
   (with-eval-after-load 'evil
     (hub/org-technical-buffer--evil-normalize-map
      org-copilot-chat-mode-map
@@ -114,6 +134,8 @@
        ("M-<up>" . org-copilot-chat-recall-last-prompt)))))
 
 (with-eval-after-load 'org-copilot-diff
+  (define-key org-copilot-diff-mode-map
+	      [remap hub/window-focus-far-up] #'hub/context-panels-focus-bottom-input)
   (with-eval-after-load 'evil
     (hub/org-technical-buffer--evil-normalize-map
      org-copilot-diff-mode-map
@@ -488,11 +510,14 @@ whether an empty page-context panel is shown when there are no page comments."
       (delete-window panel-window))))
 
 (defun hub/context-panels--copilot-chat-session-p ()
-  "Return non-nil when current Org buffer has pending Org Copilot chat state."
+  "Return non-nil when the current Org buffer owns existing Copilot chat state."
   (or (and (fboundp 'org-copilot-chat-messages)
 	   (org-copilot-chat-messages))
       (and (boundp 'org-copilot-chat-buffer-name)
-	   (buffer-live-p (get-buffer org-copilot-chat-buffer-name)))))
+	   (boundp 'org-copilot-chat-source-buffer)
+	   (when-let* ((chat (get-buffer org-copilot-chat-buffer-name)))
+	     (eq (buffer-local-value 'org-copilot-chat-source-buffer chat)
+		 (current-buffer))))))
 
 (defun hub/context-panels--open-ui ()
   "Open side context panel and surface pending bottom views when appropriate."

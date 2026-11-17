@@ -12,6 +12,57 @@
 (require 'test-helpers)
 (require 'org/context-panel)
 
+(ert-deftest hub/context-panel-bottom-focus-lands-in-copilot-input ()
+  "The existing down-focus command enters the composer, not its footer."
+  (require 'org-copilot)
+  (let ((source (generate-new-buffer " *bottom input focus source*"))
+	input entered-insert)
+    (unwind-protect
+	(save-window-excursion
+	  (delete-other-windows)
+	  (switch-to-buffer source)
+	  (org-mode)
+	  (org-copilot-chat)
+	  (setq input (org-copilot-chat-input-buffer source))
+	  (select-window (get-buffer-window source))
+	  (cl-letf (((symbol-function 'evil-insert-state)
+		     (lambda () (setq entered-insert t))))
+	    (should (eq (command-remapping #'hub/window-focus-far-up)
+			#'hub/context-panels-focus-bottom-input))
+	    (call-interactively (command-remapping #'hub/window-focus-far-up))
+	    (should (eq (current-buffer) input))
+	    (should (= (point) (point-max)))
+	    (should entered-insert)))
+      (when (buffer-live-p source) (kill-buffer source))
+      (when (buffer-live-p input) (kill-buffer input)))))
+
+(ert-deftest hub/context-panel-opening-does-not-claim-another-documents-chat ()
+  "Opening comments cannot retarget a retained chat from another source."
+  (require 'org-copilot)
+  (let ((first (generate-new-buffer " *retained chat owner*"))
+	(second (generate-new-buffer " *comments-only source*"))
+	chat inputs)
+    (unwind-protect
+	(save-window-excursion
+	  (delete-other-windows)
+	  (with-current-buffer first
+	    (org-mode)
+	    (setq chat (org-copilot-chat--buffer first))
+	    (should (hub/context-panels--copilot-chat-session-p)))
+	  (switch-to-buffer second)
+	  (org-mode)
+	  (hub/context-panels--open-ui)
+	  (should (get-buffer-window context-panels-side-panel-buffer))
+	  (should-not context-panels-bottom-panel-buffer)
+	  (should (eq first (buffer-local-value 'org-copilot-chat-source-buffer chat)))
+	  (should-not (get-buffer-window chat)))
+      (dolist (source (list first second))
+	(when (buffer-live-p source)
+	  (push (buffer-local-value 'org-copilot-chat--input-buffer source) inputs)
+	  (kill-buffer source)))
+      (dolist (input inputs)
+	(when (buffer-live-p input) (kill-buffer input))))))
+
 (ert-deftest hub/context-panel-marginalia-and-comments-preserve-row-actions ()
   "Standard Org note rows coexist with rich comments and their custom actions."
   (save-window-excursion
