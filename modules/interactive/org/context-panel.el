@@ -65,6 +65,7 @@
   (let ((bindings '(("]c" . hub/context-panels-next-row)
 		    ("[c" . hub/context-panels-previous-row)
 		    ("?" . hub/context-panels-describe-item)
+		    ("v" . org-copilot-visualize-at-point)
 		    ("q" . org-comments-close-current-ui))))
     (dolist (binding bindings)
       (define-key org-comments-panel-mode-map (kbd (car binding)) (cdr binding))
@@ -76,14 +77,13 @@
       (evil-normalize-keymaps))))
 
 (with-eval-after-load 'org-comments-panel
+  (define-key org-comments-panel-mode-map
+	      [remap org-comments-preview-suggestion-at-point] #'org-copilot-visualize-at-point)
   (hub/context-panels--bind-row-keys)
-  (define-key org-comments-panel-mode-map (kbd "v")
-	      #'org-copilot-visualize-at-point)
   (with-eval-after-load 'evil
     (hub/org-technical-buffer--evil-normalize-map
      org-comments-panel-mode-map
      '(("RET" . context-panels-jump-at-point)
-       ("v" . org-copilot-visualize-at-point)
        ("d" . org-comments-delete)
        ("e" . org-comments-edit)
        ("g" . org-comments-panel-refresh)
