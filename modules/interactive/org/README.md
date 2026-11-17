@@ -53,7 +53,7 @@ marginalia footnotes and sidecar review comments.
 - The panel closes automatically when selection moves to a non-Org buffer.
 - `q` closes the panel when point is inside it, including Evil normal state. It uses the existing panel close adapter; it is distinct from toggling item help with `?`.
 - `M-c`, `M-t`, `M-s`, and `M-r` move focus left/down/up/right consistently, so
-  `M-t` moves from the source window down into the page-context panel and `M-s` moves back up.
+  `M-t` moves from the source window down into the page-context panel and `M-s` moves back up. When the bottom view is Copilot chat, `M-t` focuses its fixed typing area at the end of the draft and enters insert state, rather than leaving point in the read-only footer. Other bottom views retain ordinary directional focus.
 - The panel preserves its point across refreshes and focus changes where possible.
 
 ### Reading items

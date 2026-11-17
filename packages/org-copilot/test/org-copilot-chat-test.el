@@ -33,6 +33,96 @@
       (when (buffer-live-p source)
 	(kill-buffer source)))))
 
+(ert-deftest org-copilot-chat-fixed-input-keeps-draft-through-a-reply ()
+  "Sending and receiving use real chat state without hiding or erasing a draft."
+  (save-window-excursion
+    (let ((source (generate-new-buffer " *copilot fixed input source*"))
+	  input request)
+      (unwind-protect
+	  (with-current-buffer source
+	    (org-mode)
+	    (insert "* Draft\nSelected paragraph.\n")
+	    (setq-local org-copilot-chat-buffer-name "*Copilot fixed input test*")
+	    (setq-local org-copilot-chat-function
+			(lambda (captured) (setq request captured) nil))
+	    (org-copilot-chat)
+	    (setq input (org-copilot-chat-input-buffer source))
+	    (should (eq (window-buffer (selected-window)) input))
+	    (with-current-buffer input
+	      (org-copilot-chat--set-prompt-text "Improve the paragraph.")
+	      (org-copilot-chat-send-current-input)
+	      (should (equal "" (org-copilot-chat--prompt-text)))
+	      (org-copilot-chat--set-prompt-text "My next unsent thought."))
+	    (should (equal "Improve the paragraph." (plist-get request :message)))
+	    (with-current-buffer source
+	      (should (org-copilot-begin-completion request))
+	      (org-copilot-add-chat-message
+	       'assistant (mapconcat (lambda (_) "A long answer line.") (number-sequence 1 60) "\n")
+	       nil nil request)
+	      (org-copilot-chat--buffer source)
+	      (org-copilot-chat-scroll-to-last-message source 'assistant)
+	      (org-copilot-finish-request request))
+	    (with-current-buffer input
+	      (should (equal "My next unsent thought." (org-copilot-chat--prompt-text)))
+	      (let ((window (get-buffer-window input)))
+		(should window)
+		(should (<= (window-start window)
+			    (marker-position org-copilot-chat--prompt-start)
+			    (window-end window t)))))
+	    (with-current-buffer source
+	      (should (equal "* Draft\nSelected paragraph.\n" (buffer-string)))
+	      (should (= 1 (cl-count 'user (org-copilot-chat-messages)
+				     :key (lambda (message) (plist-get message :role)))))
+	      (context-panels-close-bottom-view)
+	      (org-copilot-chat))
+	    (should (eq input (org-copilot-chat-input-buffer source)))
+	    (with-current-buffer input
+	      (should (equal "My next unsent thought." (org-copilot-chat--prompt-text)))))
+	(when (buffer-live-p source) (kill-buffer source))
+	(when (buffer-live-p input) (kill-buffer input))))))
+
+(ert-deftest org-copilot-chat-submit-error-keeps-the-unsent-text ()
+  "A synchronous adapter failure cannot erase the text the user was typing."
+  (let ((source (generate-new-buffer " *failed input source*")) input)
+    (unwind-protect
+	(progn
+	  (with-current-buffer source
+	    (org-mode)
+	    (setq-local org-copilot-chat-function (lambda (_) (error "Fixture adapter failed"))))
+	  (setq input (org-copilot-chat-input-buffer source))
+	  (with-current-buffer input
+	    (org-copilot-chat--set-prompt-text "Keep this text.")
+	    (should-error (org-copilot-chat-send-current-input))
+	    (should (equal "Keep this text." (org-copilot-chat--prompt-text)))))
+      (dolist (buffer (list source input))
+	(when (buffer-live-p buffer) (kill-buffer buffer))))))
+
+(ert-deftest org-copilot-chat-input-drafts-belong-to-their-source ()
+  "Moving between documents cannot move an unsent draft to another target."
+  (let ((first (generate-new-buffer " *copilot first draft source*"))
+	(second (generate-new-buffer " *copilot second draft source*"))
+	a b)
+    (unwind-protect
+	(save-window-excursion
+	  (with-current-buffer first (org-mode))
+	  (with-current-buffer second (org-mode))
+	  (setq a (org-copilot-chat-input-buffer first)
+		b (org-copilot-chat-input-buffer second))
+	  (with-current-buffer a (org-copilot-chat--set-prompt-text "First draft."))
+	  (with-current-buffer b (org-copilot-chat--set-prompt-text "Second draft."))
+	  (with-current-buffer first (org-copilot-chat))
+	  (should (eq a (window-buffer (selected-window))))
+	  (with-current-buffer second (org-copilot-chat))
+	  (should (eq b (window-buffer (selected-window))))
+	  (with-current-buffer a
+	    (should (equal "First draft." (org-copilot-chat--prompt-text)))
+	    (should (eq first org-copilot-chat-source-buffer)))
+	  (with-current-buffer b
+	    (should (equal "Second draft." (org-copilot-chat--prompt-text)))
+	    (should (eq second org-copilot-chat-source-buffer))))
+      (dolist (buffer (list first second a b))
+	(when (buffer-live-p buffer) (kill-buffer buffer))))))
+
 (ert-deftest org-copilot-chat-status-line-summarizes-comments ()
   "Chat status line compactly summarizes active source comments."
   (let ((source (generate-new-buffer " *org copilot chat status source*")))
@@ -128,7 +218,8 @@
 	    (with-current-buffer source
 	      (org-mode)
 	      (insert "* Heading\nBody.\n")
-	      (setq buffer (org-copilot-chat)))
+	      (org-copilot-chat)
+	      (setq buffer (org-copilot-chat-input-buffer source)))
 	    (with-current-buffer buffer
 	      (should (derived-mode-p 'org-copilot-chat-mode))
 	      (should-not buffer-read-only)
@@ -136,7 +227,7 @@
 	      (should-not (get-text-property (point) 'read-only))
 	      (should (get-text-property (1- (point)) 'read-only))
 	      (insert "Can I type here?")
-	      (should (string-suffix-p "🌐 You: Can I type here?"
+	      (should (string-suffix-p "You: Can I type here?"
 				       (buffer-string))))))
       (when (buffer-live-p source)
 	(kill-buffer source)))))
@@ -158,20 +249,22 @@
 	(search-forward "Copilot")
 	(should (eq (get-text-property (match-beginning 0) 'face)
 		    'org-copilot-chat-copilot-face))
-	(search-forward "🌐 You: ")
-	(should (eq (get-text-property (match-beginning 0) 'face)
-		    'org-copilot-chat-prompt-face))))))
+	(should buffer-read-only))
+      (with-current-buffer (org-copilot-chat-input-buffer source)
+	(should (eq (get-text-property (point-min) 'face)
+		    'org-copilot-chat-you-face))))))
 
 (ert-deftest org-copilot-chat-prompt-field-sends-and-clears ()
   "RET-style prompt sending records input and clears the prompt field."
   (with-temp-buffer
     (org-mode)
     (let ((source (current-buffer)))
-      (with-current-buffer (org-copilot-chat--buffer source)
+      (with-current-buffer (org-copilot-chat-input-buffer source)
 	(insert "Explain this")
 	(org-copilot-chat-send-current-input)
-	(should (string-match-p "You\n  Explain this" (buffer-string)))
-	(should (string-suffix-p "🌐 You: " (buffer-string))))
+	(should (equal "" (org-copilot-chat--prompt-text))))
+      (with-current-buffer (org-copilot-chat--buffer source)
+	(should (string-match-p "You\n  Explain this" (buffer-string))))
       (should (equal (plist-get (car (org-copilot-chat-messages)) :content)
 		     "Explain this")))))
 
@@ -180,10 +273,11 @@
   (with-temp-buffer
     (org-mode)
     (let ((source (current-buffer)))
+      (org-copilot-chat)
       (with-current-buffer (org-copilot-chat--buffer source)
 	(goto-char (point-min))
 	(org-copilot-chat-return-dwim)
-	(should (= (point) org-copilot-chat--prompt-start)))
+	(should (eq (window-buffer (selected-window)) (org-copilot-chat-input-buffer source))))
       (should-not (org-copilot-chat-messages)))))
 
 (ert-deftest org-copilot-chat-ret-inside-prompt-sends-input ()
@@ -191,9 +285,10 @@
   (with-temp-buffer
     (org-mode)
     (let ((source (current-buffer)))
-      (with-current-buffer (org-copilot-chat--buffer source)
+      (with-current-buffer (org-copilot-chat-input-buffer source)
 	(insert "Explain this")
-	(org-copilot-chat-return-dwim)
+	(org-copilot-chat-return-dwim))
+      (with-current-buffer (org-copilot-chat--buffer source)
 	(should (string-match-p "You\n  Explain this" (buffer-string))))
       (should (equal (plist-get (car (org-copilot-chat-messages)) :content)
 		     "Explain this")))))
@@ -219,7 +314,8 @@
 		    'org-copilot-target-dim-face))))
     (with-current-buffer (get-buffer org-copilot-chat-buffer-name)
       (should (string-match-p "🌐 Full document" (buffer-string)))
-      (should (string-suffix-p "🌐 You: " (buffer-string))))))
+      (should buffer-read-only))
+    (should (string-prefix-p "You: " (buffer-string)))))
 
 (ert-deftest org-copilot-chat-section-context-uses-current-subtree ()
   "Section chat context uses the current Org subtree and section prompt marker."
@@ -236,7 +332,8 @@
 		       "Methods"))))
     (with-current-buffer (get-buffer org-copilot-chat-buffer-name)
       (should (string-match-p "§ Section: Methods" (buffer-string)))
-      (should (string-suffix-p "§ You: " (buffer-string))))))
+      (should buffer-read-only))
+    (should (string-prefix-p "You: " (buffer-string)))))
 
 (ert-deftest org-copilot-chat-section-request-uses-full-document-and-focused-subtree ()
   "Section chat requests include full source plus focused subtree content."
@@ -565,10 +662,10 @@
   (with-temp-buffer
     (org-mode)
     (let ((source (current-buffer)))
-      (with-current-buffer (org-copilot-chat--buffer source)
+      (with-current-buffer (org-copilot-chat-input-buffer source)
 	(insert "look ")
 	(org-copilot-chat-slash-or-complete)
-	(should (string-suffix-p "🌐 You: look /" (buffer-string)))))))
+	(should (string-suffix-p "You: look /" (buffer-string)))))))
 
 (ert-deftest org-copilot-chat-slash-commands-have-annotations ()
   "Implemented slash commands expose completion annotations."
@@ -653,7 +750,7 @@
     (let ((source (current-buffer)))
       (org-copilot-add-chat-message 'user "Full document prompt" nil nil)
       (org-copilot-add-chat-message 'user "Other comment prompt" "ai-1" nil)
-      (with-current-buffer (org-copilot-chat--buffer source)
+      (with-current-buffer (org-copilot-chat-input-buffer source)
 	(insert "draft")
 	(org-copilot-chat-recall-last-prompt)
 	(should (equal (org-copilot-chat--prompt-text)

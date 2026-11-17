@@ -98,7 +98,27 @@
        ("z" . org-comments-panel-filter-map)))
     (hub/context-panels--bind-row-keys)))
 
+(defun hub/context-panels-focus-bottom-input ()
+  "Move down normally, entering a visible Copilot composer when present."
+  (interactive)
+  (hub/window-focus-far-up)
+  (when-let* ((source (window-parameter (selected-window) 'context-panels-source-buffer)))
+    (when (and (eq (window-parameter (selected-window) 'window-side) 'bottom)
+	       (fboundp 'org-copilot-chat-focus-input)
+	       (org-copilot-chat-focus-input source t)
+	       (fboundp 'evil-insert-state))
+      (evil-insert-state))))
+
+(define-key org-mode-map [remap hub/window-focus-far-up] #'hub/context-panels-focus-bottom-input)
+(define-key context-panels-view-navigation-mode-map
+	    [remap hub/window-focus-far-up] #'hub/context-panels-focus-bottom-input)
+(with-eval-after-load 'org-comments-panel
+  (define-key org-comments-panel-mode-map
+	      [remap hub/window-focus-far-up] #'hub/context-panels-focus-bottom-input))
+
 (with-eval-after-load 'org-copilot-chat
+  (define-key org-copilot-chat-mode-map
+	      [remap hub/window-focus-far-up] #'hub/context-panels-focus-bottom-input)
   (with-eval-after-load 'evil
     (hub/org-technical-buffer--evil-normalize-map
      org-copilot-chat-mode-map
@@ -114,6 +134,8 @@
        ("M-<up>" . org-copilot-chat-recall-last-prompt)))))
 
 (with-eval-after-load 'org-copilot-diff
+  (define-key org-copilot-diff-mode-map
+	      [remap hub/window-focus-far-up] #'hub/context-panels-focus-bottom-input)
   (with-eval-after-load 'evil
     (hub/org-technical-buffer--evil-normalize-map
      org-copilot-diff-mode-map

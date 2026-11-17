@@ -12,6 +12,30 @@
 (require 'test-helpers)
 (require 'org/context-panel)
 
+(ert-deftest hub/context-panel-bottom-focus-lands-in-copilot-input ()
+  "The existing down-focus command enters the composer, not its footer."
+  (require 'org-copilot)
+  (let ((source (generate-new-buffer " *bottom input focus source*"))
+	input entered-insert)
+    (unwind-protect
+	(save-window-excursion
+	  (delete-other-windows)
+	  (switch-to-buffer source)
+	  (org-mode)
+	  (org-copilot-chat)
+	  (setq input (org-copilot-chat-input-buffer source))
+	  (select-window (get-buffer-window source))
+	  (cl-letf (((symbol-function 'evil-insert-state)
+		     (lambda () (setq entered-insert t))))
+	    (should (eq (command-remapping #'hub/window-focus-far-up)
+			#'hub/context-panels-focus-bottom-input))
+	    (call-interactively (command-remapping #'hub/window-focus-far-up))
+	    (should (eq (current-buffer) input))
+	    (should (= (point) (point-max)))
+	    (should entered-insert)))
+      (when (buffer-live-p source) (kill-buffer source))
+      (when (buffer-live-p input) (kill-buffer input)))))
+
 (ert-deftest hub/context-panel-marginalia-and-comments-preserve-row-actions ()
   "Standard Org note rows coexist with rich comments and their custom actions."
   (save-window-excursion

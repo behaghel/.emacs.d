@@ -195,6 +195,19 @@ Package code is Evil-neutral. This repository’s personal Org bindings use `,a`
 
 ## Window behavior
 
+The chat transcript scrolls independently above a fixed typing area. The typing
+area has a subtly lighter theme-derived background, a top separator and a
+coloured `You: ` label. Replies and viewport changes do not replace an unsent
+draft. Each source owns its typing buffer, so switching documents does not move
+a draft to a different target; hiding and reopening its views retain the same
+buffer. Draft text is not conversation history and is submitted only by an
+explicit send action. A synchronous send failure leaves the draft intact.
+
+`org-copilot-chat-goto-prompt` focuses the visible typing area. The reusable
+package does not select an Evil state or redefine personal window-navigation
+keys. Input remains an owned part of the existing bottom view: closing the view
+also closes its input window, without killing the draft buffer.
+
 Copilot panels are source-owned context panels. If the source Org window is
 replaced by a non-Org buffer, the side panel and bottom chat hide instead of
 staying attached to a stale file. If an eligible Org file becomes visible again,
