@@ -510,11 +510,14 @@ whether an empty page-context panel is shown when there are no page comments."
       (delete-window panel-window))))
 
 (defun hub/context-panels--copilot-chat-session-p ()
-  "Return non-nil when current Org buffer has pending Org Copilot chat state."
+  "Return non-nil when the current Org buffer owns existing Copilot chat state."
   (or (and (fboundp 'org-copilot-chat-messages)
 	   (org-copilot-chat-messages))
       (and (boundp 'org-copilot-chat-buffer-name)
-	   (buffer-live-p (get-buffer org-copilot-chat-buffer-name)))))
+	   (boundp 'org-copilot-chat-source-buffer)
+	   (when-let* ((chat (get-buffer org-copilot-chat-buffer-name)))
+	     (eq (buffer-local-value 'org-copilot-chat-source-buffer chat)
+		 (current-buffer))))))
 
 (defun hub/context-panels--open-ui ()
   "Open side context panel and surface pending bottom views when appropriate."
