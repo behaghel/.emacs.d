@@ -14,6 +14,8 @@
 (require 'browse-url)
 (require 'subr-x)
 
+(autoload 'org-comments-preview-suggestion-at-point "org-comments-panel-actions" nil t)
+
 (defcustom org-comments-panel-target-preview-length 20
   "Maximum length of quoted comment target previews in comment panels."
   :type 'natnum
@@ -130,9 +132,8 @@
 	    "⚠️")
 	  (when (equal (plist-get comment :remote-anchor-state) "unconfirmed")
 	    "❓")
-	  (when (and (not (org-comments-panel-render--copilot-comment-p comment))
-		     (org-comments-panel-render--suggestion-indicator comment))
-	    "✏️")))
+	  (unless (org-comments-panel-render--copilot-comment-p comment)
+	    (org-comments-panel-render--suggestion-indicator comment))))
    " "))
 
 (defun org-comments-panel-render--readable-body (comment)
@@ -169,11 +170,23 @@
       (format-time-string "%Y-%m-%d %H:%M" time)
     created-at))
 
+(defun org-comments-panel-render--preview-button (button)
+  "Preview BUTTON's linked suggestion using the panel's effective command."
+  (with-current-buffer (marker-buffer button)
+    (goto-char (button-start button))
+    (call-interactively
+     (or (command-remapping #'org-comments-preview-suggestion-at-point)
+	 #'org-comments-preview-suggestion-at-point))))
+
 (defun org-comments-panel-render--suggestion-indicator (comment)
-  "Return compact linked-suggestion indicator for COMMENT, or nil."
+  "Return a compact preview button for COMMENT's linked suggestion, or nil."
   (when (or (plist-get comment :suggestion-thread-id)
 	    (plist-get comment :suggestion-ids))
-    "✏️"))
+    (make-text-button "✏️" nil
+		      'follow-link t
+		      'face nil
+		      'help-echo "Preview linked suggestion"
+		      'action #'org-comments-panel-render--preview-button)))
 
 (defun org-comments-panel-render--author (comment)
   "Return display author for COMMENT, or nil."

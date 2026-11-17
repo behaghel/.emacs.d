@@ -378,6 +378,9 @@
 			       (eval form t))))
 		       (end-of-file nil)))
 		   (defvar quit-called nil)
+		   (defvar preview-called nil)
+		   (fset 'org-copilot-visualize-at-point
+			 (lambda () (interactive) (setq preview-called t)))
 		   (fset 'org-comments-close-current-ui
 			 (lambda () (interactive) (setq quit-called t)))
 		   (define-key evil-normal-state-map (kbd "r") #'evil-forward-char)
@@ -391,6 +394,9 @@
 		     (should (eq (key-binding (kbd "]c")) #'hub/context-panels-next-row))
 		     (should (eq (key-binding (kbd "[c")) #'hub/context-panels-previous-row))
 		     (should (eq (key-binding (kbd "q")) #'org-comments-close-current-ui))
+		     (should (eq (key-binding (kbd "v")) #'org-copilot-visualize-at-point))
+		     (execute-kbd-macro (kbd "v"))
+		     (should preview-called)
 		     (should (eq (key-binding (kbd "r")) #'evil-forward-char))
 		     (execute-kbd-macro (kbd "q"))
 		     (should quit-called)))))))))

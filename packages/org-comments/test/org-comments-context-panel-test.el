@@ -58,6 +58,41 @@
       (when (buffer-live-p source) (kill-buffer source))
       (when (buffer-live-p panel) (kill-buffer panel)))))
 
+(ert-deftest org-comments-context-panel-pen-previews-the-clicked-card ()
+  "The pen is an action on its own row, even when point was elsewhere."
+  (require 'org-suggestions)
+  (let* ((source (generate-new-buffer " *clickable suggestion source*"))
+	 (comment '(:type comment :id "clicked-card" :provider "org-copilot"
+			  :status "OPEN" :target-text "Selected paragraph."
+			  :target-start 1 :target-end 20 :body "Explain the change."
+			  :suggestion-thread-id "thread-1" :suggestion-ids "candidate-1"))
+	 panel called)
+    (unwind-protect
+	(save-window-excursion
+	  (switch-to-buffer source)
+	  (org-mode)
+	  (insert "Selected paragraph.\n")
+	  (org-comments-context-panel-enable)
+	  (cl-letf (((symbol-function 'org-comments-collect) (lambda (&rest _) (list comment))))
+	    (setq panel (context-panels-open source)))
+	  (with-current-buffer panel
+	    (goto-char (point-min))
+	    (search-forward "✏️")
+	    (let ((button (button-at (match-beginning 0))))
+	      (should button)
+	      (should (string-match-p "Preview" (button-get button 'help-echo)))
+	      (should (string-match-p "Preview linked suggestion" (context-panels-item-help-text)))
+	      (goto-char (point-max))
+	      (cl-letf (((symbol-function 'org-suggestions-preview-comment-suggestion-at-point)
+			 (lambda (target record) (setq called (list target record)))))
+		(button-activate button)))
+	    (should (eq source (car called)))
+	    (should (equal "clicked-card" (plist-get (cadr called) :id))))
+	  (with-current-buffer source
+	    (should (equal "Selected paragraph.\n" (buffer-string)))))
+      (when (buffer-live-p source) (kill-buffer source))
+      (when (buffer-live-p panel) (kill-buffer panel)))))
+
 (ert-deftest org-comments-context-panel-refresh-creates-provider-overlays ()
   "The comments provider creates range overlays and page markers."
   (let* ((directory (make-temp-file "org-comments-context-panel" t))
