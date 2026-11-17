@@ -46,8 +46,9 @@ Text[fn:authored-name].
   and a clickable link, not literal Org markup or a visible definitions section.
 - Push unchanged. The pipeline must not plan mutations for the unchanged note.
 - Change only the footnote text, emphasis or link target and push again. The
-  existing footnote segment changes; reference count and authored label remain
-  stable. Requests must target the footnote segment, not body indices.
+  existing footnote segment changes; reference count, segment ID and authored
+  label remain stable. Every mutation must target that segment, not body
+  indices. The host paragraph and native reference are not recreated.
 - Edit the note in Docs and pull. The Org definition retains emphasis, link label
   and URL, and the reference still uses `authored-name`. An immediate push is a
   no-op for that note.
@@ -137,7 +138,13 @@ Expected Org source after pull:
 
 ## Known UI caveat
 
-Google Docs footnote markers created through the API may not look or behave like clickable links in all UI states. Treat the API JSON as authoritative: a correct native footnote has both a paragraph `footnoteReference` and a matching top-level `footnotes` entry.
+A paragraph `footnoteReference` and matching top-level `footnotes` entry prove
+native structure, not browser usability or appearance. Inspect the native marker
+and note in the browser as well as the exported PDF; do not infer click behavior
+from JSON alone.
 
 Use the linked remote section of `org-google-docs-debug-pipeline` to inspect the
-reference, native segment and proposed segment-local requests together.
+reference, native segment and proposed segment-local requests together. Isolated
+source checks use the same metadata-title and structural-empty-paragraph filters
+as `gdocs-sync--push-incremental`; otherwise structural placeholders can produce
+spurious body differences before the footnote definitions.
