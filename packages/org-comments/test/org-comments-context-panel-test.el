@@ -17,6 +17,47 @@
       (insert body))
     sidecar-file))
 
+(ert-deftest org-comments-context-panel-copilot-card-keeps-metadata-compact ()
+  "A real suggestion card keeps identity in data, not its timestamp line."
+  (let* ((source (generate-new-buffer " *suggestion card source*"))
+	 (comment (list :type 'comment :id "local-20261117T110000-private-key"
+			:provider "org-copilot" :status "OPEN"
+			:target-text "Selected paragraph." :target-start 1 :target-end 20
+			:created-at (format-time-string "%FT%T%z" (encode-time 0 22 20 6 8 2026))
+			:suggestion-thread-id "thread-1" :suggestion-ids "candidate-1"
+			:body "Make the argument concrete."))
+	 (original (copy-tree comment))
+	 (org-comments-panel-width 38)
+	 panel)
+    (unwind-protect
+	(save-window-excursion
+	  (switch-to-buffer source)
+	  (org-mode)
+	  (insert "Selected paragraph.\n")
+	  (org-comments-context-panel-enable)
+	  (cl-letf (((symbol-function 'org-comments-collect) (lambda (&rest _) (list comment))))
+	    (setq panel (context-panels-open source)))
+	  (with-current-buffer panel
+	    (goto-char (point-min))
+	    (should (search-forward "🤖 ✏️ “Selected paragraph.”" nil t))
+	    (should-not (string-match-p "local-20261117" (buffer-string)))
+	    (search-forward "2026-08-06 20:22")
+	    (let* ((start (line-beginning-position))
+		   (line (buffer-substring-no-properties start (line-end-position)))
+		   (item (get-text-property start 'context-panels-item))
+		   (faces (get-text-property start 'face)))
+	      (should (equal "2026-08-06 20:22" (string-trim line)))
+	      (should (<= (string-width line) (window-body-width (get-buffer-window panel))))
+	      (should (memq 'org-comments-panel-metadata (if (listp faces) faces (list faces))))
+	      (should (equal (plist-get item :id) (plist-get comment :id)))
+	      (should (equal (plist-get item :suggestion-thread-id) "thread-1")))
+	    (forward-line 1)
+	    (should (get-text-property (point) 'org-comments-panel-metadata-gap)))
+	  (should (equal original comment))
+	  (with-current-buffer source (should (equal "Selected paragraph.\n" (buffer-string)))))
+      (when (buffer-live-p source) (kill-buffer source))
+      (when (buffer-live-p panel) (kill-buffer panel)))))
+
 (ert-deftest org-comments-context-panel-refresh-creates-provider-overlays ()
   "The comments provider creates range overlays and page markers."
   (let* ((directory (make-temp-file "org-comments-context-panel" t))
