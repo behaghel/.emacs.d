@@ -33,6 +33,7 @@ Backend detection uses registered detectors and the current source buffer. The p
 - Item help describes the selected comment or reply using effective bindings or public command names. It does not select a backend or authorize operations. Non-comment context rows cannot fall through to a neighbouring/source comment when comment commands or action adapters are invoked.
 - Package keybindings are Org-native and Emacs-native; the package does not install Evil, leader, or Bépo bindings.
 - Generic panels preserve source focus, jump to source or sidecar targets, and render stale or remote-missing state visibly.
+- Mutation refresh retains the action's source before refreshing the panel. The panel refresh runs in its own buffer; the registered rich-UI refresh runs in that captured source buffer, not the panel or a subsequently selected document.
 - The comments side panel reserves one character column of right margin, keeping card text clear of the window edge without changing source-buffer margins or panel width.
 - Opening the side panel preserves the comments package's source highlight ranges and faces; it does not add a whole-line source highlight. Panel rows may highlight the focused comment independently.
 - Author/date metadata is typographically quieter than headers and bodies while retaining stable author colours. Provider-specific status, badges, and actions remain intact when rows share framework spacing and wrapping.

@@ -80,6 +80,8 @@ Normal-state bindings inside the panel:
 | Key | Action |
 | --- | --- |
 | `v` | Preview the linked suggestion in the native diff view. A plain Copilot comment focuses its conversation instead. The card's pen button uses the same effective preview action. |
+| `a` | Accept the linked suggestion through Org Suggestions; source changes remain unsaved. Changed or ambiguous targets are refused. |
+| `u` | Undo the accepted linked suggestion through Org Suggestions, restoring its recorded pre-acceptance text rather than invoking generic buffer undo. |
 | `RET` | Jump to the item's primary target.  For anchored comments this jumps to the source region; for stale comments this jumps to the sidecar heading; for marginalia this jumps to the source footnote reference. |
 | `e` | Edit the backing sidecar entry for comment cards, narrowed to the comment body.  Marginalia has no sidecar entry and reports an error. |
 | `p` | Open the bottom page-context panel for the source buffer. |
