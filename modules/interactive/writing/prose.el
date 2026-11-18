@@ -13,7 +13,9 @@
 (define-key evil-normal-state-map (kbd ",bs") #'flyspell-mode)
 
 (use-package adaptive-wrap :commands adaptive-wrap-prefix-mode)
-(use-package visual-fill-column :defer t)
+(use-package visual-fill-column
+  :straight (:type git :host github :repo "joostkremers/visual-fill-column")
+  :defer t)
 (use-package phscroll
   :straight (:type git :host github :repo "misohena/phscroll" :files ("*.el"))
   :after org
