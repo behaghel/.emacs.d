@@ -258,5 +258,31 @@
 	(should (= (plist-get paragraph :indent-first-line) 8))
 	(should (= left 8))))))
 
+(ert-deftest hub/org-google-docs-verse-lines-use-compact-body-typography ()
+  "Verse roles inherit body typography without paragraph gaps between lines."
+  (let* ((definitions (hub/org-google-docs-style-definitions 'veriff-working))
+	 (body (plist-get (alist-get 'gdocs-body definitions) :text)))
+    (dolist (role '(first line last single))
+      (let* ((style (alist-get (intern (format "gdocs-verse-%s" role)) definitions))
+	     (paragraph (plist-get style :paragraph)))
+	(should (equal (plist-get style :text) body))
+	(should (= (plist-get paragraph :space-above) (if (memq role '(first single)) 6 0)))
+	(should (= (plist-get paragraph :space-below) 0))))))
+
+(ert-deftest hub/org-google-docs-verse-outer-gap-requests-preserve-compact-lines ()
+  "Multi-line and single-line verses receive an outer gap, not stanza inflation."
+  (let ((requests (hub/org-google-docs-styles-test--requests
+		   "Before.\n\n#+BEGIN_VERSE\none\nsecond\n#+END_VERSE\n\n#+BEGIN_VERSE\nsingle\n#+END_VERSE\n")))
+    (dolist (entry '(("one\n" . 6) ("second\n" . 0) ("single\n" . 6)))
+      (let* ((insert (alist-get 'insertText (seq-find (lambda (request)
+							(equal (alist-get 'text (alist-get 'insertText request)) (car entry))) requests)))
+	     (index (alist-get 'index (alist-get 'location insert))))
+	(should index)
+	(should (seq-some (lambda (request)
+			    (let* ((update (alist-get 'updateParagraphStyle request))
+				   (above (alist-get 'spaceAbove (alist-get 'paragraphStyle update))))
+			      (and above (equal (alist-get 'startIndex (alist-get 'range update)) index)
+				   (= (alist-get 'magnitude above) (cdr entry))))) requests))))))
+
 (provide 'org-google-docs-styles-test)
 ;;; org-google-docs-styles-test.el ends here

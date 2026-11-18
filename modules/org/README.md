@@ -20,6 +20,10 @@ status: draft
 - Prose paragraphs inside typographic blocks and separate lists retain visible
   separation. List-item contents remain compact; literal code/example blank
   lines retain their exact content rather than being converted into spacing.
+- Verse retains authored hard lines, stanza gaps, indentation and rich text.
+  Verse blocks have visible separation from preceding prose. Consecutive verse
+  lines use compact paragraph spacing; the selected body
+  typography is presentation and does not replace authored emphasis or links.
 - Callouts have outer spacing and a continuous themed background across the
   printable text width, including their list and continuation paragraphs.
   Labels and prose have a small theme-defined inner-left inset; the inset does

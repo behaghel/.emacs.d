@@ -31,6 +31,10 @@
      :categories ((:structure tables))
      :reason "Google Docs supports tables."
      :target "Preserve grid structure and cell text.")
+    (verse-blocks
+     :categories ((:blocks verse))
+     :reason "Versioned native verse groups preserve rich hard lines and literal spacing."
+     :target "Preserve verse boundaries, line breaks, stanza gaps, indentation and authored rich text; reject unsupported content before mutation.")
     (source-blocks
      :categories ((:blocks source))
      :reason "Google Docs sync preserves source block text and language identity through semantic markers; native code block building blocks are styling-deferred until a reliable API seam exists."

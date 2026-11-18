@@ -271,6 +271,15 @@ paragraph spacing; inner gaps use border padding so shading stays continuous."
 	     '(first line last single)))
 	  '("info" "note" "warning" "tip" "important"))))
 
+(defun hub/org-google-docs--verse-style-definitions (theme)
+  "Return compact verse line roles using THEME's body typography."
+  (let ((body (plist-get (alist-get 'gdocs-body (hub/org-google-docs--base-text-style-definitions theme)) :text)))
+    (mapcar (lambda (role)
+	      (list (intern (format "gdocs-verse-%s" role)) :parent 'normal
+		    :paragraph (list :space-above (if (memq role '(first single)) 6 0) :space-below 0)
+		    :text (copy-sequence body)))
+	    '(first line last single))))
+
 (defun hub/org-google-docs-style-definitions (&optional theme-id)
   "Return logical style definitions for Google Docs publishing.
 When THEME-ID is nil, use the current buffer's `#+GDOCS_THEME:' override or
@@ -286,6 +295,7 @@ When THEME-ID is nil, use the current buffer's `#+GDOCS_THEME:' override or
        (gdocs-list-item :paragraph (:space-above 0)))
      (hub/org-google-docs--source-block-style-definitions theme)
      (hub/org-google-docs--quote-block-style-definitions theme)
+     (hub/org-google-docs--verse-style-definitions theme)
      (hub/org-google-docs--callout-style-definitions theme)
      (hub/org-google-docs--compact-callout-style-definitions theme)
      `((gdocs-image-caption
