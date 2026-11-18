@@ -109,12 +109,16 @@ buffer visits a file, it also includes `:source-file'."
 	  (list :source-file (org-comments-action-context-source-file context))))
 
 (defun org-comments-refresh-current-ui ()
-  "Refresh the current comments UI and any registered rich UI."
-  (when org-comments-current-refresh-function
-    (funcall org-comments-current-refresh-function))
-  (when (and (fboundp 'org-comments-ui-refresh)
-	     org-comments-ui-refresh-function)
-    (org-comments-ui-refresh)))
+  "Refresh the current panel, then its captured source's registered rich UI."
+  (let ((source-buffer
+	 (when (and (fboundp 'org-comments-ui-refresh)
+		    org-comments-ui-refresh-function)
+	   (org-comments-current-source-buffer))))
+    (when org-comments-current-refresh-function
+      (funcall org-comments-current-refresh-function))
+    (when source-buffer
+      (with-current-buffer source-buffer
+	(org-comments-ui-refresh)))))
 
 (defun org-comments--close-current-context-panel ()
   "Close the current comments UI through `context-panels' lifecycle."

@@ -66,6 +66,8 @@
 		    ("[c" . hub/context-panels-previous-row)
 		    ("?" . hub/context-panels-describe-item)
 		    ("v" . org-copilot-visualize-at-point)
+		    ("a" . org-comments-accept-suggestion-at-point)
+		    ("u" . org-comments-undo-suggestion-at-point)
 		    ("q" . org-comments-close-current-ui))))
     (dolist (binding bindings)
       (define-key org-comments-panel-mode-map (kbd (car binding)) (cdr binding))

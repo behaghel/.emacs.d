@@ -372,6 +372,31 @@
       (org-comments-refresh-current-ui)
       (should refreshed))))
 
+(ert-deftest org-comments-panel-actions-rich-refresh-retains-action-source ()
+  "Refresh the panel locally, then the rich UI in the captured source."
+  (let ((source (generate-new-buffer " *refresh action source*"))
+	(other (generate-new-buffer " *other refresh source*")))
+    (unwind-protect
+	(progn
+	  (with-current-buffer source (org-mode))
+	  (with-temp-buffer
+	    (let ((owner source) panel-refreshed rich-source)
+	      (setq-local org-comments-current-source-buffer-function
+			  (lambda () owner))
+	      (setq-local org-comments-current-refresh-function
+			  (lambda ()
+			    (should (derived-mode-p 'fundamental-mode))
+			    (setq panel-refreshed t owner other)))
+	      (let ((org-comments-ui-refresh-function
+		     (lambda ()
+		       (should panel-refreshed)
+		       (should (derived-mode-p 'org-mode))
+		       (setq rich-source (current-buffer)))))
+		(org-comments-refresh-current-ui)
+		(should (eq rich-source source))))))
+      (kill-buffer source)
+      (kill-buffer other))))
+
 (ert-deftest org-comments-panel-actions-delete-removes-comment ()
   "Deleting from a panel row removes the sidecar entry and refreshes the panel."
   (org-comments-panel-actions-test--with-comment

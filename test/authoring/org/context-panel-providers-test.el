@@ -344,6 +344,66 @@
 	  (hub/context-panels-describe-item)
 	  (should (eq called 'help)))))))
 
+(ert-deftest hub/context-panel-suggestion-actions-refresh-owning-source ()
+  "Real panel accept/undo refresh the source and retain stale-edit protection."
+  (require 'org-copilot)
+  (let* ((directory (make-temp-file "panel-suggestion-actions-" t))
+	 (file (expand-file-name "draft.org" directory))
+	 source)
+    (unwind-protect
+	(save-window-excursion
+	  (delete-other-windows)
+	  (write-region "* Intro\nOriginal.\n" nil file nil 'silent)
+	  (setq source (find-file-noselect file))
+	  (switch-to-buffer source)
+	  (org-mode)
+	  (org-copilot-mode 1)
+	  (org-suggestions-write-sidecar
+	   file (list (list :id "lifecycle-thread" :provider "org-copilot"
+			    :session-id "default" :comment-id "lifecycle-comment"
+			    :candidates
+			    (list (list :id "lifecycle-candidate" :status 'active
+					:hunks (list '(:id "h1" :kind replace :primary t
+							   :original "Original."
+							   :replacement "Revised sentence.")))))))
+	  (let ((record (org-comments-create-record
+			 file 9 18 "Clarify this sentence."
+			 "lifecycle-comment" "Fixture" "2026-11-18T12:00:00Z")))
+	    (org-comments-append-to-sidecar
+	     (append (list :suggestion-thread-id "lifecycle-thread"
+			   :suggestion-ids "lifecycle-candidate") record)))
+	  (let ((panel (hub/context-panels--open-ui)))
+	    (with-current-buffer panel
+	      (goto-char (car (context-panels-item-starts)))
+	      (org-comments-accept-suggestion-at-point)
+	      (should (eq (plist-get (cdr (org-suggestions-find-candidate
+					   (org-suggestions-load-sidecar file)
+					   "lifecycle-candidate")) :status)
+			  'accepted))
+	      (should (equal (with-current-buffer source (buffer-string))
+			     "* Intro\nRevised sentence.\n"))
+	      (goto-char (car (context-panels-item-starts)))
+	      (org-comments-undo-suggestion-at-point)
+	      (should (equal (with-current-buffer source (buffer-string))
+			     "* Intro\nOriginal.\n"))
+	      (with-current-buffer source
+		(goto-char (point-min))
+		(search-forward "Original.")
+		(replace-match "Human revision." t t))
+	      (goto-char (car (context-panels-item-starts)))
+	      (should-error (org-comments-accept-suggestion-at-point) :type 'user-error)
+	      (should (equal (with-current-buffer source (buffer-string))
+			     "* Intro\nHuman revision.\n"))
+	      (with-temp-buffer
+		(insert-file-contents file)
+		(should (equal (buffer-string) "* Intro\nOriginal.\n"))))))
+      (dolist (buffer (buffer-list))
+	(when-let* ((path (buffer-file-name buffer)))
+	  (when (file-in-directory-p path directory)
+	    (with-current-buffer buffer (set-buffer-modified-p nil))
+	    (kill-buffer buffer))))
+      (delete-directory directory t))))
+
 (ert-deftest hub/context-panel-row-bindings-work-with-real-evil-after-lexical-reload ()
   "Real Evil resolves scoped row keys after selective lexical definition reload."
   (let* ((default-directory (file-truename default-directory))
@@ -379,6 +439,12 @@
 		       (end-of-file nil)))
 		   (defvar quit-called nil)
 		   (defvar preview-called nil)
+		   (defvar accept-called nil)
+		   (defvar undo-called nil)
+		   (fset 'org-comments-accept-suggestion-at-point
+			 (lambda () (interactive) (setq accept-called t)))
+		   (fset 'org-comments-undo-suggestion-at-point
+			 (lambda () (interactive) (setq undo-called t)))
 		   (fset 'org-copilot-visualize-at-point
 			 (lambda () (interactive) (setq preview-called t)))
 		   (fset 'org-comments-close-current-ui
@@ -397,6 +463,12 @@
 		     (should (eq (key-binding (kbd "v")) #'org-copilot-visualize-at-point))
 		     (execute-kbd-macro (kbd "v"))
 		     (should preview-called)
+		     (should (eq (key-binding (kbd "a")) #'org-comments-accept-suggestion-at-point))
+		     (should (eq (key-binding (kbd "u")) #'org-comments-undo-suggestion-at-point))
+		     (execute-kbd-macro (kbd "a"))
+		     (should accept-called)
+		     (execute-kbd-macro (kbd "u"))
+		     (should undo-called)
 		     (should (eq (key-binding (kbd "r")) #'evil-forward-char))
 		     (execute-kbd-macro (kbd "q"))
 		     (should quit-called)))))))))
