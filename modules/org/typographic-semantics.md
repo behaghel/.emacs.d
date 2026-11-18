@@ -67,6 +67,7 @@ The goal is to let an author write one Org source consistently and export or syn
 | --- | --- | --- |
 | Source block | `#+begin_src LANG ... #+end_src` | Semantic code block with language. Google Docs code block building blocks are the native target where available. Syntax highlighting and line-number styling are renderer-specific. |
 | Example block | `#+begin_example ... #+end_example` | Semantic preformatted block. |
+| Centered prose | `#+begin_center ... #+end_center` | Semantic centered prose group with authored paragraph and block boundaries, not literal verse lines. |
 | Verse block | `#+begin_verse ... #+end_verse` | Semantic rich-text lines with authored stanza gaps and indentation, not soft-wrapped prose. |
 | Quote block | `#+begin_quote ... #+end_quote` | Semantic quotation boundary and text. Visual quote styling is deferred per renderer. |
 | Quote attribution | `#+ATTR_QUOTE: :author "Name"` before a quote block | Semantic attribution metadata for the following quote. Renderers may style it as a right-aligned byline, preserve it as readable attribution text, or report explicit degradation when unsupported. |

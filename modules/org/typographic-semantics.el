@@ -86,7 +86,7 @@
 	(media (make-hash-table :test #'eq)))
     (org-element-map tree
 		     '(bold italic underline strike-through code verbatim footnote-reference
-			    timestamp link footnote-definition src-block example-block quote-block verse-block
+			    timestamp link footnote-definition src-block example-block quote-block verse-block center-block
 			    special-block horizontal-rule headline paragraph table plain-list item)
 		     (lambda (element)
 		       (pcase (org-element-type element)
@@ -129,6 +129,7 @@
 			 ('src-block (hub/org-typographic-semantics--inc blocks 'source))
 			 ('example-block (hub/org-typographic-semantics--inc blocks 'example))
 			 ('verse-block (hub/org-typographic-semantics--inc blocks 'verse))
+			 ('center-block (hub/org-typographic-semantics--inc blocks 'center))
 			 ('quote-block
 			  (hub/org-typographic-semantics--inc blocks 'quote)
 			  (when (hub/org-quote-author element)

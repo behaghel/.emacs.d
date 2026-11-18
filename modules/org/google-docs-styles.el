@@ -271,6 +271,15 @@ paragraph spacing; inner gaps use border padding so shading stays continuous."
 	     '(first line last single)))
 	  '("info" "note" "warning" "tip" "important"))))
 
+(defun hub/org-google-docs--center-style-definitions (theme)
+  "Return centered prose roles using THEME's body text and paragraph gaps."
+  (let ((body (plist-get (alist-get 'gdocs-body (hub/org-google-docs--base-text-style-definitions theme)) :text)))
+    (mapcar (lambda (role)
+	      (list (intern (format "gdocs-center-%s" role)) :parent 'normal
+		    :paragraph '(:alignment center :space-above 6 :space-below 0)
+		    :text (copy-sequence body)))
+	    '(first line last single))))
+
 (defun hub/org-google-docs--verse-style-definitions (theme)
   "Return compact verse line roles using THEME's body typography."
   (let ((body (plist-get (alist-get 'gdocs-body (hub/org-google-docs--base-text-style-definitions theme)) :text)))
@@ -296,6 +305,7 @@ When THEME-ID is nil, use the current buffer's `#+GDOCS_THEME:' override or
      (hub/org-google-docs--source-block-style-definitions theme)
      (hub/org-google-docs--quote-block-style-definitions theme)
      (hub/org-google-docs--verse-style-definitions theme)
+     (hub/org-google-docs--center-style-definitions theme)
      (hub/org-google-docs--callout-style-definitions theme)
      (hub/org-google-docs--compact-callout-style-definitions theme)
      `((gdocs-image-caption

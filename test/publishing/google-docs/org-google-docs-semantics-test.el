@@ -107,5 +107,16 @@
       (should (= (plist-get entry :count) 1))
       (should (string-match-p "line" (plist-get entry :target))))))
 
+(ert-deftest org-google-docs-semantics-inventories-and-classifies-centered-prose ()
+  "Centered blocks have explicit source inventory and provider support entries."
+  (with-temp-buffer
+    (insert "#+BEGIN_CENTER\nFirst.\n\nSecond.\n#+END_CENTER\n")
+    (org-mode)
+    (let* ((audit (hub/org-typographic-semantics-audit-buffer))
+	   (entry (org-google-docs-semantics-test--entry
+		   (org-google-docs-semantics-classify-audit audit) :supported 'center-blocks)))
+      (should (= (alist-get 'center (plist-get audit :blocks)) 1))
+      (should (= (plist-get entry :count) 1)))))
+
 (provide 'org-google-docs-semantics-test)
 ;;; org-google-docs-semantics-test.el ends here

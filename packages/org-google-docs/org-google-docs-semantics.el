@@ -31,6 +31,10 @@
      :categories ((:structure tables))
      :reason "Google Docs supports tables."
      :target "Preserve grid structure and cell text.")
+    (center-blocks
+     :categories ((:blocks center))
+     :reason "Versioned centered paragraph groups preserve block identity and rich prose."
+     :target "Preserve centered paragraphs, emphasis, links and distinct blocks, including empty blocks; reject unsupported contexts before mutation.")
     (verse-blocks
      :categories ((:blocks verse))
      :reason "Versioned native verse groups preserve rich hard lines and literal spacing."
