@@ -190,10 +190,14 @@
 
 (defun org-comments-panel-render--author (comment)
   "Return display author for COMMENT, or nil."
-  (unless (org-comments-panel-render--copilot-comment-p comment)
-    (or (plist-get comment :remote-author-name)
-	(plist-get comment :remote-author-display-name)
-	(plist-get comment :author))))
+  (let ((author (or (plist-get comment :remote-author-name)
+		    (plist-get comment :remote-author-display-name)
+		    (plist-get comment :author))))
+    (if (and (org-comments-panel-render--copilot-comment-p comment)
+	     (or (not (stringp author)) (string-empty-p author)
+		 (equal author "org-copilot")))
+	"Copilot"
+      author)))
 
 (defun org-comments-panel-render--author-face (author)
   "Return stable face for AUTHOR."

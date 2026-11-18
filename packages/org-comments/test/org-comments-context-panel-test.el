@@ -21,7 +21,7 @@
   "A real suggestion card keeps identity in data, not its timestamp line."
   (let* ((source (generate-new-buffer " *suggestion card source*"))
 	 (comment (list :type 'comment :id "local-20261117T110000-private-key"
-			:provider "org-copilot" :status "OPEN"
+			:provider "org-copilot" :status "OPEN" :author "Herbert"
 			:target-text "Selected paragraph." :target-start 1 :target-end 20
 			:created-at (format-time-string "%FT%T%z" (encode-time 0 22 20 6 8 2026))
 			:suggestion-thread-id "thread-1" :suggestion-ids "candidate-1"
@@ -46,7 +46,7 @@
 		   (line (buffer-substring-no-properties start (line-end-position)))
 		   (item (get-text-property start 'context-panels-item))
 		   (faces (get-text-property start 'face)))
-	      (should (equal "2026-08-06 20:22" (string-trim line)))
+	      (should (equal "Herbert · 2026-08-06 20:22" (string-trim line)))
 	      (should (<= (string-width line) (window-body-width (get-buffer-window panel))))
 	      (should (memq 'org-comments-panel-metadata (if (listp faces) faces (list faces))))
 	      (should (equal (plist-get item :id) (plist-get comment :id)))

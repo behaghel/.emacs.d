@@ -119,6 +119,21 @@ supported cancellation when available, but a cancellation attempt is never proof
 that late callbacks have stopped. Request/session identities are ephemeral and
 do not change the durable `default` session identifier or sidecar schemas.
 
+## Contributor attribution
+
+New AI comment and proposal cards persist the originating request's host-recorded
+`:contributor` in the existing comment-author field. The gptel transport captures
+its effective backend's display name when sending; changing a backend before a
+reply arrives or before reopening a document does not change stored authorship.
+Model-supplied author fields do not establish this attribution. Adapters can
+supply their own known contributor, such as `Herbert`, without changing models,
+accounts, request fencing or the existing history owner.
+
+Absent contributor metadata uses the generic `Copilot` label, never an inference
+from the current adapter. Existing human comment authors are not rewritten when
+a proposal is linked to their thread. Cards use the shared author-first comment
+layout; attribution labels do not confer authentication or effect authority.
+
 ## Main commands
 
 - `org-copilot-chat` — open the bottom chat for the current Org buffer.

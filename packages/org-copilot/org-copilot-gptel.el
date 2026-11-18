@@ -36,6 +36,8 @@
 (declare-function gptel-make-openai-oauth "gptel-openai-oauth")
 (declare-function gptel-request "gptel")
 (declare-function gptel-abort "gptel-request" (buf))
+(declare-function gptel-backend-p "gptel" (object))
+(declare-function gptel-backend-name "gptel" (backend))
 
 (defvar gptel-backend nil)
 (defvar gptel-model nil)
@@ -161,7 +163,7 @@ REQUEST supplies reviewed source bounds for line-range fallback anchoring."
 	 (anchored (org-copilot-llm-anchor-comments source-buffer comments request)))
     (message "Org Copilot: installing %d gptel comment(s)" (length anchored))
     (with-current-buffer source-buffer
-      (org-copilot-install-review-comments anchored)
+      (org-copilot-install-review-comments anchored request)
       (when summary
 	(org-copilot-add-chat-message 'assistant summary nil nil request))
       (org-copilot-open))
@@ -427,7 +429,7 @@ REQUEST supplies reviewed source bounds for line-range fallback anchoring."
 	(car hunks))))
 
 (defun org-copilot-gptel--persist-thread-comment
-    (source-buffer source-file thread thread-id suggestion-ids)
+    (source-buffer source-file thread thread-id suggestion-ids &optional request)
   "Persist linked comment for THREAD in SOURCE-BUFFER/SOURCE-FILE."
   (when-let* ((hunk (org-copilot-gptel--primary-hunk thread))
 	      (bounds (org-copilot-gptel--hunk-comment-bounds source-buffer hunk)))
@@ -435,7 +437,7 @@ REQUEST supplies reviewed source bounds for line-range fallback anchoring."
       (let ((record (org-comments-create-record
 		     source-file (car bounds) (cdr bounds)
 		     (or (plist-get thread :summary) "AI suggestion")
-		     nil "org-copilot" (format-time-string "%FT%T%z"))))
+		     nil (org-copilot-request-contributor request) (format-time-string "%FT%T%z"))))
 	(setq record (plist-put record :provider "org-copilot"))
 	(setq record (plist-put record :org-copilot-session-id "default"))
 	(setq record (plist-put record :suggestion-thread-id thread-id))
@@ -510,7 +512,7 @@ REQUEST supplies reviewed source bounds for line-range fallback anchoring."
 			      source-buffer (plist-get request :focus-comment-id)
 			      thread-id suggestion-ids))
 			(org-copilot-gptel--persist-thread-comment
-			 source-buffer source-file new-thread thread-id suggestion-ids)))
+			 source-buffer source-file new-thread thread-id suggestion-ids request)))
 	      (setq new-thread (plist-put new-thread :comment-id comment-id))
 	      (unless comment-id
 		(push thread-id unanchored-thread-ids)
@@ -765,12 +767,18 @@ would risk cancelling an independent request.  No source text is copied."
     buffer))
 
 (defun org-copilot-gptel--send (operation request prompt complete)
-  "Send PROMPT for OPERATION and REQUEST, calling COMPLETE on final text.
+  "Send PROMPT for OPERATION and REQUEST using the captured transport profile.
+COMPLETE receives final text and REQUEST with its recorded contributor label.
 Session validity belongs to Copilot; only transport assembly lives here."
   (when (org-copilot-request-current-p request 'pending)
     (let* ((source (plist-get request :source-buffer))
 	   (gptel-backend (or org-copilot-gptel-backend gptel-backend))
 	   (gptel-model (or org-copilot-gptel-model gptel-model))
+	   (request (plist-put (copy-sequence request) :contributor
+			       (or (and (fboundp 'gptel-backend-p)
+					(gptel-backend-p gptel-backend)
+					(gptel-backend-name gptel-backend))
+				   "gptel")))
 	   (stream (org-copilot-gptel--stream-required-p gptel-backend))
 	   (transport (org-copilot-gptel--transport-buffer source))
 	   chunks)
@@ -790,7 +798,8 @@ Session validity belongs to Copilot; only transport assembly lives here."
 		    ((and stream (stringp response)) (push response chunks))
 		    ((org-copilot-gptel--chat-response-complete-p response stream)
 		     (funcall complete
-			      (org-copilot-gptel--chat-response-text response chunks stream)))
+			      (org-copilot-gptel--chat-response-text response chunks stream)
+			      request))
 		    ((not response)
 		     (org-copilot-gptel--fail-request operation request prompt response info)))
 		 (error
@@ -814,10 +823,10 @@ Session validity belongs to Copilot; only transport assembly lives here."
 	 (gptel-tools (append web-tools gptel-tools)))
     (org-copilot-gptel--send
      "chat" request (org-copilot-gptel-chat-prompt request)
-     (lambda (text)
+     (lambda (text captured)
        (org-copilot-gptel--handle-chat-response
-	text (plist-get request :source-buffer) (plist-get request :focus-comment-id)
-	(plist-get request :context-id) request)))))
+	text (plist-get captured :source-buffer) (plist-get captured :focus-comment-id)
+	(plist-get captured :context-id) captured)))))
 
 (defun org-copilot-gptel-review (request)
   "Request asynchronous review for REQUEST using gptel."
@@ -826,9 +835,9 @@ Session validity belongs to Copilot; only transport assembly lives here."
   (let ((request (org-copilot-start-request request)))
     (org-copilot-gptel--send
      "review" request (org-copilot-gptel-review-prompt request)
-     (lambda (text)
+     (lambda (text captured)
        (org-copilot-gptel--handle-review-response
-	text (plist-get request :source-buffer) request)))))
+	text (plist-get captured :source-buffer) captured)))))
 
 ;;;###autoload
 (defun org-copilot-gptel-enable ()

@@ -138,6 +138,7 @@
     (let ((output (buffer-substring-no-properties (point-min) (point-max))))
       (should (string-match-p "\\`🤖 \\[OPEN\\] “Intro”" output))
       (should-not (string-match-p "ai-1" output))
+      (should (string-match-p "\nCopilot\n" output))
       (should-not (string-match-p "org-copilot" output)))))
 
 (ert-deftest org-comments-panel-render-shows-suggestion-badge-on-metadata-line ()

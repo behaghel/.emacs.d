@@ -16,6 +16,47 @@
 
 (setq org-copilot-gptel-defer-chat-postprocessing nil)
 
+(ert-deftest org-copilot-gptel-records-the-sent-contributor-not-the-current-backend ()
+  "Comments and proposals keep their captured producer through a disk reload."
+  (let* ((directory (make-temp-file "copilot-contributor-" t))
+	 (file (expand-file-name "draft.org" directory))
+	 (org-copilot-gptel-backend 'backend-a)
+	 (org-copilot-gptel-defer-chat-postprocessing nil)
+	 (org-copilot-chat-open-panel-on-comments nil)
+	 source callback)
+    (unwind-protect
+	(save-window-excursion
+	  (with-temp-file file (insert "Alpha paragraph.\n"))
+	  (setq source (find-file-noselect file))
+	  (with-current-buffer source
+	    (org-mode)
+	    (cl-letf (((symbol-function 'gptel-backend-p) (lambda (_) t))
+		      ((symbol-function 'gptel-backend-name)
+		       (lambda (backend) (if (eq backend 'backend-a) "Backend A" "Backend B")))
+		      ((symbol-function 'org-copilot-gptel--stream-required-p) (lambda (&rest _) nil))
+		      ((symbol-function 'gptel-request)
+		       (lambda (_prompt &rest args) (setq callback (plist-get args :callback)))))
+	      (org-copilot-gptel-chat
+	       (list :source-buffer source :message "Improve this paragraph."
+		     :source-content (buffer-string) :chat-context '(:type full-document)))
+	      (setq org-copilot-gptel-backend 'backend-b)
+	      (funcall callback
+		       "{\"message\":\"A proposal and note.\",\"intent\":\"edit\",\"suggestion_threads\":[{\"summary\":\"Clarify it.\",\"suggestions\":[{\"hunks\":[{\"kind\":\"replace\",\"primary\":true,\"original\":\"Alpha paragraph.\",\"replacement\":\"A clearer paragraph.\"}]}]}],\"comments\":[{\"body\":\"A separate note.\",\"target_text\":\"Alpha paragraph.\",\"author\":\"Model-invented author\"}]}"
+		       '(:status success)))
+	    (should (equal "Alpha paragraph.\n" (buffer-string))))
+	  (kill-buffer source)
+	  (setq source (find-file-noselect file))
+	  (let ((comments (org-comments-collect source t)))
+	    (should (= 2 (length comments)))
+	    (dolist (comment comments)
+	      (should (equal "Backend A" (plist-get comment :author))))))
+      (dolist (buffer (buffer-list))
+	(when (and (buffer-file-name buffer)
+		   (string-prefix-p directory (buffer-file-name buffer)))
+	  (with-current-buffer buffer (set-buffer-modified-p nil))
+	  (kill-buffer buffer)))
+      (delete-directory directory t))))
+
 (ert-deftest org-copilot-gptel-focus-navigation-keeps-the-conversation ()
   "Section/comment focus preserves displayed chat and the next model input."
   (with-temp-buffer

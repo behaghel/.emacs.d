@@ -11,6 +11,29 @@
 (require 'org-copilot)
 (require 'org-comments-store)
 
+(ert-deftest org-copilot-durable-comments-record-the-host-contributor ()
+  "The comment author comes from the request, never a model-supplied author."
+  (let* ((directory (make-temp-file "copilot-author-" t))
+	 (file (expand-file-name "draft.org" directory)) source)
+    (unwind-protect
+	(progn
+	  (with-temp-file file (insert "Alpha paragraph.\n"))
+	  (setq source (find-file-noselect file))
+	  (org-copilot-install-durable-comment
+	   source '(:id "herbert-note" :source-start 1 :source-end 17
+			:body "Clarify this." :author "Model-invented author")
+	   '(:contributor "Herbert"))
+	  (org-copilot-install-durable-comment
+	   source '(:id "legacy-note" :source-start 1 :source-end 17 :body "Older route."))
+	  (let ((comments (org-comments-collect source t)))
+	    (should (equal "Herbert" (plist-get (cl-find "herbert-note" comments :key (lambda (item) (plist-get item :id)) :test #'equal) :author)))
+	    (should (equal "Copilot" (plist-get (cl-find "legacy-note" comments :key (lambda (item) (plist-get item :id)) :test #'equal) :author)))))
+      (dolist (buffer (buffer-list))
+	(when (and (buffer-file-name buffer) (string-prefix-p directory (buffer-file-name buffer)))
+	  (with-current-buffer buffer (set-buffer-modified-p nil))
+	  (kill-buffer buffer)))
+      (delete-directory directory t))))
+
 (ert-deftest org-copilot-core-loads-without-gptel ()
   "Core org-copilot loads without the optional gptel adapter."
   (should (featurep 'org-copilot))

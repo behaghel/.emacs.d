@@ -507,7 +507,7 @@ Return a plist with install counts and a reachability receipt."
 	  (let ((installed-comment
 		 (org-copilot-install-durable-comment
 		  source-buffer
-		  (org-copilot-llm--rewrite-chat-comment-id comment prompt))))
+		  (org-copilot-llm--rewrite-chat-comment-id comment prompt) request)))
 	    (push (org-copilot-comment-id installed-comment) installed-ids)
 	    (setq installed (1+ installed))))
 	(org-copilot-mode 1)
@@ -533,13 +533,13 @@ Return a plist with install counts and a reachability receipt."
 	    :skipped-unanchored skipped-unanchored
 	    :skipped-limit skipped-limit))))
 
-(defun org-copilot-install-review-comments (comments)
-  "Install normalized review COMMENTS into durable Org sidecars."
+(defun org-copilot-install-review-comments (comments &optional request)
+  "Install review COMMENTS with REQUEST's recorded contributor in Org sidecars."
   (let (installed)
     (dolist (comment (cl-remove-if-not
 		      #'org-copilot-llm--review-comment-installable-p
 		      comments))
-      (push (org-copilot-install-durable-comment (current-buffer) comment)
+      (push (org-copilot-install-durable-comment (current-buffer) comment request)
 	    installed))
     (org-copilot-mode 1)
     (when (fboundp 'org-copilot-refresh-overlays)

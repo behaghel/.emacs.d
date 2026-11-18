@@ -28,6 +28,27 @@
 (unless (featurep 'org-phscroll)
   (provide 'org-phscroll))
 
+(defconst hub/prose-wrapping-test--module-file
+  (expand-file-name "../../../modules/interactive/writing/prose.el"
+		    (file-name-directory (or load-file-name buffer-file-name)))
+  "Prose module whose dependency declaration is checked.")
+
+(ert-deftest hub/prose-wrapping-uses-maintainer-github-source ()
+  "Fetch the locked wrapping package from its maintainer's GitHub repository."
+  (with-temp-buffer
+    (insert-file-contents hub/prose-wrapping-test--module-file)
+    (goto-char (point-min))
+    (let (declaration)
+      (while (not declaration)
+	(let ((form (read (current-buffer))))
+	  (when (and (consp form)
+		     (eq (car form) 'use-package)
+		     (eq (cadr form) 'visual-fill-column))
+	    (setq declaration form))))
+      (should (equal (plist-get (cddr declaration) :straight)
+		     '(:type git :host github
+			     :repo "joostkremers/visual-fill-column"))))))
+
 (ert-deftest hub/prose-wrapping-is-visual-not-hard-fill ()
   "Verify prose wrapping is visual and leaves hard auto-fill disabled."
   (with-temp-buffer
