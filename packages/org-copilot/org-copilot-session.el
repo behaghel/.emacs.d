@@ -304,8 +304,15 @@ When no durable suggestion hunk is linked, fall back to COMMENT's target text."
 	(org-suggestions-write-sidecar source-file threads))
       changed)))
 
-(defun org-copilot-install-durable-comment (source-buffer comment)
-  "Install COMMENT into SOURCE-BUFFER's durable comments sidecar."
+(defun org-copilot-request-contributor (request)
+  "Return REQUEST's host-recorded contributor, or the generic Copilot label."
+  (let ((contributor (plist-get request :contributor)))
+    (if (and (stringp contributor) (not (string-empty-p contributor)))
+	contributor
+      "Copilot")))
+
+(defun org-copilot-install-durable-comment (source-buffer comment &optional request)
+  "Install COMMENT in SOURCE-BUFFER with REQUEST's host-recorded contributor."
   (unless (and (buffer-live-p source-buffer)
 	       (fboundp 'org-comments-create-record)
 	       (fboundp 'org-comments-append-to-sidecar))
@@ -325,7 +332,7 @@ When no durable suggestion hunk is linked, fall back to COMMENT's target text."
 	(user-error "AI comment has no durable source anchor"))
       (setq record (org-comments-create-record
 		    source-file start end body
-		    (plist-get comment :id) "org-copilot"
+		    (plist-get comment :id) (org-copilot-request-contributor request)
 		    (format-time-string "%FT%T%z")))
       (setq record (plist-put record :provider "org-copilot"))
       (setq record (plist-put record :org-copilot-session-id "default"))
