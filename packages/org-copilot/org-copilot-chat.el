@@ -533,7 +533,7 @@ assistant responses start where the user begins reading."
 (defun org-copilot-chat--open-bottom-view (source-buffer)
   "Open the Org Copilot bottom chat view for SOURCE-BUFFER."
   (with-current-buffer source-buffer
-    (org-copilot-mode 1))
+    (unless org-copilot-mode (org-copilot-mode 1)))
   (let* ((buffer (context-panels-open-bottom-view 'copilot-chat source-buffer))
 	 (window (get-buffer-window buffer t)))
     (org-copilot-chat-sync-diff source-buffer)

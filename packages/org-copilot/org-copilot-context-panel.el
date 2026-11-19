@@ -255,7 +255,7 @@ Comment side-panel UI is owned by the unified `org-comments' provider."
   (interactive)
   (let ((source (org-copilot--active-source-buffer)))
     (with-current-buffer source
-      (org-copilot-mode 1)
+      (unless org-copilot-mode (org-copilot-mode 1))
       (if (fboundp 'org-comments-open)
 	  (org-comments-open)
 	(context-panels-open source)))))
@@ -266,7 +266,7 @@ Comment side-panel UI is owned by the unified `org-comments' provider."
   (interactive)
   (let ((source (org-copilot--active-source-buffer)))
     (with-current-buffer source
-      (org-copilot-mode 1))
+      (unless org-copilot-mode (org-copilot-mode 1)))
     (org-copilot-open)
     (with-current-buffer source
       (org-copilot-chat-full-document))))

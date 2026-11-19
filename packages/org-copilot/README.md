@@ -18,7 +18,8 @@ or using another AI assistant does not enable Copilot, restore its artifacts, or
 configure its adapters. Explicitly enabling `org-copilot-mode` or opening Copilot
 chat/panels activates the integration. Disabling the mode removes its provider and
 source overlays. Window tracking belongs to context-panels, not a global Copilot
-selection hook.
+selection hook. Opening or refreshing panels for an already enabled source does
+not rerun activation or replace its explicitly selected adapter.
 
 ## Package boundary
 
@@ -50,6 +51,13 @@ source or a model-supplied baseline. Org
 Suggestions owns conflict comparison, deliberate reconciliation and revalidation
 at acceptance. Adapters need no second revision policy. Unchanged targets remain
 acceptable after unrelated edits; missing request evidence requires reconciliation.
+
+Prepared chat contributions enter through `org-copilot-complete-chat-request`,
+independently of the generation transport or prose parsing. Completion and
+artifact installation retain the captured request's source/session fence.
+Re-delivering an existing candidate identity preserves its status and acceptance
+history rather than appending or reviving it; incompatible content under that
+identity is refused. The editor's existing sidecars remain the projection store.
 
 ## Conversation and editing focus
 

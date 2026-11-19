@@ -497,6 +497,17 @@ REQUEST supplies reviewed source bounds for line-range fallback anchoring."
 		  (mapcar (lambda (candidate)
 			    (plist-put candidate :parent-id focus-suggestion-id))
 			  candidates)))
+	  (when existing
+	    (setq candidates
+		  (cl-remove-if
+		   (lambda (candidate)
+		     (when-let* ((prior (cl-find (plist-get candidate :id)
+						 (plist-get existing :candidates)
+						 :key (lambda (item) (plist-get item :id)) :test #'equal)))
+		       (unless (org-suggestions-candidate-same-edits-p candidate prior)
+			 (error "Existing suggestion identity has different content"))
+		       t))
+		   candidates)))
 	  (if existing
 	      (plist-put existing :candidates
 			 (append (plist-get existing :candidates) candidates))
@@ -679,22 +690,30 @@ chat viewport."
       (funcall postprocess))))
 
 (defun org-copilot-gptel--handle-chat-response
-    (text source-buffer comment-id context-id request)
-  "Handle complete chat response TEXT for SOURCE-BUFFER."
-  (when (and (stringp text) (org-copilot-begin-completion request))
+    (text _source-buffer _comment-id _context-id request)
+  "Handle complete chat response TEXT for captured REQUEST."
+  (when (stringp text)
     (let* ((parse-start (float-time))
-	   (parsed-raw (org-copilot-llm-parse-chat-response text))
-	   (parsed (org-copilot-gptel--drop-disallowed-chat-suggestion
-		    parsed-raw request))
-	   (parse-ms (org-copilot-gptel--milliseconds-since parse-start))
-	   (message (plist-get parsed :message)))
-      (with-current-buffer source-buffer
-	(org-copilot-add-chat-message
-	 'assistant message comment-id context-id request))
-      (org-copilot-gptel--render-chat-buffer source-buffer 'assistant)
+	   (parsed (org-copilot-llm-parse-chat-response text)))
+      (org-copilot-complete-chat-request
+       request parsed text (org-copilot-gptel--milliseconds-since parse-start)))))
+
+(defun org-copilot-complete-chat-request (request parsed &optional raw-response parse-ms)
+  "Complete captured REQUEST with prepared PARSED chat contributions.
+This does not invoke a model or parse conversational prose.  RAW-RESPONSE
+and PARSE-MS optionally preserve producer diagnostics.  The shared request
+fence and native installer own completion, source checks and persistence."
+  (when (org-copilot-begin-completion request)
+    (let* ((source (plist-get request :source-buffer))
+	   (comment (plist-get request :focus-comment-id))
+	   (context (plist-get request :context-id))
+	   (safe (org-copilot-gptel--drop-disallowed-chat-suggestion parsed request))
+	   (message (plist-get safe :message)))
+      (with-current-buffer source
+	(org-copilot-add-chat-message 'assistant message comment context request))
+      (org-copilot-gptel--render-chat-buffer source 'assistant)
       (org-copilot-gptel--defer-chat-postprocessing
-       text source-buffer comment-id context-id request parsed-raw parsed message
-       parse-ms))))
+       raw-response source comment context request parsed safe message (or parse-ms 0)))))
 
 (defun org-copilot-gptel--handle-review-response (text source-buffer request)
   "Handle complete review response TEXT for SOURCE-BUFFER."

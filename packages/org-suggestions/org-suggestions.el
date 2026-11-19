@@ -376,6 +376,20 @@ Allow only a final newline just outside the accessible end, as excluded by
 			      (lambda () (equal title (org-get-heading t t t t))) bounds)))))))
     (and (= (length matches) 1) (car matches))))
 
+(defun org-suggestions-candidate-same-edits-p (left right)
+  "Return non-nil if LEFT and RIGHT propose the same ordered source edits.
+Ignore lifecycle and acceptance receipts.  Missing optional hunk fields
+and fields restored as nil have the same meaning."
+  (let ((left-hunks (plist-get left :hunks))
+	(right-hunks (plist-get right :hunks)))
+    (and (= (length left-hunks) (length right-hunks))
+	 (cl-every
+	  (lambda (a b)
+	    (cl-every (lambda (key) (equal (plist-get a key) (plist-get b key)))
+		      '(:kind :primary :section-title :section-id :section-custom-id
+			      :section-path :anchor-text :placement :original :replacement)))
+	  left-hunks right-hunks))))
+
 (defun org-suggestions-candidate-with-source-context (candidate source-context)
   "Return a copy of CANDIDATE bound to request-time Org SOURCE-CONTEXT.
 SOURCE-CONTEXT is evidence from `org-suggestions-capture-source-context',

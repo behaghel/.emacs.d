@@ -10,6 +10,27 @@
 (require 'org-copilot)
 (require 'org-copilot-context-panel)
 
+(ert-deftest org-copilot-openers-preserve-the-explicit-source-adapter ()
+  "Opening panels must not rerun activation hooks that select a default model route."
+  (with-temp-buffer
+    (org-mode)
+    (let* ((activations 0)
+	   (org-copilot-mode-hook
+	    (list (lambda () (cl-incf activations)
+		    (setq-local org-copilot-chat-function 'synthetic-default-adapter)))))
+      (org-copilot-mode 1)
+      (setq-local org-copilot-chat-function 'synthetic-selected-adapter)
+      (cl-letf (((symbol-function 'org-comments-open) (lambda () nil))
+		((symbol-function 'org-copilot-chat-full-document) (lambda () nil))
+		((symbol-function 'context-panels-open-bottom-view) (lambda (&rest _) (current-buffer)))
+		((symbol-function 'org-copilot-chat-sync-diff) (lambda (&rest _) nil))
+		((symbol-function 'get-buffer-window) (lambda (&rest _) nil)))
+	(org-copilot-open)
+	(org-copilot-open-panels)
+	(org-copilot-chat--open-bottom-view (current-buffer)))
+      (should (= 1 activations))
+      (should (eq org-copilot-chat-function 'synthetic-selected-adapter)))))
+
 (ert-deftest org-copilot-context-panel-does-not-install-global-window-watch ()
   "Explicit activation must not leave a global Copilot selection callback."
   (let ((window-selection-change-functions nil))
