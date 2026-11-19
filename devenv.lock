@@ -80,11 +80,11 @@
     "nixos-config": {
       "flake": false,
       "locked": {
-        "lastModified": 1794873868,
-        "narHash": "sha256-QyJ8hzZzijI19bJPPCziREy7kgmZ776d0Ry3st5G+YM=",
+        "lastModified": 1795085524,
+        "narHash": "sha256-uf2i5WynAuhsLXowXTseu/AHWrOgvoKzK1cwsGfwUog=",
         "owner": "behaghel",
         "repo": "nixos-config",
-        "rev": "8e0baea3bf87ee2e48516d9749829be3799767a7",
+        "rev": "c9bc106ce8fb57d89f486e9ba41b92de91352905",
         "type": "github"
       },
       "original": {
