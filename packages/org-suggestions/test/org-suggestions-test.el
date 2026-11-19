@@ -9,6 +9,14 @@
 (require 'org)
 (require 'org-suggestions)
 
+(ert-deftest org-suggestions-same-edits-ignore-storage-shape-and-lifecycle ()
+  "Re-delivered candidates cannot revive state or hide a changed source edit."
+  (let ((fresh '(:status active :hunks ((:kind replace :original "Old." :replacement "New."))))
+	(stored '(:status accepted :hunks ((:replacement "New." :kind replace :section-path nil :original "Old.")))))
+    (should (org-suggestions-candidate-same-edits-p fresh stored))
+    (plist-put (car (plist-get stored :hunks)) :replacement "Different.")
+    (should-not (org-suggestions-candidate-same-edits-p fresh stored))))
+
 (defun org-suggestions-test--with-source-file (content thunk)
   "Create a temporary Org source with CONTENT and call THUNK with file path."
   (let* ((directory (make-temp-file "org-suggestions-test" t))

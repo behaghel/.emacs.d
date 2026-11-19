@@ -137,6 +137,11 @@ Replacement body only.
   the visible subtree, on success and failure. Request-time visibility still
   limits which sections can supply a baseline.
 
+`org-suggestions-candidate-same-edits-p` compares the ordered proposed source
+edits independently of lifecycle/acceptance receipts and optional-field storage
+normalization. Consumers can recognize a re-delivered proposal without rebuilding
+the hunk schema or replacing an existing acceptance record.
+
 ## Source context and reconciliation
 
 A producer captures immutable evidence in the source buffer when making its

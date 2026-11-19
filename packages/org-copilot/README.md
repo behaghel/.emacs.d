@@ -51,6 +51,13 @@ Suggestions owns conflict comparison, deliberate reconciliation and revalidation
 at acceptance. Adapters need no second revision policy. Unchanged targets remain
 acceptable after unrelated edits; missing request evidence requires reconciliation.
 
+Prepared chat contributions enter through `org-copilot-complete-chat-request`,
+independently of the generation transport or prose parsing. Completion and
+artifact installation retain the captured request's source/session fence.
+Re-delivering an existing candidate identity preserves its status and acceptance
+history rather than appending or reviving it; incompatible content under that
+identity is refused. The editor's existing sidecars remain the projection store.
+
 ## Conversation and editing focus
 
 A conversation is independent of its editing focus. Within the chosen

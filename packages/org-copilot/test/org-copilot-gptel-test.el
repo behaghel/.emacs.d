@@ -16,6 +16,51 @@
 
 (setq org-copilot-gptel-defer-chat-postprocessing nil)
 
+(ert-deftest org-copilot-prepared-contribution-preserves-accepted-receipts-on-redelivery ()
+  "Prepared native data uses shared completion without parsing prose or repeating edits."
+  (let* ((directory (make-temp-file "copilot-native-" t))
+	 (file (expand-file-name "draft.org" directory))
+	 (org-copilot-chat-open-panel-on-comments nil)
+	 (parsed '(:message "Prepared for review." :intent edit
+			    :suggestion-threads ((:id "native-receipt" :summary "Clarify."
+						      :candidates ((:id "native-receipt.1" :status active
+									:hunks ((:kind replace :primary t :original "Original." :replacement "More direct."))))))))
+	 (handled 0)
+	 source)
+    (unwind-protect
+	(save-window-excursion
+	  (with-temp-file file (insert "Original.\n"))
+	  (setq source (find-file-noselect file))
+	  (with-current-buffer source
+	    (org-mode)
+	    (cl-labels ((deliver ()
+			  (org-copilot-complete-chat-request
+			   (org-copilot-start-request
+			    (list :source-buffer source :source-content "Original.\n"
+				  :message "Make it direct." :contributor "Herbert")) parsed)))
+	      (cl-letf (((symbol-function 'org-copilot-llm-parse-chat-response)
+			 (lambda (_) (error "Native data is not assistant prose")))
+			((symbol-function 'org-copilot-debug-record)
+			 (lambda (title &rest _)
+			   (when (equal title "Chat response handled") (cl-incf handled)))))
+		(deliver)
+		(should (equal (buffer-string) "Original.\n"))
+		(org-suggestions-accept-candidate-id source "native-receipt.1")
+		(should (equal (buffer-string) "More direct.\n"))
+		(goto-char (point-max)) (insert "Human addition.\n")
+		(deliver)
+		(should (equal (buffer-string) "More direct.\nHuman addition.\n"))
+		(let* ((threads (org-suggestions-load-sidecar file))
+		       (candidates (plist-get (car threads) :candidates)))
+		  (should (= handled 2))
+		  (should (= 1 (length threads)))
+		  (should (= 1 (length candidates)))
+		  (should (eq 'accepted (plist-get (car candidates) :status))))))))
+      (dolist (buffer (buffer-list))
+	(when (and (buffer-file-name buffer) (string-prefix-p directory (buffer-file-name buffer)))
+	  (with-current-buffer buffer (set-buffer-modified-p nil)) (kill-buffer buffer)))
+      (delete-directory directory t))))
+
 (ert-deftest org-copilot-gptel-records-the-sent-contributor-not-the-current-backend ()
   "Comments and proposals keep their captured producer through a disk reload."
   (let* ((directory (make-temp-file "copilot-contributor-" t))
