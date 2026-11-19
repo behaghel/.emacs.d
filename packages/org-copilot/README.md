@@ -18,7 +18,8 @@ or using another AI assistant does not enable Copilot, restore its artifacts, or
 configure its adapters. Explicitly enabling `org-copilot-mode` or opening Copilot
 chat/panels activates the integration. Disabling the mode removes its provider and
 source overlays. Window tracking belongs to context-panels, not a global Copilot
-selection hook.
+selection hook. Opening or refreshing panels for an already enabled source does
+not rerun activation or replace its explicitly selected adapter.
 
 ## Package boundary
 
