@@ -6,7 +6,7 @@ For tasks that edit repository files:
 
 1. Run `git status --short --branch` before editing. Preserve existing changes; never discard, stash, or overwrite someone else's work without permission.
 2. Check `command -v as`: it must resolve to the shared `agent-session`, not a system assembler. If missing or an assembler, bootstrap from a checkout with `devenv -q shell -- as …`. The shared module is pinned through `devenv.yaml` and launches `pi` by default.
-3. If already in this task's managed worktree, verify with `as . status --json` and continue there. A new agent conversation is not a reason to allocate another worktree. Invalid or missing metadata is not permission to repair or replace a session.
+3. If already in this task's managed worktree, verify with `as . list --inspect --json` and continue there. A new agent conversation is not a reason to allocate another worktree. Invalid or missing metadata is not permission to repair or replace a session.
 4. Otherwise use `as <task-slug> create --json` and its returned `session.worktreePath` and `session.branch`. Do not use `start` from an existing agent: it launches nested Pi. Human operators may use `as <task-slug> start`.
 5. Keep edits on the worktree's `agent/` branch or a task-specific `feat/`, `fix/`, `docs/`, or `chore/` branch there. Use absolute worktree paths for read/edit/write tools; a command's `cd` does not relocate later tool calls.
 6. Creation requires a clean primary checkout on its upstream default branch. If blocked, report and ask Hubert; never switch the user's primary branch, move changes, relax guards, or fabricate a session. Initial adoption must be committed before creating sessions.
