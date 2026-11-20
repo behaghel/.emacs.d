@@ -271,6 +271,21 @@ paragraph spacing; inner gaps use border padding so shading stays continuous."
 	     '(first line last single)))
 	  '("info" "note" "warning" "tip" "important"))))
 
+(defun hub/org-google-docs--section-break-style-definitions (theme)
+  "Return a themed rule and an unbordered outside separator for THEME."
+  (let ((color (hub/org-google-docs--theme-color theme 'heading-muted))
+	(body (plist-get (alist-get 'gdocs-body (hub/org-google-docs--base-text-style-definitions theme)) :text)))
+    `((gdocs-section-break :parent normal
+			   :paragraph (:space-above 6 :space-below 6 :indent-start 0 :indent-first-line 0 :indent-end 0
+						    :borders ((top :width 0 :padding 0) (left :width 0 :padding 0)
+							      (right :width 0 :padding 0) (bottom :width 0.5 :padding 0 :color ,color)))
+			   :text (:font-size 1))
+      (gdocs-section-break-separator :parent normal
+				     :paragraph (:space-above 0 :space-below 0 :indent-start 0 :indent-first-line 0 :indent-end 0
+							      :borders ((top :width 0 :padding 0) (left :width 0 :padding 0)
+									(right :width 0 :padding 0) (bottom :width 0 :padding 0)))
+				     :text ,(append (copy-sequence body) '(:font-scale 1))))))
+
 (defun hub/org-google-docs--center-style-definitions (theme)
   "Return centered prose roles using THEME's body text and paragraph gaps."
   (let ((body (plist-get (alist-get 'gdocs-body (hub/org-google-docs--base-text-style-definitions theme)) :text)))
@@ -306,6 +321,7 @@ When THEME-ID is nil, use the current buffer's `#+GDOCS_THEME:' override or
      (hub/org-google-docs--quote-block-style-definitions theme)
      (hub/org-google-docs--verse-style-definitions theme)
      (hub/org-google-docs--center-style-definitions theme)
+     (hub/org-google-docs--section-break-style-definitions theme)
      (hub/org-google-docs--callout-style-definitions theme)
      (hub/org-google-docs--compact-callout-style-definitions theme)
      `((gdocs-image-caption

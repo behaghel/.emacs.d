@@ -31,6 +31,10 @@
      :categories ((:structure tables))
      :reason "Google Docs supports tables."
      :target "Preserve grid structure and cell text.")
+    (section-breaks
+     :categories ((:structure section-breaks))
+     :reason "Versioned separator paragraphs render a visible themed line; native horizontal-rule objects are imported explicitly."
+     :target "Preserve section-break identity independently of presentation and retain surrounding prose without inherited borders.")
     (center-blocks
      :categories ((:blocks center))
      :reason "Versioned centered paragraph groups preserve block identity and rich prose."

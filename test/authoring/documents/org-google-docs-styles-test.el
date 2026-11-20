@@ -295,5 +295,20 @@
 	(should (= (plist-get (plist-get style :paragraph) :space-below) 0))
 	(should (eq (plist-get (plist-get style :paragraph) :alignment) 'center))))))
 
+(ert-deftest hub/org-google-docs-section-break-is-visible-themed-and-does-not-leak ()
+  "A themed thin separator has outside spacing and an explicitly cleared guard."
+  (let* ((definitions (hub/org-google-docs-style-definitions 'veriff-working))
+	 (style (alist-get 'gdocs-section-break definitions))
+	 (paragraph (plist-get style :paragraph))
+	 (border (cdr (assq 'bottom (plist-get paragraph :borders))))
+	 (outside (alist-get 'gdocs-section-break-separator definitions)))
+    (should (= (plist-get border :width) 0.5))
+    (should (stringp (plist-get border :color)))
+    (should (= (plist-get paragraph :space-above) 6))
+    (should (= (plist-get paragraph :space-below) 6))
+    (should (= (plist-get (plist-get style :text) :font-size) 1))
+    (should (= (plist-get (cdr (assq 'bottom (plist-get (plist-get outside :paragraph) :borders))) :width) 0))
+    (should (= (plist-get (plist-get outside :text) :font-scale) 1))))
+
 (provide 'org-google-docs-styles-test)
 ;;; org-google-docs-styles-test.el ends here

@@ -118,5 +118,15 @@
       (should (= (alist-get 'center (plist-get audit :blocks)) 1))
       (should (= (plist-get entry :count) 1)))))
 
+(ert-deftest org-google-docs-semantics-classifies-section-breaks-explicitly ()
+  "Existing section-break inventory maps to visible reversible publishing support."
+  (with-temp-buffer
+    (insert "Before.\n\n-----\nAfter.\n")
+    (org-mode)
+    (let* ((audit (hub/org-typographic-semantics-audit-buffer))
+	   (entry (org-google-docs-semantics-test--entry
+		   (org-google-docs-semantics-classify-audit audit) :supported 'section-breaks)))
+      (should (= (plist-get entry :count) 1)))))
+
 (provide 'org-google-docs-semantics-test)
 ;;; org-google-docs-semantics-test.el ends here
