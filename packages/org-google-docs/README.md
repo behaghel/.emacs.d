@@ -72,8 +72,14 @@ style configuration.
 Package classification tests consume plain audit fixtures. Tests that load this
 repository's typographic auditor and specimen belong to the consumer integration
 suite, not the reusable package. Offline diagnostics use real local conversion
-and request planning without authentication or remote mutation. Live conformance
-requires the exact explicit flag `ORG_GOOGLE_DOCS_LIVE_TESTS=1`; other values do
+and request planning without authentication or remote mutation. The mixed canary
+planner accepts explicit source, snapshot and reply files rather than live-session
+state. Each phase uses a fresh empty artifact directory. Native reference creation
+and segment filling require revision-guarded plans; verification checks raw native
+fields and independently sourced and freshly pulled no-op plans. The bounded
+mixed specimen contains one supported named footnote reference. These offline
+checks do not replace rendered or browser acceptance and do not test Drive upload.
+Live conformance requires the exact explicit flag `ORG_GOOGLE_DOCS_LIVE_TESTS=1`; other values do
 not authorize it. Live account setup consumes explicit environment values or
 already configured gdocs accounts, never private consumer callbacks. Forced pull
 previews bind upstream auto-sync/integrity controls dynamically even when the
