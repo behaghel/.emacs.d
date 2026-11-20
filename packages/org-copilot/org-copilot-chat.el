@@ -32,7 +32,7 @@
 
 (defcustom org-copilot-comment-preview-length 240
   "Maximum characters in a Copilot side-card preview, or nil for full text.
-The full stored explanation remains available through Why and sources."
+The right arrow opens the full stored explanation."
   :type '(choice (const :tag "Full text" nil) (integer :tag "Characters"))
   :group 'org-copilot)
 
@@ -50,10 +50,10 @@ This is presentation state, not another conversation or explanation store.")
 	   (limit (buffer-local-value 'org-copilot-comment-preview-length source)))
       (when (and (stringp id) (not (string-empty-p id)))
 	(when (and limit (> (length text) (max 1 limit)))
-	  (let* ((prefix (substring text 0 (1- (max 1 limit))))
+	  (let* ((prefix (substring text 0 (max 0 (- limit 2))))
 		 (boundary (string-match "[[:space:]][^[:space:]]*\\'" prefix)))
-	    (setq text (concat (substring prefix 0 (or boundary (length prefix))) "…"))))
-	(list :text text :label "Why and sources"
+	    (setq text (substring prefix 0 (or boundary (length prefix))))))
+	(list :text text :label "→" :inline t
 	      :open (lambda () (org-copilot-chat-show-explanation source id)))))))
 
 (defun org-copilot-chat-show-explanation (source comment-id)
@@ -403,11 +403,10 @@ With NOERROR, return nil when its chat is not visible."
       (_ "🌐 Full document"))))
 
 (defun org-copilot-chat--focused-comment-body-message (source-buffer)
-  "Return focused comment body as a Copilot message for SOURCE-BUFFER."
+  "Return SOURCE-BUFFER's selected comment explanation, not a chat turn."
   (when-let* ((comment (org-copilot-chat--focused-comment source-buffer))
 	      (body (plist-get comment :body)))
-    (list :role 'assistant
-	  :content body
+    (list :content body
 	  :comment-id (org-copilot-comment-id comment))))
 
 (defun org-copilot-chat--role-label (role)
@@ -475,13 +474,25 @@ With NOERROR, return nil when its chat is not visible."
 	    (forward-line 1)))
 	(set-marker end nil)))))
 
+(defun org-copilot-chat--timestamp-label (created-at)
+  "Format recorded CREATED-AT in local time without inventing missing dates."
+  (condition-case nil
+      (if (and (stringp created-at) (not (string-empty-p created-at)))
+	  (format-time-string "[%H:%M]" (date-to-time created-at))
+	"[time unknown]")
+    (error "[time unknown]")))
+
 (defun org-copilot-chat--insert-message (message)
   "Insert one chat MESSAGE plist into the current buffer."
   (let* ((role (plist-get message :role))
 	 (label (org-copilot-chat--role-label role))
 	 (content (or (plist-get message :content) ""))
 	 (start (point)))
-    (insert (propertize label 'face (org-copilot-chat--role-face role)))
+    (insert (propertize
+	     (format "%s %s:"
+		     (org-copilot-chat--timestamp-label (plist-get message :created-at)) label)
+	     'face (org-copilot-chat--role-face role)
+	     'help-echo (or (plist-get message :created-at) "No recorded timestamp")))
     (insert "\n")
     (org-copilot-chat--insert-indented-content
      content
@@ -516,12 +527,12 @@ label line."
 
 (defun org-copilot-chat-scroll-to-last-message (source-buffer role)
   "Scroll visible SOURCE-BUFFER chat windows to the last message with ROLE.
-The first content line is placed at the top of the viewport so completed
-assistant responses start where the user begins reading."
+The recorded time and speaker stay visible at the top of the viewport
+rather than scrolling just past the response header."
   (when-let* ((buffer (get-buffer org-copilot-chat-buffer-name)))
     (with-current-buffer buffer
       (when (eq org-copilot-chat-source-buffer source-buffer)
-	(when-let* ((position (org-copilot-chat--last-message-position role t)))
+	(when-let* ((position (org-copilot-chat--last-message-position role)))
 	  (dolist (window (get-buffer-window-list buffer nil t))
 	    (set-window-point window position)
 	    (set-window-start window position)))))))
@@ -548,13 +559,17 @@ assistant responses start where the user begins reading."
 	       (org-copilot-chat--context-label source-buffer)))
       (cond
        ((or body-message messages)
+	(dolist (message messages)
+	  (org-copilot-chat--insert-message message))
 	(when body-message
 	  (let ((start (point)))
-	    (org-copilot-chat--insert-message body-message)
+	    (insert (propertize "Selected comment — explanation\n" 'face 'bold))
+	    (org-copilot-chat--insert-indented-content (plist-get body-message :content))
+	    (insert "\n")
+	    (remove-text-properties start (point)
+				    '(org-copilot-chat-message nil org-copilot-chat-message-role nil))
 	    (put-text-property start (point) 'org-copilot-chat-explanation
-			       (plist-get body-message :comment-id))))
-	(dolist (message messages)
-	  (org-copilot-chat--insert-message message)))
+			       (plist-get body-message :comment-id)))))
        (t
 	(org-copilot-chat--insert-metadata
 	 (if (org-copilot-chat--focused-comment source-buffer)

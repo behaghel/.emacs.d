@@ -83,7 +83,8 @@
 (defvar-local org-comments-panel-body-presentation-functions nil
   "Functions offering a source-owned compact comment presentation.
 Each receives SOURCE and COMMENT and may return a plist with :text,
-:label and an :open function of no arguments.  Nil preserves normal
+:label and an :open function of no arguments.  Optional :inline puts
+that action at the preview's end.  Nil preserves normal
 body rendering.  Presentations never replace persisted comment bodies.")
 
 (defun org-comments-panel-render--body-presentation (comment)
@@ -97,6 +98,10 @@ body rendering.  Presentations never replace persisted comment bodies.")
 (defun org-comments-panel-render--insert-presentation (presentation)
   "Insert PRESENTATION's preview and explicit opening action."
   (org-comments-panel-render--insert-body (plist-get presentation :text))
+  (when (and (plist-get presentation :inline)
+	     (not (string-empty-p (plist-get presentation :text))))
+    (delete-char -1)
+    (insert " "))
   (insert-text-button
    (plist-get presentation :label)
    'follow-link t

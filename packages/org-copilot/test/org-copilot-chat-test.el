@@ -177,7 +177,7 @@
 		(should (string-match-p "Org Copilot Chat — .* · 💬 Comment ai-1 · active"
 					(buffer-string)))
 		(should-not (string-match-p "^Context" (buffer-string)))
-		(should-not (string-match-p "Copilot\n  Clarify this sentence" (buffer-string)))
+		(should-not (string-match-p "Clarify this sentence" (buffer-string)))
 		(should-not (string-match-p "Comment: Clarify" (buffer-string)))
 		(should-not (string-match-p "Suggestion:" (buffer-string)))
 		(should (string-match-p "Earlier general chat" (buffer-string)))
@@ -264,7 +264,7 @@
 	(org-copilot-chat-send-current-input)
 	(should (equal "" (org-copilot-chat--prompt-text))))
       (with-current-buffer (org-copilot-chat--buffer source)
-	(should (string-match-p "You\n  Explain this" (buffer-string))))
+	(should (string-match-p "You:\n  Explain this" (buffer-string))))
       (should (equal (plist-get (car (org-copilot-chat-messages)) :content)
 		     "Explain this")))))
 
@@ -289,7 +289,7 @@
 	(insert "Explain this")
 	(org-copilot-chat-return-dwim))
       (with-current-buffer (org-copilot-chat--buffer source)
-	(should (string-match-p "You\n  Explain this" (buffer-string))))
+	(should (string-match-p "You:\n  Explain this" (buffer-string))))
       (should (equal (plist-get (car (org-copilot-chat-messages)) :content)
 		     "Explain this")))))
 
@@ -786,8 +786,8 @@
       (when (buffer-live-p source)
 	(kill-buffer source)))))
 
-(ert-deftest org-copilot-chat-scrolls-assistant-content-to-window-top ()
-  "Assistant response scrolling starts at the first answer line."
+(ert-deftest org-copilot-chat-scrolls-assistant-header-to-window-top ()
+  "Assistant response scrolling keeps its timestamp and speaker visible."
   (let ((source (generate-new-buffer " *org copilot assistant scroll source*"))
 	(chat-window nil))
     (unwind-protect
@@ -803,7 +803,7 @@
 	    (should (eq (get-text-property (point)
 					   'org-copilot-chat-message-role)
 			'assistant))
-	    (should (looking-at-p "  First answer line\\."))))
+	    (should (looking-at-p "\\[[0-9][0-9]:[0-9][0-9]\\] Copilot:"))))
       (when (window-live-p chat-window)
 	(delete-window chat-window))
       (when (buffer-live-p source)
@@ -861,7 +861,9 @@
 	      (goto-char (point-min))
 	      (let ((button (next-button (point-min))))
 		(should button)
-		(should (equal (button-label button) "Why and sources"))
+		(should (equal (button-label button) "→"))
+		(should (= (line-number-at-pos (button-start button)) 1))
+		(should-not (string-match-p "…" (buffer-string)))
 		(cl-letf (((symbol-function 'org-copilot-chat-show-explanation)
 			   (lambda (actual-source id) (setq opened (list actual-source id)))))
 		  (button-activate button))))
@@ -964,6 +966,46 @@
 		   (string-prefix-p directory (buffer-file-name buffer)))
 	  (kill-buffer buffer)))
       (delete-directory directory t))))
+
+(ert-deftest org-copilot-chat-displays-recorded-times-oldest-first-with-detail-separate ()
+  "An expanded comment is detail below chronological timestamped conversation."
+  (let* ((source (generate-new-buffer " *chronological chat source*"))
+	 (messages (list
+		    (list :role 'user :content "First question." :created-at
+			  (format-time-string "%FT%T%z" (encode-time 0 11 9 20 11 2026)))
+		    (list :role 'assistant :content "First reply." :created-at
+			  (format-time-string "%FT%T%z" (encode-time 0 12 9 20 11 2026)))
+		    (list :role 'user :content "Latest question." :created-at
+			  (format-time-string "%FT%T%z" (encode-time 0 13 9 20 11 2026))))))
+    (unwind-protect
+	(with-temp-buffer
+	  (org-copilot-chat-mode)
+	  (with-current-buffer source
+	    (setq-local org-copilot-chat-expanded-comment-id "selected-note"))
+	  (cl-letf (((symbol-function 'org-copilot-chat--visible-messages) (lambda (_) messages))
+		    ((symbol-function 'org-copilot-chat--focused-comment-body-message)
+		     (lambda (_) '(:content "Full rationale." :comment-id "selected-note"))))
+	    (org-copilot-chat-render source))
+	  (goto-char (point-min))
+	  (search-forward "[09:11] You:")
+	  (search-forward "First question.")
+	  (search-forward "[09:12] Copilot:")
+	  (search-forward "First reply.")
+	  (search-forward "[09:13] You:")
+	  (search-forward "Latest question.")
+	  (search-forward "Selected comment — explanation")
+	  (should-not (get-text-property (1- (point)) 'org-copilot-chat-message-role))
+	  (search-forward "Full rationale."))
+      (kill-buffer source))))
+
+(ert-deftest org-copilot-chat-never-invents-a-legacy-message-time ()
+  "Legacy and invalid timestamps are visibly unknown, not the current clock."
+  (with-temp-buffer
+    (org-copilot-chat-mode)
+    (org-copilot-chat--insert-message '(:role user :content "Undated."))
+    (org-copilot-chat--insert-message '(:role assistant :content "Malformed." :created-at "not-a-time"))
+    (should (string-match-p (regexp-quote "[time unknown] You:") (buffer-string)))
+    (should (string-match-p (regexp-quote "[time unknown] Copilot:") (buffer-string)))))
 
 (provide 'org-copilot-chat-test)
 ;;; org-copilot-chat-test.el ends here
