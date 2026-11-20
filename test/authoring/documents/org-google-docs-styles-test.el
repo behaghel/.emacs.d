@@ -284,5 +284,16 @@
 			      (and above (equal (alist-get 'startIndex (alist-get 'range update)) index)
 				   (= (alist-get 'magnitude above) (cdr entry))))) requests))))))
 
+(ert-deftest hub/org-google-docs-centered-prose-retains-body-and-paragraph-gaps ()
+  "Centered prose keeps body typography, outer separation and paragraph spacing."
+  (let* ((definitions (hub/org-google-docs-style-definitions 'veriff-working))
+	 (body (plist-get (alist-get 'gdocs-body definitions) :text)))
+    (dolist (role '(first line last single))
+      (let ((style (alist-get (intern (format "gdocs-center-%s" role)) definitions)))
+	(should (equal (plist-get style :text) body))
+	(should (= (plist-get (plist-get style :paragraph) :space-above) 6))
+	(should (= (plist-get (plist-get style :paragraph) :space-below) 0))
+	(should (eq (plist-get (plist-get style :paragraph) :alignment) 'center))))))
+
 (provide 'org-google-docs-styles-test)
 ;;; org-google-docs-styles-test.el ends here

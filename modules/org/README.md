@@ -20,6 +20,9 @@ status: draft
 - Prose paragraphs inside typographic blocks and separate lists retain visible
   separation. List-item contents remain compact; literal code/example blank
   lines retain their exact content rather than being converted into spacing.
+- Centered prose retains authored paragraph boundaries and distinct block
+  boundaries, including empty blocks. Centering does not flatten rich text or
+  leak into following prose. Body typography and paragraph gaps are presentation.
 - Verse retains authored hard lines, stanza gaps, indentation and rich text.
   Verse blocks have visible separation from preceding prose. Consecutive verse
   lines use compact paragraph spacing; the selected body
