@@ -10,6 +10,12 @@
 (defvar gptel--openai-oauth-token-file)
 (defvar org-copilot-gptel-backend)
 (defvar org-copilot-gptel-model)
+(defvar herbert-copilot-program)
+(defvar herbert-copilot-arguments)
+(defvar herbert-copilot-directory)
+(defvar herbert-copilot-home)
+
+(declare-function herbert-copilot-enable "herbert-copilot")
 
 (declare-function gptel-make-openai-oauth "gptel-openai-oauth")
 (declare-function gptel-openai-oauth-p "gptel-openai-oauth")
@@ -18,6 +24,20 @@
 (defgroup hub/ai nil
   "Personal AI integration settings."
   :group 'tools)
+
+(defcustom hub/org-copilot-provider 'herbert
+  "Adapter selected when explicitly activating Org Copilot.
+Independent gptel and Babel retain their own configured route."
+  :type '(choice (const herbert) (const gptel))
+  :group 'hub/ai)
+
+(defcustom hub/herbert-project-directory (expand-file-name "~/ws/veriff/herbert/")
+  "Herbert checkout supplying the client library and project environment."
+  :type 'directory :group 'hub/ai)
+
+(defcustom hub/herbert-home (expand-file-name "~/.herbert/production/")
+  "Live Herbert runtime selected for ordinary Org Copilot conversations."
+  :type 'directory :group 'hub/ai)
 
 (defcustom hub/gptel-cache-api-key t
   "Whether to memoize the OpenAI API key for the current Emacs session."
@@ -163,10 +183,37 @@ Fail closed instead of falling back to an API-key backend."
 	 (message "Org Copilot: failed to enable gptel provider: %s"
 		  (error-message-string err)))))))
 
+(defun hub/org-copilot-enable-herbert ()
+  "Select live Herbert without loading credentials or changing gptel."
+  (condition-case err
+      (let ((load-path (cons (expand-file-name "elisp" hub/herbert-project-directory)
+			     load-path)))
+	(unless (require 'herbert-copilot nil 'noerror)
+	  (user-error "Herbert client library is unavailable"))
+	(unless (eq org-copilot-chat-function #'herbert-copilot-chat)
+	  (setq-local herbert-copilot-program
+		      (or (executable-find "devenv")
+			  (user-error "devenv is unavailable")))
+	  (setq-local herbert-copilot-arguments '("-q" "shell" "--" "herbert"))
+	  (setq-local herbert-copilot-directory hub/herbert-project-directory)
+	  (setq-local herbert-copilot-home hub/herbert-home))
+	(herbert-copilot-enable))
+    (error
+     (setq-local org-copilot-chat-function nil org-copilot-review-function nil)
+     (message "Org Copilot: Herbert unavailable: %s; restore it and re-enable org-copilot-mode. No gptel fallback was selected"
+	      (error-message-string err)))))
+
+(defun hub/org-copilot-configure-adapter ()
+  "Configure the selected personal Copilot adapter, without provider fallback."
+  (pcase hub/org-copilot-provider
+    ('herbert (hub/org-copilot-enable-herbert))
+    ('gptel (hub/org-copilot-enable-gptel))
+    (_ (user-error "Unknown Org Copilot provider: %s" hub/org-copilot-provider))))
+
 (defun hub/org-copilot-configure-on-activation ()
   "Configure Copilot's adapter only when its source mode is enabled."
   (when (bound-and-true-p org-copilot-mode)
-    (hub/org-copilot-enable-gptel)))
+    (hub/org-copilot-configure-adapter)))
 
 (defun hub/org-copilot-chat-editing-state ()
   "Enter insert state in personal Copilot chat buffers when Evil is available."
@@ -181,7 +228,8 @@ Fail closed instead of falling back to an API-key backend."
 
 ;; Review requests precede mode activation, unlike the chat/panel commands.
 (with-eval-after-load 'org-copilot-llm
-  (advice-add 'org-copilot-review-dwim :before #'hub/org-copilot-enable-gptel))
+  (advice-remove 'org-copilot-review-dwim #'hub/org-copilot-enable-gptel)
+  (advice-add 'org-copilot-review-dwim :before #'hub/org-copilot-configure-adapter))
 
 (defun hub/org-copilot-babel-with-subscription (generate &rest args)
   "Call GENERATE with ARGS using the selected subscription authentication.
