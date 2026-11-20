@@ -115,6 +115,17 @@
 				 :border-color ,border
 				 :background-color ,background)))))
 
+(defun hub/org-google-docs--example-block-style-definitions (theme)
+  "Return independently themed example-block roles for THEME."
+  (mapcar (lambda (definition)
+	    (let* ((style (copy-tree (cdr definition)))
+		   (paragraph (plist-get style :paragraph)))
+	      (setq paragraph (plist-put paragraph :background-color (hub/org-google-docs--theme-color theme 'example-surface))
+		    paragraph (plist-put paragraph :border-color (hub/org-google-docs--theme-color theme 'example-border)))
+	      (cons (intern (string-replace "gdocs-source-block" "gdocs-example-block" (symbol-name (car definition))))
+		    (plist-put style :paragraph paragraph))))
+	  (hub/org-google-docs--source-block-style-definitions theme)))
+
 (defun hub/org-google-docs--quote-block-borders (theme)
   "Return quote border style for THEME."
   (when (hub/org-google-docs--theme-role theme 'quote-left-border-only)
@@ -315,9 +326,23 @@ When THEME-ID is nil, use the current buffer's `#+GDOCS_THEME:' override or
 	:text (:font-family ,(hub/org-google-docs--theme-role theme 'code-font)
 			    :foreground-color ,(hub/org-google-docs--theme-color
 						theme 'body-text))))
+     `((gdocs-example-code :text (:font-family ,(hub/org-google-docs--theme-role theme 'code-font)
+					       :foreground-color ,(hub/org-google-docs--theme-color theme 'example-text)))
+       (gdocs-definition-term :text (:bold t)))
      '((gdocs-list-first :paragraph (:space-above 6))
-       (gdocs-list-item :paragraph (:space-above 0)))
+       (gdocs-list-item :paragraph (:space-above 0))
+       (gdocs-source-block-separator :parent normal
+				     :paragraph (:space-above 0 :space-below 0 :background-color nil
+							      :borders ((top :width 0 :padding 0) (bottom :width 0 :padding 0)
+									(left :width 0 :padding 0) (right :width 0 :padding 0))))
+       (gdocs-status-grey :text (:small-caps t :bold t :foreground-color "#3C4043" :background-color "#E2E3E5"))
+       (gdocs-status-red :text (:small-caps t :bold t :foreground-color "#A50E0E" :background-color "#FCE8E6"))
+       (gdocs-status-yellow :text (:small-caps t :bold t :foreground-color "#7A4F01" :background-color "#FEF7E0"))
+       (gdocs-status-green :text (:small-caps t :bold t :foreground-color "#137333" :background-color "#E6F4EA"))
+       (gdocs-status-blue :text (:small-caps t :bold t :foreground-color "#174EA6" :background-color "#E8F0FE"))
+       (gdocs-status-purple :text (:small-caps t :bold t :foreground-color "#681DA8" :background-color "#F3E8FD")))
      (hub/org-google-docs--source-block-style-definitions theme)
+     (hub/org-google-docs--example-block-style-definitions theme)
      (hub/org-google-docs--quote-block-style-definitions theme)
      (hub/org-google-docs--verse-style-definitions theme)
      (hub/org-google-docs--center-style-definitions theme)

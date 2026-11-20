@@ -54,13 +54,16 @@
     (should (member 'footnotes
 		    (org-google-docs-semantics-test--names classification :supported)))
     (should (member 'standalone-images
-		    (org-google-docs-semantics-test--names classification :unsupported)))
+		    (org-google-docs-semantics-test--names classification :supported)))
     (should (member 'quote-blocks
-		    (org-google-docs-semantics-test--names classification :deferred)))
+		    (org-google-docs-semantics-test--names classification :supported)))
     (should (member 'person-links
-		    (org-google-docs-semantics-test--names classification :deferred)))
+		    (org-google-docs-semantics-test--names classification :degraded)))
     (should (member 'status-links
-		    (org-google-docs-semantics-test--names classification :deferred)))))
+		    (org-google-docs-semantics-test--names classification :supported)))
+    (should-not (plist-get classification :unclassified))
+    (dolist (name '(quote-attributions document-metadata document-chrome marginalia))
+      (should (memq name (org-google-docs-semantics-test--names classification :unsupported))))))
 
 (ert-deftest org-google-docs-semantics-preserves-counts-and-reasons ()
   "Support classification entries retain counts and actionable reasons."

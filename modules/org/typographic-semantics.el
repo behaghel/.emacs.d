@@ -31,20 +31,19 @@
 		   (string< (symbol-name (car left))
 			    (symbol-name (car right)))))))
 
-(defun hub/org-typographic-semantics--keyword-counts ()
-  "Return document metadata keyword counts for the current Org buffer."
+(defun hub/org-typographic-semantics--keyword-counts (&optional tree)
+  "Return document metadata counts from parsed TREE or the current Org buffer."
   (let ((counts (make-hash-table :test #'eq)))
-    (save-excursion
-      (goto-char (point-min))
-      (while (re-search-forward "^[[:space:]]*#\\+\\([A-Z_]+\\):" nil t)
-	(pcase (upcase (match-string-no-properties 1))
-	  ("TITLE" (hub/org-typographic-semantics--inc counts 'title))
-	  ("SUBTITLE" (hub/org-typographic-semantics--inc counts 'subtitle))
-	  ("AUTHOR" (hub/org-typographic-semantics--inc counts 'author))
-	  ("DATE" (hub/org-typographic-semantics--inc counts 'date))
-	  ("LANGUAGE" (hub/org-typographic-semantics--inc counts 'locale))
-	  ("EXPORT_EYEBROW" (hub/org-typographic-semantics--inc counts 'eyebrow))
-	  ("EXPORT_FOOTER_NOTE" (hub/org-typographic-semantics--inc counts 'footer-note)))))
+    (org-element-map (or tree (org-element-parse-buffer)) 'keyword
+		     (lambda (keyword)
+		       (pcase (upcase (org-element-property :key keyword))
+			 ("TITLE" (hub/org-typographic-semantics--inc counts 'title))
+			 ("SUBTITLE" (hub/org-typographic-semantics--inc counts 'subtitle))
+			 ("AUTHOR" (hub/org-typographic-semantics--inc counts 'author))
+			 ("DATE" (hub/org-typographic-semantics--inc counts 'date))
+			 ("LANGUAGE" (hub/org-typographic-semantics--inc counts 'locale))
+			 ("EXPORT_EYEBROW" (hub/org-typographic-semantics--inc counts 'eyebrow))
+			 ("EXPORT_FOOTER_NOTE" (hub/org-typographic-semantics--inc counts 'footer-note)))))
     counts))
 
 (defun hub/org-typographic-semantics--image-link-p (link)
@@ -78,7 +77,7 @@
 
 (defun hub/org-typographic-semantics--audit-tree (tree)
   "Return typographic semantic counts for Org parse TREE."
-  (let ((metadata (hub/org-typographic-semantics--keyword-counts))
+  (let ((metadata (hub/org-typographic-semantics--keyword-counts tree))
 	(inline (make-hash-table :test #'eq))
 	(notes (make-hash-table :test #'eq))
 	(blocks (make-hash-table :test #'eq))

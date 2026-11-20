@@ -16,6 +16,7 @@ status: draft
 ## Invariants
 
 - Author-facing semantics must stay separate from class-specific visual styling.
+- `status:` and legacy `confluence-status:` links display colour-coded status labels in Org. Uppercase chip display is presentation only: the stored label and original protocol remain unchanged.
 - Export behavior should be testable from tracked specimens and textual assertions before relying on visual inspection.
 - Writing helpers should not make batch loads or isolated authoring tests depend on optional interactive packages unless guarded.
 - Entering Org mode does not refresh the optional agenda-file submenu, including when comment counters parse sidecars during redisplay. Keyboard agenda commands and comment counters remain available.
