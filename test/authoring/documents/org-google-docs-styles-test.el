@@ -310,5 +310,35 @@
     (should (= (plist-get (cdr (assq 'bottom (plist-get (plist-get outside :paragraph) :borders))) :width) 0))
     (should (= (plist-get (plist-get outside :text) :font-scale) 1))))
 
+(ert-deftest hub/org-google-docs-status-style-is-small-caps-with-semantic-colours ()
+  "Static labels look like statuses without changing their underlying spelling."
+  (let ((definitions (hub/org-google-docs-style-definitions 'veriff-working)))
+    (dolist (colour '(grey red yellow green blue purple))
+      (let ((text (plist-get (alist-get (intern (format "gdocs-status-%s" colour)) definitions) :text)))
+	(should (plist-get text :small-caps))
+	(should (plist-get text :foreground-color))
+	(should (plist-get text :background-color))))))
+
+(ert-deftest hub/org-google-docs-literal-block-separator-has-no-surface-or-border ()
+  "Separate source/example panels have an explicitly unshaded outside paragraph."
+  (let* ((definitions (hub/org-google-docs-style-definitions 'veriff-working))
+	 (style (alist-get 'gdocs-source-block-separator definitions))
+	 (paragraph (plist-get style :paragraph)))
+    (should (eq (plist-get style :parent) 'normal))
+    (should (plist-member paragraph :background-color))
+    (should-not (plist-get paragraph :background-color))
+    (dolist (side '(top bottom left right))
+      (should (zerop (plist-get (alist-get side (plist-get paragraph :borders)) :width))))))
+
+(ert-deftest hub/org-google-docs-examples-use-brown-surface-with-dark-text ()
+  "Example presentation is independent from the unchanged source-block theme."
+  (let ((definitions (hub/org-google-docs-style-definitions 'veriff-working)))
+    (dolist (role '(first line last single))
+      (let ((paragraph (plist-get (alist-get (intern (format "gdocs-example-block-%s" role)) definitions) :paragraph)))
+	(should (equal (plist-get paragraph :background-color) "#C8B59A"))))
+    (should (equal (plist-get (plist-get (alist-get 'gdocs-example-code definitions) :text) :foreground-color) "#03140F"))
+    (should (equal (plist-get (plist-get (alist-get 'gdocs-source-block-single definitions) :paragraph) :background-color) "#F6FDFC"))
+    (should (plist-get (plist-get (alist-get 'gdocs-definition-term definitions) :text) :bold))))
+
 (provide 'org-google-docs-styles-test)
 ;;; org-google-docs-styles-test.el ends here

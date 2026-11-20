@@ -26,6 +26,7 @@
 (require 'ox-sync)
 (require 'org-google-docs-footnotes)
 (require 'org-google-docs-images)
+(require 'org-google-docs-preflight)
 
 (declare-function gdocs-auth-select-account "gdocs-auth" (&optional prompt))
 (declare-function gdocs-auth-get-access-token "gdocs-auth"
@@ -41,6 +42,8 @@
 		  (ir &optional start-index))
 (declare-function gdocs-convert-ir-to-org "gdocs-convert" (ir))
 (declare-function gdocs-convert-org-buffer-to-ir "gdocs-convert" ())
+(declare-function gdocs-sync--make-link-context "gdocs-sync" ())
+(defvar gdocs-convert--link-context)
 (declare-function gdocs-diff-generate "gdocs-diff"
 		  (old-ir new-ir &optional start-index))
 (declare-function gdocs-sync--pull-integrity-diagnostics "gdocs-sync"
@@ -520,8 +523,14 @@ Return a list of issue symbols."
     (message "%s" (org-google-docs--doctor-message issues))
     issues))
 
+(defun org-google-docs--validate-source-profile ()
+  "Reject unsupported source semantics before any publishing mutation."
+  (when-let* ((diagnostics (org-google-docs-preflight-buffer)))
+    (user-error "Google Docs semantic preflight failed: %s" (string-join diagnostics "; "))))
+
 (defun org-google-docs--prepare-footnotes-for-body-write ()
   "Preflight and activate native footnote support for a body write."
+  (org-google-docs--validate-source-profile)
   (let ((plan (org-google-docs--preflight-footnotes-for-push)))
     (when (plist-get plan :references)
       (org-google-docs--require-upstream-library 'gdocs-convert)
@@ -530,11 +539,16 @@ Return a list of issue symbols."
 
 (defun org-google-docs--prepare-images-then (callback)
   "Preflight and upload native images, then call CALLBACK in this buffer."
+  (org-google-docs--validate-source-profile)
+  (org-google-docs--preflight-footnotes-for-push)
   (let ((image-plan (org-google-docs--preflight-images-for-push))
 	(buffer (current-buffer)))
     (when (plist-get image-plan :images)
       (org-google-docs--require-upstream-library 'gdocs-api)
-      (org-google-docs--require-upstream-library 'gdocs-convert))
+      (org-google-docs--require-upstream-library 'gdocs-convert)
+      (org-google-docs--require-upstream-library 'gdocs-sync)
+      (let ((gdocs-convert--link-context (gdocs-sync--make-link-context)))
+	(gdocs-convert-org-buffer-to-ir)))
     (org-google-docs-images-begin-push
      image-plan
      (lambda ()
@@ -746,12 +760,9 @@ buffer containing a unified diff.  The original buffer and file are not mutated.
 
 ;;;###autoload
 (defun org-google-docs-sync-current ()
-  "Synchronize the current Org buffer with Google Docs.
-The initial adapter delegates to upstream `gdocs-push' as the explicit body-sync
-action.  Richer stale-check behavior can be added once the wrapper has proven
-usable with real linked buffers."
+  "Push the current Org buffer through semantic, footnote and image preflight."
   (interactive)
-  (org-google-docs--call-upstream 'gdocs-push))
+  (org-google-docs-push))
 
 ;;;###autoload
 (defun org-google-docs-open ()

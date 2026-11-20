@@ -45,5 +45,22 @@
      (should (hub/org-tempo-complete-quote))
      (should (equal (buffer-string) "QUOTE")))))
 
+(ert-deftest hub/org-status-links-display-chips-without-rewriting-source ()
+  "Generic and legacy status links share chip faces and label-only display."
+  (dolist (protocol '("status" "confluence-status"))
+    (hub-org-authoring-test--with-buffer
+     (let* ((source (format "[[%s:green][Ready Bépo 😀]]" protocol))
+	    (face (org-link-get-parameter protocol :face))
+	    (activate (org-link-get-parameter protocol :activate-func)))
+       (should (functionp face))
+       (should (eq (funcall face "green") 'hub/org-confluence-status-green))
+       (should (functionp activate))
+       (insert source)
+       (funcall activate (point-min) (point-max) "green" t)
+       (goto-char (point-min))
+       (search-forward "Ready")
+       (should (equal (get-text-property (1- (point)) 'display) "READY BÉPO 😀"))
+       (should (equal (buffer-substring-no-properties (point-min) (point-max)) source))))))
+
 (provide 'org-authoring-test)
 ;;; org-authoring-test.el ends here

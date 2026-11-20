@@ -285,6 +285,11 @@ context-map:
     pattern: customer-supplier
     contract: modules/interactive/org/README.md
 
+  - provider: authoring/documents
+    consumers: [publishing/google-docs]
+    pattern: customer-supplier
+    contract: modules/org/typographic-semantics.md
+
   - provider: authoring/comments
     consumers: [authoring/copilot, publishing/org-sync, publishing/confluence, publishing/google-docs]
     pattern: shared-kernel

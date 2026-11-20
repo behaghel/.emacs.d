@@ -196,13 +196,16 @@
 		   (lambda (plan callback &optional _account)
 		     (push (length (plist-get plan :images)) calls)
 		     (funcall callback)))
+		  ((symbol-function 'gdocs-sync--make-link-context) (lambda () nil))
+		  ((symbol-function 'gdocs-convert-org-buffer-to-ir)
+		   (lambda () (push 'validate calls) nil))
 		  ((symbol-function 'gdocs-push)
 		   (lambda () (interactive) (push 'push calls))))
 	  (with-temp-buffer
 	    (insert (format "[[file:%s]]\n" image-file))
 	    (org-mode)
 	    (org-google-docs-push)
-	    (should (equal calls '(push 1)))))
+	    (should (equal calls '(push 1 validate)))))
       (delete-file image-file))))
 
 (ert-deftest org-google-docs-push-enables-native-footnote-session ()
@@ -367,6 +370,58 @@
     (org-google-docs-rebuild-mode-map)
     (should (eq (lookup-key org-google-docs-mode-map (kbd "C-c C-x G"))
 		#'org-google-docs-dispatch))))
+
+(ert-deftest org-google-docs-unsupported-semantics-stop-before-upload-or-body-write ()
+  "Known unsupported metadata and blocks fail before any remote mutation."
+  (dolist (source '("#+ATTR_QUOTE: :author \"Ada\"\n#+BEGIN_QUOTE\nWords.\n#+END_QUOTE\n"
+		    "#+AUTHOR: Synthetic author\n\nBody.\n"
+		    "#+SUBTITLE: Subtitle\n\nBody.\n"
+		    "#+DATE: [2026-11-19 Thu]\n\nBody.\n"
+		    "#+LANGUAGE: fr\n\nBody.\n"
+		    "#+EXPORT_EYEBROW: Context\n\nBody.\n"
+		    "#+EXPORT_FOOTER_NOTE: Footer\n\nBody.\n"
+		    "#+BEGIN_STANDFIRST\nSummary.\n#+END_STANDFIRST\n"
+		    "#+BEGIN_METRIC\n42\n#+END_METRIC\n"
+		    "#+BEGIN_GRAPH\nGraph text.\n#+END_GRAPH\n"))
+    (dolist (command '(org-google-docs-create org-google-docs-push org-google-docs-sync-current))
+      (with-temp-buffer
+	(org-mode) (insert source)
+	(let ((before (buffer-string)) mutations)
+	  (cl-letf (((symbol-function 'org-google-docs-images-begin-push)
+		     (lambda (&rest _args) (push 'upload mutations)))
+		    ((symbol-function 'org-google-docs--call-upstream)
+		     (lambda (&rest _args) (push 'body-write mutations))))
+	    (should-error (funcall command) :type 'user-error)
+	    (should-not mutations)
+	    (should (equal before (buffer-string)))))))))
+
+(ert-deftest org-google-docs-footnote-blockers-stop-before-image-upload ()
+  "An unsupported note cannot leave uploaded assets behind before being rejected."
+  (with-temp-buffer
+    (org-mode) (insert "Body.\n")
+    (let (uploaded)
+      (cl-letf (((symbol-function 'org-google-docs--preflight-footnotes-for-push)
+		 (lambda () (user-error "Synthetic unsupported footnote")))
+		((symbol-function 'org-google-docs-images-begin-push)
+		 (lambda (&rest _args) (setq uploaded t))))
+	(should-error (org-google-docs-create) :type 'user-error)
+	(should-not uploaded)))))
+
+(ert-deftest org-google-docs-invalid-sdk-source-stops-before-image-upload ()
+  "Local SDK conversion runs before assets are created remotely."
+  (with-temp-buffer
+    (org-mode) (insert "Synthetic source.\n")
+    (let (uploaded)
+      (cl-letf (((symbol-function 'org-google-docs--preflight-images-for-push)
+		 (lambda () '(:images ((:path "synthetic.png")))))
+		((symbol-function 'org-google-docs--require-upstream-library) (lambda (_library) t))
+		((symbol-function 'gdocs-sync--make-link-context) (lambda () nil))
+		((symbol-function 'gdocs-convert-org-buffer-to-ir)
+		 (lambda () (user-error "Synthetic unsupported SDK construct")))
+		((symbol-function 'org-google-docs-images-begin-push)
+		 (lambda (&rest _args) (setq uploaded t))))
+	(should-error (org-google-docs-create) :type 'user-error)
+	(should-not uploaded)))))
 
 (provide 'org-google-docs-entrypoints-test)
 ;;; org-google-docs-entrypoints-test.el ends here

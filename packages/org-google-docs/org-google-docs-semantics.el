@@ -46,49 +46,68 @@
     (source-blocks
      :categories ((:blocks source))
      :reason "Google Docs sync preserves source block text and language identity through semantic markers; native code block building blocks are styling-deferred until a reliable API seam exists."
-     :target "Round-trip Org source block boundaries, language identity, and code text; defer syntax highlighting and native code-block visuals."))
+     :target "Round-trip Org source block boundaries, language identity, and code text; defer syntax highlighting and native code-block visuals.")
+    (example-blocks :categories ((:blocks example))
+		    :reason "Marked example blocks preserve literal text and hard lines."
+		    :target "Preserve preformatted example boundaries and text.")
+    (standalone-images :categories ((:media standalone-images))
+		       :reason "Readable standalone local images are uploaded and inserted as inline images."
+		       :target "Preserve image identity and dimensions; reject missing or unsupported assets before upload.")
+    (captioned-figures :categories ((:media captioned-figures))
+		       :reason "Semantic caption markers associate captions with their images."
+		       :target "Preserve image/caption association without guessing from appearance.")
+    (quote-blocks :categories ((:blocks quote))
+		  :reason "Marked quote groups preserve boundaries and authored emphasis independently of quote presentation."
+		  :target "Preserve quoted paragraphs and rich inline content; attribution is a separate unsupported construct.")
+    (callouts :categories ((:blocks callout))
+	      :reason "Marked callouts preserve type, title, prose and supported flat lists."
+	      :target "Preserve callout content and metadata; unsupported nesting fails preflight.")
+    (status-links :categories ((:inline status-links))
+		  :reason "Static semantic status labels preserve value, display text, colour and source protocol."
+		  :target "Preserve status identity without implying native dropdown definitions.")
+    (document-structure :categories ((:metadata title) (:structure headings paragraphs))
+			:reason "Titles, heading hierarchy and paragraph flow have explicit conversion."
+			:target "Preserve title, hierarchy and prose boundaries.")
+    (note-definitions :categories ((:notes definitions))
+		      :reason "Supported named definitions become native footnote segments."
+		      :target "Preserve rich single-paragraph definitions; unsupported forms block before uploads."))
   "Semantic groups currently treated as supported by Google Docs.")
 
 (defconst org-google-docs-semantics--degraded
   '((dates
      :categories ((:inline active-dates inactive-dates))
-     :reason "Google Docs has native date smart chips, but provider-native date semantics are not mapped yet."
-     :target "Pull remote dates as inactive Org timestamps by default to avoid org-agenda pollution; use date smart chips when public APIs expose a reliable seam."))
+     :reason "Native UTC day-date chips preserve supported values and source activity provenance; richer source timestamps retain their complete literal value."
+     :target "Pull unmarked remote dates as inactive Org timestamps; retain explicitly authored active/inactive intent.")
+    (person-links :categories ((:inline person-links))
+		  :reason "Person identity and display text use explicit links, not native people smart chips."
+		  :target "Retain the person URI and label; native people-chip mapping is not claimed.")
+    (described-image-links :categories ((:media described-image-links))
+			   :reason "Described file links remain hyperlinks rather than embedded image uploads."
+			   :target "Preserve target and label; local file targets are not portable embedded media.")
+    (note-placement :categories ((:notes ordinary footnote))
+		    :reason "Google Docs uses native bottom footnotes, not renderer-specific sidenote placement."
+		    :target "Preserve the note body without promising a margin/bottom placement distinction."))
   "Semantic groups currently treated as degraded by Google Docs.")
 
 (defconst org-google-docs-semantics--unsupported
-  '((standalone-images
-     :categories ((:media standalone-images))
-     :reason "Standalone image links currently degrade to literal file paths."
-     :target "Insert local standalone images as inline Google Docs images before remote mutation.")
-    (marginalia
+  '((marginalia
      :categories ((:notes marginalia))
      :reason "Google Docs has no implemented mapping for repository marginalia semantics yet."
-     :target "Classify marginalia explicitly; choose native/degraded behavior in a later semantic design."))
+     :target "Reject marginalia before uploads rather than convert it to ordinary footnotes.")
+    (quote-attributions :categories ((:blocks quote-attributions))
+			:reason "Quote attribution metadata has no implemented reversible mapping."
+			:target "Stop before upload; put attribution in explicit body prose or omit it deliberately.")
+    (document-metadata :categories ((:metadata subtitle author date locale eyebrow footer-note))
+		       :reason "These document metadata fields have no implemented Google Docs mapping."
+		       :target "Stop before upload; put required values in body prose or remove the unsupported metadata.")
+    (document-chrome :categories ((:blocks standfirst metric graph))
+		     :reason "These semantic blocks have no implemented Google Docs representation."
+		     :target "Stop before upload instead of publishing literal Org delimiters as a semantic substitute."))
   "Semantic groups currently treated as unsupported by Google Docs.")
 
-(defconst org-google-docs-semantics--deferred
-  '((quote-blocks
-     :categories ((:blocks quote))
-     :reason "Quote block boundaries can be represented locally, but visible Google Docs quote styling is a styling concern."
-     :target "Preserve quote boundaries on round trip; defer visible quote decoration unless a reliable semantic exists.")
-    (callouts
-     :categories ((:blocks callout))
-     :reason "Callout panel chrome is styling/provider-specific."
-     :target "Preserve admonition text and classify type/title before adding visual panel behavior.")
-    (person-links
-     :categories ((:inline person-links))
-     :reason "Native Google Docs people smart chips/mentions need a separate provider-specific design."
-     :target "Preserve person identity and display text first; smart chips are a later enhancement.")
-    (status-links
-     :categories ((:inline status-links))
-     :reason "Native Google Docs dropdown smart chips are a good status target, but need a separate provider-specific design."
-     :target "Preserve status value and display text first; dropdown smart chips are a later enhancement.")
-    (document-chrome
-     :categories ((:blocks standfirst metric graph) (:metadata eyebrow footer-note))
-     :reason "Document chrome/layout blocks are renderer-specific styling/layout semantics."
-     :target "Preserve readable content and avoid silent loss; exact rendering is a later styling/layout epic."))
-  "Semantic groups currently deferred for Google Docs.")
+(defconst org-google-docs-semantics--deferred nil
+  "Source constructs exclusively deferred rather than supported or rejected.
+Native visual enhancements do not change a source construct's disposition.")
 
 (defun org-google-docs-semantics--category-count (audit category name)
   "Return count for NAME in AUDIT CATEGORY."
@@ -126,19 +145,39 @@ CATEGORIES is a list of entries shaped as (CATEGORY NAME...)."
 		      (org-google-docs-semantics--entry audit spec))
 		    specs)))
 
+(defun org-google-docs-semantics--unclassified (audit)
+  "Return visible unsupported entries for undeclared counters in AUDIT."
+  (let (covered entries)
+    (dolist (spec (append org-google-docs-semantics--supported org-google-docs-semantics--degraded
+			  org-google-docs-semantics--unsupported org-google-docs-semantics--deferred))
+      (dolist (group (plist-get (cdr spec) :categories))
+	(dolist (name (cdr group)) (push (cons (car group) name) covered))))
+    (while audit
+      (let ((category (pop audit)) (counts (pop audit)))
+	(dolist (counter counts)
+	  (when (and (consp counter) (numberp (cdr counter)) (> (cdr counter) 0)
+		     (not (member (cons category (car counter)) covered)))
+	    (push (list :name (intern (format "unclassified-%s-%s" category (car counter)))
+			:category category :counter (car counter) :count (cdr counter)
+			:reason "No declared Google Docs mapping for this audit counter."
+			:target "Treat as unsupported until its semantic disposition is established.") entries)))))
+    (nreverse entries)))
+
 (defun org-google-docs-semantics-classify-audit (audit)
   "Classify typographic AUDIT against current Google Docs support.
 AUDIT is a plist shaped like `hub/org-typographic-semantics-audit-buffer'
 returns, but this function intentionally depends only on that plain data shape."
-  (list :provider 'google-docs
-	:supported (org-google-docs-semantics--entries
-		    audit org-google-docs-semantics--supported)
-	:degraded (org-google-docs-semantics--entries
-		   audit org-google-docs-semantics--degraded)
-	:unsupported (org-google-docs-semantics--entries
-		      audit org-google-docs-semantics--unsupported)
-	:deferred (org-google-docs-semantics--entries
-		   audit org-google-docs-semantics--deferred)))
+  (let ((unclassified (org-google-docs-semantics--unclassified audit)))
+    (list :provider 'google-docs
+	  :supported (org-google-docs-semantics--entries
+		      audit org-google-docs-semantics--supported)
+	  :degraded (org-google-docs-semantics--entries
+		     audit org-google-docs-semantics--degraded)
+	  :unsupported (append (org-google-docs-semantics--entries
+				audit org-google-docs-semantics--unsupported) unclassified)
+	  :unclassified unclassified
+	  :deferred (org-google-docs-semantics--entries
+		     audit org-google-docs-semantics--deferred))))
 
 (defun org-google-docs-semantics--human-name (name)
   "Return human-readable text for semantic NAME."

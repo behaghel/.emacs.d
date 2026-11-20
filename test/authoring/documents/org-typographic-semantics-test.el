@@ -70,4 +70,14 @@
     (should (= 2 (hub/org-typographic-semantics-test--count audit :media 'captioned-figures)))
     (should (= 1 (hub/org-typographic-semantics-test--count audit :media 'described-image-links)))))
 
+(ert-deftest hub/org-typographic-semantics-metadata-excludes-literal-block-content ()
+  "Metadata-looking code and example text does not become document metadata."
+  (with-temp-buffer
+    (org-mode)
+    (insert "#+TITLE: Actual title\n\n#+BEGIN_SRC org\n#+AUTHOR: Literal code\n#+TITLE: Not a title\n#+END_SRC\n\n#+BEGIN_EXAMPLE\n#+LANGUAGE: Literal example\n#+END_EXAMPLE\n")
+    (let ((audit (hub/org-typographic-semantics-audit-buffer)))
+      (should (= 1 (hub/org-typographic-semantics-test--count audit :metadata 'title)))
+      (should (= 0 (hub/org-typographic-semantics-test--count audit :metadata 'author)))
+      (should (= 0 (hub/org-typographic-semantics-test--count audit :metadata 'locale))))))
+
 ;;; org-typographic-semantics-test.el ends here

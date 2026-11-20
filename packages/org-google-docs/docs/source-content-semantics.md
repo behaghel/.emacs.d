@@ -1,128 +1,97 @@
-# Spec: Google Docs Source Content Semantics
+---
+domain: publishing/google-docs
+status: draft
+---
 
-## Problem
+# Google Docs semantic coverage
 
-Org ↔ Google Docs body sync currently depends on upstream `benthamite/gdocs`, but real documents such as `/Users/hubertbehaghel/tmp/gdocs-test.org` expose semantic gaps for the repository's typographic semantics contract. Styling differences are expected and out of scope for this epic. The goal is to preserve authoring semantics for footnotes, images, source blocks, dates, people mentions, and other Org-native constructs without forking unnecessarily or duplicating Confluence-specific behavior.
+This provider profile applies the [authoring contract](../../../modules/org/typographic-semantics.md).
+The [adapter boundary](../README.md#document-synchronization) separates publishing,
+transport, personal presentation and review comments. Support means semantic
+preservation within the stated boundaries, not arbitrary Org support or native
+Google Docs visual parity.
 
-## Context
+## Supported profile
 
-- `packages/org-google-docs/` is the local adapter and should stay the home for wrapper/adaptation code.
-- Upstream body sync lives in `straight/repos/gdocs/` and exposes an Org ↔ IR ↔ Google Docs request pipeline in `gdocs-convert.el`.
-- `gdocs-convert-org-buffer-to-ir` already parses Org with `org-element` and creates an intermediate representation.
-- The backend-neutral contract lives in `modules/org/typographic-semantics.md`, with a tracked specimen at `modules/org/specimens/typographic-semantics.org`.
-- `modules/org/typographic-semantics.el` audits Org buffers into a plain semantic inventory; `packages/org-google-docs/org-google-docs-semantics.el` classifies that inventory against current Google Docs support without depending on local `hub-*` helpers.
-- `packages/org-google-docs/org-google-docs-footnotes.el` extracts a push-safe native-footnote plan before any remote mutation. It supports named definitions in a conventional footnotes section, reports rich-body/repeated-reference degradations, blocks unsupported forms such as anonymous inline footnotes, missing definitions, marginalia, mixed footnotes-section content, or definitions outside the conventional section, and filters the Org-only footnotes section out of push-time IR when native footnotes are active.
-- Native Google Docs footnote mutation needs two batchUpdate phases: first `createFootnote` at exact UTF-16 document indices, then `insertText` into the returned footnote segment IDs. The local request helpers implement this choreography and create footnotes from highest body index to lowest so repeated/multiple references do not shift later insertion points.
-- The local upstream `gdocs-convert.el` seam preserves Org footnote references as zero-width semantic runs and calls `gdocs-convert-footnote-reference-handler` with each run's exact Google Docs UTF-16 body index during request generation, avoiding placeholder text search.
-- The local upstream `gdocs-diff.el` seam treats those zero-width footnote runs as semantic paragraph changes and emits the footnote-reference request hook for formatting-only changes where visible text is unchanged.
-- The seam is carried in a local `~/ws/gdocs` fork on branch `org-footnote-seam`; activation prefers that checkout and falls back to upstream only when the local fork is absent, so bootstrap no longer depends on mutating `straight/repos/gdocs` directly.
-- The sample and specimen currently reveal:
-  - Org footnote references become literal text such as `[fn:1]` in paragraphs.
-  - Footnote definitions become separate `:type 'footnote` IR elements, but push emits them as literal `[fn:N] body` text rather than native Google Docs footnotes.
-  - Plain local image links become plain text like `file:./veriff2026-logo.png`; imported Google Docs inline images become `:type 'image` IR elements that render back to empty Org text.
-  - Source blocks must preserve code text and language identity. Current v1 support stores the source block language in a semantic named-range marker and attaches logical `gdocs-code` / `gdocs-source-block` styles before late-binding them to Google Docs properties. Image captions use the same logical-style path via `gdocs-image-caption`. Google Docs code block building blocks remain the native visual target only if public APIs expose a reliable seam. Syntax highlighting is styling.
-  - Dates, people mentions, and statuses need explicit semantic classification before deciding whether native smart chips, mentions, or dropdowns are feasible. Remote dates should import as inactive Org timestamps by default to avoid polluting `org-agenda`.
-  - Quote blocks now use semantic `quote-block` IR with per-paragraph semantic markers. Request generation renders each quoted paragraph through reusable `gdocs-quote-block-first` / `gdocs-quote-block-line` / `gdocs-quote-block-last` / `gdocs-quote-block-single` logical styles, and pull groups marked paragraphs back into one Org quote block.
-- Confluence provides useful patterns, not a storage model to copy:
-  - image asset discovery and path validation in `org-confluence-export.el`;
-  - standalone image-link detection and captions;
-  - quote block semantic export;
-  - footnote reference/definition handling.
+| Construct | Representation and boundary |
+| --- | --- |
+| Title, headings, paragraphs | Document title, heading hierarchy and prose flow. Uniform heading bold is presentation; contrasting authored emphasis is content. |
+| Inline emphasis, code, verbatim, external links | Rich runs preserve authored meaning, literal text, targets and labels. Linked whitespace remains linked across native style fragments. |
+| Ordered, unordered, description and task lists | Native lists plus explicit continuation/task provenance. Description terms preserve visible `term :: definition` meaning; generated term bold does not add Org emphasis, while authored bold remains distinct. Ambiguous native ownership stops import. |
+| Tables | Grid, supported rich cell text and header/body distinction. Unsupported cell semantics stop conversion. |
+| Source and example blocks | Marked literal blocks preserve text, hard lines, spacing and source language. Syntax highlighting and native code-building-block appearance are not promised. |
+| Quotes | Marked paragraph groups preserve boundaries, rich content and emphasis independently of the applied quote typography. Attribution metadata is not part of this supported mapping. |
+| Callouts | Type, optional title, prose and supported flat lists. Generated label/padding are presentation, not authored content. Nested blocks/lists are rejected where the representation cannot preserve them. |
+| Centered prose | Marked paragraph groups preserve empty, adjacent and multi-paragraph blocks. Soft wraps remain prose. |
+| Verse | Marked rich hard lines preserve indentation, trailing spaces and stanza gaps. Unsupported semantic objects and nesting stop conversion. |
+| Section breaks | Independently marked rule paragraphs and outside separators preserve untitled transitions. Arbitrary borders are not inferred as section breaks. Native horizontal-rule objects have an explicit read representation. |
+| Named footnotes | Supported rich single-paragraph notes use native references and segments. Unsupported definitions, missing references and marginalia stop preflight. Footnote-only edits update segments rather than recreate host paragraphs. |
+| Standalone images and captions | Readable supported assets become inline images; explicit caption provenance preserves association. Unsupported assets fail preflight. Source link and native object identity/geometry remain distinct. |
 
-## Decisions
+## Explicit degradations
 
-| Decision | Choice | Rationale |
-| --- | --- | --- |
-| Upstream strategy | Wrap first, add upstream seams second, fork only if blocked | Keeps `benthamite/gdocs` usable as transport/sync engine while allowing local progress. |
-| Primary package boundary | Put Google-specific semantic adapters in `packages/org-google-docs/` | Keeps activation thin and avoids editing vendored upstream until a seam is proven necessary. |
-| Reuse strategy | Extract tiny provider-neutral helpers only when Confluence and Google genuinely share Org-level semantics | Avoids forcing Google Docs into Confluence storage/XHTML concepts. |
-| Epic scope | Typographic contract semantics: footnotes, standalone local images, source blocks, dates, people mentions, statuses, and explicit degradation for other specimen constructs | Styling, callout visual design, exact spacing, typography, and rich layout are later epics. |
-| Footnote target | Round-trip semantic preservation | Footnotes are a first-class Org semantic and native Google Docs footnotes exist. |
-| Image target | Publish-first for standalone local images; pull preservation only where the API exposes enough data | Google Docs image insertion/upload and reverse mapping are trickier than text semantics. |
-| Quote target | Preserve quote-block boundaries on round trip using semantic markers and logical block-line styles | Google Docs has no stable native quote-block object in the public Docs API. A marker-backed semantic block preserves Org meaning while authoring-owned paragraph styles provide indentation, background shading, spacing, or future borders. Avoid quote text-run styles such as italic/foreground color because they pull back as Org content formatting and create merge noise. |
-| Callout target | Preserve canonical `#+BEGIN_CALLOUT` blocks with `#+ATTR_CALLOUT:` metadata | V1 uses semantic `callout-block` IR with `:callout-type`, optional `:title`, and generic body paragraph elements, including flat unordered and ordered list items using the same paragraph/list IR foundations as top-level content. Google Docs renders a generated visible label paragraph (`Warning — Heads up`) plus editable body paragraphs/list items. Label/body named-range markers store type/title metadata; pull drops the generated label as chrome and preserves remote body edits. Generated empty separator paragraphs are callout chrome and are included in pulled block ranges so repeated push/restyle operations do not accumulate blank paragraphs. Missing type defaults to `info`. Callout composition is limited to paragraphs and flat lists; nested list items fail closed because Google Docs paragraph shading cannot preserve both native nested indentation and a full-width shaded block background. Nested blocks such as tables, source blocks, and quote blocks also fail closed because blocks do not compose inside blocks. |
-| Upstream modifications | Prefer small, upstreamable hooks/IR extensions over large local monkey patches | The current IR pipeline is a natural extension point; exact footnote reference indices should come from conversion/diff, not placeholder searches. |
-| Style architecture | Emit logical style names in `gdocs` and resolve them late to Google Docs properties | Google Docs exposes only fixed named styles, not arbitrary custom style names. Semantic conversion must not hardcode personal typography; local authoring modules such as `modules/org/google-docs-styles.el` override logical style definitions. Multi-paragraph typographic blocks use reusable line-role styles such as `<base>-first`, `<base>-line`, `<base>-last`, and `<base>-single` for symmetric spacing without literal blank paragraphs. |
-| Style restyling | Provide explicit restyle pushes during style-policy tuning | Once content is unchanged, normal diff may have no reason to touch an already-synced block after visual policy changes. The adapter exposes `org-google-docs-push-restyle-current` to add a one-shot style revision to typographic block IR so source, quote, and callout blocks are restyled intentionally without making every normal push rewrite stable content. |
+- **Dates:** supported single UTC day values use native date elements. Both source
+  activity kinds carry provenance; an unmarked remote date imports inactive so it
+  cannot silently create an agenda obligation. Richer source timestamps retain
+  their complete literal Org value instead of becoming lossy day chips. Native
+  time-bearing, malformed or non-UTC date values stop import rather than being
+  guessed or truncated.
+- **Person links:** preserve the person URI and display label as an explicit
+  hyperlink. Native people chips are not claimed; unsupported native objects stop
+  import rather than disappearing.
+- **Status labels:** supported static labels preserve value, display text,
+  semantic colour and source protocol. Uniform small-cap rendering retains
+  source spelling through inline provenance, without discarding native label
+  edits. Labels exceeding reversible provenance limits stop preflight. They do
+  not imply native dropdown definitions, option sets or workflow behaviour.
+- **Described image links:** remain links, not image uploads. A local file target
+  is not a portable embedded image or a publicly reachable asset.
+- **Notes:** ordinary and forced-bottom notes use Google Docs bottom footnotes;
+  renderer-specific margin placement is not represented. Repeated references may
+  become independent native segments, a degradation reported by footnote preflight;
+  shared-native-note identity is not promised.
 
-## Acceptance Criteria
+## Rejected source semantics
 
-- [x] AC-0: Given an Org buffer with named footnotes in a conventional `Footnotes` or `Notes de bas de page` section, when footnote preflight runs, then it returns a native footnote push plan with references, plain text bodies, section metadata, blocking diagnostics, and degradation notices before remote mutation.
-- [x] AC-0a: Given planned footnote references with exact Google Docs document indices, when native request planning runs, then it creates `createFootnote` requests in descending index order and second-phase body `insertText` requests from returned footnote IDs without relying on placeholder text search.
-- [x] AC-0b: Given an Org paragraph containing a footnote reference, when upstream `gdocs-convert` builds paragraph runs and requests, then the reference is represented as a zero-width semantic run and the footnote handler receives the exact Docs insertion index rather than literal `[fn:]` text.
-- [x] AC-1: Given an Org paragraph containing `[fn:1]`, when pushed through the Google Docs adapter, then the Google Doc contains a native footnote reference at the corresponding text position rather than literal `[fn:1]` body text.
-- [x] AC-2: Given an Org footnote definition `[fn:1] Body`, when pushed, then the native Google Docs footnote contains `Body` as plain text; supported inline text semantics inside footnotes are a documented follow-up degradation.
-- [x] AC-2a: Given a conventional Org footnotes section is converted to native Google Docs footnotes, when push-time IR is generated, then the `Footnotes`/`Notes de bas de page` heading and footnote-definition IR are omitted from the Google Docs body without modifying the source Org buffer.
-- [x] AC-2b: Given visible paragraph text changes and multiple zero-width footnote runs, when upstream diff generates requests, then it emits footnote-reference seam requests from the word-level modification path so native footnotes are not dropped.
-- [x] AC-3: Given a Google Doc with native footnotes, when converted by the local `gdocs` pull seam, then the Org buffer contains corresponding ordinary footnote references and definitions under a conventional `* Footnotes` section without losing surrounding paragraph text.
-- [x] AC-4: Given a standalone local image link such as `[[./img/foo.png]]`, when pushed, then the Google Doc receives an inline image instead of literal `file:./img/foo.png` text. The adapter uploads readable standalone images to Drive, grants an anyone-reader permission so Docs can fetch them, enriches image IR with a direct download URI, and relies on the upstream image request seam for `insertInlineImage`.
-- [x] AC-4a: Given a Google Doc with an inline image whose object metadata exposes `sourceUri` or `contentUri`, when pulled, then the Org buffer receives an ordinary Org link to that URI instead of losing the image or rendering only an opaque object id.
-- [x] AC-5: Given a standalone local image link with an Org caption, when pushed, then the caption is preserved as Org-visible semantic text after the inserted image. This is a v1 visible-text mapping rather than native Google Docs figure metadata.
-- [x] AC-5a: Given a pushed caption is marked with the neutral `org-image-caption` semantic style name, when pulled, then the marked caption paragraph is re-associated with the preceding image and rendered as `#+CAPTION:` without relying on visual styling heuristics.
-- [ ] AC-6: Given a described image link such as `[[./img/foo.png][Open image]]`, when pushed, then it remains a normal link and is not treated as a standalone image upload.
-- [x] AC-7: Given an unsupported or missing local image file, when push preflight runs, then it fails before mutating the remote document with a clear actionable error.
-- [x] AC-8: Given a source block with a language, when pushed and pulled, then code text and language identity survive via semantic markers; Google Docs code block building blocks are used only when public APIs expose a reliable seam, and syntax highlighting is explicitly deferred.
-- [ ] AC-9: Given Org dates, provisional people links, and provisional status links, when pushed or preflighted, then Google Docs classifies them as native, degraded, or deferred rather than silently flattening their meaning; pulled remote dates become inactive Org timestamps by default.
-- [x] AC-10: Given a `#+begin_quote` block with multiple paragraphs, when pushed and pulled, then the Org quote block boundary and paragraph text survive round trip via semantic named-range markers and quote block IR.
-- [x] AC-11a: Given a canonical Org callout (`#+ATTR_CALLOUT:` + `#+BEGIN_CALLOUT`), when pushed and pulled, then type, optional title, body paragraphs, flat list items, and inline body formatting survive via semantic callout IR and label/body named-range markers.
-- [x] AC-11b: Given a callout/block body contains a nested list item, when push preflight/conversion runs, then it fails before remote mutation with an actionable diagnostic explaining the Google Docs paragraph-shading limitation.
-- [x] AC-12: Given `ORG_GOOGLE_DOCS_LIVE_TESTS=1` and OAuth credentials in environment variables, when `scripts/org-google-docs-live-conformance` runs, then it creates live Google Docs fixtures and verifies create/fetch canonical IR stability plus immediate-diff stability across headings, lists, inline formatting, blocks, tables, images/captions, dates, and native footnotes.
-- [ ] AC-11: Given the specimen `modules/org/specimens/typographic-semantics.org`, when converted through the local semantic preflight/adapter tests, then every contract construct is classified as supported, degraded, deferred, or unsupported with diagnostics.
+Before uploads or document creation, publishing rejects source fields without an
+implemented reversible mapping:
 
-## Invariants
+- `#+ATTR_QUOTE:` attribution; authors can instead use explicit body prose.
+- `#+SUBTITLE:`, `#+AUTHOR:`, `#+DATE:`, `#+LANGUAGE:`,
+  `#+EXPORT_EYEBROW:` and `#+EXPORT_FOOTER_NOTE:` metadata. Required information
+  belongs in explicit body content until a mapping exists; it is not silently
+  discarded or treated as styling.
+- Standfirst, metric, graph and other unsupported special blocks. Literal Org
+  delimiters are not a semantic publication substitute.
+- Unsupported footnotes, marginalia and assets, as defined by their preflight
+  modules.
 
-- Do not fork upstream `gdocs` as the first implementation move.
-- Do not move heavy Google Docs logic into `modules/interactive/org/google-docs.el`.
-- Do not regress current upstream body sync commands: create, push, pull, open, status.
-- Do not include styling parity in this epic.
-- Do not break comments workflows or `org-comments` backend behavior.
-- Do not print credentials or auth tokens during diagnostics.
-- Native footnote push must fail preflight before invoking upstream `gdocs-push` when blocking diagnostics are present.
-- Nested list items inside shaded blocks/callouts are unsupported in v1 and must fail closed before remote mutation; authors should flatten those lists or move nested lists outside the shaded block.
+Preflight inspects the complete source even when narrowed. Source/footnote checks
+precede uploads; image-bearing sources also pass SDK conversion before upload.
+Source validity is checked again before body writing. Native union members without
+a decoder block import with a diagnostic naming the unsupported object kind.
 
-## Scope
+## Safe synchronization
 
-**May modify:**
+Automatic text merge is limited to unstructured paragraphs without atomic native
+runs. Structured IR, including future structured kinds, requires conflict review
+when both local and remote content changed. Native dates are not plain-text merge
+inputs merely because their visible label resembles text.
 
-- `packages/org-google-docs/`
-- `packages/org-google-docs/test/`
-- `modules/org/typographic-semantics.md`, `modules/org/typographic-semantics.el`, and `modules/org/specimens/typographic-semantics.org`
-- tiny shared Org semantic helpers under `packages/` only if reused by both Confluence and Google Docs
-- upstream `straight/repos/gdocs/` only for minimal, well-isolated extension seams after wrapper feasibility is exhausted
-- docs/spec files for Google Docs source-content semantics
+Pull integrity checks protect block identity/shape. Centered paragraph counts and
+verse line/whitespace geometry participate alongside existing lists, notes and
+blocks. Word edits with stable geometry remain pullable. Structural edits can
+require the explicitly confirmed replace-local recovery path; that path preserves
+metadata and document identity and backs up local content before replacement.
 
-**Must not modify:**
+## Coverage reporting
 
-- `modules/interactive/org/google-docs.el` except thin activation or key/dispatch wiring
-- Confluence storage behavior except to extract clearly reusable Org-level helpers
-- auth/credential storage behavior
-- styling/callout visual parity beyond explicit deferral notes
+The reusable support classifier consumes plain audit data, not personal authoring
+modules. Every populated contract counter has an explicit supported, degraded or
+unsupported disposition. Undeclared counters remain visible as unclassified and
+unsupported; absence from the table is not evidence of support.
 
-## Verification Plan
-
-| Criterion | Method | Automated? |
-| --- | --- | --- |
-| AC-1, AC-2 | Unit tests over Org → IR/request adapter using sample footnote references/definitions, plus manual smoke checklist in `docs/native-footnotes-smoke.md` | Yes |
-| AC-3 | Upstream `gdocs-convert` fixture test over Docs JSON/native footnote payload → Org output | Yes |
-| AC-4, AC-4a, AC-6, AC-7 | Image classification/preflight tests modeled after Confluence image asset tests plus upstream image IR/request/pull tests, plus manual smoke checklist in `docs/native-images-smoke.md` | Yes |
-| AC-5, AC-5a | Caption fixture tests and manual smoke checklist in `docs/native-images-smoke.md`; v1 preserves captions as visible text, records a neutral semantic caption style marker, and reconstructs `#+CAPTION:` from that marker on pull | Yes |
-| AC-8 | Org → IR/request and IR/JSON → Org source-block fixture tests, plus manual live smoke before declaring native visual parity | Yes |
-| AC-9 | Semantic classification tests for dates and people links | Yes |
-| AC-10 | Org → IR/request and IR/JSON → Org quote fixture tests; live smoke checklist to validate visual policy | Yes |
-| AC-11a | Org → IR/request and IR/JSON → Org callout fixture tests; live smoke checklist to validate generated label/body behavior | Yes |
-| AC-11b | Negative Org → IR test asserting nested callout/block list preflight failure | Yes |
-| AC-12 | `scripts/org-google-docs-live-conformance` with opt-in live credentials | Yes |
-| AC-11 | Specimen semantic audit test/report using `modules/org/specimens/typographic-semantics.org` | Yes |
-
-## References
-
-- Typographic contract: `modules/org/typographic-semantics.md`
-- Typographic specimen: `modules/org/specimens/typographic-semantics.org`
-- Sample file: `/Users/hubertbehaghel/tmp/gdocs-test.org`
-- Upstream conversion: `straight/repos/gdocs/gdocs-convert.el`
-- Upstream sync orchestration: `straight/repos/gdocs/gdocs-sync.el`
-- Google Docs adapter facade: `packages/org-google-docs/org-google-docs.el`
-- Native image smoke checklist: `packages/org-google-docs/docs/native-images-smoke.md`
-- Native quote block smoke checklist: `packages/org-google-docs/docs/native-quote-blocks-smoke.md`
-- Confluence image/quote/footnote exporter inspiration: `packages/org-confluence/org-confluence-export.el`
-- Confluence exporter tests: `packages/org-confluence/test/org-confluence-export-test.el`
+Native people chips, dropdown workflows, syntax colouring and additional layout
+renderers are not prerequisites for this bounded profile. They are distinct
+capabilities and cannot be inferred from readable output, a styling approximation
+or an empty normalized diff.
