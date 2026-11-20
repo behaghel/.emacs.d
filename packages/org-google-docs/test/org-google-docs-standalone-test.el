@@ -322,5 +322,163 @@
     (should-not (gdocs-diff-generate remote-ir local-ir))
     (should-not (gdocs-diff-generate remote-ir (gdocs-convert-org-string-to-ir rendered)))))
 
+(ert-deftest org-google-docs-standalone-rich-footnote-segment-requests ()
+  "Footnote planning preserves emphasis, links and UTF-16 segment ranges."
+  (skip-unless (locate-library "gdocs-convert"))
+  (require 'gdocs-convert)
+  (with-temp-buffer
+    (org-mode)
+    (insert "Text[fn:1].\n\n* Footnotes\n\n[fn:1] 😀 *bold* and /italic/ with [[https://example.com][a link]].\n")
+    (let* ((before (buffer-string))
+	   (plan (org-google-docs-footnotes-plan-buffer))
+	   (requests (org-google-docs-footnotes-body-insert-requests
+		      (plist-get plan :references)
+		      '((replies . [((createFootnote . ((footnoteId . "fn-1"))))]))))
+	   (styles (delq nil (mapcar (lambda (request) (alist-get 'updateTextStyle request)) requests))))
+      (should (plist-get plan :ready-p))
+      (should-not (seq-find (lambda (diagnostic)
+			      (eq (plist-get diagnostic :code) :rich-inline-formatting))
+			    (plist-get plan :degradations)))
+      (should (equal (alist-get 'text (alist-get 'insertText (car requests)))
+		     "😀 bold and italic with a link."))
+      (should (= (length styles) 3))
+      (dolist (spec '((bold 4 8) (italic 13 19) (link 25 31)))
+	(let ((style (seq-find (lambda (entry) (alist-get (car spec) (alist-get 'textStyle entry))) styles)))
+	  (should style)
+	  (should (equal (alist-get 'range style)
+			 `((segmentId . "fn-1") (startIndex . ,(nth 1 spec)) (endIndex . ,(nth 2 spec)))))))
+      (should (equal (alist-get 'url (alist-get 'link (alist-get 'textStyle (car (last styles)))))
+		     "https://example.com"))
+      (should (equal before (buffer-string))))))
+
+(ert-deftest org-google-docs-standalone-rich-footnote-roundtrip-and-incremental-push ()
+  "Native notes round trip, no-op unchanged, and push note-only edits in segments."
+  (skip-unless (locate-library "gdocs-diff"))
+  (require 'gdocs-diff)
+  (let* ((fixtures (expand-file-name "fixtures/" org-google-docs-standalone-test--directory))
+	 (source (with-temp-buffer
+		   (insert-file-contents (expand-file-name "rich-footnotes.org" fixtures))
+		   (buffer-string)))
+	 ;; Representative API response, not a captured live document.
+	 (json (with-temp-buffer
+		 (insert-file-contents (expand-file-name "rich-footnotes-returned.json" fixtures))
+		 (json-parse-buffer :object-type 'alist :false-object :json-false)))
+	 (remote (gdocs-convert-docs-json-to-ir json))
+	 (pulled (gdocs-convert-ir-to-org remote))
+	 (gdocs-convert-footnote-reference-text-function (lambda (_reference) "⟦note⟧")))
+    (cl-labels ((native-ir (text)
+		  (org-google-docs-footnotes-filter-native-footnote-ir
+		   (gdocs-convert-org-string-to-ir text))))
+      (should (string-match-p (regexp-quote "😀 *bold* and /italic/ with [[https://example.com][a link]].") pulled))
+      (should (equal (gdocs-diff--element-keys remote) (gdocs-diff--element-keys (native-ir source))))
+      (should-not (gdocs-diff-generate remote (native-ir source)))
+      (should-not (gdocs-diff-generate remote (native-ir pulled)))
+      (let ((create (gdocs-convert-ir-to-docs-requests (native-ir source))))
+	(should-not (seq-some (lambda (request)
+				(let ((text (alist-get 'text (alist-get 'insertText request))))
+				  (and text (string-match-p "bold\\|Footnotes\\|\\[fn:" text)))) create)))
+      (dolist (changed (list (replace-regexp-in-string (regexp-quote "*bold*") "bold" source t t)
+			     (replace-regexp-in-string "a link" "a new link" source t t)))
+	(let ((requests (gdocs-diff-generate remote (native-ir changed))))
+	  (should requests)
+	  (dolist (request requests)
+	    (let* ((operation (cdar request))
+		   (target (or (alist-get 'range operation) (alist-get 'location operation))))
+	      (should (equal (alist-get 'segmentId target) "fn-1"))))))
+      ;; Remote collaborator edits survive pull and do not immediately push back.
+      (let* ((footnote (alist-get 'fn-1 (alist-get 'footnotes json)))
+	     (paragraph (alist-get 'paragraph (aref (alist-get 'content footnote) 0)))
+	     (link-run (aref (alist-get 'elements paragraph) 6)))
+	(setf (alist-get 'content (alist-get 'textRun link-run)) "a cite")
+	(let* ((edited (gdocs-convert-docs-json-to-ir json))
+	       (org (gdocs-convert-ir-to-org edited)))
+	  (should (string-match-p (regexp-quote "[[https://example.com][a cite]]") org))
+	  (should-not (gdocs-diff-generate edited (native-ir org))))))))
+
+(ert-deftest org-google-docs-standalone-native-footnotes-retain-authored-labels ()
+  "Native creation emits the same label marker consumed by pull conversion."
+  (skip-unless (locate-library "gdocs-convert"))
+  (require 'gdocs-convert)
+  (let* ((requests (org-google-docs-footnotes-sentinel-create-requests
+		    '((:label "authored-name" :sentinel-start 5 :sentinel-end 25))))
+	 (marker (seq-some (lambda (request) (alist-get 'createNamedRange request)) requests)))
+    (should marker)
+    (should (equal (alist-get 'range marker) '((startIndex . 5) (endIndex . 6))))
+    (let* ((name (alist-get 'name marker))
+	   (markers (gdocs-convert--parse-named-range-markers
+		     `((,(intern name) . ((namedRanges . [((name . ,name)
+							   (ranges . [((startIndex . 5) (endIndex . 6))]))])))))))
+      (should (equal (gdocs-convert--footnote-label-for-range
+		      '((footnoteId . "remote-id") (footnoteNumber . "1")) markers 5 6)
+		     "authored-name")))))
+
+(ert-deftest org-google-docs-standalone-footnote-preflight-rejects-unsupported-bodies ()
+  "Recognized unsupported footnote content blocks without calling the API."
+  (skip-unless (locate-library "gdocs-convert"))
+  (require 'gdocs-convert)
+  (dolist (body '("First paragraph.\n\nSecond paragraph."
+		  "<2026-11-15 Sun>"
+		  "Text^{2}"
+		  "First\\\\\nsecond"
+		  "[[status:green][Ready]]"
+		  "\n#+begin_src emacs-lisp\n(message \"no\")\n#+end_src"))
+    (with-temp-buffer
+      (org-mode)
+      (insert "Text[fn:1].\n\n* Footnotes\n\n[fn:1] " body "\n")
+      (let ((before (buffer-string)) called)
+	(cl-letf (((symbol-function 'gdocs-api-batch-update)
+		   (lambda (&rest _) (setq called t))))
+	  (should-error (org-google-docs--preflight-footnotes-for-push) :type 'user-error)
+	  (should-not called)
+	  (should (equal before (buffer-string))))))))
+
+(ert-deftest org-google-docs-standalone-rich-footnote-async-origin-and-account ()
+  "Deferred callbacks keep the originating source and explicit account."
+  (skip-unless (locate-library "gdocs-convert"))
+  (require 'gdocs-convert)
+  (let ((source (generate-new-buffer " *footnote-origin*"))
+	(other (generate-new-buffer " *footnote-unrelated*"))
+	(org-google-docs-footnotes--push-session nil)
+	(gdocs-convert-footnote-reference-handler nil)
+	(gdocs-convert-footnote-reference-text-function nil)
+	queue get-callback accounts callback-buffer body-requests)
+    (unwind-protect
+	(cl-labels ((batch (_document requests callback &optional account _on-error)
+		      (push account accounts)
+		      (when (seq-some (lambda (request) (alist-get 'updateTextStyle request)) requests)
+			(setq body-requests requests))
+		      (setq queue (append queue (list callback))))
+		    (deliver (response)
+		      (let ((callback (pop queue)))
+			(with-current-buffer other (funcall callback response)))))
+	  (cl-letf (((symbol-function 'gdocs-api-get-document)
+		     (lambda (_document callback &optional account _on-error)
+		       (push account accounts)
+		       (setq get-callback callback))))
+	    (with-current-buffer source
+	      (org-mode)
+	      (insert "Text[fn:1].\n\n* Footnotes\n\n[fn:1] A *bold* note.\n")
+	      (org-google-docs-footnotes--activate-session (org-google-docs-footnotes-plan-buffer))
+	      (org-google-docs-footnotes--around-batch-update
+	       #'batch "fixture-document"
+	       (gdocs-convert-ir-to-docs-requests
+		(org-google-docs-footnotes-filter-native-footnote-ir
+		 (gdocs-convert-org-buffer-to-ir)))
+	       (lambda (_response) (setq callback-buffer (current-buffer))) "source-account"))
+	    (deliver '((replies . [])))
+	    (with-current-buffer other
+	      (funcall get-callback
+		       '((body . ((content . [((paragraph . ((elements . [((startIndex . 1)
+									   (textRun . ((content . "Text⟦GDOCS_FN:1:1⟧.\n"))))]))))]))))))
+	    (deliver '((replies . [nil ((createFootnote . ((footnoteId . "fn-1")))) nil])))
+	    (deliver '((replies . [])))
+	    (should (eq callback-buffer source))
+	    (should (equal accounts '("source-account" "source-account" "source-account" "source-account")))
+	    (should (seq-some (lambda (request) (alist-get 'updateTextStyle request)) body-requests))
+	    (should-not org-google-docs-footnotes--push-session)))
+      (org-google-docs-footnotes--deactivate-session)
+      (kill-buffer source)
+      (kill-buffer other))))
+
 (provide 'org-google-docs-standalone-test)
 ;;; org-google-docs-standalone-test.el ends here

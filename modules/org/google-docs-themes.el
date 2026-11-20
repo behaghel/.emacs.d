@@ -46,6 +46,7 @@ Documents may override this with `#+GDOCS_THEME: THEME-ID'."
 	     (callout-surface . neutral-subtle)
 	     (callout-border . neutral-subtle)
 	     (callout-label . neutral-muted)
+	     (callout-inline-inset . 8)
 	     (callout-border-padding . 6)))
     (veriff-base
      :palette ((teal-100 . "#E0FCF8")
@@ -85,6 +86,7 @@ Documents may override this with `#+GDOCS_THEME: THEME-ID'."
 	     (quote-indent-start . 23.04)
 	     (quote-indent-first-line . 23.04)
 	     (quote-border-padding . 6)
+	     (callout-inline-inset . 8)
 	     (callout-border-padding . 6)))
     (veriff-working
      :extends veriff-base

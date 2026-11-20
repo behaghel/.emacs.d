@@ -52,7 +52,7 @@
     (should (member 'dates
 		    (org-google-docs-semantics-test--names classification :degraded)))
     (should (member 'footnotes
-		    (org-google-docs-semantics-test--names classification :unsupported)))
+		    (org-google-docs-semantics-test--names classification :supported)))
     (should (member 'standalone-images
 		    (org-google-docs-semantics-test--names classification :unsupported)))
     (should (member 'quote-blocks
@@ -68,7 +68,7 @@
 		 org-google-docs-semantics-test--specimen))
 	 (classification (org-google-docs-semantics-classify-audit audit))
 	 (footnotes (org-google-docs-semantics-test--entry
-		     classification :unsupported 'footnotes))
+		     classification :supported 'footnotes))
 	 (dates (org-google-docs-semantics-test--entry
 		 classification :degraded 'dates))
 	 (marginalia (org-google-docs-semantics-test--entry
@@ -94,6 +94,18 @@
     (should (string-match-p "Deferred:" report))
     (should (string-match-p "person links (1)" report))
     (should (string-match-p "status links (1)" report))))
+
+(ert-deftest org-google-docs-semantics-inventories-and-classifies-verse ()
+  "Verse appears explicitly in the source inventory and provider support report."
+  (with-temp-buffer
+    (insert "#+BEGIN_VERSE\n  *one*\n\ntwo 😀\n#+END_VERSE\n")
+    (org-mode)
+    (let* ((audit (hub/org-typographic-semantics-audit-buffer))
+	   (classification (org-google-docs-semantics-classify-audit audit))
+	   (entry (org-google-docs-semantics-test--entry classification :supported 'verse-blocks)))
+      (should (= (alist-get 'verse (plist-get audit :blocks)) 1))
+      (should (= (plist-get entry :count) 1))
+      (should (string-match-p "line" (plist-get entry :target))))))
 
 (provide 'org-google-docs-semantics-test)
 ;;; org-google-docs-semantics-test.el ends here

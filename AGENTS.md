@@ -167,6 +167,7 @@ Only ignored `devenv.local.nix`, `devenv.local.yaml`, and `.envrc.local` are lin
 - Before handoff, run the most relevant load/test commands for the touched area and mention any checks you could not run.
 
 ## Google Docs Publishing Discipline
+- Encapsulate each semantic feature in its owning conversion/diff modules. Generic engines must not acquire feature-specific branches, identity rules, normalization, lengths, segment addressing or request policy. Use a small semantic-neutral contract; moving helpers out while leaving semantic decisions in the engine is not encapsulation. Record and regression-test the boundary when adding an extension; do not introduce a registry or DSL without a concrete unmet need.
 - Treat Org ↔ Google Docs work as a multi-stage pipeline: Org source classification, preflight, Org → IR, upload/enrichment, remote Docs JSON → IR, diff, batchUpdate requests, and async callback context.
 - Before debugging by live trial-and-error, run or extend `M-x org-google-docs-debug-pipeline`. With a prefix argument it may fetch the linked Google Doc and append remote JSON, remote IR, and diff requests; never print OAuth tokens or credential payloads.
 - Add fixture-level integration tests for every new semantic feature across the full local flow, not only unit tests for individual helpers. Cover create and push paths, repeated push/diff behavior, and async callback buffer/account preservation when uploads or network callbacks are involved.
