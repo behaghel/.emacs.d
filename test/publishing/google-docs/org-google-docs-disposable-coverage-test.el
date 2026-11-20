@@ -9,14 +9,23 @@
 (require 'ert)
 (require 'cl-lib)
 (require 'json)
+(require 'subr-x)
 
 (defconst hub/disposable-coverage-test--build
   (expand-file-name (or (getenv "STRAIGHT_BUILD_PATH") "straight/build"))
   "Existing dependencies for isolated canary tests.")
 (defconst hub/disposable-coverage-test--sdk
-  (expand-file-name (or (getenv "GDOCS_PATH")
-                        (expand-file-name "gdocs" hub/disposable-coverage-test--build)))
-  "Explicit SDK source or managed build.")
+  (let* ((override (getenv "GDOCS_PATH"))
+         (build (expand-file-name "gdocs" hub/disposable-coverage-test--build))
+         (library (expand-file-name "gdocs-convert.el" build))
+         (source (when (file-readable-p library)
+                   (file-name-directory (file-truename library))))
+         (cached (expand-file-name "../repos/gdocs" hub/disposable-coverage-test--build)))
+    (cond ((and override (not (string-empty-p override))) (expand-file-name override))
+          ((and source (file-directory-p (expand-file-name "test" source))) source)
+          ((file-readable-p (expand-file-name "gdocs-convert.el" cached)) cached)
+          (t build)))
+  "Explicit SDK source or source behind the managed build, including test data.")
 
 (add-to-list 'load-path
              (expand-file-name (or (getenv "CONTEXT_PANELS_PATH")
@@ -216,6 +225,19 @@
                      nil t nil "--batch" "-Q" "-l"
                      "packages/org-google-docs/test/org-google-docs-disposable-preflight.el")))
        (should (string-match-p ":pulled-repeat-requests 0" (buffer-string)))))))
+
+(ert-deftest hub/disposable-coverage-default-source-has-sdk-test-resources ()
+  "A fresh test process finds managed SDK fixtures without GDOCS_PATH."
+  (hub/disposable-coverage-test--load)
+  (let ((process-environment (copy-sequence process-environment)))
+    (setenv "GDOCS_PATH" nil)
+    (with-temp-buffer
+      (should (= 0 (call-process
+                    (expand-file-name invocation-name invocation-directory)
+                    nil t nil "--batch" "-Q" "-l"
+                    "test/publishing/google-docs/org-google-docs-disposable-coverage-test.el"
+                    "--eval"
+                    "(unless (and (locate-library \"gdocs-disposable-plan\") (file-readable-p (expand-file-name \"test/fixtures/live-coverage-polished.json\" hub/disposable-coverage-test--sdk))) (error \"Managed SDK source/test resources unavailable\"))"))))))
 
 (provide 'org-google-docs-disposable-coverage-test)
 ;;; org-google-docs-disposable-coverage-test.el ends here
