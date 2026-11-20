@@ -340,6 +340,26 @@ When no durable suggestion hunk is linked, fall back to COMMENT's target text."
       (setq record (plist-put record :sidecar-file sidecar-file))
       (org-copilot--comment-from-sidecar-comment record source-file))))
 
+(defun org-copilot-install-retained-comment (source-buffer comment request)
+  "Install COMMENT's retained identity, preserving human resolution on redelivery.
+Refuse incompatible content; use the existing durable comment store rather than
+maintaining another receipt registry. REQUEST supplies the actual contributor."
+  (with-current-buffer source-buffer
+    (let* ((id (plist-get comment :retained-id))
+	   (existing (org-copilot-find-visible-comment id)))
+      (unless (and (stringp id) (not (string-empty-p id))
+		   (equal id (plist-get comment :id)))
+	(user-error "Retained comment requires its durable identity"))
+      (if existing
+	  (progn
+	    (unless (and (equal (plist-get existing :body)
+				(or (plist-get comment :summary) (plist-get comment :body)))
+			 (equal (plist-get existing :target-text) (plist-get comment :target-text))
+			 (equal (plist-get existing :author) (org-copilot-request-contributor request)))
+	      (user-error "Retained comment identity has incompatible content"))
+	    (plist-put (copy-sequence existing) :already-installed t))
+	(org-copilot-install-durable-comment source-buffer comment request)))))
+
 (defun org-copilot-add-comment (comment)
   "Add AI COMMENT to the current buffer session and return it.
 COMMENT is normalized before insertion.  Adding another comment with the same

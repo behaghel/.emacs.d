@@ -59,6 +59,10 @@ Re-delivering an existing candidate identity preserves its status and acceptance
 history rather than appending or reviving it; incompatible content under that
 identity is refused. The editor's existing sidecars remain the projection store.
 
+Prepared anchored comments can retain their producer's durable receipt identity without creating an executable suggestion. Prose-parsed model IDs do not acquire this identity. Redelivery preserves existing comment content and human resolution; incompatible content under that identity is refused. Retained anchors must still match uniquely and exactly in live text rather than falling back to guessed positions after an intervening edit.
+
+The Review action captures the selected region or subtree (the whole accessible document before the first heading), its source witness and moving bounds. An adapter can submit that captured request through the ordinary chat submission boundary, retaining its existing request fence, native conversation and readable turn. Review does not reset editing focus or prescribe findings, research or rewriting. Anchored comments remain within the captured review span; creating a comment grants no source-edit authority.
+
 ## Conversation and editing focus
 
 A conversation is independent of its editing focus. Within the chosen
