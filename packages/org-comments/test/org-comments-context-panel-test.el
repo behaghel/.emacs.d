@@ -60,7 +60,6 @@
 
 (ert-deftest org-comments-context-panel-pen-previews-the-clicked-card ()
   "The pen is an action on its own row, even when point was elsewhere."
-  (require 'org-suggestions)
   (let* ((source (generate-new-buffer " *clickable suggestion source*"))
 	 (comment '(:type comment :id "clicked-card" :provider "org-copilot"
 			  :status "OPEN" :target-text "Selected paragraph."
@@ -83,9 +82,18 @@
 	      (should (string-match-p "Preview" (button-get button 'help-echo)))
 	      (should (string-match-p "Preview linked suggestion" (context-panels-item-help-text)))
 	      (goto-char (point-max))
-	      (cl-letf (((symbol-function 'org-suggestions-preview-comment-suggestion-at-point)
-			 (lambda (target record) (setq called (list target record)))))
-		(button-activate button)))
+	      (cl-letf (((symbol-function 'org-comments-context-panel-test--preview)
+			 (lambda ()
+			   (interactive)
+			   (let ((context (org-comments-current-action-context)))
+			     (setq called (list (plist-get context :source-buffer)
+						(plist-get context :comment)))))))
+		(let ((map (make-sparse-keymap)))
+		  (set-keymap-parent map (current-local-map))
+		  (define-key map [remap org-comments-preview-suggestion-at-point]
+			      #'org-comments-context-panel-test--preview)
+		  (use-local-map map)
+		  (button-activate button))))
 	    (should (eq source (car called)))
 	    (should (equal "clicked-card" (plist-get (cadr called) :id))))
 	  (with-current-buffer source

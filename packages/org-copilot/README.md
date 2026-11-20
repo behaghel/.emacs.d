@@ -91,6 +91,10 @@ For `draft.org`, Copilot uses source-adjacent Org sidecars:
 
 Pure Q&A answers stay in the Copilot transcript. Executable edits live in `org-suggestions`; comment rows are short descriptions/entry points, not patch payloads.
 
+Copilot side cards use a configurable compact body preview. A right arrow (`→`) at the preview's end opens the full stored explanation in the bottom chat using the durable comment identity, including after reopening. The limit changes only the projection, not stored rationale or source text. Ordinary focus does not prepend that explanation to an existing conversation; explicit opening reveals it once as a separate selected-comment detail after the transcript, never as another assistant turn. Conversation messages retain oldest-first order and show their recorded local time before the speaker, such as `[09:11] You:` or `[09:12] Copilot:`. Unrecorded or invalid times are visibly unknown, not invented from the current clock. Missing or dismissed comments fail visibly rather than opening another comment. Opening an explanation preserves the conversation and unsent input.
+
+Chat content renders Org emphasis and descriptive links without running Org mode hooks in the panel or formatting buffers. Links use Org's normal explicit opening and confirmation rules in the originating source context. New authoring responses use concise Org content: the card identifies the useful change, the bottom discussion carries necessary evidence and qualifications, and source references link the relevant prose directly (for example, a linked “committee minutes”), rather than appending a Sources section. Descriptive links replace repeated elaboration where appropriate. Rendering does not rewrite old native history or heuristically convert Markdown into Org.
+
 ## Transcript persistence
 
 Copilot transcript append, archive and erase use the same visiting-buffer owner.
