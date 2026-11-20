@@ -16,4 +16,6 @@ status: draft
 - Tracked configuration may define integration points for secret stores, but must not contain secrets.
 - Machine-specific paths, work-only integrations, and sensitive local values belong in `private/setup.el`.
 - Secret-store integration should be available before interactive modules or mail/workflow modules request credentials.
+- On macOS, GPG requests use external pinentry (`ask`), keeping card insertion and PIN prompts outside the Emacs minibuffer. The configured GPG agent chooses the native pinentry program.
+- Linux and other non-macOS platforms retain Emacs-mediated loopback pinentry, including terminal-only workflows.
 - Required authentication infrastructure should fail visibly unless the integration is explicitly optional and guarded.

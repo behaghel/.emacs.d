@@ -7,11 +7,15 @@
 ;;; Code:
 
 (require 'auth-source-pass)
+(require 'epg)
 
 (auth-source-pass-enable)
 
 (use-package pinentry)
-(setq epa-pinentry-mode 'loopback)
+;; On macOS, let native pinentry handle card insertion and PIN requests rather
+;; than holding the shared agent behind an Emacs minibuffer request.  Preserve
+;; loopback on Linux and other platforms, including terminal-only workflows.
+(setq epg-pinentry-mode (if (eq system-type 'darwin) 'ask 'loopback))
 
 (provide 'core-auth)
 ;;; core-auth.el ends here
