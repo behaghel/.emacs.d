@@ -16,7 +16,17 @@ status: draft
 - API tokens and provider-specific secrets must remain outside tracked configuration.
 - Optional AI integrations should not break ordinary startup when unavailable.
 - Org Copilot activation is [explicit and buffer-local](../../../../packages/org-copilot/README.md#activation); loading Org or gptel does not enable it or configure its adapters.
-- When subscription OAuth is selected, ordinary gptel, Copilot chat/review and
+- Explicit Copilot activation selects Herbert by default; `hub/org-copilot-provider`
+  can select independent gptel instead. The personal Herbert project directory
+  supplies its client library and quiet devenv launcher; `hub/herbert-home`
+  explicitly selects the live runtime. Passive Org editing neither enables
+  Copilot nor starts a connection. An already selected buffer-local Herbert
+  connection keeps its runtime and launcher across mode reactivation. Missing
+  client/environment dependencies are visible and never select gptel as a fallback.
+- Native history remains bound to its recorded runtime. A review fixture's
+  conversation is not silently attached to production or replayed as new turns;
+  its original history and document artifacts remain intact.
+- When subscription OAuth is selected, ordinary gptel, gptel-backed Copilot and
   Babel reuse the same consumer-configured subscription backend and model.
   Activating another adapter does not recreate that backend or replace its
   authenticated state. Missing model selection, outdated adapter setup or a
@@ -34,7 +44,8 @@ status: draft
 - Personal Copilot chat buffers enter Evil insert state when Evil is available;
   the reusable package does not choose a modal editing state.
 - Reloading AI configuration preserves Copilot activation state and does not
-  duplicate activation hooks or review advice.
+  duplicate activation hooks or review advice. Review uses the selected adapter;
+  an unavailable native review action does not silently switch to gptel.
 - If the selected Copilot adapter cannot load on activation, configuration
   identifies the missing dependency and explains how to retry. Offline comments
   and panels remain usable without configuring another provider.
