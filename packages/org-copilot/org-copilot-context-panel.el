@@ -216,6 +216,8 @@ Comment side-panel UI is owned by the unified `org-comments' provider."
   (when (fboundp 'org-comments-mode)
     (org-comments-mode 1))
   (context-panels-register-provider (org-copilot-context-panel-provider))
+  (add-hook 'org-comments-panel-body-presentation-functions
+	    #'org-copilot-chat-comment-presentation nil t)
   ;; Keep this source-local finalizer even if mode is disabled before buffer
   ;; death: views already opened for this source still need ownership cleanup.
   (add-hook 'kill-buffer-hook #'org-copilot--close-source-views nil t)
@@ -224,6 +226,8 @@ Comment side-panel UI is owned by the unified `org-comments' provider."
 (defun org-copilot-context-panel-disable ()
   "Disable Org Copilot as a context-panel provider in the current buffer."
   (context-panels-unregister-provider 'copilot)
+  (remove-hook 'org-comments-panel-body-presentation-functions
+	       #'org-copilot-chat-comment-presentation t)
   (unless (context-panels-registered-providers)
     (context-panels-mode -1)))
 

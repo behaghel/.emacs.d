@@ -80,6 +80,30 @@
    org-comments-panel-author-6]
   "Stable author faces used by the comments panel.")
 
+(defvar-local org-comments-panel-body-presentation-functions nil
+  "Functions offering a source-owned compact comment presentation.
+Each receives SOURCE and COMMENT and may return a plist with :text,
+:label and an :open function of no arguments.  Nil preserves normal
+body rendering.  Presentations never replace persisted comment bodies.")
+
+(defun org-comments-panel-render--body-presentation (comment)
+  "Return the source-owned presentation for COMMENT, if any."
+  (when (buffer-live-p org-comments-panel-source-buffer)
+    (with-current-buffer org-comments-panel-source-buffer
+      (run-hook-with-args-until-success
+       'org-comments-panel-body-presentation-functions
+       (current-buffer) comment))))
+
+(defun org-comments-panel-render--insert-presentation (presentation)
+  "Insert PRESENTATION's preview and explicit opening action."
+  (org-comments-panel-render--insert-body (plist-get presentation :text))
+  (insert-text-button
+   (plist-get presentation :label)
+   'follow-link t
+   'help-echo "Open the full explanation"
+   'action (lambda (_) (funcall (plist-get presentation :open))))
+  (insert "\n"))
+
 (defun org-comments-panel-render--compact (text)
   "Return TEXT trimmed with whitespace collapsed for panel display."
   (string-trim (replace-regexp-in-string "[[:space:]]+" " " (or text ""))))
@@ -322,13 +346,18 @@ This does not insert a header or root row properties."
 	    (propertize "\n" 'line-height t 'org-comments-panel-metadata-gap t)))
   (let ((body (org-comments-panel-render--readable-body comment))
 	(replies (plist-get comment :replies))
+	(presentation (org-comments-panel-render--body-presentation comment))
 	reply-regions)
     (if (plist-get comment :current)
 	(progn
-	  (org-comments-panel-render--insert-body body)
+	  (if presentation
+	      (org-comments-panel-render--insert-presentation presentation)
+	    (org-comments-panel-render--insert-body body))
 	  (org-comments-panel-render--insert-replies comment))
-      (dolist (line (org-comments-panel-render--overview-lines body))
-	(insert line "\n"))
+      (if presentation
+	  (org-comments-panel-render--insert-presentation presentation)
+	(dolist (line (org-comments-panel-render--overview-lines body))
+	  (insert line "\n")))
       (when replies
 	(insert (format "↳ %s repl%s\n"
 			(length replies) (if (= (length replies) 1) "y" "ies")))

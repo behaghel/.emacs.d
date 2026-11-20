@@ -177,7 +177,7 @@
 		(should (string-match-p "Org Copilot Chat — .* · 💬 Comment ai-1 · active"
 					(buffer-string)))
 		(should-not (string-match-p "^Context" (buffer-string)))
-		(should (string-match-p "Copilot\n  Clarify this sentence" (buffer-string)))
+		(should-not (string-match-p "Copilot\n  Clarify this sentence" (buffer-string)))
 		(should-not (string-match-p "Comment: Clarify" (buffer-string)))
 		(should-not (string-match-p "Suggestion:" (buffer-string)))
 		(should (string-match-p "Earlier general chat" (buffer-string)))
@@ -841,6 +841,129 @@
 	(should (equal (plist-get (nth 1 messages) :content)
 		       "Here is an explanation.")))
       (should-not (org-copilot-comments)))))
+
+(ert-deftest org-copilot-chat-card-preview-keeps-full-rationale-and-source-action ()
+  "A compact card retains the original body and opens its exact source comment."
+  (let ((source (generate-new-buffer " *compact card source*")) opened)
+    (unwind-protect
+	(with-current-buffer source
+	  (org-mode)
+	  (org-copilot-mode 1)
+	  (let* ((org-copilot-comment-preview-length 80)
+		 (body (concat "Keep ownership distinct from compensation. " (make-string 300 ?x)))
+		 (comment (list :id "durable-comment" :provider "org-copilot"
+				:type 'comment :current t :body body)))
+	    (with-temp-buffer
+	      (setq-local org-comments-panel-source-buffer source)
+	      (org-comments-panel-render-insert-comment-body comment)
+	      (should (< (buffer-size) 140))
+	      (should-not (string-match-p (regexp-quote body) (buffer-string)))
+	      (goto-char (point-min))
+	      (let ((button (next-button (point-min))))
+		(should button)
+		(should (equal (button-label button) "Why and sources"))
+		(cl-letf (((symbol-function 'org-copilot-chat-show-explanation)
+			   (lambda (actual-source id) (setq opened (list actual-source id)))))
+		  (button-activate button))))
+	    (should (equal opened (list source "durable-comment")))
+	    (should (equal (plist-get comment :body) body))))
+      (kill-buffer source))))
+
+(ert-deftest org-copilot-chat-renders-org-and-opens-links-in-source ()
+  "Org typography and link activation keep the source without running hooks."
+  (let ((source (generate-new-buffer " *Org chat link source*"))
+	(hooks 0) opened)
+    (unwind-protect
+	(with-temp-buffer
+	  (org-copilot-chat-mode)
+	  (setq-local org-copilot-chat-source-buffer source)
+	  (let ((org-mode-hook (list (lambda () (cl-incf hooks)))))
+	    (org-copilot-chat--insert-message
+	     '(:role assistant :content "*Ownership*, not currency. [[https://example.invalid/evidence][Evidence]]")))
+	  (should (= hooks 0))
+	  (goto-char (point-min))
+	  (search-forward "Ownership")
+	  (should (get-text-property (1- (point)) 'face))
+	  (let ((button (next-button (point-min))))
+	    (should button)
+	    (should (equal (button-label button) "Evidence"))
+	    (cl-letf (((symbol-function 'org-link-open-from-string)
+		       (lambda (link &rest _) (setq opened (list (current-buffer) link)))))
+	      (button-activate button)))
+	  (should (equal opened (list source "[[https://example.invalid/evidence][Evidence]]"))))
+      (kill-buffer source))))
+
+(ert-deftest org-copilot-chat-focus-does-not-repeat-card-body-in-conversation ()
+  "Focus retains the conversation without automatically prepending a rationale."
+  (let ((source (generate-new-buffer " *nonredundant chat source*")))
+    (unwind-protect
+	(with-temp-buffer
+	  (org-copilot-chat-mode)
+	  (cl-letf (((symbol-function 'org-copilot-chat--visible-messages)
+		     (lambda (_) '((:role assistant :content "The conversation answer."))))
+		    ((symbol-function 'org-copilot-chat--focused-comment-body-message)
+		     (lambda (_) '(:role assistant :content "The full card rationale."))))
+	    (org-copilot-chat-render source)
+	    (should (string-match-p "The conversation answer" (buffer-string)))
+	    (should-not (string-match-p "The full card rationale" (buffer-string))))
+	  (with-current-buffer source
+	    (setq-local org-copilot-chat-expanded-comment-id "durable-comment"))
+	  (cl-letf (((symbol-function 'org-copilot-chat--visible-messages)
+		     (lambda (_) '((:role assistant :content "The conversation answer."))))
+		    ((symbol-function 'org-copilot-chat--focused-comment-body-message)
+		     (lambda (_) '(:role assistant :comment-id "durable-comment" :content "The full card rationale."))))
+	    (org-copilot-chat-render source)
+	    (should (string-match-p "The full card rationale" (buffer-string)))))
+      (kill-buffer source))))
+
+(ert-deftest org-copilot-chat-missing-explanation-never-falls-through ()
+  "A stale explanation identity must not focus a neighbouring comment."
+  (with-temp-buffer
+    (cl-letf (((symbol-function 'org-copilot-find-visible-comment) (lambda (_) nil)))
+      (should-error (org-copilot-chat-show-explanation (current-buffer) "missing")
+		    :type 'user-error))))
+
+(ert-deftest org-copilot-chat-explanation-reopens-from-durable-comment ()
+  "A recreated source opens its exact persisted rationale without a new history."
+  (let* ((directory (make-temp-file "copilot-explanation-reopen" t))
+	 (file (expand-file-name "draft.org" directory))
+	 (chat "*Reopened explanation test*") source)
+    (unwind-protect
+	(save-window-excursion
+	  (with-temp-file file (insert "Original paragraph.\n"))
+	  (setq source (find-file-noselect file))
+	  (with-current-buffer source
+	    (org-mode)
+	    (let ((record (org-comments-create-record
+			   file 1 9 "*Keep ownership distinct.* [[https://example.invalid/evidence][Evidence]]"
+			   "persisted-reason" "Herbert" "now")))
+	      (org-comments-append-to-sidecar (plist-put record :provider "org-copilot"))))
+	  (kill-buffer source)
+	  (setq source (find-file-noselect file))
+	  (switch-to-buffer source)
+	  (with-current-buffer source
+	    (setq-local org-copilot-chat-buffer-name chat)
+	    (org-copilot-mode 1)
+	    (org-copilot-add-chat-message 'assistant "The retained conversation.")
+	    (let* ((comment (org-copilot-find-visible-comment "persisted-reason"))
+		   (presentation (org-copilot-chat-comment-presentation source comment)))
+	      (should comment)
+	      (funcall (plist-get presentation :open))
+	      (should (equal org-copilot-chat-expanded-comment-id "persisted-reason"))
+	      (should (equal (buffer-string) "Original paragraph.\n"))
+	      (should-not (buffer-modified-p))
+	      (should (= 1 (length (org-copilot-chat-messages))))
+	      (with-current-buffer chat
+		(should (string-match-p "Keep ownership distinct" (buffer-string)))
+		(should (string-match-p "The retained conversation" (buffer-string)))
+		(should (next-button (point-min)))))))
+      (when (buffer-live-p source) (kill-buffer source))
+      (when (get-buffer chat) (kill-buffer chat))
+      (dolist (buffer (buffer-list))
+	(when (and (buffer-file-name buffer)
+		   (string-prefix-p directory (buffer-file-name buffer)))
+	  (kill-buffer buffer)))
+      (delete-directory directory t))))
 
 (provide 'org-copilot-chat-test)
 ;;; org-copilot-chat-test.el ends here
