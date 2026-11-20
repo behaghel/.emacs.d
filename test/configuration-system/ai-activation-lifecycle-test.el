@@ -220,9 +220,9 @@ Leave the mode disabled so the caller's next explicit enable retries setup."
 
 (defun hub/ai-lifecycle-test--exercise (order fault &optional recovery-route)
   "Exercise the lifecycle with load ORDER and optional negative-control FAULT.
-ORDER is `org-first' or `gptel-first'.  FAULT can inject `auto-activation' or
-`duplicate-setup' to demonstrate that lifecycle assertions detect regressions.
-RECOVERY-ROUTE, when non-nil, is `oauth' or `api-key' and adds an unavailable
+ORDER is `org-first', `gptel-first' or `herbert'.  FAULT can inject
+`auto-activation', `duplicate-setup' or a `missing-launcher'.
+RECOVERY-ROUTE, when non-nil, selects `oauth', `api-key' or `herbert' and adds an unavailable
 adapter followed by late availability and explicit activation retry."
   (require 'use-package)
   (require 'straight)
@@ -234,7 +234,13 @@ adapter followed by late availability and explicit activation retry."
   (straight-use-package-mode 1)
   (when recovery-route
     (setq hub/gptel-use-openai-oauth (eq recovery-route 'oauth)))
-  (cl-letf (((symbol-function 'straight-use-package)
+  (cl-letf (((symbol-function 'executable-find)
+	     (let ((original (symbol-function 'executable-find)))
+	       (lambda (command &optional remote)
+		 (if (equal command "devenv")
+		     (unless (eq fault 'missing-launcher) "/fixture/bin/devenv")
+		   (funcall original command remote)))))
+	    ((symbol-function 'straight-use-package)
 	     (lambda (recipe &rest _args)
 	       (push recipe hub/ai-lifecycle-test--recipes)
 	       t))
@@ -283,6 +289,16 @@ adapter followed by late availability and explicit activation retry."
 	(hub/ai-lifecycle-test--recover-unavailable-adapter))
       (princ "AI-LIFECYCLE:ENABLE\n")
       (org-copilot-mode 1)
+      (when (eq fault 'missing-launcher)
+	(should-not org-copilot-chat-function)
+	(should-not org-copilot-review-function)
+	(should-not (featurep 'org-copilot-gptel))
+	(should (zerop hub/ai-lifecycle-test--adapter-calls))
+	;; Making the launcher available still requires explicit activation.
+	(setq fault nil)
+	(should (zerop hub/ai-lifecycle-test--adapter-calls))
+	(org-copilot-mode -1)
+	(org-copilot-mode 1))
       (should org-copilot-mode)
       (should (context-panels-registered-provider 'copilot))
       (should (= hub/ai-lifecycle-test--adapter-calls 1))
@@ -438,6 +454,13 @@ Return the exit status and output; see `hub/ai-lifecycle-test--exercise'."
   (pcase-let ((`(,status ,output) (hub/ai-lifecycle-test--run 'herbert nil 'herbert)))
     (ert-info ((format "Isolated Herbert lifecycle output:\n%s" output))
 	      (should (equal status 0)))))
+
+(ert-deftest hub/ai-lifecycle-herbert-missing-launcher-requires-explicit-retry ()
+  "Missing devenv leaves offline UI available and never selects gptel."
+  (pcase-let ((`(,status ,output) (hub/ai-lifecycle-test--run 'herbert 'missing-launcher)))
+    (ert-info ((format "Isolated missing-launcher output:\n%s" output))
+	      (should (equal status 0))
+	      (should (string-match-p "devenv is unavailable" output)))))
 
 (ert-deftest hub/ai-lifecycle-org-before-gptel-stays-opt-in-across-reloads ()
   "Org-first loading and repeated reloads preserve explicit activation and cleanup."
