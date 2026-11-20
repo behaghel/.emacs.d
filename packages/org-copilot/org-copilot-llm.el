@@ -74,6 +74,10 @@ normalizable AI comment plists.  Adapter packages set this variable."
 	 (end (plist-get bounds :end)))
     (append bounds
 	    (list :source-buffer (current-buffer)
+		  :source-content (buffer-substring-no-properties (point-min) (point-max))
+		  :source-bounds (cons (copy-marker start) (copy-marker end t))
+		  :suggestion-source-context (when (fboundp 'org-suggestions-capture-source-context)
+					       (org-suggestions-capture-source-context))
 		  :buffer-name (buffer-name)
 		  :text (buffer-substring-no-properties start end)))))
 
@@ -282,14 +286,18 @@ If RESPONSE is not valid JSON, return it as a plain `:message'."
 
 (defun org-copilot-llm--anchor-comment-exact (comment)
   "Return COMMENT anchored by exact target text in the current buffer."
-  (let ((target-text (plist-get comment :target-text)))
+  (let ((target-text (plist-get comment :target-text))
+	(case-fold-search nil))
     (when (and target-text (not (string-empty-p target-text)))
       (save-excursion
 	(goto-char (point-min))
 	(when (search-forward target-text nil t)
-	  (let ((copy (copy-sequence comment)))
-	    (setq copy (plist-put copy :source-start (match-beginning 0)))
-	    (plist-put copy :source-end (match-end 0))))))))
+	  (let ((start (match-beginning 0)) (end (match-end 0)))
+	    (unless (and (plist-get comment :retained-id)
+			 (save-excursion (goto-char (1+ start)) (search-forward target-text nil t)))
+	      (let ((copy (copy-sequence comment)))
+		(setq copy (plist-put copy :source-start start))
+		(plist-put copy :source-end end)))))))))
 
 (defun org-copilot-llm--request-line-range (request line-start line-end)
   "Return source bounds for REQUEST-relative LINE-START and LINE-END."
@@ -437,13 +445,14 @@ fallback anchoring."
     (format "ai-%d" (1+ max-id))))
 
 (defun org-copilot-llm--rewrite-chat-comment-id (comment prompt)
-  "Return COMMENT with a locally generated id and chat PROMPT metadata."
+  "Add chat PROMPT metadata, retaining receipt identities but not prose JSON IDs."
   (let* ((copy (copy-sequence comment))
 	 (metadata (copy-sequence (or (plist-get copy :metadata) nil))))
     (setq metadata (plist-put metadata :source 'chat))
     (setq metadata (plist-put metadata :prompt prompt))
     (setq copy (plist-put copy :metadata metadata))
-    (plist-put copy :id (org-copilot-llm--next-ai-comment-id))))
+    (plist-put copy :id (or (plist-get comment :retained-id)
+			    (org-copilot-llm--next-ai-comment-id)))))
 
 (defun org-copilot-llm--chat-install-summary
     (installed skipped-unanchored skipped-limit &optional reachable hidden)
@@ -496,7 +505,11 @@ Return a plist with install counts and a reachability receipt."
 		    source-buffer limited anchor-request))
 	 (installable (cl-remove-if-not
 		       (lambda (comment)
-			 (org-copilot-llm--comment-installable-p comment context))
+			 (and (org-copilot-llm--comment-installable-p comment context)
+			      (let ((bounds (plist-get request :source-bounds)))
+				(or (not bounds)
+				    (and (<= (marker-position (car bounds)) (plist-get comment :source-start))
+					 (<= (plist-get comment :source-end) (marker-position (cdr bounds))))))))
 		       anchored))
 	 (skipped-unanchored (- (length anchored) (length installable)))
 	 (installed 0)
@@ -505,11 +518,14 @@ Return a plist with install counts and a reachability receipt."
       (with-current-buffer source-buffer
 	(dolist (comment installable)
 	  (let ((installed-comment
-		 (org-copilot-install-durable-comment
-		  source-buffer
-		  (org-copilot-llm--rewrite-chat-comment-id comment prompt) request)))
-	    (push (org-copilot-comment-id installed-comment) installed-ids)
-	    (setq installed (1+ installed))))
+		 (funcall (if (plist-get comment :retained-id)
+			      #'org-copilot-install-retained-comment
+			    #'org-copilot-install-durable-comment)
+			  source-buffer
+			  (org-copilot-llm--rewrite-chat-comment-id comment prompt) request)))
+	    (unless (plist-get installed-comment :already-installed)
+	      (push (org-copilot-comment-id installed-comment) installed-ids)
+	      (setq installed (1+ installed)))))
 	(org-copilot-mode 1)
 	(when (fboundp 'org-copilot-refresh-overlays)
 	  (org-copilot-refresh-overlays))

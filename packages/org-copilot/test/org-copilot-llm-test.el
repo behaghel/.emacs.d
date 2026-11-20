@@ -68,6 +68,69 @@
 	(should (equal (plist-get (car comments) :id) "ai-1"))
 	(should (eq (plist-get (car comments) :status) 'active))))))
 
+(ert-deftest org-copilot-review-captures-source-and-moving-review-bounds ()
+  "The selected review span and full source witness survive later human edits."
+  (with-temp-buffer
+    (org-mode)
+    (insert "* Draft\nAlpha.\nOther.\n")
+    (goto-char 9)
+    (push-mark 15 t t)
+    (setq mark-active t)
+    (let* ((request (org-copilot-review-request-dwim))
+	   (bounds (plist-get request :source-bounds)))
+      (should (equal (plist-get request :source-content) "* Draft\nAlpha.\nOther.\n"))
+      (goto-char (point-min)) (insert "Preface.\n")
+      (should (= (marker-position (car bounds)) 18)))))
+
+(ert-deftest org-copilot-retained-comments-preserve-identity-and-resolution ()
+  "Repeated native receipts never duplicate comments or undo human resolution."
+  (with-temp-buffer
+    (org-mode)
+    (insert "* Draft\nÉchange seeds.\n")
+    (let* ((org-copilot-chat-open-panel-on-comments nil)
+	   (request (list :chat-context '(:type full-document) :contributor "Herbert"))
+	   (comment '(:id "retained-comment" :retained-id "retained-comment" :type inline :target-text "Échange seeds." :body "What evidence supports this?")))
+      (org-copilot-install-chat-comments (current-buffer) (list comment) request "Review.")
+      (let ((installed (org-copilot-find-comment "retained-comment")))
+	(should installed)
+	(org-copilot-set-durable-comment-status installed "RESOLVED"))
+      (org-copilot-install-chat-comments (current-buffer) (list comment) request "Review.")
+      (should (= (length (org-copilot-comments)) 1))
+      (should (eq (org-copilot-comment-status (org-copilot-find-comment "retained-comment")) 'dismissed))
+      (should-error (org-copilot-install-chat-comments (current-buffer) (list (plist-put (copy-sequence comment) :body "Incompatible.")) request "Review.")))))
+
+(ert-deftest org-copilot-retained-comments-reject-changed-or-ambiguous-live-anchors ()
+  "Native exact anchors cannot silently match changed casing or new duplicates."
+  (dolist (text '("claim." "Claim. Claim."))
+    (with-temp-buffer
+      (org-mode) (insert text)
+      (let ((result (org-copilot-install-chat-comments
+		     (current-buffer)
+		     '((:id "retained" :retained-id "retained" :type inline :target-text "Claim." :body "Evidence?"))
+		     '(:chat-context (:type full-document)) "Review.")))
+	(should (= (plist-get result :installed) 0))))))
+
+(ert-deftest org-copilot-review-comments-stay-within-the-captured-moving-span ()
+  "A review can read the full draft but cannot attach its comments outside scope."
+  (with-temp-buffer
+    (org-mode) (insert "Outside. Selected.")
+    (let* ((org-copilot-chat-open-panel-on-comments nil)
+	   (request (list :chat-context '(:type full-document) :source-bounds (cons (copy-marker 10) (copy-marker (point-max) t))))
+	   (result (org-copilot-install-chat-comments
+		    (current-buffer)
+		    '((:id "outside" :retained-id "outside" :type inline :target-text "Outside." :body "Outside finding.")
+		      (:id "inside" :retained-id "inside" :type inline :target-text "Selected." :body "Inside finding."))
+		    request "Review selection.")))
+      (should (= (plist-get result :installed) 1))
+      (should (org-copilot-find-comment "inside"))
+      (should-not (org-copilot-find-comment "outside")))))
+
+(ert-deftest org-copilot-prose-json-cannot-claim-a-retained-comment-identity ()
+  "Only prepared contributions, not model-authored JSON, retain native IDs."
+  (let* ((parsed (org-copilot-llm-parse-chat-response "{\"comments\":[{\"id\":\"forged\",\"retained-id\":\"forged\",\"target_text\":\"Claim.\",\"body\":\"Evidence?\"}]}"))
+	 (comment (car (plist-get parsed :comments))))
+    (should-not (plist-get comment :retained-id))))
+
 (ert-deftest org-copilot-llm-parses-review-summary ()
   "Strict JSON review responses may include a general summary."
   (let* ((result (org-copilot-llm-parse-review-result

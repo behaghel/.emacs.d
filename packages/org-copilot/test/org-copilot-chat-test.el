@@ -12,6 +12,36 @@
 (require 'org-copilot)
 (require 'org-copilot-chat)
 
+(ert-deftest org-copilot-chat-submits-captured-review-without-another-request-or-focus-change ()
+  "Review uses ordinary turn handling while retaining the original request fence."
+  (with-temp-buffer
+    (org-mode) (insert "* Draft\nClaim.\n")
+    (let* ((source (current-buffer))
+	   (request (org-copilot-start-request
+		     (list :source-buffer source :message "Review the selected text."
+			   :source-content (buffer-string) :context-id "review:subtree")))
+	   captured)
+      (setq-local org-copilot-chat-focus-comment-id "existing-focus")
+      (setq-local org-copilot-chat-function (lambda (value) (setq captured value) nil))
+      (cl-letf (((symbol-function 'org-copilot-chat--buffer) #'ignore)
+		((symbol-function 'org-copilot-chat-scroll-to-last-message) #'ignore))
+	(org-copilot-submit-chat-request request))
+      (should (eq (plist-get captured :request-token) (plist-get request :request-token)))
+      (should (= (length org-copilot--requests) 1))
+      (should (equal org-copilot-chat-focus-comment-id "existing-focus"))
+      (should (equal (plist-get captured :source-content) "* Draft\nClaim.\n"))
+      (org-copilot-cancel-request captured))))
+
+(ert-deftest org-copilot-chat-obsolete-captured-review-cannot-submit-another-turn ()
+  "A cancelled captured review cannot append messages or dispatch an adapter."
+  (with-temp-buffer
+    (org-mode)
+    (let ((request (org-copilot-start-request (list :source-buffer (current-buffer) :message "Review."))))
+      (org-copilot-cancel-request request)
+      (cl-letf (((symbol-function 'org-copilot-chat-send)
+		 (lambda (&rest _) (error "Obsolete review was submitted"))))
+	(should-not (org-copilot-submit-chat-request request))))))
+
 (ert-deftest org-copilot-chat-opens-bottom-view-for-source ()
   "Opening chat creates a bottom-view buffer associated with the source."
   (let ((source (generate-new-buffer " *org copilot chat source*")))

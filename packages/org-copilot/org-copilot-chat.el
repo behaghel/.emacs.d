@@ -1246,7 +1246,7 @@ Slash command completion is offered only when the prompt field is empty."
     (org-copilot-chat-goto-prompt)))
 
 ;;;###autoload
-(defun org-copilot-chat-send (message)
+(defun org-copilot-chat-send (message &optional captured-request)
   "Send MESSAGE to the Org Copilot chat session.
 Interactively, read MESSAGE from the minibuffer outside chat buffers.  When
 `org-copilot-chat-function' returns an assistant response, append it to the
@@ -1254,11 +1254,12 @@ session transcript.  Slash command `/accept' accepts the focused suggestion."
   (interactive (list (if (derived-mode-p 'org-copilot-chat-mode)
 			 (org-copilot-chat--prompt-text)
 		       (read-string "Org Copilot chat: "))))
-  (let* ((source (org-copilot-chat--source-buffer))
-	 (comment-id (with-current-buffer source
-		       org-copilot-chat-focus-comment-id))
-	 (context-id (with-current-buffer source
-		       (org-copilot-chat--context-id org-copilot-chat-context)))
+  (let* ((source (or (plist-get captured-request :source-buffer)
+		     (org-copilot-chat--source-buffer)))
+	 (comment-id (if captured-request (plist-get captured-request :focus-comment-id)
+		       (with-current-buffer source org-copilot-chat-focus-comment-id)))
+	 (context-id (if captured-request (plist-get captured-request :context-id)
+		       (with-current-buffer source (org-copilot-chat--context-id org-copilot-chat-context))))
 	 request)
     (unless (org-copilot-chat--dispatch-command message source)
       (with-current-buffer source
@@ -1266,7 +1267,7 @@ session transcript.  Slash command `/accept' accepts the focused suggestion."
 	(org-copilot-add-chat-message 'user message comment-id context-id)
 	(when org-copilot-chat-function
 	  (setq request (org-copilot-start-request
-			 (org-copilot-chat--request source message)))
+			 (or captured-request (org-copilot-chat--request source message))))
 	  ;; Register pending state before invoking even a synchronous adapter.
 	  (org-copilot-add-chat-message 'pending "…" comment-id context-id request))
 	(org-copilot-chat--buffer source)
@@ -1286,6 +1287,14 @@ session transcript.  Slash command `/accept' accepts the focused suggestion."
 	    (error
 	     (org-copilot-cancel-request request)
 	     (signal (car err) (cdr err)))))))))
+
+(defun org-copilot-submit-chat-request (request)
+  "Submit captured REQUEST through ordinary chat without changing editing focus.
+Reuse its source-session token, source witness and context rather than creating
+another review execution or replacing them with callback-time editor state."
+  (when (or (not (plist-get request :request-token))
+	    (org-copilot-request-current-p request 'pending))
+    (org-copilot-chat-send (plist-get request :message) request)))
 
 (provide 'org-copilot-chat)
 ;;; org-copilot-chat.el ends here

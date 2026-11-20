@@ -610,7 +610,7 @@ chat viewport."
 		    org-copilot--chat-messages)))))
 
 (defun org-copilot-gptel--postprocess-chat-response
-    (text source-buffer comment-id _context-id request parsed-raw parsed base-message
+    (text source-buffer _comment-id _context-id request parsed-raw parsed base-message
 	  parse-ms)
   "Install artifacts for parsed chat response after BASE-MESSAGE is visible."
   (when (org-copilot-request-current-p request 'installing)
@@ -623,12 +623,11 @@ chat viewport."
 		(org-copilot-gptel--milliseconds-since install-start))
 	       (comments-start (float-time))
 	       (install-result
-		(unless comment-id
-		  (org-copilot-install-chat-comments
-		   source-buffer
-		   (plist-get parsed :comments)
-		   request
-		   (plist-get request :message))))
+		(org-copilot-install-chat-comments
+		 source-buffer
+		 (plist-get parsed :comments)
+		 request
+		 (plist-get request :message)))
 	       (install-comments-ms
 		(org-copilot-gptel--milliseconds-since comments-start))
 	       (message (concat
