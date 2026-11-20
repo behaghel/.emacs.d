@@ -2,20 +2,14 @@
 
 These manual checks cover Org named-footnote push through the local `gdocs` footnote seams and `org-google-docs` adapter.
 
-## Reload after code changes
+## Test setup
 
-Evaluate from the linked Org buffer:
-
-```elisp
-(progn
-  (load-file "/Users/hubertbehaghel/ws/gdocs/gdocs-convert.el")
-  (load-file "/Users/hubertbehaghel/ws/gdocs/gdocs-diff.el")
-  (load-file "/Users/hubertbehaghel/ws/.emacs.d-org-googledoc/packages/org-google-docs/org-google-docs-footnotes.el")
-  (load-file "/Users/hubertbehaghel/ws/.emacs.d-org-googledoc/packages/org-google-docs/org-google-docs.el")
-  (setq-local gdocs-sync--push-in-progress nil
-              gdocs-sync--push-queued nil)
-  (message "Reloaded Google Docs native footnote support"))
-```
+Use matching reviewed SDK and adapter versions, with automatic push disabled.
+Run offline fixtures first, then use a disposable Org file and a newly created
+Google Doc. Do not reset push queues or reload unrelated modules during an active
+operation. Inspect unexpected behavior with `M-x org-google-docs-debug-pipeline`;
+a prefix argument includes the linked remote JSON, IR and proposed requests.
+Never include credentials in diagnostic output.
 
 ## Single named footnote
 
@@ -35,6 +29,35 @@ Expected Google Doc:
 - body does not contain a visible `Footnotes` section;
 - native footnote area contains `Body.`;
 - document JSON contains a `footnoteReference` with a matching top-level `footnotes` entry.
+
+## Rich note create, edit, push and pull
+
+Use a single-paragraph definition:
+
+```org
+Text[fn:authored-name].
+
+* Footnotes
+
+[fn:authored-name] 😀 *bold* and /italic/ with [[https://example.com][a link]].
+```
+
+- Create a new Doc. Verify a native reference and native footnote, with emphasis
+  and a clickable link, not literal Org markup or a visible definitions section.
+- Push unchanged. The pipeline must not plan mutations for the unchanged note.
+- Change only the footnote text, emphasis or link target and push again. The
+  existing footnote segment changes; reference count, segment ID and authored
+  label remain stable. Every mutation must target that segment, not body
+  indices. The host paragraph and native reference are not recreated.
+- Edit the note in Docs and pull. The Org definition retains emphasis, link label
+  and URL, and the reference still uses `authored-name`. An immediate push is a
+  no-op for that note.
+- Keep source point/scroll unchanged unless the command intentionally replaces
+  local content. Check the pipeline trace if marker count, ranges or diffs differ.
+
+Multiple paragraphs, native dates, nested footnotes, status labels and embedded
+non-text objects are outside this mapping. Unsupported local or remote content
+must block before remote mutation or local replacement, not flatten silently.
 
 ## Re-push after cleanup
 
@@ -115,20 +138,13 @@ Expected Org source after pull:
 
 ## Known UI caveat
 
-Google Docs footnote markers created through the API may not look or behave like clickable links in all UI states. Treat the API JSON as authoritative: a correct native footnote has both a paragraph `footnoteReference` and a matching top-level `footnotes` entry.
+A paragraph `footnoteReference` and matching top-level `footnotes` entry prove
+native structure, not browser usability or appearance. Inspect the native marker
+and note in the browser as well as the exported PDF; do not infer click behavior
+from JSON alone.
 
-Diagnostic snippet:
-
-```elisp
-(require 'gdocs-api)
-
-(gdocs-api-get-document
- (org-google-docs-comments-document-id)
- (lambda (json)
-   (with-current-buffer (get-buffer-create "*gdocs-json-smoke*")
-     (erase-buffer)
-     (pp json (current-buffer))
-     (goto-char (point-min))
-     (pop-to-buffer (current-buffer))))
- (org-google-docs-comments-account))
-```
+Use the linked remote section of `org-google-docs-debug-pipeline` to inspect the
+reference, native segment and proposed segment-local requests together. Isolated
+source checks use the same metadata-title and structural-empty-paragraph filters
+as `gdocs-sync--push-incremental`; otherwise structural placeholders can produce
+spurious body differences before the footnote definitions.

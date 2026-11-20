@@ -35,6 +35,9 @@ Documents may override this with `#+GDOCS_THEME: THEME-ID'."
 	     (code-font . "Roboto Mono")
 	     (code-surface . neutral-subtle)
 	     (code-border . neutral-subtle)
+	     (example-surface . "#C8B59A")
+	     (example-border . "#C8B59A")
+	     (example-text . "#03140F")
 	     (quote-surface . neutral-subtle)
 	     (quote-border . neutral-subtle)
 	     (quote-left-border-only . nil)
@@ -46,6 +49,7 @@ Documents may override this with `#+GDOCS_THEME: THEME-ID'."
 	     (callout-surface . neutral-subtle)
 	     (callout-border . neutral-subtle)
 	     (callout-label . neutral-muted)
+	     (callout-inline-inset . 8)
 	     (callout-border-padding . 6)))
     (veriff-base
      :palette ((teal-100 . "#E0FCF8")
@@ -77,6 +81,9 @@ Documents may override this with `#+GDOCS_THEME: THEME-ID'."
 	     (code-font . "Roboto Mono")
 	     (code-surface . neutral-100)
 	     (code-border . teal-300)
+	     (example-surface . "#C8B59A")
+	     (example-border . "#C8B59A")
+	     (example-text . "#03140F")
 	     (quote-surface . neutral-100)
 	     (quote-border . teal-300)
 	     (quote-left-border-only . t)
@@ -85,6 +92,7 @@ Documents may override this with `#+GDOCS_THEME: THEME-ID'."
 	     (quote-indent-start . 23.04)
 	     (quote-indent-first-line . 23.04)
 	     (quote-border-padding . 6)
+	     (callout-inline-inset . 8)
 	     (callout-border-padding . 6)))
     (veriff-working
      :extends veriff-base

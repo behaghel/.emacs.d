@@ -115,6 +115,17 @@
 				 :border-color ,border
 				 :background-color ,background)))))
 
+(defun hub/org-google-docs--example-block-style-definitions (theme)
+  "Return independently themed example-block roles for THEME."
+  (mapcar (lambda (definition)
+	    (let* ((style (copy-tree (cdr definition)))
+		   (paragraph (plist-get style :paragraph)))
+	      (setq paragraph (plist-put paragraph :background-color (hub/org-google-docs--theme-color theme 'example-surface))
+		    paragraph (plist-put paragraph :border-color (hub/org-google-docs--theme-color theme 'example-border)))
+	      (cons (intern (string-replace "gdocs-source-block" "gdocs-example-block" (symbol-name (car definition))))
+		    (plist-put style :paragraph paragraph))))
+	  (hub/org-google-docs--source-block-style-definitions theme)))
+
 (defun hub/org-google-docs--quote-block-borders (theme)
   "Return quote border style for THEME."
   (when (hub/org-google-docs--theme-role theme 'quote-left-border-only)
@@ -166,11 +177,11 @@
      :text ,(hub/org-google-docs--quote-block-text theme))
     (gdocs-quote-block-line
      :parent normal
-     :paragraph ,(hub/org-google-docs--quote-block-paragraph theme 0 0)
+     :paragraph ,(hub/org-google-docs--quote-block-paragraph theme 6 0)
      :text ,(hub/org-google-docs--quote-block-text theme))
     (gdocs-quote-block-last
      :parent normal
-     :paragraph ,(hub/org-google-docs--quote-block-paragraph theme 0 6)
+     :paragraph ,(hub/org-google-docs--quote-block-paragraph theme 6 6)
      :text ,(hub/org-google-docs--quote-block-text theme))
     (gdocs-quote-block-single
      :parent normal
@@ -185,17 +196,37 @@
 
 (defun hub/org-google-docs--callout-paragraph (theme type space-above space-below)
   "Return callout paragraph style for THEME, TYPE, and spacing values."
-  `(:spacing-mode never-collapse
-		  :space-above ,space-above
-		  :space-below ,space-below
-		  :indent-start 0
-		  :indent-first-line 0
-		  :border-padding ,(hub/org-google-docs--theme-role
-				    theme 'callout-border-padding)
-		  :border-color ,(hub/org-google-docs--callout-color
-				  theme type "border" 'callout-border)
-		  :background-color ,(hub/org-google-docs--callout-color
-				      theme type "surface" 'callout-surface)))
+  (let ((inset (or (hub/org-google-docs--theme-role theme 'callout-inline-inset) 0)))
+    `(:spacing-mode never-collapse
+		    :space-above ,space-above
+		    :space-below ,space-below
+		    :indent-start ,inset
+		    :indent-first-line ,inset
+		    :indent-end 0
+		    :borders ((left :padding ,inset) (right :padding 0) (top) (bottom))
+		    :border-padding ,(hub/org-google-docs--theme-role
+				      theme 'callout-border-padding)
+		    :border-color ,(hub/org-google-docs--callout-color
+				    theme type "border" 'callout-border)
+		    :background-color ,(hub/org-google-docs--callout-color
+					theme type "surface" 'callout-surface))))
+
+(defun hub/org-google-docs--callout-flow-paragraph (theme type role &optional compact)
+  "Return THEME/TYPE callout ROLE spacing inside its surface.
+COMPACT suppresses prose gaps within list contents.  Outer margins remain
+paragraph spacing; inner gaps use border padding so shading stays continuous."
+  (let* ((padding (hub/org-google-docs-theme-role theme 'callout-border-padding))
+	 (inset (or (hub/org-google-docs--theme-role theme 'callout-inline-inset) 0))
+	 (last (memq role '(last single)))
+	 (top (cond ((eq role 'label) padding)
+		    ((memq role '(first single)) 4)
+		    (compact 0) (t 6)))
+	 (paragraph (hub/org-google-docs--callout-paragraph
+		     theme type (if (eq role 'label) 10 0) (if last 10 0))))
+    (plist-put paragraph :borders
+	       `((left :padding ,inset) (right :padding 0)
+		 (top :padding ,top) (bottom :padding ,(if last padding 0))))
+    paragraph))
 
 (defun hub/org-google-docs--callout-body-text (theme)
   "Return callout body text style for THEME."
@@ -217,30 +248,72 @@
 	    (let ((base (format "gdocs-callout-%s" type)))
 	      `((,(intern (format "%s-label" base))
 		 :parent normal
-		 :paragraph ,(hub/org-google-docs--callout-paragraph
-			      theme type 10 4)
+		 :paragraph ,(hub/org-google-docs--callout-flow-paragraph theme type 'label)
 		 :text ,(hub/org-google-docs--callout-label-text theme type))
 		(,(intern (format "%s-first" base))
 		 :parent normal
-		 :paragraph ,(hub/org-google-docs--callout-paragraph
-			      theme type 0 0)
+		 :paragraph ,(hub/org-google-docs--callout-flow-paragraph theme type 'first)
 		 :text ,(hub/org-google-docs--callout-body-text theme))
 		(,(intern (format "%s-line" base))
 		 :parent normal
-		 :paragraph ,(hub/org-google-docs--callout-paragraph
-			      theme type 0 0)
+		 :paragraph ,(hub/org-google-docs--callout-flow-paragraph theme type 'line)
 		 :text ,(hub/org-google-docs--callout-body-text theme))
 		(,(intern (format "%s-last" base))
 		 :parent normal
-		 :paragraph ,(hub/org-google-docs--callout-paragraph
-			      theme type 0 10)
+		 :paragraph ,(hub/org-google-docs--callout-flow-paragraph theme type 'last)
 		 :text ,(hub/org-google-docs--callout-body-text theme))
 		(,(intern (format "%s-single" base))
 		 :parent normal
-		 :paragraph ,(hub/org-google-docs--callout-paragraph
-			      theme type 0 10)
+		 :paragraph ,(hub/org-google-docs--callout-flow-paragraph theme type 'single)
 		 :text ,(hub/org-google-docs--callout-body-text theme)))))
 	  '("info" "note" "warning" "tip" "important"))))
+
+(defun hub/org-google-docs--compact-callout-style-definitions (theme)
+  "Return compact list-body callout styles for THEME."
+  (apply #'append
+	 (mapcar
+	  (lambda (type)
+	    (mapcar
+	     (lambda (role)
+	       (list (intern (format "gdocs-callout-%s-%s-compact" type role))
+		     :parent 'normal
+		     :paragraph (hub/org-google-docs--callout-flow-paragraph theme type role t)
+		     :text (hub/org-google-docs--callout-body-text theme)))
+	     '(first line last single)))
+	  '("info" "note" "warning" "tip" "important"))))
+
+(defun hub/org-google-docs--section-break-style-definitions (theme)
+  "Return a themed rule and an unbordered outside separator for THEME."
+  (let ((color (hub/org-google-docs--theme-color theme 'heading-muted))
+	(body (plist-get (alist-get 'gdocs-body (hub/org-google-docs--base-text-style-definitions theme)) :text)))
+    `((gdocs-section-break :parent normal
+			   :paragraph (:space-above 6 :space-below 6 :indent-start 0 :indent-first-line 0 :indent-end 0
+						    :borders ((top :width 0 :padding 0) (left :width 0 :padding 0)
+							      (right :width 0 :padding 0) (bottom :width 0.5 :padding 0 :color ,color)))
+			   :text (:font-size 1))
+      (gdocs-section-break-separator :parent normal
+				     :paragraph (:space-above 0 :space-below 0 :indent-start 0 :indent-first-line 0 :indent-end 0
+							      :borders ((top :width 0 :padding 0) (left :width 0 :padding 0)
+									(right :width 0 :padding 0) (bottom :width 0 :padding 0)))
+				     :text ,(append (copy-sequence body) '(:font-scale 1))))))
+
+(defun hub/org-google-docs--center-style-definitions (theme)
+  "Return centered prose roles using THEME's body text and paragraph gaps."
+  (let ((body (plist-get (alist-get 'gdocs-body (hub/org-google-docs--base-text-style-definitions theme)) :text)))
+    (mapcar (lambda (role)
+	      (list (intern (format "gdocs-center-%s" role)) :parent 'normal
+		    :paragraph '(:alignment center :space-above 6 :space-below 0)
+		    :text (copy-sequence body)))
+	    '(first line last single))))
+
+(defun hub/org-google-docs--verse-style-definitions (theme)
+  "Return compact verse line roles using THEME's body typography."
+  (let ((body (plist-get (alist-get 'gdocs-body (hub/org-google-docs--base-text-style-definitions theme)) :text)))
+    (mapcar (lambda (role)
+	      (list (intern (format "gdocs-verse-%s" role)) :parent 'normal
+		    :paragraph (list :space-above (if (memq role '(first single)) 6 0) :space-below 0)
+		    :text (copy-sequence body)))
+	    '(first line last single))))
 
 (defun hub/org-google-docs-style-definitions (&optional theme-id)
   "Return logical style definitions for Google Docs publishing.
@@ -253,9 +326,29 @@ When THEME-ID is nil, use the current buffer's `#+GDOCS_THEME:' override or
 	:text (:font-family ,(hub/org-google-docs--theme-role theme 'code-font)
 			    :foreground-color ,(hub/org-google-docs--theme-color
 						theme 'body-text))))
+     `((gdocs-example-code :text (:font-family ,(hub/org-google-docs--theme-role theme 'code-font)
+					       :foreground-color ,(hub/org-google-docs--theme-color theme 'example-text)))
+       (gdocs-definition-term :text (:bold t)))
+     '((gdocs-list-first :paragraph (:space-above 6))
+       (gdocs-list-item :paragraph (:space-above 0))
+       (gdocs-source-block-separator :parent normal
+				     :paragraph (:space-above 0 :space-below 0 :background-color nil
+							      :borders ((top :width 0 :padding 0) (bottom :width 0 :padding 0)
+									(left :width 0 :padding 0) (right :width 0 :padding 0))))
+       (gdocs-status-grey :text (:small-caps t :bold t :foreground-color "#3C4043" :background-color "#E2E3E5"))
+       (gdocs-status-red :text (:small-caps t :bold t :foreground-color "#A50E0E" :background-color "#FCE8E6"))
+       (gdocs-status-yellow :text (:small-caps t :bold t :foreground-color "#7A4F01" :background-color "#FEF7E0"))
+       (gdocs-status-green :text (:small-caps t :bold t :foreground-color "#137333" :background-color "#E6F4EA"))
+       (gdocs-status-blue :text (:small-caps t :bold t :foreground-color "#174EA6" :background-color "#E8F0FE"))
+       (gdocs-status-purple :text (:small-caps t :bold t :foreground-color "#681DA8" :background-color "#F3E8FD")))
      (hub/org-google-docs--source-block-style-definitions theme)
+     (hub/org-google-docs--example-block-style-definitions theme)
      (hub/org-google-docs--quote-block-style-definitions theme)
+     (hub/org-google-docs--verse-style-definitions theme)
+     (hub/org-google-docs--center-style-definitions theme)
+     (hub/org-google-docs--section-break-style-definitions theme)
      (hub/org-google-docs--callout-style-definitions theme)
+     (hub/org-google-docs--compact-callout-style-definitions theme)
      `((gdocs-image-caption
 	:parent normal
 	:paragraph (:alignment center)

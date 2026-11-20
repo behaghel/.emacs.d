@@ -58,14 +58,14 @@
     (_ 'hub/org-confluence-status-grey)))
 
 (defun hub/org-confluence-status-activate (start end _path bracketp)
-  "Add chip-like display properties to a Confluence status link.
+  "Add chip-like display properties to a generic or legacy status link.
 
 START and END delimit the link.  BRACKETP is non-nil for bracket links with an
 optional description."
   (when bracketp
     (save-excursion
       (goto-char start)
-      (when (re-search-forward "\\[\\[confluence-status:[^]]+\\]\\[\\([^]]+\\)\\]\\]" end t)
+      (when (re-search-forward "\\[\\[\\(?:status\\|confluence-status\\):[^]]+\\]\\[\\([^]]+\\)\\]\\]" end t)
 	(let* ((description-start (match-beginning 1))
 	       (description-end (match-end 1))
 	       (display-title (upcase (match-string-no-properties 1))))
@@ -73,10 +73,11 @@ optional description."
 			       `(display ,display-title)))))))
 
 (with-eval-after-load 'ol
-  (org-link-set-parameters
-   "confluence-status"
-   :face #'hub/org-confluence-status-face
-   :activate-func #'hub/org-confluence-status-activate))
+  (dolist (protocol '("status" "confluence-status"))
+    (org-link-set-parameters
+     protocol
+     :face #'hub/org-confluence-status-face
+     :activate-func #'hub/org-confluence-status-activate)))
 
 (defun hub/org-yas-ready-p ()
   "Return non-nil when Yasnippet can expand snippets in this buffer."

@@ -30,7 +30,7 @@
     (list (cons 'body (list (cons 'content (vector paragraph)))))))
 
 (ert-deftest org-google-docs-footnotes-filters-org-only-footnotes-from-ir ()
-  "Native footnote push removes Org-only definition section from body IR."
+  "Native push omits the Org-only heading but retains semantic definitions."
   (let ((ir (list (list :type 'paragraph
 			:style 'normal
 			:contents (list (list :text "Text.")))
@@ -47,7 +47,7 @@
 			     (org-google-docs-footnotes--runs-plain-text
 			      (plist-get element :contents)))
 			   (org-google-docs-footnotes-filter-native-footnote-ir ir))
-		   '("Text." "After.")))))
+		   '("Text." "Body." "After.")))))
 
 (ert-deftest org-google-docs-footnotes-conversion-advice-filters-only-during-session ()
   "Conversion advice filters footnote IR only while a push session is active."
@@ -60,7 +60,8 @@
 	(should (equal (org-google-docs-footnotes--around-org-buffer-to-ir #'orig)
 		       ir)))
       (let ((org-google-docs-footnotes--push-session (list :references [])))
-	(should-not (org-google-docs-footnotes--around-org-buffer-to-ir #'orig))))))
+	(should (equal (org-google-docs-footnotes--around-org-buffer-to-ir #'orig)
+		       '((:type footnote :label "one"))))))))
 
 (ert-deftest org-google-docs-footnotes-stale-sentinel-hook-self-heals ()
   "A stale sentinel text hook outside push does not crash later conversion."
@@ -146,7 +147,7 @@
 		   (list (list :label "one"
 			       :sentinel-start 12
 			       :sentinel-end 30)))))
-    (should (equal requests
+    (should (equal (seq-remove (lambda (request) (alist-get 'createNamedRange request)) requests)
 		   '(((deleteContentRange
 		       . ((range . ((startIndex . 12) (endIndex . 30))))))
 		     ((createFootnote . ((location . ((index . 12)))))))))))
@@ -184,7 +185,7 @@
 	(org-google-docs-footnotes--around-batch-update
 	 #'orig "doc-1" '(((insertText . ((text . "A ⟦GDOCS_FN:1:one⟧ B ⟦GDOCS_FN:2:two⟧.")))))
 	 #'ignore))
-      (should (equal (nth 1 calls)
+      (should (equal (seq-remove (lambda (request) (alist-get 'createNamedRange request)) (nth 1 calls))
 		     '(((deleteContentRange
 			 . ((range . ((startIndex . 22) (endIndex . 38))))))
 		       ((createFootnote . ((location . ((index . 22))))))

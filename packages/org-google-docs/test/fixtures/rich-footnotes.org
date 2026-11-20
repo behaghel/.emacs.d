@@ -1,0 +1,5 @@
+Text[fn:1].
+
+* Footnotes
+
+[fn:1] 😀 *bold* and /italic/ with [[https://example.com][a link]].

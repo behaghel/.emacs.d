@@ -60,16 +60,19 @@
      (should (member :repeated-reference
 		     (org-google-docs-footnotes-test--degradation-codes plan))))))
 
-(ert-deftest org-google-docs-footnotes-reports-rich-body-degradation ()
-  "Rich inline markup in footnote bodies is a v1 degradation, not a blocker."
+(ert-deftest org-google-docs-footnotes-never-flattens-rich-body-silently ()
+  "Rich notes require preservation or an actionable blocking diagnostic."
   (org-google-docs-footnotes-test--with-buffer
    "* Body\nText[fn:rich].\n\n* Footnotes\n\n[fn:rich] This has /italic/ and [[https://example.com][a link]].\n"
    (let ((plan (org-google-docs-footnotes-plan-buffer)))
-     (should (plist-get plan :ready-p))
      (should (equal "This has italic and a link."
 		    (plist-get (car (plist-get plan :references)) :body)))
-     (should (member :rich-inline-formatting
-		     (org-google-docs-footnotes-test--degradation-codes plan))))))
+     (should-not (member :rich-inline-formatting
+			 (org-google-docs-footnotes-test--degradation-codes plan)))
+     (if (plist-get plan :ready-p)
+	 (should (plist-get (car (plist-get plan :references)) :body-runs))
+       (should (member :unsupported-footnote-body
+		       (org-google-docs-footnotes-test--diagnostic-codes plan)))))))
 
 (ert-deftest org-google-docs-footnotes-blocks-unsupported-forms ()
   "Unsupported footnote forms block native Google Docs footnote push."

@@ -15,7 +15,36 @@ status: draft
 ## Invariants
 
 - Author-facing semantics must stay separate from class-specific visual styling.
+- Google Docs publishing uses the selected tracked theme for presentation. Tasks
+  align with native list glyph, body and continuation columns at the same level.
+- Prose paragraphs inside typographic blocks and separate lists retain visible
+  separation. List-item contents remain compact; literal code/example blank
+  lines retain their exact content rather than being converted into spacing.
+  Distinct source/example blocks have an unshaded outside gap, not a fused panel.
+- Static status labels use semantic colour and uniform small-cap height in Google
+  Docs. Source label spelling survives round-trip; native dropdown choices are not implied.
+- Definition terms are bold through presentation, without inserting redundant
+  emphasis into plain Org terms. Explicitly authored emphasis remains distinct.
+- Example blocks use a `#C8B59A` background with dark text. Their presentation is
+  separate from source blocks and does not change literal contents or spacing.
+- Section breaks retain semantic identity across publishing and pull. The selected
+  theme supplies a visible separator; arbitrary paragraph borders are not breaks,
+  and following prose does not inherit the separator border.
+- Centered prose retains authored paragraph boundaries and distinct block
+  boundaries, including empty blocks. Centering does not flatten rich text or
+  leak into following prose. Body typography and paragraph gaps are presentation.
+- Verse retains authored hard lines, stanza gaps, indentation and rich text.
+  Verse blocks have visible separation from preceding prose. Consecutive verse
+  lines use compact paragraph spacing; the selected body
+  typography is presentation and does not replace authored emphasis or links.
+- Callouts have outer spacing and a continuous themed background across the
+  printable text width, including their list and continuation paragraphs.
+  Labels and prose have a small theme-defined inner-left inset; the inset does
+  not move established list columns or shift the shaded surface outside the
+  printable area.
 - The backend-neutral typographic semantics contract lives in [`typographic-semantics.md`](typographic-semantics.md).
+- The semantic inventory counts parsed authoring constructs. Metadata-looking
+  text inside literal source/example blocks is content, not document metadata.
 - The semantic inventory/audit helper lives in `typographic-semantics.el` and provides `hub/org-typographic-semantics-audit-buffer` and `hub/org-typographic-semantics-audit-file`.
 - The tracked specimen for the contract lives in [`specimens/typographic-semantics.org`](specimens/typographic-semantics.org).
 - Export behavior should be testable from tracked specimens and textual assertions before relying on visual inspection.

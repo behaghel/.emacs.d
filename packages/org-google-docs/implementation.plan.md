@@ -1,4 +1,9 @@
-# Spec: Org Google Docs Adapter
+# Historical delivery plan: Org Google Docs Adapter
+
+This non-normative delivery record retains earlier decisions and checkpoints;
+its capability descriptions and unchecked boxes are not the current backlog.
+Use the [adapter specification](README.md) and
+[semantic coverage profile](docs/source-content-semantics.md) for current behaviour.
 
 ## Problem
 

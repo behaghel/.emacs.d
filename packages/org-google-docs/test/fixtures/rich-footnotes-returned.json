@@ -1,0 +1,23 @@
+{
+  "body": {"content": [{
+    "startIndex": 1, "endIndex": 8,
+    "paragraph": {"elements": [
+      {"startIndex": 1, "endIndex": 5, "textRun": {"content": "Text"}},
+      {"startIndex": 5, "endIndex": 6, "footnoteReference": {"footnoteId": "fn-1", "footnoteNumber": "1"}},
+      {"startIndex": 6, "endIndex": 8, "textRun": {"content": ".\n"}}
+    ]}
+  }]},
+  "footnotes": {"fn-1": {"content": [{
+    "startIndex": 0, "endIndex": 33,
+    "paragraph": {"elements": [
+      {"startIndex": 0, "endIndex": 1, "textRun": {"content": " "}},
+      {"startIndex": 1, "endIndex": 4, "textRun": {"content": "😀 "}},
+      {"startIndex": 4, "endIndex": 8, "textRun": {"content": "bold", "textStyle": {"bold": true}}},
+      {"startIndex": 8, "endIndex": 13, "textRun": {"content": " and "}},
+      {"startIndex": 13, "endIndex": 19, "textRun": {"content": "italic", "textStyle": {"italic": true}}},
+      {"startIndex": 19, "endIndex": 25, "textRun": {"content": " with "}},
+      {"startIndex": 25, "endIndex": 31, "textRun": {"content": "a link", "textStyle": {"link": {"url": "https://example.com"}}}},
+      {"startIndex": 31, "endIndex": 33, "textRun": {"content": ".\n"}}
+    ]}
+  }]}}
+}

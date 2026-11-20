@@ -29,7 +29,8 @@
     (should (string-match-p "inactive Org timestamps" (plist-get dates :target)))
     (should (plist-get result :supported))
     (should (plist-get result :unsupported))
-    (should (plist-get result :deferred))))
+    (should (seq-some (lambda (entry) (eq (plist-get entry :name) 'person-links))
+		      (plist-get result :degraded)))))
 
 (ert-deftest org-google-docs-classification-formats-local-report ()
   "A plain fixture produces an actionable provider report."
@@ -39,6 +40,26 @@
     (should (string-match-p "Google Docs semantic support" report))
     (should (string-match-p "footnotes (3)" report))
     (should (string-match-p "person links (1)" report))))
+
+(ert-deftest org-google-docs-classification-reflects-accepted-capabilities ()
+  "The support report no longer calls implemented semantic groups unsupported."
+  (let* ((audit '(:media ((standalone-images . 1) (captioned-figures . 1) (described-image-links . 1))
+			 :blocks ((quote . 1) (callout . 1) (example . 1))
+			 :inline ((status-links . 1))))
+	 (result (org-google-docs-semantics-classify-audit audit))
+	 (supported (mapcar (lambda (entry) (plist-get entry :name)) (plist-get result :supported))))
+    (dolist (name '(standalone-images captioned-figures quote-blocks callouts example-blocks status-links))
+      (should (memq name supported)))
+    (should-not (plist-get result :unclassified))))
+
+(ert-deftest org-google-docs-classification-unmapped-counters-are-visible-and-unsupported ()
+  "New or omitted audit categories cannot disappear from the support report."
+  (let* ((result (org-google-docs-semantics-classify-audit '(:blocks ((future-block . 2)))))
+	 (entry (car (plist-get result :unclassified))))
+    (should entry)
+    (should (= (plist-get entry :count) 2))
+    (should (memq entry (plist-get result :unsupported)))
+    (should (string-match-p "No declared" (plist-get entry :reason)))))
 
 (provide 'org-google-docs-classification-test)
 ;;; org-google-docs-classification-test.el ends here
