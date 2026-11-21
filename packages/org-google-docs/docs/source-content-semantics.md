@@ -67,7 +67,7 @@ implemented reversible mapping:
   modules.
 
 Preflight inspects the complete source even when narrowed. Source/footnote checks
-precede uploads; image-bearing sources also pass SDK conversion before upload.
+precede uploads; image-bearing sources also pass `gdocs` library conversion before upload.
 Source validity is checked again before body writing. Native union members without
 a decoder block import with a diagnostic naming the unsupported object kind.
 

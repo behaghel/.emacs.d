@@ -4,9 +4,9 @@ Non-normative manual acceptance procedure. Offline tests do not establish browse
 
 ## Preconditions
 
-- Use reviewed SDK/configuration sources in isolated batch Emacs with the already
+- Use reviewed `gdocs` library and configuration sources in isolated batch Emacs with the already
   installed authenticated transport, or explicitly install reviewed revisions.
-  Acceptance does not authorize installation or a production SDK reload.
+  Acceptance does not authorize installation or a production `gdocs` library reload.
 - Use only a new disposable Org source and Google Doc, with the account selected
   explicitly. Keep automatic push disabled; never use a product document.
 - Keep request plans and returned snapshots immutable. Do not retry mutations

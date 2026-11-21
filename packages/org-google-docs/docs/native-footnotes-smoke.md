@@ -4,7 +4,7 @@ These manual checks cover Org named-footnote push through the local `gdocs` foot
 
 ## Test setup
 
-Use matching reviewed SDK and adapter versions, with automatic push disabled.
+Use matching reviewed `gdocs` library and adapter versions, with automatic push disabled.
 Run offline fixtures first, then use a disposable Org file and a newly created
 Google Doc. Do not reset push queues or reload unrelated modules during an active
 operation. Inspect unexpected behavior with `M-x org-google-docs-debug-pipeline`;

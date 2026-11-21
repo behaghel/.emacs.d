@@ -2,7 +2,7 @@
 
 ;;; Commentary:
 ;; Batch-only choreography for synthetic mixed-document acceptance.  Reuse the
-;; production footnote planner and SDK conversion, never authentication or HTTP.
+;; production footnote planner and gdocs library conversion, never authentication or HTTP.
 ;; Each phase writes to a fresh empty directory; snapshots/replies are explicit
 ;; inputs, not hidden state in a running Emacs.
 
@@ -19,7 +19,7 @@
 (require 'org-google-docs)
 
 (defun org-google-docs-disposable-coverage--read-json (file)
-  "Read explicit JSON FILE using the SDK's object representation."
+  "Read explicit JSON FILE using the gdocs library's object representation."
   (unless (and file (file-readable-p file))
     (user-error "This phase requires a readable JSON snapshot or reply"))
   (let ((json-object-type 'alist) (json-array-type 'vector)

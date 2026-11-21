@@ -407,8 +407,8 @@
 	(should-error (org-google-docs-create) :type 'user-error)
 	(should-not uploaded)))))
 
-(ert-deftest org-google-docs-invalid-sdk-source-stops-before-image-upload ()
-  "Local SDK conversion runs before assets are created remotely."
+(ert-deftest org-google-docs-invalid-library-source-stops-before-image-upload ()
+  "Local gdocs library conversion runs before assets are created remotely."
   (with-temp-buffer
     (org-mode) (insert "Synthetic source.\n")
     (let (uploaded)
@@ -417,7 +417,7 @@
 		((symbol-function 'org-google-docs--require-upstream-library) (lambda (_library) t))
 		((symbol-function 'gdocs-sync--make-link-context) (lambda () nil))
 		((symbol-function 'gdocs-convert-org-buffer-to-ir)
-		 (lambda () (user-error "Synthetic unsupported SDK construct")))
+		 (lambda () (user-error "Synthetic unsupported gdocs construct")))
 		((symbol-function 'org-google-docs-images-begin-push)
 		 (lambda (&rest _args) (setq uploaded t))))
 	(should-error (org-google-docs-create) :type 'user-error)

@@ -4,9 +4,9 @@ Non-normative manual acceptance procedure. Offline fixture results do not establ
 
 ## Preconditions
 
-- Use the reviewed SDK/configuration sources in isolated batch Emacs with the
+- Use the reviewed `gdocs` library and configuration sources in isolated batch Emacs with the
   already installed authenticated transport, or explicitly install the reviewed
-  revisions before interactive checks. Never load a test SDK into production
+  revisions before interactive checks. Never load a test `gdocs` library into production
   Emacs; review acceptance does not authorize installation automatically.
 - Use a new disposable Org file and a new disposable Google Doc, never a product document.
 - Keep automatic push disabled and use the intended account explicitly.
