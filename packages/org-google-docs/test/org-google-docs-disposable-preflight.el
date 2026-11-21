@@ -10,18 +10,18 @@
 
 (unless noninteractive
   (user-error "Run disposable preflight in a separate batch Emacs"))
-(let* ((sdk (or (getenv "GDOCS_PATH") (error "GDOCS_PATH is required")))
+(let* ((gdocs-source (or (getenv "GDOCS_PATH") (error "GDOCS_PATH is required")))
        (build (or (getenv "STRAIGHT_BUILD_PATH") (error "STRAIGHT_BUILD_PATH is required")))
        (artifacts (or (getenv "GDOCS_DISPOSABLE_ARTIFACTS") (error "Artifact directory is required")))
        (packages (expand-file-name "../.." (file-name-directory load-file-name)))
        (source (or (getenv "GDOCS_DISPOSABLE_SOURCE")
-		   (expand-file-name "test/fixtures/disposable-list-conformance.org" sdk)))
+		   (expand-file-name "test/fixtures/disposable-list-conformance.org" gdocs-source)))
        (remote (getenv "GDOCS_DISPOSABLE_REMOTE"))
        (action (or (getenv "GDOCS_DISPOSABLE_ACTION") (if remote "inspect" "create"))))
   (unless (member action '("create" "inspect" "remote-edit" "local-edit" "repeat-edit" "style-repair" "export"
 			   "coverage-create" "coverage-native" "coverage-fill" "coverage-inspect" "coverage-verify"))
     (error "Unknown disposable preflight action"))
-  (dolist (directory (list sdk build artifacts))
+  (dolist (directory (list gdocs-source build artifacts))
     (unless (file-directory-p directory)
       (error "Missing explicit disposable test directory")))
   (dolist (name '("org" "compat" "cond-let" "llama" "transient" "dash" "s" "plz"
@@ -30,8 +30,8 @@
   (dolist (name '("org-google-docs" "org-comments" "ox-sync"))
     (add-to-list 'load-path (expand-file-name name packages)))
   (add-to-list 'load-path (expand-file-name "../modules" packages))
-  (add-to-list 'load-path sdk)
-  (add-to-list 'load-path (expand-file-name "test" sdk))
+  (add-to-list 'load-path gdocs-source)
+  (add-to-list 'load-path (expand-file-name "test" gdocs-source))
   (add-to-list 'load-path (file-name-directory load-file-name))
   (require 'gdocs-disposable-plan)
   (require 'org-google-docs)

@@ -651,7 +651,7 @@ Return the exit status and output; see `hub/ai-lifecycle-test--exercise'."
       (delete-directory home t))))
 
 (ert-deftest hub/ai-ci-provisions-pinned-oauth-source-without-a-build-cache ()
-  "CI selects the locked SDK explicitly even with no optional gptel build."
+  "CI selects the locked gptel library even with no optional gptel build."
   (let ((script
 	 (with-temp-buffer
 	   (insert-file-contents

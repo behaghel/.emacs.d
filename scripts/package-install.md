@@ -1,10 +1,10 @@
-# Scoped SDK installation
+# Scoped package installation
 
 Run the command through the task's development environment. The target is an
 explicit installed configuration, **not implicitly the invoking worktree**:
 
 ```sh
-as <task-slug> run ./scripts/sdk-install --config /path/to/installed/config --package gdocs
+as <task-slug> run ./scripts/package-install --config /path/to/installed/config --package gdocs
 ```
 
 Default output is a JSON dry-run plan: selected package, committed revision,
@@ -15,7 +15,7 @@ package build, cache write, fetch or clone occurs in dry-run mode.
 Review that revision, then explicitly apply it when installation is authorized:
 
 ```sh
-as <task-slug> run ./scripts/sdk-install --config /path/to/installed/config \
+as <task-slug> run ./scripts/package-install --config /path/to/installed/config \
   --package gdocs --apply --expect FULL_REVISION_FROM_DRY_RUN
 ```
 
@@ -62,12 +62,12 @@ Inspect the error and selected checkout/build before deciding how to recover.
 Successful disk installation is not live activation. Restart Emacs normally, then
 verify that definitions resolve to the managed compiled build rather than a local
 development override. Do not synchronize Google Docs from an old process while a
-new SDK installation is awaiting restart.
+new gdocs library installation is awaiting restart.
 
 ## Isolated regression checks
 
 ```sh
-as <task-slug> run ./scripts/elisp-ert test/configuration-system/sdk-install-test.el
+as <task-slug> run ./scripts/elisp-ert test/configuration-system/package-install-test.el
 ```
 
 `STRAIGHT_BUILD_PATH` locates existing dependencies and the sibling public

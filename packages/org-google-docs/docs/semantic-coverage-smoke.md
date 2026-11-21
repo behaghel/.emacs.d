@@ -9,8 +9,8 @@ A passing normalized diff alone is not fidelity evidence.
   automatic push disabled and automatic mutation retries disabled.
 - Use reviewed conversion sources in batch Emacs with installed authenticated
   transport, or explicitly install reviewed versions. Testing does not authorize
-  a production SDK reload, installation, merge or workspace retirement.
-- The SDK fixtures `test/fixtures/disposable-coverage-presentation.org` and
+  a production `gdocs` library reload, installation, merge or workspace retirement.
+- The `gdocs` library fixtures `test/fixtures/disposable-coverage-presentation.org` and
   `test/fixtures/disposable-coverage-presentation-edited.org` provide the initial
   and edited sources. Copy them into a disposable directory. The `coverage.png`
   image is a runtime asset, not a tracked visual golden; obtain the public image
@@ -24,7 +24,7 @@ A passing normalized diff alone is not fidelity evidence.
 ## Tracked offline driver
 
 Run these commands **inside the project development shell** in the task worktree
-(`as <task-slug> run sh` opens one for a human operator). Select reviewed SDK
+(`as <task-slug> run sh` opens one for a human operator). Select reviewed `gdocs` library
 **source**, including its `test/` fixtures, and existing dependencies explicitly:
 
 ```sh
@@ -114,7 +114,7 @@ remain separate; do not recreate a missing ownership record from a document ID.
 
 Create, push and sync-current must reject unsupported quote attribution, document
 metadata, special blocks and note/asset forms before remote mutation. Image-bearing
-sources also pass SDK validation before upload. Unknown native inline objects and
+sources also pass `gdocs` library validation before upload. Unknown native inline objects and
 unsupported native date values must block import rather than disappear or become
 invented dates. Audit counters without declared mappings remain visible as
 unsupported. Do not expand the supported profile merely to get the full authoring

@@ -6,7 +6,7 @@ Non-normative manual acceptance procedure. Offline fixtures do not establish liv
 
 - Use reviewed sources in isolated batch Emacs through existing authenticated
   transport, or explicitly install reviewed revisions. Do not reload the
-  production SDK as a side effect of testing or acceptance.
+  production `gdocs` library as a side effect of testing or acceptance.
 - Use only disposable synthetic Org and Google Docs documents and select the
   account explicitly. Disable automatic push and mutation retries. Preserve
   immutable sent plans and returned snapshots; never expose credentials.

@@ -1,7 +1,7 @@
 ;;; org-google-docs-disposable-transport.el --- Narrow disposable fetch -*- lexical-binding: t; -*-
 
 ;;; Commentary:
-;; Reuse the already loaded API transport, never load another SDK into Emacs.
+;; Reuse the already loaded API transport, never load another gdocs library version into Emacs.
 ;; Only a document recorded by this disposable session can be fetched.
 
 ;;; Code:

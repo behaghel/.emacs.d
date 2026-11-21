@@ -14,7 +14,7 @@
 (defconst hub/disposable-coverage-test--build
   (expand-file-name (or (getenv "STRAIGHT_BUILD_PATH") "straight/build"))
   "Existing dependencies for isolated canary tests.")
-(defconst hub/disposable-coverage-test--sdk
+(defconst hub/disposable-coverage-test--gdocs-source
   (let* ((override (getenv "GDOCS_PATH"))
          (build (expand-file-name "gdocs" hub/disposable-coverage-test--build))
          (library (expand-file-name "gdocs-convert.el" build))
@@ -25,7 +25,7 @@
           ((and source (file-directory-p (expand-file-name "test" source))) source)
           ((file-readable-p (expand-file-name "gdocs-convert.el" cached)) cached)
           (t build)))
-  "Explicit SDK source or source behind the managed build, including test data.")
+  "Explicit gdocs source or source behind the managed build, including test data.")
 
 (add-to-list 'load-path
              (expand-file-name (or (getenv "CONTEXT_PANELS_PATH")
@@ -33,8 +33,8 @@
 (dolist (name '("org" "compat" "cond-let" "llama" "transient" "dash" "s" "plz"
                 "magit-section"))
   (add-to-list 'load-path (expand-file-name name hub/disposable-coverage-test--build)))
-(dolist (directory (list hub/disposable-coverage-test--sdk
-                         (expand-file-name "test" hub/disposable-coverage-test--sdk)
+(dolist (directory (list hub/disposable-coverage-test--gdocs-source
+                         (expand-file-name "test" hub/disposable-coverage-test--gdocs-source)
                          (expand-file-name "modules")
                          (expand-file-name "packages/org-google-docs")
                          (expand-file-name "packages/org-google-docs/test")
@@ -43,7 +43,7 @@
   (add-to-list 'load-path directory))
 
 (defun hub/disposable-coverage-test--load ()
-  "Load the canary when the explicit SDK is available."
+  "Load the canary when the explicit gdocs library is available."
   (unless (locate-library "gdocs-convert")
     (ert-skip "gdocs-convert is unavailable"))
   (require 'gdocs-convert)
@@ -54,7 +54,7 @@
   (require 'org-google-docs-disposable-coverage nil t))
 
 (defun hub/disposable-coverage-test--fixture (name)
-  "Return SDK fixture NAME beside the authoritative SDK source."
+  "Return gdocs fixture NAME beside the authoritative library source."
   (expand-file-name
    (concat "test/fixtures/" name)
    (file-name-directory (file-truename (locate-library "gdocs-convert.el")))))
@@ -207,7 +207,7 @@
   (hub/disposable-coverage-test--load)
   (hub/disposable-coverage-test--isolated
    (let ((process-environment (copy-sequence process-environment)))
-     (setenv "GDOCS_PATH" hub/disposable-coverage-test--sdk)
+     (setenv "GDOCS_PATH" hub/disposable-coverage-test--gdocs-source)
      (setenv "STRAIGHT_BUILD_PATH" hub/disposable-coverage-test--build)
      (setenv "GDOCS_DISPOSABLE_ACTION" "coverage-verify")
      (setenv "GDOCS_DISPOSABLE_SOURCE"
@@ -226,8 +226,8 @@
                      "packages/org-google-docs/test/org-google-docs-disposable-preflight.el")))
        (should (string-match-p ":pulled-repeat-requests 0" (buffer-string)))))))
 
-(ert-deftest hub/disposable-coverage-default-source-has-sdk-test-resources ()
-  "A fresh test process finds managed SDK fixtures without GDOCS_PATH."
+(ert-deftest hub/disposable-coverage-default-source-has-library-test-resources ()
+  "A fresh test process finds managed gdocs fixtures without GDOCS_PATH."
   (hub/disposable-coverage-test--load)
   (let ((process-environment (copy-sequence process-environment)))
     (setenv "GDOCS_PATH" nil)
@@ -237,7 +237,7 @@
                     nil t nil "--batch" "-Q" "-l"
                     "test/publishing/google-docs/org-google-docs-disposable-coverage-test.el"
                     "--eval"
-                    "(unless (and (locate-library \"gdocs-disposable-plan\") (file-readable-p (expand-file-name \"test/fixtures/live-coverage-polished.json\" hub/disposable-coverage-test--sdk))) (error \"Managed SDK source/test resources unavailable\"))"))))))
+                    "(unless (and (locate-library \"gdocs-disposable-plan\") (file-readable-p (expand-file-name \"test/fixtures/live-coverage-polished.json\" hub/disposable-coverage-test--gdocs-source))) (error \"Managed gdocs source/test resources unavailable\"))"))))))
 
 (provide 'org-google-docs-disposable-coverage-test)
 ;;; org-google-docs-disposable-coverage-test.el ends here

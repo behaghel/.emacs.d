@@ -63,12 +63,12 @@ is part of this workflow: tasks use the accepted editable glyph representation.
 ## Source-isolated checks
 
 `test/org-google-docs-disposable-preflight.el` runs only in a separate batch
-Emacs. Set `GDOCS_PATH` to the reviewed SDK checkout, `STRAIGHT_BUILD_PATH` to
+Emacs. Set `GDOCS_PATH` to the reviewed `gdocs` library checkout, `STRAIGHT_BUILD_PATH` to
 existing dependencies, and `GDOCS_DISPOSABLE_ARTIFACTS` to a private temporary
-directory. `GDOCS_DISPOSABLE_SOURCE` selects synthetic Org; the SDK's disposable
+directory. `GDOCS_DISPOSABLE_SOURCE` selects synthetic Org; the library's disposable
 fixture is the default. The driver loads tracked publishing styles and the
 source/default theme; `GDOCS_DISPOSABLE_THEME` selects an explicit registered
-theme. Neutral SDK defaults alone do not establish personal visual acceptance.
+theme. Neutral `gdocs` defaults alone do not establish personal visual acceptance.
 The driver plans requests and records the local debug pipeline without
 authentication or HTTP. Supplying `GDOCS_DISPOSABLE_REMOTE`
 selects inspection of an already fetched synthetic JSON snapshot. Explicit
@@ -87,7 +87,7 @@ It does not mutate the document. Never print private errors, headers or account
 records. `style-repair` is narrowly limited to final callout surface/inset repair on an
 identical semantic source with revision control; it never reapplies named
 styles, which can clear authored emphasis in Docs.
-Never load the test SDK into the running production Emacs or copy credentials.
+Never load the test `gdocs` library into the running production Emacs or copy credentials.
 Document creation and mutation still require explicit live authorization.
 
 Check raw native properties alongside zero-diff results: parents share the

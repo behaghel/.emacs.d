@@ -39,9 +39,9 @@ status: draft
 - Agent workflow and safety rules are defined in
   [repository instructions](../AGENTS.md#coding-agent-sessions-pi).
 
-## Scoped SDK Installation
+## Scoped Package Installation
 
-The [scoped SDK installer](sdk-install.md), `scripts/sdk-install`, defaults to a
+The [scoped package installer](package-install.md), `scripts/package-install`, defaults to a
 read-only plan for one cached package at its
 committed Straight revision. Applying that plan requires an explicit apply flag
 and the expected revision. The target configuration and selected repository are

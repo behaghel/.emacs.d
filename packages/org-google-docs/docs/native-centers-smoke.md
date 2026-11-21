@@ -6,7 +6,7 @@ Non-normative manual acceptance procedure. Offline tests do not establish live b
 
 - Use reviewed sources in isolated batch Emacs with already installed authenticated
   transport, or explicitly install reviewed revisions. Never reload the production
-  SDK as a side effect of testing. Acceptance does not authorize installation.
+  `gdocs` library as a side effect of testing. Acceptance does not authorize installation.
 - Use only disposable synthetic Org and Google Docs documents, selecting the account
   explicitly. Keep auto-push disabled; retain immutable plans and snapshots and
   disable automatic mutation retries. Never print credentials or raw auth errors.

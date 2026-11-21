@@ -1,4 +1,4 @@
 #!/usr/bin/env bash
 set -euo pipefail
 script_dir="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
-exec emacs --batch -Q -l "$script_dir/sdk-install.el" -f hub/sdk-install-main -- "$@"
+exec emacs --batch -Q -l "$script_dir/package-install.el" -f hub/package-install-main -- "$@"
