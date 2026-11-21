@@ -91,15 +91,7 @@ The function receives one request plist and must return a JSON string with an
 				   (user-error "Not in a Copilot source block")))
 		    (line-beginning-position)))
 	   (end (org-copilot-babel--src-block-end)))
-      (goto-char end)
-      (skip-chars-forward " \t\n")
-      (when (looking-at-p "^[ \t]*#\\+RESULTS:")
-	(forward-line 1)
-	(while (and (not (eobp))
-		    (not (looking-at-p "[ \t]*$")))
-	  (forward-line 1))
-	(setq end (point)))
-      (cons start end))))
+      (cons start (or (cdr (org-copilot-babel--result-region)) end)))))
 
 (defun org-copilot-babel--context-bounds (context-kind)
   "Return source context bounds for CONTEXT-KIND."
@@ -147,7 +139,9 @@ The function receives one request plist and must return a JSON string with an
    (prin1-to-string
     (list :schema-version org-copilot-babel-schema-version
 	  :prompt body
-	  :context (org-copilot-babel--param params :context "document")
+	  :context-kind (org-copilot-babel--param params :context "document")
+	  :context (org-copilot-babel--context
+		    (org-copilot-babel--param params :context "document"))
 	  :output (org-copilot-babel--param params :output "org")
 	  :file (cdr (assq :file params))))))
 
@@ -190,30 +184,48 @@ The function receives one request plist and must return a JSON string with an
 (defun org-copilot-babel--format-result (output fingerprint output-kind)
   "Return OUTPUT prefixed with FINGERPRINT and OUTPUT-KIND metadata."
   (string-join
-   (list (format "# copilot-fingerprint: sha256:%s" fingerprint)
-	 (format "# copilot-output: %s" output-kind)
-	 output)
+   (let ((boundary (secure-hash 'sha256 output)))
+     (list (format "# copilot-fingerprint: sha256:%s" fingerprint)
+	   (format "# copilot-output: %s" output-kind)
+	   (format "# copilot-result-boundary: %s" boundary)
+	   output
+	   (format "# copilot-result-end: %s" boundary)))
    "\n"))
 
 (defun org-copilot-babel--result-region ()
   "Return cons bounds for the current Copilot result, or nil."
-  (save-excursion
-    (goto-char (org-copilot-babel--src-block-end))
-    (skip-chars-forward " \t\n")
-    (when (looking-at-p "^[ \t]*#\\+RESULTS:")
-      (let ((start (line-beginning-position)))
-	(forward-line 1)
-	(while (and (not (eobp))
-		    (not (looking-at-p "[ \t]*$")))
-	  (forward-line 1))
-	(cons start (point))))))
+  (save-match-data
+    (save-excursion
+      (goto-char (org-copilot-babel--src-block-end))
+      (skip-chars-forward " \t\n")
+      (when (looking-at-p "^[ \t]*#\\+RESULTS:")
+	(let ((start (line-beginning-position)))
+	  (forward-line 3)
+	  (if (looking-at "# copilot-result-boundary: \\([0-9a-f]+\\)$")
+	      (let ((boundary (match-string 1)))
+		(unless (re-search-forward
+			 (concat "^# copilot-result-end: " boundary "$")
+			 (save-excursion
+			   (forward-line 1)
+			   (when (re-search-forward "^# copilot-fingerprint:" nil t)
+			     (line-beginning-position))) t)
+		  (user-error "Copilot result boundary missing; restore or clear that result explicitly"))
+		(forward-line 1))
+	    ;; Older, unbounded results retain their conservative paragraph extent.
+	    (goto-char start)
+	    (forward-line 1)
+	    (while (and (not (eobp)) (not (looking-at-p "[ \t]*$")))
+	      (forward-line 1)))
+	  (cons start (point)))))))
 
 (defun org-copilot-babel--delete-existing-result ()
   "Delete existing result for the current Copilot block, if present."
-  (when-let* ((region (org-copilot-babel--result-region)))
-    (delete-region (car region) (cdr region))
-    (when (looking-at-p "[ \t]*$")
-      (delete-region (point) (min (point-max) (1+ (point)))))))
+  (save-excursion
+    (when-let* ((region (org-copilot-babel--result-region)))
+      (goto-char (car region))
+      (delete-region (car region) (cdr region))
+      (when (looking-at-p "[ \t]*$")
+	(delete-region (point) (min (point-max) (1+ (point))))))))
 
 (defun org-copilot-babel--result-metadata ()
   "Return Copilot result metadata for the current source block, or nil."
@@ -401,9 +413,9 @@ unreviewed generated content."
 	 (request (progn
 		    (org-copilot-babel--validate-output-kind output-kind)
 		    (org-copilot-babel--request body params)))
+	 (fingerprint (org-copilot-babel--fingerprint body params))
 	 (response (funcall org-copilot-babel-generate-function request))
 	 (output (org-copilot-babel--parse-response response))
-	 (fingerprint (org-copilot-babel--fingerprint body params))
 	 (wrapped-output (org-copilot-babel--wrap-output
 			  output output-kind params))
 	 (result (org-copilot-babel--format-result

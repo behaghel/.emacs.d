@@ -537,12 +537,22 @@ Return a list of issue symbols."
       (org-google-docs--require-upstream-library 'gdocs-api)
       (org-google-docs-footnotes-begin-push plan))))
 
+(defun org-google-docs--publication-witness ()
+  "Capture the source and destination selected for this body publication."
+  (list (save-restriction
+	  (widen)
+	  (secure-hash 'sha256 (current-buffer)))
+	(point-min) (point-max) buffer-file-name default-directory
+	(org-google-docs--current-document-id)
+	(org-google-docs--current-gdocs-account)))
+
 (defun org-google-docs--prepare-images-then (callback)
   "Preflight and upload native images, then call CALLBACK in this buffer."
   (org-google-docs--validate-source-profile)
   (org-google-docs--preflight-footnotes-for-push)
   (let ((image-plan (org-google-docs--preflight-images-for-push))
-	(buffer (current-buffer)))
+	(buffer (current-buffer))
+	(witness (org-google-docs--publication-witness)))
     (when (plist-get image-plan :images)
       (org-google-docs--require-upstream-library 'gdocs-api)
       (org-google-docs--require-upstream-library 'gdocs-convert)
@@ -554,6 +564,10 @@ Return a list of issue symbols."
      (lambda ()
        (if (buffer-live-p buffer)
 	   (with-current-buffer buffer
+	     (unless (equal witness (org-google-docs--publication-witness))
+	       (org-google-docs-images-deactivate-session)
+	       (org-google-docs-footnotes--deactivate-session)
+	       (user-error "Source or destination changed during image preparation; this body write was not started. Uploaded assets may remain; invoke publication again deliberately"))
 	     (funcall callback))
 	 (user-error "Google Docs image upload finished after source buffer was killed")))
      (org-google-docs--current-gdocs-account))))
