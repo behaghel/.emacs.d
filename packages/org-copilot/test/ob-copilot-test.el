@@ -127,6 +127,49 @@
       (goto-char (point-min))
       (should (eq (org-copilot-babel-result-state-at-point) 'stale)))))
 
+(ert-deftest ob-copilot-context-changes-invalidate-bounded-results ()
+  "Context edits stale results; multi-paragraph output is not source context."
+  (dolist (scope '("document" "subtree"))
+    (let ((org-confirm-babel-evaluate nil)
+	  (org-copilot-babel-generate-function
+	   (lambda (_request) "{\"output\":\"First paragraph.\\n\\nSecond paragraph.\"}")))
+      (with-temp-buffer
+	(org-mode)
+	(insert (format "* Draft\nFact A.\n\n#+begin_src copilot :context %s\nSummarize.\n#+end_src\n\nHuman tail.\n* Elsewhere\nOther fact.\n" scope))
+	(goto-char (point-min)) (search-forward "Summarize.")
+	(org-babel-execute-src-block)
+	(should (eq (org-copilot-babel-result-state-at-point) 'fresh))
+	(save-excursion
+	  (search-forward "Second paragraph.") (replace-match "Edited output."))
+	(should (eq (org-copilot-babel-result-state-at-point) 'fresh))
+	(save-excursion
+	  (goto-char (point-min)) (search-forward "Other fact.")
+	  (replace-match "Changed elsewhere."))
+	(should (eq (org-copilot-babel-result-state-at-point)
+		    (if (equal scope "subtree") 'fresh 'stale)))
+	(save-excursion
+	  (goto-char (point-min)) (search-forward "Fact A.") (replace-match "Fact B."))
+	(should (eq (org-copilot-babel-result-state-at-point) 'stale))
+	(org-babel-execute-src-block)
+	(should (eq (org-copilot-babel-result-state-at-point) 'fresh))
+	(should (= 1 (how-many "Second paragraph." (point-min) (point-max))))
+	(should (= 1 (how-many "Human tail." (point-min) (point-max))))))))
+
+(ert-deftest ob-copilot-missing-boundary-refuses-cross-result-deletion ()
+  "A damaged result cannot consume a later result with identical output."
+  (with-temp-buffer
+    (org-mode)
+    (insert "#+begin_src copilot\nSummarize.\n#+end_src\n#+RESULTS:\n"
+	    "# copilot-fingerprint: sha256:old\n# copilot-output: org\n"
+	    "# copilot-result-boundary: abc\nOld output.\n\nHuman text.\n"
+	    "#+begin_src copilot\nOther.\n#+end_src\n#+RESULTS:\n"
+	    "# copilot-fingerprint: sha256:other\n# copilot-output: org\n"
+	    "# copilot-result-boundary: abc\nOther output.\n# copilot-result-end: abc\n")
+    (goto-char (point-min))
+    (let ((before (buffer-string)))
+      (should-error (org-copilot-babel--delete-existing-result) :type 'user-error)
+      (should (equal before (buffer-string))))))
+
 (ert-deftest ob-copilot-wraps-source-output-with-file-header ()
   "Copilot Babel wraps src:LANG output in a nested source block."
   (let ((org-confirm-babel-evaluate nil)

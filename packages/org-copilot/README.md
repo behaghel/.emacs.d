@@ -193,7 +193,7 @@ model before making a request. It does not delegate missing configuration to
 gptel's default-provider selection. Authentication route and model selection
 remain consumer-owned; offline/custom generators do not require gptel.
 
-Evaluation stores raw Org in `#+RESULTS:` with hidden freshness metadata. Export preflight does not re-evaluate fresh blocks; missing/stale blocks ask before generation and ask again before exporting unreviewed content.
+Evaluation stores raw Org in `#+RESULTS:` with hidden freshness metadata and an explicit result boundary. Freshness hashes the effective document or subtree context, excluding the current block and its complete generated result, including multiple paragraphs. Regeneration preserves surrounding human text. Missing result boundaries refuse inspection/replacement rather than guessing an extent; older unbounded results keep their conservative paragraph extent and old fingerprints become stale. Export preflight does not re-evaluate fresh blocks; missing/stale blocks ask before generation and ask again before exporting unreviewed content.
 
 For generated diagrams/code, use `:output src:LANG` and optional `:file`:
 
