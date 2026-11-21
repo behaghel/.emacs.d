@@ -48,6 +48,21 @@
                           '("gdocs" "helperdep") t))
         (prin1 form (current-buffer)) (insert "\n")))))
 
+(defun hub/sdk-install-test--artifact-state (directory)
+  "Snapshot DIRECTORY entries, targets and bytes without read access timestamps."
+  (mapcar
+   (lambda (file)
+     (let ((link-attributes (file-attributes file))
+           (target-attributes (file-attributes (file-truename file))))
+       ;; Linux may update atime simply while resolving a symlink or reading
+       ;; cached source. Preserve every other attribute, including mtime/ctime.
+       (setf (nth 4 link-attributes) nil (nth 4 target-attributes) nil)
+       (list (file-name-nondirectory file) (file-symlink-p file)
+             link-attributes target-attributes
+             (when (file-regular-p file)
+               (secure-hash 'sha256 (hub/sdk-install--text file))))))
+   (directory-files directory t directory-files-no-dot-files-regexp)))
+
 (defun hub/sdk-install-test--setup (config)
   "Populate disposable CONFIG with two pinned Git packages and cached builds."
   (hub/sdk-install-test--git config "init" "-q")
@@ -142,7 +157,7 @@
            (dependency (expand-file-name "straight/build/helperdep/helperdep.el" config)))
        (make-directory (file-name-directory destination) t)
        (copy-file straight destination)
-       (let* ((before (file-attributes dependency))
+       (let* ((before (hub/sdk-install-test--artifact-state (file-name-directory dependency)))
               (original (hub/sdk-install--read-forms (expand-file-name "straight/build-cache.el" config)))
               (summary (with-temp-buffer
                          (should (= 0 (call-process
@@ -155,7 +170,7 @@
          (should (equal (plist-get summary :revision) (plist-get state :revision)))
          (should (= (plist-get summary :unrelated-cache-changes) 0))
          (should (string-suffix-p "straight/build/gdocs/gdocs.elc" (plist-get summary :library)))
-         (should (equal before (file-attributes dependency)))
+         (should (equal before (hub/sdk-install-test--artifact-state (file-name-directory dependency))))
          (let ((updated (hub/sdk-install--read-forms (expand-file-name "straight/build-cache.el" config))))
            (dolist (slot '(2 3))
              (should (equal (gethash "helperdep" (nth slot original))
@@ -266,6 +281,22 @@
    (with-temp-file (expand-file-name ".gitignore" config) (insert "straight/\n"))
    (hub/sdk-install-test--commit config)
    (should-error (hub/sdk-install config "gdocs") :type 'user-error)))
+
+(ert-deftest hub/sdk-install-artifact-state-ignores-reads-but-detects-content-writes ()
+  "Read access time is not a rebuild; dependency content changes remain visible."
+  (hub/sdk-install-test--fixture
+   (let* ((directory (expand-file-name "straight/build/helperdep" config))
+          (file (expand-file-name "helperdep.el" directory))
+          (before (hub/sdk-install-test--artifact-state directory))
+          (attributes (symbol-function 'file-attributes)))
+     (cl-letf (((symbol-function 'file-attributes)
+                (lambda (path &optional id-format)
+                  (let ((value (funcall attributes path id-format)))
+                    (when value (setf (nth 4 value) '(0 1 0 0)))
+                    value))))
+       (should (equal before (hub/sdk-install-test--artifact-state directory))))
+     (with-temp-file file (insert ";; changed dependency source\n"))
+     (should-not (equal before (hub/sdk-install-test--artifact-state directory))))))
 
 (provide 'sdk-install-test)
 ;;; sdk-install-test.el ends here
