@@ -159,6 +159,31 @@
 	(should-error (org-google-docs-push) :type 'user-error)
 	(should-not calls)))))
 
+(ert-deftest org-google-docs-delayed-preparation-refuses-a-changed-publication ()
+  "Neither create nor push may substitute changed source or destination."
+  (dolist (command '(org-google-docs-create org-google-docs-push))
+    (dolist (change '(text document account file directory narrowing))
+      (with-temp-buffer
+	(org-mode) (insert "Reviewed source.\n")
+	(setq-local gdocs-sync--document-id "document-A")
+	(setq-local gdocs-sync--account "account-A")
+	(let (pending called)
+	  (cl-letf (((symbol-function 'org-google-docs--require-upstream-library) #'ignore)
+		    ((symbol-function 'org-google-docs-images-begin-push)
+		     (lambda (_plan callback &optional _account) (setq pending callback)))
+		    ((symbol-function 'org-google-docs--call-upstream)
+		     (lambda (&rest _) (setq called t))))
+	    (funcall command)
+	    (pcase change
+	      ('text (insert "Unreviewed."))
+	      ('document (setq-local gdocs-sync--document-id "document-B"))
+	      ('account (setq-local gdocs-sync--account "account-B"))
+	      ('file (setq buffer-file-name "/fixture/renamed.org"))
+	      ('directory (setq default-directory temporary-file-directory))
+	      ('narrowing (narrow-to-region 2 (point-max))))
+	    (should-error (funcall pending) :type 'user-error)
+	    (should-not called)))))))
+
 (ert-deftest org-google-docs-push-resumes-in-source-buffer-after-image-upload ()
   "Async image upload resumes gdocs push in the linked source buffer."
   (let ((source-buffer (generate-new-buffer " *gdocs-source*"))
