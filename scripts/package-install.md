@@ -1,10 +1,13 @@
 # Scoped package installation
 
-Run the command through the task's development environment. The target is an
-explicit installed configuration, **not implicitly the invoking worktree**:
+Use the discoverable `package:install` command in the development environment.
+It delegates to `scripts/package-install` with unchanged arguments and exit status;
+the script remains directly callable. Shell entry only advertises the command.
+The target is an explicit installed configuration, **not implicitly the invoking
+worktree**:
 
 ```sh
-as <task-slug> run ./scripts/package-install --config /path/to/installed/config --package gdocs
+as <task-slug> run package:install --config /path/to/installed/config --package gdocs
 ```
 
 Default output is a JSON dry-run plan: selected package, committed revision,
@@ -15,7 +18,7 @@ package build, cache write, fetch or clone occurs in dry-run mode.
 Review that revision, then explicitly apply it when installation is authorized:
 
 ```sh
-as <task-slug> run ./scripts/package-install --config /path/to/installed/config \
+as <task-slug> run package:install --config /path/to/installed/config \
   --package gdocs --apply --expect FULL_REVISION_FROM_DRY_RUN
 ```
 

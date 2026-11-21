@@ -305,5 +305,33 @@
                                nil t nil "--help")))
     (should (string-match-p "Usage: package-install" (buffer-string)))))
 
+(ert-deftest hub/package-install-devenv-alias-forwards-arguments-and-status ()
+  "The discoverable alias selects this checkout's tool and preserves arguments."
+  (let* ((root (make-temp-file "package wrapper fixture " t))
+         (process-environment (copy-sequence process-environment))
+         (command
+          (with-temp-buffer
+            (insert-file-contents (expand-file-name "devenv.nix" hub/package-install-test--root))
+            (goto-char (point-min))
+            (should (re-search-forward "\"package:install\"\\.exec = ''" nil t))
+            (let ((start (point)))
+              (should (re-search-forward "^[ \t]*''" nil t))
+              (buffer-substring-no-properties start (match-beginning 0))))))
+    (unwind-protect
+        (progn
+          (make-directory (expand-file-name "scripts" root))
+          (let ((backend (expand-file-name "scripts/package-install" root)))
+            (with-temp-file backend
+              (insert "#!/usr/bin/env bash\nprintf '%s\\n' \"$@\"\nexit 23\n"))
+            (set-file-modes backend #o755))
+          (setenv "DEVENV_ROOT" root)
+          (dolist (arguments (list '("--config" "/explicit target" "--package" "gdocs")
+                                   '("--config" "/explicit target" "--package" "gdocs"
+                                     "--apply" "--expect" "reviewed-revision")))
+            (with-temp-buffer
+              (should (= 23 (apply #'call-process "bash" nil t nil "-c" command "--" arguments)))
+              (should (equal (split-string (buffer-string) "\n" t) arguments)))))
+      (delete-directory root t))))
+
 (provide 'package-install-test)
 ;;; package-install-test.el ends here

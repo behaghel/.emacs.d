@@ -58,6 +58,14 @@ Only ignored `devenv.local.nix`, `devenv.local.yaml`, and `.envrc.local` are lin
 - CI and many local checks run with `HOME=$PWD` so state stays inside the repository.
 - Environment predicates live in `core/core-predicates.el`: `hub/interactive-p`, `hub/batch-p`, `hub/gui-p`, `hub/tty-p`, `hub/ci-p`.
 
+## Scoped Dependency Installation
+- For a reviewed, pinned Emacs Straight dependency, prefer the [guarded package installer](scripts/package-install.md) over ad hoc checkout/thaw/rebuild scripts. The `package:install` devenv command delegates to `scripts/package-install`.
+- Plan first: `as <task-slug> run package:install --config /absolute/installed/config --package gdocs`. Select the installed configuration explicitly; do not assume the invoking worktree is the installation target. The default is read-only.
+- Apply only with separate installation authority, adding `--apply --expect FULL_REVISION_FROM_DRY_RUN`. Acceptance, publication or merge alone does not authorize installation, live reload or restart.
+- Missing source, incompatible caches or dependency changes are blockers to report, not permission to fetch, broaden the rebuild, repair state or bypass guards. Inspect interrupted or failed applies before retrying; never remove an existing installation lock implicitly.
+- Disk installation and compiled-library verification do not activate definitions in a running Emacs. Leave restart under the user's control and verify managed library paths afterward.
+- This workflow is for Emacs dependencies. Development tools remain declarative in `devenv.nix`; Pi resources continue to use native Pi package management.
+
 ## Build, Lint, And Test Commands
 - Full batch load smoke check: `devenv shell -- env HOME=$PWD emacs --batch -l init.el --eval '(message "Loaded")' --kill`
 - Equivalent devenv shortcut: `devenv run load-check`

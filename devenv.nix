@@ -127,6 +127,7 @@ in
     - Org comments docs  : devenv shell -- docs:org-comments
     - Load check         : devenv shell -- load-check
     - Freeze packages    : devenv shell -- freeze
+    - Scoped package install: devenv shell -- package:install --help (dry-run by default)
     - Pre-commit (all)   : devenv shell -- pre-commit:all
     - devenv shell -- <command>     : Run one-off commands in the dev shell
   '';
@@ -148,6 +149,9 @@ in
         -l core/core-packages.el --eval '(core/packages-freeze)' --kill
     ''
     ;
+    "package:install".exec = ''
+      exec "$DEVENV_ROOT/scripts/package-install" "$@"
+    '';
     "ci:load-all".exec = ''
       HOME=$PWD HUB_FORCE_FULL_LOAD=1 emacs --batch -l scripts/ci-load-all.el
     '';

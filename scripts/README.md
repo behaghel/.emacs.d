@@ -41,9 +41,11 @@ status: draft
 
 ## Scoped Package Installation
 
-The [scoped package installer](package-install.md), `scripts/package-install`, defaults to a
-read-only plan for one cached package at its
-committed Straight revision. Applying that plan requires an explicit apply flag
+The [scoped package installer](package-install.md) defaults to a read-only plan
+for one cached package at its committed Straight revision. Its implementation is
+`scripts/package-install`; the `package:install` development-shell command forwards
+explicit arguments and exit status to it. Shell entry advertises the command
+without running an installation. Applying a plan requires an explicit apply flag
 and the expected revision. The target configuration and selected repository are
 clean, the commit is already available locally, and the existing dependency build
 closure and build cache match the running Emacs and supported cache schema.
