@@ -39,6 +39,26 @@ status: draft
 - Agent workflow and safety rules are defined in
   [repository instructions](../AGENTS.md#coding-agent-sessions-pi).
 
+## Scoped SDK Installation
+
+The [scoped SDK installer](sdk-install.md), `scripts/sdk-install`, defaults to a
+read-only plan for one cached package at its
+committed Straight revision. Applying that plan requires an explicit apply flag
+and the expected revision. The target configuration and selected repository are
+clean, the commit is already available locally, and the existing dependency build
+closure and build cache match the running Emacs and supported cache schema.
+Missing or incompatible state blocks installation instead of triggering repairs,
+fetches, clones or unrelated rebuilds.
+
+Only the selected repository checkout, its build and its cache entries change.
+Other package build/autoload entries remain unchanged. Installation verifies the
+selected compiled library in a fresh batch process; it neither loads personal
+initialization nor reloads a running Emacs. Byte compilation is synchronous;
+background native compilation is disabled. Rejected preflight changes nothing.
+Failure after checkout/build is reported without an implicit rollback or success
+claim. Installed definitions become active through a user-controlled restart.
+Concurrent package-manager operations are not supported during an apply.
+
 ## ERT Test Coverage
 
 - The full ERT invocation discovers `*-test.el` files under both `test/` and
