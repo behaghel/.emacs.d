@@ -21,6 +21,57 @@ A passing normalized diff alone is not fidelity evidence.
 - Share the actual matching Org source when sharing the browser Doc. Preserve
   sent plans, returned snapshots and pipeline traces under fresh filenames.
 
+## Tracked offline driver
+
+Run these commands **inside the project development shell** in the task worktree
+(`as <task-slug> run sh` opens one for a human operator). Select reviewed SDK
+**source**, including its `test/` fixtures, and existing dependencies explicitly:
+
+```sh
+export GDOCS_PATH=/path/to/reviewed/gdocs
+export STRAIGHT_BUILD_PATH=/path/to/straight/build
+export GDOCS_DISPOSABLE_THEME=veriff-working
+export GDOCS_DISPOSABLE_IMAGE_URI=https://www.gstatic.com/images/branding/googlelogo/1x/googlelogo_color_272x92dp.png
+export GDOCS_DISPOSABLE_SOURCE="$GDOCS_PATH/test/fixtures/disposable-coverage-polished.org"
+export GDOCS_DISPOSABLE_REMOTE="$GDOCS_PATH/test/fixtures/live-coverage-polished.json"
+export GDOCS_DISPOSABLE_ARTIFACTS="$(mktemp -d)"
+GDOCS_DISPOSABLE_ACTION=coverage-verify emacs --batch -Q \
+  -l packages/org-google-docs/test/org-google-docs-disposable-preflight.el
+```
+
+Expected summary: `:requests 0`, `:pulled-repeat-requests 0`, `:native-dates 2`,
+`:native-footnotes 1`, `:native-link-targets 7`, `:linked-whitespace 0`.
+This replays a captured native fixture; it is not a new live acceptance run.
+The public URI enriches image requests directly, so this command needs no local
+PNG and does not exercise upload. The named theme matches this captured fixture.
+
+The same entry point exposes every planning phase. Set
+`GDOCS_DISPOSABLE_ACTION` and use a **new empty directory** for
+`GDOCS_DISPOSABLE_ARTIFACTS` on every invocation:
+
+| Action | Additional input | Output |
+|---|---|---|
+| `coverage-create` | Unset `GDOCS_DISPOSABLE_REMOTE` and `GDOCS_DISPOSABLE_REPLY` | `create.requests.json`, `pipeline.org`; body contains native-note sentinels |
+| `coverage-native` | `GDOCS_DISPOSABLE_REMOTE`: fetched post-create sentinel snapshot, including `revisionId` | `native.requests.json`: sentinel deletion, native reference creation and provenance |
+| `coverage-fill` | `GDOCS_DISPOSABLE_REPLY`: saved reference-creation response | `fill.requests.json`: native segment content and styling |
+| `coverage-inspect` | `GDOCS_DISPOSABLE_REMOTE`: latest native snapshot; source may contain intended edits | `inspect.requests.json`, `returned.org`, `pulled-repeat.requests.json` |
+| `coverage-verify` | Latest native snapshot and independently maintained matching source | `verify.requests.json`, `returned.org`, `pulled-repeat.requests.json`; nonzero exit if either repeat is nonempty or raw native checks fail |
+
+Each successful phase also emits `summary.json`. Fill takes its revision from the
+creation response's `writeControl`; if absent, supply a **fresh post-reference**
+snapshot via `GDOCS_DISPOSABLE_REMOTE`. The driver refuses native/fill plans without
+a revision. Keep the original source and all snapshots/replies with the artifacts.
+A failed repeat verification retains its diagnostic plans; rerunning must use a
+new directory, not overwrite that evidence.
+
+These commands only write local plans. They never authenticate, fetch, create a
+Google Doc or execute a batch update. Sending plans remains a separately approved
+operation through the owned disposable transport, with explicit account and no
+mutation retries. No helper definitions or state from an earlier Emacs session
+are required for planning. The current mixed canary supports exactly one named
+footnote reference. Browser/PDF review and the live transport ownership checks
+remain separate; do not recreate a missing ownership record from a document ID.
+
 ## Checks
 
 1. Run `org-google-docs-debug-pipeline` before mutation. Ensure only document title

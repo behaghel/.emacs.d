@@ -18,7 +18,8 @@
 		   (expand-file-name "test/fixtures/disposable-list-conformance.org" sdk)))
        (remote (getenv "GDOCS_DISPOSABLE_REMOTE"))
        (action (or (getenv "GDOCS_DISPOSABLE_ACTION") (if remote "inspect" "create"))))
-  (unless (member action '("create" "inspect" "remote-edit" "local-edit" "repeat-edit" "style-repair" "export"))
+  (unless (member action '("create" "inspect" "remote-edit" "local-edit" "repeat-edit" "style-repair" "export"
+			   "coverage-create" "coverage-native" "coverage-fill" "coverage-inspect" "coverage-verify"))
     (error "Unknown disposable preflight action"))
   (dolist (directory (list sdk build artifacts))
     (unless (file-directory-p directory)
@@ -31,6 +32,7 @@
   (add-to-list 'load-path (expand-file-name "../modules" packages))
   (add-to-list 'load-path sdk)
   (add-to-list 'load-path (expand-file-name "test" sdk))
+  (add-to-list 'load-path (file-name-directory load-file-name))
   (require 'gdocs-disposable-plan)
   (require 'org-google-docs)
   (require 'org/google-docs-styles)
@@ -51,6 +53,11 @@
 	    (write-region (point-min) (point-max) destination nil 'silent)))))
     (prin1
      (pcase action
+       ((pred (string-prefix-p "coverage-"))
+	(require 'org-google-docs-disposable-coverage)
+	(org-google-docs-disposable-coverage-plan
+	 (string-remove-prefix "coverage-" action) source remote artifacts
+	 (getenv "GDOCS_DISPOSABLE_REPLY") (getenv "GDOCS_DISPOSABLE_IMAGE_URI")))
        ("create" (gdocs-disposable-plan-create source artifacts))
        ("inspect" (gdocs-disposable-plan-inspect source remote artifacts))
        ("remote-edit" (gdocs-disposable-plan-remote-edit remote source artifacts))
