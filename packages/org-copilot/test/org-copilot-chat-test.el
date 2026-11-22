@@ -57,7 +57,7 @@
 	      (should (derived-mode-p 'org-copilot-chat-mode))
 	      (should (eq context-panels-source-buffer source))
 	      (should (eq context-panels-view-id 'copilot-chat))
-	      (should (string-match-p "Org Copilot Chat" (buffer-string)))
+	      (should-not (string-match-p "Org Copilot Chat" (buffer-string)))
 	      (should (string-match-p "Ask Copilot about the full document"
 				      (buffer-string))))))
       (when (buffer-live-p source)
@@ -153,25 +153,29 @@
       (dolist (buffer (list first second a b))
 	(when (buffer-live-p buffer) (kill-buffer buffer))))))
 
-(ert-deftest org-copilot-chat-status-line-summarizes-comments ()
-  "Chat status line compactly summarizes active source comments."
-  (let ((source (generate-new-buffer " *org copilot chat status source*")))
-    (unwind-protect
-	(progn
-	  (with-current-buffer source
-	    (org-mode)
-	    (org-copilot-add-comment
-	     (list :id "ai-1" :type 'scope :status 'active :body "Scope."))
-	    (org-copilot-add-comment
-	     (list :id "ai-2" :type 'inline :status 'active :body "Inline."))
-	    (setq org-copilot-chat-focus-comment-id "ai-1"))
-	  (with-temp-buffer
-	    (org-copilot-chat-mode)
-	    (setq context-panels-source-buffer source)
-	    (should (equal (org-copilot-chat--status-line)
-			   "2 comments · 1 scope · ai-1"))))
-      (when (buffer-live-p source)
-	(kill-buffer source)))))
+(ert-deftest org-copilot-chat-native-footer-follows-visible-discussion ()
+  "Switching context refreshes the fixed footer rather than a transcript banner."
+  (save-window-excursion
+    (with-temp-buffer
+      (org-mode)
+      (insert "* Methods\nBody.\n")
+      (goto-char (point-min))
+      (switch-to-buffer (current-buffer))
+      (let* ((source (current-buffer))
+	     (chat (org-copilot-chat--open-bottom-view source))
+	     (window (get-buffer-window chat))
+	     (footer (context-panels-footer-restore-window window)))
+	(should (window-live-p footer))
+	(with-current-buffer (window-buffer footer)
+	  (should (string-match-p "Full document" (buffer-string))))
+	(with-current-buffer source
+	  (org-copilot-chat--set-context source (org-copilot-chat--section-context-at-point)))
+	(org-copilot-chat--buffer source)
+	(with-current-buffer (window-buffer footer)
+	  (should (string-match-p "Section: Methods" (buffer-string)))
+	  (should-not (string-match-p "Full document" (buffer-string))))
+	(with-current-buffer chat
+	  (should-not (string-match-p "Section: Methods" (buffer-string))))))))
 
 (ert-deftest org-copilot-chat-focuses-current-comment ()
   "Opening chat from a context-panel row focuses that AI comment."
@@ -204,8 +208,7 @@
 	      (with-current-buffer source
 		(should (equal org-copilot-chat-focus-comment-id "ai-1")))
 	      (with-current-buffer buffer
-		(should (string-match-p "Org Copilot Chat — .* · Discussion · Alpha"
-					(buffer-string)))
+		(should (string-match-p "Discussion · Alpha" (plist-get (org-copilot-chat--footer source nil) :metadata)))
 		(should-not (string-match-p "^Context" (buffer-string)))
 		(should (string-match-p "Clarify this sentence" (buffer-string)))
 		(should-not (string-match-p "Comment: Clarify" (buffer-string)))
@@ -263,7 +266,7 @@
 	(kill-buffer source)))))
 
 (ert-deftest org-copilot-chat-renders-distinct-faces ()
-  "Chat rendering visually distinguishes metadata, dialogue, and prompt."
+  "Chat rendering visually distinguishes dialogue and prompt."
   (with-temp-buffer
     (org-mode)
     (let ((source (current-buffer)))
@@ -271,8 +274,6 @@
       (org-copilot-add-chat-message 'assistant "Hi")
       (with-current-buffer (org-copilot-chat--buffer source)
 	(goto-char (point-min))
-	(should (eq (get-text-property (point) 'face)
-		    'org-copilot-chat-metadata-face))
 	(search-forward "You")
 	(should (eq (get-text-property (match-beginning 0) 'face)
 		    'org-copilot-chat-you-face))
@@ -343,7 +344,7 @@
 	(should (eq (overlay-get (car org-copilot--overlays) 'face)
 		    'org-copilot-target-dim-face))))
     (with-current-buffer (get-buffer org-copilot-chat-buffer-name)
-      (should (string-match-p "🌐 Full document" (buffer-string)))
+      (should-not (string-match-p "🌐 Full document" (buffer-string)))
       (should buffer-read-only))
     (should (string-prefix-p "You: " (buffer-string)))))
 
@@ -361,7 +362,7 @@
 	(should (equal (plist-get org-copilot-chat-context :section-title)
 		       "Methods"))))
     (with-current-buffer (get-buffer org-copilot-chat-buffer-name)
-      (should (string-match-p "§ Section: Methods" (buffer-string)))
+      (should-not (string-match-p "§ Section: Methods" (buffer-string)))
       (should buffer-read-only))
     (should (string-prefix-p "You: " (buffer-string)))))
 

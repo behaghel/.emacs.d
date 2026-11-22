@@ -160,36 +160,16 @@ Drafts are presentation state, never conversation history.")
     map)
   "Keymap used in Org Copilot chat buffers.")
 
-(defun org-copilot-chat--status-line ()
-  "Return compact bottom status text for the current chat buffer."
-  (let* ((source (and (buffer-live-p context-panels-source-buffer)
-		      context-panels-source-buffer))
-	 (comments (and source
-			(with-current-buffer source
-			  (cl-remove-if
-			   (lambda (comment)
-			     (eq (org-copilot-comment-status comment) 'dismissed))
-			   (org-copilot-visible-comments)))))
-	 (total (length comments))
-	 (scope-count (cl-count-if
-		       (lambda (comment)
-			 (eq (plist-get comment :type) 'scope))
-		       comments))
-	 (focus-id (and source
-			(with-current-buffer source
-			  org-copilot-chat-focus-comment-id))))
-    (string-join
-     (delq nil
-	   (list (format "%d comment%s" total (if (= total 1) "" "s"))
-		 (when (> scope-count 0)
-		   (format "%d scope" scope-count))
-		 focus-id))
-     " · ")))
+(defun org-copilot-chat--footer (source _view)
+  "Describe the selected discussion in SOURCE for the native fixed footer."
+  (when (buffer-live-p source)
+    (list :metadata (format "%s · %s" (buffer-name source)
+			    (org-copilot-chat--context-label source)))))
 
 (define-derived-mode org-copilot-chat-mode fundamental-mode "Org-Copilot-Chat"
   "Major mode for Org Copilot bottom chat buffers."
   (setq buffer-read-only nil)
-  (setq-local mode-line-format '(" " (:eval (org-copilot-chat--status-line))))
+  (setq-local mode-line-format nil)
   (add-hook 'window-buffer-change-functions #'org-copilot-chat--window-shown nil t))
 
 (define-derived-mode org-copilot-chat-input-mode org-copilot-chat-mode "Copilot-Input"
@@ -561,10 +541,6 @@ label line."
 				(org-copilot-find-visible-comment thread)))))
     (erase-buffer)
     (let ((transcript-start (point)))
-      (org-copilot-chat--insert-metadata
-       (format "Org Copilot Chat — %s · %s\n\n"
-	       (buffer-name source-buffer)
-	       (org-copilot-chat--context-label source-buffer)))
       (when thread
 	(when comment
 	  (let ((root-start (point)))
@@ -591,6 +567,8 @@ label line."
 			   '(read-only t rear-nonsticky (read-only))))
     (setq buffer-read-only t)
     (org-copilot-chat-input-buffer source-buffer)
+    (when (plist-get context-panels-footer-spec :footer)
+      (context-panels-footer-update (current-buffer)))
     (let ((selection (cons source-buffer
 			   (with-current-buffer source-buffer
 			     (org-copilot-chat--context-id org-copilot-chat-context)))))
@@ -682,7 +660,8 @@ label line."
 	      :buffer-name org-copilot-chat-buffer-name
 	      :mode 'org-copilot-chat-mode
 	      :height org-copilot-chat-window-height
-	      :render #'org-copilot-chat-render-bottom-view)))
+	      :render #'org-copilot-chat-render-bottom-view
+	      :footer #'org-copilot-chat--footer)))
 
 (defun org-copilot-chat--show-window-tail (window)
   "Put the last transcript content at the bottom of WINDOW."
