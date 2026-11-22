@@ -567,6 +567,8 @@ Return the normalized comments."
 	 buffer-file-name (plist-get message :message-id) finding-ids))
       (plist-put message :finding-ids finding-ids))))
 
+(defvar org-copilot-chat--thread-comment-id)
+
 (defun org-copilot-add-chat-message (role content &optional comment-id context-id request finding-ids)
   "Add a chat message with ROLE and CONTENT to the current buffer session.
 When COMMENT-ID is non-nil, associate the message with that AI comment.
@@ -577,6 +579,8 @@ FINDING-IDS are durable comments produced by this response, not focus metadata."
 		       :content content
 		       :comment-id comment-id
 		       :context-id context-id
+		       :thread-comment-id (if request (plist-get request :thread-comment-id)
+					    (bound-and-true-p org-copilot-chat--thread-comment-id))
 		       :message-id (format "message-%s-%08x" (format-time-string "%Y%m%dT%H%M%S%N") (random #x100000000))
 		       :finding-ids finding-ids
 		       :request-id (plist-get request :request-token)
@@ -592,6 +596,7 @@ FINDING-IDS are durable comments produced by this response, not focus metadata."
        (list "ORG_COPILOT_MESSAGE_ID" (plist-get message :message-id)
 	     "ORG_COPILOT_FINDING_IDS" (and finding-ids (json-serialize (vconcat finding-ids)))
 	     "ORG_COPILOT_CREATED_AT" (plist-get message :created-at)
+	     "ORG_COPILOT_THREAD_COMMENT_ID" (plist-get message :thread-comment-id)
 	     "ORG_COPILOT_CONTEXT_ID" context-id
 	     "ORG_COPILOT_COMMENT_ID" comment-id))
       (plist-put message :persisted t))

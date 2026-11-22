@@ -76,37 +76,6 @@ Return the diff buffer."
 	(setq buffer-read-only t)))
     buffer))
 
-(declare-function org-copilot-chat--insert-org-content "org-copilot-chat" (content))
-(declare-function org-copilot-chat-discuss-comment "org-copilot-chat" (source id))
-(defvar org-copilot-chat-source-buffer)
-
-(define-derived-mode org-copilot-details-mode special-mode "Copilot-Details"
-  "Read-only comment details in the shared suggestion preview area."
-  (local-set-key (kbd "q") #'org-copilot-close-diff))
-
-(defun org-copilot-details-open (source-buffer comment)
-  "Show COMMENT's retained rationale in SOURCE-BUFFER's shared preview area.
-Reuse the diff buffer/window; preserve conversation focus and unsent input."
-  (let ((buffer (get-buffer-create org-copilot-diff-buffer-name)))
-    (with-current-buffer buffer
-      (let ((inhibit-read-only t))
-	(erase-buffer)
-	(org-copilot-details-mode)
-	(setq-local org-copilot-diff-source-buffer source-buffer
-		    org-copilot-chat-source-buffer source-buffer
-		    context-panels-source-buffer source-buffer
-		    context-panels-view-id 'copilot-diff
-		    header-line-format "Comment details · q: close")
-	(insert (propertize "Comment details\n\n" 'face 'bold))
-	(org-copilot-chat--insert-org-content (or (plist-get comment :body) ""))
-	(insert "\n\n")
-	(insert-text-button "Discuss this finding" 'follow-link t
-			    'action (lambda (_) (org-copilot-chat-discuss-comment
-						 source-buffer (org-copilot-comment-id comment))))
-	(goto-char (point-min))))
-    (org-copilot--display-diff-buffer source-buffer buffer t)
-    buffer))
-
 (defun org-copilot-diff--source-buffer ()
   "Return the source buffer for a diff command."
   (cond
