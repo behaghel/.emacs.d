@@ -1132,7 +1132,7 @@
 		(should-not (string-match-p "The retained conversation" (buffer-string)))
 		(let ((window (get-buffer-window chat t)))
 		  (should window)
-		  (should (get-text-property (window-start window) 'org-copilot-chat-thread-root)))
+		  (should (= (window-start window) (point-min))))
 		(should (equal "" (org-copilot-chat--prompt-text)))
 		(should-not (string-match-p "Document conversation" (buffer-string)))
 		(org-copilot-chat--set-prompt-text "/next")
@@ -1147,6 +1147,24 @@
 		   (string-prefix-p directory (buffer-file-name buffer)))
 	  (kill-buffer buffer)))
       (delete-directory directory t))))
+
+(ert-deftest org-copilot-chat-tail-fills-available-transcript-height ()
+  "A long transcript ends at the bottom with preceding lines still visible."
+  (save-window-excursion
+    (with-temp-buffer
+      (switch-to-buffer (current-buffer))
+      (let ((window (selected-window)))
+	(dotimes (line (* 2 (window-body-height window)))
+	  (insert (format "Exchange %d\n" line)))
+	(insert "\n\n")
+	(goto-char (point-min))
+	(org-copilot-chat--show-tail (current-buffer))
+	(should (> (window-start window) (point-min)))
+	(should (= (line-number-at-pos (window-point window))
+		   (* 2 (window-body-height window))))
+	(should (= (- (line-number-at-pos (window-point window))
+		      (line-number-at-pos (window-start window)))
+		   (1- (window-body-height window))))))))
 
 (ert-deftest org-copilot-chat-displays-recorded-times-with-finding-at-original-turn ()
   "A finding expands at its original response, before later conversation."
