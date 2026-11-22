@@ -355,6 +355,17 @@
 	  (should (equal (plist-get item :remote-author-name) "Alice"))
 	  (should (equal (plist-get reply :remote-author-name) "Alice")))))))
 
+(ert-deftest org-comments-context-panel-arrow-replaces-overflow-ellipsis ()
+  "Both fitted and shortened headers end with a single action within budget."
+  (let ((action '(:label "→" :open ignore)))
+    (should (equal (substring-no-properties
+		    (org-comments-context-panel--action-label "Success" action 20))
+		   "“Success” →"))
+    (let ((header (org-comments-context-panel--action-label "Success uses the median" action 13)))
+      (should (<= (string-width header) 13))
+      (should (string-suffix-p " →”" header))
+      (should-not (string-match-p "…" header)))))
+
 (ert-deftest org-comments-context-panel-action-is-available-without-opening-body ()
   "A compact row exposes its provider action without entering a thread."
   (with-temp-buffer
@@ -368,6 +379,7 @@
 	  (let ((button (next-button (point-min))))
 	    (should button)
 	    (should (equal (button-label button) "→"))
+	    (should (> (button-start button) (save-excursion (goto-char (point-min)) (search-forward "Passage"))))
 	    (button-activate button)
 	    (should called)))))))
 

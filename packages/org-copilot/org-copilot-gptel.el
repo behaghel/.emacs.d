@@ -577,8 +577,7 @@ When BACKEND is nil, use the active global `gptel-backend'."
 
 (defun org-copilot-gptel--render-chat-buffer (source-buffer &optional scroll-role)
   "Refresh visible Org Copilot chat buffer for SOURCE-BUFFER when present.
-When SCROLL-ROLE is non-nil, scroll that role's last message to the top of the
-chat viewport."
+When SCROLL-ROLE is visible, show the transcript tail with preceding context."
   (when-let* ((buffer (get-buffer org-copilot-chat-buffer-name)))
     (with-current-buffer buffer
       (when (eq org-copilot-chat-source-buffer source-buffer)

@@ -514,16 +514,12 @@ label line."
       position)))
 
 (defun org-copilot-chat-scroll-to-last-message (source-buffer role)
-  "Scroll visible SOURCE-BUFFER chat windows to the last message with ROLE.
-The recorded time and speaker stay visible at the top of the viewport
-rather than scrolling just past the response header."
+  "Show the tail after a visible SOURCE-BUFFER update with ROLE."
   (when-let* ((buffer (get-buffer org-copilot-chat-buffer-name)))
     (with-current-buffer buffer
       (when (eq org-copilot-chat-source-buffer source-buffer)
-	(when-let* ((position (org-copilot-chat--last-message-position role)))
-	  (dolist (window (get-buffer-window-list buffer nil t))
-	    (set-window-point window position)
-	    (set-window-start window position)))))))
+	(when (org-copilot-chat--last-message-position role)
+	  (org-copilot-chat--show-tail buffer))))))
 
 (defun org-copilot-chat--message-discussion (message)
   "Return MESSAGE's recorded discussion key, or nil for the document."
@@ -595,8 +591,14 @@ rather than scrolling just past the response header."
 			   '(read-only t rear-nonsticky (read-only))))
     (setq buffer-read-only t)
     (org-copilot-chat-input-buffer source-buffer)
-    (dolist (window (get-buffer-window-list (current-buffer) nil t))
-      (org-copilot-chat--ensure-input window))))
+    (let ((selection (cons source-buffer
+			   (with-current-buffer source-buffer
+			     (org-copilot-chat--context-id org-copilot-chat-context)))))
+      (dolist (window (get-buffer-window-list (current-buffer) nil t))
+	(org-copilot-chat--ensure-input window)
+	(unless (equal selection (window-parameter window 'org-copilot-discussion))
+	  (set-window-parameter window 'org-copilot-discussion selection)
+	  (org-copilot-chat--show-window-tail window))))))
 
 (defun org-copilot-chat--focused-suggestion-comment (source-buffer)
   "Return focused comment with a suggestion for SOURCE-BUFFER, or nil."
@@ -682,13 +684,17 @@ rather than scrolling just past the response header."
 	      :height org-copilot-chat-window-height
 	      :render #'org-copilot-chat-render-bottom-view)))
 
+(defun org-copilot-chat--show-window-tail (window)
+  "Put the last transcript content at the bottom of WINDOW."
+  (with-selected-window window
+    (goto-char (point-max))
+    (skip-chars-backward " \t\n")
+    (let ((scroll-margin 0)) (recenter -1))))
+
 (defun org-copilot-chat--show-tail (buffer)
   "Put BUFFER's last content at the bottom of each transcript window."
   (dolist (window (get-buffer-window-list buffer nil t))
-    (with-selected-window window
-      (goto-char (point-max))
-      (skip-chars-backward " \t\n")
-      (let ((scroll-margin 0)) (recenter -1)))))
+    (org-copilot-chat--show-window-tail window)))
 
 (defun org-copilot-chat--open-bottom-view (source-buffer)
   "Open the Org Copilot bottom chat view for SOURCE-BUFFER."
@@ -743,9 +749,7 @@ prompt active.  Source target overlays remain visible as dim context markers."
 	(org-comments-context-panel-focus-comment source-buffer comment t))))
   (org-copilot-chat--refresh-source-ui source-buffer)
   (org-copilot-chat-sync-diff source-buffer)
-  (let ((chat (org-copilot-chat--buffer source-buffer)))
-    (org-copilot-chat--show-tail chat)
-    chat))
+  (org-copilot-chat--buffer source-buffer))
 
 (defun org-copilot-chat-focus-comment-id (source-buffer comment-id)
   "Focus SOURCE-BUFFER's Copilot chat on COMMENT-ID without stealing focus."
@@ -757,8 +761,7 @@ prompt active.  Source target overlays remain visible as dim context markers."
 		 (or (not (boundp 'context-panels-bottom-panel-buffer))
 		     (not (buffer-live-p context-panels-bottom-panel-buffer))
 		     (get-buffer-window context-panels-bottom-panel-buffer t)))
-	(org-copilot-chat--show-tail
-	 (context-panels-open-bottom-view 'copilot-chat source-buffer nil)))
+	(context-panels-open-bottom-view 'copilot-chat source-buffer nil))
       (when (window-live-p selected)
 	(select-window selected)))
     comment))
