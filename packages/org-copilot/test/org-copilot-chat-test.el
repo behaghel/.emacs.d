@@ -177,6 +177,42 @@
 	(with-current-buffer chat
 	  (should-not (string-match-p "Section: Methods" (buffer-string))))))))
 
+(ert-deftest org-copilot-chat-hierarchy-uses-ring-order-and-selection ()
+  "The native hierarchy and ring select the same discussion and draft."
+  (skip-unless (fboundp 'context-panels-footer-display-lateral-pane))
+  (save-window-excursion
+    (with-temp-buffer
+      (org-mode)
+      (insert "* Methods\nAlpha sentence.\n* Unused\nNothing.\n")
+      (goto-char (point-min))
+      (switch-to-buffer (current-buffer))
+      (let ((source (current-buffer)))
+	(org-copilot-add-chat-message 'assistant "General reply.")
+	(org-copilot-add-chat-message 'assistant "Section reply." nil "section:(Methods)")
+	(org-copilot-add-comment '(:id "f1" :status active :source-start 11 :target-text "Alpha sentence." :body "Check Alpha."))
+	(let* ((chat (org-copilot-chat--open-bottom-view source))
+	       (index (buffer-local-value 'org-copilot-chat--hierarchy-buffer source))
+	       (window (get-buffer-window index))
+	       (document-input (org-copilot-chat-input-buffer source)))
+	  (should (window-live-p window))
+	  (should (= (window-total-width window) (context-panels--side-panel-width source)))
+	  (with-current-buffer document-input (goto-char (point-max)) (insert "Unsent draft."))
+	  (with-current-buffer index
+	    (should (string-match-p "▸ Document\n    Methods\n      Alpha sentence\\." (buffer-string)))
+	    (should-not (string-match-p "Unused" (buffer-string)))
+	    (button-activate (next-button (button-end (next-button (point-min))))))
+	  (with-current-buffer chat
+	    (should (string-match-p "Section reply" (buffer-string)))
+	    (should-not (string-match-p "General reply" (buffer-string))))
+	  (org-copilot-chat--step-discussion source 1)
+	  (with-current-buffer index (should (string-match-p "▸ Alpha sentence" (buffer-string))))
+	  (with-current-buffer chat (org-copilot-chat-toggle-hierarchy))
+	  (should-not (get-buffer-window index))
+	  (with-current-buffer chat (should (string-match-p "Check Alpha" (buffer-string))))
+	  (org-copilot-chat--step-discussion source 1)
+	  (should (eq document-input (org-copilot-chat-input-buffer source)))
+	  (with-current-buffer document-input (should (string-suffix-p "Unsent draft." (buffer-string)))))))))
+
 (ert-deftest org-copilot-chat-focuses-current-comment ()
   "Opening chat from a context-panel row focuses that AI comment."
   (let ((source (generate-new-buffer " *org copilot chat source*")))
