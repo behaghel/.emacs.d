@@ -527,17 +527,17 @@ When SKIP-COPILOT is non-nil, do not propagate focus to the Copilot chat."
 		     (if-let* ((date (plist-get item :remote-missing-at)))
 			 (format " since %s" date) "")) 'face 'warning) details))
     (unless (string-empty-p metadata) (push metadata details))
-    (list :label (concat (when-let* ((indicator (and (org-comments-panel-render--copilot-comment-p item)
-						     (org-comments-panel-render--suggestion-indicator item))))
-			   (concat indicator " "))
-			 marker (format "“%s”" target)
-			 (when action
+    (list :label (concat (when action
 			   (with-temp-buffer
-			     (insert " ")
 			     (insert-text-button (plist-get action :label)
 						 'follow-link t 'help-echo "Show full comment"
 						 'action (lambda (_) (funcall (plist-get action :open))))
-			     (buffer-string))))
+			     (insert " ")
+			     (buffer-string)))
+			 (when-let* ((indicator (and (org-comments-panel-render--copilot-comment-p item)
+						     (org-comments-panel-render--suggestion-indicator item))))
+			   (concat indicator " "))
+			 marker (format "“%s”" target))
 	  :details (nreverse details)
 	  :render-body #'org-comments-context-panel--render-body
 	  :properties (list 'org-comments-comment item))))

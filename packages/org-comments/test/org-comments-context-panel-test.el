@@ -365,9 +365,10 @@
       (let ((view (org-comments-context-panel--presentation source '(:id "finding" :target-text "Passage"))))
 	(with-temp-buffer
 	  (context-panels-render-side-item source (plist-put (copy-sequence view) :render-body #'ignore))
-	  (let ((button (next-button (point-min))))
+	  (let ((button (button-at (point-min))))
 	    (should button)
 	    (should (equal (button-label button) "→"))
+	    (should (< (button-start button) (save-excursion (goto-char (point-min)) (search-forward "Passage"))))
 	    (button-activate button)
 	    (should called)))))))
 

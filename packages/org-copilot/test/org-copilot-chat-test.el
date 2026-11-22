@@ -796,8 +796,8 @@
 	(should-error (org-copilot-chat-recall-last-prompt)
 		      :type 'user-error)))))
 
-(ert-deftest org-copilot-chat-send-scrolls-pending-message-to-window-top ()
-  "Sending to an async adapter scrolls the pending response to the viewport top."
+(ert-deftest org-copilot-chat-send-shows-pending-message-with-preceding-context ()
+  "Sending to an async adapter keeps short preceding context visible."
   (let ((source (generate-new-buffer " *org copilot chat scroll source*"))
 	(chat-window nil))
     (unwind-protect
@@ -809,7 +809,8 @@
 	    (select-window chat-window)
 	    (org-copilot-chat-send "Explain this")
 	    (with-current-buffer (window-buffer chat-window)
-	      (should (eq (get-text-property (window-start chat-window)
+	      (should (= (window-start chat-window) (point-min)))
+	      (should (eq (get-text-property (1- (window-point chat-window))
 					     'org-copilot-chat-message-role)
 			  'pending)))))
       (when (window-live-p chat-window)
@@ -817,8 +818,8 @@
       (when (buffer-live-p source)
 	(kill-buffer source)))))
 
-(ert-deftest org-copilot-chat-scrolls-assistant-header-to-window-top ()
-  "Assistant response scrolling keeps its timestamp and speaker visible."
+(ert-deftest org-copilot-chat-scrolls-to-tail-on-visible-switch-and-reply ()
+  "Both a rendered switch and a reply fill the visible transcript from the tail."
   (let ((source (generate-new-buffer " *org copilot assistant scroll source*"))
 	(chat-window nil))
     (unwind-protect
@@ -828,13 +829,19 @@
 	  (org-copilot-add-chat-message 'assistant "First answer line.\nSecond answer line.")
 	  (setq chat-window
 		(display-buffer (org-copilot-chat--buffer source)))
+	  (org-copilot-chat--set-context source '(:type section :section-title "Elsewhere"))
+	  (org-copilot-chat--buffer source)
+	  (org-copilot-chat--set-context source '(:type full-document))
+	  (org-copilot-chat--buffer source)
+	  (with-current-buffer (window-buffer chat-window)
+	    (should (= (window-start chat-window) (point-min)))
+	    (goto-char (window-point chat-window))
+	    (should (looking-back "Second answer line\\." (line-beginning-position))))
 	  (org-copilot-chat-scroll-to-last-message source 'assistant)
 	  (with-current-buffer (window-buffer chat-window)
-	    (goto-char (window-start chat-window))
-	    (should (eq (get-text-property (point)
-					   'org-copilot-chat-message-role)
-			'assistant))
-	    (should (looking-at-p "\\[[0-9][0-9]:[0-9][0-9]\\] Copilot:"))))
+	    (should (= (window-start chat-window) (point-min)))
+	    (goto-char (window-point chat-window))
+	    (should (looking-back "Second answer line\\." (line-beginning-position)))))
       (when (window-live-p chat-window)
 	(delete-window chat-window))
       (when (buffer-live-p source)
