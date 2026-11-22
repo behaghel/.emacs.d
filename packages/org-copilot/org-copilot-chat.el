@@ -304,6 +304,9 @@ With NOERROR, return nil when its chat is not visible."
 (defun org-copilot-chat--set-context (source-buffer context)
   "Set SOURCE-BUFFER chat CONTEXT and focus fields."
   (with-current-buffer source-buffer
+    (unless (and (eq (plist-get context :type) 'comment)
+		 (equal org-copilot-chat-expanded-comment-id (plist-get context :comment-id)))
+      (setq org-copilot-chat-expanded-comment-id nil))
     (setq org-copilot-chat-context context)
     (setq org-copilot-chat-focus-comment-id
 	  (and (eq (plist-get context :type) 'comment)
@@ -542,15 +545,39 @@ rather than scrolling just past the response header."
   (with-current-buffer source-buffer
     (org-copilot-chat-messages)))
 
+(defun org-copilot-chat--insert-finding (source id expanded)
+  "Insert SOURCE's finding ID as part of its producing response.
+EXPANDED selects the full stored rationale without creating another chat turn."
+  (when-let* ((comment (with-current-buffer source (org-copilot-find-visible-comment id))))
+    (let ((start (point)))
+      (if (equal expanded id)
+	  (progn
+	    (org-copilot-chat--insert-indented-content (plist-get comment :body))
+	    (put-text-property start (point) 'org-copilot-chat-explanation id))
+	(let ((presentation (org-copilot-chat-comment-presentation source comment)))
+	  (insert "  Finding: " (or (plist-get presentation :text) "Comment") " ")
+	  (insert-text-button "→" 'follow-link t
+			      'action (lambda (_) (org-copilot-chat-show-explanation source id)))
+	  (insert "\n\n"))))))
+
 (defun org-copilot-chat-render (source-buffer)
   "Render the Org Copilot chat transcript for SOURCE-BUFFER."
   (let* ((inhibit-read-only t)
 	 (messages (org-copilot-chat--visible-messages source-buffer))
 	 (expanded (buffer-local-value 'org-copilot-chat-expanded-comment-id source-buffer))
 	 (body-message (org-copilot-chat--focused-comment-body-message source-buffer)))
-    (unless (or (null messages)
-		(and expanded (equal expanded (plist-get body-message :comment-id))))
-      (setq body-message nil))
+    ;; A legacy finding has no recorded producing response.  Do not guess one:
+    ;; show its existing comment-focused discussion, not a transcript appendix.
+    (setq body-message
+	  (and expanded (equal expanded (plist-get body-message :comment-id))
+	       (not (cl-some (lambda (message) (member expanded (plist-get message :finding-ids))) messages))
+	       body-message))
+    (when body-message
+      (setq messages (cl-remove-if-not
+		      (lambda (message)
+			(or (equal expanded (plist-get message :comment-id))
+			    (equal (format "comment:%s" expanded) (plist-get message :context-id))))
+		      messages)))
     (erase-buffer)
     (let ((transcript-start (point)))
       (org-copilot-chat--insert-metadata
@@ -559,17 +586,19 @@ rather than scrolling just past the response header."
 	       (org-copilot-chat--context-label source-buffer)))
       (cond
        ((or body-message messages)
-	(dolist (message messages)
-	  (org-copilot-chat--insert-message message))
 	(when body-message
 	  (let ((start (point)))
-	    (insert (propertize "Selected comment — explanation\n" 'face 'bold))
+	    (insert (propertize "Comment discussion\n" 'face 'bold))
 	    (org-copilot-chat--insert-indented-content (plist-get body-message :content))
 	    (insert "\n")
 	    (remove-text-properties start (point)
 				    '(org-copilot-chat-message nil org-copilot-chat-message-role nil))
 	    (put-text-property start (point) 'org-copilot-chat-explanation
-			       (plist-get body-message :comment-id)))))
+			       (plist-get body-message :comment-id))))
+	(dolist (message messages)
+	  (org-copilot-chat--insert-message message)
+	  (dolist (id (plist-get message :finding-ids))
+	    (org-copilot-chat--insert-finding source-buffer id expanded))))
        (t
 	(org-copilot-chat--insert-metadata
 	 (if (org-copilot-chat--focused-comment source-buffer)

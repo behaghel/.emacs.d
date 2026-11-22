@@ -163,9 +163,10 @@ REQUEST supplies reviewed source bounds for line-range fallback anchoring."
 	 (anchored (org-copilot-llm-anchor-comments source-buffer comments request)))
     (message "Org Copilot: installing %d gptel comment(s)" (length anchored))
     (with-current-buffer source-buffer
-      (org-copilot-install-review-comments anchored request)
-      (when summary
-	(org-copilot-add-chat-message 'assistant summary nil nil request))
+      (let ((installed (org-copilot-install-review-comments anchored request)))
+	(when summary
+	  (org-copilot-add-chat-message
+	   'assistant summary nil nil request (mapcar #'org-copilot-comment-id installed))))
       (org-copilot-open))
     (when (and summary
 	       (with-current-buffer source-buffer
@@ -473,6 +474,7 @@ REQUEST supplies reviewed source bounds for line-range fallback anchoring."
     (let ((stored (org-suggestions-load-sidecar source-file))
 	  installed-thread-ids
 	  installed-suggestion-ids
+	  installed-comment-ids
 	  unanchored-thread-ids)
       (dolist (thread threads)
 	(let* ((requested-thread-id (plist-get request :suggestion-thread-id))
@@ -525,6 +527,8 @@ REQUEST supplies reviewed source bounds for line-range fallback anchoring."
 			      thread-id suggestion-ids))
 			(org-copilot-gptel--persist-thread-comment
 			 source-buffer source-file new-thread thread-id suggestion-ids request)))
+	      (when (and comment-id (not (equal comment-id (plist-get request :focus-comment-id))))
+		(push comment-id installed-comment-ids))
 	      (setq new-thread (plist-put new-thread :comment-id comment-id))
 	      (unless comment-id
 		(push thread-id unanchored-thread-ids)
@@ -538,7 +542,8 @@ REQUEST supplies reviewed source bounds for line-range fallback anchoring."
 	  (setq installed-suggestion-ids
 		(append suggestion-ids installed-suggestion-ids))))
       (org-suggestions-write-sidecar source-file (nreverse stored))
-      (let ((result (list :thread-ids (nreverse installed-thread-ids)
+      (let ((result (list :finding-ids (nreverse installed-comment-ids)
+			  :thread-ids (nreverse installed-thread-ids)
 			  :suggestion-ids (nreverse installed-suggestion-ids)
 			  :unanchored-thread-ids
 			  (nreverse unanchored-thread-ids))))
@@ -661,6 +666,9 @@ chat viewport."
 				(list :before parsed-raw :after parsed))
 	   :comment-install-result install-result
 	   :suggestion-install-result suggestions-result)
+	  (org-copilot-record-chat-findings
+	   request (append (plist-get suggestions-result :finding-ids)
+			   (plist-get install-result :finding-ids)))
 	  (org-copilot-gptel--update-assistant-message
 	   source-buffer message request)
 	  (org-copilot-debug-record

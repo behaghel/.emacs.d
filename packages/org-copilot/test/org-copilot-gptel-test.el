@@ -460,6 +460,52 @@
 	  (should (string-match-p "Installed 1 comment"
 				  (plist-get message :content))))))))
 
+(ert-deftest org-copilot-findings-bind-to-request-not-latest-focus ()
+  "Deferred finding installation selects its exact producing response."
+  (with-temp-buffer
+    (let ((first (list :source-buffer (current-buffer) :request-token (make-symbol "first")))
+	  (second (list :source-buffer (current-buffer) :request-token (make-symbol "second"))))
+      (org-copilot-add-chat-message 'assistant "First response." nil nil first)
+      (org-copilot-add-chat-message 'assistant "Later response." nil nil second)
+      (org-copilot-record-chat-findings first '("first-finding"))
+      (should (equal (plist-get (car (org-copilot-chat-messages)) :finding-ids) '("first-finding")))
+      (should-not (plist-get (cadr (org-copilot-chat-messages)) :finding-ids)))))
+
+(ert-deftest org-copilot-gptel-findings-retain-producing-response-after-reopen ()
+  "Real completion persists the finding/response link without another turn."
+  (let* ((directory (make-temp-file "copilot-finding-response" t))
+	 (file (expand-file-name "draft.org" directory)) source id)
+    (unwind-protect
+	(progn
+	  (with-temp-file file (insert "Alpha sentence.\n"))
+	  (setq source (find-file-noselect file))
+	  (with-current-buffer source
+	    (org-mode)
+	    (let ((org-copilot-chat-open-panel-on-comments nil))
+	      (cl-letf (((symbol-function 'gptel-request)
+			 (lambda (_prompt &rest args)
+			   (funcall (plist-get args :callback)
+				    "{\"message\":\"Original review.\",\"comments\":[{\"body\":\"Full retained rationale.\",\"target_text\":\"Alpha sentence.\"}]}"
+				    '(:status success)))))
+		(org-copilot-gptel-chat
+		 (list :source-buffer source :message "Review" :chat-context '(:type full-document))))
+	      (setq id (car (plist-get (car (org-copilot-chat-messages)) :finding-ids)))
+	      (should id)
+	      (org-copilot-add-chat-message 'user "Later question.")))
+	  (kill-buffer source)
+	  (setq source (find-file-noselect file))
+	  (with-current-buffer source
+	    (org-copilot-restore-chat-messages)
+	    (let ((messages (org-copilot-chat-messages)))
+	      (should (= 2 (length messages)))
+	      (should (equal (plist-get (car messages) :finding-ids) (list id)))
+	      (should (equal (plist-get (cadr messages) :content) "Later question.")))))
+      (when (buffer-live-p source) (kill-buffer source))
+      (dolist (buffer (buffer-list))
+	(when (and (buffer-file-name buffer) (string-prefix-p directory (buffer-file-name buffer)))
+	  (kill-buffer buffer)))
+      (delete-directory directory t))))
+
 (ert-deftest org-copilot-gptel-section-chat-keeps-context-id ()
   "Section chat callback messages remain visible in section context."
   (with-temp-buffer
