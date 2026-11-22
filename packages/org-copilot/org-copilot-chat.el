@@ -32,7 +32,7 @@
 
 (defcustom org-copilot-comment-preview-length 240
   "Maximum characters in a Copilot side-card preview, or nil for full text.
-The right arrow opens the full stored explanation."
+The right arrow opens the comment thread with its full stored explanation."
   :type '(choice (const :tag "Full text" nil) (integer :tag "Characters"))
   :group 'org-copilot)
 
@@ -53,28 +53,13 @@ The right arrow opens the full stored explanation."
 	      :open (lambda () (org-copilot-chat-show-explanation source id)))))))
 
 (defun org-copilot-chat-show-explanation (source comment-id)
-  "Navigate to SOURCE's COMMENT-ID rationale without changing discussion focus."
+  "Open SOURCE's COMMENT-ID thread and focus its ordinary typing area."
   (unless (buffer-live-p source)
     (user-error "The explanation's source is no longer available"))
   (with-current-buffer source
     (unless (org-copilot-find-visible-comment comment-id)
       (user-error "The explanation is no longer available; no other comment was opened"))
-    (if (or (equal comment-id org-copilot-chat--thread-comment-id)
-	    (cl-some (lambda (message) (member comment-id (plist-get message :finding-ids)))
-		     (org-copilot-chat--visible-messages source)))
-	(progn
-	  (context-panels-open-bottom-view 'copilot-chat source nil)
-	  (with-current-buffer (org-copilot-chat--buffer source)
-	    (let ((position (point-min)))
-	      (while (and (< position (point-max))
-			  (not (equal comment-id (get-text-property position 'org-copilot-chat-explanation))))
-		(setq position (next-single-property-change
-				position 'org-copilot-chat-explanation nil (point-max))))
-	      (when (< position (point-max))
-		(dolist (window (get-buffer-window-list (current-buffer) nil t))
-		  (set-window-point window position)
-		  (set-window-start window position))))))
-      (org-copilot-details-open source (org-copilot-find-visible-comment comment-id)))))
+    (org-copilot-chat-discuss-comment source comment-id)))
 
 (defcustom org-copilot-chat-buffer-name "*Org Copilot Chat*"
   "Buffer name used for Org Copilot bottom chat views."
@@ -569,13 +554,6 @@ rather than scrolling just past the response header."
   "Explicitly select SOURCE's comment ID as discussion focus and open its input."
   (unless (with-current-buffer source (org-copilot-find-visible-comment id))
     (user-error "This comment is no longer available for discussion"))
-  (when-let* ((preview (get-buffer org-copilot-diff-buffer-name)))
-    (when (and (with-current-buffer preview
-		 (and (derived-mode-p 'org-copilot-details-mode)
-		      (eq org-copilot-diff-source-buffer source)))
-	       (get-buffer-window preview t))
-      (dolist (window (get-buffer-window-list preview nil t))
-	(when (window-parent window) (delete-window window)))))
   (with-current-buffer source (setq org-copilot-chat--thread-comment-id id))
   (org-copilot-chat-focus-comment-id source id)
   (let ((chat (org-copilot-chat--buffer source)))
@@ -593,7 +571,7 @@ rather than scrolling just past the response header."
     (let ((start (point)))
       (org-copilot-chat--insert-indented-content (plist-get comment :body))
       (put-text-property start (point) 'org-copilot-chat-explanation id)
-      (insert-text-button "Discuss this finding" 'follow-link t
+      (insert-text-button "→" 'follow-link t 'help-echo "Open this comment discussion"
 			  'action (lambda (_) (org-copilot-chat-discuss-comment source id)))
       (insert "\n\n"))))
 
