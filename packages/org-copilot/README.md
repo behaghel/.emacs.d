@@ -225,7 +225,7 @@ Package code is Evil-neutral. This repository’s personal Org bindings use `,a`
 
 ## Window behavior
 
-The chat transcript scrolls independently above a fixed typing area. The typing
+The chat transcript scrolls independently above a fixed typing area. Selecting a discussion shows its latest content at the bottom with as much earlier content as fits; a short transcript starts at its beginning. The typing
 area has a subtly lighter theme-derived background, a top separator and a
 coloured `You: ` label. Replies and viewport changes do not replace an unsent
 draft. Each source owns its typing buffers, so switching documents does not move
