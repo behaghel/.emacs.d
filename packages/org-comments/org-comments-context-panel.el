@@ -498,6 +498,21 @@ When SKIP-COPILOT is non-nil, do not propagate focus to the Copilot chat."
       (list "" "Linked comment operations remain backend-capability gated.")))
    "\n"))
 
+(defun org-comments-context-panel--action-label (target action width)
+  "Format TARGET within WIDTH columns, reserving room for ACTION.
+When the quote is shortened, its action replaces the ellipsis."
+  (let* ((label (plist-get action :label))
+	 (budget (max 0 (- width 3 (string-width label))))
+	 (shortened (> (string-width target) budget))
+	 (quote (string-trim-right (truncate-string-to-width target budget))))
+    (with-temp-buffer
+      (when (> budget 0)
+	(insert "“" quote (if shortened " " "” ")))
+      (insert-text-button label 'follow-link t 'help-echo "Open comment discussion"
+			  'action (lambda (_) (funcall (plist-get action :open))))
+      (when (and shortened (> budget 0)) (insert "”"))
+      (buffer-string))))
+
 (defun org-comments-context-panel--presentation (source-buffer item)
   "Describe ITEM's target, thread state and message details without mutation."
   (let* ((marker (pcase (plist-get item :status)
@@ -505,9 +520,7 @@ When SKIP-COPILOT is non-nil, do not propagate focus to the Copilot chat."
 				       'help-echo "To do"))
 		   ("RESOLVED" (propertize "✓ " 'face 'org-comments-panel-state-resolved
 					   'help-echo "Resolved"))))
-	 (target (org-comments-panel-render--truncate
-		  (org-comments-panel-render--compact (plist-get item :target-text))
-		  org-comments-panel-target-preview-length))
+	 (target (org-comments-panel-render--compact (plist-get item :target-text)))
 	 (metadata (with-temp-buffer
 		     (org-comments-panel-render--insert-metadata-inline item)
 		     (let ((badges (org-comments-panel-render--semantic-badges item)))
@@ -527,17 +540,22 @@ When SKIP-COPILOT is non-nil, do not propagate focus to the Copilot chat."
 		     (if-let* ((date (plist-get item :remote-missing-at)))
 			 (format " since %s" date) "")) 'face 'warning) details))
     (unless (string-empty-p metadata) (push metadata details))
-    (list :label (concat (when action
-			   (with-temp-buffer
-			     (insert-text-button (plist-get action :label)
-						 'follow-link t 'help-echo "Show full comment"
-						 'action (lambda (_) (funcall (plist-get action :open))))
-			     (insert " ")
-			     (buffer-string)))
-			 (when-let* ((indicator (and (org-comments-panel-render--copilot-comment-p item)
-						     (org-comments-panel-render--suggestion-indicator item))))
-			   (concat indicator " "))
-			 marker (format "“%s”" target))
+    (list :label
+	  (let* ((indicator (and (org-comments-panel-render--copilot-comment-p item)
+				 (org-comments-panel-render--suggestion-indicator item)))
+		 (prefix (concat (when indicator (concat indicator " ")) marker)))
+	    (if action
+		(let* ((panel (buffer-local-value 'context-panels-side-panel-buffer source-buffer))
+		       (window (and (buffer-live-p panel) (get-buffer-window panel t)))
+		       (width (if window (window-body-width window) org-comments-panel-width))
+		       (available (- width (string-width (or (plist-get item :icon) "✍️")) 3)))
+		  (when (< (- available (string-width prefix)) 5) (setq prefix ""))
+		  (concat prefix (org-comments-context-panel--action-label
+				  target action (min (+ org-comments-panel-target-preview-length
+							3 (string-width (plist-get action :label)))
+						     (- available (string-width prefix))))))
+	      (concat prefix (format "“%s”" (org-comments-panel-render--truncate
+					     target org-comments-panel-target-preview-length)))))
 	  :details (nreverse details)
 	  :render-body #'org-comments-context-panel--render-body
 	  :properties (list 'org-comments-comment item))))
