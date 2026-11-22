@@ -93,10 +93,6 @@ assistant message, or a plist with `:message' and optional `:comments'.  Normal
 (defvar-local org-copilot-chat--input-buffer nil
   "Active source-owned typing buffer; retained when its views are closed.")
 
-(defvar-local org-copilot-chat--thread-comment-id nil
-  "Explicitly opened comment discussion, or nil for the document conversation.
-This selects a view, not a different native Herbert conversation.")
-
 (defvar-local org-copilot-chat--input-buffers nil
   "Typing buffers keyed by document or durable comment identity.
 Drafts are presentation state, never conversation history.")
@@ -217,7 +213,7 @@ Drafts are presentation state, never conversation history.")
 (defun org-copilot-chat-input-buffer (source-buffer)
   "Return SOURCE-BUFFER's active discussion input, preserving other drafts."
   (with-current-buffer source-buffer
-    (let ((key (or org-copilot-chat--thread-comment-id 'document)))
+    (let ((key (or (org-copilot-chat--context-id org-copilot-chat-context) 'document)))
       (setq org-copilot-chat--input-buffer (cdr (assoc key org-copilot-chat--input-buffers)))
       (unless (buffer-live-p org-copilot-chat--input-buffer)
 	(setq org-copilot-chat--input-buffer
@@ -292,18 +288,16 @@ With NOERROR, return nil when its chat is not visible."
   "Return stable identifier for chat CONTEXT."
   (pcase (plist-get context :type)
     ('comment (format "comment:%s" (plist-get context :comment-id)))
-    ('section (format "section:%s"
-		      (or (plist-get context :section-path)
-			  (plist-get context :heading-line)
-			  (plist-get context :section-title))))
+    ('section (or (plist-get context :recorded-id)
+		  (format "section:%s"
+			  (or (plist-get context :section-path)
+			      (plist-get context :heading-line)
+			      (plist-get context :section-title)))))
     (_ nil)))
 
 (defun org-copilot-chat--set-context (source-buffer context)
   "Set SOURCE-BUFFER chat CONTEXT and focus fields."
   (with-current-buffer source-buffer
-    (unless (and (eq (plist-get context :type) 'comment)
-		 (equal org-copilot-chat--thread-comment-id (plist-get context :comment-id)))
-      (setq org-copilot-chat--thread-comment-id nil))
     (setq org-copilot-chat-context context)
     (setq org-copilot-chat-focus-comment-id
 	  (and (eq (plist-get context :type) 'comment)
@@ -391,16 +385,11 @@ With NOERROR, return nil when its chat is not visible."
   (with-current-buffer source-buffer
     (pcase (plist-get org-copilot-chat-context :type)
       ('comment (if-let* ((comment (org-copilot-chat--focused-comment source-buffer)))
-		    (if org-copilot-chat--thread-comment-id
-			(format "Discussion · %s"
-				(truncate-string-to-width
-				 (replace-regexp-in-string "[[:space:]]+" " "
-							   (or (plist-get comment :target-text) "Finding"))
-				 60 nil nil "…"))
-		      (format "%s Comment %s · %s"
-			      (org-copilot-chat--comment-marker comment)
-			      (org-copilot-comment-id comment)
-			      (org-copilot-comment-status comment)))
+		    (format "Discussion · %s"
+			    (truncate-string-to-width
+			     (replace-regexp-in-string "[[:space:]]+" " "
+						       (or (plist-get comment :target-text) "Finding"))
+			     60 nil nil "…"))
 		  "💬 Comment"))
       ('section (format "§ Section: %s"
 			(or (plist-get org-copilot-chat-context :section-title)
@@ -536,28 +525,26 @@ rather than scrolling just past the response header."
 	    (set-window-point window position)
 	    (set-window-start window position)))))))
 
+(defun org-copilot-chat--message-discussion (message)
+  "Return MESSAGE's recorded discussion key, or nil for the document."
+  (let ((id (plist-get message :context-id))
+	(comment (or (plist-get message :thread-comment-id) (plist-get message :comment-id))))
+    (cond (comment (format "comment:%s" comment))
+	  ((and id (or (string-prefix-p "section:" id) (string-prefix-p "comment:" id))) id))))
+
 (defun org-copilot-chat--visible-messages (source-buffer)
-  "Return SOURCE-BUFFER's discussion view without altering retained history."
+  "Return only the exchanges in SOURCE-BUFFER's selected discussion."
   (with-current-buffer source-buffer
-    (if org-copilot-chat--thread-comment-id
-	(cl-remove-if-not
-	 (lambda (message)
-	   (or (equal org-copilot-chat--thread-comment-id (plist-get message :thread-comment-id))
-	       (equal org-copilot-chat--thread-comment-id (plist-get message :comment-id))
-	       (equal (format "comment:%s" org-copilot-chat--thread-comment-id)
-		      (plist-get message :context-id))))
-	 (org-copilot-chat-messages))
-      (cl-remove-if (lambda (message) (plist-get message :thread-comment-id))
-		    (org-copilot-chat-messages)))))
+    (let ((key (org-copilot-chat--context-id org-copilot-chat-context)))
+      (cl-remove-if-not (lambda (message) (equal key (org-copilot-chat--message-discussion message)))
+			(org-copilot-chat-messages)))))
 
 (defun org-copilot-chat-discuss-comment (source id)
   "Explicitly select SOURCE's comment ID as discussion focus and open its input."
   (unless (with-current-buffer source (org-copilot-find-visible-comment id))
     (user-error "This comment is no longer available for discussion"))
-  (with-current-buffer source (setq org-copilot-chat--thread-comment-id id))
   (org-copilot-chat-focus-comment-id source id)
-  (let ((chat (org-copilot-chat--buffer source)))
-    (with-current-buffer chat (org-copilot-chat-goto-prompt))
+  (let ((chat (org-copilot-chat--open-bottom-view source)))
     (with-current-buffer chat
       (when-let* ((position (text-property-not-all
 			     (point-min) (point-max) 'org-copilot-chat-thread-root nil)))
@@ -579,7 +566,7 @@ rather than scrolling just past the response header."
   "Render the Org Copilot chat transcript for SOURCE-BUFFER."
   (let* ((inhibit-read-only t)
 	 (messages (org-copilot-chat--visible-messages source-buffer))
-	 (thread (buffer-local-value 'org-copilot-chat--thread-comment-id source-buffer))
+	 (thread (buffer-local-value 'org-copilot-chat-focus-comment-id source-buffer))
 	 (comment (and thread (with-current-buffer source-buffer
 				(org-copilot-find-visible-comment thread)))))
     (erase-buffer)
@@ -589,10 +576,6 @@ rather than scrolling just past the response header."
 	       (buffer-name source-buffer)
 	       (org-copilot-chat--context-label source-buffer)))
       (when thread
-	(insert-text-button "Document conversation" 'follow-link t
-			    'action (lambda (_) (with-current-buffer source-buffer
-						  (org-copilot-chat-full-document))))
-	(insert "\n\n")
 	(when comment
 	  (let ((root-start (point)))
 	    (insert (propertize
@@ -600,7 +583,7 @@ rather than scrolling just past the response header."
 			     (org-copilot-chat--timestamp-label (plist-get comment :created-at))
 			     (or (plist-get comment :author) "Comment"))
 		     'face 'org-copilot-chat-copilot-face))
-	    (org-copilot-chat--insert-indented-content (plist-get comment :body))
+	    (org-copilot-chat--insert-indented-content (or (plist-get comment :body) ""))
 	    (insert "\n")
 	    (put-text-property root-start (point) 'org-copilot-chat-thread-root t)
 	    (put-text-property root-start (point) 'org-copilot-chat-explanation thread))))
@@ -637,25 +620,57 @@ rather than scrolling just past the response header."
        (eq (org-copilot-comment-status comment) 'dismissed))
      (org-copilot-visible-comments))))
 
-(defun org-copilot-chat--focus-comment-by-step (source-buffer step)
-  "Focus SOURCE-BUFFER chat on the next comment by STEP."
-  (let* ((comments (org-copilot-chat--navigable-comments source-buffer))
-	 (count (length comments)))
-    (unless comments
-      (user-error "No AI comments to focus"))
-    (with-current-buffer source-buffer
-      (let* ((current org-copilot-chat-focus-comment-id)
-	     (index (cl-position current comments
-				 :key #'org-copilot-comment-id
-				 :test #'equal))
-	     (next-index (if index
-			     (mod (+ index step) count)
-			   (if (> step 0) 0 (1- count))))
-	     (comment (nth next-index comments)))
-	(org-copilot-chat--set-context
-	 source-buffer
-	 (list :type 'comment :comment-id (org-copilot-comment-id comment)))
-	comment))))
+(defun org-copilot-chat--discussion-ring (source)
+  "Return SOURCE's established discussion contexts in source order."
+  (with-current-buffer source
+    (let ((keys (delete-dups (mapcar #'org-copilot-chat--message-discussion
+				     (cl-remove-if-not (lambda (turn) (memq (plist-get turn :role) '(user assistant)))
+						       (org-copilot-chat-messages)))))
+	  sections entries)
+      (when (and (derived-mode-p 'org-mode)
+		 (seq-some (lambda (key) (and key (string-prefix-p "section:" key))) keys))
+	(org-with-wide-buffer
+	 (goto-char (point-min))
+	 (while (re-search-forward org-heading-regexp nil t)
+	   (beginning-of-line)
+	   (let* ((context (org-copilot-chat--section-context-at-point))
+		  (key (org-copilot-chat--context-id context)))
+	     (when (member key keys)
+	       (push (cons key context) sections)))
+	   (forward-line 1))))
+      (when (memq nil keys) (push (cons -1 '(:type full-document)) entries))
+      (dolist (key keys)
+	(when (and key (string-prefix-p "section:" key))
+	  (let* ((matches (cl-remove-if-not (lambda (entry) (equal (car entry) key)) sections))
+		 (context (and (= (length matches) 1) (cdar matches))))
+	    (push (cons (or (and context (marker-position (plist-get context :heading-marker))) most-positive-fixnum)
+			(or context (list :type 'section :recorded-id key :section-title (concat (substring key 8) " · location unavailable"))))
+		  entries))))
+      (dolist (comment (org-copilot-chat--navigable-comments source))
+	(push (cons (or (plist-get comment :source-start) most-positive-fixnum)
+		    (list :type 'comment :comment-id (org-copilot-comment-id comment))) entries))
+      (mapcar #'cdr (cl-stable-sort (nreverse entries) #'< :key #'car)))))
+
+(defun org-copilot-chat--step-discussion (source step)
+  "Select the next or previous established discussion in SOURCE by STEP."
+  (let* ((ring (org-copilot-chat--discussion-ring source))
+	 (index (cl-position (with-current-buffer source (org-copilot-chat--context-id org-copilot-chat-context))
+			     ring :key #'org-copilot-chat--context-id :test #'equal))
+	 (count (length ring)))
+    (unless ring (user-error "No established discussions"))
+    (let ((context (nth (if index (mod (+ index step) count) (if (> step 0) 0 (1- count))) ring)))
+      (if-let* ((id (plist-get context :comment-id)))
+	  (progn
+	    (org-copilot-chat--focus-and-refresh source
+						 (with-current-buffer source (org-copilot-find-visible-comment id)))
+	    (org-copilot-chat-focus-input source t))
+	(org-copilot-chat--set-context source context)
+	(when-let* ((marker (plist-get context :heading-marker)))
+	  (with-current-buffer source
+	    (when (<= (point-min) (marker-position marker) (point-max))
+	      (org-copilot-chat--scroll-source-to-comment source (list :source-start (marker-position marker))))))
+	(org-copilot-chat--refresh-source-ui source)
+	(org-copilot-chat--open-bottom-view source)))))
 
 (defun org-copilot-chat-render-bottom-view (source-buffer _view)
   "Render the Org Copilot bottom chat view for SOURCE-BUFFER."
@@ -719,11 +734,12 @@ prompt active.  Source target overlays remain visible as dim context markers."
   (org-copilot-chat--set-context
    source-buffer
    (list :type 'comment :comment-id (org-copilot-comment-id comment)))
-  (org-copilot-chat--scroll-source-to-comment source-buffer comment)
+  (unless (eq (org-copilot-comment-status comment) 'stale)
+    (org-copilot-chat--scroll-source-to-comment source-buffer comment)
+    (when (fboundp 'org-comments-context-panel-focus-comment)
+      (ignore-errors
+	(org-comments-context-panel-focus-comment source-buffer comment t))))
   (org-copilot-chat--refresh-source-ui source-buffer)
-  (when (fboundp 'org-comments-context-panel-focus-comment)
-    (ignore-errors
-      (org-comments-context-panel-focus-comment source-buffer comment t)))
   (org-copilot-chat-sync-diff source-buffer)
   (org-copilot-chat--buffer source-buffer))
 
@@ -744,19 +760,15 @@ prompt active.  Source target overlays remain visible as dim context markers."
 
 ;;;###autoload
 (defun org-copilot-chat-focus-next-comment ()
-  "Focus chat on the next non-dismissed AI comment."
+  "Select the next established discussion in source order."
   (interactive)
-  (let* ((source (org-copilot-chat--source-buffer))
-	 (comment (org-copilot-chat--focus-comment-by-step source 1)))
-    (org-copilot-chat--focus-and-refresh source comment)))
+  (org-copilot-chat--step-discussion (org-copilot-chat--source-buffer) 1))
 
 ;;;###autoload
 (defun org-copilot-chat-focus-previous-comment ()
-  "Focus chat on the previous non-dismissed AI comment."
+  "Select the previous established discussion in source order."
   (interactive)
-  (let* ((source (org-copilot-chat--source-buffer))
-	 (comment (org-copilot-chat--focus-comment-by-step source -1)))
-    (org-copilot-chat--focus-and-refresh source comment)))
+  (org-copilot-chat--step-discussion (org-copilot-chat--source-buffer) -1))
 
 (defun org-copilot-chat--close-stale-diff ()
   "Close the Org Copilot diff buffer when it exists."
@@ -832,7 +844,6 @@ prompt active.  Source target overlays remain visible as dim context markers."
 	  :chat-context org-copilot-chat-context
 	  :context-id (org-copilot-chat--context-id org-copilot-chat-context)
 	  :focus-comment-id org-copilot-chat-focus-comment-id
-	  :thread-comment-id org-copilot-chat--thread-comment-id
 	  :source-content (org-copilot-chat--context-source-content)
 	  :suggestion-source-context (org-suggestions-capture-source-context)
 	  :section-content (when (eq (plist-get org-copilot-chat-context
@@ -1104,8 +1115,8 @@ prompt active.  Source target overlays remain visible as dim context markers."
     ("/dismiss" . "Dismiss focused comment")
     ("/doctor" . "Run Org Copilot health check")
     ("/erase" . "Hard-delete current Copilot session")
-    ("/next" . "Focus next comment")
-    ("/prev" . "Focus previous comment")
+    ("/next" . "Next discussion")
+    ("/prev" . "Previous discussion")
     ("/resolve" . "Resolve focused comment and advance")
     ("/undo" . "Undo accepted suggestion"))
   "Implemented Org Copilot chat slash commands and annotations.")
@@ -1138,8 +1149,7 @@ prompt active.  Source target overlays remain visible as dim context markers."
       ("/clear-ui" t)
       ("/doctor" t)
       ("/erase" t)
-      ("/next" (org-copilot-chat--navigable-comments source-buffer))
-      ("/prev" (org-copilot-chat--navigable-comments source-buffer))
+      ((or "/next" "/prev") (org-copilot-chat--discussion-ring source-buffer))
       ("/accept" (and comment
 		      (not (memq (org-copilot-comment-status comment)
 				 '(accepted stale dismissed)))
@@ -1278,8 +1288,11 @@ Slash command completion is offered only when the prompt field is empty."
     (user-error "This draft belongs to another discussion; reopen that discussion before sending"))
   (let ((message (org-copilot-chat--prompt-text)))
     (unless (string-empty-p message)
-      (org-copilot-chat-send message)
-      (org-copilot-chat--set-prompt-text ""))))
+      (let ((input (org-copilot-chat-input-buffer (org-copilot-chat--source-buffer))))
+	(org-copilot-chat-send message)
+	(when (buffer-live-p input)
+	  (with-current-buffer input
+	    (delete-region org-copilot-chat--prompt-start (point-max))))))))
 
 ;;;###autoload
 (defun org-copilot-chat-return-dwim ()
@@ -1309,9 +1322,7 @@ session transcript.  Slash command `/accept' accepts the focused suggestion."
     (unless (org-copilot-chat--dispatch-command message source)
       (with-current-buffer source
 	(org-copilot-restore-chat-messages)
-	(org-copilot-add-chat-message
-	 'user message comment-id context-id
-	 (or captured-request (list :thread-comment-id org-copilot-chat--thread-comment-id)))
+	(org-copilot-add-chat-message 'user message comment-id context-id captured-request)
 	(when org-copilot-chat-function
 	  (setq request (org-copilot-start-request
 			 (or captured-request (org-copilot-chat--request source message))))

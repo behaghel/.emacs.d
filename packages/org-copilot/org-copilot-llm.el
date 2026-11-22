@@ -65,6 +65,19 @@ normalizable AI comment plists.  Adapter packages set this variable."
     (pcase-let ((`(,start . ,end) (org-copilot--subtree-bounds)))
       (list :scope 'subtree :start start :end end))))
 
+(defun org-copilot--review-discussion-id (scope start end)
+  "Return the section discussion for review SCOPE from START to END, if any."
+  (save-excursion
+    (goto-char start)
+    (unless (org-before-first-heading-p)
+      (let ((heading (progn (org-back-to-heading t) (point)))
+	    (path (org-get-outline-path t t)))
+	(when (or (eq scope 'subtree)
+		  (progn (goto-char (max start (1- end)))
+			 (org-back-to-heading t)
+			 (= (point) heading)))
+	  (format "section:%s" path))))))
+
 (defun org-copilot-review-request-dwim ()
   "Return a review request plist for the current Org buffer context."
   (unless (derived-mode-p 'org-mode)
@@ -74,6 +87,7 @@ normalizable AI comment plists.  Adapter packages set this variable."
 	 (end (plist-get bounds :end)))
     (append bounds
 	    (list :source-buffer (current-buffer)
+		  :discussion-context-id (org-copilot--review-discussion-id (plist-get bounds :scope) start end)
 		  :source-content (buffer-substring-no-properties (point-min) (point-max))
 		  :source-bounds (cons (copy-marker start) (copy-marker end t))
 		  :suggestion-source-context (when (fboundp 'org-suggestions-capture-source-context)
