@@ -36,10 +36,6 @@ The right arrow opens the full stored explanation."
   :type '(choice (const :tag "Full text" nil) (integer :tag "Characters"))
   :group 'org-copilot)
 
-(defvar-local org-copilot-chat-expanded-comment-id nil
-  "Durable comment identity explicitly opened as a full explanation.
-This is presentation state, not another conversation or explanation store.")
-
 (defun org-copilot-chat-comment-presentation (source comment)
   "Offer a bounded preview and full explanation action for SOURCE's COMMENT."
   (when (equal (or (plist-get comment :comment-provider)
@@ -57,23 +53,27 @@ This is presentation state, not another conversation or explanation store.")
 	      :open (lambda () (org-copilot-chat-show-explanation source id)))))))
 
 (defun org-copilot-chat-show-explanation (source comment-id)
-  "Reveal SOURCE's stored COMMENT-ID explanation without changing source text."
+  "Navigate to SOURCE's COMMENT-ID rationale without changing discussion focus."
   (unless (buffer-live-p source)
     (user-error "The explanation's source is no longer available"))
   (with-current-buffer source
     (unless (org-copilot-find-visible-comment comment-id)
       (user-error "The explanation is no longer available; no other comment was opened"))
-    (setq org-copilot-chat-expanded-comment-id comment-id)
-    (org-copilot-chat-focus-comment-id source comment-id)
-    (context-panels-open-bottom-view 'copilot-chat source nil)
-    (let ((buffer (org-copilot-chat--buffer source)))
-      (with-current-buffer buffer
-	(when-let* ((position (text-property-not-all
-			       (point-min) (point-max)
-			       'org-copilot-chat-explanation nil)))
-	  (dolist (window (get-buffer-window-list buffer nil t))
-	    (set-window-point window position)
-	    (set-window-start window position)))))))
+    (if (cl-some (lambda (message) (member comment-id (plist-get message :finding-ids)))
+		 (org-copilot-chat-messages))
+	(progn
+	  (context-panels-open-bottom-view 'copilot-chat source nil)
+	  (with-current-buffer (org-copilot-chat--buffer source)
+	    (let ((position (point-min)))
+	      (while (and (< position (point-max))
+			  (not (equal comment-id (get-text-property position 'org-copilot-chat-explanation))))
+		(setq position (next-single-property-change
+				position 'org-copilot-chat-explanation nil (point-max))))
+	      (when (< position (point-max))
+		(dolist (window (get-buffer-window-list (current-buffer) nil t))
+		  (set-window-point window position)
+		  (set-window-start window position))))))
+      (org-copilot-details-open source (org-copilot-find-visible-comment comment-id)))))
 
 (defcustom org-copilot-chat-buffer-name "*Org Copilot Chat*"
   "Buffer name used for Org Copilot bottom chat views."
@@ -304,9 +304,6 @@ With NOERROR, return nil when its chat is not visible."
 (defun org-copilot-chat--set-context (source-buffer context)
   "Set SOURCE-BUFFER chat CONTEXT and focus fields."
   (with-current-buffer source-buffer
-    (unless (and (eq (plist-get context :type) 'comment)
-		 (equal org-copilot-chat-expanded-comment-id (plist-get context :comment-id)))
-      (setq org-copilot-chat-expanded-comment-id nil))
     (setq org-copilot-chat-context context)
     (setq org-copilot-chat-focus-comment-id
 	  (and (eq (plist-get context :type) 'comment)
@@ -404,13 +401,6 @@ With NOERROR, return nil when its chat is not visible."
 			    (plist-get org-copilot-chat-context :heading-line)
 			    "current")))
       (_ "🌐 Full document"))))
-
-(defun org-copilot-chat--focused-comment-body-message (source-buffer)
-  "Return SOURCE-BUFFER's selected comment explanation, not a chat turn."
-  (when-let* ((comment (org-copilot-chat--focused-comment source-buffer))
-	      (body (plist-get comment :body)))
-    (list :content body
-	  :comment-id (org-copilot-comment-id comment))))
 
 (defun org-copilot-chat--role-label (role)
   "Return display label for chat ROLE."
@@ -545,39 +535,28 @@ rather than scrolling just past the response header."
   (with-current-buffer source-buffer
     (org-copilot-chat-messages)))
 
-(defun org-copilot-chat--insert-finding (source id expanded)
-  "Insert SOURCE's finding ID as part of its producing response.
-EXPANDED selects the full stored rationale without creating another chat turn."
+(defun org-copilot-chat-discuss-comment (source id)
+  "Explicitly select SOURCE's comment ID as discussion focus and open its input."
+  (unless (with-current-buffer source (org-copilot-find-visible-comment id))
+    (user-error "This comment is no longer available for discussion"))
+  (org-copilot-chat-focus-comment-id source id)
+  (with-current-buffer (org-copilot-chat--buffer source)
+    (org-copilot-chat-goto-prompt)))
+
+(defun org-copilot-chat--insert-finding (source id)
+  "Insert SOURCE's full finding ID at its producing response, before navigation."
   (when-let* ((comment (with-current-buffer source (org-copilot-find-visible-comment id))))
     (let ((start (point)))
-      (if (equal expanded id)
-	  (progn
-	    (org-copilot-chat--insert-indented-content (plist-get comment :body))
-	    (put-text-property start (point) 'org-copilot-chat-explanation id))
-	(let ((presentation (org-copilot-chat-comment-presentation source comment)))
-	  (insert "  Finding: " (or (plist-get presentation :text) "Comment") " ")
-	  (insert-text-button "→" 'follow-link t
-			      'action (lambda (_) (org-copilot-chat-show-explanation source id)))
-	  (insert "\n\n"))))))
+      (org-copilot-chat--insert-indented-content (plist-get comment :body))
+      (put-text-property start (point) 'org-copilot-chat-explanation id)
+      (insert-text-button "Discuss this finding" 'follow-link t
+			  'action (lambda (_) (org-copilot-chat-discuss-comment source id)))
+      (insert "\n\n"))))
 
 (defun org-copilot-chat-render (source-buffer)
   "Render the Org Copilot chat transcript for SOURCE-BUFFER."
   (let* ((inhibit-read-only t)
-	 (messages (org-copilot-chat--visible-messages source-buffer))
-	 (expanded (buffer-local-value 'org-copilot-chat-expanded-comment-id source-buffer))
-	 (body-message (org-copilot-chat--focused-comment-body-message source-buffer)))
-    ;; A legacy finding has no recorded producing response.  Do not guess one:
-    ;; show its existing comment-focused discussion, not a transcript appendix.
-    (setq body-message
-	  (and expanded (equal expanded (plist-get body-message :comment-id))
-	       (not (cl-some (lambda (message) (member expanded (plist-get message :finding-ids))) messages))
-	       body-message))
-    (when body-message
-      (setq messages (cl-remove-if-not
-		      (lambda (message)
-			(or (equal expanded (plist-get message :comment-id))
-			    (equal (format "comment:%s" expanded) (plist-get message :context-id))))
-		      messages)))
+	 (messages (org-copilot-chat--visible-messages source-buffer)))
     (erase-buffer)
     (let ((transcript-start (point)))
       (org-copilot-chat--insert-metadata
@@ -585,20 +564,11 @@ EXPANDED selects the full stored rationale without creating another chat turn."
 	       (buffer-name source-buffer)
 	       (org-copilot-chat--context-label source-buffer)))
       (cond
-       ((or body-message messages)
-	(when body-message
-	  (let ((start (point)))
-	    (insert (propertize "Comment discussion\n" 'face 'bold))
-	    (org-copilot-chat--insert-indented-content (plist-get body-message :content))
-	    (insert "\n")
-	    (remove-text-properties start (point)
-				    '(org-copilot-chat-message nil org-copilot-chat-message-role nil))
-	    (put-text-property start (point) 'org-copilot-chat-explanation
-			       (plist-get body-message :comment-id))))
+       (messages
 	(dolist (message messages)
 	  (org-copilot-chat--insert-message message)
 	  (dolist (id (plist-get message :finding-ids))
-	    (org-copilot-chat--insert-finding source-buffer id expanded))))
+	    (org-copilot-chat--insert-finding source-buffer id))))
        (t
 	(org-copilot-chat--insert-metadata
 	 (if (org-copilot-chat--focused-comment source-buffer)

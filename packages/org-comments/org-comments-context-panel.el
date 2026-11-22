@@ -459,7 +459,7 @@ When SKIP-COPILOT is non-nil, do not propagate focus to the Copilot chat."
   (let ((start (save-excursion
 		 (forward-line (- (1+ (length (plist-get item :details)))))
 		 (line-beginning-position)))
-	(regions (org-comments-panel-render-insert-comment-body item)))
+	(regions (org-comments-panel-render-insert-comment-body item t)))
     (dolist (region regions)
       (pcase-let ((`(,reply-start ,reply-end ,reply) region))
 	(let ((row (copy-sequence reply)))
@@ -498,7 +498,7 @@ When SKIP-COPILOT is non-nil, do not propagate focus to the Copilot chat."
       (list "" "Linked comment operations remain backend-capability gated.")))
    "\n"))
 
-(defun org-comments-context-panel--presentation (_source-buffer item)
+(defun org-comments-context-panel--presentation (source-buffer item)
   "Describe ITEM's target, thread state and message details without mutation."
   (let* ((marker (pcase (plist-get item :status)
 		   ("TODO" (propertize "◇ " 'face 'org-comments-panel-state-todo
@@ -515,6 +515,7 @@ When SKIP-COPILOT is non-nil, do not propagate focus to the Copilot chat."
 			 (unless (= (point) (point-min)) (insert " "))
 			 (insert badges)))
 		     (buffer-string)))
+	 (action (org-comments-panel-render--body-presentation item source-buffer))
 	 details)
     (when (and (plist-get item :current)
 	       (org-comments-panel-render--stale-comment-p item))
@@ -529,7 +530,14 @@ When SKIP-COPILOT is non-nil, do not propagate focus to the Copilot chat."
     (list :label (concat (when-let* ((indicator (and (org-comments-panel-render--copilot-comment-p item)
 						     (org-comments-panel-render--suggestion-indicator item))))
 			   (concat indicator " "))
-			 marker (format "“%s”" target))
+			 marker (format "“%s”" target)
+			 (when action
+			   (with-temp-buffer
+			     (insert " ")
+			     (insert-text-button (plist-get action :label)
+						 'follow-link t 'help-echo "Show full comment"
+						 'action (lambda (_) (funcall (plist-get action :open))))
+			     (buffer-string))))
 	  :details (nreverse details)
 	  :render-body #'org-comments-context-panel--render-body
 	  :properties (list 'org-comments-comment item))))

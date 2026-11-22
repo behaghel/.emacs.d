@@ -933,29 +933,20 @@
 	  (org-copilot-chat-mode)
 	  (cl-letf (((symbol-function 'org-copilot-chat--visible-messages)
 		     (lambda (_) '((:role assistant :content "The conversation answer."))))
-		    ((symbol-function 'org-copilot-chat--focused-comment-body-message)
-		     (lambda (_) '(:role assistant :content "The full card rationale."))))
+		    ((symbol-function 'org-copilot-find-visible-comment)
+		     (lambda (_) '(:body "The full card rationale."))))
 	    (org-copilot-chat-render source)
 	    (should (string-match-p "The conversation answer" (buffer-string)))
 	    (should-not (string-match-p "The full card rationale" (buffer-string))))
-	  (with-current-buffer source
-	    (setq-local org-copilot-chat-expanded-comment-id "durable-comment"))
-	  (cl-letf (((symbol-function 'org-copilot-chat--visible-messages)
-		     (lambda (_) '((:role assistant :content "The conversation answer."))))
-		    ((symbol-function 'org-copilot-chat--focused-comment-body-message)
-		     (lambda (_) '(:role assistant :comment-id "durable-comment" :content "The full card rationale."))))
-	    (org-copilot-chat-render source)
-	    (should (string-match-p "The full card rationale" (buffer-string)))))
+	  )
       (kill-buffer source))))
 
-(ert-deftest org-copilot-chat-finding-expands-at-its-producing-response ()
-  "A finding stays at its producing turn, never after later conversation."
+(ert-deftest org-copilot-chat-finding-is-already-visible-at-its-producing-response ()
+  "The full finding is present before any arrow is clicked."
   (let ((source (generate-new-buffer " *finding source*")))
     (unwind-protect
 	(with-temp-buffer
 	  (org-copilot-chat-mode)
-	  (with-current-buffer source
-	    (setq-local org-copilot-chat-expanded-comment-id "finding"))
 	  (cl-letf (((symbol-function 'org-copilot-chat--visible-messages)
 		     (lambda (_) '((:role assistant :content "Review response." :finding-ids ("finding"))
 				   (:role user :content "Later question."))))
@@ -970,31 +961,28 @@
 	  (should-not (string-match-p "Selected comment — explanation" (buffer-string))))
       (kill-buffer source))))
 
-(ert-deftest org-copilot-chat-legacy-finding-focus-is-only-a-view ()
-  "An unlinked comment opens its discussion without guessing history ownership."
-  (let ((source (generate-new-buffer " *legacy finding*")))
+(ert-deftest org-copilot-chat-legacy-finding-uses-shared-preview-without-retargeting ()
+  "Unlinked findings reuse the preview area without filtering or changing focus."
+  (let ((org-copilot-diff-buffer-name " *legacy finding details*") previews)
     (unwind-protect
 	(with-temp-buffer
-	  (org-copilot-chat-mode)
-	  (with-current-buffer source
-	    (setq org-copilot--chat-messages
-		  '((:role assistant :content "Document answer.")
-		    (:role user :content "Comment question." :comment-id "old")))
-	    (org-copilot-chat--set-context source '(:type comment :comment-id "old"))
-	    (setq org-copilot-chat-expanded-comment-id "old"))
-	  (cl-letf (((symbol-function 'org-copilot-chat--focused-comment-body-message)
-		     (lambda (_) '(:content "Original rationale." :comment-id "old"))))
-	    (org-copilot-chat-render source)
-	    (should (string-match-p "Comment discussion" (buffer-string)))
-	    (should (string-match-p "Original rationale" (buffer-string)))
-	    (should (string-match-p "Comment question" (buffer-string)))
-	    (should-not (string-match-p "Document answer" (buffer-string)))
-	    (should (= 2 (length (with-current-buffer source (org-copilot-chat-messages)))))
-	    (org-copilot-chat--set-context source '(:type full-document))
-	    (org-copilot-chat-render source)
-	    (should (string-match-p "Document answer" (buffer-string)))
-	    (should-not (string-match-p "Original rationale" (buffer-string)))))
-      (kill-buffer source))))
+	  (org-mode)
+	  (setq org-copilot--chat-messages '((:role assistant :content "Document answer.")))
+	  (org-copilot-chat--set-context (current-buffer) '(:type full-document))
+	  (cl-letf (((symbol-function 'org-copilot-find-visible-comment)
+		     (lambda (_) '(:id "old" :body "Original rationale.")))
+		    ((symbol-function 'org-copilot--display-diff-buffer)
+		     (lambda (_source buffer preserve) (should preserve) (push buffer previews))))
+	    (org-copilot-chat-show-explanation (current-buffer) "old")
+	    (org-copilot-chat-show-explanation (current-buffer) "old"))
+	  (should (eq (car previews) (cadr previews)))
+	  (should (equal org-copilot-chat-context '(:type full-document)))
+	  (should (= 1 (length (org-copilot-chat-messages))))
+	  (with-current-buffer (car previews)
+	    (should (derived-mode-p 'org-copilot-details-mode))
+	    (should buffer-read-only)
+	    (should (string-match-p "Original rationale" (buffer-string)))))
+      (when (get-buffer org-copilot-diff-buffer-name) (kill-buffer org-copilot-diff-buffer-name)))))
 
 (ert-deftest org-copilot-chat-missing-explanation-never-falls-through ()
   "A stale explanation identity must not focus a neighbouring comment."
@@ -1029,10 +1017,20 @@
 	    (org-copilot-chat--buffer source)
 	    (with-current-buffer chat (org-copilot-chat--set-prompt-text "My unsent reply."))
 	    (let* ((comment (org-copilot-find-visible-comment "persisted-reason"))
-		   (presentation (org-copilot-chat-comment-presentation source comment)))
+		   (presentation (org-copilot-chat-comment-presentation source comment))
+		   (before (with-current-buffer chat (buffer-string)))
+		   (source-point (point)))
 	      (should comment)
+	      (with-current-buffer chat (should (string-match-p "Keep ownership distinct" before)))
 	      (funcall (plist-get presentation :open))
-	      (should (equal org-copilot-chat-expanded-comment-id "persisted-reason"))
+	      (should (= source-point (point)))
+	      (with-current-buffer chat
+		(should (equal before (buffer-string)))
+		(let ((window (get-buffer-window chat t)))
+		  (should window)
+		  (should (equal "persisted-reason"
+				 (get-text-property (window-start window) 'org-copilot-chat-explanation)))))
+	      (should-not org-copilot-chat-focus-comment-id)
 	      (should (equal (buffer-string) "Original paragraph.\n"))
 	      (should-not (buffer-modified-p))
 	      (should (= 2 (length (org-copilot-chat-messages))))
@@ -1066,8 +1064,6 @@
     (unwind-protect
 	(with-temp-buffer
 	  (org-copilot-chat-mode)
-	  (with-current-buffer source
-	    (setq-local org-copilot-chat-expanded-comment-id "selected-note"))
 	  (cl-letf (((symbol-function 'org-copilot-chat--visible-messages) (lambda (_) messages))
 		    ((symbol-function 'org-copilot-find-visible-comment)
 		     (lambda (_) '(:body "Full rationale." :id "selected-note"))))

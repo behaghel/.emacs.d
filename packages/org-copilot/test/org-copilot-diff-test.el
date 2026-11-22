@@ -44,6 +44,30 @@
 	(kill-buffer buffer))
       (delete-directory directory t))))
 
+(ert-deftest org-copilot-details-and-diff-reuse-one-preview-window ()
+  "Reading older comments and comparing an edit share one owned preview slot."
+  (let ((org-copilot-diff-buffer-name " *shared preview test*"))
+    (unwind-protect
+	(save-window-excursion
+	  (delete-other-windows)
+	  (org-copilot-diff-test--with-durable-suggestion
+	   (lambda (source comment)
+	     (switch-to-buffer source)
+	     (let ((buffer (org-copilot-diff-open source comment)))
+	       (org-copilot--display-diff-buffer source buffer t)
+	       (let ((window (get-buffer-window buffer t)))
+		 (should window)
+		 (should (eq buffer (org-copilot-details-open source comment)))
+		 (should (eq window (get-buffer-window buffer t)))
+		 (with-current-buffer buffer
+		   (should (derived-mode-p 'org-copilot-details-mode))
+		   (should (string-match-p "Tighten wording" (buffer-string))))
+		 (org-copilot-diff-open source comment)
+		 (should (eq window (get-buffer-window buffer t)))
+		 (with-current-buffer buffer
+		   (should (derived-mode-p 'org-copilot-diff-mode))))))))
+      (when (get-buffer org-copilot-diff-buffer-name) (kill-buffer org-copilot-diff-buffer-name)))))
+
 (ert-deftest org-copilot-diff-mode-defines-action-keys ()
   "Org Copilot diff mode exposes accept and close keys."
   (should (eq (lookup-key org-copilot-diff-mode-map (kbd "a"))

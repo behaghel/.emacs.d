@@ -355,6 +355,22 @@
 	  (should (equal (plist-get item :remote-author-name) "Alice"))
 	  (should (equal (plist-get reply :remote-author-name) "Alice")))))))
 
+(ert-deftest org-comments-context-panel-action-is-available-without-opening-body ()
+  "A compact row exposes its provider action without entering a thread."
+  (with-temp-buffer
+    (let ((source (current-buffer)) called)
+      (setq-local org-comments-panel-body-presentation-functions
+		  (list (lambda (_source _comment)
+			  (list :text "Compact finding" :label "→" :open (lambda () (setq called t))))))
+      (let ((view (org-comments-context-panel--presentation source '(:id "finding" :target-text "Passage"))))
+	(with-temp-buffer
+	  (context-panels-render-side-item source (plist-put (copy-sequence view) :render-body #'ignore))
+	  (let ((button (next-button (point-min))))
+	    (should button)
+	    (should (equal (button-label button) "→"))
+	    (button-activate button)
+	    (should called)))))))
+
 (ert-deftest org-comments-context-panel-provider-exposes-collection-functions ()
   "The comments provider descriptor exposes collection and item renderers."
   (let ((provider (org-comments-context-panel-provider)))
