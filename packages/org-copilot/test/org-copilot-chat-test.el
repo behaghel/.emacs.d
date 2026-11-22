@@ -204,13 +204,13 @@
 	      (with-current-buffer source
 		(should (equal org-copilot-chat-focus-comment-id "ai-1")))
 	      (with-current-buffer buffer
-		(should (string-match-p "Org Copilot Chat — .* · 💬 Comment ai-1 · active"
+		(should (string-match-p "Org Copilot Chat — .* · Discussion · Alpha"
 					(buffer-string)))
 		(should-not (string-match-p "^Context" (buffer-string)))
-		(should-not (string-match-p "Clarify this sentence" (buffer-string)))
+		(should (string-match-p "Clarify this sentence" (buffer-string)))
 		(should-not (string-match-p "Comment: Clarify" (buffer-string)))
 		(should-not (string-match-p "Suggestion:" (buffer-string)))
-		(should (string-match-p "Earlier general chat" (buffer-string)))
+		(should-not (string-match-p "Earlier general chat" (buffer-string)))
 		(should-not (string-match-p "Ask Copilot to revise"
 					    (buffer-string)))))))
       (when (buffer-live-p source)
@@ -519,7 +519,8 @@
 	  (setq org-copilot--comments nil)
 	  (should (assoc "/next" (org-copilot-chat--available-slash-commands
 				  (current-buffer))))
-	  (let ((navigable (org-copilot-chat--navigable-comments (current-buffer))))
+	  (let ((navigable (sort (org-copilot-chat--navigable-comments (current-buffer))
+				 (lambda (a b) (< (plist-get a :source-start) (plist-get b :source-start))))))
 	    (org-copilot-chat-send "/next")
 	    (should (equal org-copilot-chat-focus-comment-id
 			   (plist-get (car navigable) :id)))
@@ -784,7 +785,7 @@
 	(insert "draft")
 	(org-copilot-chat-recall-last-prompt)
 	(should (equal (org-copilot-chat--prompt-text)
-		       "Other comment prompt"))))))
+		       "Full document prompt"))))))
 
 (ert-deftest org-copilot-chat-recall-last-prompt-errors-without-history ()
   "Prompt recall signals clearly when the conversation has no history."
@@ -972,6 +973,38 @@
 	(org-copilot-chat-show-explanation (current-buffer) "old")
 	(should (equal opened (list (current-buffer) "old")))))))
 
+(ert-deftest org-copilot-chat-review-routes-by-captured-source-scope ()
+  "Section and cross-section reviews land in their own discussions."
+  (with-temp-buffer
+    (org-mode)
+    (insert "#+title: Draft\n* Alpha\nText.\n* Beta\nOther.\n")
+    (goto-char (point-min))
+    (let ((whole (org-copilot-review-request-dwim)))
+      (search-forward "Text.")
+      (let ((section (org-copilot-review-request-dwim)))
+	(org-copilot-add-chat-message 'assistant "Section result" nil "review:subtree" section)
+	(org-copilot-add-chat-message 'assistant "Document result" nil "review:subtree" whole)
+	(let ((start (point)))
+	  (search-forward "Other.")
+	  (should-not (org-copilot--review-discussion-id 'region start (point))))
+	(should (equal (mapcar #'org-copilot-chat--message-discussion (org-copilot-chat-messages))
+		       '("section:(Alpha)" nil)))))))
+
+(ert-deftest org-copilot-chat-ring-selects-established-discussions-in-source-order ()
+  "The ring includes the document, discussed sections and anchored findings."
+  (with-temp-buffer
+    (org-mode)
+    (insert "* Alpha\nText.\n* Unused\nText.\n")
+    (let ((source (current-buffer)))
+      (setq org-copilot--chat-messages
+	    '((:role assistant :content "Document reply.")
+	      (:role user :context-id "section:(Alpha)" :content "Section question.")))
+      (cl-letf (((symbol-function 'org-copilot-chat--navigable-comments)
+		 (lambda (_) '((:id "finding" :source-start 10)))))
+	(should (equal (mapcar #'org-copilot-chat--context-id
+			       (org-copilot-chat--discussion-ring source))
+		       '(nil "section:(Alpha)" "comment:finding")))))))
+
 (ert-deftest org-copilot-chat-comment-thread-replaces-transcript-without-forking-history ()
   "Thread view starts with its finding, scopes replies and preserves all history."
   (let ((source (generate-new-buffer " *comment thread source*")))
@@ -983,8 +1016,7 @@
 		  '((:role assistant :content "Document response.")
 		    (:role user :content "Thread question." :comment-id "finding" :thread-comment-id "finding")
 		    (:role assistant :content "Thread answer." :context-id "comment:finding" :thread-comment-id "finding")))
-	    (org-copilot-chat--set-context source '(:type comment :comment-id "finding"))
-	    (setq org-copilot-chat--thread-comment-id "finding"))
+	    (org-copilot-chat--set-context source '(:type comment :comment-id "finding")))
 	  (cl-letf (((symbol-function 'org-copilot-find-visible-comment)
 		     (lambda (_) '(:id "finding" :body "The complete finding."))))
 	    (org-copilot-chat-render source)
@@ -1006,14 +1038,14 @@
     (let* ((source (current-buffer))
 	   (document-input (org-copilot-chat-input-buffer source)) thread-input)
       (with-current-buffer document-input (insert "Document draft."))
-      (setq org-copilot-chat--thread-comment-id "finding")
+      (org-copilot-chat--set-context source '(:type comment :comment-id "finding"))
       (setq thread-input (org-copilot-chat-input-buffer source))
       (should-not (eq document-input thread-input))
       (with-current-buffer thread-input (insert "Thread draft."))
-      (setq org-copilot-chat--thread-comment-id nil)
+      (org-copilot-chat--set-context source '(:type full-document))
       (should (eq document-input (org-copilot-chat-input-buffer source)))
       (should (string-match-p "Document draft" (with-current-buffer document-input (buffer-string))))
-      (setq org-copilot-chat--thread-comment-id "finding")
+      (org-copilot-chat--set-context source '(:type comment :comment-id "finding"))
       (should (eq thread-input (org-copilot-chat-input-buffer source)))
       (should (string-match-p "Thread draft" (with-current-buffer thread-input (buffer-string))))
       (with-current-buffer document-input
@@ -1032,7 +1064,6 @@
 	  (with-current-buffer source
 	    (org-mode)
 	    (org-copilot-chat--set-context source '(:type comment :comment-id "finding"))
-	    (setq org-copilot-chat--thread-comment-id "finding")
 	    (let ((request (org-copilot-chat--request source "Question")))
 	      (org-copilot-chat--set-context source '(:type full-document))
 	      (org-copilot-add-chat-message 'assistant "Late thread reply." "finding" "comment:finding" request))
@@ -1041,9 +1072,8 @@
 	  (setq source (find-file-noselect file))
 	  (with-current-buffer source
 	    (org-copilot-restore-chat-messages)
-	    (should (equal (plist-get (car (org-copilot-chat-messages)) :thread-comment-id) "finding"))
+	    (should (equal (org-copilot-chat--message-discussion (car (org-copilot-chat-messages))) "comment:finding"))
 	    (org-copilot-chat--set-context source '(:type comment :comment-id "finding"))
-	    (setq org-copilot-chat--thread-comment-id "finding")
 	    (should (= 1 (length (org-copilot-chat--visible-messages source))))))
       (when (buffer-live-p source) (kill-buffer source))
       (dolist (buffer (buffer-list))
@@ -1096,7 +1126,7 @@
 	      (with-current-buffer chat
 		(should-not (string-match-p "Discuss this finding" (buffer-string))))
 	      (should-not (get-buffer-window org-copilot-diff-buffer-name t))
-	      (should (equal org-copilot-chat--thread-comment-id "persisted-reason"))
+	      (should (equal org-copilot-chat-focus-comment-id "persisted-reason"))
 	      (with-current-buffer chat
 		(should (string-match-p "Keep ownership distinct" (buffer-string)))
 		(should-not (string-match-p "The retained conversation" (buffer-string)))
@@ -1104,7 +1134,9 @@
 		  (should window)
 		  (should (get-text-property (window-start window) 'org-copilot-chat-thread-root)))
 		(should (equal "" (org-copilot-chat--prompt-text)))
-		(button-activate (next-button (point-min))))
+		(should-not (string-match-p "Document conversation" (buffer-string)))
+		(org-copilot-chat--set-prompt-text "/next")
+		(org-copilot-chat-send-current-input))
 	      (with-current-buffer chat
 		(should (string-match-p "The retained conversation" (buffer-string)))
 		(should (equal "My unsent reply." (org-copilot-chat--prompt-text)))))))

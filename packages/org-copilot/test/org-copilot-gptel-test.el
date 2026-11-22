@@ -103,7 +103,7 @@
       (delete-directory directory t))))
 
 (ert-deftest org-copilot-gptel-focus-navigation-keeps-the-conversation ()
-  "Section/comment focus preserves displayed chat and the next model input."
+  "Section focus scopes the transcript while preserving the next model input."
   (with-temp-buffer
     (org-mode)
     (insert "* Intro\nIntro body.\n* Methods\nMethod body.\n")
@@ -129,8 +129,8 @@
 		 '(:status success))
 	(should (equal (plist-get org-copilot-chat-context :section-title) "Methods"))
 	(with-current-buffer (org-copilot-chat--buffer source)
-	  (should (string-match-p "Use VIOLET_KITE" (buffer-string)))
-	  (should (string-match-p "Keep VIOLET_KITE" (buffer-string))))
+	  (should-not (string-match-p "Use VIOLET_KITE" (buffer-string)))
+	  (should-not (string-match-p "Keep VIOLET_KITE" (buffer-string))))
 	(org-copilot-chat-send "Which name did we choose earlier?")
 	(should (string-match-p "Keep VIOLET_KITE" (car prompts)))
 	(should (string-match-p (regexp-quote intro-id) (car prompts)))
@@ -149,8 +149,8 @@
 		 "{\"intent\":\"answer\",\"message\":\"Yes, the name is unchanged.\"}"
 		 '(:status success))
 	(with-current-buffer (org-copilot-chat--buffer source)
-	  (should (string-match-p "Use VIOLET_KITE" (buffer-string)))
-	  (should (string-match-p "We chose VIOLET_KITE" (buffer-string)))
+	  (should-not (string-match-p "Use VIOLET_KITE" (buffer-string)))
+	  (should-not (string-match-p "We chose VIOLET_KITE" (buffer-string)))
 	  (should (string-match-p "Yes, the name is unchanged" (buffer-string))))
 	(should (equal (buffer-string)
 		       "* Intro\nIntro body.\n* Methods\nMethod body.\n"))))))

@@ -72,7 +72,7 @@ conversation last selected for them; several documents can refer to the same
 conversation. Starting another conversation is explicit, not a consequence of
 focus navigation.
 
-These semantics apply to every adapter, including direct gptel use. Ordinary focus navigation displays the chosen conversation. Choosing a comment's `→` opens that comment's discussion view in the same bottom panel: its retained full comment is the opening item, followed by replies associated with that comment. Thread turns retain their captured thread identity and are not displayed as document-level turns. `Document conversation` restores the document view; reopening the finding resumes its discussion. These views do not fork native history: model requests retain the whole chosen conversation and document context. The opening comment is displayed from its existing record, not appended as a fabricated assistant turn. Transient pending markers are UI
+The selected document, section or comment discussion determines both the visible exchanges and where input goes. The document discussion contains only document-level exchanges. A comment's retained text opens its discussion, followed by the recorded replies. It is not a fabricated assistant turn. A submitted exchange establishes a document or section discussion; a contributed comment establishes its discussion immediately. Opening an empty scope or typing a draft does not add it to the ring. `/next` and `/prev` cycle through established discussions in source order, starting with the document when established and excluding dismissed comments. A section without a uniquely matching location remains accessible under its recorded scope. A Review reply follows the captured reviewed scope: an individual section, or the document for whole-document or cross-section Review. These views do not fork native history: model requests retain the whole chosen conversation and document context. Transient pending markers are UI
 state, not authored conversation turns. Earlier focus metadata is retained when
 formatting model history so an earlier reference to “this section” is not
 silently attributed to the newly selected section.
@@ -171,7 +171,7 @@ In the chat prompt, type `/` on an empty prompt for context-aware completion.
 - `/accept` — accept focused suggestion.
 - `/dismiss` — dismiss focused comment.
 - `/undo` — reserved for durable suggestion undo flows; legacy comment-local undo is retired.
-- `/next`, `/prev` — navigate focused comments/suggestions.
+- `/next`, `/prev` — cycle through established document, section, and comment discussions.
 - `/doctor` — append a local health report.
 - `/clear` — archive current session chat/comments/suggestions.
 - `/clear-ui` — clear only the visible/ephemeral UI state.
@@ -230,7 +230,7 @@ area has a subtly lighter theme-derived background, a top separator and a
 coloured `You: ` label. Replies and viewport changes do not replace an unsent
 draft. Each source owns its typing buffers, so switching documents does not move
 a draft to a different target; hiding and reopening its views retain the same
-buffer. The document conversation and each explicitly opened comment discussion retain independent typing drafts. Switching discussions restores the corresponding draft rather than retargeting unsent text. Draft text is not conversation history and is submitted only by an explicit send action. A synchronous send failure leaves the draft intact.
+buffer. Each document, section and comment discussion retains an independent typing draft. Switching discussions restores the corresponding draft rather than retargeting unsent text. Draft text is not conversation history and is submitted only by an explicit send action. A synchronous send failure leaves the draft intact.
 
 `org-copilot-chat-goto-prompt` focuses the visible typing area. The reusable
 package does not select an Evil state or redefine personal window-navigation
