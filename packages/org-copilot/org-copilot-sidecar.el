@@ -155,6 +155,7 @@ PROPERTIES is a plist of additional Org property names and values."
 	    :finding-ids (when-let* ((ids (alist-get "ORG_COPILOT_FINDING_IDS" properties nil nil #'equal)))
 			   (json-parse-string ids :array-type 'list))
 	    :content content
+	    :thread-comment-id (alist-get "ORG_COPILOT_THREAD_COMMENT_ID" properties nil nil #'equal)
 	    :context-id (alist-get "ORG_COPILOT_CONTEXT_ID" properties nil nil #'equal)
 	    :comment-id (alist-get "ORG_COPILOT_COMMENT_ID" properties nil nil #'equal)
 	    :created-at (alist-get "ORG_COPILOT_CREATED_AT" properties nil nil #'equal)))))
