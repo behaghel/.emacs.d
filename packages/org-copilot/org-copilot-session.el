@@ -553,15 +553,32 @@ Return the normalized comments."
   (org-copilot-restore-chat-messages)
   (org-copilot-restore-suggestion-comments))
 
-(defun org-copilot-add-chat-message (role content &optional comment-id context-id request)
+(defun org-copilot-record-chat-findings (request finding-ids)
+  "Associate newly installed FINDING-IDS with REQUEST's producing response."
+  (with-current-buffer (plist-get request :source-buffer)
+    (when-let* ((message (cl-find-if
+			  (lambda (item)
+			    (and (eq (plist-get item :role) 'assistant)
+				 (eq (plist-get item :request-id)
+				     (plist-get request :request-token))))
+			  org-copilot--chat-messages)))
+      (when (and buffer-file-name finding-ids (plist-get message :persisted))
+	(org-copilot-sidecar-record-findings
+	 buffer-file-name (plist-get message :message-id) finding-ids))
+      (plist-put message :finding-ids finding-ids))))
+
+(defun org-copilot-add-chat-message (role content &optional comment-id context-id request finding-ids)
   "Add a chat message with ROLE and CONTENT to the current buffer session.
 When COMMENT-ID is non-nil, associate the message with that AI comment.
 When CONTEXT-ID is non-nil, associate the message with another chat context.
-REQUEST supplies an ephemeral identity for pending and completed messages."
+REQUEST supplies an ephemeral identity for pending and completed messages.
+FINDING-IDS are durable comments produced by this response, not focus metadata."
   (let ((message (list :role role
 		       :content content
 		       :comment-id comment-id
 		       :context-id context-id
+		       :message-id (format "message-%s-%08x" (format-time-string "%Y%m%dT%H%M%S%N") (random #x100000000))
+		       :finding-ids finding-ids
 		       :request-id (plist-get request :request-token)
 		       :created-at (format-time-string "%FT%T%z"))))
     (setq org-copilot--chat-messages
@@ -572,9 +589,12 @@ REQUEST supplies an ephemeral identity for pending and completed messages."
 	       (fboundp 'org-copilot-sidecar-append-message))
       (org-copilot-sidecar-append-message
        buffer-file-name role content
-       (list "ORG_COPILOT_CREATED_AT" (plist-get message :created-at)
+       (list "ORG_COPILOT_MESSAGE_ID" (plist-get message :message-id)
+	     "ORG_COPILOT_FINDING_IDS" (and finding-ids (json-serialize (vconcat finding-ids)))
+	     "ORG_COPILOT_CREATED_AT" (plist-get message :created-at)
 	     "ORG_COPILOT_CONTEXT_ID" context-id
-	     "ORG_COPILOT_COMMENT_ID" comment-id)))
+	     "ORG_COPILOT_COMMENT_ID" comment-id))
+      (plist-put message :persisted t))
     message))
 
 (defun org-copilot-remove-pending-chat-message (request)

@@ -127,6 +127,21 @@ PROPERTIES is a plist of additional Org property names and values."
        (insert (string-trim-right (or message "")) "\n")))
     sidecar-file))
 
+(defun org-copilot-sidecar-record-findings (source-file message-id finding-ids)
+  "Record FINDING-IDS on the unique producing MESSAGE-ID for SOURCE-FILE."
+  (org-copilot-sidecar--update
+   (org-copilot-sidecar-path source-file)
+   (lambda ()
+     (goto-char (point-min))
+     (let (matches)
+       (while (re-search-forward org-heading-regexp nil t)
+	 (when (equal message-id (org-entry-get nil "ORG_COPILOT_MESSAGE_ID"))
+	   (push (line-beginning-position) matches)))
+       (unless (and message-id (= (length matches) 1))
+	 (user-error "The finding's producing response is not uniquely recorded"))
+       (goto-char (car matches))
+       (org-entry-put nil "ORG_COPILOT_FINDING_IDS" (json-serialize (vconcat finding-ids)))))))
+
 (defun org-copilot-sidecar--message-at-heading ()
   "Return chat message plist at current heading, or nil."
   (let* ((role-name (car (split-string (org-get-heading t t t t))))
@@ -136,6 +151,9 @@ PROPERTIES is a plist of additional Org property names and values."
 	 (content (org-copilot-sidecar--entry-body end)))
     (when (memq role '(user assistant))
       (list :role role
+	    :message-id (alist-get "ORG_COPILOT_MESSAGE_ID" properties nil nil #'equal)
+	    :finding-ids (when-let* ((ids (alist-get "ORG_COPILOT_FINDING_IDS" properties nil nil #'equal)))
+			   (json-parse-string ids :array-type 'list))
 	    :content content
 	    :context-id (alist-get "ORG_COPILOT_CONTEXT_ID" properties nil nil #'equal)
 	    :comment-id (alist-get "ORG_COPILOT_COMMENT_ID" properties nil nil #'equal)

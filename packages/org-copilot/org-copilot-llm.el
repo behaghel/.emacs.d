@@ -544,6 +544,7 @@ Return a plist with install counts and a reachability receipt."
 			  (member (org-copilot-comment-id comment) installed-ids))
 			(org-copilot-visible-comments)))))
       (list :installed installed
+	    :finding-ids (nreverse installed-ids)
 	    :reachable reachable
 	    :hidden (max 0 (- installed reachable))
 	    :skipped-unanchored skipped-unanchored
