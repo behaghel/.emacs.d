@@ -167,7 +167,7 @@
 	     (footer (context-panels-footer-restore-window window)))
 	(should (window-live-p footer))
 	(with-current-buffer (window-buffer footer)
-	  (should (string-match-p "Full document" (buffer-string))))
+	  (should (string-match-p "Full document[[:space:]]+C-c C-l Hide discussions +q Close" (buffer-string))))
 	(with-current-buffer source
 	  (org-copilot-chat--set-context source (org-copilot-chat--section-context-at-point)))
 	(org-copilot-chat--buffer source)
@@ -206,6 +206,14 @@
 	    (should (= (window-total-height window)
 		       (+ (window-total-height body) (window-total-height input)))))
 	  (with-current-buffer document-input (goto-char (point-max)) (insert "Unsent draft."))
+	  (with-selected-window window
+	    (goto-char (point-min))
+	    (execute-kbd-macro (kbd "TAB"))
+	    (should (string-prefix-p "▸ Document …" (buffer-string)))
+	    (should-not (string-match-p "Methods" (buffer-string)))
+	    (should (eq document-input (org-copilot-chat-input-buffer source)))
+	    (should (= 3 (length (org-copilot-chat--discussion-ring source))))
+	    (execute-kbd-macro (kbd "<tab>")))
 	  (with-current-buffer index
 	    (should-not mode-line-format)
 	    (should (string-prefix-p "▸ Document\n    Methods\n      Alpha sentence." (buffer-string)))
