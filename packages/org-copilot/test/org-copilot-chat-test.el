@@ -206,6 +206,14 @@
 	    (should (= (window-total-height window)
 		       (+ (window-total-height body) (window-total-height input)))))
 	  (with-current-buffer document-input (goto-char (point-max)) (insert "Unsent draft."))
+	  (with-selected-window window
+	    (goto-char (point-min))
+	    (execute-kbd-macro (kbd "TAB"))
+	    (should (string-prefix-p "▸ Document …" (buffer-string)))
+	    (should-not (string-match-p "Methods" (buffer-string)))
+	    (should (eq document-input (org-copilot-chat-input-buffer source)))
+	    (should (= 3 (length (org-copilot-chat--discussion-ring source))))
+	    (execute-kbd-macro (kbd "<tab>")))
 	  (with-current-buffer index
 	    (should-not mode-line-format)
 	    (should (string-prefix-p "▸ Document\n    Methods\n      Alpha sentence." (buffer-string)))

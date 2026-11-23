@@ -167,6 +167,19 @@ Drafts are presentation state, never conversation history.")
 (defvar-local org-copilot-chat--hierarchy-buffer nil
   "Read-only index buffer owned by the source discussion view.")
 
+(defvar-local org-copilot-chat--collapsed-discussions nil
+  "Discussion keys whose descendants are hidden in the source's hierarchy.")
+
+(defvar org-copilot-discussions-mode-map
+  (let ((map (make-sparse-keymap)))
+    (define-key map (kbd "TAB") #'org-copilot-chat-toggle-discussion-branch)
+    (define-key map (kbd "<tab>") #'org-copilot-chat-toggle-discussion-branch)
+    map))
+
+(define-derived-mode org-copilot-discussions-mode special-mode "Copilot-Discussions"
+  "View established discussions for the source document."
+  (setq-local truncate-lines t mode-line-format nil))
+
 (declare-function context-panels-footer-display-lateral-pane "context-panels-footer" (body buffer width))
 (declare-function context-panels-footer-hide-lateral-pane "context-panels-footer" (body))
 
@@ -705,6 +718,49 @@ label line."
   (when (buffer-live-p org-copilot-chat--hierarchy-buffer)
     (kill-buffer org-copilot-chat--hierarchy-buffer)))
 
+(defun org-copilot-chat--render-hierarchy (source window &optional focus)
+  "Render SOURCE's existing index in WINDOW, retaining optional row FOCUS."
+  (let* ((active (with-current-buffer source (org-copilot-chat--context-id org-copilot-chat-context)))
+	 (folded (buffer-local-value 'org-copilot-chat--collapsed-discussions source))
+	 (rows (org-copilot-chat--hierarchy-rows source)))
+    (with-current-buffer (window-buffer window)
+      (let ((inhibit-read-only t) hidden-below selected focused)
+	(erase-buffer)
+	(while rows
+	  (pcase-let* ((`(,context ,depth ,label) (pop rows))
+		       (key (org-copilot-chat--context-id context))
+		       (branch (and rows (> (nth 1 (car rows)) depth)))
+		       (collapsed (and branch (member key folded))))
+	    (when (and hidden-below (<= depth hidden-below)) (setq hidden-below nil))
+	    (unless hidden-below
+	      (let ((start (point)) (current (equal active key)))
+		(insert (make-string (* 2 depth) ?\s) (if current "▸ " "  "))
+		(insert-text-button label 'follow-link t
+				    'action (lambda (_) (org-copilot-chat--select-discussion source context)))
+		(when collapsed (insert " …") (setq hidden-below depth))
+		(insert "\n")
+		(when branch
+		  (add-text-properties start (point)
+				       `(org-copilot-discussion-branch (,key)
+								       help-echo ,(if collapsed "TAB: expand branch" "TAB: collapse branch"))))
+		(when (equal focus (list key)) (setq focused start))
+		(when current
+		  (setq selected start)
+		  (add-face-text-property start (point) 'highlight t))))))
+	(set-window-point window (or focused selected (point-min)))))))
+
+(defun org-copilot-chat-toggle-discussion-branch ()
+  "Collapse or expand the hierarchy branch at point without switching chat."
+  (interactive)
+  (when-let* ((branch (get-text-property (line-beginning-position) 'org-copilot-discussion-branch)))
+    (let ((source (org-copilot-chat--source-buffer)) (key (car branch)))
+      (with-current-buffer source
+	(setq org-copilot-chat--collapsed-discussions
+	      (if (member key org-copilot-chat--collapsed-discussions)
+		  (delete key org-copilot-chat--collapsed-discussions)
+		(cons key org-copilot-chat--collapsed-discussions))))
+      (org-copilot-chat--render-hierarchy source (selected-window) branch))))
+
 (defun org-copilot-chat--show-hierarchy (source window)
   "Render SOURCE's discussion index beside transcript WINDOW if it fits."
   (when (fboundp 'context-panels-footer-display-lateral-pane)
@@ -715,30 +771,13 @@ label line."
 			 (setq org-copilot-chat--hierarchy-buffer
 			       (generate-new-buffer (format "*Discussions: %s*" (buffer-name))))
 			 (with-current-buffer org-copilot-chat--hierarchy-buffer
-			   (special-mode)
-			   (setq-local truncate-lines t
-				       mode-line-format nil))
+			   (org-copilot-discussions-mode))
 			 (add-hook 'kill-buffer-hook #'org-copilot-chat--kill-hierarchy t t))
 		       org-copilot-chat--hierarchy-buffer))
 	     (width (context-panels--side-panel-width source))
-	     (index (context-panels-footer-display-lateral-pane window buffer width))
-	     (active (with-current-buffer source (org-copilot-chat--context-id org-copilot-chat-context))))
+	     (index (context-panels-footer-display-lateral-pane window buffer width)))
 	(when (window-live-p index)
-	  (with-current-buffer buffer
-	    (let ((inhibit-read-only t) selected)
-	      (erase-buffer)
-	      (dolist (row (org-copilot-chat--hierarchy-rows source))
-		(pcase-let ((`(,context ,depth ,label) row))
-		  (let ((current (equal active (org-copilot-chat--context-id context)))
-			(start (point)))
-		    (insert (make-string (* 2 depth) ?\s) (if current "▸ " "  "))
-		    (insert-text-button label 'follow-link t
-					'action (lambda (_) (org-copilot-chat--select-discussion source context)))
-		    (insert "\n")
-		    (when current
-		      (setq selected start)
-		      (add-face-text-property start (point) 'highlight t)))))
-	      (set-window-point index (or selected (point-min))))))))))
+	  (org-copilot-chat--render-hierarchy source index))))))
 
 (defun org-copilot-chat-toggle-hierarchy ()
   "Toggle the conversation hierarchy without changing the selected discussion."

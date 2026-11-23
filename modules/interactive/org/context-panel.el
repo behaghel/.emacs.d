@@ -32,7 +32,8 @@
 		  context-panels-buffer-mode
 		  org-copilot-chat-mode
 		  org-copilot-diff-mode))
-    (evil-set-initial-state mode 'normal)))
+    (evil-set-initial-state mode 'normal))
+  (evil-set-initial-state 'org-copilot-discussions-mode 'emacs))
 
 (defun hub/context-panels--side-row-context-p ()
   "Return non-nil when the current buffer is a source's mixed side panel."
