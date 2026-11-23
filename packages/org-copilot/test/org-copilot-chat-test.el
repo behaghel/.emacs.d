@@ -167,7 +167,7 @@
 	     (footer (context-panels-footer-restore-window window)))
 	(should (window-live-p footer))
 	(with-current-buffer (window-buffer footer)
-	  (should (string-match-p "Full document" (buffer-string))))
+	  (should (string-match-p "Full document[[:space:]]+C-c C-l Hide discussions +q Close" (buffer-string))))
 	(with-current-buffer source
 	  (org-copilot-chat--set-context source (org-copilot-chat--section-context-at-point)))
 	(org-copilot-chat--buffer source)

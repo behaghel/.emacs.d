@@ -173,7 +173,8 @@ Drafts are presentation state, never conversation history.")
 (defun org-copilot-chat--footer (source _view)
   "Describe the selected discussion in SOURCE for the native fixed footer."
   (when (buffer-live-p source)
-    (list :actions (when (fboundp 'context-panels-footer-display-lateral-pane)
+    (list :metadata-leading t
+	  :actions (when (fboundp 'context-panels-footer-display-lateral-pane)
 		     (list (list :key "C-c C-l"
 				 :label (if (buffer-local-value 'org-copilot-chat--hierarchy-hidden source)
 					    "Show discussions" "Hide discussions")
