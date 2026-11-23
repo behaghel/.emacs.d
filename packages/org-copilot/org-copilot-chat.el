@@ -141,6 +141,7 @@ Drafts are presentation state, never conversation history.")
     (define-key map (kbd "C-c C-p") #'org-copilot-chat-focus-previous-comment)
     (define-key map (kbd "C-c C-u") #'org-copilot-chat-undo-focused-comment-at-point)
     (define-key map (kbd "C-c C-g") #'org-copilot-chat-full-document)
+    (define-key map (kbd "C-c C-l") #'org-copilot-chat-toggle-hierarchy)
     (define-key map (kbd "C-c C-x / g") #'org-copilot-chat-full-document)
     (define-key map (kbd "C-c C-x / s") #'org-copilot-chat-section)
     (define-key map (kbd "C-c C-x / o") #'org-copilot-open-panels)
@@ -160,10 +161,24 @@ Drafts are presentation state, never conversation history.")
     map)
   "Keymap used in Org Copilot chat buffers.")
 
+(defvar-local org-copilot-chat--hierarchy-hidden nil
+  "Whether the source's discussion index is explicitly collapsed.")
+
+(defvar-local org-copilot-chat--hierarchy-buffer nil
+  "Read-only index buffer owned by the source discussion view.")
+
+(declare-function context-panels-footer-display-lateral-pane "context-panels-footer" (body buffer width))
+(declare-function context-panels-footer-hide-lateral-pane "context-panels-footer" (body))
+
 (defun org-copilot-chat--footer (source _view)
   "Describe the selected discussion in SOURCE for the native fixed footer."
   (when (buffer-live-p source)
-    (list :metadata (format "%s · %s" (buffer-name source)
+    (list :actions (when (fboundp 'context-panels-footer-display-lateral-pane)
+		     (list (list :key "C-c C-l"
+				 :label (if (buffer-local-value 'org-copilot-chat--hierarchy-hidden source)
+					    "Show discussions" "Hide discussions")
+				 :command #'org-copilot-chat-toggle-hierarchy)))
+	  :metadata (format "%s · %s" (buffer-name source)
 			    (org-copilot-chat--context-label source)))))
 
 (define-derived-mode org-copilot-chat-mode fundamental-mode "Org-Copilot-Chat"
@@ -220,7 +235,8 @@ Drafts are presentation state, never conversation history.")
 		    (buffer-live-p org-copilot-chat-source-buffer))))
     (let* ((source (buffer-local-value 'org-copilot-chat-source-buffer (window-buffer window)))
 	   (input (org-copilot-chat-input-buffer source)))
-      (context-panels-footer-display-pane window input org-copilot-chat-input-height))))
+      (prog1 (context-panels-footer-display-pane window input org-copilot-chat-input-height)
+	(org-copilot-chat--show-hierarchy source window)))))
 
 (defun org-copilot-chat--window-shown (window)
   "Schedule the input for transcript WINDOW after layout hooks finish."
@@ -631,19 +647,105 @@ label line."
 			     ring :key #'org-copilot-chat--context-id :test #'equal))
 	 (count (length ring)))
     (unless ring (user-error "No established discussions"))
-    (let ((context (nth (if index (mod (+ index step) count) (if (> step 0) 0 (1- count))) ring)))
-      (if-let* ((id (plist-get context :comment-id)))
-	  (progn
-	    (org-copilot-chat--focus-and-refresh source
-						 (with-current-buffer source (org-copilot-find-visible-comment id)))
-	    (org-copilot-chat-focus-input source t))
-	(org-copilot-chat--set-context source context)
-	(when-let* ((marker (plist-get context :heading-marker)))
-	  (with-current-buffer source
-	    (when (<= (point-min) (marker-position marker) (point-max))
-	      (org-copilot-chat--scroll-source-to-comment source (list :source-start (marker-position marker))))))
-	(org-copilot-chat--refresh-source-ui source)
-	(org-copilot-chat--open-bottom-view source)))))
+    (org-copilot-chat--select-discussion
+     source (nth (if index (mod (+ index step) count) (if (> step 0) 0 (1- count))) ring))))
+
+(defun org-copilot-chat--select-discussion (source context)
+  "Select CONTEXT in SOURCE, keeping the ordinary input ready."
+  (if-let* ((id (plist-get context :comment-id)))
+      (progn
+	(org-copilot-chat--focus-and-refresh source
+					     (with-current-buffer source (org-copilot-find-visible-comment id)))
+	(org-copilot-chat-focus-input source t))
+    (org-copilot-chat--set-context source context)
+    (when-let* ((marker (plist-get context :heading-marker)))
+      (with-current-buffer source
+	(when (<= (point-min) (marker-position marker) (point-max))
+	  (org-copilot-chat--scroll-source-to-comment source (list :source-start (marker-position marker))))))
+    (org-copilot-chat--refresh-source-ui source)
+    (org-copilot-chat--open-bottom-view source)))
+
+(defun org-copilot-chat--hierarchy-rows (source)
+  "Return established discussions with display labels and depths for SOURCE."
+  (with-current-buffer source
+    (let* ((ring (org-copilot-chat--discussion-ring source))
+	   (sections (delq nil (mapcar (lambda (entry) (plist-get entry :section-path)) ring)))
+	   (document (seq-some (lambda (entry) (eq (plist-get entry :type) 'full-document)) ring)))
+      (mapcar
+       (lambda (context)
+	 (let* ((kind (plist-get context :type))
+		(comment (when-let* ((id (plist-get context :comment-id)))
+			   (org-copilot-find-visible-comment id)))
+		(path (or (plist-get context :section-path)
+			  (when-let* ((position (plist-get comment :source-start)))
+			    (unless (eq (org-copilot-comment-status comment) 'stale)
+			      (org-with-wide-buffer
+			       (when (<= (point-min) position (point-max))
+				 (goto-char position)
+				 (unless (org-before-first-heading-p)
+				   (org-get-outline-path t t))))))))
+		(ancestors (cl-count-if (lambda (section)
+					  (and (or (eq kind 'comment) (< (length section) (length path)))
+					       (equal section (seq-take path (length section))))) sections))
+		(label (pcase kind
+			 ('full-document "Document")
+			 ('section (or (plist-get context :section-title) "Section"))
+			 (_ (concat (when (and path (not (member path sections)))
+				      (concat (car (last path)) " · "))
+				    (or (plist-get comment :target-text) (plist-get comment :body) "Comment"))))))
+	   (list context (if (eq kind 'full-document) 0 (+ ancestors (if document 1 0)))
+		 (string-trim (replace-regexp-in-string "[[:space:]]+" " " label)))))
+       ring))))
+
+(defun org-copilot-chat--kill-hierarchy ()
+  "Dispose of the hierarchy buffer after the source's windows close."
+  (when (buffer-live-p org-copilot-chat--hierarchy-buffer)
+    (kill-buffer org-copilot-chat--hierarchy-buffer)))
+
+(defun org-copilot-chat--show-hierarchy (source window)
+  "Render SOURCE's discussion index beside transcript WINDOW if it fits."
+  (when (fboundp 'context-panels-footer-display-lateral-pane)
+    (if (buffer-local-value 'org-copilot-chat--hierarchy-hidden source)
+	(context-panels-footer-hide-lateral-pane window)
+      (let* ((buffer (with-current-buffer source
+		       (unless (buffer-live-p org-copilot-chat--hierarchy-buffer)
+			 (setq org-copilot-chat--hierarchy-buffer
+			       (generate-new-buffer (format "*Discussions: %s*" (buffer-name))))
+			 (with-current-buffer org-copilot-chat--hierarchy-buffer
+			   (special-mode)
+			   (setq-local truncate-lines t))
+			 (add-hook 'kill-buffer-hook #'org-copilot-chat--kill-hierarchy t t))
+		       org-copilot-chat--hierarchy-buffer))
+	     (width (context-panels--side-panel-width source))
+	     (index (context-panels-footer-display-lateral-pane window buffer width))
+	     (active (with-current-buffer source (org-copilot-chat--context-id org-copilot-chat-context))))
+	(when (window-live-p index)
+	  (with-current-buffer buffer
+	    (let ((inhibit-read-only t) selected)
+	      (erase-buffer)
+	      (insert (propertize "Discussions\n" 'face 'bold))
+	      (dolist (row (org-copilot-chat--hierarchy-rows source))
+		(pcase-let ((`(,context ,depth ,label) row))
+		  (let ((current (equal active (org-copilot-chat--context-id context)))
+			(start (point)))
+		    (insert (make-string (* 2 depth) ?\s) (if current "▸ " "  "))
+		    (insert-text-button label 'follow-link t
+					'action (lambda (_) (org-copilot-chat--select-discussion source context)))
+		    (insert "\n")
+		    (when current
+		      (setq selected start)
+		      (add-face-text-property start (point) 'highlight t)))))
+	      (set-window-point index (or selected (point-min))))))))))
+
+(defun org-copilot-chat-toggle-hierarchy ()
+  "Toggle the conversation hierarchy without changing the selected discussion."
+  (interactive)
+  (unless (fboundp 'context-panels-footer-display-lateral-pane)
+    (user-error "Update Context Panels to show the discussion hierarchy"))
+  (let ((source (org-copilot-chat--source-buffer)))
+    (with-current-buffer source
+      (setq org-copilot-chat--hierarchy-hidden (not org-copilot-chat--hierarchy-hidden)))
+    (org-copilot-chat--buffer source)))
 
 (defun org-copilot-chat-render-bottom-view (source-buffer _view)
   "Render the Org Copilot bottom chat view for SOURCE-BUFFER."

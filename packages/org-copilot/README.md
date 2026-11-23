@@ -225,6 +225,8 @@ Package code is Evil-neutral. This repository’s personal Org bindings use `,a`
 
 ## Window behavior
 
+The bottom view shows a discussion hierarchy beside the transcript when there is room, at the configured side-panel width. It lists established discussions in ring order, nests them under established ancestors, and highlights the current selection. Selecting a row uses the same discussion selection as `/next` and `/prev`. `C-c C-l` or the footer control toggles the hierarchy without switching discussions or changing a draft.
+
 The chat transcript scrolls independently above a fixed typing area. Context Panels’ native footer identifies the source and selected discussion even when the transcript is scrolled; the transcript does not repeat that title. Selecting a discussion shows its latest content at the bottom with as much earlier content as fits; a short transcript starts at its beginning. The typing
 area has a subtly lighter theme-derived background, a top separator and a
 coloured `You: ` label. Replies and viewport changes do not replace an unsent
