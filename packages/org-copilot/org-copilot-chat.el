@@ -235,8 +235,10 @@ Drafts are presentation state, never conversation history.")
 		    (buffer-live-p org-copilot-chat-source-buffer))))
     (let* ((source (buffer-local-value 'org-copilot-chat-source-buffer (window-buffer window)))
 	   (input (org-copilot-chat-input-buffer source)))
-      (prog1 (context-panels-footer-display-pane window input org-copilot-chat-input-height)
-	(org-copilot-chat--show-hierarchy source window)))))
+      ;; The hierarchy can move the existing input into the transcript column.
+      ;; Resolve the input after arranging the hierarchy, not before.
+      (org-copilot-chat--show-hierarchy source window)
+      (context-panels-footer-display-pane window input org-copilot-chat-input-height))))
 
 (defun org-copilot-chat--window-shown (window)
   "Schedule the input for transcript WINDOW after layout hooks finish."
@@ -713,7 +715,8 @@ label line."
 			       (generate-new-buffer (format "*Discussions: %s*" (buffer-name))))
 			 (with-current-buffer org-copilot-chat--hierarchy-buffer
 			   (special-mode)
-			   (setq-local truncate-lines t))
+			   (setq-local truncate-lines t
+				       mode-line-format nil))
 			 (add-hook 'kill-buffer-hook #'org-copilot-chat--kill-hierarchy t t))
 		       org-copilot-chat--hierarchy-buffer))
 	     (width (context-panels--side-panel-width source))
@@ -723,7 +726,6 @@ label line."
 	  (with-current-buffer buffer
 	    (let ((inhibit-read-only t) selected)
 	      (erase-buffer)
-	      (insert (propertize "Discussions\n" 'face 'bold))
 	      (dolist (row (org-copilot-chat--hierarchy-rows source))
 		(pcase-let ((`(,context ,depth ,label) row))
 		  (let ((current (equal active (org-copilot-chat--context-id context)))
