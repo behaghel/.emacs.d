@@ -235,8 +235,10 @@ Drafts are presentation state, never conversation history.")
 		    (buffer-live-p org-copilot-chat-source-buffer))))
     (let* ((source (buffer-local-value 'org-copilot-chat-source-buffer (window-buffer window)))
 	   (input (org-copilot-chat-input-buffer source)))
-      (prog1 (context-panels-footer-display-pane window input org-copilot-chat-input-height)
-	(org-copilot-chat--show-hierarchy source window)))))
+      ;; The hierarchy can move the existing input into the transcript column.
+      ;; Resolve the input after arranging the hierarchy, not before.
+      (org-copilot-chat--show-hierarchy source window)
+      (context-panels-footer-display-pane window input org-copilot-chat-input-height))))
 
 (defun org-copilot-chat--window-shown (window)
   "Schedule the input for transcript WINDOW after layout hooks finish."
