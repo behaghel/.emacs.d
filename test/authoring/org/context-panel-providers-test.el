@@ -426,15 +426,23 @@
 	       "--eval"
 	       (prin1-to-string
 		`(progn
-		   (defvar org-comments-panel-mode-map (make-sparse-keymap))
+		   (define-derived-mode org-comments-panel-mode special-mode "Comments")
+		   (define-key org-comments-panel-mode-map (kbd "z") (make-sparse-keymap))
+		   (define-key org-comments-panel-mode-map (kbd "z r") #'org-comments-filter-toggle-resolved-current-ui)
+		   (define-key org-comments-panel-mode-map (kbd "x") #'org-comments-dismiss-suggestion-at-point)
+		   (define-key org-comments-panel-mode-map (kbd "r") #'org-comments-reply)
 		   (with-temp-buffer
 		     (insert-file-contents ,module)
 		     (goto-char (point-min))
 		     (condition-case nil
 			 (while t
 			   (let ((form (read (current-buffer))))
-			     (when (and (eq (car-safe form) 'defun)
-					(eq (cadr form) 'hub/context-panels--bind-row-keys))
+			     (when (or (and (eq (car-safe form) 'defun)
+					    (memq (cadr form) '(hub/context-panels--bind-row-keys
+								hub/context-panels--bind-normal-comment-keys
+								hub/org-technical-buffer--evil-normalize-map)))
+				       (and (eq (car-safe form) 'with-eval-after-load)
+					    (equal (cadr form) '(quote evil))))
 			       (eval form t))))
 		       (end-of-file nil)))
 		   (defvar quit-called nil)
@@ -449,13 +457,21 @@
 			 (lambda () (interactive) (setq preview-called t)))
 		   (fset 'org-comments-close-current-ui
 			 (lambda () (interactive) (setq quit-called t)))
+		   (fset 'org-comments-filter-toggle-resolved-current-ui
+			 (lambda () (interactive) (setq filter-toggled t)))
+		   (defvar filter-toggled nil)
 		   (define-key evil-normal-state-map (kbd "r") #'evil-forward-char)
+		   (evil-mode 1)
 		   (with-temp-buffer
-		     (use-local-map org-comments-panel-mode-map)
 		     (switch-to-buffer (current-buffer))
-		     (evil-local-mode 1)
-		     (evil-normal-state)
+		     (org-comments-panel-mode)
+		     (should (eq evil-state 'normal))
+		     (hub/context-panels--bind-normal-comment-keys)
 		     (hub/context-panels--bind-row-keys)
+		     (should (eq (key-binding (kbd "z r")) #'org-comments-filter-toggle-resolved-current-ui))
+		     (execute-kbd-macro (kbd "z r"))
+		     (should filter-toggled)
+		     (should (eq (key-binding (kbd "x")) #'org-comments-dismiss-suggestion-at-point))
 		     (should (eq (key-binding (kbd "?")) #'hub/context-panels-describe-item))
 		     (should (eq (key-binding (kbd "]c")) #'hub/context-panels-next-row))
 		     (should (eq (key-binding (kbd "[c")) #'hub/context-panels-previous-row))
@@ -469,7 +485,7 @@
 		     (should accept-called)
 		     (execute-kbd-macro (kbd "u"))
 		     (should undo-called)
-		     (should (eq (key-binding (kbd "r")) #'evil-forward-char))
+		     (should (eq (key-binding (kbd "r")) #'org-comments-reply))
 		     (execute-kbd-macro (kbd "q"))
 		     (should quit-called)))))))))
       (delete-directory home t))))

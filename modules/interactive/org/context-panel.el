@@ -23,9 +23,9 @@
 
 (defun hub/org-technical-buffer--evil-normalize-map (map bindings)
   "Apply Evil normal-state BINDINGS to technical buffer MAP."
-  (when (fboundp 'evil-define-key)
+  (when (fboundp 'evil-define-key*)
     (dolist (binding bindings)
-      (evil-define-key 'normal map (kbd (car binding)) (cdr binding)))))
+      (evil-define-key* 'normal map (kbd (car binding)) (cdr binding)))))
 
 (with-eval-after-load 'evil
   (dolist (mode '(org-comments-panel-mode
@@ -70,34 +70,25 @@
 		    ("u" . org-comments-undo-suggestion-at-point)
 		    ("q" . org-comments-close-current-ui))))
     (dolist (binding bindings)
-      (define-key org-comments-panel-mode-map (kbd (car binding)) (cdr binding))
-      (when (fboundp 'evil-define-key*)
-	(evil-define-key* 'normal org-comments-panel-mode-map
-			  (kbd (car binding)) (cdr binding))))
+      (define-key org-comments-panel-mode-map (kbd (car binding)) (cdr binding)))
+    (hub/org-technical-buffer--evil-normalize-map org-comments-panel-mode-map bindings)
     (when (and (fboundp 'evil-normalize-keymaps)
 	       (eq (current-local-map) org-comments-panel-mode-map))
       (evil-normalize-keymaps))))
+
+(defun hub/context-panels--bind-normal-comment-keys ()
+  "Make the comments panel's existing commands available in Evil Normal."
+  (hub/org-technical-buffer--evil-normalize-map
+   org-comments-panel-mode-map
+   (mapcar (lambda (key) (cons key (lookup-key org-comments-panel-mode-map (kbd key))))
+	   '("RET" "d" "e" "g" "m" "D" "O" "o" "p" "S" "U" "r" "x" "z"))))
 
 (with-eval-after-load 'org-comments-panel
   (define-key org-comments-panel-mode-map
 	      [remap org-comments-preview-suggestion-at-point] #'org-copilot-visualize-at-point)
   (hub/context-panels--bind-row-keys)
   (with-eval-after-load 'evil
-    (hub/org-technical-buffer--evil-normalize-map
-     org-comments-panel-mode-map
-     '(("RET" . context-panels-jump-at-point)
-       ("d" . org-comments-delete)
-       ("e" . org-comments-edit)
-       ("g" . org-comments-panel-refresh)
-       ("m" . org-comments-panel-status-map)
-       ("D" . org-comments-pull)
-       ("O" . org-comments-open-remote)
-       ("o" . org-comments-open-remote)
-       ("p" . org-comments-page-open-at-point)
-       ("S" . org-comments-sync)
-       ("U" . org-comments-push)
-       ("r" . org-comments-reply)
-       ("z" . org-comments-panel-filter-map)))
+    (hub/context-panels--bind-normal-comment-keys)
     (hub/context-panels--bind-row-keys)))
 
 (defun hub/context-panels-focus-bottom-input ()
