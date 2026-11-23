@@ -713,7 +713,8 @@ label line."
 			       (generate-new-buffer (format "*Discussions: %s*" (buffer-name))))
 			 (with-current-buffer org-copilot-chat--hierarchy-buffer
 			   (special-mode)
-			   (setq-local truncate-lines t))
+			   (setq-local truncate-lines t
+				       mode-line-format nil))
 			 (add-hook 'kill-buffer-hook #'org-copilot-chat--kill-hierarchy t t))
 		       org-copilot-chat--hierarchy-buffer))
 	     (width (context-panels--side-panel-width source))
@@ -723,7 +724,6 @@ label line."
 	  (with-current-buffer buffer
 	    (let ((inhibit-read-only t) selected)
 	      (erase-buffer)
-	      (insert (propertize "Discussions\n" 'face 'bold))
 	      (dolist (row (org-copilot-chat--hierarchy-rows source))
 		(pcase-let ((`(,context ,depth ,label) row))
 		  (let ((current (equal active (org-copilot-chat--context-id context)))

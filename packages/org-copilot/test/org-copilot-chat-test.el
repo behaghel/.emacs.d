@@ -198,7 +198,8 @@
 	  (should (= (window-total-width window) (context-panels--side-panel-width source)))
 	  (with-current-buffer document-input (goto-char (point-max)) (insert "Unsent draft."))
 	  (with-current-buffer index
-	    (should (string-match-p "▸ Document\n    Methods\n      Alpha sentence\\." (buffer-string)))
+	    (should-not mode-line-format)
+	    (should (string-prefix-p "▸ Document\n    Methods\n      Alpha sentence." (buffer-string)))
 	    (should-not (string-match-p "Unused" (buffer-string)))
 	    (button-activate (next-button (button-end (next-button (point-min))))))
 	  (with-current-buffer chat
