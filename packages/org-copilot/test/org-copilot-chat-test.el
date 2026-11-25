@@ -687,8 +687,8 @@
     (should-not (assoc "/accept" (org-copilot-chat--available-slash-commands
 				  (current-buffer))))))
 
-(ert-deftest org-copilot-chat-available-slash-commands-include-undo-for-accepted-rollback ()
-  "Slash command completion exposes undo only for accepted rollback comments."
+(ert-deftest org-copilot-chat-undo-is-not-advertised-for-legacy-comment-data ()
+  "Legacy comment-local fields are not a rollback witness."
   (with-temp-buffer
     (org-mode)
     (org-copilot-add-comment
@@ -698,8 +698,8 @@
 	   :accepted-text "Alpha."
 	   :original-target-text "Alpha sentence."))
     (setq org-copilot-chat-focus-comment-id "ai-1")
-    (should (assoc "/undo" (org-copilot-chat--available-slash-commands
-			    (current-buffer))))))
+    (should-not (assoc "/undo" (org-copilot-chat--available-slash-commands
+				(current-buffer))))))
 
 (ert-deftest org-copilot-chat-resolve-command-resolves-and-advances ()
   "The /resolve command resolves focused comment and focuses the next one."

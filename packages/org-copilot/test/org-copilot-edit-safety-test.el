@@ -17,6 +17,7 @@
 	 (file (expand-file-name "draft.org" directory))
 	 (org-copilot-gptel-defer-chat-postprocessing nil)
 	 (org-copilot-auto-open-panels nil)
+	 (org-copilot-chat-advance-after-action nil)
 	 (org-copilot-gptel-enable-web-tools nil)
 	 (org-suggestions--rollback-data nil)
 	 source callback)
@@ -50,7 +51,7 @@
 	      (pcase timing
 		('after (goto-char (point-min)) (search-forward "Original.")
 			(replace-match "Human edit after preview." t t))
-		('unrelated (goto-char (point-max)) (insert "Unrelated human edit.\n"))
+		((or 'unrelated 'chat-undo) (goto-char (point-max)) (insert "Unrelated human edit.\n"))
 		('narrowed
 		 (goto-char (point-min)) (search-forward "* Other")
 		 (beginning-of-line) (org-narrow-to-subtree)
@@ -66,19 +67,48 @@
 		    (should-not org-suggestions--rollback-data)
 		    (should (string-match-p "CONFLICT" (org-suggestions-candidate-diff
 							source thread candidate))))
-		(let ((accepted (org-suggestions-accept-candidate-id source "safe-1")))
-		  (with-current-buffer source
-		    (org-with-wide-buffer
-		     (should (string-match-p "Proposed" (buffer-string)))
-		     (when (eq timing 'unrelated)
-		       (should (string-match-p "Unrelated human edit" (buffer-string))))))
-		  (org-suggestions-undo-accepted-candidate source accepted)
-		  (should (equal before (with-current-buffer source
-					  (org-with-wide-buffer (buffer-string)))))
-		  (should (equal view (with-current-buffer source
-					(list (point-min) (point-max) (point)
-					      (buffer-string)))))
-		  (should (eq (plist-get accepted :status) 'active)))))))
+		(if (eq timing 'chat-undo)
+		    (with-current-buffer source
+		      (let* ((comment (car (org-copilot-durable-comments)))
+			     (org-copilot-chat-focus-comment-id (plist-get comment :id)))
+			(should comment)
+			(should (org-copilot-chat--dispatch-command "/accept" source))
+			(should (org-copilot-chat--command-available-p "/undo" source))
+			(with-temp-buffer
+			  (setq buffer-file-name file)
+			  (should-not (org-suggestions-comment-undoable-p (current-buffer) comment))
+			  (should-error (org-suggestions-undo-comment-suggestion (current-buffer) comment)
+					:type 'user-error))
+			(goto-char (point-min))
+			(search-forward "Proposed.")
+			(replace-match "Human edit in accepted text." t t)
+			(let ((edited (buffer-string)))
+			  (should-error (org-copilot-chat--dispatch-command "/undo" source) :type 'user-error)
+			  (should (equal edited (buffer-string))))
+			(goto-char (point-min))
+			(search-forward "Human edit in accepted text.")
+			(replace-match "Proposed." t t)
+			(goto-char (point-min))
+			(insert "Human preface added after acceptance.\n")
+			(should (org-copilot-chat--dispatch-command "/undo" source))
+			(should (equal (concat "Human preface added after acceptance.\n" before) (buffer-string)))
+			(should-not (org-copilot-chat--command-available-p "/undo" source))
+			(should (eq (plist-get (car (org-copilot-durable-comments)) :status) 'active))
+			(should (eq (plist-get (cdr (org-suggestions-find-candidate
+						     (org-suggestions-load-sidecar file) "safe-1")) :status) 'active))))
+		  (let ((accepted (org-suggestions-accept-candidate-id source "safe-1")))
+		    (with-current-buffer source
+		      (org-with-wide-buffer
+		       (should (string-match-p "Proposed" (buffer-string)))
+		       (when (eq timing 'unrelated)
+			 (should (string-match-p "Unrelated human edit" (buffer-string))))))
+		    (org-suggestions-undo-accepted-candidate source accepted)
+		    (should (equal before (with-current-buffer source
+					    (org-with-wide-buffer (buffer-string)))))
+		    (should (equal view (with-current-buffer source
+					  (list (point-min) (point-max) (point)
+						(buffer-string)))))
+		    (should (eq (plist-get accepted :status) 'active))))))))
       (dolist (buffer (buffer-list))
 	(when (or (eq buffer source)
 		  (and source (eq (buffer-local-value 'context-panels-source-buffer buffer) source))
@@ -104,6 +134,10 @@
 (ert-deftest org-copilot-safety-narrowed-accept-and-undo ()
   "A captured full-document proposal can be accepted and undone while narrowed."
   (org-copilot-safety--exercise 'narrowed))
+
+(ert-deftest org-copilot-safety-undo-focused-suggestion-from-chat ()
+  "Chat Undo verifies accepted text and persists the reopened proposal."
+  (org-copilot-safety--exercise 'chat-undo))
 
 (provide 'org-copilot-edit-safety-test)
 ;;; org-copilot-edit-safety-test.el ends here

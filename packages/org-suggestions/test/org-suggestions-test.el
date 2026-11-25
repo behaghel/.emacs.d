@@ -314,7 +314,7 @@ Omega.
       (should (eq (plist-get candidate :status) 'accepted))
       (should (eq (plist-get alternative :status) 'superseded))
       (should (equal (mapcar #'car org-suggestions--rollback-data)
-		     '("ai-1" "existing")))
+		     '(("ai-1") "existing")))
       (should (= (length (cdar org-suggestions--rollback-data)) 2)))))
 
 (ert-deftest org-suggestions-accept-rolls-back-edit-hook-error ()

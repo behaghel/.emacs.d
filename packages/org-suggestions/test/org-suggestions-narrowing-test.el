@@ -141,7 +141,7 @@
 	     (candidate (org-suggestions-narrowing-test--candidate "X\n" t)))
 	(org-suggestions-narrowing-test--narrow)
 	(org-suggestions-accept-candidate (current-buffer) nil candidate)
-	;; Inject a failure in the later undo hunk, outside the visible view.
+	;; Inject failures in the hidden hunks, including after one is restored.
 	(org-with-wide-buffer
 	 (goto-char (point-max))
 	 (search-backward "Longer tail.")
@@ -157,7 +157,7 @@
 	      (before-change-functions
 	       (when (eq failure 'hook)
 		 (list (lambda (_start _end)
-			 (when (string-prefix-p "* Intro\nOriginal.\n" (buffer-string))
+			 (when (string-suffix-p "* Tail\nTail.\n" (buffer-string))
 			   (error "Simulated narrowed undo failure")))))))
 	  (pcase failure
 	    ('changed-text

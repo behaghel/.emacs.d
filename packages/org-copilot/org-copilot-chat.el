@@ -1265,13 +1265,6 @@ prompt active.  Source target overlays remain visible as dim context markers."
     ("/undo" "M-u" "C-c C-u"))
   "Documented key coverage for Org Copilot chat slash commands.")
 
-(defun org-copilot-chat--comment-accepted-with-rollback-p (comment)
-  "Return non-nil when COMMENT can be undone."
-  (and (eq (org-copilot-comment-status comment) 'accepted)
-       (plist-get comment :original-target-text)
-       (or (plist-get comment :accepted-text)
-	   (plist-get comment :target-text))))
-
 (defun org-copilot-chat--command-available-p (command source-buffer)
   "Return non-nil when slash COMMAND is available for SOURCE-BUFFER."
   (let ((comment (org-copilot-chat--focused-comment source-buffer)))
@@ -1293,8 +1286,7 @@ prompt active.  Source target overlays remain visible as dim context markers."
 		       (not (memq (org-copilot-comment-status comment)
 				  '(dismissed accepted stale)))))
       ("/undo" (and comment
-		    (org-copilot-chat--comment-accepted-with-rollback-p
-		     comment)))
+		    (org-suggestions-comment-undoable-p source-buffer comment)))
       (_ nil))))
 
 (defun org-copilot-chat--available-slash-commands (source-buffer)

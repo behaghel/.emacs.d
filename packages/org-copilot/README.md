@@ -170,7 +170,7 @@ In the chat prompt, type `/` on an empty prompt for context-aware completion.
 
 - `/accept` — accept focused suggestion.
 - `/dismiss` — dismiss focused comment.
-- `/undo` — reserved for durable suggestion undo flows; legacy comment-local undo is retired.
+- `/undo`, `M-u` or `C-c C-u` — undo the focused accepted suggestion when its rollback is still available in the current source buffer. Undo reopens the linked comment and refuses incompatible changes to the accepted text.
 - `/next`, `/prev` — cycle through established document, section, and comment discussions.
 - `/doctor` — append a local health report.
 - `/clear` — archive current session chat/comments/suggestions.
