@@ -24,7 +24,7 @@
   "Executable suggestions for Org buffers."
   :group 'org)
 
-(defvar org-suggestions--rollback-data nil
+(defvar-local org-suggestions--rollback-data nil
   "Session-local rollback data keyed by suggestion candidate id.")
 
 (defun org-suggestions-sidecar-path (&optional source-file)
@@ -555,36 +555,72 @@ All candidate hunks apply as a single all-or-nothing operation."
 	     (goto-char start)
 	     (delete-region start end)
 	     (insert replacement))))))
-    (push (cons (plist-get candidate :id) operations)
-	  org-suggestions--rollback-data)
+    (with-current-buffer source-buffer
+      (let ((delta 0) rollback)
+	;; Calculate accepted ranges after all lower hunks' length changes.
+	(dolist (operation (reverse operations))
+	  (let* ((start (+ (plist-get operation :start) delta))
+		 (replacement (plist-get operation :replacement))
+		 (end (+ start (length replacement))))
+	    (push (list :start (copy-marker start) :end (copy-marker end t)
+			:original (plist-get operation :original) :replacement replacement)
+		  rollback)
+	    (cl-incf delta (- (length replacement)
+			      (- (plist-get operation :end) (plist-get operation :start))))))
+	(setf (alist-get (org-suggestions--rollback-key candidate)
+			 org-suggestions--rollback-data nil nil #'equal)
+	      rollback)))
     (plist-put candidate :status 'accepted)
     (org-suggestions--supersede-alternatives thread candidate)))
 
-(defun org-suggestions-undo-accepted-candidate (source-buffer candidate)
+(defun org-suggestions--rollback-key (candidate)
+  "Key CANDIDATE's rollback to the current source's visited file."
+  (cons (plist-get candidate :id) buffer-file-name))
+
+(defun org-suggestions--rollback-operations (source-buffer candidate)
+  "Return session-local rollback operations for CANDIDATE in SOURCE-BUFFER."
+  (with-current-buffer source-buffer
+    (alist-get (org-suggestions--rollback-key candidate)
+	       org-suggestions--rollback-data nil nil #'equal)))
+
+(defun org-suggestions-undo-accepted-candidate (source-buffer candidate &optional persist)
   "Undo accepted CANDIDATE in SOURCE-BUFFER using session rollback data.
-Preserve the source restriction and point while reverting all hunks."
-  (let* ((candidate-id (plist-get candidate :id))
-	 (operations (alist-get candidate-id org-suggestions--rollback-data
-				nil nil #'equal)))
+Preserve the source restriction and point while reverting all hunks.
+Call optional PERSIST with the reopened candidate inside the change group."
+  (unless (eq (plist-get candidate :status) 'accepted)
+    (user-error "Suggestion candidate is not accepted"))
+  (let ((operations (org-suggestions--rollback-operations source-buffer candidate)))
     (unless operations
       (user-error "No rollback data for suggestion candidate"))
     (with-current-buffer source-buffer
       (org-suggestions--with-wide-edit
-       (atomic-change-group
-	 ;; Undo in reverse application order so earlier length changes
-	 ;; restore the original coordinates of later hunks.
-	 (dolist (operation (reverse operations))
-	   (let* ((start (plist-get operation :start))
-		  (replacement (plist-get operation :replacement))
-		  (end (+ start (length replacement)))
-		  (original (plist-get operation :original)))
-	     (unless (equal (buffer-substring-no-properties start end)
-			    replacement)
-	       (user-error "Accepted suggestion text has changed"))
-	     (goto-char start)
-	     (delete-region start end)
-	     (insert original)))))))
-  (plist-put candidate :status 'active))
+       (let ((edits
+	      (mapcar (lambda (operation)
+			(let ((start (marker-position (plist-get operation :start)))
+			      (end (marker-position (plist-get operation :end))))
+			  (unless (equal (buffer-substring-no-properties start end)
+					 (plist-get operation :replacement))
+			    (user-error "Accepted suggestion text has changed"))
+			  (list start end (plist-get operation :original))))
+		      operations))
+	     committed)
+	 (unwind-protect
+	     (progn
+	       (atomic-change-group
+		 (pcase-dolist (`(,start ,end ,original) edits)
+		   (goto-char start)
+		   (delete-region start end)
+		   (insert original))
+		 (plist-put candidate :status 'active)
+		 (when persist (funcall persist candidate)))
+	       (setq committed t))
+	   (unless committed
+	     (plist-put candidate :status 'accepted)
+	     (cl-mapc (lambda (operation edit)
+			(set-marker (plist-get operation :start) (car edit))
+			(set-marker (plist-get operation :end) (cadr edit)))
+		      operations edits)))))))
+  candidate)
 
 (defvar-local org-suggestions--reconciliation nil
   "Source, original candidate, revised candidate and editable hunk regions.")
@@ -795,17 +831,38 @@ baseline seen here; it neither accepts nor changes the source document."
       (org-suggestions-write-sidecar source-file threads)
       candidate)))
 
+(defun org-suggestions--accepted-comment-candidate (threads comment)
+  "Return the unique accepted candidate in THREADS linked from COMMENT."
+  (let* ((thread (org-suggestions--find-thread-for-comment threads comment))
+	 (ids (org-suggestions--comment-candidate-ids comment))
+	 (candidates (if thread (plist-get thread :candidates)
+		       (mapcar (lambda (id) (cdr (org-suggestions-find-candidate threads id)))
+			       (delete-dups (copy-sequence ids)))))
+	 (accepted (cl-remove-if-not
+		    (lambda (candidate)
+		      (and (eq (plist-get candidate :status) 'accepted)
+			   (or (null ids) (member (plist-get candidate :id) ids))))
+		    candidates)))
+    (when (= (length accepted) 1) (car accepted))))
+
+(defun org-suggestions-comment-undoable-p (source-buffer comment)
+  "Return non-nil if COMMENT has one accepted candidate with rollback.
+Check the rollback data belonging to SOURCE-BUFFER."
+  (when-let* (((buffer-local-value 'org-suggestions--rollback-data source-buffer))
+	      (file (buffer-file-name source-buffer))
+	      (candidate (org-suggestions--accepted-comment-candidate
+			  (org-suggestions-load-sidecar file) comment)))
+    (and (org-suggestions--rollback-operations source-buffer candidate) t)))
+
 (defun org-suggestions-undo-comment-suggestion (source-buffer comment)
-  "Undo accepted suggestion candidate linked from COMMENT."
+  "Undo the unique accepted suggestion candidate linked from COMMENT."
   (let* ((source-file (org-suggestions--source-file source-buffer))
 	 (threads (org-suggestions-load-sidecar source-file))
-	 (thread (org-suggestions--find-thread-for-comment threads comment)))
-    (unless thread
-      (user-error "No suggestion thread linked to comment"))
-    (let ((candidate (org-suggestions--choose-candidate thread comment)))
-      (org-suggestions-undo-accepted-candidate source-buffer candidate)
-      (org-suggestions-write-sidecar source-file threads)
-      candidate)))
+	 (candidate (org-suggestions--accepted-comment-candidate threads comment)))
+    (unless candidate (user-error "No unique accepted suggestion linked to comment"))
+    (org-suggestions-undo-accepted-candidate
+     source-buffer candidate
+     (lambda (_candidate) (org-suggestions-write-sidecar source-file threads)))))
 
 (defun org-suggestions--matching-session-thread-p (provider session-id)
   "Return non-nil when current thread belongs to PROVIDER and SESSION-ID."

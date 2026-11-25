@@ -130,7 +130,7 @@ Replacement body only.
 - Unrelated edits outside the target body do not invalidate it. Missing/ambiguous targets, changed relevant text and overlapping hunks prevent the whole candidate from applying.
 - `replace` and `insert` require resolvable text anchors.
 - Sidecar writes are atomic temp-file + rename writes.
-- Undo is session-local in the MVP and reverses all candidate hunks together, including length-changing edits. If accepted text has changed incompatibly or an edit fails, undo leaves source text, candidate status, and rollback history unchanged.
+- Undo uses rollback data in the original source buffer for its visited file. Tracked ranges follow edits outside the accepted text. Undo reverses all candidate hunks together, including length-changing edits. If accepted text has changed incompatibly or an edit fails, undo leaves source text, candidate status, and rollback history unchanged.
 - Acceptance and undo access the complete source independently of its current
   narrowing. Neither requires manual widening. They preserve the author's
   restriction and source position where possible, tracking length changes before

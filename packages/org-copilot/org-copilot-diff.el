@@ -168,10 +168,10 @@ Fall back to ITEM when it cannot be resolved by id."
 	(org-copilot-set-durable-comment-status comment "RESOLVED"))
     (user-error "Copilot suggestions must be durable org-suggestions candidates")))
 
-(defun org-copilot-undo-accepted-comment (_comment _source-buffer)
-  "Undo accepted durable suggestions.
-Rollback now belongs to `org-suggestions' session-local undo support."
-  (user-error "Use org-suggestions undo for durable accepted suggestions"))
+(defun org-copilot-undo-accepted-comment (comment source-buffer)
+  "Undo COMMENT's accepted suggestion and reopen COMMENT in SOURCE-BUFFER."
+  (org-suggestions-undo-comment-suggestion source-buffer comment)
+  (org-copilot-set-durable-comment-status comment "OPEN"))
 
 (defun org-copilot-dismiss-comment (comment source-buffer)
   "Dismiss durable COMMENT from SOURCE-BUFFER's current Org Copilot session."
